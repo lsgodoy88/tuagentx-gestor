@@ -48,6 +48,28 @@ export async function GET() {
     },
   })
 
+  // Enriquecer con ordenDespachoId para clientes con notas "Bodega/XXXX"
+  if (ruta) {
+    const numeroOrdenes = ruta.clientes
+      .filter(rc => rc.notas?.startsWith('Bodega/'))
+      .map(rc => rc.notas!.split('/')[1])
+      .filter(Boolean)
+
+    if (numeroOrdenes.length > 0) {
+      const ordenes = await prisma.ordenDespacho.findMany({
+        where: { empresaId: user.empresaId, numeroOrden: { in: numeroOrdenes } },
+        select: { id: true, numeroOrden: true }
+      })
+      const mapOrden = new Map(ordenes.map(o => [o.numeroOrden, o.id]))
+      for (const rc of ruta.clientes) {
+        if (rc.notas?.startsWith('Bodega/')) {
+          const num = rc.notas.split('/')[1]
+          ;(rc as any).ordenDespachoId = mapOrden.get(num) || null
+        }
+      }
+    }
+  }
+
   if (ruta && user.role === 'entregas') {
     const sinCoords = ruta.clientes.filter(rc =>
       !rc.cliente.lat && !rc.cliente.lng && !rc.cliente.latTmp && !rc.cliente.lngTmp

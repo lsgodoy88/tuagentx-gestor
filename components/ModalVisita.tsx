@@ -29,24 +29,20 @@ interface Props {
   onClose: () => void
   onRegistrado?: () => void
   instance?: string
-  // Si se pasa clienteInicial no se muestra el buscador
   clienteInicial?: Cliente
-  // Forzar tipo (ej: entregas siempre usa 'entrega')
   tipoForzado?: string
-  // Si el usuario puede capturar GPS
   puedeCapturarGps?: boolean
-  // Título del modal
   titulo?: string
   distanciaLejos?: boolean
-  // Extra data para la visita (rutaFijaClienteId, esLibre, etc.)
   extraData?: Record<string, any>
+  facturaPreset?: string
 }
 
 export default function ModalVisita({
   open, onClose, onRegistrado,
   clienteInicial, tipoForzado,
   puedeCapturarGps = false,
-  titulo, extraData = {}, distanciaLejos
+  titulo, extraData = {}, distanciaLejos, facturaPreset
 }: Props) {
   const [cliente, setCliente] = useState<Cliente | null>(clienteInicial || null)
   console.log('clienteInicial en modal:', clienteInicial)
@@ -72,13 +68,13 @@ export default function ModalVisita({
 
   useEffect(() => {
     if (open) {
-      // Solo resetear cliente si no viene clienteInicial — evita parpadeo al buscador
       if (!clienteInicial) {
         setCliente(null)
         loadClientes('', 1)
       }
       setTipo(tipoForzado || 'visita')
-      setMonto(''); setNota(''); setFactura('')
+      setMonto(''); setNota('')
+      setFactura(facturaPreset || '')
       setFirma(null); setError(null)
       setBuscar(''); setPageCli(1)
     }
@@ -289,9 +285,16 @@ export default function ModalVisita({
             {isEntregas && (
               <div>
                 <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Número de factura</label>
-                <input value={factura} onChange={e => setFactura(e.target.value)}
-                  placeholder="Ej: FAC-001234"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
+                {facturaPreset ? (
+                  <div className="bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                    <span className="text-lg">📦</span>
+                    <span className="text-white text-sm font-semibold">Factura: #{facturaPreset}</span>
+                  </div>
+                ) : (
+                  <input value={factura} onChange={e => setFactura(e.target.value)}
+                    placeholder="Ej: FAC-001234"
+                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
+                )}
               </div>
             )}
 

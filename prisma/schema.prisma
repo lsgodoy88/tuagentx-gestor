@@ -170,10 +170,12 @@ model Visita {
   factura           String?
   firma             String?
   rutaFijaClienteId String?
+  ordenDespachoId   String?
   createdAt         DateTime  @default(now())
   cliente           Cliente   @relation(fields: [clienteId], references: [id])
   empleado          Empleado  @relation(fields: [empleadoId], references: [id])
   turno             Turno?    @relation(fields: [turnoId], references: [id])
+  ordenDespacho     OrdenDespacho? @relation(fields: [ordenDespachoId], references: [id])
 
   @@index([empleadoId], map: "idx_visita_empleado")
   @@index([empleadoId, clienteId], map: "idx_visita_empleado_cliente")
@@ -2735,6 +2737,7 @@ model OrdenDespacho {
   empresa           Empresa   @relation(fields: [empresaId], references: [id])
   alistadoPor       Empleado? @relation("AlistadoPor", fields: [alistadoPorId], references: [id])
   repartidor        Empleado? @relation("RepartidorDespacho", fields: [repartidorId], references: [id])
+  visitas           Visita[]
   @@index([empresaId, estado])
   @@index([empresaId, origen])
   @@map("OrdenDespacho")

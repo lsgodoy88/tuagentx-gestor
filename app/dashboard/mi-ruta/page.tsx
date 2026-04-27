@@ -60,7 +60,12 @@ export default function MiRutaPage() {
       fetch('/api/me').then(r => r.json()),
     ])
     setRuta(rutaRes)
-    const clientes = rutaRes?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null })) || []
+    const clientes = rutaRes?.clientes?.map((rc: any) => ({
+      ...rc.cliente,
+      supervisorEtiqueta: rc.supervisorEtiqueta || null,
+      notas: rc.notas || null,
+      ordenDespachoId: rc.ordenDespachoId || null,
+    })) || []
     setClientesOrdenados(clientes)
     const visitas = Array.isArray(visitasRes) ? visitasRes : []
     setVisitasHoy(visitas)
@@ -643,16 +648,27 @@ export default function MiRutaPage() {
       </div>
 
       {/* Modal visita (compartido mobile + desktop) */}
-      <ModalVisita
-        key={(clienteModal?.id || 'sin-cliente') + (tipoModal || '')}
-        open={!!clienteModal}
-        onClose={() => { setClienteModal(null); setTipoModal(undefined) }}
-        onRegistrado={loadData}
-        clienteInicial={clienteModal}
-        tipoForzado={tipoModal}
-        puedeCapturarGps={puedeCapturarGps}
-        titulo={tipoModal ? TIPOS.find(t => t.id === tipoModal)?.label : 'Registrar visita'}
-      />
+      {(() => {
+        const esDespacho = clienteModal?.notas?.startsWith('Bodega/')
+        const numFactura = esDespacho ? clienteModal.notas.split('/')[1] : undefined
+        const extraData: Record<string, any> = {}
+        if (clienteModal?.ordenDespachoId) extraData.ordenDespachoId = clienteModal.ordenDespachoId
+        if (numFactura) extraData.facturaPreset = numFactura
+        return (
+          <ModalVisita
+            key={(clienteModal?.id || 'sin-cliente') + (tipoModal || '')}
+            open={!!clienteModal}
+            onClose={() => { setClienteModal(null); setTipoModal(undefined) }}
+            onRegistrado={loadData}
+            clienteInicial={clienteModal}
+            tipoForzado={tipoModal ?? (esDespacho ? 'entrega' : undefined)}
+            puedeCapturarGps={puedeCapturarGps}
+            titulo={esDespacho ? `📦 Entrega — Factura #${numFactura}` : (tipoModal ? TIPOS.find(t => t.id === tipoModal)?.label : 'Registrar visita')}
+            extraData={extraData}
+            facturaPreset={numFactura}
+          />
+        )
+      })()}
     </>
   )
 }

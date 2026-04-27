@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
 
-  const { clienteId, lat, lng, nota, tipo, monto, esLibre, rutaFijaClienteId, factura, firma, capturarGps } = await req.json()
+  const { clienteId, lat, lng, nota, tipo, monto, esLibre, rutaFijaClienteId, factura, firma, capturarGps, ordenDespachoId } = await req.json()
   if (!clienteId) return NextResponse.json({ error: 'Cliente requerido' }, { status: 400 })
 
   // Obtener turno activo
@@ -65,9 +65,18 @@ export async function POST(req: NextRequest) {
       rutaFijaClienteId: rutaFijaClienteId || null,
       factura: factura || null,
       firma: firmaUrl,
+      ordenDespachoId: ordenDespachoId || null,
     },
     include: { cliente: true }
   })
+
+  // Vincular despacho como entregado
+  if (ordenDespachoId) {
+    await prisma.ordenDespacho.update({
+      where: { id: ordenDespachoId },
+      data: { estado: 'entregado', entregadoEl: new Date() }
+    })
+  }
 
   // Verificar distancia GPS vs cliente (alerta si > 500 metros)
   let alertaDistancia = null
