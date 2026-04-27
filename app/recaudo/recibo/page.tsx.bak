@@ -1,0 +1,386 @@
+'use client'
+import { useEffect, useState, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
+import { useSession } from 'next-auth/react'
+
+const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
+const metodoLabel: Record<string, string> = {
+  efectivo: 'Efectivo', transferencia: 'Transferencia', cheque: 'Cheque', datafono: 'Datáfono',
+  nequi: 'Nequi', tarjeta: 'Tarjeta',
+}
+type Formato = 'media-carta' | '80mm' | '58mm'
+
+function dot(label: string, value: string, width = 32): string {
+  const dots = Math.max(1, width - label.length - value.length)
+  return label + '.'.repeat(dots) + value
+}
+
+function printWithSize(formato: Formato) {
+  const size = formato === 'media-carta' ? 'A5 landscape' : formato === '80mm' ? '80mm auto' : '58mm auto'
+  const margin = formato === 'media-carta' ? '10mm' : formato === '80mm' ? '3mm' : '2mm'
+  const el = document.createElement('style')
+  el.id = '__ps'
+  el.textContent = `@media print { @page { size: ${size}; margin: ${margin}; } }`
+  document.head.appendChild(el)
+  window.print()
+  setTimeout(() => document.getElementById('__ps')?.remove(), 500)
+}
+
+function ReciboContent() {
+  const { status } = useSession()
+  const params = useSearchParams()
+  const pagoId = params.get('id')
+  const [pago, setPago] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [formato, setFormato] = useState<Formato>('58mm')
+  const [selectorOpen, setSelectorOpen] = useState(false)
+
+  useEffect(() => {
+    if (status !== 'authenticated' || !pagoId) return
+    fetch(`/api/cartera/recibo/${pagoId}`)
+      .then(r => r.json())
+      .then(d => {
+        if (d.error) { setError(d.error); setLoading(false); return }
+        setPago(d.pago)
+        setLoading(false)
+        const empCfg: any = d.pago?.empleado?.configRecibos ?? {}
+        const empEmpresaCfg: any = d.pago?.cartera?.empresa?.configRecibos ?? {}
+        const usarEmpresa = empCfg.usarConfigEmpresa !== false
+        const anchoPapel = (!usarEmpresa && empCfg.anchoPapel) ? empCfg.anchoPapel : (empEmpresaCfg.anchoPapel ?? '58mm')
+        if (anchoPapel === 'media-carta') setFormato('media-carta')
+        else if (anchoPapel === '80mm') setFormato('80mm')
+        else setFormato('58mm')
+      })
+  }, [status, pagoId])
+
+  if (status === 'loading' || loading) return (
+    <div style={{ height: '100vh', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <p style={{ color: '#9ca3af', fontSize: 14 }}>Cargando recibo...</p>
+    </div>
+  )
+  if (error) return (
+    <div style={{ height: '100vh', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <p style={{ color: '#ef4444' }}>{error}</p>
+    </div>
+  )
+  if (!pago) return null
+
+  const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
+
+  const empresa = pago.cartera?.empresa
+  const empCfgData: any = empresa?.configRecibos ?? {}
+  const cliente = pago.cartera?.cliente
+  const detalles: any[] = pago.cartera?.detalles || []
+  const facturasActivas = detalles.filter((d: any) => d.estado !== 'pagada')
+  const fecha = new Date(pago.createdAt)
+  const reciboNum = pago.numeroRecibo || ('#' + pago.id.slice(-8).toUpperCase())
+  const saldoAnterior = Number(pago.cartera?.saldoPendiente ?? 0) + Number(pago.monto) + Number(pago.descuento)
+  const saldoNuevo = Number(pago.cartera?.saldoPendiente ?? 0)
+  const factRef = facturasActivas[0] || detalles[0]
+
+  return (
+    <>
+      <style>{`
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #f4f4f4; overflow-y: auto; }
+
+        /* ---- Media carta ---- */
+        .wrap-mc { display: flex; justify-content: center; align-items: flex-start; padding: 24px; }
+        .recibo-mc { background: white; width: 148mm; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 32px rgba(0,0,0,.12); font-family: 'Segoe UI', Arial, sans-serif; }
+        .hdr-mc { background: linear-gradient(135deg, #065f46, #047857); color: white; padding: 20px 24px 16px; }
+        .hdr-mc .empresa { font-size: 22px; font-weight: 800; letter-spacing: -.5px; margin-bottom: 4px; }
+        .hdr-mc .sub { font-size: 11px; opacity: .8; margin-top: 2px; }
+        .titulo-mc { background: #f0fdf4; border-bottom: 2px solid #d1fae5; padding: 10px 24px; display: flex; align-items: center; justify-content: space-between; }
+        .titulo-mc h2 { font-size: 13px; font-weight: 700; color: #065f46; letter-spacing: 1px; text-transform: uppercase; }
+        .titulo-mc .num { font-size: 13px; font-weight: 700; color: #047857; font-family: monospace; }
+        .body-mc { padding: 16px 24px; }
+        .row2-mc { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+        .card-mc { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px 14px; margin-bottom: 12px; }
+        .card-mc .lbl { font-size: 10px; color: #6b7280; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+        .card-mc .val { font-size: 13px; color: #111827; font-weight: 600; }
+        .card-mc .sub { font-size: 11px; color: #6b7280; margin-top: 2px; }
+        .divider-mc { border: none; border-top: 1px dashed #e5e7eb; margin: 12px 0; }
+        .montos-mc { background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden; }
+        .mrow { display: flex; justify-content: space-between; padding: 8px 14px; border-bottom: 1px solid #f3f4f6; font-size: 12px; }
+        .mrow:last-child { border-bottom: none; }
+        .mrow.total { background: #f0fdf4; font-weight: 700; font-size: 13px; }
+        .mrow.snuevo { background: #ecfdf5; }
+        .lbl-m { color: #6b7280; }
+        .vgreen { color: #059669; font-weight: 700; }
+        .vred { color: #dc2626; font-weight: 700; }
+        .footer-mc { background: #f9fafb; border-top: 1px solid #e5e7eb; padding: 10px 24px; display: flex; justify-content: space-between; }
+        .footer-mc span { font-size: 10px; color: #9ca3af; }
+        .footer-mc strong { font-size: 10px; color: #6b7280; }
+
+        /* ---- 80mm ---- */
+        .wrap-80 { display: flex; justify-content: center; padding: 24px; }
+        .recibo-80 { width: 80mm; font-family: monospace; font-size: 10px; color: #111; background: white; padding: 8px 6px; }
+        .recibo-80 .empresa { font-size: 12px; font-weight: bold; text-align: center; }
+        .recibo-80 .subtxt { text-align: center; font-size: 10px; margin: 1px 0; }
+        .recibo-80 .sep-dash { text-align: center; font-size: 10px; color: #999; margin: 3px 0; overflow: hidden; }
+        .recibo-80 .titulo { text-align: center; font-weight: bold; font-size: 11px; letter-spacing: 1px; }
+        .recibo-80 .num { text-align: center; font-size: 10px; margin-bottom: 3px; }
+        .recibo-80 .dotrow { white-space: pre; font-size: 10px; line-height: 1.7; }
+        .recibo-80 .total-row { font-weight: bold; font-size: 11px; }
+        .recibo-80 .saldo-row { font-weight: bold; }
+        .recibo-80 .nota { font-size: 9px; color: #555; margin-top: 3px; }
+        .recibo-80 .footer { text-align: center; font-size: 9px; color: #888; margin-top: 6px; }
+
+        /* ---- 58mm ---- */
+        .wrap-58 { display: flex; justify-content: center; padding: 16px; }
+        .recibo-58 { width: 58mm; font-family: monospace; font-size: 9px; color: #111; background: white; padding: 5px 4px; }
+        .recibo-58 .empresa { font-size: 10px; font-weight: bold; text-align: center; }
+        .recibo-58 .subtxt { text-align: center; font-size: 8.5px; }
+        .recibo-58 .sep { border: none; border-top: 1px solid #ccc; margin: 3px 0; }
+        .recibo-58 .titulo { text-align: center; font-weight: bold; font-size: 9px; letter-spacing: 1px; }
+        .recibo-58 .num { text-align: center; font-size: 8.5px; }
+        .recibo-58 .field { display: flex; justify-content: space-between; font-size: 9px; line-height: 1.6; }
+        .recibo-58 .field .key { color: #555; }
+        .recibo-58 .field .val { font-weight: bold; }
+        .recibo-58 .field.total .val { font-size: 10px; }
+        .recibo-58 .field.saldo .val { font-size: 10px; }
+        .recibo-58 .footer { text-align: center; font-size: 8px; color: #999; margin-top: 4px; }
+
+        /* ---- selector / botones ---- */
+        .sel-trigger { padding: 8px 14px; border: 1px solid #e5e7eb; border-radius: 8px; cursor: pointer; font-size: 12px; font-weight: 600; background: white; color: #374151; display: flex; align-items: center; gap: 6px; transition: background .15s; }
+        .sel-trigger:hover { background: #f3f4f6; }
+        .fmt-panel { position: absolute; bottom: calc(100% + 6px); right: 0; background: white; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 -4px 20px rgba(0,0,0,.13); min-width: 150px; overflow: hidden; z-index: 100; }
+        .fmt-opt { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; cursor: pointer; font-size: 13px; font-weight: 500; color: #374151; border-bottom: 1px solid #f3f4f6; }
+        .fmt-opt:last-child { border-bottom: none; }
+        .fmt-opt:hover { background: #f9fafb; }
+        .fmt-opt.selected { background: #f0fdf4; color: #065f46; font-weight: 600; }
+
+        @media print {
+          body { background: white; }
+          .bar-bottom { display: none !important; }
+          .wrap-mc { padding: 0; display: block; }
+          .recibo-mc { box-shadow: none; border-radius: 0; width: 100%; }
+          .wrap-80 { padding: 0; }
+          .recibo-80 { width: 100%; }
+          .wrap-58 { padding: 0; }
+          .recibo-58 { width: 100%; }
+        }
+      `}</style>
+
+      {/* Contenido con padding inferior para no quedar bajo la barra fija */}
+      <div style={{ background: '#f4f4f4', paddingBottom: 80 }}>
+
+          {/* ====== MEDIA CARTA ====== */}
+          {formato === 'media-carta' && (
+            <div className="wrap-mc">
+              <div className="recibo-mc">
+                <div className="hdr-mc">
+                  <div className="empresa">{empresa?.nombre || 'Empresa'}</div>
+                  {(empCfgData.nit || empresa?.nit) && <div className="sub">NIT: {empCfgData.nit || empresa?.nit}</div>}
+                  {empCfgData.direccion && <div className="sub">📍 {empCfgData.direccion}</div>}
+                  {empresa?.telefono && <div className="sub">📞 {empresa.telefono}</div>}
+                  <div className="sub">Representante: {pago.empleado?.nombre || '-'}</div>
+                </div>
+                <div className="titulo-mc">
+                  <h2>RECIBO DE PAGO</h2>
+                  <span className="num">{reciboNum}</span>
+                </div>
+                <div className="body-mc">
+                  <div className="row2-mc">
+                    <div className="card-mc" style={{ margin: 0 }}>
+                      <div className="lbl">Fecha y hora</div>
+                      <div className="val">{fecha.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' })}</div>
+                      <div className="sub">{fecha.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</div>
+                    </div>
+                    <div className="card-mc" style={{ margin: 0 }}>
+                      <div className="lbl">Método de pago</div>
+                      <div className="val">{metodoLabel[pago.metodoPago] || pago.metodoPago}</div>
+                      <div className="sub">{pago.tipo === 'total' ? 'Pago total' : 'Abono parcial'}</div>
+                    </div>
+                  </div>
+                  <div className="card-mc">
+                    <div className="lbl">Cliente</div>
+                    <div className="val">{cliente?.nombre}</div>
+                    <div style={{ display: 'flex', gap: 16, marginTop: 2 }}>
+                      {cliente?.nit && <span className="sub">NIT: {cliente.nit}</span>}
+                      {cliente?.telefono && <span className="sub">📱 {cliente.telefono}</span>}
+                    </div>
+                  </div>
+                  {factRef && (
+                    <div className="card-mc">
+                      <div className="lbl">Factura</div>
+                      <div style={{ display: 'flex', gap: 16 }}>
+                        {factRef.numeroFactura && <div className="val">#{factRef.numeroFactura}</div>}
+                        {factRef.concepto && <div className="sub" style={{ marginTop: 2 }}>{factRef.concepto}</div>}
+                      </div>
+                    </div>
+                  )}
+                  <hr className="divider-mc" />
+                  <div className="montos-mc">
+                    {factRef && (
+                      <div className="mrow">
+                        <span className="lbl-m">Valor factura</span>
+                        <span>{fmt(Number(factRef?.valorFactura ?? factRef?.valor ?? 0))}</span>
+                      </div>
+                    )}
+                    {factRef && Number(factRef?.abonos) > 0 && (
+                      <div className="mrow">
+                        <span className="lbl-m">Abonos anteriores</span>
+                        <span className="vgreen">- {fmt(Number(factRef.abonos))}</span>
+                      </div>
+                    )}
+                    <div className="mrow">
+                      <span className="lbl-m">Saldo anterior</span>
+                      <span>{fmt(saldoAnterior)}</span>
+                    </div>
+                    <div className="mrow total">
+                      <span>Pago recibido</span>
+                      <span className="vgreen">{fmt(Number(pago.monto))}</span>
+                    </div>
+                    {Number(pago.descuento) > 0 && (
+                      <div className="mrow">
+                        <span className="lbl-m">Descuento</span>
+                        <span className="vgreen">- {fmt(Number(pago.descuento))}</span>
+                      </div>
+                    )}
+                    <div className="mrow snuevo">
+                      <span style={{ fontWeight: 700 }}>Nuevo saldo</span>
+                      <span className={saldoNuevo === 0 ? 'vgreen' : 'vred'}>{fmt(saldoNuevo)}</span>
+                    </div>
+                  </div>
+                  {pago.notas && (
+                    <div style={{ marginTop: 10, fontSize: 11, color: '#6b7280' }}>
+                      <span style={{ fontWeight: 600 }}>Notas: </span>{pago.notas}
+                    </div>
+                  )}
+                </div>
+                <div className="footer-mc">
+                  <span>Conserve este recibo como comprobante de pago</span>
+                  <strong>TuAgentX Gestor</strong>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ====== 80mm ====== */}
+          {formato === '80mm' && (
+            <div className="wrap-80">
+              <div className="recibo-80">
+                <div className="empresa">{empresa?.nombre || 'Empresa'}</div>
+                {(empCfgData.nit || empresa?.nit) && <div className="subtxt">NIT: {empCfgData.nit || empresa?.nit}</div>}
+                {empCfgData.direccion && <div className="subtxt">{empCfgData.direccion}</div>}
+                {empresa?.telefono && <div className="subtxt">Tel: {empresa.telefono}</div>}
+                <div className="subtxt">Representante: {pago.empleado?.nombre || '-'}</div>
+                <div className="sep-dash">{'─'.repeat(40)}</div>
+                <div className="titulo">RECIBO DE PAGO</div>
+                <div className="num">{reciboNum}</div>
+                <div className="sep-dash">{'─'.repeat(40)}</div>
+                <div className="dotrow">{dot('Cliente', cliente?.nombre || '-', 38)}</div>
+                {cliente?.nit && <div className="dotrow">{dot('NIT', cliente.nit, 38)}</div>}
+                {factRef?.numeroFactura && <div className="dotrow">{dot('Factura', '#' + factRef.numeroFactura, 38)}</div>}
+                <div className="dotrow">{dot('Fecha', fecha.toLocaleDateString('es-CO', { day:'2-digit', month:'2-digit', year:'2-digit' }), 38)}</div>
+                <div className="dotrow">{dot('Hora', fecha.toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit' }), 38)}</div>
+                <div className="dotrow">{dot('Método', metodoLabel[pago.metodoPago] || pago.metodoPago, 38)}</div>
+                <div className="sep-dash">{'─'.repeat(40)}</div>
+                {factRef && <div className="dotrow">{dot('Valor factura', fmt(Number(factRef.valorFactura ?? factRef.valor ?? 0)), 38)}</div>}
+                {factRef && Number(factRef.abonos) > 0 && <div className="dotrow">{dot('Abonos ant.', fmt(Number(factRef.abonos)), 38)}</div>}
+                <div className="dotrow">{dot('Saldo anterior', fmt(saldoAnterior), 38)}</div>
+                <div className="sep-dash">{'─'.repeat(40)}</div>
+                <div className="dotrow total-row">{dot('PAGO RECIBIDO', fmt(Number(pago.monto)), 38)}</div>
+                {Number(pago.descuento) > 0 && <div className="dotrow">{dot('Descuento', fmt(Number(pago.descuento)), 38)}</div>}
+                <div className="sep-dash">{'─'.repeat(40)}</div>
+                <div className="dotrow saldo-row">{dot('NUEVO SALDO', fmt(saldoNuevo), 38)}</div>
+                {pago.notas && <div className="nota">Notas: {pago.notas}</div>}
+                <div className="sep-dash" style={{ marginTop: 6 }}>{'─'.repeat(40)}</div>
+                <div className="footer">Conserve este recibo como comprobante</div>
+                <div className="footer">TuAgentX Gestor</div>
+              </div>
+            </div>
+          )}
+
+          {/* ====== 58mm ====== */}
+          {formato === '58mm' && (
+            <div className="wrap-58">
+              <div className="recibo-58">
+                <div className="empresa">{empresa?.nombre || 'Empresa'}</div>
+                {(empCfgData.nit || empresa?.nit) && <div className="subtxt">NIT: {empCfgData.nit || empresa?.nit}</div>}
+                {empresa?.telefono && <div className="subtxt">Tel: {empresa.telefono}</div>}
+                <hr className="sep" />
+                <div className="titulo">RECIBO PAGO</div>
+                <div className="num">{reciboNum}</div>
+                <hr className="sep" />
+                <div className="field"><span className="key">Cliente:</span><span className="val">{(cliente?.nombre || '-').slice(0, 18)}</span></div>
+                {cliente?.nit && <div className="field"><span className="key">NIT:</span><span className="val">{cliente.nit}</span></div>}
+                {factRef?.numeroFactura && <div className="field"><span className="key">Fact:</span><span className="val">#{factRef.numeroFactura}</span></div>}
+                <div className="field">
+                  <span className="key">Fecha:</span>
+                  <span className="val">{`${String(fecha.getDate()).padStart(2,'0')}/${String(fecha.getMonth()+1).padStart(2,'0')}/${String(fecha.getFullYear()).slice(-2)}`}</span>
+                </div>
+                <div className="field"><span className="key">Método:</span><span className="val">{(metodoLabel[pago.metodoPago] || pago.metodoPago).slice(0, 10)}</span></div>
+                <hr className="sep" />
+                {factRef && <div className="field"><span className="key">Valor:</span><span className="val">{fmt(Number(factRef.valorFactura ?? factRef.valor ?? 0))}</span></div>}
+                {factRef && Number(factRef.abonos) > 0 && <div className="field"><span className="key">Abonos:</span><span className="val">{fmt(Number(factRef.abonos))}</span></div>}
+                <div className="field"><span className="key">S.ant:</span><span className="val">{fmt(saldoAnterior)}</span></div>
+                <div className="field total"><span className="key">Pago:</span><span className="val">{fmt(Number(pago.monto))}</span></div>
+                {Number(pago.descuento) > 0 && <div className="field"><span className="key">Desc:</span><span className="val">{fmt(Number(pago.descuento))}</span></div>}
+                <hr className="sep" />
+                <div className="field saldo"><span className="key">SALDO:</span><span className="val">{fmt(saldoNuevo)}</span></div>
+                {pago.notas && <div style={{ fontSize: 8, color: '#555', marginTop: 3 }}>Nota: {pago.notas}</div>}
+                <div className="footer" style={{ marginTop: 5 }}>TuAgentX Gestor</div>
+              </div>
+            </div>
+          )}
+
+      </div>{/* /contenido */}
+
+      {/* Barra inferior fija — oculta al imprimir */}
+      <div className="bar-bottom" style={{ position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 50, background: 'white', borderTop: '1px solid #e5e7eb', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          {/* Botones izquierda */}
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button
+              onClick={() => printWithSize(formato)}
+              style={{ padding: '9px 16px', background: '#059669', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
+              🖨️ Imprimir
+            </button>
+            {isIOS && (
+              <button
+                onClick={async () => {
+                  if (navigator.share) {
+                    try { await navigator.share({ title: `Recibo ${reciboNum}`, url: window.location.href }) } catch {}
+                  } else {
+                    window.print()
+                  }
+                }}
+                style={{ padding: '9px 16px', background: '#3b82f6', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: 13 }}>
+                📲 Compartir
+              </button>
+            )}
+          </div>
+          {/* Selector derecha */}
+          <div style={{ position: 'relative' }}>
+            {selectorOpen && (
+              <>
+                <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setSelectorOpen(false)} />
+                <div className="fmt-panel">
+                  {(['media-carta', '80mm', '58mm'] as Formato[]).map(f => (
+                    <div key={f} className={`fmt-opt${formato === f ? ' selected' : ''}`} onClick={() => { setFormato(f); setSelectorOpen(false) }}>
+                      <span>{f === 'media-carta' ? '📄 Media carta' : f === '80mm' ? '🖨️ 80mm' : '🖨️ 58mm'}</span>
+                      {formato === f && <span>✓</span>}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+            <button className="sel-trigger" onClick={() => setSelectorOpen(o => !o)}>
+              <span>{formato === 'media-carta' ? '📄 Media carta' : formato === '80mm' ? '🖨️ 80mm' : '🖨️ 58mm'}</span>
+              <span>{selectorOpen ? '▼' : '▲'}</span>
+            </button>
+          </div>
+      </div>
+    </>
+  )
+}
+
+export default function ReciboPage() {
+  return (
+    <Suspense fallback={<div style={{ height: '100vh', fontFamily: 'sans-serif', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'white' }}>Cargando...</div>}>
+      <ReciboContent />
+    </Suspense>
+  )
+}

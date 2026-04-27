@@ -1,0 +1,3 @@
+ALTER TABLE "Empleado" ADD COLUMN IF NOT EXISTS "etiqueta" TEXT;
+ALTER TABLE "RutaCliente" ADD COLUMN IF NOT EXISTS "supervisorId" TEXT;
+ALTER TABLE "RutaCliente" ADD COLUMN IF NOT EXISTS "supervisorEtiqueta" TEXT;

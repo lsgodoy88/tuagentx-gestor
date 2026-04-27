@@ -1,0 +1,191 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { decrypt } from '@/lib/crypto-uptres'
+
+const UPTRES_URL = 'https://www.uptres.top'
+
+async function loginUpTres(email: string, password: string): Promise<string> {
+  const res = await fetch(`${UPTRES_URL}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password, version: '1.6.7.2', rememberMe: false }),
+  })
+  const data = await res.json()
+  if (!data.token) throw new Error('Login fallido')
+  return data.token
+}
+
+async function fetchPaginas(token: string, url: string, key: string): Promise<any[]> {
+  const todos: any[] = []
+  let pagina = 0
+  while (true) {
+    const res = await fetch(`${url}&page=${pagina}`, { headers: { 'x-token': token } })
+    const d = await res.json()
+    if (!d.ok) break
+    const items = d[key] || d.dataDBArray || []
+    if (!items.length) break
+    todos.push(...items)
+    const lastPage = d.pagination?.lastPage ?? 0
+    if (pagina >= lastPage) break
+    pagina++
+  }
+  return todos
+}
+
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+  const user = session.user as any
+  if (user.role !== 'empresa') return NextResponse.json({ error: 'Solo empresa' }, { status: 403 })
+  const empresaId = user.id
+  const { tipo } = await req.json()
+
+  const integracion = await (prisma as any).integracion.findFirst({
+    where: { empresaId, tipo: 'uptres', activa: true }
+  })
+  if (!integracion) return NextResponse.json({ error: 'Sin integración activa' }, { status: 400 })
+
+  const config = integracion.config as any
+  const secret = process.env.UPTRES_SECRET!
+  const password = decrypt(config.password, secret)
+  const token = await loginUpTres(config.email, password)
+
+  const logs: string[] = []
+  let clientesActualizados = 0
+  let deudasInsertadas = 0
+  let comprasInsertadas = 0
+
+  try {
+    if (tipo === 'inicial') {
+      // ── 1. Clientes — actualizar apiId por nit=doc ──
+      logs.push('Sincronizando clientes...')
+      const clientes = await fetchPaginas(token, `${UPTRES_URL}/clientes?desde=0&size=50&sort=name&order=asc&search=`, 'clientes')
+      for (const c of clientes) {
+        const doc = c.doc?.trim()
+        const uid = c._id?.trim() || c.uid?.trim()
+        if (!doc || !uid) continue
+        const updated = await (prisma as any).cliente.updateMany({
+          where: { nit: doc, empresaId, apiId: null }
+        , data: { apiId: uid } })
+        if (updated.count > 0) clientesActualizados++
+      }
+      logs.push(`Clientes actualizados: ${clientesActualizados}`)
+
+      // ── 2. Deudas — todas con vSaldo > 0 sin corte de fecha ──
+      logs.push('Sincronizando deudas...')
+      let pagina = 0
+      while (true) {
+        const res = await fetch(`${UPTRES_URL}/ordenventa?desde=0&page=${pagina}&size=50&sort=numeroOrden&order=desc&search=&tipobusqueda=todos`, { headers: { 'x-token': token } })
+        const d = await res.json()
+        if (!d.ok) break
+        const ordenes = d.dataDBArray || []
+        if (!ordenes.length) break
+        for (const o of ordenes) {
+          const saldo = parseFloat(o.vSaldo || 0)
+          if (saldo <= 0) continue
+          const clienteUid = o.cliente?.uid
+          if (!clienteUid) continue
+          const externalId = o.uid || o._id
+          await (prisma as any).syncDeuda.upsert({
+            where: { integracionId_externalId: { integracionId: integracion.id, externalId } },
+            create: {
+              id: `sd-${externalId}`,
+              integracionId: integracion.id,
+              externalId,
+              clienteApiId: clienteUid,
+              empleadoExternalId: o.empleado?.uid || null,
+              numeroOrden: o.numeroOrden || 0,
+              numeroFactura: o.numeroFacturado || 0,
+              valor: parseFloat(o.vTotal || 0),
+              saldo,
+              saldoAnterior: saldo,
+              abono: parseFloat(o.vAbono || 0),
+              diasCredito: parseInt(o.dias || 0),
+              fechaVencimiento: o.fPago ? new Date(o.fPago) : null,
+              condition: o.condition ?? true,
+              modificadoEn: o.fModificado ? new Date(o.fModificado) : null,
+              data: o,
+            },
+            update: {
+              saldoAnterior: (await (prisma as any).syncDeuda.findUnique({ where: { integracionId_externalId: { integracionId: integracion.id, externalId } }, select: { saldo: true } }))?.saldo ?? saldo,
+              saldo,
+              abono: parseFloat(o.vAbono || 0),
+              modificadoEn: o.fModificado ? new Date(o.fModificado) : null,
+            }
+          })
+          deudasInsertadas++
+        }
+        const lastPage = d.pagination?.lastPage ?? 0
+        if (pagina >= lastPage) break
+        pagina++
+      }
+      logs.push(`Deudas sincronizadas: ${deudasInsertadas}`)
+
+      // ── 3. Compras mes actual + anterior para clientes en rutas fijas ──
+      logs.push('Sincronizando compras impulso...')
+      const ahora = new Date()
+      const inicioMesAnterior = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1).toISOString()
+      const clientesRuta = await (prisma as any).cliente.findMany({
+        where: { apiId: { not: null }, empresaId, RutaFijaCliente: { some: {} } },
+        select: { id: true, apiId: true, nit: true }
+      })
+      logs.push(`Clientes en rutas fijas: ${clientesRuta.length}`)
+      for (const c of clientesRuta) {
+        let pag = 0
+        while (true) {
+          const res = await fetch(`${UPTRES_URL}/ordenventa?desde=0&page=${pag}&size=50&sort=numeroOrden&order=desc&search=${encodeURIComponent(c.nit || '')}&tipobusqueda=todos`, { headers: { 'x-token': token } })
+          const d = await res.json()
+          if (!d.ok) break
+          const ordenes = d.dataDBArray || []
+          if (!ordenes.length) break
+          let salir = false
+          for (const o of ordenes) {
+            if (o.fCreado < inicioMesAnterior) { salir = true; break }
+            const externalId = o.uid || o._id
+            await (prisma as any).syncCompra.upsert({
+              where: { integracionId_externalId: { integracionId: integracion.id, externalId } },
+              create: {
+                id: `sc-${externalId}`,
+                integracionId: integracion.id,
+                externalId,
+                clienteApiId: o.cliente?.uid || c.apiId,
+                empleadoExternalId: o.empleado?.uid || null,
+                numeroOrden: o.numeroOrden || 0,
+                numeroFactura: o.numeroFacturado || 0,
+                valor: parseFloat(o.vTotal || 0),
+                saldo: parseFloat(o.vSaldo || 0),
+                abono: parseFloat(o.vAbono || 0),
+                tipo: o.tipo || 'contado',
+                diasCredito: parseInt(o.dias || 0),
+                facturado: o.facturado || false,
+                fecha: o.fCreado ? new Date(o.fCreado) : null,
+                condition: o.condition ?? true,
+                modificadoEn: o.fModificado ? new Date(o.fModificado) : null,
+                data: o,
+              },
+              update: { saldo: parseFloat(o.vSaldo || 0), modificadoEn: o.fModificado ? new Date(o.fModificado) : null }
+            })
+            comprasInsertadas++
+          }
+          const lastPage = d.pagination?.lastPage ?? 0
+          if (salir || pag >= lastPage) break
+          pag++
+        }
+      }
+      logs.push(`Compras impulso: ${comprasInsertadas}`)
+
+      // Marcar sync inicial completado
+      await (prisma as any).integracion.update({
+        where: { id: integracion.id },
+        data: { syncInicial: true, ultimaSync: ahora, updatedAt: ahora }
+      })
+    }
+
+    return NextResponse.json({ ok: true, logs, clientesActualizados, deudasInsertadas, comprasInsertadas })
+  } catch (err: any) {
+    logs.push(`ERROR: ${err.message}`)
+    return NextResponse.json({ ok: false, error: err.message, logs }, { status: 500 })
+  }
+}

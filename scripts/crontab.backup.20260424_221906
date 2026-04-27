@@ -1,0 +1,5 @@
+*/5 * * * * cd /srv/panel && node scripts/monitor.js >> /var/log/monitor.log 2>&1
+0 3 * * * bash /srv/generar-contexto.sh >> /var/log/contexto.log 2>&1
+0 14 * * * /srv/master/scripts/mantenimiento.sh
+0 * * * * /srv/gestor/scripts/rutas-cron.sh
+0 8 * * * curl -s -X POST https://gestor.tuagentx.com/api/integracion/sync -H "Content-Type: application/json" -H "x-cron-secret: $(grep CRON_SECRET /srv/gestor/.env | cut -d= -f2)" -d '{"tipo":"delta"}'

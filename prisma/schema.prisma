@@ -1,0 +1,2741 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Empresa {
+  id              String          @id @default(cuid())
+  nombre          String
+  email           String          @unique
+  password        String
+  plan            String          @default("basico")
+  activo          Boolean         @default(true)
+  maxSupervisores Int             @default(1)
+  maxVendedores   Int             @default(1)
+  maxEntregas     Int             @default(0)
+  maxBodega       Int             @default(0)
+  maxImpulsadoras Int             @default(0)
+  createdAt       DateTime        @default(now())
+  planFin         DateTime?       @db.Timestamp(6)
+  telefono        String?         @db.VarChar(20)
+  modoEquipo      String?
+  horaInicioRuta  String          @default("06:00")
+  horaFinRuta     String          @default("20:00")
+  autoCrearRuta   Boolean         @default(false)
+  autoCerrarRuta  Boolean         @default(false)
+  diasCrearRuta   String          @default("0,1,2,3,4")
+  diasCerrarRuta  String          @default("0,1,2,3,4")
+  ciudadEntregaLocal   String?
+  diasHistorialBodega  Int             @default(7)
+  bodegaPuedeEnviar    Boolean         @default(false)
+  configRecibos   Json?           @default("{\"nit\": null, \"logo\": null, \"prefijo\": \"REC\", \"telefono\": null, \"direccion\": null, \"anchoPapel\": \"80mm\"}")
+  chatsAsistente  AsistenteChat[]
+  Cartera         Cartera[]
+  clientes        Cliente[]
+  empleados       Empleado[]
+  rutas           Ruta[]
+  rutasFijas      RutaFija[]
+  metasRecaudo    MetaRecaudo[]
+  subEmpresas     SubEmpresa[]
+  integraciones   Integracion[]
+  CarteraCache    CarteraCache[]
+  vinculadas      EmpresaVinculada[]
+  ordenesDespacho OrdenDespacho[]
+}
+
+model Empleado {
+  id                  String               @id @default(cuid())
+  nombre              String
+  email               String               @unique
+  password            String
+  telefono            String?
+  rol                 String               @default("vendedor")
+  activo              Boolean              @default(true)
+  vendedorId          String?
+  empresaId           String
+  createdAt           DateTime             @default(now())
+  puedeCapturarGps    Boolean              @default(false)
+  ciudades            String[]             @default([])
+  permisos            Json?                @default("{}")
+  etiqueta            String?
+  uptresEmail         String?
+  uptresPassword      String?
+  apiId               String?
+  subEmpresaId        String?
+  configRecibos       Json?                @default("{\"prefijo\": null, \"anchoPapel\": null, \"consecutivoMes\": null, \"consecutivoActual\": 0, \"usarConfigEmpresa\": true}")
+  Cartera             Cartera[]
+  DetalleCartera      DetalleCartera[]
+  empresa             Empresa              @relation(fields: [empresaId], references: [id])
+  subEmpresa          SubEmpresa?          @relation(fields: [subEmpresaId], references: [id])
+  listasAsignadas     EmpleadoLista[]
+  PagoCartera         PagoCartera[]
+  rutas               RutaEmpleado[]
+  rutasFijas          RutaFijaEmpleado[]
+  vendedoresAsignados SupervisorVendedor[] @relation("SupervisorVendedores")
+  metasRecaudo        MetaRecaudo[]
+  supervisorAsignado  SupervisorVendedor[] @relation("VendedorSupervisor")
+  turnos              Turno[]
+  visitas             Visita[]
+  ordenesAlistadas    OrdenDespacho[] @relation("AlistadoPor")
+  ordenesRepartidas   OrdenDespacho[] @relation("RepartidorDespacho")
+
+  @@map("Empleado")
+}
+
+model SupervisorVendedor {
+  supervisorId String
+  vendedorId   String
+  supervisor   Empleado @relation("SupervisorVendedores", fields: [supervisorId], references: [id])
+  vendedor     Empleado @relation("VendedorSupervisor", fields: [vendedorId], references: [id])
+
+  @@id([supervisorId, vendedorId])
+  @@map("SupervisorVendedor")
+}
+
+model Cliente {
+  id              String            @id @default(cuid())
+  nombre          String
+  nombreComercial String?
+  direccion       String?
+  telefono        String?
+  email           String?
+  lat             Float?
+  lng             Float?
+  ubicacionReal   Boolean           @default(false)
+  empresaId       String
+  subEmpresaId    String?
+  createdAt       DateTime          @default(now())
+  metaVenta       Float?
+  nit             String?           @db.VarChar(255)
+  ciudad          String?           @db.VarChar(255)
+  listaId         String?
+  apiId           String?
+  maps            String?
+  latTmp          Float?
+  lngTmp          Float?
+  Cartera         Cartera[]
+  empresa         Empresa           @relation(fields: [empresaId], references: [id])
+  subEmpresa      SubEmpresa?       @relation(fields: [subEmpresaId], references: [id])
+  lista           ListaClientes?    @relation(fields: [listaId], references: [id])
+  rutaClientes    RutaCliente[]
+  rutasFijas      RutaFijaCliente[]
+  visitas         Visita[]
+
+  @@index([empresaId], map: "idx_cliente_empresa")
+  @@index([listaId], map: "idx_cliente_lista")
+  @@index([nit], map: "idx_cliente_nit")
+  @@index([nombre], map: "idx_cliente_nombre")
+  @@map("Cliente")
+}
+
+model Turno {
+  id         String    @id @default(cuid())
+  empleadoId String
+  inicio     DateTime  @default(now())
+  fin        DateTime?
+  latInicio  Float?
+  lngInicio  Float?
+  latFin     Float?
+  lngFin     Float?
+  activo     Boolean   @default(true)
+  pausado        Boolean   @default(false)
+  pausaInicio    DateTime?
+  pausaMotivo    String?
+  pausaDuracionMin Int?
+  empleado   Empleado  @relation(fields: [empleadoId], references: [id])
+  visitas    Visita[]
+
+  @@index([empleadoId], map: "idx_turno_empleado")
+  @@map("Turno")
+}
+
+model Visita {
+  id                String    @id @default(cuid())
+  empleadoId        String
+  clienteId         String
+  turnoId           String?
+  lat               Float?
+  lng               Float?
+  nota              String?
+  foto              String?
+  tipo              String    @default("visita")
+  monto             Float?
+  fechaBogota       DateTime?
+  esLibre           Boolean   @default(false)
+  factura           String?
+  firma             String?
+  rutaFijaClienteId String?
+  createdAt         DateTime  @default(now())
+  cliente           Cliente   @relation(fields: [clienteId], references: [id])
+  empleado          Empleado  @relation(fields: [empleadoId], references: [id])
+  turno             Turno?    @relation(fields: [turnoId], references: [id])
+
+  @@index([empleadoId], map: "idx_visita_empleado")
+  @@index([empleadoId, clienteId], map: "idx_visita_empleado_cliente")
+  @@index([createdAt], map: "idx_visita_fecha")
+  @@index([fechaBogota], map: "idx_visita_fecha_bogota")
+  @@index([fechaBogota], map: "idx_visita_fechabogota")
+  @@map("Visita")
+}
+
+model Ruta {
+  id                 String            @id @default(cuid())
+  nombre             String
+  fecha              DateTime?
+  empresaId          String
+  subEmpresaId       String?
+  empresaVinculadaId String?
+  createdAt          DateTime          @default(now())
+  cerrada            Boolean           @default(false)
+  cerradaEl          DateTime?
+  empresa            Empresa           @relation(fields: [empresaId], references: [id])
+  subEmpresa         SubEmpresa?       @relation(fields: [subEmpresaId], references: [id])
+  empresaVinculada   EmpresaVinculada? @relation(fields: [empresaVinculadaId], references: [id])
+  clientes           RutaCliente[]
+  empleados          RutaEmpleado[]
+
+  @@index([empresaId], map: "idx_ruta_empresa")
+  @@map("Ruta")
+}
+
+model RutaEmpleado {
+  id         String   @id @default(cuid())
+  rutaId     String
+  empleadoId String
+  empleado   Empleado @relation(fields: [empleadoId], references: [id])
+  ruta       Ruta     @relation(fields: [rutaId], references: [id])
+
+  @@map("RutaEmpleado")
+}
+
+model RutaCliente {
+  id                 String   @id @default(cuid())
+  rutaId             String
+  clienteId          String
+  orden              Int      @default(0)
+  rezago             Boolean  @default(false)
+  asignadoEn         DateTime @default(now())
+  supervisorId       String?
+  supervisorEtiqueta String?
+  notas              String?
+  ejecutado          Boolean  @default(false)
+  cliente            Cliente  @relation(fields: [clienteId], references: [id])
+  ruta               Ruta     @relation(fields: [rutaId], references: [id])
+
+  @@index([rutaId], map: "idx_rutacliente_ruta")
+  @@map("RutaCliente")
+}
+
+model RutaFija {
+  id           String             @id @default(cuid())
+  nombre       String
+  diaSemana    Int
+  empresaId    String
+  subEmpresaId String?
+  createdAt    DateTime           @default(now())
+  empresa      Empresa            @relation(fields: [empresaId], references: [id])
+  subEmpresa   SubEmpresa?        @relation(fields: [subEmpresaId], references: [id])
+  clientes     RutaFijaCliente[]
+  empleados    RutaFijaEmpleado[]
+
+  @@map("RutaFija")
+}
+
+model RutaFijaEmpleado {
+  id         String   @id @default(cuid())
+  rutaFijaId String
+  empleadoId String
+  empleado   Empleado @relation(fields: [empleadoId], references: [id])
+  rutaFija   RutaFija @relation(fields: [rutaFijaId], references: [id])
+
+  @@map("RutaFijaEmpleado")
+}
+
+model RutaFijaCliente {
+  id         String   @id @default(cuid())
+  rutaFijaId String
+  clienteId  String
+  orden      Int      @default(0)
+  metaVenta  Float?
+  cliente    Cliente  @relation(fields: [clienteId], references: [id])
+  rutaFija   RutaFija @relation(fields: [rutaFijaId], references: [id])
+
+  @@map("RutaFijaCliente")
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  accion     String
+  usuario    String?
+  detalle    String?
+  empleadoId String?
+  empresaId  String?
+  ip         String?
+  createdAt  DateTime @default(now())
+
+  @@map("AuditLog")
+}
+
+model PrecioRol {
+  id        String   @id @default(cuid())
+  rol       String   @unique
+  precio    Int      @default(0)
+  updatedAt DateTime @updatedAt
+
+  @@map("PrecioRol")
+}
+
+model ListaClientes {
+  id         String          @id @default(cuid())
+  nombre     String
+  empresaId  String
+  createdAt  DateTime?       @default(now()) @db.Timestamp(6)
+  clientes   Cliente[]
+  vendedores EmpleadoLista[]
+
+  @@map("ListaClientes")
+}
+
+model EmpleadoLista {
+  empleadoId String
+  listaId    String
+  empleado   Empleado      @relation(fields: [empleadoId], references: [id])
+  lista      ListaClientes @relation(fields: [listaId], references: [id])
+
+  @@id([empleadoId, listaId])
+  @@map("EmpleadoLista")
+}
+
+model AsistenteChat {
+  id        String    @id @default(cuid())
+  empresaId String
+  rol       String
+  texto     String
+  creadoEn  DateTime? @default(now()) @db.Timestamp(6)
+  empresa   Empresa   @relation(fields: [empresaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model Cartera {
+  id             String           @id @default(dbgenerated("(gen_random_uuid())::text"))
+  clienteId      String
+  empresaId      String
+  saldoTotal     Decimal?         @default(0) @db.Decimal(12, 2)
+  saldoPendiente Decimal?         @default(0) @db.Decimal(12, 2)
+  fuente         String?          @default("manual")
+  updatedAt      DateTime?        @default(now()) @db.Timestamp(6)
+  createdAt      DateTime?        @default(now()) @db.Timestamp(6)
+  celular        String?
+  empleadoId     String?
+  Cliente        Cliente          @relation(fields: [clienteId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Empleado       Empleado?        @relation(fields: [empleadoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Empresa        Empresa          @relation(fields: [empresaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  DetalleCartera DetalleCartera[]
+  PagoCartera    PagoCartera[]
+}
+
+model DetalleCartera {
+  id               String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  carteraId        String
+  numeroFactura    String?
+  valor            Decimal   @db.Decimal(12, 2)
+  fechaVencimiento DateTime? @db.Date
+  estado           String?   @default("pendiente")
+  createdAt        DateTime? @default(now()) @db.Timestamp(6)
+  celular          String?
+  concepto         String?
+  valorFactura     Decimal?  @db.Decimal(12, 2)
+  abonos           Decimal?  @default(0) @db.Decimal(12, 2)
+  empleadoId       String?
+  Cartera          Cartera   @relation(fields: [carteraId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Empleado         Empleado? @relation(fields: [empleadoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model PagoCartera {
+  id           String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  carteraId    String
+  empleadoId   String
+  monto        Decimal   @db.Decimal(12, 2)
+  descuento    Decimal?  @default(0) @db.Decimal(12, 2)
+  tipo         String?   @default("abono")
+  metodopago   String?   @default("efectivo")
+  notas        String?
+  reciboUrl    String?
+  createdAt    DateTime? @default(now()) @db.Timestamp(6)
+  numeroRecibo String?
+  reciboToken    String?  @unique
+  tokenExpira    DateTime?
+  voucherKey     String?
+  voucherDatosIA Json?
+  syncDeudaId    String?
+  envioEstado    String    @default("pendiente")
+  envioFecha     DateTime?
+  envioRef       String?
+  envioVariacion Json?
+  Cartera        Cartera   @relation(fields: [carteraId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Empleado       Empleado  @relation(fields: [empleadoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model PushSuscripcion {
+  id         String   @id
+  empleadoId String
+  endpoint   String
+  p256dh     String
+  auth       String
+  createdAt  DateTime @default(now())
+
+  @@index([empleadoId])
+}
+
+model nc_api_tokens {
+  id               Int       @id @default(autoincrement())
+  base_id          String?   @db.VarChar(20)
+  db_alias         String?   @db.VarChar(255)
+  description      String?   @db.VarChar(255)
+  permissions      String?
+  token            String?
+  expiry           String?   @db.VarChar(255)
+  enabled          Boolean?  @default(true)
+  fk_user_id       String?   @db.VarChar(20)
+  fk_workspace_id  String?   @db.VarChar(20)
+  fk_sso_client_id String?   @db.VarChar(20)
+  created_at       DateTime? @db.Timestamptz(6)
+  updated_at       DateTime? @db.Timestamptz(6)
+
+  @@index([fk_sso_client_id], map: "nc_api_tokens_fk_sso_client_id_index")
+  @@index([fk_user_id], map: "nc_api_tokens_fk_user_id_index")
+}
+
+model nc_audit_v2 {
+  id              String   @id(map: "nc_audit_v2_pkx") @db.Uuid
+  user            String?  @db.VarChar(255)
+  ip              String?  @db.VarChar(255)
+  source_id       String?  @db.VarChar(20)
+  base_id         String?  @db.VarChar(20)
+  fk_model_id     String?  @db.VarChar(20)
+  row_id          String?  @db.VarChar(255)
+  op_type         String?  @db.VarChar(255)
+  op_sub_type     String?  @db.VarChar(255)
+  status          String?  @db.VarChar(255)
+  description     String?
+  details         String?
+  fk_user_id      String?  @db.VarChar(20)
+  fk_ref_id       String?  @db.VarChar(20)
+  fk_parent_id    String?  @db.Uuid
+  fk_workspace_id String?  @db.VarChar(20)
+  fk_org_id       String?  @db.VarChar(20)
+  user_agent      String?
+  version         Int?     @default(0) @db.SmallInt
+  old_id          String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([fk_workspace_id], map: "nc_audit_v2_fk_workspace_idx")
+  @@index([old_id], map: "nc_audit_v2_old_id_index")
+  @@index([base_id, fk_workspace_id], map: "nc_audit_v2_tenant_idx")
+  @@index([base_id, fk_model_id, row_id, fk_workspace_id], map: "nc_record_audit_v2_tenant_idx")
+}
+
+model nc_automation_executions {
+  id                String    @db.VarChar(20)
+  fk_workspace_id   String?   @db.VarChar(20)
+  base_id           String    @db.VarChar(20)
+  fk_workflow_id    String    @db.VarChar(20)
+  workflow_data     String?
+  execution_data    String?
+  finished          Boolean?  @default(false)
+  started_at        DateTime? @db.Timestamptz(6)
+  finished_at       DateTime? @db.Timestamptz(6)
+  status            String?   @db.VarChar(50)
+  created_at        DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime  @default(now()) @db.Timestamptz(6)
+  resume_at         DateTime? @db.Timestamptz(6)
+  error_notified_at DateTime? @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([status, error_notified_at], map: "nc_automation_executions_error_notify_idx")
+  @@index([id], map: "nc_automation_executions_oldpk_idx")
+  @@index([fk_workspace_id, base_id, resume_at], map: "nc_automation_executions_resume_idx")
+  @@index([base_id, fk_workspace_id], map: "nc_workflow_executions_context_idx")
+  @@index([fk_workflow_id], map: "nc_workflow_executions_workflow_idx")
+}
+
+model nc_automation_subscribers {
+  id               String   @db.VarChar(20)
+  fk_workspace_id  String?  @db.VarChar(20)
+  base_id          String   @db.VarChar(20)
+  fk_automation_id String?  @db.VarChar(20)
+  fk_user_id       String?  @db.VarChar(20)
+  notify_on_error  Boolean? @default(true)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@unique([fk_automation_id, fk_user_id], map: "nc_automation_subscribers_unique_idx")
+  @@index([fk_automation_id], map: "nc_automation_subscribers_automation_idx")
+  @@index([fk_user_id], map: "nc_automation_subscribers_user_idx")
+}
+
+model nc_automations {
+  id              String   @db.VarChar(20)
+  title           String?  @db.VarChar(255)
+  description     String?
+  meta            String?
+  fk_workspace_id String?  @db.VarChar(20)
+  base_id         String   @db.VarChar(20)
+  order           Float?   @db.Real
+  type            String?  @db.VarChar(20)
+  created_by      String?  @db.VarChar(20)
+  updated_by      String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+  enabled         Boolean? @default(false)
+  nodes           String?
+  edges           String?
+  draft           String?
+  config          String?
+  script          String?
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_automations_context_idx")
+  @@index([enabled])
+  @@index([id], map: "nc_automations_oldpk_idx")
+  @@index([base_id, order], map: "nc_automations_order_idx")
+  @@index([type])
+}
+
+model nc_base_users_v2 {
+  base_id         String    @db.VarChar(20)
+  fk_user_id      String    @db.VarChar(20)
+  roles           String?
+  starred         Boolean?
+  pinned          Boolean?
+  group           String?   @db.VarChar(255)
+  color           String?   @db.VarChar(255)
+  order           Float?    @db.Real
+  hidden          Float?    @db.Real
+  opened_date     DateTime? @db.Timestamptz(6)
+  invited_by      String?   @db.VarChar(20)
+  fk_workspace_id String?   @db.VarChar(20)
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, fk_user_id])
+  @@index([base_id, fk_workspace_id], map: "nc_base_users_v2_base_id_fk_workspace_id_index")
+  @@index([invited_by], map: "nc_base_users_v2_invited_by_index")
+  @@index([fk_user_id], map: "nc_project_users_v2_fk_user_id_index")
+}
+
+model nc_bases_v2 {
+  id                     String   @id(map: "nc_projects_v2_pkey") @db.VarChar(128)
+  title                  String?  @db.VarChar(255)
+  prefix                 String?  @db.VarChar(255)
+  status                 String?  @db.VarChar(255)
+  description            String?
+  meta                   String?
+  color                  String?  @db.VarChar(255)
+  uuid                   String?  @db.VarChar(255)
+  password               String?  @db.VarChar(255)
+  roles                  String?  @db.VarChar(255)
+  deleted                Boolean? @default(false)
+  is_meta                Boolean?
+  order                  Float?   @db.Real
+  type                   String?  @db.VarChar(200)
+  fk_workspace_id        String?  @db.VarChar(20)
+  is_snapshot            Boolean? @default(false)
+  fk_custom_url_id       String?  @db.VarChar(20)
+  version                Int?     @default(2) @db.SmallInt
+  default_role           String?  @db.VarChar(20)
+  created_at             DateTime @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime @default(now()) @db.Timestamptz(6)
+  managed_app_master     Boolean? @default(false)
+  managed_app_id         String?  @db.VarChar(20)
+  managed_app_version_id String?  @db.VarChar(20)
+  auto_update            Boolean? @default(true)
+  is_sandbox_master      Boolean? @default(false)
+  is_sandbox             Boolean? @default(false)
+
+  @@index([is_sandbox], map: "nc_bases_is_sandbox_idx")
+  @@index([is_sandbox_master], map: "nc_bases_is_sandbox_master_idx")
+  @@index([managed_app_id, auto_update], map: "nc_bases_managed_app_auto_update_idx")
+  @@index([managed_app_id], map: "nc_bases_managed_app_id_idx")
+  @@index([managed_app_master], map: "nc_bases_managed_app_master_idx")
+  @@index([managed_app_version_id], map: "nc_bases_managed_app_version_id_idx")
+  @@index([fk_custom_url_id], map: "nc_bases_v2_fk_custom_url_id_index")
+  @@index([fk_workspace_id], map: "nc_bases_v2_fk_workspace_id_index")
+}
+
+model nc_calendar_view_columns_v2 {
+  id              String   @db.VarChar(20)
+  base_id         String   @db.VarChar(20)
+  source_id       String?  @db.VarChar(20)
+  fk_view_id      String?  @db.VarChar(20)
+  fk_column_id    String?  @db.VarChar(20)
+  show            Boolean?
+  bold            Boolean?
+  underline       Boolean?
+  italic          Boolean?
+  order           Float?   @db.Real
+  fk_workspace_id String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_calendar_view_columns_v2_base_id_fk_workspace_id_index")
+  @@index([fk_view_id, fk_column_id], map: "nc_calendar_view_columns_v2_fk_view_id_fk_column_id_index")
+  @@index([id], map: "nc_calendar_view_columns_v2_oldpk_idx")
+}
+
+model nc_calendar_view_range_v2 {
+  id                String   @db.VarChar(20)
+  fk_view_id        String?  @db.VarChar(20)
+  fk_to_column_id   String?  @db.VarChar(20)
+  label             String?  @db.VarChar(40)
+  fk_from_column_id String?  @db.VarChar(20)
+  base_id           String   @db.VarChar(20)
+  fk_workspace_id   String?  @db.VarChar(20)
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_calendar_view_range_v2_base_id_fk_workspace_id_index")
+  @@index([id], map: "nc_calendar_view_range_v2_oldpk_idx")
+}
+
+model nc_calendar_view_v2 {
+  fk_view_id            String    @db.VarChar(20)
+  base_id               String    @db.VarChar(20)
+  source_id             String?   @db.VarChar(20)
+  title                 String?   @db.VarChar(255)
+  fk_cover_image_col_id String?   @db.VarChar(20)
+  meta                  String?
+  fk_workspace_id       String?   @db.VarChar(20)
+  created_at            DateTime? @db.Timestamptz(6)
+  updated_at            DateTime? @db.Timestamptz(6)
+
+  @@id([base_id, fk_view_id])
+  @@index([base_id, fk_workspace_id], map: "nc_calendar_view_v2_base_id_fk_workspace_id_index")
+  @@index([fk_view_id], map: "nc_calendar_view_v2_oldpk_idx")
+}
+
+model nc_col_barcode_v2 {
+  id                         String   @db.VarChar(20)
+  fk_column_id               String?  @db.VarChar(20)
+  fk_barcode_value_column_id String?  @db.VarChar(20)
+  barcode_format             String?  @db.VarChar(15)
+  deleted                    Boolean?
+  base_id                    String   @db.VarChar(20)
+  fk_workspace_id            String?  @db.VarChar(20)
+  created_at                 DateTime @default(now()) @db.Timestamptz(6)
+  updated_at                 DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_col_barcode_v2_base_id_fk_workspace_id_index")
+  @@index([fk_column_id], map: "nc_col_barcode_v2_fk_column_id_index")
+  @@index([id], map: "nc_col_barcode_v2_oldpk_idx")
+}
+
+model nc_col_button_v2 {
+  id                String   @db.VarChar(20)
+  base_id           String   @db.VarChar(20)
+  type              String?  @db.VarChar(255)
+  label             String?
+  theme             String?  @db.VarChar(255)
+  color             String?  @db.VarChar(255)
+  icon              String?  @db.VarChar(255)
+  formula           String?
+  formula_raw       String?
+  error             String?  @db.VarChar(255)
+  parsed_tree       String?
+  fk_webhook_id     String?  @db.VarChar(20)
+  fk_column_id      String?  @db.VarChar(20)
+  fk_integration_id String?  @db.VarChar(20)
+  model             String?  @db.VarChar(255)
+  output_column_ids String?
+  fk_workspace_id   String?  @db.VarChar(20)
+  fk_script_id      String?  @db.VarChar(20)
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_col_button_context")
+  @@index([fk_column_id], map: "nc_col_button_v2_fk_column_id_index")
+  @@index([id], map: "nc_col_button_v2_oldpk_idx")
+}
+
+model nc_col_formula_v2 {
+  id              String   @db.VarChar(20)
+  fk_column_id    String?  @db.VarChar(20)
+  formula         String
+  formula_raw     String?
+  error           String?
+  deleted         Boolean?
+  order           Float?   @db.Real
+  parsed_tree     String?
+  base_id         String   @db.VarChar(20)
+  fk_workspace_id String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_col_formula_v2_base_id_fk_workspace_id_index")
+  @@index([fk_column_id], map: "nc_col_formula_v2_fk_column_id_index")
+  @@index([id], map: "nc_col_formula_v2_oldpk_idx")
+}
+
+model nc_col_long_text_v2 {
+  id                String   @db.VarChar(20)
+  fk_workspace_id   String?  @db.VarChar(20)
+  base_id           String   @db.VarChar(20)
+  fk_model_id       String?  @db.VarChar(20)
+  fk_column_id      String?  @db.VarChar(20)
+  fk_integration_id String?  @db.VarChar(20)
+  model             String?  @db.VarChar(255)
+  prompt            String?
+  prompt_raw        String?
+  error             String?
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_col_long_text_context")
+  @@index([fk_column_id], map: "nc_col_long_text_v2_fk_column_id_index")
+  @@index([id], map: "nc_col_long_text_v2_oldpk_idx")
+}
+
+model nc_col_lookup_v2 {
+  id                    String   @db.VarChar(20)
+  fk_column_id          String?  @db.VarChar(20)
+  fk_relation_column_id String?  @db.VarChar(20)
+  fk_lookup_column_id   String?  @db.VarChar(20)
+  deleted               Boolean?
+  base_id               String   @db.VarChar(20)
+  fk_workspace_id       String?  @db.VarChar(20)
+  created_at            DateTime @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_col_lookup_v2_base_id_fk_workspace_id_index")
+  @@index([fk_column_id], map: "nc_col_lookup_v2_fk_column_id_index")
+  @@index([fk_lookup_column_id], map: "nc_col_lookup_v2_fk_lookup_column_id_index")
+  @@index([fk_relation_column_id], map: "nc_col_lookup_v2_fk_relation_column_id_index")
+  @@index([id], map: "nc_col_lookup_v2_oldpk_idx")
+}
+
+model nc_col_qrcode_v2 {
+  id                    String   @db.VarChar(20)
+  fk_column_id          String?  @db.VarChar(20)
+  fk_qr_value_column_id String?  @db.VarChar(20)
+  deleted               Boolean?
+  order                 Float?   @db.Real
+  base_id               String   @db.VarChar(20)
+  fk_workspace_id       String?  @db.VarChar(20)
+  created_at            DateTime @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_col_qrcode_v2_base_id_fk_workspace_id_index")
+  @@index([fk_column_id], map: "nc_col_qrcode_v2_fk_column_id_index")
+  @@index([id], map: "nc_col_qrcode_v2_oldpk_idx")
+}
+
+model nc_col_relations_v2 {
+  id                     String   @db.VarChar(20)
+  ref_db_alias           String?  @db.VarChar(255)
+  type                   String?  @db.VarChar(255)
+  virtual                Boolean?
+  db_type                String?  @db.VarChar(255)
+  fk_column_id           String?  @db.VarChar(20)
+  fk_related_model_id    String?  @db.VarChar(20)
+  fk_child_column_id     String?  @db.VarChar(20)
+  fk_parent_column_id    String?  @db.VarChar(20)
+  fk_mm_model_id         String?  @db.VarChar(20)
+  fk_mm_child_column_id  String?  @db.VarChar(20)
+  fk_mm_parent_column_id String?  @db.VarChar(20)
+  ur                     String?  @db.VarChar(255)
+  dr                     String?  @db.VarChar(255)
+  fk_index_name          String?  @db.VarChar(255)
+  deleted                Boolean?
+  fk_target_view_id      String?  @db.VarChar(20)
+  base_id                String   @db.VarChar(20)
+  fk_workspace_id        String?  @db.VarChar(20)
+  fk_related_base_id     String?  @db.VarChar(20)
+  fk_mm_base_id          String?  @db.VarChar(20)
+  fk_related_source_id   String?  @db.VarChar(20)
+  fk_mm_source_id        String?  @db.VarChar(20)
+  created_at             DateTime @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime @default(now()) @db.Timestamptz(6)
+  version                Int?     @default(1)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_col_relations_v2_base_id_fk_workspace_id_index")
+  @@index([fk_child_column_id], map: "nc_col_relations_v2_fk_child_column_id_index")
+  @@index([fk_column_id], map: "nc_col_relations_v2_fk_column_id_index")
+  @@index([fk_mm_child_column_id], map: "nc_col_relations_v2_fk_mm_child_column_id_index")
+  @@index([fk_mm_model_id], map: "nc_col_relations_v2_fk_mm_model_id_index")
+  @@index([fk_mm_parent_column_id], map: "nc_col_relations_v2_fk_mm_parent_column_id_index")
+  @@index([fk_parent_column_id], map: "nc_col_relations_v2_fk_parent_column_id_index")
+  @@index([fk_related_model_id], map: "nc_col_relations_v2_fk_related_model_id_index")
+  @@index([fk_target_view_id], map: "nc_col_relations_v2_fk_target_view_id_index")
+  @@index([id], map: "nc_col_relations_v2_oldpk_idx")
+}
+
+model nc_col_rollup_v2 {
+  id                    String   @db.VarChar(20)
+  fk_column_id          String?  @db.VarChar(20)
+  fk_relation_column_id String?  @db.VarChar(20)
+  fk_rollup_column_id   String?  @db.VarChar(20)
+  rollup_function       String?  @db.VarChar(255)
+  deleted               Boolean?
+  base_id               String   @db.VarChar(20)
+  fk_workspace_id       String?  @db.VarChar(20)
+  created_at            DateTime @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_col_rollup_v2_base_id_fk_workspace_id_index")
+  @@index([fk_column_id], map: "nc_col_rollup_v2_fk_column_id_index")
+  @@index([fk_relation_column_id], map: "nc_col_rollup_v2_fk_relation_column_id_index")
+  @@index([fk_rollup_column_id], map: "nc_col_rollup_v2_fk_rollup_column_id_index")
+  @@index([id], map: "nc_col_rollup_v2_oldpk_idx")
+}
+
+model nc_col_select_options_v2 {
+  id              String   @db.VarChar(20)
+  fk_column_id    String?  @db.VarChar(20)
+  title           String?  @db.VarChar(255)
+  color           String?  @db.VarChar(255)
+  order           Float?   @db.Real
+  base_id         String   @db.VarChar(20)
+  fk_workspace_id String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_col_select_options_v2_base_id_fk_workspace_id_index")
+  @@index([fk_column_id], map: "nc_col_select_options_v2_fk_column_id_index")
+  @@index([id], map: "nc_col_select_options_v2_oldpk_idx")
+}
+
+model nc_columns_v2 {
+  id                String   @db.VarChar(20)
+  source_id         String?  @db.VarChar(20)
+  base_id           String   @db.VarChar(20)
+  fk_model_id       String?  @db.VarChar(20)
+  title             String?  @db.VarChar(255)
+  column_name       String?  @db.VarChar(255)
+  uidt              String?  @db.VarChar(255)
+  dt                String?  @db.VarChar(255)
+  np                String?  @db.VarChar(255)
+  ns                String?  @db.VarChar(255)
+  clen              String?  @db.VarChar(255)
+  cop               String?  @db.VarChar(255)
+  pk                Boolean?
+  pv                Boolean?
+  rqd               Boolean?
+  un                Boolean?
+  ct                String?
+  ai                Boolean?
+  unique            Boolean?
+  cdf               String?
+  cc                String?
+  csn               String?  @db.VarChar(255)
+  dtx               String?  @db.VarChar(255)
+  dtxp              String?
+  dtxs              String?  @db.VarChar(255)
+  au                Boolean?
+  validate          String?
+  virtual           Boolean?
+  deleted           Boolean?
+  system            Boolean? @default(false)
+  order             Float?   @db.Real
+  meta              String?
+  description       String?
+  readonly          Boolean? @default(false)
+  fk_workspace_id   String?  @db.VarChar(20)
+  custom_index_name String?  @db.VarChar(64)
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime @default(now()) @db.Timestamptz(6)
+  internal_meta     String?
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_columns_v2_base_id_fk_workspace_id_index")
+  @@index([fk_model_id], map: "nc_columns_v2_fk_model_id_index")
+  @@index([id], map: "nc_columns_v2_oldpk_idx")
+}
+
+model nc_comment_reactions {
+  id              String   @db.VarChar(20)
+  row_id          String?  @db.VarChar(255)
+  comment_id      String?  @db.VarChar(20)
+  source_id       String?  @db.VarChar(20)
+  fk_model_id     String?  @db.VarChar(20)
+  base_id         String   @db.VarChar(20)
+  reaction        String?  @db.VarChar(255)
+  created_by      String?  @db.VarChar(255)
+  fk_workspace_id String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_comment_reactions_base_id_fk_workspace_id_index")
+  @@index([comment_id], map: "nc_comment_reactions_comment_id_index")
+  @@index([id], map: "nc_comment_reactions_oldpk_idx")
+  @@index([row_id], map: "nc_comment_reactions_row_id_index")
+}
+
+model nc_comments {
+  id                String   @db.VarChar(20)
+  row_id            String?  @db.VarChar(255)
+  comment           String?
+  created_by        String?  @db.VarChar(20)
+  created_by_email  String?  @db.VarChar(255)
+  resolved_by       String?  @db.VarChar(20)
+  resolved_by_email String?  @db.VarChar(255)
+  parent_comment_id String?  @db.VarChar(20)
+  source_id         String?  @db.VarChar(20)
+  base_id           String   @db.VarChar(20)
+  fk_model_id       String?  @db.VarChar(20)
+  is_deleted        Boolean?
+  fk_workspace_id   String?  @db.VarChar(20)
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_comments_base_id_fk_workspace_id_index")
+  @@index([id], map: "nc_comments_oldpk_idx")
+  @@index([row_id, fk_model_id], map: "nc_comments_row_id_fk_model_id_index")
+}
+
+model nc_custom_urls_v2 {
+  id              String   @db.VarChar(20)
+  fk_workspace_id String?  @db.VarChar(20)
+  base_id         String   @db.VarChar(20)
+  fk_model_id     String?  @db.VarChar(20)
+  view_id         String?  @db.VarChar(20)
+  original_path   String?  @db.VarChar(255)
+  custom_path     String?  @db.VarChar(255)
+  fk_dashboard_id String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_custom_urls_context")
+  @@index([custom_path], map: "nc_custom_urls_v2_custom_path_index")
+  @@index([fk_dashboard_id], map: "nc_custom_urls_v2_fk_dashboard_id_index")
+  @@index([id], map: "nc_custom_urls_v2_oldpk_idx")
+}
+
+model nc_dashboards_v2 {
+  id               String   @db.VarChar(20)
+  fk_workspace_id  String?  @db.VarChar(20)
+  base_id          String   @db.VarChar(20)
+  title            String   @db.VarChar(255)
+  description      String?
+  meta             String?
+  order            Int?
+  created_by       String?  @db.VarChar(20)
+  owned_by         String?  @db.VarChar(20)
+  uuid             String?  @db.VarChar(255)
+  password         String?  @db.VarChar(255)
+  fk_custom_url_id String?  @db.VarChar(20)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_dashboards_context")
+  @@index([id], map: "nc_dashboards_v2_oldpk_idx")
+  @@index([uuid], map: "share_uuid_idx")
+}
+
+model nc_data_reflection {
+  id              String   @id @db.VarChar(20)
+  fk_workspace_id String?  @db.VarChar(20)
+  username        String?  @db.VarChar(255)
+  password        String?  @db.VarChar(255)
+  database        String?  @db.VarChar(255)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([fk_workspace_id], map: "nc_data_reflection_fk_workspace_id_index")
+}
+
+model nc_db_servers {
+  id                   String   @id @db.VarChar(20)
+  title                String?  @db.VarChar(255)
+  is_shared            Boolean? @default(true)
+  max_tenant_count     Int?
+  current_tenant_count Int?     @default(0)
+  config               String?
+  conditions           String?
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model nc_dependency_tracker {
+  id                String    @db.VarChar(20)
+  fk_workspace_id   String?   @db.VarChar(20)
+  base_id           String    @db.VarChar(20)
+  source_type       String    @db.VarChar(50)
+  source_id         String    @db.VarChar(20)
+  dependent_type    String    @db.VarChar(50)
+  dependent_id      String    @db.VarChar(20)
+  created_at        DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime  @default(now()) @db.Timestamptz(6)
+  queryable_field_0 String?
+  queryable_field_1 String?
+  meta              String?
+  queryable_field_2 DateTime? @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_dependency_tracker_context_idx")
+  @@index([dependent_type, dependent_id], map: "nc_dependency_tracker_dependent_idx")
+  @@index([id], map: "nc_dependency_tracker_oldpk_idx")
+  @@index([queryable_field_0])
+  @@index([queryable_field_1])
+  @@index([queryable_field_2])
+  @@index([source_type, source_id], map: "nc_dependency_tracker_source_idx")
+}
+
+model nc_disabled_models_for_role_v2 {
+  id              String   @db.VarChar(20)
+  source_id       String?  @db.VarChar(20)
+  base_id         String   @db.VarChar(20)
+  fk_view_id      String?  @db.VarChar(20)
+  role            String?  @db.VarChar(45)
+  disabled        Boolean? @default(true)
+  fk_workspace_id String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_disabled_models_for_role_v2_base_id_fk_workspace_id_index")
+  @@index([fk_view_id], map: "nc_disabled_models_for_role_v2_fk_view_id_index")
+  @@index([id], map: "nc_disabled_models_for_role_v2_oldpk_idx")
+}
+
+model nc_extensions {
+  id              String   @db.VarChar(20)
+  base_id         String   @db.VarChar(20)
+  fk_user_id      String?  @db.VarChar(20)
+  extension_id    String?  @db.VarChar(255)
+  title           String?  @db.VarChar(255)
+  kv_store        String?
+  meta            String?
+  order           Float?   @db.Real
+  fk_workspace_id String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_extensions_base_id_fk_workspace_id_index")
+  @@index([id], map: "nc_extensions_oldpk_idx")
+}
+
+model nc_file_references {
+  id              String   @id @db.VarChar(20)
+  storage         String?  @db.VarChar(255)
+  file_url        String?
+  file_size       Int?
+  fk_user_id      String?  @db.VarChar(20)
+  fk_workspace_id String?  @db.VarChar(20)
+  base_id         String?  @db.VarChar(20)
+  source_id       String?  @db.VarChar(20)
+  fk_model_id     String?  @db.VarChar(20)
+  fk_column_id    String?  @db.VarChar(20)
+  is_external     Boolean? @default(false)
+  deleted         Boolean? @default(false)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([base_id, fk_workspace_id], map: "nc_fr_context")
+}
+
+model nc_filter_exp_v2 {
+  id                        String   @db.VarChar(20)
+  source_id                 String?  @db.VarChar(20)
+  base_id                   String   @db.VarChar(20)
+  fk_view_id                String?  @db.VarChar(20)
+  fk_hook_id                String?  @db.VarChar(20)
+  fk_column_id              String?  @db.VarChar(20)
+  fk_parent_id              String?  @db.VarChar(20)
+  logical_op                String?  @db.VarChar(255)
+  comparison_op             String?  @db.VarChar(255)
+  value                     String?
+  is_group                  Boolean?
+  order                     Float?   @db.Real
+  comparison_sub_op         String?  @db.VarChar(255)
+  fk_link_col_id            String?  @db.VarChar(20)
+  fk_value_col_id           String?  @db.VarChar(20)
+  fk_parent_column_id       String?  @db.VarChar(20)
+  fk_workspace_id           String?  @db.VarChar(20)
+  fk_row_color_condition_id String?  @db.VarChar(20)
+  fk_widget_id              String?  @db.VarChar(20)
+  meta                      String?
+  created_at                DateTime @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime @default(now()) @db.Timestamptz(6)
+  enabled                   Boolean? @default(true)
+  fk_rls_policy_id          String?  @db.VarChar(20)
+  fk_level_id               String?  @db.VarChar(20)
+  fk_button_col_id          String?  @db.VarChar(20)
+
+  @@id([base_id, id])
+  @@index([fk_rls_policy_id], map: "nc_filter_exp_rls_policy_idx")
+  @@index([base_id, fk_workspace_id], map: "nc_filter_exp_v2_base_id_fk_workspace_id_index")
+  @@index([fk_button_col_id], map: "nc_filter_exp_v2_fk_button_col_id_index")
+  @@index([fk_column_id], map: "nc_filter_exp_v2_fk_column_id_index")
+  @@index([fk_hook_id], map: "nc_filter_exp_v2_fk_hook_id_index")
+  @@index([fk_level_id], map: "nc_filter_exp_v2_fk_level_id_index")
+  @@index([fk_link_col_id], map: "nc_filter_exp_v2_fk_link_col_id_index")
+  @@index([fk_parent_column_id], map: "nc_filter_exp_v2_fk_parent_column_id_index")
+  @@index([fk_parent_id], map: "nc_filter_exp_v2_fk_parent_id_index")
+  @@index([fk_value_col_id], map: "nc_filter_exp_v2_fk_value_col_id_index")
+  @@index([fk_view_id], map: "nc_filter_exp_v2_fk_view_id_index")
+  @@index([fk_widget_id], map: "nc_filter_exp_v2_fk_widget_id_index")
+  @@index([id], map: "nc_filter_exp_v2_oldpk_idx")
+}
+
+model nc_follower {
+  fk_user_id     String   @db.VarChar(20)
+  fk_follower_id String   @db.VarChar(20)
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([fk_user_id, fk_follower_id])
+  @@index([fk_follower_id], map: "nc_follower_fk_follower_id_index")
+  @@index([fk_user_id], map: "nc_follower_fk_user_id_index")
+}
+
+model nc_form_view_columns_v2 {
+  id              String   @db.VarChar(20)
+  source_id       String?  @db.VarChar(20)
+  base_id         String   @db.VarChar(20)
+  fk_view_id      String?  @db.VarChar(20)
+  fk_column_id    String?  @db.VarChar(20)
+  uuid            String?  @db.VarChar(255)
+  label           String?
+  help            String?
+  description     String?
+  required        Boolean?
+  show            Boolean?
+  order           Float?   @db.Real
+  meta            String?
+  enable_scanner  Boolean?
+  fk_workspace_id String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_form_view_columns_v2_base_id_fk_workspace_id_index")
+  @@index([fk_column_id], map: "nc_form_view_columns_v2_fk_column_id_index")
+  @@index([fk_view_id, fk_column_id], map: "nc_form_view_columns_v2_fk_view_id_fk_column_id_index")
+  @@index([fk_view_id], map: "nc_form_view_columns_v2_fk_view_id_index")
+  @@index([id], map: "nc_form_view_columns_v2_oldpk_idx")
+}
+
+model nc_form_view_v2 {
+  source_id           String?  @db.VarChar(20)
+  base_id             String   @db.VarChar(20)
+  fk_view_id          String   @db.VarChar(20)
+  heading             String?  @db.VarChar(255)
+  subheading          String?
+  success_msg         String?
+  redirect_url        String?
+  redirect_after_secs String?  @db.VarChar(255)
+  email               String?  @db.VarChar(255)
+  submit_another_form Boolean?
+  show_blank_form     Boolean?
+  uuid                String?  @db.VarChar(255)
+  banner_image_url    String?
+  logo_url            String?
+  meta                String?
+  fk_workspace_id     String?  @db.VarChar(20)
+  created_at          DateTime @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, fk_view_id])
+  @@index([base_id, fk_workspace_id], map: "nc_form_view_v2_base_id_fk_workspace_id_index")
+  @@index([fk_view_id], map: "nc_form_view_v2_fk_view_id_index")
+  @@index([fk_view_id], map: "nc_form_view_v2_oldpk_idx")
+}
+
+model nc_gallery_view_columns_v2 {
+  id              String   @db.VarChar(20)
+  source_id       String?  @db.VarChar(20)
+  base_id         String   @db.VarChar(20)
+  fk_view_id      String?  @db.VarChar(20)
+  fk_column_id    String?  @db.VarChar(20)
+  uuid            String?  @db.VarChar(255)
+  label           String?  @db.VarChar(255)
+  help            String?  @db.VarChar(255)
+  show            Boolean?
+  order           Float?   @db.Real
+  fk_workspace_id String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_gallery_view_columns_v2_base_id_fk_workspace_id_index")
+  @@index([fk_column_id], map: "nc_gallery_view_columns_v2_fk_column_id_index")
+  @@index([fk_view_id, fk_column_id], map: "nc_gallery_view_columns_v2_fk_view_id_fk_column_id_index")
+  @@index([fk_view_id], map: "nc_gallery_view_columns_v2_fk_view_id_index")
+  @@index([id], map: "nc_gallery_view_columns_v2_oldpk_idx")
+}
+
+model nc_gallery_view_v2 {
+  source_id             String?  @db.VarChar(20)
+  base_id               String   @db.VarChar(20)
+  fk_view_id            String   @db.VarChar(20)
+  next_enabled          Boolean?
+  prev_enabled          Boolean?
+  cover_image_idx       Int?
+  fk_cover_image_col_id String?  @db.VarChar(20)
+  cover_image           String?  @db.VarChar(255)
+  restrict_types        String?  @db.VarChar(255)
+  restrict_size         String?  @db.VarChar(255)
+  restrict_number       String?  @db.VarChar(255)
+  public                Boolean?
+  dimensions            String?  @db.VarChar(255)
+  responsive_columns    String?  @db.VarChar(255)
+  meta                  String?
+  fk_workspace_id       String?  @db.VarChar(20)
+  created_at            DateTime @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, fk_view_id])
+  @@index([base_id, fk_workspace_id], map: "nc_gallery_view_v2_base_id_fk_workspace_id_index")
+  @@index([fk_view_id], map: "nc_gallery_view_v2_fk_view_id_index")
+  @@index([fk_view_id], map: "nc_gallery_view_v2_oldpk_idx")
+}
+
+model nc_grid_view_columns_v2 {
+  id              String   @db.VarChar(20)
+  fk_view_id      String?  @db.VarChar(20)
+  fk_column_id    String?  @db.VarChar(20)
+  source_id       String?  @db.VarChar(20)
+  base_id         String   @db.VarChar(20)
+  uuid            String?  @db.VarChar(255)
+  label           String?  @db.VarChar(255)
+  help            String?  @db.VarChar(255)
+  width           String?  @default("200px") @db.VarChar(255)
+  show            Boolean?
+  order           Float?   @db.Real
+  group_by        Boolean?
+  group_by_order  Float?   @db.Real
+  group_by_sort   String?  @db.VarChar(255)
+  aggregation     String?  @db.VarChar(30)
+  fk_workspace_id String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_grid_view_columns_v2_base_id_fk_workspace_id_index")
+  @@index([fk_column_id], map: "nc_grid_view_columns_v2_fk_column_id_index")
+  @@index([fk_view_id, fk_column_id], map: "nc_grid_view_columns_v2_fk_view_id_fk_column_id_index")
+  @@index([fk_view_id], map: "nc_grid_view_columns_v2_fk_view_id_index")
+  @@index([id], map: "nc_grid_view_columns_v2_oldpk_idx")
+}
+
+model nc_grid_view_v2 {
+  fk_view_id      String   @db.VarChar(20)
+  source_id       String?  @db.VarChar(20)
+  base_id         String   @db.VarChar(20)
+  uuid            String?  @db.VarChar(255)
+  meta            String?
+  row_height      Int?
+  fk_workspace_id String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, fk_view_id])
+  @@index([base_id, fk_workspace_id], map: "nc_grid_view_v2_base_id_fk_workspace_id_index")
+  @@index([fk_view_id], map: "nc_grid_view_v2_fk_view_id_index")
+  @@index([fk_view_id], map: "nc_grid_view_v2_oldpk_idx")
+}
+
+model nc_hook_logs_v2 {
+  id              String   @db.VarChar(20)
+  source_id       String?  @db.VarChar(20)
+  base_id         String   @db.VarChar(20)
+  fk_hook_id      String?  @db.VarChar(20)
+  type            String?  @db.VarChar(255)
+  event           String?  @db.VarChar(255)
+  operation       String?  @db.VarChar(255)
+  test_call       Boolean? @default(true)
+  payload         String?
+  conditions      String?
+  notification    String?
+  error_code      String?  @db.VarChar(255)
+  error_message   String?  @db.VarChar(255)
+  error           String?
+  execution_time  Int?
+  response        String?
+  triggered_by    String?  @db.VarChar(255)
+  fk_workspace_id String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_hook_logs_v2_base_id_fk_workspace_id_index")
+  @@index([id], map: "nc_hook_logs_v2_oldpk_idx")
+}
+
+model nc_hook_trigger_fields {
+  fk_hook_id      String   @db.VarChar(20)
+  fk_column_id    String   @db.VarChar(20)
+  base_id         String   @db.VarChar(20)
+  fk_workspace_id String   @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([fk_workspace_id, base_id, fk_hook_id, fk_column_id])
+}
+
+model nc_hooks_v2 {
+  id              String   @db.VarChar(20)
+  source_id       String?  @db.VarChar(20)
+  base_id         String   @db.VarChar(20)
+  fk_model_id     String?  @db.VarChar(20)
+  title           String?  @db.VarChar(255)
+  description     String?  @db.VarChar(255)
+  env             String?  @default("all") @db.VarChar(255)
+  type            String?  @db.VarChar(255)
+  event           String?  @db.VarChar(255)
+  operation       String?  @db.VarChar(255)
+  async           Boolean? @default(false)
+  payload         Boolean? @default(true)
+  url             String?
+  headers         String?
+  condition       Boolean? @default(false)
+  notification    String?
+  retries         Int?     @default(0)
+  retry_interval  Int?     @default(60000)
+  timeout         Int?     @default(60000)
+  active          Boolean? @default(true)
+  version         String?  @db.VarChar(255)
+  trigger_field   Boolean? @default(false)
+  fk_workspace_id String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_hooks_v2_base_id_fk_workspace_id_index")
+  @@index([fk_model_id], map: "nc_hooks_v2_fk_model_id_index")
+  @@index([id], map: "nc_hooks_v2_oldpk_idx")
+}
+
+model nc_installations {
+  id                  String    @id @db.VarChar(20)
+  fk_subscription_id  String?   @db.VarChar(20)
+  licensed_to         String    @db.VarChar(255)
+  license_key         String    @db.VarChar(255)
+  installation_secret String?   @db.VarChar(255)
+  installed_at        DateTime? @db.Timestamptz(6)
+  last_seen_at        DateTime? @db.Timestamptz(6)
+  expires_at          DateTime? @db.Timestamptz(6)
+  license_type        String    @db.VarChar(255)
+  status              String    @default("active") @db.VarChar(255)
+  seat_count          Int       @default(0)
+  config              String?
+  meta                String?
+  created_at          DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([license_key])
+}
+
+model nc_integrations_store_v2 {
+  id                String   @id @db.VarChar(20)
+  fk_integration_id String?  @db.VarChar(20)
+  type              String?  @db.VarChar(20)
+  sub_type          String?  @db.VarChar(20)
+  fk_workspace_id   String?  @db.VarChar(20)
+  fk_user_id        String?  @db.VarChar(20)
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime @default(now()) @db.Timestamptz(6)
+  slot_0            String?
+  slot_1            String?
+  slot_2            String?
+  slot_3            String?
+  slot_4            String?
+  slot_5            Int?
+  slot_6            Int?
+  slot_7            Int?
+  slot_8            Int?
+  slot_9            Int?
+
+  @@index([fk_integration_id], map: "nc_integrations_store_v2_fk_integration_id_index")
+}
+
+model nc_integrations_v2 {
+  id              String   @id @db.VarChar(20)
+  title           String?  @db.VarChar(128)
+  config          String?
+  meta            String?
+  type            String?  @db.VarChar(20)
+  sub_type        String?  @db.VarChar(20)
+  fk_workspace_id String?  @db.VarChar(20)
+  is_private      Boolean? @default(false)
+  deleted         Boolean? @default(false)
+  created_by      String?  @db.VarChar(20)
+  order           Float?   @db.Real
+  is_default      Boolean? @default(false)
+  is_encrypted    Boolean? @default(false)
+  is_global       Boolean? @default(false)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([created_by], map: "nc_integrations_v2_created_by_index")
+  @@index([fk_workspace_id], map: "nc_integrations_v2_fk_workspace_id_index")
+  @@index([type], map: "nc_integrations_v2_type_index")
+}
+
+model nc_jobs {
+  id              String   @id @db.VarChar(20)
+  job             String?  @db.VarChar(255)
+  status          String?  @db.VarChar(20)
+  result          String?
+  fk_user_id      String?  @db.VarChar(20)
+  fk_workspace_id String?  @db.VarChar(20)
+  base_id         String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([base_id, fk_workspace_id], map: "nc_jobs_context")
+}
+
+model nc_kanban_view_columns_v2 {
+  id              String   @db.VarChar(20)
+  source_id       String?  @db.VarChar(20)
+  base_id         String   @db.VarChar(20)
+  fk_view_id      String?  @db.VarChar(20)
+  fk_column_id    String?  @db.VarChar(20)
+  uuid            String?  @db.VarChar(255)
+  label           String?  @db.VarChar(255)
+  help            String?  @db.VarChar(255)
+  show            Boolean?
+  order           Float?   @db.Real
+  fk_workspace_id String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_kanban_view_columns_v2_base_id_fk_workspace_id_index")
+  @@index([fk_column_id], map: "nc_kanban_view_columns_v2_fk_column_id_index")
+  @@index([fk_view_id, fk_column_id], map: "nc_kanban_view_columns_v2_fk_view_id_fk_column_id_index")
+  @@index([fk_view_id], map: "nc_kanban_view_columns_v2_fk_view_id_index")
+  @@index([id], map: "nc_kanban_view_columns_v2_oldpk_idx")
+}
+
+model nc_kanban_view_v2 {
+  fk_view_id            String   @db.VarChar(20)
+  source_id             String?  @db.VarChar(20)
+  base_id               String   @db.VarChar(20)
+  show                  Boolean?
+  order                 Float?   @db.Real
+  uuid                  String?  @db.VarChar(255)
+  title                 String?  @db.VarChar(255)
+  public                Boolean?
+  password              String?  @db.VarChar(255)
+  show_all_fields       Boolean?
+  fk_grp_col_id         String?  @db.VarChar(20)
+  fk_cover_image_col_id String?  @db.VarChar(20)
+  meta                  String?
+  fk_workspace_id       String?  @db.VarChar(20)
+  created_at            DateTime @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, fk_view_id])
+  @@index([base_id, fk_workspace_id], map: "nc_kanban_view_v2_base_id_fk_workspace_id_index")
+  @@index([fk_grp_col_id], map: "nc_kanban_view_v2_fk_grp_col_id_index")
+  @@index([fk_view_id], map: "nc_kanban_view_v2_fk_view_id_index")
+  @@index([fk_view_id], map: "nc_kanban_view_v2_oldpk_idx")
+}
+
+model nc_list_view_columns_v2 {
+  id              String   @db.VarChar(20)
+  base_id         String   @db.VarChar(20)
+  source_id       String?  @db.VarChar(128)
+  fk_view_id      String?  @db.VarChar(20)
+  fk_column_id    String?  @db.VarChar(20)
+  fk_level_id     String?  @db.VarChar(20)
+  show            Boolean?
+  order           Float?   @db.Real
+  width           String?  @db.VarChar(255)
+  fk_workspace_id String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id], map: "nc_outline_view_columns_v2_pkey")
+  @@index([base_id, fk_workspace_id], map: "nc_outline_view_columns_v2_base_id_fk_workspace_id_index")
+  @@index([fk_view_id, fk_column_id], map: "nc_outline_view_columns_v2_fk_view_id_fk_column_id_index")
+  @@index([fk_view_id], map: "nc_outline_view_columns_v2_fk_view_id_index")
+}
+
+model nc_list_view_levels_v2 {
+  id                     String   @db.VarChar(20)
+  fk_view_id             String?  @db.VarChar(20)
+  level                  Int?
+  fk_model_id            String?  @db.VarChar(20)
+  fk_link_column_id      String?  @db.VarChar(20)
+  enable_nested_records  Boolean?
+  fk_self_link_column_id String?  @db.VarChar(20)
+  wrap_headers           Boolean?
+  meta                   String?
+  base_id                String   @db.VarChar(20)
+  fk_workspace_id        String?  @db.VarChar(20)
+  created_at             DateTime @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id], map: "nc_outline_view_levels_v2_pkey")
+  @@index([base_id, fk_workspace_id], map: "nc_outline_view_levels_v2_base_id_fk_workspace_id_index")
+  @@index([fk_view_id], map: "nc_outline_view_levels_v2_fk_view_id_index")
+}
+
+model nc_list_view_v2 {
+  fk_view_id          String   @db.VarChar(20)
+  base_id             String   @db.VarChar(20)
+  source_id           String?  @db.VarChar(128)
+  title               String?  @db.VarChar(255)
+  show_empty_parents  Boolean?
+  row_height          Int?
+  fk_prefix_column_id String?  @db.VarChar(20)
+  meta                String?
+  fk_workspace_id     String?  @db.VarChar(20)
+  created_at          DateTime @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, fk_view_id], map: "nc_outline_view_v2_pkey")
+  @@index([base_id, fk_workspace_id], map: "nc_outline_view_v2_base_id_fk_workspace_id_index")
+  @@index([fk_view_id], map: "nc_outline_view_v2_fk_view_id_index")
+}
+
+model nc_managed_app_deployment_logs {
+  id                String    @id(map: "nc_sandbox_deployment_logs_pkey") @db.VarChar(20)
+  fk_workspace_id   String    @db.VarChar(20)
+  base_id           String    @db.VarChar(20)
+  fk_managed_app_id String    @db.VarChar(20)
+  from_version_id   String?   @db.VarChar(20)
+  to_version_id     String    @db.VarChar(20)
+  status            String    @default("pending") @db.VarChar(20)
+  deployment_type   String    @db.VarChar(20)
+  error_message     String?
+  deployment_log    String?
+  meta              String?
+  created_at        DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime  @default(now()) @db.Timestamptz(6)
+  started_at        DateTime? @db.Timestamptz(6)
+  completed_at      DateTime? @db.Timestamptz(6)
+
+  @@index([fk_managed_app_id], map: "nc_managed_app_deployment_logs_managed_app_id_idx")
+  @@index([base_id, created_at], map: "nc_sandbox_deployment_logs_base_created_idx")
+  @@index([base_id], map: "nc_sandbox_deployment_logs_base_id_idx")
+  @@index([from_version_id], map: "nc_sandbox_deployment_logs_from_version_idx")
+  @@index([status], map: "nc_sandbox_deployment_logs_status_idx")
+  @@index([to_version_id], map: "nc_sandbox_deployment_logs_to_version_idx")
+  @@index([fk_workspace_id], map: "nc_sandbox_deployment_logs_workspace_id_idx")
+}
+
+model nc_managed_app_versions {
+  id                String    @id(map: "nc_sandbox_versions_pkey") @db.VarChar(20)
+  fk_workspace_id   String    @db.VarChar(20)
+  fk_managed_app_id String    @db.VarChar(20)
+  version           String    @db.VarChar(20)
+  version_number    Int
+  status            String    @default("draft") @db.VarChar(20)
+  schema            String?
+  release_notes     String?
+  created_at        DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime  @default(now()) @db.Timestamptz(6)
+  published_at      DateTime? @db.Timestamptz(6)
+
+  @@unique([fk_managed_app_id, version_number], map: "nc_managed_app_versions_number_unique_idx")
+  @@unique([fk_managed_app_id, version], map: "nc_managed_app_versions_unique_idx")
+  @@index([fk_managed_app_id], map: "nc_managed_app_versions_managed_app_id_idx")
+  @@index([fk_managed_app_id, version_number], map: "nc_managed_app_versions_ordering_idx")
+  @@index([fk_managed_app_id, status], map: "nc_managed_app_versions_status_idx")
+  @@index([fk_workspace_id], map: "nc_sandbox_versions_workspace_id_idx")
+}
+
+model nc_managed_apps {
+  id              String    @id(map: "nc_sandboxes_pkey") @db.VarChar(20)
+  fk_workspace_id String    @db.VarChar(20)
+  base_id         String    @unique(map: "nc_sandboxes_base_id_unique") @db.VarChar(20)
+  title           String    @db.VarChar(255)
+  description     String?
+  created_by      String    @db.VarChar(20)
+  visibility      String    @default("private") @db.VarChar(20)
+  category        String?   @db.VarChar(255)
+  install_count   Int?      @default(0)
+  meta            String?
+  deleted         Boolean?  @default(false)
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @db.Timestamptz(6)
+  published_at    DateTime? @db.Timestamptz(6)
+
+  @@index([base_id], map: "nc_sandboxes_base_id_idx")
+  @@index([category], map: "nc_sandboxes_category_idx")
+  @@index([created_by], map: "nc_sandboxes_created_by_idx")
+  @@index([deleted], map: "nc_sandboxes_deleted_idx")
+  @@index([visibility], map: "nc_sandboxes_visibility_idx")
+  @@index([fk_workspace_id], map: "nc_sandboxes_workspace_id_idx")
+}
+
+model nc_map_view_columns_v2 {
+  id              String   @db.VarChar(20)
+  base_id         String   @db.VarChar(20)
+  project_id      String?  @db.VarChar(128)
+  fk_view_id      String?  @db.VarChar(20)
+  fk_column_id    String?  @db.VarChar(20)
+  uuid            String?  @db.VarChar(255)
+  label           String?  @db.VarChar(255)
+  help            String?  @db.VarChar(255)
+  show            Boolean?
+  order           Float?   @db.Real
+  fk_workspace_id String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_map_view_columns_v2_base_id_fk_workspace_id_index")
+  @@index([fk_column_id], map: "nc_map_view_columns_v2_fk_column_id_index")
+  @@index([fk_view_id, fk_column_id], map: "nc_map_view_columns_v2_fk_view_id_fk_column_id_index")
+  @@index([fk_view_id], map: "nc_map_view_columns_v2_fk_view_id_index")
+  @@index([id], map: "nc_map_view_columns_v2_oldpk_idx")
+}
+
+model nc_map_view_v2 {
+  fk_view_id         String    @db.VarChar(20)
+  source_id          String?   @db.VarChar(20)
+  base_id            String    @db.VarChar(20)
+  uuid               String?   @db.VarChar(255)
+  title              String?   @db.VarChar(255)
+  fk_geo_data_col_id String?   @db.VarChar(20)
+  meta               String?
+  fk_workspace_id    String?   @db.VarChar(20)
+  created_at         DateTime? @db.Timestamptz(6)
+  updated_at         DateTime? @db.Timestamptz(6)
+
+  @@id([base_id, fk_view_id])
+  @@index([base_id, fk_workspace_id], map: "nc_map_view_v2_base_id_fk_workspace_id_index")
+  @@index([fk_geo_data_col_id], map: "nc_map_view_v2_fk_geo_data_col_id_index")
+  @@index([fk_view_id], map: "nc_map_view_v2_fk_view_id_index")
+  @@index([fk_view_id], map: "nc_map_view_v2_oldpk_idx")
+}
+
+model nc_mcp_tokens {
+  id              String   @db.VarChar(20)
+  title           String?  @db.VarChar(512)
+  base_id         String   @db.VarChar(20)
+  token           String?  @db.VarChar(32)
+  fk_workspace_id String?  @db.VarChar(20)
+  order           Float?   @db.Real
+  fk_user_id      String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_mc_tokens_context")
+  @@index([id], map: "nc_mcp_tokens_oldpk_idx")
+}
+
+model nc_model_stats_v2 {
+  fk_workspace_id String   @db.VarChar(20)
+  fk_model_id     String   @db.VarChar(20)
+  row_count       Int?     @default(0)
+  is_external     Boolean? @default(false)
+  base_id         String   @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([fk_workspace_id, base_id, fk_model_id])
+  @@index([base_id, fk_workspace_id], map: "nc_model_stats_v2_base_id_fk_workspace_id_index")
+  @@index([fk_workspace_id], map: "nc_model_stats_v2_fk_workspace_id_index")
+  @@index([fk_workspace_id, fk_model_id], map: "nc_model_stats_v2_oldpk_idx")
+}
+
+model nc_models_v2 {
+  id               String   @db.VarChar(20)
+  source_id        String?  @db.VarChar(20)
+  base_id          String   @db.VarChar(20)
+  table_name       String?  @db.VarChar(255)
+  title            String?  @db.VarChar(255)
+  type             String?  @default("table") @db.VarChar(255)
+  meta             String?
+  schema           String?
+  enabled          Boolean? @default(true)
+  mm               Boolean? @default(false)
+  tags             String?  @db.VarChar(255)
+  pinned           Boolean?
+  deleted          Boolean?
+  order            Float?   @db.Real
+  description      String?
+  synced           Boolean? @default(false)
+  fk_workspace_id  String?  @db.VarChar(20)
+  created_by       String?  @db.VarChar(20)
+  owned_by         String?  @db.VarChar(20)
+  uuid             String?  @db.VarChar(255)
+  password         String?  @db.VarChar(255)
+  fk_custom_url_id String?  @db.VarChar(20)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_models_v2_base_id_fk_workspace_id_index")
+  @@index([id], map: "nc_models_v2_oldpk_idx")
+  @@index([source_id], map: "nc_models_v2_source_id_index")
+  @@index([type], map: "nc_models_v2_type_index")
+  @@index([uuid], map: "nc_models_v2_uuid_index")
+}
+
+model nc_oauth_authorization_codes {
+  code                  String   @id @db.VarChar(32)
+  fk_client_id          String?  @db.VarChar(32)
+  fk_user_id            String?  @db.VarChar(20)
+  code_challenge        String?  @db.VarChar(255)
+  code_challenge_method String?  @default("S256") @db.VarChar(10)
+  redirect_uri          String?  @db.VarChar(255)
+  scope                 String?  @db.VarChar(255)
+  state                 String?  @db.VarChar(1024)
+  resource              String?  @db.VarChar(255)
+  granted_resources     String?
+  expires_at            DateTime @db.Timestamptz(6)
+  is_used               Boolean  @default(false)
+  created_at            DateTime @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([code], map: "nc_oauth_authorization_codes_code_index")
+  @@index([expires_at], map: "nc_oauth_authorization_codes_expires_at_index")
+  @@index([fk_client_id, fk_user_id], map: "nc_oauth_authorization_codes_fk_client_id_fk_user_id_index")
+  @@index([fk_client_id], map: "nc_oauth_authorization_codes_fk_client_id_index")
+  @@index([fk_user_id], map: "nc_oauth_authorization_codes_fk_user_id_index")
+  @@index([is_used], map: "nc_oauth_authorization_codes_is_used_index")
+}
+
+model nc_oauth_clients {
+  client_id                 String   @id @db.VarChar(32)
+  client_secret             String?  @db.VarChar(128)
+  client_type               String?  @db.VarChar(255)
+  client_name               String?  @db.VarChar(255)
+  client_description        String?
+  client_uri                String?  @db.VarChar(255)
+  logo_uri                  String?  @db.VarChar(255)
+  redirect_uris             String?
+  allowed_grant_types       String?
+  response_types            String?
+  allowed_scopes            String?
+  registration_access_token String?  @db.VarChar(255)
+  registration_client_uri   String?  @db.VarChar(255)
+  client_id_issued_at       BigInt?
+  client_secret_expires_at  BigInt?
+  fk_user_id                String?  @db.VarChar(20)
+  created_at                DateTime @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([fk_user_id], map: "nc_oauth_clients_fk_user_id_index")
+}
+
+model nc_oauth_tokens {
+  id                       String    @id @db.VarChar(20)
+  fk_client_id             String?   @db.VarChar(32)
+  fk_user_id               String?   @db.VarChar(20)
+  access_token             String?
+  access_token_expires_at  DateTime? @db.Timestamptz(6)
+  refresh_token            String?
+  refresh_token_expires_at DateTime? @db.Timestamptz(6)
+  resource                 String?   @db.VarChar(255)
+  audience                 String?   @db.VarChar(255)
+  granted_resources        String?
+  scope                    String?   @db.VarChar(255)
+  is_revoked               Boolean   @default(false)
+  created_at               DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime  @default(now()) @db.Timestamptz(6)
+  last_used_at             DateTime? @db.Timestamptz(6)
+
+  @@index([access_token_expires_at], map: "nc_oauth_tokens_access_token_expires_at_index")
+  @@index([access_token], map: "nc_oauth_tokens_access_token_index")
+  @@index([fk_client_id, fk_user_id], map: "nc_oauth_tokens_fk_client_id_fk_user_id_index")
+  @@index([fk_client_id], map: "nc_oauth_tokens_fk_client_id_index")
+  @@index([fk_user_id], map: "nc_oauth_tokens_fk_user_id_index")
+  @@index([is_revoked, access_token_expires_at], map: "nc_oauth_tokens_is_revoked_access_token_expires_at_index")
+  @@index([is_revoked], map: "nc_oauth_tokens_is_revoked_index")
+  @@index([last_used_at], map: "nc_oauth_tokens_last_used_at_index")
+  @@index([refresh_token_expires_at], map: "nc_oauth_tokens_refresh_token_expires_at_index")
+  @@index([refresh_token], map: "nc_oauth_tokens_refresh_token_index")
+}
+
+model nc_org {
+  id                 String   @id @db.VarChar(20)
+  title              String?  @db.VarChar(255)
+  slug               String?  @db.VarChar(255)
+  fk_user_id         String?  @db.VarChar(20)
+  meta               String?
+  image              String?  @db.VarChar(255)
+  is_share_enabled   Boolean? @default(false)
+  deleted            Boolean? @default(false)
+  order              Float?   @db.Real
+  fk_db_instance_id  String?  @db.VarChar(20)
+  stripe_customer_id String?  @db.VarChar(255)
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([fk_user_id], map: "nc_org_fk_user_id_index")
+  @@index([slug], map: "nc_org_slug_index")
+}
+
+model nc_org_domain {
+  id              String    @id @db.VarChar(20)
+  fk_org_id       String?   @db.VarChar(20)
+  fk_user_id      String?   @db.VarChar(20)
+  domain          String?   @db.VarChar(255)
+  verified        Boolean?
+  txt_value       String?   @db.VarChar(255)
+  last_verified   DateTime? @db.Timestamptz(6)
+  deleted         Boolean?  @default(false)
+  fk_workspace_id String?   @db.VarChar(20)
+  created_at      DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([domain], map: "nc_org_domain_domain_index")
+  @@index([fk_org_id], map: "nc_org_domain_fk_org_id_index")
+  @@index([fk_user_id], map: "nc_org_domain_fk_user_id_index")
+  @@index([fk_workspace_id], map: "org_domain_fk_workspace_id_idx")
+}
+
+model nc_org_users {
+  fk_org_id  String   @id @db.VarChar(20)
+  fk_user_id String?  @db.VarChar(20)
+  roles      String?  @db.VarChar(255)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model nc_permission_subjects {
+  fk_permission_id String   @db.VarChar(20)
+  subject_type     String   @db.VarChar(255)
+  subject_id       String   @db.VarChar(255)
+  fk_workspace_id  String?  @db.VarChar(20)
+  base_id          String   @db.VarChar(20)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, fk_permission_id, subject_type, subject_id])
+  @@index([fk_workspace_id, base_id], map: "nc_permission_subjects_context")
+  @@index([fk_permission_id, subject_type, subject_id], map: "nc_permission_subjects_oldpk_idx")
+}
+
+model nc_permissions {
+  id                     String   @db.VarChar(20)
+  fk_workspace_id        String?  @db.VarChar(20)
+  base_id                String   @db.VarChar(20)
+  entity                 String?  @db.VarChar(255)
+  entity_id              String?  @db.VarChar(255)
+  permission             String?  @db.VarChar(255)
+  created_by             String?  @db.VarChar(20)
+  enforce_for_form       Boolean? @default(true)
+  enforce_for_automation Boolean? @default(true)
+  granted_type           String?  @db.VarChar(255)
+  granted_role           String?  @db.VarChar(255)
+  created_at             DateTime @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_permissions_context")
+  @@index([entity, entity_id, permission], map: "nc_permissions_entity")
+  @@index([id], map: "nc_permissions_oldpk_idx")
+}
+
+model nc_plans {
+  id                String   @id @db.VarChar(20)
+  title             String?  @db.VarChar(255)
+  description       String?
+  stripe_product_id String   @db.VarChar(255)
+  is_active         Boolean? @default(true)
+  prices            String?
+  meta              String?
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([stripe_product_id], map: "nc_plans_stripe_product_idx")
+}
+
+model nc_plugins_v2 {
+  id              String   @id @db.VarChar(20)
+  title           String?  @db.VarChar(45)
+  description     String?
+  active          Boolean? @default(false)
+  rating          Float?   @db.Real
+  version         String?  @db.VarChar(255)
+  docs            String?  @db.VarChar(255)
+  status          String?  @default("install") @db.VarChar(255)
+  status_details  String?  @db.VarChar(255)
+  logo            String?  @db.VarChar(255)
+  icon            String?  @db.VarChar(255)
+  tags            String?  @db.VarChar(255)
+  category        String?  @db.VarChar(255)
+  input_schema    String?
+  input           String?
+  creator         String?  @db.VarChar(255)
+  creator_website String?  @db.VarChar(255)
+  price           String?  @db.VarChar(255)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model nc_principal_assignments {
+  resource_type    String   @db.VarChar(20)
+  resource_id      String   @db.VarChar(20)
+  principal_type   String   @db.VarChar(20)
+  principal_ref_id String   @db.VarChar(20)
+  roles            String   @db.VarChar(255)
+  deleted          Boolean? @default(false)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([resource_type, resource_id, principal_type, principal_ref_id], map: "nc_principal_assignments_pk")
+  @@index([principal_type, principal_ref_id], map: "nc_principal_assignments_principal_idx")
+  @@index([principal_type, principal_ref_id, resource_type], map: "nc_principal_assignments_principal_resource_idx")
+  @@index([resource_type, resource_id], map: "nc_principal_assignments_resource_idx")
+  @@index([resource_type, resource_id, principal_type], map: "nc_principal_assignments_resource_principal_type_idx")
+}
+
+model nc_record_templates {
+  id              String   @db.VarChar(20)
+  base_id         String   @db.VarChar(20)
+  fk_workspace_id String?  @db.VarChar(20)
+  fk_model_id     String   @db.VarChar(20)
+  title           String   @db.VarChar(255)
+  description     String?
+  template_data   String
+  usage_count     Int?     @default(0)
+  enabled         Boolean? @default(true)
+  created_by      String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id], map: "nc_record_templates_base_id_index")
+  @@index([fk_model_id], map: "nc_record_templates_fk_model_id_index")
+  @@index([fk_workspace_id], map: "nc_record_templates_fk_workspace_id_index")
+}
+
+model nc_rls_policies {
+  id               String   @db.VarChar(20)
+  fk_workspace_id  String?  @db.VarChar(20)
+  base_id          String   @db.VarChar(20)
+  source_id        String?  @db.VarChar(20)
+  fk_model_id      String   @db.VarChar(20)
+  title            String?  @db.VarChar(255)
+  enabled          Boolean? @default(true)
+  is_default       Boolean? @default(false)
+  default_behavior String?  @db.VarChar(20)
+  order            Float?   @db.Real
+  meta             String?
+  created_by       String?  @db.VarChar(20)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id], map: "nc_rls_policies_pk")
+  @@index([fk_model_id, is_default], map: "nc_rls_policies_model_default_idx")
+  @@index([fk_model_id, enabled], map: "nc_rls_policies_model_enabled_idx")
+}
+
+model nc_rls_policy_subjects {
+  fk_rls_policy_id String   @db.VarChar(20)
+  subject_type     String   @db.VarChar(255)
+  subject_id       String   @db.VarChar(255)
+  fk_workspace_id  String?  @db.VarChar(20)
+  base_id          String?  @db.VarChar(20)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([fk_rls_policy_id, subject_type, subject_id], map: "nc_rls_policy_subjects_pk")
+  @@index([fk_workspace_id, base_id], map: "nc_rls_policy_subjects_context_idx")
+}
+
+model nc_row_color_conditions {
+  id                   String   @db.VarChar(20)
+  fk_view_id           String?  @db.VarChar(20)
+  fk_workspace_id      String?  @db.VarChar(20)
+  base_id              String   @db.VarChar(20)
+  color                String?  @db.VarChar(20)
+  nc_order             Float?   @db.Real
+  is_set_as_background Boolean?
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime @default(now()) @db.Timestamptz(6)
+  type                 String?  @default("row") @db.VarChar(20)
+  fk_target_column_id  String?  @db.VarChar(20)
+
+  @@id([base_id, id])
+  @@index([fk_view_id], map: "nc_row_color_conditions_fk_view_id_index")
+  @@index([fk_workspace_id, base_id], map: "nc_row_color_conditions_fk_workspace_id_base_id_index")
+  @@index([id], map: "nc_row_color_conditions_oldpk_idx")
+}
+
+model nc_sandboxes_v2 {
+  id              String   @id @db.VarChar(20)
+  fk_workspace_id String   @db.VarChar(20)
+  master_base_id  String   @db.VarChar(20)
+  sandbox_base_id String   @db.VarChar(20)
+  created_by      String   @db.VarChar(20)
+  meta            String?
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([created_by])
+  @@index([master_base_id])
+  @@index([sandbox_base_id])
+  @@index([fk_workspace_id], map: "nc_sandboxes_v2_workspace_id_idx")
+}
+
+model nc_scim_config {
+  id                 String   @id @db.VarChar(20)
+  fk_workspace_id    String   @unique(map: "nc_scim_config_fk_workspace_id_unique") @db.VarChar(20)
+  enabled            Boolean? @default(false)
+  provisioning_token String
+  role_mapping       String?
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([fk_workspace_id], map: "nc_scim_config_workspace_idx")
+}
+
+model nc_scripts {
+  id              String   @db.VarChar(20)
+  title           String?
+  description     String?
+  meta            String?
+  order           Float?   @db.Real
+  base_id         String   @db.VarChar(20)
+  fk_workspace_id String?  @db.VarChar(20)
+  script          String?
+  config          String?
+  created_by      String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_scripts_context")
+  @@index([id], map: "nc_scripts_oldpk_idx")
+}
+
+model nc_snapshots {
+  id               String   @id @db.VarChar(20)
+  title            String?  @db.VarChar(512)
+  base_id          String?  @db.VarChar(20)
+  snapshot_base_id String?  @db.VarChar(20)
+  fk_workspace_id  String?  @db.VarChar(20)
+  created_by       String?  @db.VarChar(20)
+  status           String?  @db.VarChar(20)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([base_id, fk_workspace_id], map: "nc_snapshot_context")
+}
+
+model nc_sort_v2 {
+  id              String   @db.VarChar(20)
+  source_id       String?  @db.VarChar(20)
+  base_id         String   @db.VarChar(20)
+  fk_view_id      String?  @db.VarChar(20)
+  fk_column_id    String?  @db.VarChar(20)
+  direction       String?  @default("false") @db.VarChar(255)
+  order           Float?   @db.Real
+  fk_workspace_id String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+  fk_level_id     String?  @db.VarChar(20)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_sort_v2_base_id_fk_workspace_id_index")
+  @@index([fk_column_id], map: "nc_sort_v2_fk_column_id_index")
+  @@index([fk_level_id], map: "nc_sort_v2_fk_level_id_index")
+  @@index([fk_view_id], map: "nc_sort_v2_fk_view_id_index")
+  @@index([id], map: "nc_sort_v2_oldpk_idx")
+}
+
+model nc_sources_v2 {
+  id                 String   @db.VarChar(20)
+  base_id            String   @db.VarChar(20)
+  alias              String?  @db.VarChar(255)
+  config             String?
+  meta               String?
+  is_meta            Boolean?
+  type               String?  @db.VarChar(255)
+  inflection_column  String?  @db.VarChar(255)
+  inflection_table   String?  @db.VarChar(255)
+  enabled            Boolean? @default(true)
+  order              Float?   @db.Real
+  description        String?  @db.VarChar(255)
+  erd_uuid           String?  @db.VarChar(255)
+  deleted            Boolean? @default(false)
+  is_schema_readonly Boolean? @default(false)
+  is_data_readonly   Boolean? @default(false)
+  is_local           Boolean? @default(false)
+  fk_sql_executor_id String?  @db.VarChar(20)
+  fk_workspace_id    String?  @db.VarChar(20)
+  fk_integration_id  String?  @db.VarChar(20)
+  is_encrypted       Boolean? @default(false)
+  created_at         DateTime @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id], map: "nc_bases_v2_pkey")
+  @@index([base_id, fk_workspace_id], map: "nc_source_v2_base_id_fk_workspace_id_index")
+  @@index([fk_integration_id], map: "nc_source_v2_fk_integration_id_index")
+  @@index([fk_sql_executor_id], map: "nc_source_v2_fk_sql_executor_id_index")
+  @@index([id], map: "nc_sources_v2_oldpk_idx")
+}
+
+model nc_sql_executor_v2 {
+  id         String   @id @db.VarChar(20)
+  domain     String?  @db.VarChar(50)
+  status     String?  @db.VarChar(20)
+  priority   Int?
+  capacity   Int?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model nc_sso_client {
+  id                   String   @id @db.VarChar(20)
+  type                 String?  @db.VarChar(20)
+  title                String?  @db.VarChar(255)
+  enabled              Boolean? @default(true)
+  config               String?
+  fk_user_id           String?  @db.VarChar(20)
+  fk_org_id            String?  @db.VarChar(20)
+  deleted              Boolean? @default(false)
+  order                Float?   @db.Real
+  domain_name          String?  @db.VarChar(255)
+  domain_name_verified Boolean?
+  fk_workspace_id      String?  @db.VarChar(20)
+  created_at           DateTime @default(now()) @db.Timestamptz(6)
+  updated_at           DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([domain_name], map: "nc_sso_client_domain_name_index")
+  @@index([fk_user_id], map: "nc_sso_client_fk_user_id_index")
+  @@index([fk_org_id], map: "nc_sso_client_fk_workspace_id_index")
+  @@index([fk_workspace_id], map: "sso_client_fk_workspace_id_idx")
+}
+
+model nc_sso_client_domain {
+  fk_sso_client_id String   @id @db.VarChar(20)
+  fk_org_domain_id String?  @db.VarChar(20)
+  enabled          Boolean? @default(true)
+  created_at       DateTime @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model nc_store {
+  id         Int       @id @default(autoincrement())
+  base_id    String?   @db.VarChar(255)
+  db_alias   String?   @default("db") @db.VarChar(255)
+  key        String?   @db.VarChar(255)
+  value      String?
+  type       String?   @db.VarChar(255)
+  env        String?   @db.VarChar(255)
+  tag        String?   @db.VarChar(255)
+  created_at DateTime? @db.Timestamptz(6)
+  updated_at DateTime? @db.Timestamptz(6)
+
+  @@index([key], map: "nc_store_key_index")
+}
+
+model nc_subscriptions {
+  id                        String    @id @db.VarChar(20)
+  fk_workspace_id           String?   @db.VarChar(20)
+  fk_org_id                 String?   @db.VarChar(20)
+  fk_plan_id                String    @db.VarChar(20)
+  fk_user_id                String?   @db.VarChar(20)
+  stripe_subscription_id    String?   @db.VarChar(255)
+  stripe_price_id           String?   @db.VarChar(255)
+  seat_count                Int       @default(1)
+  status                    String?   @db.VarChar(255)
+  billing_cycle_anchor      DateTime? @db.Timestamptz(6)
+  start_at                  DateTime? @db.Timestamptz(6)
+  trial_end_at              DateTime? @db.Timestamptz(6)
+  canceled_at               DateTime? @db.Timestamptz(6)
+  period                    String?   @db.VarChar(255)
+  upcoming_invoice_at       DateTime? @db.Timestamptz(6)
+  upcoming_invoice_due_at   DateTime? @db.Timestamptz(6)
+  upcoming_invoice_amount   Int?
+  upcoming_invoice_currency String?   @db.VarChar(255)
+  stripe_schedule_id        String?   @db.VarChar(255)
+  schedule_phase_start      DateTime? @db.Timestamptz(6)
+  schedule_stripe_price_id  String?   @db.VarChar(255)
+  schedule_fk_plan_id       String?   @db.VarChar(20)
+  schedule_period           String?   @db.VarChar(255)
+  schedule_type             String?   @db.VarChar(255)
+  meta                      String?
+  created_at                DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([fk_org_id], map: "nc_subscriptions_org_idx")
+  @@index([stripe_subscription_id], map: "nc_subscriptions_stripe_subscription_idx")
+  @@index([fk_workspace_id], map: "nc_subscriptions_ws_idx")
+}
+
+model nc_sync_configs {
+  id                       String    @db.VarChar(20)
+  fk_workspace_id          String?   @db.VarChar(20)
+  base_id                  String    @db.VarChar(20)
+  fk_integration_id        String?   @db.VarChar(20)
+  fk_model_id              String?   @db.VarChar(20)
+  sync_type                String?   @db.VarChar(255)
+  sync_trigger             String?   @db.VarChar(255)
+  sync_trigger_cron        String?   @db.VarChar(255)
+  sync_trigger_secret      String?   @db.VarChar(255)
+  sync_job_id              String?   @db.VarChar(255)
+  last_sync_at             DateTime? @db.Timestamptz(6)
+  next_sync_at             DateTime? @db.Timestamptz(6)
+  title                    String?   @db.VarChar(255)
+  sync_category            String?   @db.VarChar(255)
+  fk_parent_sync_config_id String?   @db.VarChar(20)
+  on_delete_action         String?   @default("mark_deleted") @db.VarChar(255)
+  created_at               DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime  @default(now()) @db.Timestamptz(6)
+  created_by               String?   @db.VarChar(20)
+  updated_by               String?   @db.VarChar(20)
+  meta                     String?
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_sync_configs_context")
+  @@index([id], map: "nc_sync_configs_oldpk_idx")
+  @@index([fk_parent_sync_config_id], map: "nc_sync_configs_parent_idx")
+  @@index([fk_model_id, fk_integration_id], map: "sync_configs_integration_model")
+}
+
+model nc_sync_logs_v2 {
+  id                String   @db.VarChar(20)
+  base_id           String   @db.VarChar(20)
+  fk_sync_source_id String?  @db.VarChar(20)
+  time_taken        Int?
+  status            String?  @db.VarChar(255)
+  status_details    String?
+  fk_workspace_id   String?  @db.VarChar(20)
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_sync_logs_v2_base_id_fk_workspace_id_index")
+  @@index([id], map: "nc_sync_logs_v2_oldpk_idx")
+}
+
+model nc_sync_mappings {
+  id                String   @db.VarChar(20)
+  fk_workspace_id   String?  @db.VarChar(20)
+  base_id           String   @db.VarChar(20)
+  fk_sync_config_id String?  @db.VarChar(20)
+  target_table      String?  @db.VarChar(255)
+  fk_model_id       String?  @db.VarChar(20)
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_sync_mappings_context")
+  @@index([id], map: "nc_sync_mappings_oldpk_idx")
+  @@index([fk_sync_config_id], map: "nc_sync_mappings_sync_config_idx")
+}
+
+model nc_sync_source_v2 {
+  id              String   @db.VarChar(20)
+  title           String?  @db.VarChar(255)
+  type            String?  @db.VarChar(255)
+  details         String?
+  deleted         Boolean?
+  enabled         Boolean? @default(true)
+  order           Float?   @db.Real
+  base_id         String   @db.VarChar(20)
+  fk_user_id      String?  @db.VarChar(20)
+  source_id       String?  @db.VarChar(20)
+  fk_workspace_id String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_sync_source_v2_base_id_fk_workspace_id_index")
+  @@index([id], map: "nc_sync_source_v2_oldpk_idx")
+  @@index([source_id], map: "nc_sync_source_v2_source_id_index")
+}
+
+model nc_teams {
+  id                String   @id @db.VarChar(20)
+  title             String   @db.VarChar(255)
+  meta              String?
+  fk_org_id         String?  @db.VarChar(20)
+  fk_workspace_id   String?  @db.VarChar(20)
+  created_by        String?  @db.VarChar(20)
+  deleted           Boolean? @default(false)
+  created_at        DateTime @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime @default(now()) @db.Timestamptz(6)
+  scim_external_id  String?  @unique(map: "nc_teams_scim_external_id_unique") @db.VarChar(255)
+  scim_managed      Boolean? @default(false)
+  scim_display_name String?  @db.VarChar(255)
+  scim_meta         String?
+
+  @@index([created_by])
+  @@index([fk_org_id], map: "nc_teams_org_idx")
+  @@index([scim_external_id])
+  @@index([scim_managed])
+  @@index([fk_workspace_id], map: "nc_teams_workspace_idx")
+}
+
+model nc_usage_stats {
+  fk_workspace_id String   @db.VarChar(20)
+  usage_type      String   @db.VarChar(255)
+  period_start    DateTime @db.Timestamptz(6)
+  count           Int?     @default(0)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([fk_workspace_id, usage_type, period_start])
+  @@index([fk_workspace_id, period_start], map: "nc_usage_stats_ws_period_idx")
+}
+
+model nc_user_comment_notifications_preference {
+  id              String   @id @db.VarChar(20)
+  row_id          String?  @db.VarChar(255)
+  user_id         String?  @db.VarChar(20)
+  fk_model_id     String?  @db.VarChar(20)
+  source_id       String?  @db.VarChar(20)
+  base_id         String?  @db.VarChar(20)
+  preferences     String?  @db.VarChar(255)
+  fk_workspace_id String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([base_id, fk_workspace_id], map: "nc_user_comment_notifications_preference_base_id_fk_workspace_i")
+  @@index([user_id, row_id, fk_model_id], map: "user_comments_preference_index")
+}
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.
+model nc_user_refresh_tokens {
+  fk_user_id String?   @db.VarChar(20)
+  token      String?   @db.VarChar(255)
+  meta       String?
+  expires_at DateTime? @db.Timestamptz(6)
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([expires_at], map: "nc_user_refresh_tokens_expires_at_index")
+  @@index([fk_user_id], map: "nc_user_refresh_tokens_fk_user_id_index")
+  @@index([token], map: "nc_user_refresh_tokens_token_index")
+  @@ignore
+}
+
+model nc_users_v2 {
+  id                       String    @id @db.VarChar(20)
+  email                    String?   @db.VarChar(255)
+  password                 String?   @db.VarChar(255)
+  salt                     String?   @db.VarChar(255)
+  invite_token             String?   @db.VarChar(255)
+  invite_token_expires     String?   @db.VarChar(255)
+  reset_password_expires   DateTime? @db.Timestamptz(6)
+  reset_password_token     String?   @db.VarChar(255)
+  email_verification_token String?   @db.VarChar(255)
+  email_verified           Boolean?
+  roles                    String?   @default("editor") @db.VarChar(255)
+  token_version            String?   @db.VarChar(255)
+  blocked                  Boolean?  @default(false)
+  blocked_reason           String?   @db.VarChar(255)
+  deleted_at               DateTime? @db.Timestamptz(6)
+  is_deleted               Boolean?  @default(false)
+  meta                     String?
+  display_name             String?   @db.VarChar(255)
+  user_name                String?   @db.VarChar(255)
+  bio                      String?   @db.VarChar(255)
+  location                 String?   @db.VarChar(255)
+  website                  String?   @db.VarChar(255)
+  avatar                   String?   @db.VarChar(255)
+  is_new_user              Boolean?
+  created_at               DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at               DateTime  @default(now()) @db.Timestamptz(6)
+  canonical_email          String?   @db.VarChar(255)
+
+  @@index([canonical_email], map: "nc_users_v2_canonical_email_index")
+  @@index([email], map: "nc_users_v2_email_index")
+}
+
+model nc_view_sections {
+  id              String   @id @db.VarChar(20)
+  fk_workspace_id String?  @db.VarChar(20)
+  base_id         String?  @db.VarChar(20)
+  source_id       String?  @db.VarChar(20)
+  fk_model_id     String   @db.VarChar(20)
+  title           String   @db.VarChar(255)
+  order           Float?   @db.Real
+  meta            String?
+  created_by      String?  @db.VarChar(20)
+  updated_by      String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([base_id, fk_workspace_id], map: "nc_view_sections_context")
+  @@index([fk_model_id], map: "nc_view_sections_model_idx")
+}
+
+model nc_views_v2 {
+  id                        String   @db.VarChar(20)
+  source_id                 String?  @db.VarChar(20)
+  base_id                   String   @db.VarChar(20)
+  fk_model_id               String?  @db.VarChar(20)
+  title                     String?  @db.VarChar(255)
+  type                      Int?
+  is_default                Boolean?
+  show_system_fields        Boolean?
+  lock_type                 String?  @default("collaborative") @db.VarChar(255)
+  uuid                      String?  @db.VarChar(255)
+  password                  String?  @db.VarChar(255)
+  show                      Boolean?
+  order                     Float?   @db.Real
+  meta                      String?
+  description               String?
+  created_by                String?  @db.VarChar(20)
+  owned_by                  String?  @db.VarChar(20)
+  fk_workspace_id           String?  @db.VarChar(20)
+  attachment_mode_column_id String?  @db.VarChar(20)
+  expanded_record_mode      String?  @db.VarChar(255)
+  fk_custom_url_id          String?  @db.VarChar(20)
+  row_coloring_mode         String?  @db.VarChar(10)
+  created_at                DateTime @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime @default(now()) @db.Timestamptz(6)
+  fk_view_section_id        String?  @db.VarChar(20)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_views_v2_base_id_fk_workspace_id_index")
+  @@index([created_by], map: "nc_views_v2_created_by_index")
+  @@index([fk_custom_url_id], map: "nc_views_v2_fk_custom_url_id_index")
+  @@index([fk_model_id], map: "nc_views_v2_fk_model_id_index")
+  @@index([id], map: "nc_views_v2_oldpk_idx")
+  @@index([owned_by], map: "nc_views_v2_owned_by_index")
+}
+
+model nc_widgets_v2 {
+  id              String   @db.VarChar(20)
+  fk_workspace_id String?  @db.VarChar(20)
+  base_id         String   @db.VarChar(20)
+  fk_dashboard_id String   @db.VarChar(20)
+  fk_model_id     String?  @db.VarChar(20)
+  fk_view_id      String?  @db.VarChar(20)
+  title           String   @db.VarChar(255)
+  description     String?
+  type            String   @db.VarChar(50)
+  config          String?
+  meta            String?
+  order           Int?
+  position        String?
+  error           Boolean?
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+
+  @@id([base_id, id])
+  @@index([base_id, fk_workspace_id], map: "nc_widgets_context")
+  @@index([fk_dashboard_id], map: "nc_widgets_dashboard_idx")
+  @@index([id], map: "nc_widgets_v2_oldpk_idx")
+}
+
+model nc_workflows {
+  id              String   @id @db.VarChar(20)
+  title           String   @db.VarChar(255)
+  description     String?
+  fk_workspace_id String?  @db.VarChar(20)
+  base_id         String?  @db.VarChar(20)
+  enabled         Boolean? @default(false)
+  nodes           String?
+  edges           String?
+  meta            String?
+  order           Float?   @db.Real
+  created_by      String?  @db.VarChar(20)
+  updated_by      String?  @db.VarChar(20)
+  created_at      DateTime @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime @default(now()) @db.Timestamptz(6)
+  draft           String?
+
+  @@index([base_id, fk_workspace_id], map: "nc_workflows_context_idx")
+}
+
+model notification {
+  id         String   @id @db.VarChar(20)
+  type       String?  @db.VarChar(40)
+  body       String?
+  is_read    Boolean? @default(false)
+  is_deleted Boolean? @default(false)
+  fk_user_id String?  @db.VarChar(20)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  updated_at DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([created_at], map: "notification_created_at_index")
+  @@index([fk_user_id], map: "notification_fk_user_id_index")
+}
+
+model workspace {
+  id                               String    @id @db.VarChar(20)
+  title                            String?   @db.VarChar(255)
+  description                      String?
+  meta                             String?
+  fk_user_id                       String?   @db.VarChar(20)
+  deleted                          Boolean?  @default(false)
+  deleted_at                       DateTime? @db.Timestamptz(6)
+  order                            Float?    @db.Real
+  status                           Int?      @default(0) @db.SmallInt
+  message                          String?   @db.VarChar(256)
+  plan                             String?   @default("free") @db.VarChar(20)
+  infra_meta                       String?
+  fk_org_id                        String?   @db.VarChar(20)
+  stripe_customer_id               String?   @db.VarChar(255)
+  grace_period_start_at            DateTime? @db.Timestamptz(6)
+  api_grace_period_start_at        DateTime? @db.Timestamptz(6)
+  automation_grace_period_start_at DateTime? @db.Timestamptz(6)
+  loyal                            Boolean?  @default(false)
+  loyalty_discount_used            Boolean?  @default(false)
+  db_job_id                        String?   @db.VarChar(20)
+  fk_db_instance_id                String?   @db.VarChar(20)
+  segment_code                     Int?
+  created_at                       DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at                       DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([fk_org_id], map: "workspace_fk_org_id_index")
+}
+
+model workspace_user {
+  fk_workspace_id  String    @db.VarChar(20)
+  fk_user_id       String    @db.VarChar(20)
+  roles            String?   @db.VarChar(255)
+  invite_token     String?   @db.VarChar(255)
+  invite_accepted  Boolean?  @default(false)
+  deleted          Boolean?  @default(false)
+  deleted_at       DateTime? @db.Timestamptz(6)
+  order            Float?    @db.Real
+  invited_by       String?   @db.VarChar(20)
+  created_at       DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime  @default(now()) @db.Timestamptz(6)
+  scim_external_id String?   @db.VarChar(255)
+  scim_managed     Boolean?  @default(false)
+  scim_user_name   String?   @db.VarChar(255)
+  scim_meta        String?
+
+  @@id([fk_workspace_id, fk_user_id])
+  @@index([scim_external_id], map: "nc_workspace_user_scim_external_id_idx")
+  @@index([scim_managed], map: "nc_workspace_user_scim_managed_idx")
+  @@index([invited_by], map: "workspace_user_invited_by_index")
+}
+
+model xc_knex_migrationsv0 {
+  id             Int       @id @default(autoincrement())
+  name           String?   @db.VarChar(255)
+  batch          Int?
+  migration_time DateTime? @db.Timestamptz(6)
+}
+
+model xc_knex_migrationsv0_lock {
+  index     Int  @id @default(autoincrement())
+  is_locked Int?
+}
+
+model MetaRecaudo {
+  id          String   @id @default(cuid())
+  empleadoId  String
+  empresaId   String
+  mes         Int      // 1-12
+  anio        Int
+  metaPesos   Decimal  @db.Decimal(14, 2)
+  metaPct     Decimal? @db.Decimal(5, 2)  // % de cartera asignada
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  empleado    Empleado @relation(fields: [empleadoId], references: [id])
+  empresa     Empresa  @relation(fields: [empresaId], references: [id])
+
+  @@unique([empleadoId, mes, anio])
+  @@map("MetaRecaudo")
+}
+model SubEmpresa {
+  id            String        @id @default(cuid())
+  empresaId     String
+  nombre        String
+  activa        Boolean       @default(true)
+  configRecibos Json?         @default("{\"nit\": null, \"logo\": null, \"prefijo\": \"REC\", \"telefono\": null, \"direccion\": null, \"anchoPapel\": \"80mm\"}")
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  empresa       Empresa       @relation(fields: [empresaId], references: [id])
+  empleados     Empleado[]
+  clientes      Cliente[]
+  rutas         Ruta[]
+  rutasFijas    RutaFija[]
+  integraciones Integracion[]
+  @@index([empresaId])
+  @@map("SubEmpresa")
+}
+
+model Integracion {
+  id           String       @id @default(cuid())
+  empresaId    String
+  subEmpresaId String?
+  nombre       String
+  tipo         String       // uptres | siigo | alegra | custom
+  activa       Boolean      @default(true)
+  config       Json?        // credenciales encriptadas, URLs base, etc.
+  ultimaSync   DateTime?
+  syncInicial  Boolean   @default(false)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  empresa      Empresa      @relation(fields: [empresaId], references: [id])
+  subEmpresa   SubEmpresa?  @relation(fields: [subEmpresaId], references: [id])
+  compras      SyncCompra[]
+  deudas       SyncDeuda[]
+  logs         SyncLog[]
+  carteraCache CarteraCache[]
+  @@index([empresaId])
+  @@index([subEmpresaId])
+  @@map("Integracion")
+}
+
+model CarteraCache {
+  id                  String    @id @default(cuid())
+  empresaId           String
+  integracionId       String
+  clienteId           String?   // FK a Cliente local (null si no existe aun)
+  clienteApiId        String    // ID en UpTres
+  nombre              String
+  nit                 String?
+  telefono            String?
+  ciudad              String?
+  empleadoExternalId  String?
+  empleadoNombre      String?
+  saldoTotal          Decimal   @db.Decimal(14, 2)
+  saldoPendiente      Decimal   @db.Decimal(14, 2)
+  porEstado           Json?     // {pendiente, vencida, mora, critica, pagada}
+  deudas              Json?     // array detalle de cada orden
+  totalDeudas         Int       @default(0)
+  ultimaActualizacion DateTime  @default(now())
+  ultimaConsulta      DateTime?
+  saldoValidado       Boolean   @default(false)
+
+  empresa     Empresa      @relation(fields: [empresaId], references: [id])
+  integracion Integracion  @relation(fields: [integracionId], references: [id])
+
+  @@unique([integracionId, clienteApiId])
+  @@index([empresaId])
+  @@index([clienteId])
+  @@index([integracionId])
+  @@map("CarteraCache")
+}
+
+model SyncCompra {
+  id                  String      @id @default(cuid())
+  integracionId       String
+  externalId          String      // uid/_id de UpTres
+  clienteApiId        String      // cliente.uid de UpTres = Cliente.apiId
+  empleadoExternalId  String?     // empleado.uid de UpTres
+  numeroOrden         Int?
+  numeroFactura       Int?
+  valor               Decimal     @db.Decimal(14, 2)
+  saldo               Decimal     @default(0) @db.Decimal(14, 2)
+  abono               Decimal     @default(0) @db.Decimal(14, 2)
+  tipo                String?     // credito | contado
+  diasCredito         Int?
+  facturado           Boolean     @default(false)
+  fecha               DateTime?
+  fechaVencimiento    DateTime?
+  nameciudad          String?
+  condition           Boolean     @default(true)
+  data                Json?       // JSON crudo completo del externo
+  modificadoEn        DateTime?   // fModificado del externo para delta sync
+  sincronizadoEl      DateTime    @default(now())
+  integracion         Integracion @relation(fields: [integracionId], references: [id])
+  @@unique([integracionId, externalId])
+  @@index([clienteApiId])
+  @@index([integracionId])
+  @@map("SyncCompra")
+}
+
+model SyncDeuda {
+  id               String      @id @default(cuid())
+  integracionId    String
+  externalId       String      // uid de la orden de credito en UpTres
+  clienteApiId     String      // cliente.uid = Cliente.apiId
+  empleadoExternalId String?
+  numeroOrden      Int?
+  numeroFactura    Int?
+  valor            Decimal     @db.Decimal(14, 2)
+  saldo            Decimal     @db.Decimal(14, 2)
+  saldoAnterior    Decimal?    @db.Decimal(14, 2)
+  abono            Decimal     @default(0) @db.Decimal(14, 2)
+  diasCredito      Int?
+  fechaVencimiento DateTime?
+  condition        Boolean     @default(true)
+  data             Json?       // JSON crudo completo del externo
+  modificadoEn     DateTime?
+  sincronizadoEl   DateTime    @default(now())
+  integracion      Integracion @relation(fields: [integracionId], references: [id])
+  @@unique([integracionId, externalId])
+  @@index([clienteApiId])
+  @@index([integracionId])
+  @@map("SyncDeuda")
+}
+
+model SyncLog {
+  id                   String      @id @default(cuid())
+  integracionId        String
+  inicio               DateTime
+  fin                  DateTime?
+  clientesActualizados Int         @default(0)
+  comprasSincronizadas Int         @default(0)
+  deudasSincronizadas  Int         @default(0)
+  errores              Json?
+  estado               String      @default("ok") // ok | parcial | error
+  createdAt            DateTime    @default(now())
+  integracion          Integracion @relation(fields: [integracionId], references: [id])
+  @@index([integracionId])
+  @@map("SyncLog")
+}
+
+
+model EmpresaVinculada {
+  id        String   @id @default(cuid())
+  empresaId String
+  nombre    String
+  apiKey    String   @unique @default(cuid())
+  color     String   @default("#8b5cf6")
+  activa    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  empresa   Empresa  @relation(fields: [empresaId], references: [id])
+  rutas     Ruta[]
+  @@map("EmpresaVinculada")
+}
+
+model OrdenDespacho {
+  id                String    @id @default(cuid())
+  empresaId         String
+  origen            String
+  origenId          String?
+  numeroOrden       String
+  clienteNombre     String
+  clienteNit        String?
+  ciudad            String?
+  direccion         String?
+  telefono          String?
+  estado            String    @default("pendiente")
+  fotoAlistamiento  String?   // legacy
+  fotosAlistamiento Json?     // array de URLs
+  alistadoEl        DateTime?
+  alistadoPorId     String?
+  repartidorId      String?
+  firmaEntrega      String?
+  fotoEntrega       String?
+  entregadoEl       DateTime?
+  transportadora    String?
+  guiaTransporte    String?
+  fechaOrden        DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  empresa           Empresa   @relation(fields: [empresaId], references: [id])
+  alistadoPor       Empleado? @relation("AlistadoPor", fields: [alistadoPorId], references: [id])
+  repartidor        Empleado? @relation("RepartidorDespacho", fields: [repartidorId], references: [id])
+  @@index([empresaId, estado])
+  @@index([empresaId, origen])
+  @@map("OrdenDespacho")
+}
