@@ -117,23 +117,23 @@ export default function TrazabilidadPage() {
             onChange={e => setQInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && buscar()}
             placeholder="# orden o cliente..."
-            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500"
+            className="flex-1 min-w-0 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm outline-none"
           />
           <select value={estado} onChange={e => setEstado(e.target.value)}
-            className="bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 text-white text-sm outline-none">
+            className="bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm outline-none">
             {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
           </select>
           <button onClick={buscar}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-4 py-2.5 rounded-xl">
+            className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl">
             🔍
           </button>
         </div>
-        <div className="flex gap-2 items-center">
+        <div className="flex gap-2">
           <input type="date" value={desde} onChange={e => setDesde(e.target.value)}
-            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 text-white text-sm outline-none" />
-          <span className="text-zinc-600 text-xs">—</span>
+            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm outline-none" />
+          <span className="text-zinc-500 self-center">—</span>
           <input type="date" value={hasta} onChange={e => setHasta(e.target.value)}
-            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 text-white text-sm outline-none" />
+            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm outline-none" />
           {(q || estado || desde !== hace7() || hasta !== hoy()) && (
             <button onClick={limpiar} className="text-zinc-500 hover:text-white text-xs px-2">Limpiar</button>
           )}
@@ -196,49 +196,31 @@ export default function TrazabilidadPage() {
             return (
               <div key={orden.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                 {/* Header — siempre visible, clickeable */}
-                <div
-                  onClick={() => toggleExpandido(orden.id)}
-                  className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-zinc-800/50 transition-colors"
-                >
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <span className="text-white font-mono text-xs flex-shrink-0">#{orden.numeroOrden}</span>
-                    <span className="text-white text-sm font-semibold truncate">{orden.clienteNombre}</span>
-                    {orden.ciudad && <span className="text-zinc-500 text-xs flex-shrink-0 hidden sm:inline">{orden.ciudad}</span>}
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <span className="text-zinc-500 text-xs hidden md:inline">{fmtFecha(orden.fechaOrden)}</span>
-                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${BADGE_ESTADO[orden.estado] || 'bg-zinc-700 text-zinc-400'}`}>
-                      {ICONO_ESTADO[orden.estado] || '⚪'} {LABEL_ESTADO[orden.estado] || orden.estado}
-                    </span>
-                    <span className="text-zinc-500 text-xs">{abierto ? '▲' : '▼'}</span>
-                  </div>
+                <div onClick={() => toggleExpandido(orden.id)} className="flex items-center gap-2 p-3 cursor-pointer hover:bg-zinc-800/50 transition-colors">
+                  <span className="text-zinc-400 font-mono text-xs flex-shrink-0">#{orden.numeroOrden}</span>
+                  <span className="text-white text-sm font-semibold truncate flex-1">{orden.clienteNombre}</span>
+                  <span className="text-zinc-400 text-xs flex-shrink-0">{orden.ciudad}</span>
+                  <span className="flex-shrink-0">{ICONO_ESTADO[orden.estado] || '⚪'}</span>
+                  <span className="text-zinc-500 text-xs flex-shrink-0">{abierto ? '▲' : '▼'}</span>
                 </div>
 
                 {/* Timeline — solo si expandido */}
                 {abierto && (
-                  <div className="px-4 pb-4 border-t border-zinc-800 pt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div className="px-3 pb-3 border-t border-zinc-800 pt-2 space-y-0.5">
                     {etapas.map((etapa, i) => (
-                      <div key={i} className={`flex items-start gap-2.5 p-3 rounded-xl ${etapa.fecha ? 'bg-zinc-800/60' : 'bg-zinc-800/20'}`}>
-                        <span className="text-lg flex-shrink-0">{etapa.icon}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className={`text-xs font-semibold ${etapa.fecha ? 'text-zinc-300' : 'text-zinc-600'}`}>
-                            {etapa.label}
-                          </p>
-                          <p className={`text-xs mt-0.5 ${etapa.fecha ? 'text-white' : 'text-zinc-700'}`}>
-                            {etapa.fecha ? fmtFecha(etapa.fecha) : '—'}
-                          </p>
-                          {etapa.quien && (
-                            <p className="text-zinc-500 text-xs mt-0.5 truncate">👤 {etapa.quien}</p>
-                          )}
-                          {etapa.accion && (
-                            <button
-                              onClick={e => { e.stopPropagation(); etapa.accion!() }}
-                              className="mt-1.5 text-xs bg-zinc-700 hover:bg-zinc-600 text-white px-2 py-0.5 rounded-lg"
-                            >
-                              {etapa.accionLabel}
-                            </button>
-                          )}
-                        </div>
+                      <div key={i} className="flex items-center gap-2 py-1.5">
+                        <span className="text-base flex-shrink-0">{etapa.icon}</span>
+                        <span className="text-zinc-400 text-xs w-20 flex-shrink-0">{etapa.label}</span>
+                        <span className="text-white text-xs flex-shrink-0">{etapa.fecha ? fmtFecha(etapa.fecha) : '—'}</span>
+                        <span className="text-zinc-500 text-xs truncate flex-1">{etapa.quien || ''}</span>
+                        {etapa.accion && (
+                          <button
+                            onClick={e => { e.stopPropagation(); etapa.accion!() }}
+                            className="flex-shrink-0 text-xs bg-zinc-700 hover:bg-zinc-600 text-white px-2 py-0.5 rounded-lg"
+                          >
+                            {etapa.accionLabel}
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
