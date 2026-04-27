@@ -57,6 +57,7 @@ export default function TrazabilidadPage() {
   const { data: session } = useSession()
   const user = session?.user as any
 
+  const [tabPrincipal, setTabPrincipal] = useState<'despachos' | 'inventario'>('despachos')
   const [ordenes, setOrdenes] = useState<any[]>([])
   const [total, setTotal] = useState(0)
   const [pages, setPages] = useState(1)
@@ -108,6 +109,30 @@ export default function TrazabilidadPage() {
         <h1 className="text-2xl font-bold text-white">Trazabilidad</h1>
         <p className="text-zinc-400 text-sm mt-1">Ciclo completo: orden → alistamiento → despacho → entrega</p>
       </div>
+
+      {/* Tabs principales */}
+      <div className="flex border-b border-zinc-800">
+        <button
+          onClick={() => setTabPrincipal('despachos')}
+          className={`px-5 py-3 text-sm font-semibold transition-colors ${tabPrincipal === 'despachos' ? 'text-emerald-400 border-b-2 border-emerald-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
+          📦 Despachos
+        </button>
+        <button
+          onClick={() => setTabPrincipal('inventario')}
+          className={`px-5 py-3 text-sm font-semibold transition-colors ${tabPrincipal === 'inventario' ? 'text-emerald-400 border-b-2 border-emerald-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
+          🏭 Inventario
+        </button>
+      </div>
+
+      {tabPrincipal === 'inventario' && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center text-zinc-500">
+          <p className="text-4xl mb-3">🏭</p>
+          <p className="font-semibold text-white">Módulo en construcción</p>
+          <p className="text-sm mt-1">Próximamente: control de stock, entradas y salidas</p>
+        </div>
+      )}
+
+      {tabPrincipal === 'despachos' && (<>
 
       {/* Filtros */}
       <div className="space-y-2">
@@ -245,6 +270,7 @@ export default function TrazabilidadPage() {
           )}
         </div>
       )}
+      </>)}
 
       {/* Modal foto */}
       {fotoModal && (

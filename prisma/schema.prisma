@@ -33,6 +33,7 @@ model Empresa {
   ciudadEntregaLocal   String?
   diasHistorialBodega  Int             @default(7)
   bodegaPuedeEnviar    Boolean         @default(false)
+  ultimaSyncBodega     DateTime?
   configRecibos   Json?           @default("{\"nit\": null, \"logo\": null, \"prefijo\": \"REC\", \"telefono\": null, \"direccion\": null, \"anchoPapel\": \"80mm\"}")
   chatsAsistente  AsistenteChat[]
   Cartera         Cartera[]

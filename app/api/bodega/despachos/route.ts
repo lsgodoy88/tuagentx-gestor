@@ -13,13 +13,14 @@ export async function GET(req: NextRequest) {
 
   const empresaId = user.role === 'empresa' ? user.id : user.empresaId
 
-  const rows = await prisma.$queryRaw<[{ diasHistorialBodega: number; ciudadEntregaLocal: string | null; bodegaPuedeEnviar: boolean }]>`
-    SELECT "diasHistorialBodega", "ciudadEntregaLocal", "bodegaPuedeEnviar"
+  const rows = await prisma.$queryRaw<[{ diasHistorialBodega: number; ciudadEntregaLocal: string | null; bodegaPuedeEnviar: boolean; ultimaSyncBodega: Date | null }]>`
+    SELECT "diasHistorialBodega", "ciudadEntregaLocal", "bodegaPuedeEnviar", "ultimaSyncBodega"
     FROM gestor."Empresa" WHERE id = ${empresaId} LIMIT 1
   `
   const dias = rows[0]?.diasHistorialBodega ?? 7
   const ciudadLocal = rows[0]?.ciudadEntregaLocal ?? null
   const bodegaPuedeEnviar = rows[0]?.bodegaPuedeEnviar ?? false
+  const ultimaSyncBodega = rows[0]?.ultimaSyncBodega ?? null
 
   const desde = new Date()
   desde.setDate(desde.getDate() - dias)
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
     orderBy: [{ numeroOrden: 'desc' }],
   })
 
-  return NextResponse.json({ despachos, ciudadLocal, bodegaPuedeEnviar })
+  return NextResponse.json({ despachos, ciudadLocal, bodegaPuedeEnviar, ultimaSyncBodega })
 }
 
 export async function POST(req: NextRequest) {

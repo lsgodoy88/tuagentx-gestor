@@ -122,7 +122,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: '/dashboard/reportes', label: 'Reportes', icon: '📈' },
     ] : []),
     ...(isBodega ? [
-      { href: '/dashboard/bodega', label: 'Bodega', icon: '📦' },
+      { href: '/dashboard/ordenes', label: 'Órdenes', icon: '📦' },
+      { href: '/dashboard/inventario', label: 'Inventario', icon: '🏭' },
     ] : []),
     ...(isEmpleado && user?.role !== 'impulsadora' ? [
       { href: '/dashboard/visitas', label: 'Visitas', icon: '📋' },
