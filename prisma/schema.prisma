@@ -2733,6 +2733,7 @@ model OrdenDespacho {
   transportadora    String?
   guiaTransporte    String?
   fechaOrden        DateTime?
+  origenVinculadaId String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
   empresa           Empresa   @relation(fields: [empresaId], references: [id])

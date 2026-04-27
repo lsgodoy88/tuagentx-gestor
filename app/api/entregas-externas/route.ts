@@ -60,6 +60,23 @@ export async function POST(req: NextRequest) {
     include: { clientes: { select: { orden: true } } },
   })
 
+  const numeroOrden = `${vinculada.nombre.slice(0, 4).toUpperCase()}-${Date.now().toString().slice(-6)}`
+
+  const orden = await (prisma as any).ordenDespacho.create({
+    data: {
+      empresaId: vinculada.empresaId,
+      origen: 'vinculada',
+      origenVinculadaId: vinculada.id,
+      numeroOrden,
+      clienteNombre: cliente.nombre,
+      clienteNit: cliente.nit ?? null,
+      ciudad: cliente.ciudad ?? null,
+      direccion: cliente.direccion ?? null,
+      telefono: cliente.telefono ?? null,
+      fechaOrden: new Date(),
+    },
+  })
+
   if (rutaActiva) {
     const maxOrden = Math.max(0, ...rutaActiva.clientes.map(c => c.orden))
     await prisma.rutaCliente.create({
@@ -73,7 +90,7 @@ export async function POST(req: NextRequest) {
     if (!cliente.lat && !cliente.lng && cliente.direccion) {
       await entregasQueue.add('geocodificar', { clienteId: cliente.id })
     }
-    return NextResponse.json({ id: rutaActiva.id, clienteId: cliente.id, estado: 'asignado' }, { status: 201 })
+    return NextResponse.json({ id: rutaActiva.id, ordenId: orden.id, clienteId: cliente.id, estado: 'asignado' }, { status: 201 })
   }
 
   // Sin ruta activa — crear ruta pendiente
@@ -98,7 +115,7 @@ export async function POST(req: NextRequest) {
     await entregasQueue.add('geocodificar', { clienteId: cliente.id })
   }
 
-  return NextResponse.json({ id: ruta.id, estado: 'pendiente' }, { status: 201 })
+  return NextResponse.json({ id: ruta.id, ordenId: orden.id, estado: 'pendiente' }, { status: 201 })
 }
 
 // GET ?id=xxx&apiKey=xxx — consultar estado

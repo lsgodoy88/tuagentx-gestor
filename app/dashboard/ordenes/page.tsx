@@ -74,6 +74,8 @@ export default function OrdenesPage() {
   const [ciudadLocal, setCiudadLocal] = useState<string | null>(null)
   const [bodegaPuedeEnviar, setBodegaPuedeEnviar] = useState(false)
   const [ultimaSync, setUltimaSync] = useState<string | null>(null)
+  const [origenId, setOrigenId] = useState<string>('propia')
+  const [empresasOrigen, setEmpresasOrigen] = useState<any[]>([])
   const [repartidores, setRepartidores] = useState<any[]>([])
   const [cargando, setCargando] = useState(true)
   const [syncing, setSyncing] = useState(false)
@@ -100,17 +102,19 @@ export default function OrdenesPage() {
     if (status === 'unauthenticated') { router.push('/login'); return }
     if (status !== 'authenticated') return
     if (!['empresa', 'supervisor', 'bodega'].includes(user?.role)) { router.push('/dashboard'); return }
-    cargarDatos()
+    cargarDatos('propia')
+    fetch('/api/bodega/empresas-origen').then(r => r.json()).then(setEmpresasOrigen).catch(() => {})
     fetch('/api/empleados?rol=entregas')
       .then(r => r.json())
       .then(d => setRepartidores(d.empleados || []))
       .catch(() => {})
   }, [status])
 
-  async function cargarDatos() {
+  async function cargarDatos(origen?: string) {
     setCargando(true)
+    const id = origen ?? origenId
     try {
-      const res = await fetch('/api/bodega/despachos')
+      const res = await fetch(`/api/bodega/despachos${id !== 'propia' ? `?origenId=${id}` : ''}`)
       const data = await res.json()
       setDespachos(data.despachos || [])
       setCiudadLocal(data.ciudadLocal || null)
@@ -128,7 +132,7 @@ export default function OrdenesPage() {
       const data = await res.json()
       if (data.ok) {
         setMsgSync(`✅ ${data.sincronizados} sincronizadas`)
-        await cargarDatos()
+        await cargarDatos(origenId)
       } else {
         setMsgSync(data.error || 'Error al sincronizar')
       }
@@ -278,6 +282,18 @@ export default function OrdenesPage() {
           <p className="text-zinc-400 text-sm mt-0.5">Alistamiento y despacho</p>
         </div>
       </div>
+
+      {/* Selector empresa origen */}
+      {empresasOrigen.length > 1 && (
+        <select
+          value={origenId}
+          onChange={e => { setOrigenId(e.target.value); cargarDatos(e.target.value) }}
+          className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm">
+          {empresasOrigen.map(e => (
+            <option key={e.id} value={e.id}>{e.nombre}</option>
+          ))}
+        </select>
+      )}
 
       {/* Sub-tabs + toolbar */}
       <div className="space-y-2">

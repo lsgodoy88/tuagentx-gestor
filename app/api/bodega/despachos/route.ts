@@ -25,9 +25,17 @@ export async function GET(req: NextRequest) {
   const desde = new Date()
   desde.setDate(desde.getDate() - dias)
 
+  const origenId = req.nextUrl.searchParams.get('origenId') ?? 'propia'
+  const esVinculada = origenId !== 'propia' && origenId !== ''
+
+  const whereOrigen = esVinculada
+    ? { origen: 'vinculada', origenVinculadaId: origenId }
+    : { origenVinculadaId: null }
+
   const despachos = await (prisma as any).ordenDespacho.findMany({
     where: {
       empresaId,
+      ...whereOrigen,
       OR: [
         { fechaOrden: { gte: desde } },
         { fechaOrden: null, createdAt: { gte: desde } },
