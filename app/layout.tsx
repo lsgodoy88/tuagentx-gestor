@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Geist } from 'next/font/google'
 import './globals.css'
 import Providers from './providers'
+import SwUpdateNotifier from './sw-update-notifier'
 
 const geist = Geist({ subsets: ['latin'] })
 
@@ -16,6 +17,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es">
       <body className={`${geist.className} bg-zinc-950 text-white`}>
         <Providers>{children}</Providers>
+        <SwUpdateNotifier />
       </body>
     </html>
   )
