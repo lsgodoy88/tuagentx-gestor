@@ -34,5 +34,5 @@ export async function POST(req: NextRequest) {
     }
   })
 
-  return NextResponse.json({ ok: true, email, empresa: empresa.nombre })
+  return NextResponse.json({ ok: true, email, empresa: empresa.nombre, password })
 }

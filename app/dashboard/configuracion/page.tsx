@@ -48,8 +48,6 @@ export default function ConfiguracionPage() {
   const [clientes, setClientes] = useState<any[]>([])
   const [diasHistorialBodega, setDiasHistorialBodega] = useState(7)
   const [bodegaPuedeEnviar, setBodegaPuedeEnviar] = useState(false)
-  const [msgDespachos, setMsgDespachos] = useState('')
-  const [savingDespachos, setSavingDespachos] = useState(false)
 
   // Config empresa — datos generales
   const [cfgEmpNit, setCfgEmpNit] = useState('')
@@ -193,28 +191,22 @@ export default function ConfiguracionPage() {
     }
   }
 
-  async function guardarConfigRutas() {
+  async function guardarConfigEntregas() {
     setSavingRutas(true)
     const res = await fetch('/api/mi-empresa/config', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ horaInicioRuta: horaInicio, horaFinRuta: horaFin, autoCrearRuta, autoCerrarRuta, diasCrearRuta: diasCrear.join(','), diasCerrarRuta: diasCerrar.join(',') }),
+      body: JSON.stringify({
+        horaInicioRuta: horaInicio, horaFinRuta: horaFin,
+        autoCrearRuta, autoCerrarRuta,
+        diasCrearRuta: diasCrear.join(','), diasCerrarRuta: diasCerrar.join(','),
+        ciudadEntregaLocal: ciudadEntregaLocal || null,
+        diasHistorialBodega, bodegaPuedeEnviar,
+      }),
     })
     setSavingRutas(false)
     setMsgRutas(res.ok ? '✅ Guardado' : 'Error al guardar')
     setTimeout(() => setMsgRutas(''), 3000)
-  }
-
-  async function guardarConfigDespachos() {
-    setSavingDespachos(true)
-    const res = await fetch('/api/mi-empresa/config', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ciudadEntregaLocal: ciudadEntregaLocal || null, diasHistorialBodega, bodegaPuedeEnviar }),
-    })
-    setSavingDespachos(false)
-    setMsgDespachos(res.ok ? '✅ Guardado' : 'Error al guardar')
-    setTimeout(() => setMsgDespachos(''), 3000)
   }
 
   async function cambiarPassword() {
@@ -462,86 +454,76 @@ export default function ConfiguracionPage() {
             {btnGuardar(guardarRecibosEmpresa, savingRecibosEmp, savingRecibosEmp)}
           </Seccion>
 
-          <Seccion titulo="Automatización" icono="⏰" isOpen={seccionAbierta === 'automatizacion'} onToggle={() => toggleSeccion('automatizacion')}>
-            <p className="text-zinc-500 text-xs">Hora Bogotá. Crea y cierra rutas automáticamente en los días seleccionados.</p>
-            <div className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-white text-sm font-medium">Auto-crear ruta diaria</p>
-                    <p className="text-zinc-500 text-xs">Crea rutas a la hora de inicio</p>
-                  </div>
-                  <button onClick={() => setAutoCrearRuta(p => !p)}
-                    className={`relative w-11 h-6 rounded-full transition-colors ${autoCrearRuta ? 'bg-emerald-600' : 'bg-zinc-700'}`}>
-                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${autoCrearRuta ? 'translate-x-5' : ''}`} />
-                  </button>
-                </div>
-                {autoCrearRuta && (
-                  <div className="space-y-2">
-                    <div>
-                      <label className={labelClass}>Hora inicio</label>
-                      <input type="time" value={horaInicio} onChange={e => setHoraInicio(e.target.value)} className={inputClass} />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Días</label>
-                      <div className="flex gap-1">
-                        {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((dia, i) => (
-                          <button key={i} onClick={() => toggleDia('inicio', i)}
-                            className={`w-8 h-8 rounded-full text-xs font-bold transition-colors ${diasCrear.includes(i) ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}>
-                            {dia}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
+          <Seccion titulo="Entregas" icono="🚚" isOpen={seccionAbierta === 'entregas'} onToggle={() => toggleSeccion('entregas')}>
+            <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide mb-3">Automatización — solo aplica a rol Entregas</p>
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-white text-sm font-medium">Auto-cerrar ruta diaria</p>
-                    <p className="text-zinc-500 text-xs">Cierra rutas a la hora de fin</p>
-                  </div>
-                  <button onClick={() => setAutoCerrarRuta(p => !p)}
-                    className={`relative w-11 h-6 rounded-full transition-colors ${autoCerrarRuta ? 'bg-emerald-600' : 'bg-zinc-700'}`}>
-                    <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${autoCerrarRuta ? 'translate-x-5' : ''}`} />
-                  </button>
-                </div>
-                {autoCerrarRuta && (
-                  <div className="space-y-2">
-                    <div>
-                      <label className={labelClass}>Hora fin</label>
-                      <input type="time" value={horaFin} onChange={e => setHoraFin(e.target.value)} className={inputClass} />
-                    </div>
-                    <div>
-                      <label className={labelClass}>Días</label>
-                      <div className="flex gap-1">
-                        {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((dia, i) => (
-                          <button key={i} onClick={() => toggleDia('fin', i)}
-                            className={`w-8 h-8 rounded-full text-xs font-bold transition-colors ${diasCerrar.includes(i) ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}>
-                            {dia}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <p className="text-white text-sm">Auto-crear ruta diaria</p>
+                <p className="text-zinc-500 text-xs">Crea rutas automáticamente a la hora de inicio</p>
               </div>
+              <button onClick={() => setAutoCrearRuta(p => !p)}
+                className={`relative w-11 h-6 rounded-full transition-colors ${autoCrearRuta ? 'bg-emerald-600' : 'bg-zinc-700'}`}>
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${autoCrearRuta ? 'translate-x-5' : ''}`} />
+              </button>
             </div>
-            {msgRutas && <p className="text-sm text-emerald-400">{msgRutas}</p>}
-            {btnGuardar(guardarConfigRutas, savingRutas, savingRutas)}
-          </Seccion>
+            {autoCrearRuta && (
+              <div className="space-y-2 pl-1">
+                <div>
+                  <label className={labelClass}>Hora inicio</label>
+                  <input type="time" value={horaInicio} onChange={e => setHoraInicio(e.target.value)} className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Días</label>
+                  <div className="flex gap-1">
+                    {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((dia, i) => (
+                      <button key={i} onClick={() => toggleDia('inicio', i)}
+                        className={`w-8 h-8 rounded-full text-xs font-bold transition-colors ${diasCrear.includes(i) ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}>
+                        {dia}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
 
-          <Seccion titulo="Despachos" icono="🚚" isOpen={seccionAbierta === 'despachos'} onToggle={() => toggleSeccion('despachos')}>
-            <p className="text-zinc-500 text-xs">Configura el módulo de bodega y despachos.</p>
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <p className="text-white text-sm">Auto-cerrar ruta diaria</p>
+                <p className="text-zinc-500 text-xs">Cierra rutas automáticamente a la hora de fin</p>
+              </div>
+              <button onClick={() => setAutoCerrarRuta(p => !p)}
+                className={`relative w-11 h-6 rounded-full transition-colors ${autoCerrarRuta ? 'bg-emerald-600' : 'bg-zinc-700'}`}>
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${autoCerrarRuta ? 'translate-x-5' : ''}`} />
+              </button>
+            </div>
+            {autoCerrarRuta && (
+              <div className="space-y-2 pl-1">
+                <div>
+                  <label className={labelClass}>Hora fin</label>
+                  <input type="time" value={horaFin} onChange={e => setHoraFin(e.target.value)} className={inputClass} />
+                </div>
+                <div>
+                  <label className={labelClass}>Días</label>
+                  <div className="flex gap-1">
+                    {['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((dia, i) => (
+                      <button key={i} onClick={() => toggleDia('fin', i)}
+                        className={`w-8 h-8 rounded-full text-xs font-bold transition-colors ${diasCerrar.includes(i) ? 'bg-emerald-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}>
+                        {dia}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <hr className="border-zinc-800 my-3" />
+
+            <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide mb-3">Bodega y Despachos</p>
+
             <div>
               <label className={labelClass}>Ciudad entrega local</label>
-              <select
-                value={ciudadEntregaLocal}
-                onChange={e => setCiudadEntregaLocal(e.target.value)}
-                className={inputClass}
-              >
+              <select value={ciudadEntregaLocal} onChange={e => setCiudadEntregaLocal(e.target.value)} className={inputClass}>
                 <option value="">Sin entrega local (todo por transportadora)</option>
                 {[...new Set((clientes || []).map((c: any) => c.ciudad?.split('/').pop()?.trim()).filter(Boolean))].sort().map((ciudad: any) => (
                   <option key={ciudad} value={ciudad}>{ciudad}</option>
@@ -557,9 +539,9 @@ export default function ConfiguracionPage() {
                 <button onClick={() => setDiasHistorialBodega(Math.min(90, diasHistorialBodega + 1))} className="w-8 h-8 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-lg font-bold flex items-center justify-center">+</button>
               </div>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between py-2">
               <div>
-                <p className="text-white text-sm font-medium">Permitir que bodega envíe a despacho</p>
+                <p className="text-white text-sm">Permitir que bodega envíe a despacho</p>
                 <p className="text-zinc-500 text-xs">El rol bodega puede asignar repartidor o ingresar guía</p>
               </div>
               <button onClick={() => setBodegaPuedeEnviar(p => !p)}
@@ -567,8 +549,9 @@ export default function ConfiguracionPage() {
                 <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${bodegaPuedeEnviar ? 'translate-x-5' : ''}`} />
               </button>
             </div>
-            {msgDespachos && <p className="text-sm text-emerald-400">{msgDespachos}</p>}
-            {btnGuardar(guardarConfigDespachos, savingDespachos, savingDespachos)}
+
+            {msgRutas && <p className="text-sm text-emerald-400">{msgRutas}</p>}
+            {btnGuardar(guardarConfigEntregas, savingRutas, savingRutas)}
           </Seccion>
 
           <Seccion titulo="Modo de integración" icono="⚙️" isOpen={seccionAbierta === 'integracion'} onToggle={() => toggleSeccion('integracion')}>

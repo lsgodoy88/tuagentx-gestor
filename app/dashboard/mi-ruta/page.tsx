@@ -127,9 +127,6 @@ export default function MiRutaPage() {
     return (
       <div key={c.id} className={"rounded-xl border overflow-hidden " + (esEjecutado ? "bg-zinc-900 border-zinc-700/30" : "bg-zinc-900 border-zinc-800")}>
         <div className="flex items-center gap-3 p-3" onClick={() => esEjecutado && setDetalleCliente(detalleCliente === c.id ? null : c.id)} style={{cursor: esEjecutado ? 'pointer' : 'default'}}>
-          <div className={"w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 " + (esEjecutado ? "bg-emerald-600" : "bg-zinc-700")} style={{color:'white'}}>
-            {esEjecutado ? '✓' : i + 1}
-          </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 min-w-0">
               <p className="text-white text-sm font-medium truncate">{c.nombre}</p>
