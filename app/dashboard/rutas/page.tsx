@@ -30,6 +30,17 @@ export default function RutasPage() {
   const [empleados, setEmpleados] = useState<any[]>([])
   const [clientes, setClientes] = useState<any[]>([])
   const [modal, setModal] = useState(false)
+  const [generando, setGenerando] = useState(false)
+  async function generarRutaHoy() {
+    setGenerando(true)
+    try {
+      const res = await fetch('/api/rutas/procesar-dia', { method: 'POST' })
+      const d = await res.json()
+      if (d.ok) { alert('Rutas generadas: ' + d.rutasCreadas); window.location.reload() }
+      else alert(d.error || 'Error al generar')
+    } catch (e) { alert('Error de conexión') }
+    finally { setGenerando(false) }
+  }
   const [paso, setPaso] = useState(1)
 
   function nombreFecha(f: string) {
@@ -313,10 +324,15 @@ export default function RutasPage() {
             </label>
           </div>
           {puedeAsignar && !esSupervisor && (
+            <>
+            <button onClick={generarRutaHoy} disabled={generando} className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-xl text-sm whitespace-nowrap">
+              {generando ? "⏳" : "🔄"} {generando ? "Generando..." : "Generar hoy"}
+            </button>
             <button onClick={() => setModal(true)}
               className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-xl text-sm whitespace-nowrap">
               + Ruta
             </button>
+            </>
           )}
         </div>
       </div>
