@@ -84,7 +84,7 @@ export default function OrdenesPage() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [editTransporte, setEditTransporte] = useState<Record<string, { transportadora: string; guia: string }>>({})
   const [editRepartidor, setEditRepartidor] = useState<Record<string, string>>({})
-  const [modalFoto, setModalFoto] = useState<{ url: string; fecha: string } | null>(null)
+  const [galeria, setGaleria] = useState<{ fotos: string[], index: number } | null>(null)
   const [camaraActiva, setCamaraActiva] = useState(false)
   const [camaraOrdenId, setCamaraOrdenId] = useState<string | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
@@ -381,14 +381,13 @@ export default function OrdenesPage() {
                 d.ciudad.split('/').pop()?.trim().toLowerCase() === ciudadLocal.trim().toLowerCase()
               const horaOrden = d.fechaOrden ? formatFechaCorta(d.fechaOrden) : formatFechaCorta(d.createdAt)
               const fotoKey = d.fotoAlistamiento
-              const horaAlistado = formatHora(d.alistadoEl ?? d.updatedAt)
-              const fotoUrl = fotoKey?.startsWith('/fotos/') ? fotoKey : `/api/bodega/foto/${d.id}`
-              const btnFoto = fotoKey ? (
+              const fotos: string[] = (d.fotosAlistamiento as string[] | null) || (fotoKey ? [fotoKey] : [])
+              const tieneFotos = fotos.length > 0
+              const btnFoto = tieneFotos ? (
                 <button
-                  onClick={() => setModalFoto({ url: fotoUrl, fecha: d.alistadoEl ?? '' })}
-                  className="flex items-center gap-1 text-zinc-400 hover:text-zinc-200 transition-colors text-xs">
-                  <span>🖼️</span>
-                  <span>{horaAlistado}</span>
+                  onClick={() => setGaleria({ fotos, index: 0 })}
+                  className="flex items-center gap-1 text-zinc-400 hover:text-white text-xs">
+                  🖼️ {fotos.length > 1 ? `${fotos.length} fotos` : formatFechaCorta(d.alistadoEl)}
                 </button>
               ) : null
 
@@ -406,7 +405,7 @@ export default function OrdenesPage() {
                   {d.estado === 'pendiente' && (
                     <div className="px-4 pb-3 pt-1 flex items-center gap-2 border-t border-zinc-800/60">
                       <span className="text-white text-xs flex-shrink-0">{horaOrden}</span>
-                      {fotoKey ? (
+                      {tieneFotos ? (
                         btnFoto
                       ) : (
                         <button onClick={() => abrirCamara(d.id)} disabled={isSaving}
@@ -414,7 +413,7 @@ export default function OrdenesPage() {
                           📷 Foto
                         </button>
                       )}
-                      <button onClick={() => marcarAlistado(d.id)} disabled={isSaving || !fotoKey}
+                      <button onClick={() => marcarAlistado(d.id)} disabled={isSaving || !tieneFotos}
                         className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors">
                         {isSaving ? '⏳' : '✓ Listo'}
                       </button>
@@ -555,23 +554,34 @@ export default function OrdenesPage() {
         </div>
       )}
 
-      {/* Modal foto grande */}
-      {modalFoto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4"
-          onClick={() => setModalFoto(null)}>
-          <div className="relative max-w-sm w-full" onClick={e => e.stopPropagation()}>
-            <img src={modalFoto.url} alt="Foto alistamiento"
-              className="w-full rounded-2xl object-contain max-h-[70vh]" />
-            {modalFoto.fecha && (
-              <p className="text-zinc-400 text-xs text-center mt-2">
-                Alistado: {formatFechaCorta(modalFoto.fecha)}
-              </p>
-            )}
-            <button onClick={() => setModalFoto(null)}
-              className="absolute top-2 right-2 bg-black/50 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm hover:bg-black/70">
-              ✕
-            </button>
+      {/* Modal galería fullscreen */}
+      {galeria && (
+        <div className="fixed inset-0 bg-black z-50 flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3">
+            <span className="text-zinc-400 text-sm">{galeria.index + 1} / {galeria.fotos.length}</span>
+            <button onClick={() => setGaleria(null)} className="text-white text-2xl">✕</button>
           </div>
+          <div className="flex-1 flex items-center justify-center relative overflow-hidden">
+            <img src={galeria.fotos[galeria.index]} className="max-w-full max-h-full object-contain" />
+            {galeria.index > 0 && (
+              <button onClick={() => setGaleria(g => g ? { ...g, index: g.index - 1 } : null)}
+                className="absolute left-2 bg-black/50 text-white w-10 h-10 rounded-full flex items-center justify-center text-xl">‹</button>
+            )}
+            {galeria.index < galeria.fotos.length - 1 && (
+              <button onClick={() => setGaleria(g => g ? { ...g, index: g.index + 1 } : null)}
+                className="absolute right-2 bg-black/50 text-white w-10 h-10 rounded-full flex items-center justify-center text-xl">›</button>
+            )}
+          </div>
+          {galeria.fotos.length > 1 && (
+            <div className="flex gap-2 p-3 overflow-x-auto">
+              {galeria.fotos.map((f, i) => (
+                <button key={i} onClick={() => setGaleria(g => g ? { ...g, index: i } : null)}
+                  className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 ${i === galeria.index ? 'border-emerald-500' : 'border-transparent'}`}>
+                  <img src={f} className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
