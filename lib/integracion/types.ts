@@ -49,7 +49,6 @@ export interface VentaExterna {
 }
 
 export interface AdaptadorIntegracion {
-  login(): Promise<void>
   fetchClientes(): Promise<ClienteExterno[]>
   fetchDeudas(desde?: Date): Promise<DeudaExterna[]>
   fetchDeudasCliente(nit: string): Promise<DeudaExterna[]>

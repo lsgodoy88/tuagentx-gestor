@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { decrypt } from '@/lib/crypto-uptres'
 import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { sincronizarDeudas, actualizarCache } from '@/lib/integracion/sync'
 
@@ -10,11 +9,7 @@ const UPTRES_URL = 'https://www.uptres.top'
 
 async function runDelta(integracion: any): Promise<{ deudas: number; clientes: number }> {
   const config = integracion.config as any
-  const password = config.token ? '' : decrypt(config.password, process.env.UPTRES_SECRET!)
-  const adapter = config.token
-    ? new UpTresAdapter('', '', config.token)
-    : new UpTresAdapter(config.email, password)
-  await adapter.login()
+  const adapter = new UpTresAdapter(config.token)
   const desde = integracion.ultimaSync ?? undefined
   const deudas = await adapter.fetchDeudas(desde)
   const afectados = await sincronizarDeudas(deudas, integracion.id, integracion.empresaId)
@@ -64,10 +59,7 @@ export async function POST(req: NextRequest) {
   if (!integracion) return NextResponse.json({ error: 'Sin integración activa' }, { status: 400 })
 
   const config = integracion.config as any
-  const password = decrypt(config.password, process.env.UPTRES_SECRET!)
-
-  const adapter = new UpTresAdapter(config.email, password)
-  await adapter.login()
+  const adapter = new UpTresAdapter(config.token)
 
   const logs: string[] = []
   let clientesActualizados = 0

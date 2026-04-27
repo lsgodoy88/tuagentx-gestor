@@ -3,7 +3,6 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { calcularEstado } from '@/lib/cartera'
-import { decrypt } from '@/lib/crypto-uptres'
 import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { sincronizarDeudas, actualizarCache } from '@/lib/integracion/sync'
 
@@ -34,12 +33,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
     // Live sync — refrescar deudas de este cliente desde UpTres antes de leer
     try {
       const config = integracion.config as any
-      const secret = process.env.UPTRES_SECRET!
-      const pwd = config.token ? '' : decrypt(config.password, secret)
-      const adapter = config.token
-        ? new UpTresAdapter('', '', config.token)
-        : new UpTresAdapter(config.email, pwd)
-      await adapter.login()
+      const adapter = new UpTresAdapter(config.token)
       const deudasFrescas = await adapter.fetchDeudasCliente(cliente.nit)
       const afectados = await sincronizarDeudas(deudasFrescas, integracion.id, empresaId)
       await actualizarCache(afectados, integracion.id, empresaId)

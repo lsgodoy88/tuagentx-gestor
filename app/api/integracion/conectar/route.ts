@@ -12,29 +12,36 @@ export async function POST(req: NextRequest) {
   const user = session.user as any
   if (user.role !== 'empresa') return NextResponse.json({ error: 'Solo empresa' }, { status: 403 })
   const empresaId = user.id
-  const { email, password, token } = await req.json()
+  const { email, password, token, tipo } = await req.json()
   if (!token && (!email || !password)) return NextResponse.json({ error: 'Credenciales requeridas' }, { status: 400 })
 
-  // Verificar credenciales con UpTres
-  let nombre = email
-  try {
-    const res = await fetch('https://www.uptres.top/login', {
-      // @ts-ignore
-      agent,
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, version: '1.6.7.2', rememberMe: false }),
-    })
-    const data = await res.json()
-    if (!data.ok && !data.token) return NextResponse.json({ error: 'Credenciales inválidas' })
-    nombre = data.nombre || data.name || data.user?.nombre || email
-  } catch {
-    return NextResponse.json({ error: 'No se pudo conectar con el ERP' })
-  }
+  let nombre: string
+  let configData: Record<string, string>
 
-  // Guardar o actualizar integracion
-  const secret = process.env.UPTRES_SECRET!
-  const encPassword = encrypt(password, secret)
+  if (token) {
+    // Flujo token directo (API UpTres)
+    nombre = 'API UpTres'
+    configData = { token, nombre }
+  } else {
+    // Flujo email/password legado
+    nombre = email
+    try {
+      const res = await fetch('https://www.uptres.top/login', {
+        // @ts-ignore
+        agent,
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, version: '1.6.7.2', rememberMe: false }),
+      })
+      const data = await res.json()
+      if (!data.ok && !data.token) return NextResponse.json({ error: 'Credenciales inválidas' })
+      nombre = data.nombre || data.name || data.user?.nombre || email
+    } catch {
+      return NextResponse.json({ error: 'No se pudo conectar con el ERP' })
+    }
+    const encPassword = encrypt(password, process.env.UPTRES_SECRET!)
+    configData = { email, password: encPassword, nombre }
+  }
 
   const existing = await (prisma as any).integracion.findFirst({
     where: { empresaId, tipo: 'uptres' }
@@ -46,7 +53,7 @@ export async function POST(req: NextRequest) {
       where: { id: existing.id },
       data: {
         activa: true,
-        config: { email, password: encPassword, nombre },
+        config: configData,
         updatedAt: new Date(),
       }
     })
@@ -55,10 +62,10 @@ export async function POST(req: NextRequest) {
       data: {
         id: `intg-${empresaId}-uptres`,
         empresaId,
-        nombre: 'ERP',
+        nombre: 'API UpTres',
         tipo: 'uptres',
         activa: true,
-        config: { email, password: encPassword, nombre },
+        config: configData,
         updatedAt: new Date(),
       }
     })
