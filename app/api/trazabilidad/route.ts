@@ -30,8 +30,11 @@ export async function GET(req: NextRequest) {
     ]
   }
   if (estado) where.estado = estado
-  if (desde) where.fechaOrden = { ...(where.fechaOrden || {}), gte: new Date(desde) }
-  if (hasta) where.fechaOrden = { ...(where.fechaOrden || {}), lte: new Date(hasta + 'T23:59:59') }
+  if (desde || hasta) {
+    where.fechaOrden = {}
+    if (desde) where.fechaOrden.gte = new Date(desde)
+    if (hasta) where.fechaOrden.lte = new Date(hasta + 'T23:59:59')
+  }
 
   const [total, ordenes] = await Promise.all([
     prisma.ordenDespacho.count({ where }),

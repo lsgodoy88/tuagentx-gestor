@@ -10,13 +10,48 @@ function fmtFecha(d: string | null | undefined) {
   })
 }
 
+function hoy() { return new Date().toISOString().split('T')[0] }
+function hace7() {
+  const d = new Date(); d.setDate(d.getDate() - 7)
+  return d.toISOString().split('T')[0]
+}
+
 const ESTADOS = [
   { value: '', label: 'Todos' },
   { value: 'pendiente', label: 'Pendiente' },
   { value: 'alistado', label: 'Alistado' },
   { value: 'despachado', label: 'Despachado' },
+  { value: 'en_entrega', label: 'En entrega' },
+  { value: 'en_transito', label: 'En tránsito' },
   { value: 'entregado', label: 'Entregado' },
 ]
+
+const ICONO_ESTADO: Record<string, string> = {
+  pendiente: '🟡',
+  alistado: '🟢',
+  despachado: '🚚',
+  en_entrega: '🚚',
+  en_transito: '🚛',
+  entregado: '✅',
+}
+
+const LABEL_ESTADO: Record<string, string> = {
+  pendiente: 'Pendiente',
+  alistado: 'Alistado',
+  despachado: 'Despachado',
+  en_entrega: 'En entrega',
+  en_transito: 'En tránsito',
+  entregado: 'Entregado',
+}
+
+const BADGE_ESTADO: Record<string, string> = {
+  pendiente: 'bg-zinc-700 text-zinc-400',
+  alistado: 'bg-amber-500/15 text-amber-400',
+  despachado: 'bg-blue-500/15 text-blue-400',
+  en_entrega: 'bg-blue-500/15 text-blue-400',
+  en_transito: 'bg-violet-500/15 text-violet-400',
+  entregado: 'bg-emerald-500/15 text-emerald-400',
+}
 
 export default function TrazabilidadPage() {
   const { data: session } = useSession()
@@ -28,14 +63,19 @@ export default function TrazabilidadPage() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
 
+  const [qInput, setQInput] = useState('')
   const [q, setQ] = useState('')
   const [estado, setEstado] = useState('')
-  const [desde, setDesde] = useState('')
-  const [hasta, setHasta] = useState('')
-  const [qInput, setQInput] = useState('')
+  const [desde, setDesde] = useState(hace7)
+  const [hasta, setHasta] = useState(hoy)
 
+  const [expandido, setExpandido] = useState<Record<string, boolean>>({})
   const [fotoModal, setFotoModal] = useState<string | null>(null)
   const [firmaModal, setFirmaModal] = useState<string | null>(null)
+
+  function toggleExpandido(id: string) {
+    setExpandido(prev => ({ ...prev, [id]: !prev[id] }))
+  }
 
   async function cargar(p = 1) {
     setLoading(true)
@@ -55,55 +95,58 @@ export default function TrazabilidadPage() {
 
   useEffect(() => { cargar(1) }, [q, estado, desde, hasta])
 
+  function buscar() { setQ(qInput) }
+  function limpiar() { setQ(''); setQInput(''); setEstado(''); setDesde(hace7()); setHasta(hoy()) }
+
   if (!['empresa', 'supervisor', 'superadmin'].includes(user?.role)) {
     return <div className="p-8 text-zinc-400">Sin acceso</div>
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-white">Trazabilidad</h1>
         <p className="text-zinc-400 text-sm mt-1">Ciclo completo: orden → alistamiento → despacho → entrega</p>
       </div>
 
       {/* Filtros */}
-      <div className="flex flex-wrap gap-3 items-end">
-        <div className="flex gap-2 flex-1 min-w-[200px]">
+      <div className="space-y-2">
+        <div className="flex gap-2">
           <input
             value={qInput}
             onChange={e => setQInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && setQ(qInput)}
+            onKeyDown={e => e.key === 'Enter' && buscar()}
             placeholder="# orden o cliente..."
             className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500"
           />
-          <button onClick={() => setQ(qInput)}
+          <select value={estado} onChange={e => setEstado(e.target.value)}
+            className="bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 text-white text-sm outline-none">
+            {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+          </select>
+          <button onClick={buscar}
             className="bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-4 py-2.5 rounded-xl">
-            Buscar
+            🔍
           </button>
         </div>
-        <select value={estado} onChange={e => setEstado(e.target.value)}
-          className="bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 text-white text-sm outline-none">
-          {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
-        </select>
-        <input type="date" value={desde} onChange={e => setDesde(e.target.value)}
-          className="bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 text-white text-sm outline-none" />
-        <input type="date" value={hasta} onChange={e => setHasta(e.target.value)}
-          className="bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 text-white text-sm outline-none" />
-        {(q || estado || desde || hasta) && (
-          <button onClick={() => { setQ(''); setQInput(''); setEstado(''); setDesde(''); setHasta('') }}
-            className="text-zinc-400 hover:text-white text-sm px-3 py-2.5">
-            Limpiar
-          </button>
-        )}
+        <div className="flex gap-2 items-center">
+          <input type="date" value={desde} onChange={e => setDesde(e.target.value)}
+            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 text-white text-sm outline-none" />
+          <span className="text-zinc-600 text-xs">—</span>
+          <input type="date" value={hasta} onChange={e => setHasta(e.target.value)}
+            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 text-white text-sm outline-none" />
+          {(q || estado || desde !== hace7() || hasta !== hoy()) && (
+            <button onClick={limpiar} className="text-zinc-500 hover:text-white text-xs px-2">Limpiar</button>
+          )}
+        </div>
       </div>
 
       {/* Resultados */}
       {loading ? (
         <div className="text-zinc-400 py-12 text-center">Cargando...</div>
       ) : ordenes.length === 0 ? (
-        <div className="text-zinc-500 py-12 text-center">Sin resultados</div>
+        <div className="text-zinc-500 py-12 text-center">Sin resultados en el período</div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-2">
           <p className="text-zinc-500 text-xs">{total} órdenes encontradas</p>
           {ordenes.map(orden => {
             const fotos: string[] = Array.isArray(orden.fotosAlistamiento)
@@ -113,14 +156,16 @@ export default function TrazabilidadPage() {
             const repartidorNombre = orden.repartidor?.nombre || null
             const entregadoPor = orden.visitas?.[0]?.empleado?.nombre || null
             const entregadoEl = orden.visitas?.[0]?.createdAt || orden.entregadoEl || null
+            const abierto = expandido[orden.id] || false
 
             const etapas = [
               {
                 icon: '📋',
                 label: 'Orden',
                 fecha: orden.fechaOrden,
-                quien: null,
-                accion: null,
+                quien: null as string | null,
+                accion: null as (() => void) | null,
+                accionLabel: '',
               },
               {
                 icon: '📦',
@@ -133,9 +178,10 @@ export default function TrazabilidadPage() {
               {
                 icon: '🚚',
                 label: 'Despachado',
-                fecha: orden.estado !== 'pendiente' && orden.estado !== 'alistado' ? orden.alistadoEl : null,
+                fecha: !['pendiente', 'alistado'].includes(orden.estado) ? orden.alistadoEl : null,
                 quien: repartidorNombre,
                 accion: null,
+                accionLabel: '',
               },
               {
                 icon: '✅',
@@ -149,47 +195,54 @@ export default function TrazabilidadPage() {
 
             return (
               <div key={orden.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                {/* Header */}
-                <div className="px-4 py-3 border-b border-zinc-800 flex flex-wrap items-center gap-3">
-                  <span className="text-white font-bold text-sm">#{orden.numeroOrden}</span>
-                  <span className="text-zinc-300 text-sm font-medium">{orden.clienteNombre}</span>
-                  {orden.ciudad && <span className="text-zinc-500 text-xs">{orden.ciudad}</span>}
-                  <span className="text-zinc-500 text-xs ml-auto">{fmtFecha(orden.fechaOrden)}</span>
-                  <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
-                    orden.estado === 'entregado' ? 'bg-emerald-500/15 text-emerald-400' :
-                    orden.estado === 'despachado' ? 'bg-blue-500/15 text-blue-400' :
-                    orden.estado === 'alistado' ? 'bg-amber-500/15 text-amber-400' :
-                    'bg-zinc-700 text-zinc-400'
-                  }`}>
-                    {orden.estado}
-                  </span>
+                {/* Header — siempre visible, clickeable */}
+                <div
+                  onClick={() => toggleExpandido(orden.id)}
+                  className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-zinc-800/50 transition-colors"
+                >
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    <span className="text-white font-mono text-xs flex-shrink-0">#{orden.numeroOrden}</span>
+                    <span className="text-white text-sm font-semibold truncate">{orden.clienteNombre}</span>
+                    {orden.ciudad && <span className="text-zinc-500 text-xs flex-shrink-0 hidden sm:inline">{orden.ciudad}</span>}
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-zinc-500 text-xs hidden md:inline">{fmtFecha(orden.fechaOrden)}</span>
+                    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${BADGE_ESTADO[orden.estado] || 'bg-zinc-700 text-zinc-400'}`}>
+                      {ICONO_ESTADO[orden.estado] || '⚪'} {LABEL_ESTADO[orden.estado] || orden.estado}
+                    </span>
+                    <span className="text-zinc-500 text-xs">{abierto ? '▲' : '▼'}</span>
+                  </div>
                 </div>
 
-                {/* Timeline */}
-                <div className="px-4 py-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {etapas.map((etapa, i) => (
-                    <div key={i} className={`flex items-start gap-2.5 p-3 rounded-xl ${etapa.fecha ? 'bg-zinc-800/60' : 'bg-zinc-800/20'}`}>
-                      <span className="text-lg flex-shrink-0">{etapa.icon}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className={`text-xs font-semibold ${etapa.fecha ? 'text-zinc-300' : 'text-zinc-600'}`}>
-                          {etapa.label}
-                        </p>
-                        <p className={`text-xs mt-0.5 ${etapa.fecha ? 'text-white' : 'text-zinc-700'}`}>
-                          {etapa.fecha ? fmtFecha(etapa.fecha) : '—'}
-                        </p>
-                        {etapa.quien && (
-                          <p className="text-zinc-500 text-xs mt-0.5 truncate">👤 {etapa.quien}</p>
-                        )}
-                        {etapa.accion && (
-                          <button onClick={etapa.accion}
-                            className="mt-1 text-xs bg-zinc-700 hover:bg-zinc-600 text-white px-2 py-0.5 rounded-lg">
-                            {etapa.accionLabel}
-                          </button>
-                        )}
+                {/* Timeline — solo si expandido */}
+                {abierto && (
+                  <div className="px-4 pb-4 border-t border-zinc-800 pt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    {etapas.map((etapa, i) => (
+                      <div key={i} className={`flex items-start gap-2.5 p-3 rounded-xl ${etapa.fecha ? 'bg-zinc-800/60' : 'bg-zinc-800/20'}`}>
+                        <span className="text-lg flex-shrink-0">{etapa.icon}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-xs font-semibold ${etapa.fecha ? 'text-zinc-300' : 'text-zinc-600'}`}>
+                            {etapa.label}
+                          </p>
+                          <p className={`text-xs mt-0.5 ${etapa.fecha ? 'text-white' : 'text-zinc-700'}`}>
+                            {etapa.fecha ? fmtFecha(etapa.fecha) : '—'}
+                          </p>
+                          {etapa.quien && (
+                            <p className="text-zinc-500 text-xs mt-0.5 truncate">👤 {etapa.quien}</p>
+                          )}
+                          {etapa.accion && (
+                            <button
+                              onClick={e => { e.stopPropagation(); etapa.accion!() }}
+                              className="mt-1.5 text-xs bg-zinc-700 hover:bg-zinc-600 text-white px-2 py-0.5 rounded-lg"
+                            >
+                              {etapa.accionLabel}
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )
           })}
