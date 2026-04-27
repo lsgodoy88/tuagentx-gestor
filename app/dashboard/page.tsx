@@ -69,8 +69,10 @@ export default function DashboardPage() {
   const [obteniendoGps, setObteniendoGps] = useState(false)
   const isEmpleado = ['vendedor', 'impulsadora', 'entregas'].includes(user?.role)
   const isImpulsadora = user?.role === 'impulsadora'
+  const [bodegaStats, setBodegaStats] = useState<any>(null)
   const isEmpresa = user?.role === 'empresa'
   const isSupervisor = user?.role === 'supervisor'
+  const isBodega = user?.role === 'bodega'
   useEffect(() => {
     if (!turno) return
     const interval = setInterval(() => {
@@ -126,6 +128,7 @@ export default function DashboardPage() {
     } else {
       fetch('/api/stats').then(r => r.json()).then(d => setStats(d)).catch(() => {})
     if (isEmpresa || isSupervisor) fetch('/api/monitor').then(r => r.json()).then(d => { if (Array.isArray(d)) setMonitor(d) }).catch(() => {})
+    if (isEmpresa || isSupervisor || isBodega) fetch('/api/bodega/despachos').then(r => r.json()).then(d => { if (d.despachos) { const hoy = new Date().toDateString(); setBodegaStats({ pendientes: d.despachos.filter((o:any) => o.estado==='pendiente').length, alistados: d.despachos.filter((o:any) => o.estado==='alistado').length, entregados: d.despachos.filter((o:any) => ['en_entrega','entregado'].includes(o.estado) && new Date(o.entregadoEl||'').toDateString()===hoy).length }) } }).catch(()=>{})
     }
   }, [user])
   async function iniciarTurno() {
@@ -570,6 +573,21 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
+        </div>
+      )}
+      {isBodega && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-white font-semibold text-sm">📦 Órdenes bodega hoy</h3>
+            <a href="/dashboard/ordenes" className="text-emerald-400 text-xs">Ver órdenes →</a>
+          </div>
+          {bodegaStats ? (
+            <div className="grid grid-cols-3 gap-2">
+              <div className="text-center"><p className="text-2xl font-bold text-amber-400">{bodegaStats.pendientes}</p><p className="text-zinc-500 text-xs">🟡 Pendientes</p></div>
+              <div className="text-center"><p className="text-2xl font-bold text-emerald-400">{bodegaStats.alistados}</p><p className="text-zinc-500 text-xs">🟢 Alistados</p></div>
+              <div className="text-center"><p className="text-2xl font-bold text-blue-400">{bodegaStats.entregados}</p><p className="text-zinc-500 text-xs">✅ Entregados</p></div>
+            </div>
+          ) : <p className="text-zinc-500 text-xs text-center">Cargando...</p>}
         </div>
       )}
       {isEmpleado && (

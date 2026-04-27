@@ -279,22 +279,6 @@ export default function OrdenesPage() {
         </div>
       </div>
 
-      {/* Dashboard contadores */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 text-center">
-          <p className="text-2xl font-bold text-amber-400">{cPendientes}</p>
-          <p className="text-zinc-500 text-xs mt-0.5">Pendientes</p>
-        </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 text-center">
-          <p className="text-2xl font-bold text-emerald-400">{cAlistados}</p>
-          <p className="text-zinc-500 text-xs mt-0.5">Alistados</p>
-        </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 text-center">
-          <p className="text-2xl font-bold text-blue-400">{cEntregadosHoy}</p>
-          <p className="text-zinc-500 text-xs mt-0.5">Entregados hoy</p>
-        </div>
-      </div>
-
       {/* Sub-tabs + toolbar */}
       <div className="space-y-2">
         {(() => {

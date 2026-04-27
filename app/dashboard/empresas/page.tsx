@@ -29,6 +29,7 @@ export default function EmpresasPage() {
   const [maxSupervisores, setMaxSupervisores] = useState(1)
   const [maxVendedores, setMaxVendedores] = useState(1)
   const [maxEntregas, setMaxEntregas] = useState(0)
+  const [maxBodega, setMaxBodega] = useState(0)
   const [maxImpulsadoras, setMaxImpulsadoras] = useState(0)
   const [sel, setSel] = useState<any>(null)
   const [modalPass, setModalPass] = useState<any>(null)
@@ -60,7 +61,7 @@ export default function EmpresasPage() {
     const res = await fetch('/api/empresas', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre, password, plan: 'basico', maxSupervisores, maxVendedores, maxEntregas, maxImpulsadoras })
+      body: JSON.stringify({ nombre, password, plan: 'basico', maxSupervisores, maxVendedores, maxEntregas, maxImpulsadoras, maxBodega })
     })
     const data = await res.json()
     setLoading(false)
@@ -75,7 +76,7 @@ export default function EmpresasPage() {
     await fetch('/api/empresas/' + editando.id, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ maxSupervisores, maxVendedores, maxEntregas, maxImpulsadoras })
+      body: JSON.stringify({ maxSupervisores, maxVendedores, maxEntregas, maxImpulsadoras, maxBodega })
     })
     setModalEditar(false)
     loadData()
@@ -120,6 +121,7 @@ export default function EmpresasPage() {
     { label: 'Supervisores', value: maxSupervisores, set: setMaxSupervisores },
     { label: 'Vendedores', value: maxVendedores, set: setMaxVendedores },
     { label: 'Entregas', value: maxEntregas, set: setMaxEntregas },
+    { label: 'Bodega', value: maxBodega, set: setMaxBodega },
     { label: 'Impulsadoras', value: maxImpulsadoras, set: setMaxImpulsadoras },
   ]
 
@@ -188,6 +190,7 @@ export default function EmpresasPage() {
                   setMaxSupervisores(e.maxSupervisores || 1)
                   setMaxVendedores(e.maxVendedores || 1)
                   setMaxEntregas(e.maxEntregas || 0)
+                  setMaxBodega(e.maxBodega || 0)
                   setMaxImpulsadoras(e.maxImpulsadoras || 0)
                   setModalEditar(true)
                 }} className="bg-zinc-800 hover:bg-zinc-700 text-white text-xs px-3 py-1.5 rounded-lg">

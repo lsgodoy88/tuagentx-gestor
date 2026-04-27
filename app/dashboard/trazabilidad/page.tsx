@@ -107,19 +107,16 @@ export default function TrazabilidadPage() {
     <div className="space-y-5">
       <div>
         <h1 className="text-2xl font-bold text-white">Trazabilidad</h1>
-        <p className="text-zinc-400 text-sm mt-1">Ciclo completo: orden → alistamiento → despacho → entrega</p>
       </div>
 
       {/* Tabs principales */}
       <div className="flex border-b border-zinc-800">
-        <button
-          onClick={() => setTabPrincipal('despachos')}
-          className={`px-5 py-3 text-sm font-semibold transition-colors ${tabPrincipal === 'despachos' ? 'text-emerald-400 border-b-2 border-emerald-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
+        <button onClick={() => setTabPrincipal('despachos')}
+          className={`flex-1 py-3 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'despachos' ? 'text-emerald-400 border-b-2 border-emerald-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
           📦 Despachos
         </button>
-        <button
-          onClick={() => setTabPrincipal('inventario')}
-          className={`px-5 py-3 text-sm font-semibold transition-colors ${tabPrincipal === 'inventario' ? 'text-emerald-400 border-b-2 border-emerald-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
+        <button onClick={() => setTabPrincipal('inventario')}
+          className={`flex-1 py-3 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'inventario' ? 'text-emerald-400 border-b-2 border-emerald-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
           🏭 Inventario
         </button>
       </div>
