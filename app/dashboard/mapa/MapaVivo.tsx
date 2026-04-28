@@ -26,7 +26,6 @@ export default function MapaVivo({ visitas, colorEmpleado, onVisitaClick }: Prop
       <TileLayer
         url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
         attribution='&copy; <a href="https://carto.com/">CARTO</a>'
-        attribution='&copy; OpenStreetMap contributors'
       />
 
       {/* Líneas de ruta por empleado */}

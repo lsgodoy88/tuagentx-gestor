@@ -242,6 +242,33 @@ export default function CarteraPage() {
     setLineasPago([crearLinea()])
   }
 
+  function abrirWhatsApp(cartera: any) {
+    const telefono = (cartera.cliente?.celular || cartera.cliente?.telefono || cartera.telefono || cartera.celular || '').replace(/\D/g, '')
+    if (!telefono) { alert('Cliente sin teléfono registrado'); return }
+
+    const deudas = (cartera.DetalleCartera || cartera.deudas || [])
+      .filter((d: any) => d.estado !== 'pagada' && Number(d.saldo ?? d.saldoPendiente ?? 0) > 0)
+      .sort((a: any, b: any) => new Date(a.fechaVencimiento || 0).getTime() - new Date(b.fechaVencimiento || 0).getTime())
+
+    if (!deudas.length) { alert('Sin facturas pendientes'); return }
+
+    const nombreCliente = cartera.cliente?.nombre || cartera.nombre || ''
+    const nombreEmpresa = (user as any)?.empresa?.nombre || (user as any)?.empresaNombre || 'nuestra empresa'
+    const total = deudas.reduce((sum: number, d: any) => sum + Number(d.saldo ?? d.saldoPendiente ?? 0), 0)
+
+    let mensaje = `Hola Sr(a) *${nombreCliente}*, le recordamos que tiene *${deudas.length} factura${deudas.length > 1 ? 's' : ''} pendiente${deudas.length > 1 ? 's' : ''}*:\n`
+
+    deudas.forEach((d: any) => {
+      mensaje += `\n📋 Fact. ${d.numeroFactura || d.numeroOrden || ''} → $${Number(d.saldo ?? d.saldoPendiente ?? 0).toLocaleString('es-CO')}`
+      if (d.fechaVencimiento) mensaje += ` _(vence ${new Date(d.fechaVencimiento).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: '2-digit' })})_`
+    })
+
+    mensaje += `\n\n💰 *Total pendiente: $${total.toLocaleString('es-CO')}*`
+    mensaje += `\n\nAgradecemos su pronto pago.\n— ${nombreEmpresa}`
+
+    window.open(`https://wa.me/57${telefono}?text=${encodeURIComponent(mensaje)}`, '_blank')
+  }
+
   async function subirVoucherArchivo(lineaId: string, file: File) {
     setLineasPago(prev => prev.map(l => l.id === lineaId ? { ...l, cargandoVoucher: true } : l))
     try {
@@ -779,6 +806,7 @@ export default function CarteraPage() {
                 rol={user?.role}
                 fmt={fmt}
                 onRecaudar={() => abrirRecaudar(c)}
+                onWhatsApp={() => abrirWhatsApp(c)}
               />
             ))}
             {filtradas.length === 0 && (
