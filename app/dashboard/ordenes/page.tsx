@@ -92,6 +92,8 @@ export default function OrdenesPage() {
   const [soportaZoom, setSoportaZoom] = useState(false)
   const [asignarTodasRepartidor, setAsignarTodasRepartidor] = useState('')
   const [asignandoTodas, setAsignandoTodas] = useState(false)
+  const [modoEnvio, setModoEnvio] = useState<Record<string, 'local' | 'transportadora' | 'personal'>>({})
+
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const trackRef = useRef<MediaStreamTrack | null>(null)
@@ -436,7 +438,24 @@ export default function OrdenesPage() {
 
                       {isExpanded && puedeEnviar && (
                         <div className="mt-3 space-y-3">
-                          {esLocalidad ? (
+                          {/* Selector modo envío */}
+                          <div className="grid grid-cols-3 gap-2">
+                            <button onClick={() => setModoEnvio(p => ({ ...p, [d.id]: 'local' }))}
+                              className={`py-2 rounded-xl text-xs font-semibold border transition-colors ${(modoEnvio[d.id] ?? (esLocalidad ? 'local' : 'transportadora')) === 'local' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
+                              🏍️ Local
+                            </button>
+                            <button onClick={() => setModoEnvio(p => ({ ...p, [d.id]: 'transportadora' }))}
+                              className={`py-2 rounded-xl text-xs font-semibold border transition-colors ${(modoEnvio[d.id] ?? (esLocalidad ? 'local' : 'transportadora')) === 'transportadora' ? 'bg-orange-600 border-orange-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
+                              🚚 Nacional
+                            </button>
+                            <button onClick={() => setModoEnvio(p => ({ ...p, [d.id]: 'personal' }))}
+                              className={`py-2 rounded-xl text-xs font-semibold border transition-colors ${modoEnvio[d.id] === 'personal' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
+                              🤝 Personal
+                            </button>
+                          </div>
+
+                          {/* Local — asignar repartidor */}
+                          {(modoEnvio[d.id] ?? (esLocalidad ? 'local' : 'transportadora')) === 'local' && (
                             <div className="space-y-2">
                               <p className="text-zinc-500 text-xs font-semibold">Asignar repartidor</p>
                               <div className="flex gap-2">
@@ -456,7 +475,10 @@ export default function OrdenesPage() {
                                 </button>
                               </div>
                             </div>
-                          ) : (
+                          )}
+
+                          {/* Transportadora */}
+                          {(modoEnvio[d.id] ?? (esLocalidad ? 'local' : 'transportadora')) === 'transportadora' && (
                             <div className="space-y-2">
                               <p className="text-zinc-500 text-xs font-semibold">Envío nacional</p>
                               <div className="grid grid-cols-2 gap-2">
@@ -483,6 +505,18 @@ export default function OrdenesPage() {
                                 disabled={isSaving || (!editTransporte[d.id]?.transportadora && !editTransporte[d.id]?.guia)}
                                 className="bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-semibold px-4 py-1.5 rounded-xl text-xs transition-colors">
                                 {isSaving ? 'Guardando...' : 'Confirmar envío'}
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Entrega personal */}
+                          {modoEnvio[d.id] === 'personal' && (
+                            <div className="space-y-2">
+                              <p className="text-zinc-500 text-xs font-semibold">El cliente o vendedor recoge en bodega</p>
+                              <button onClick={() => patchOrden(d.id, { estado: 'entregado', entregadoEl: new Date().toISOString() })}
+                                disabled={isSaving}
+                                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-xl text-xs">
+                                {isSaving ? 'Guardando...' : '✅ Confirmar entrega personal'}
                               </button>
                             </div>
                           )}
