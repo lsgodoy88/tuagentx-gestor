@@ -1,172 +1,186 @@
 import type { AdaptadorIntegracion, ClienteExterno, DeudaExterna, EmpleadoExterno, VentaExterna } from '../types'
-import https from 'https'
+import fs from 'fs'
+import path from 'path'
 
-const UPTRES2_URL = process.env.UPTRES2_URL ?? 'https://api2.uptres.top'
-const agent = new https.Agent({ rejectUnauthorized: false })
+const BASE = 'https://serviceuptres.cloud/external/v1/api'
+const AUTH_URL = 'https://serviceuptres.cloud/external/v1/auth/api'
 
-const DANE: Record<number, string> = {
-  5001: 'Medellín', 5045: 'Apartadó', 5088: 'Bello', 5266: 'Envigado', 5360: 'Itagüí',
-  5615: 'Rionegro', 5690: 'Sabaneta',
-  8001: 'Barranquilla', 8573: 'Soledad',
-  11001: 'Bogotá D.C.',
-  13001: 'Cartagena', 13430: 'Magangué',
-  15001: 'Tunja', 17001: 'Manizales', 18001: 'Florencia', 19001: 'Popayán',
-  20001: 'Valledupar', 23001: 'Montería',
-  25175: 'Chía', 25269: 'Facatativá', 25295: 'Funza', 25307: 'Girardot',
-  25473: 'Mosquera', 25754: 'Soacha',
-  27001: 'Quibdó', 41001: 'Neiva', 44001: 'Riohacha', 47001: 'Santa Marta',
-  50001: 'Villavicencio', 52001: 'Pasto', 52835: 'Tumaco', 54001: 'Cúcuta',
-  63001: 'Armenia', 66001: 'Pereira', 66170: 'Dosquebradas',
-  68001: 'Bucaramanga', 68081: 'Barrancabermeja', 68276: 'Floridablanca',
-  68307: 'Girón', 68615: 'Piedecuesta',
-  70001: 'Sincelejo', 73001: 'Ibagué',
-  76001: 'Cali', 76109: 'Buenaventura', 76111: 'Buga', 76364: 'Jamundí',
-  76520: 'Palmira', 76834: 'Tuluá', 76845: 'Yumbo',
-  81001: 'Arauca', 85001: 'Yopal', 86001: 'Mocoa', 91001: 'Leticia',
-  94001: 'Inírida', 95001: 'San José del Guaviare', 97001: 'Mitú', 99001: 'Puerto Carreño',
+// Cargar tablas DANE
+const municipiosPath = path.join(process.cwd(), 'public/municipios_dane.json')
+const departamentosPath = path.join(process.cwd(), 'public/departamentos_dane.json')
+const municipiosDANE: Record<string, string> = JSON.parse(fs.readFileSync(municipiosPath, 'utf-8'))
+const departamentosDANE: Record<string, string> = JSON.parse(fs.readFileSync(departamentosPath, 'utf-8'))
+
+function getCiudad(cityId?: string | number | null): string | null {
+  if (!cityId) return null
+  const key = String(cityId)
+  return municipiosDANE[key] || null
 }
 
-function mapCiudad(cityId?: number | string | null): string | undefined {
-  if (cityId == null) return undefined
-  const id = typeof cityId === 'string' ? parseInt(cityId, 10) : cityId
-  return DANE[id] ?? `DANE-${id}`
+function getDepartamento(cityId?: string | number | null): string | null {
+  if (!cityId) return null
+  const key = String(cityId)
+  const depKey = key.length === 5 ? key.slice(0, 2) : key.length === 4 ? key.slice(0, 1) : null
+  if (!depKey) return null
+  return departamentosDANE[depKey] || null
 }
 
 export class UpTres2Adapter implements AdaptadorIntegracion {
-  private token: string | null = null
+  private token: string = ''
 
   constructor(private apiKey: string, private apiSecret: string) {}
 
-  async login(): Promise<string> {
-    const res = await fetch(`${UPTRES2_URL}/auth/login`, {
+  async login(): Promise<void> {
+    const res = await fetch(AUTH_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ apiKey: this.apiKey, apiSecret: this.apiSecret }),
-      // @ts-ignore
-      agent,
     })
-    const data = await res.json()
-    if (!data.ok || !data.token) throw new Error(data.message ?? 'Login fallido')
-    this.token = data.token
-    return data.token
+    const d = await res.json()
+    if (!d.ok || !d.token) throw new Error('Login UpTres2 fallido: ' + (d.msg || ''))
+    this.token = d.token
   }
 
-  getToken(): string | null { return this.token }
+  private get headers() {
+    return { 'x-api-key': this.apiKey, 'Authorization': this.token }
+  }
 
-  private async fetchCursor(path: string, key: string): Promise<any[]> {
-    if (!this.token) await this.login()
+  private async fetchAll(endpoint: string, extraParams: Record<string, string> = {}): Promise<any[]> {
     const todos: any[] = []
-    let cursor: string | null = null
+    let cursorDate: string | null = null
+    let cursorId: string | null = null
+
     while (true) {
-      const sep = path.includes('?') ? '&' : '?'
-      const url: string = cursor
-        ? `${UPTRES2_URL}${path}${sep}cursor=${encodeURIComponent(cursor)}`
-        : `${UPTRES2_URL}${path}`
-      const res = await fetch(url, {
-        // @ts-ignore
-        agent,
-        headers: { Authorization: `Bearer ${this.token}` },
-      })
+      const p = new URLSearchParams({ limit: '100', condition: 'true', ...extraParams })
+      if (cursorDate && cursorId) {
+        p.set('cursorDate', cursorDate)
+        p.set('cursorId', cursorId)
+      }
+      const res = await fetch(`${BASE}/${endpoint}?${p.toString()}`, { headers: this.headers })
       const d = await res.json()
-      if (!d.ok) break
-      const items: any[] = d[key] ?? d.data ?? d.items ?? []
-      if (!items.length) break
-      todos.push(...items)
-      cursor = d.nextCursor ?? d.next ?? null
-      if (!cursor) break
+      if (!d.ok || !Array.isArray(d.data) || d.data.length === 0) break
+      todos.push(...d.data)
+      if (!d.nextCursor?.cursorDate || !d.nextCursor?.cursorId) break
+      cursorDate = d.nextCursor.cursorDate
+      cursorId = d.nextCursor.cursorId
     }
     return todos
   }
 
-  async fetchClientes(): Promise<ClienteExterno[]> {
-    const raw = await this.fetchCursor('/clientes?size=50', 'clientes')
-    return raw.map((c: any) => ({
-      uid: c.id ?? c._id,
-      _id: c._id ?? c.id,
-      doc: c.document ?? c.nit ?? c.doc,
-      nombre: c.firstName && c.lastName
-        ? `${c.firstName} ${c.lastName}`.trim()
-        : (c.name ?? ''),
-      ciudad: mapCiudad(c.cityId),
-      ...c,
+  async fetchClientes(desde?: Date): Promise<ClienteExterno[]> {
+    const params: Record<string, string> = {
+      fields: 'id,firstName,lastName,document,email,phone,address,cityId,neighborhood,tradeName,updatedAt',
+      includeTotal: 'false',
+    }
+    if (desde) params.desde = desde.toISOString().split('T')[0]
+    const data = await this.fetchAll('clientes', params)
+    return data.map((c: any) => ({
+      uid: c.id,
+      _id: c.id,
+      doc: c.document || null,
+      name: c.firstName || '',
+      lastName: c.lastName || '',
+      email: c.email || null,
+      nCel: c.phone || null,
+      dir: c.address || null,
+      ciudad: getCiudad(c.cityId),
+      departamento: getDepartamento(c.cityId),
+      barrio: c.neighborhood || null,
+      nombreComercial: c.tradeName || null,
+      fModificado: c.updatedAt,
     }))
   }
 
-  async fetchEmpleados(): Promise<EmpleadoExterno[]> {
-    const raw = await this.fetchCursor('/empleados?size=50', 'empleados')
-    return raw.map((e: any) => ({
-      uid: e.id ?? e._id,
-      _id: e._id ?? e.id,
-      name: e.firstName ?? e.name ?? '',
-      lastName: e.lastName ?? '',
-      email: e.email ?? '',
-      ...e,
+  async fetchEmpleados(desde?: Date): Promise<EmpleadoExterno[]> {
+    const params: Record<string, string> = {
+      fields: 'id,firstName,lastName,document,email,phone,cityId,updatedAt',
+      includeTotal: 'false',
+    }
+    if (desde) params.desde = desde.toISOString().split('T')[0]
+    const data = await this.fetchAll('empleados', params)
+    return data.map((e: any) => ({
+      uid: e.id,
+      _id: e.id,
+      name: e.firstName || '',
+      lastName: e.lastName || '',
+      doc: e.document || null,
+      email: e.email || null,
+      nCel: e.phone || null,
+      ciudad: getCiudad(e.cityId),
+      fModificado: e.updatedAt,
     }))
   }
 
   async fetchDeudas(desde?: Date): Promise<DeudaExterna[]> {
-    const desdeTs = desde ? Math.floor(desde.getTime() / 1000) : 0
-    const raw = await this.fetchCursor(`/cartera?size=50&desde=${desdeTs}`, 'cartera')
-    return raw
-      .filter((o: any) => {
-        const saldo = parseFloat(String(o.balance ?? o.vSaldo ?? '0'))
-        return o.active !== false && saldo > 0
-      })
-      .map((o: any) => ({
-        uid: o.id ?? o._id,
-        _id: o._id ?? o.id,
-        numeroOrden: o.orderNumber ?? o.numeroOrden,
-        numeroFacturado: o.invoiceNumber ?? o.numeroFacturado,
-        vTotal: o.total ?? o.vTotal,
-        vSaldo: o.balance ?? o.vSaldo,
-        vAbono: o.paid ?? o.vAbono ?? 0,
-        dias: o.creditDays ?? o.dias,
-        fPago: o.dueDate ?? o.fPago,
-        fCreado: o.createdAt ?? o.fCreado,
-        fModificado: o.updatedAt ?? o.fModificado,
-        condition: o.active !== false,
-        cliente: { uid: o.customerId ?? o.clientId ?? o.cliente?.uid },
-        empleado: { uid: o.employeeId ?? o.empleado?.uid },
-        ...o,
-      }))
+    const params: Record<string, string> = {
+      fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,createdAt,updatedAt',
+      includeTotal: 'false',
+    }
+    if (desde) {
+      params.from = desde.toISOString().split('T')[0]
+      params.to = new Date().toISOString().split('T')[0]
+    }
+    const data = await this.fetchAll('cartera', params)
+    return data.map((o: any) => ({
+      uid: o.id,
+      _id: o.id,
+      numeroOrden: o.orderNumber,
+      numeroFacturado: o.invoiceNumber || null,
+      vTotal: o.total,
+      vSaldo: o.balance,
+      mediopago: o.paymentType,
+      fCreado: o.createdAt,
+      fModificado: o.updatedAt,
+      condition: true,
+      cliente: { uid: o.customerId },
+      empleado: { uid: o.employeeId },
+    }))
   }
 
-  async fetchDeudasCliente(nit: string): Promise<DeudaExterna[]> {
-    const raw = await this.fetchCursor(
-      `/cartera?size=50&search=${encodeURIComponent(nit)}`,
-      'cartera'
+  async fetchDeudasCliente(clienteId: string): Promise<DeudaExterna[]> {
+    const res = await fetch(
+      `${BASE}/cartera/cliente/${clienteId}?fields=id,orderNumber,total,balance,paymentType,createdAt,updatedAt&condition=true`,
+      { headers: this.headers }
     )
-    return raw
-      .filter((o: any) => {
-        const saldo = parseFloat(String(o.balance ?? o.vSaldo ?? '0'))
-        return o.active !== false && saldo > 0
-      })
-      .map((o: any) => ({
-        uid: o.id ?? o._id,
-        _id: o._id ?? o.id,
-        vSaldo: o.balance ?? o.vSaldo,
-        condition: o.active !== false,
-        cliente: { uid: o.customerId ?? o.clientId ?? o.cliente?.uid },
-        empleado: { uid: o.employeeId ?? o.empleado?.uid },
-        ...o,
-      }))
+    const d = await res.json()
+    return (d.data || []).map((o: any) => ({
+      uid: o.id,
+      _id: o.id,
+      numeroOrden: o.orderNumber,
+      vTotal: o.total,
+      vSaldo: o.balance,
+      mediopago: o.paymentType,
+      fCreado: o.createdAt,
+      fModificado: o.updatedAt,
+      condition: true,
+      cliente: { uid: clienteId },
+      empleado: { uid: null },
+    }))
   }
 
   async fetchVentas(desde?: Date): Promise<VentaExterna[]> {
-    const desdeTs = desde ? Math.floor(desde.getTime() / 1000) : 0
-    const raw = await this.fetchCursor(`/ordenes?size=50&desde=${desdeTs}`, 'ordenes')
-    return raw.map((o: any) => ({
-      uid: o.id ?? o._id,
-      _id: o._id ?? o.id,
-      numeroOrden: o.orderNumber ?? o.numeroOrden,
-      vTotal: o.total ?? o.vTotal,
-      fCreado: o.createdAt ?? o.fCreado,
-      fModificado: o.updatedAt ?? o.fModificado,
-      condition: o.active !== false,
-      cliente: { uid: o.customerId ?? o.clientId ?? o.cliente?.uid },
-      empleado: { uid: o.employeeId ?? o.empleado?.uid },
-      productos: o.items ?? o.productos ?? [],
-      ...o,
+    const params: Record<string, string> = {
+      fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,isDelivered,isShipped,items,createdAt,updatedAt',
+      expand: 'customer,items',
+      includeTotal: 'false',
+    }
+    if (desde) {
+      params.from = desde.toISOString().split('T')[0]
+      params.to = new Date().toISOString().split('T')[0]
+    }
+    const data = await this.fetchAll('ordenes', params)
+    return data.map((o: any) => ({
+      uid: o.id,
+      _id: o.id,
+      numeroOrden: o.orderNumber,
+      numeroFacturado: o.invoiceNumber || null,
+      vTotal: o.total,
+      fCreado: o.createdAt,
+      fModificado: o.updatedAt,
+      condition: true,
+      cliente: { uid: o.customerId },
+      empleado: { uid: o.employeeId },
+      productos: o.items || [],
     }))
   }
 }
