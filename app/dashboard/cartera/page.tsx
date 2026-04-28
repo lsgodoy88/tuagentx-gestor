@@ -39,6 +39,7 @@ export default function CarteraPage() {
   const [pagos, setPagos] = useState<any[]>([])
   const [metas, setMetas] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadingBusqueda, setLoadingBusqueda] = useState(false)
   const [buscar, setBuscar] = useState('')
   const [hayMas, setHayMas] = useState(false)
   const [paginaActual, setPaginaActual] = useState(1)
@@ -78,7 +79,7 @@ export default function CarteraPage() {
   }, [status])
 
   async function cargarDatos(q = '') {
-    setLoading(true)
+    if (!q) setLoading(true); else setLoadingBusqueda(true)
     setPaginaActual(1)
     const url = q ? `/api/cartera?limit=15&q=${encodeURIComponent(q)}` : '/api/cartera?limit=15'
     const [r1, r2, r3] = await Promise.all([
@@ -90,7 +91,7 @@ export default function CarteraPage() {
     setHayMas((r1.pages ?? 1) > 1)
     setPagos(r2.pagos || [])
     setMetas(r3.metas || [])
-    setLoading(false)
+    setLoading(false); setLoadingBusqueda(false)
   }
 
   async function cargarMas() {
