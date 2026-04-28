@@ -265,13 +265,13 @@ export default function ConfiguracionPage() {
     setModoActivo('manual'); setModoSel('manual')
   }
 
-  async function validarUpTres2() {
+  async function validarUpTres() {
     if (!uptresApiKey || !uptresApiSecret) return
     setConectandoErp(true); setMsgErp('')
     const res = await fetch('/api/integracion/validar-uptres', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo: 'uptres2', apiKey: uptresApiKey, apiSecret: uptresApiSecret }),
+      body: JSON.stringify({ tipo: 'uptres', apiKey: uptresApiKey, apiSecret: uptresApiSecret }),
     })
     const data = await res.json()
     setConectandoErp(false)
@@ -284,11 +284,11 @@ export default function ConfiguracionPage() {
     const res = await fetch('/api/integracion/conectar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo: 'uptres2', apiKey: uptresApiKey, apiSecret: uptresApiSecret }),
+      body: JSON.stringify({ tipo: 'uptres', apiKey: uptresApiKey, apiSecret: uptresApiSecret }),
     })
     const data = await res.json()
     if (data.ok) {
-      setErpConectado(true); setErpNombre(data.nombre ?? 'API UpTres2')
+      setErpConectado(true); setErpNombre(data.nombre ?? 'API UpTres')
       setSyncInicial(data.syncInicial ?? false); setModalValidacion(false)
       setModoActivo('erp')
     } else {
@@ -671,7 +671,7 @@ export default function ConfiguracionPage() {
                         </div>
                       </div>
                       {msgErp && <p className="text-sm text-red-400">{msgErp}</p>}
-                      <button onClick={e => { e.stopPropagation(); validarUpTres2() }} disabled={conectandoErp || !uptresApiKey || !uptresApiSecret}
+                      <button onClick={e => { e.stopPropagation(); validarUpTres() }} disabled={conectandoErp || !uptresApiKey || !uptresApiSecret}
                         className="bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-xl text-sm">
                         {conectandoErp ? 'Validando...' : 'Validar conexión'}
                       </button>
@@ -1005,7 +1005,7 @@ export default function ConfiguracionPage() {
       {modalValidacion && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-sm space-y-4">
-            <h3 className="text-white font-bold">🔌 Validando API UpTres 2</h3>
+            <h3 className="text-white font-bold">🔌 Validando API UpTres</h3>
 
             <div>
               <p className="text-zinc-400 text-xs font-semibold uppercase mb-2">Endpoints detectados</p>

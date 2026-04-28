@@ -17,14 +17,14 @@ export async function POST(req: NextRequest) {
   const { email, password, token, tipo, apiKey, apiSecret } = body
 
   // ── UpTres 2 — apiKey + apiSecret ──
-  if (tipo === 'uptres2') {
+  if (tipo === 'uptres') {
     if (!apiKey || !apiSecret) return NextResponse.json({ error: 'apiKey y apiSecret requeridos' }, { status: 400 })
 
     const encSecret = encrypt(apiSecret, process.env.UPTRES_SECRET!)
-    const configData = { apiKey, apiSecret: encSecret, nombre: 'API UpTres2' }
+    const configData = { apiKey, apiSecret: encSecret, nombre: 'API UpTres' }
 
     const existing = await (prisma as any).integracion.findFirst({
-      where: { empresaId, tipo: 'uptres2' }
+      where: { empresaId, tipo: 'uptres' }
     })
     let integracion: any
     if (existing) {
@@ -35,23 +35,18 @@ export async function POST(req: NextRequest) {
     } else {
       integracion = await (prisma as any).integracion.create({
         data: {
-          id: `intg-${empresaId}-uptres2`,
+          id: `intg-${empresaId}-uptres`,
           empresaId,
-          nombre: 'API UpTres2',
-          tipo: 'uptres2',
+          nombre: 'API UpTres',
+          tipo: 'uptres',
           activa: true,
           config: configData,
           updatedAt: new Date(),
         }
       })
     }
-    // Desactivar integración uptres v1 si existía
-    await (prisma as any).integracion.updateMany({
-      where: { empresaId, tipo: 'uptres', activa: true },
-      data: { activa: false, updatedAt: new Date() }
-    })
 
-    return NextResponse.json({ ok: true, nombre: 'API UpTres2', syncInicial: integracion.syncInicial ?? false })
+    return NextResponse.json({ ok: true, nombre: 'API UpTres', syncInicial: integracion.syncInicial ?? false })
   }
 
   // ── UpTres v1 — token o email/password ──
@@ -117,7 +112,7 @@ export async function DELETE(_req: NextRequest) {
   if (user.role !== 'empresa') return NextResponse.json({ error: 'Solo empresa' }, { status: 403 })
 
   await (prisma as any).integracion.updateMany({
-    where: { empresaId: user.id, tipo: { in: ['uptres', 'uptres2'] } },
+    where: { empresaId: user.id, tipo: 'uptres' },
     data: { activa: false, updatedAt: new Date() }
   })
 

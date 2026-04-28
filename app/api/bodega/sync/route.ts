@@ -2,7 +2,7 @@ import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
-import { UpTres2Adapter } from '@/lib/integracion/adapters/uptres2'
+import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 
 export async function POST(req: NextRequest) {
@@ -14,19 +14,13 @@ export async function POST(req: NextRequest) {
 
   // Obtener integración activa
   const integracion = await (prisma as any).integracion.findFirst({
-    where: { empresaId, tipo: { in: ['uptres', 'uptres2'] }, activa: true }
+    where: { empresaId, tipo: 'uptres', activa: true }
   })
   if (!integracion) return NextResponse.json({ error: 'Sin integración activa' }, { status: 400 })
 
-  // Solo UpTres2 soportado
   const config = integracion.config as any
-  let adapter: UpTres2Adapter
-  if (integracion.tipo === 'uptres2') {
-    const apiSecret = decrypt(config.apiSecret, process.env.UPTRES_SECRET!)
-    adapter = new UpTres2Adapter(config.apiKey, apiSecret)
-  } else {
-    return NextResponse.json({ error: 'Integración ERP antigua no soportada. Migrar a API UpTres2.' }, { status: 400 })
-  }
+  const apiSecret = decrypt(config.apiSecret, process.env.UPTRES_SECRET!)
+  const adapter = new UpTresAdapter(config.apiKey, apiSecret)
 
   await adapter.login()
 
@@ -86,7 +80,7 @@ export async function POST(req: NextRequest) {
     if (existente) {
       toUpdate.push({ id: existente.id, data })
     } else {
-      toCreate.push({ empresaId, origen: 'uptres2', origenId, estado: 'pendiente', ...data })
+      toCreate.push({ empresaId, origen: 'uptres', origenId, estado: 'pendiente', ...data })
     }
   }
 

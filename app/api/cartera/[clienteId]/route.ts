@@ -33,8 +33,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
     // Live sync — refrescar deudas de este cliente desde UpTres antes de leer
     try {
       const config = integracion.config as any
-      const adapter = new UpTresAdapter(config.token)
-      const deudasFrescas = await adapter.fetchDeudasCliente(cliente.nit)
+      const { decrypt } = await import('@/lib/crypto-uptres')
+      const apiSecret = decrypt(config.apiSecret, process.env.UPTRES_SECRET!)
+      const adapter = new UpTresAdapter(config.apiKey, apiSecret)
+      await adapter.login()
+      const deudasFrescas = await adapter.fetchDeudasCliente(cliente.apiId)
       const afectados = await sincronizarDeudas(deudasFrescas, integracion.id, empresaId)
       await actualizarCache(afectados, integracion.id, empresaId)
     } catch {

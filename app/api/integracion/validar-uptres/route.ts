@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import https from 'https'
 
 const UPTRES_URL = 'https://www.uptres.top'
-const UPTRES2_URL = 'https://serviceuptres.cloud/external/v1'
+const UPTRES_API_URL = 'https://serviceuptres.cloud/external/v1'
 const agent = new https.Agent({ rejectUnauthorized: false })
 
 export async function POST(req: NextRequest) {
@@ -17,13 +17,13 @@ export async function POST(req: NextRequest) {
   const tipo: string = body.tipo ?? 'uptres'
 
   // ── UpTres 2 — apiKey + apiSecret ──
-  if (tipo === 'uptres2') {
+  if (tipo === 'uptres') {
     const { apiKey, apiSecret } = body
     if (!apiKey || !apiSecret) return NextResponse.json({ error: 'apiKey y apiSecret requeridos' }, { status: 400 })
 
     let token: string
     try {
-      const loginRes = await fetch(`${UPTRES2_URL}/auth/api`, {
+      const loginRes = await fetch(`${UPTRES_API_URL}/auth/api`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apiKey, apiSecret }),
@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
       }
       token = loginData.token
     } catch {
-      return NextResponse.json({ ok: false, error: 'No se pudo conectar con UpTres2' })
+      return NextResponse.json({ ok: false, error: 'No se pudo conectar con UpTres' })
     }
 
     const epDefs = [
@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
 
     for (const ep of epDefs) {
       try {
-        const res = await fetch(`${UPTRES2_URL}${ep.path}`, {
+        const res = await fetch(`${UPTRES_API_URL}${ep.path}`, {
           // @ts-ignore
           agent,
           headers: { 'x-api-key': apiKey, 'Authorization': token },
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
 
   for (const ep of epDefs) {
     try {
-      const res = await fetch(`${UPTRES2_URL}${ep.path}`, {
+      const res = await fetch(`${UPTRES_API_URL}${ep.path}`, {
         // @ts-ignore
         agent,
         headers: { 'x-token': token },

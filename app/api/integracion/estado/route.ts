@@ -11,7 +11,7 @@ export async function GET(_req: NextRequest) {
   const empresaId = user.id
 
   const integracion = await (prisma as any).integracion.findFirst({
-    where: { empresaId, tipo: { in: ['uptres', 'uptres2'] }, activa: true }
+    where: { empresaId, tipo: 'uptres', activa: true }
   })
 
   if (!integracion) return NextResponse.json({ conectado: false })
