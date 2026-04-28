@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import https from 'https'
 
 const UPTRES_URL = 'https://www.uptres.top'
-const UPTRES2_URL = process.env.UPTRES2_URL ?? 'https://api2.uptres.top'
+const UPTRES2_URL = 'https://serviceuptres.cloud/external/v1'
 const agent = new https.Agent({ rejectUnauthorized: false })
 
 export async function POST(req: NextRequest) {
@@ -23,7 +23,7 @@ export async function POST(req: NextRequest) {
 
     let token: string
     try {
-      const loginRes = await fetch(`${UPTRES2_URL}/auth/login`, {
+      const loginRes = await fetch(`${UPTRES2_URL}/auth/api`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ apiKey, apiSecret }),
@@ -40,10 +40,10 @@ export async function POST(req: NextRequest) {
     }
 
     const epDefs = [
-      { key: 'clientes',  path: '/clientes?size=1' },
-      { key: 'empleados', path: '/empleados?size=1' },
-      { key: 'cartera',   path: '/cartera?size=1' },
-      { key: 'ordenes',   path: '/ordenes?size=1' },
+      { key: 'clientes',  path: '/api/clientes?limit=1&condition=true' },
+      { key: 'empleados', path: '/api/empleados?limit=1&condition=true' },
+      { key: 'cartera',   path: '/api/cartera?limit=1&condition=true' },
+      { key: 'ordenes',   path: '/api/ordenes?limit=1&condition=true&from=2026-01-01&to=2026-12-31' },
     ]
     const endpoints: Record<string, boolean> = {}
     const counts: Record<string, number> = {}
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
         const res = await fetch(`${UPTRES2_URL}${ep.path}`, {
           // @ts-ignore
           agent,
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { 'x-api-key': apiKey, 'Authorization': token },
         })
         const data = await res.json()
         if (data.ok) {
@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
 
   for (const ep of epDefs) {
     try {
-      const res = await fetch(`${UPTRES_URL}${ep.path}`, {
+      const res = await fetch(`${UPTRES2_URL}${ep.path}`, {
         // @ts-ignore
         agent,
         headers: { 'x-token': token },
