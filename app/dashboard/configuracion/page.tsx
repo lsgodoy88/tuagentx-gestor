@@ -604,7 +604,7 @@ export default function ConfiguracionPage() {
               )}
             </div>
 
-            {/* ── Card ERP UpTres ── */}
+            {/* ── Card API UpTres ── */}
             <div className={`rounded-2xl border transition-colors ${modoSel === 'erp' ? 'border-violet-500/60 bg-violet-500/5' : 'border-zinc-700 bg-zinc-800/40'}`}>
               <div className="flex items-center justify-between px-4 py-3 cursor-pointer" onClick={() => setModoSel('erp')}>
                 <div className="flex items-center gap-3">
@@ -651,7 +651,7 @@ export default function ConfiguracionPage() {
                         </button>
                         <button onClick={desconectarERP}
                           className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 font-semibold px-4 py-2 rounded-xl text-sm">
-                          Desconectar ERP
+                          Desconectar API
                         </button>
                       </div>
                     </>
