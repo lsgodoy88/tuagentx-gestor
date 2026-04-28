@@ -177,7 +177,7 @@ export async function GET(req: NextRequest) {
         where,
         skip,
         take: limit,
-        orderBy: { nombre: 'asc' }
+        orderBy: { saldoPendiente: 'desc' }
       }),
       (prisma as any).carteraCache.count({ where })
     ])
@@ -237,7 +237,7 @@ export async function GET(req: NextRequest) {
       where,
       skip,
       take: limit,
-      orderBy: { nombre: 'asc' },
+      orderBy: { Cliente: { nombre: 'asc' } },
       include: {
         Cliente: { select: { id: true, nombre: true, nit: true, telefono: true } },
         Empleado: { select: { id: true, nombre: true, email: true } },
