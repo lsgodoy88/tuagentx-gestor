@@ -234,8 +234,9 @@ export default function CarteraPage() {
     setDetalleData(detalleCartera)
     const pendientes = (detalleCartera?.DetalleCartera || [])
       .filter((d: any) => d.estado !== 'pagada')
-      .map((d: any) => d.id)
-    setFacturasSeleccionadas(pendientes)
+      .sort((a: any, b: any) => new Date(a.fechaVencimiento || a.fCreado || 0).getTime() - new Date(b.fechaVencimiento || b.fCreado || 0).getTime())
+    const masAntigua = pendientes[0]?.id ? [pendientes[0].id] : []
+    setFacturasSeleccionadas(masAntigua)
     setLineasPago([crearLinea()])
   }
 

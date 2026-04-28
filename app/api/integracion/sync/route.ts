@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
   const empresaId = user.id
 
   const integracion = await (prisma as any).integracion.findFirst({
-    where: { empresaId, tipo: 'uptres', activa: true }
+    where: { empresaId, tipo: 'uptres', activa: true }, orderBy: { updatedAt: 'desc' }
   })
   if (!integracion) return NextResponse.json({ error: 'Sin integración activa' }, { status: 400 })
 
