@@ -92,8 +92,8 @@ export async function POST(req: NextRequest) {
         const uid = (c as any).uid?.trim() || (c as any)._id?.trim()
         if (!doc || !uid) continue
         await (prisma as any).cliente.updateMany({
-          where: { nit: doc, empresaId },
-          data: { apiId: uid }
+          where: { apiId: uid, empresaId },
+          data: { ciudad: (c as any).ciudad || undefined, direccion: (c as any).dir || undefined, telefono: (c as any).nCel || undefined, email: (c as any).email || undefined }
         })
         clientesActualizados++
       }
@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
         if (!doc || !uid) continue
         const updated = await (prisma as any).cliente.updateMany({
           where: { nit: doc, empresaId, apiId: null },
-          data: { apiId: uid }
+          data: { apiId: uid, ciudad: (c as any).ciudad || undefined, direccion: (c as any).dir || undefined, telefono: (c as any).nCel || undefined, email: (c as any).email || undefined }
         })
         if (updated.count > 0) clientesActualizados++
       }
