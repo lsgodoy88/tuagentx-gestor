@@ -79,7 +79,7 @@ export default function CarteraPage() {
   }, [status])
 
   async function cargarDatos(q = '') {
-    if (!q) setLoading(true); else setLoadingBusqueda(true)
+    if (!q && carteras.length === 0) setLoading(true); else setLoadingBusqueda(true)
     setPaginaActual(1)
     const url = q ? `/api/cartera?limit=15&q=${encodeURIComponent(q)}` : '/api/cartera?limit=15'
     const [r1, r2, r3] = await Promise.all([
