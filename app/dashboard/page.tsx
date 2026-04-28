@@ -1,6 +1,7 @@
 'use client'
 import { fetchApi, errorMsg } from '@/lib/fetchApi'
 import FirmaCanvas from '@/components/FirmaCanvas'
+import InputMoneda from '@/components/InputMoneda'
 import { useSession } from 'next-auth/react'
 import ModalVisita from '@/components/ModalVisita'
 import { useEffect, useState, useRef } from 'react'
@@ -1142,14 +1143,14 @@ export default function DashboardPage() {
                           <div className="flex gap-3">
                             <div className="flex-[7]">
                               <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Monto *</label>
-                              <input type="number" value={linea.monto}
-                                onChange={e => setLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, monto: e.target.value } : l))}
-                                className="w-full bg-zinc-700 border border-zinc-600 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
+                              <InputMoneda value={linea.monto}
+                                onChange={val => setLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, monto: val } : l))}
+                                className="w-full bg-zinc-700 border border-zinc-600 rounded-xl pr-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
                             </div>
                             <div className="flex-[3]">
                               <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Descuento</label>
-                              <input type="number" value={linea.descuento} placeholder="0"
-                                onChange={e => setLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, descuento: e.target.value } : l))}
+                              <InputMoneda value={linea.descuento} placeholder="0" prefix=""
+                                onChange={val => setLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, descuento: val } : l))}
                                 className="w-full bg-zinc-700 border border-zinc-600 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
                             </div>
                           </div>
@@ -1189,14 +1190,14 @@ export default function DashboardPage() {
                               <div className="flex gap-3">
                                 <div className="flex-[7]">
                                   <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Monto (IA)</label>
-                                  <input type="number" value={linea.monto} readOnly
-                                    className="w-full bg-zinc-700/50 border border-zinc-600 rounded-xl px-4 py-2.5 text-zinc-300 text-sm outline-none cursor-not-allowed" />
+                                  <InputMoneda value={linea.monto} readOnly
+                                    className="w-full bg-zinc-700/50 border border-zinc-600 rounded-xl pr-4 py-2.5 text-zinc-300 text-sm outline-none cursor-not-allowed" onChange={() => {}} />
                                 </div>
                                 <div className="flex-[3]">
                                   <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Descuento</label>
-                                  <input type="number" value={linea.descuento} placeholder="0"
-                                    onChange={e => {
-                                      const desc = e.target.value
+                                  <InputMoneda value={linea.descuento} placeholder="0" prefix=""
+                                    onChange={val => {
+                                      const desc = val
                                       const montoFinal = linea.voucherDatosIA?.valor != null
                                         ? String(Math.max(0, Math.round(linea.voucherDatosIA.valor - Number(desc || 0)))) : linea.monto
                                       setLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, descuento: desc, monto: montoFinal } : l))
