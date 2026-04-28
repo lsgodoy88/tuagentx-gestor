@@ -69,8 +69,9 @@ export default function ConfiguracionPage() {
   // API UpTres
   const [erpConectado, setErpConectado] = useState(false)
   const [erpNombre, setErpNombre] = useState('')
-  const [uptresToken, setUptresToken] = useState('')
-  const [showUptresToken, setShowUptresToken] = useState(false)
+  const [uptresApiKey, setUptresApiKey] = useState('')
+  const [uptresApiSecret, setUptresApiSecret] = useState('')
+  const [showUptresSecret, setShowUptresSecret] = useState(false)
   const [conectandoErp, setConectandoErp] = useState(false)
   const [msgErp, setMsgErp] = useState('')
   const [syncInicial, setSyncInicial] = useState(false)
@@ -259,18 +260,18 @@ export default function ConfiguracionPage() {
   async function activarManual() {
     if (erpConectado) await fetch('/api/integracion/conectar', { method: 'DELETE' })
     if (intUrl) await fetch('/api/recibos/config/empresa', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urlApi: null, tokenApi: null }) })
-    setErpConectado(false); setErpNombre(''); setUptresToken('')
+    setErpConectado(false); setErpNombre(''); setUptresApiKey(''); setUptresApiSecret('')
     setIntUrl(''); setIntToken(''); setResultValidacion(null); setEndpointsDetectados(null)
     setModoActivo('manual'); setModoSel('manual')
   }
 
-  async function validarUpTres() {
-    if (!uptresToken) return
+  async function validarUpTres2() {
+    if (!uptresApiKey || !uptresApiSecret) return
     setConectandoErp(true); setMsgErp('')
     const res = await fetch('/api/integracion/validar-uptres', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: uptresToken }),
+      body: JSON.stringify({ tipo: 'uptres2', apiKey: uptresApiKey, apiSecret: uptresApiSecret }),
     })
     const data = await res.json()
     setConectandoErp(false)
@@ -283,11 +284,11 @@ export default function ConfiguracionPage() {
     const res = await fetch('/api/integracion/conectar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ tipo: 'uptres', token: uptresToken }),
+      body: JSON.stringify({ tipo: 'uptres2', apiKey: uptresApiKey, apiSecret: uptresApiSecret }),
     })
     const data = await res.json()
     if (data.ok) {
-      setErpConectado(true); setErpNombre(data.nombre ?? 'API UpTres')
+      setErpConectado(true); setErpNombre(data.nombre ?? 'API UpTres2')
       setSyncInicial(data.syncInicial ?? false); setModalValidacion(false)
       setModoActivo('erp')
     } else {
@@ -297,7 +298,7 @@ export default function ConfiguracionPage() {
 
   async function desconectarERP() {
     await fetch('/api/integracion/conectar', { method: 'DELETE' })
-    setErpConectado(false); setErpNombre(''); setUptresToken(''); setUltimaSync('')
+    setErpConectado(false); setErpNombre(''); setUptresApiKey(''); setUptresApiSecret(''); setUltimaSync('')
     setModoActivo('manual'); setModoSel('manual')
   }
 
@@ -657,18 +658,22 @@ export default function ConfiguracionPage() {
                   ) : (
                     <>
                       <div>
-                        <label className={labelClass}>Token de API</label>
+                        <label className={labelClass}>API Key</label>
+                        <input value={uptresApiKey} onChange={e => setUptresApiKey(e.target.value)} placeholder="pk_..." className={inputClass} onClick={e => e.stopPropagation()} />
+                      </div>
+                      <div>
+                        <label className={labelClass}>API Secret</label>
                         <div className="relative">
-                          <input type={showUptresToken ? 'text' : 'password'} value={uptresToken} onChange={e => setUptresToken(e.target.value)} placeholder="Token de API UpTres" className={inputClass + ' pr-10'} onClick={e => e.stopPropagation()} />
-                          <button type="button" tabIndex={-1} onClick={e => { e.stopPropagation(); setShowUptresToken(p => !p) }} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white">
-                            {showUptresToken ? eyeOff : eyeOpen}
+                          <input type={showUptresSecret ? 'text' : 'password'} value={uptresApiSecret} onChange={e => setUptresApiSecret(e.target.value)} placeholder="••••••••" className={inputClass + ' pr-10'} onClick={e => e.stopPropagation()} />
+                          <button type="button" tabIndex={-1} onClick={e => { e.stopPropagation(); setShowUptresSecret(p => !p) }} className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white">
+                            {showUptresSecret ? eyeOff : eyeOpen}
                           </button>
                         </div>
                       </div>
                       {msgErp && <p className="text-sm text-red-400">{msgErp}</p>}
-                      <button onClick={e => { e.stopPropagation(); validarUpTres() }} disabled={conectandoErp || !uptresToken}
+                      <button onClick={e => { e.stopPropagation(); validarUpTres2() }} disabled={conectandoErp || !uptresApiKey || !uptresApiSecret}
                         className="bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-xl text-sm">
-                        {conectandoErp ? 'Validando...' : 'Validar y conectar'}
+                        {conectandoErp ? 'Validando...' : 'Validar conexión'}
                       </button>
                     </>
                   )}
@@ -1000,15 +1005,15 @@ export default function ConfiguracionPage() {
       {modalValidacion && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-sm space-y-4">
-            <h3 className="text-white font-bold">🔌 Validando API UpTres</h3>
+            <h3 className="text-white font-bold">🔌 Validando API UpTres 2</h3>
 
             <div>
               <p className="text-zinc-400 text-xs font-semibold uppercase mb-2">Endpoints detectados</p>
               {[
-                { label: 'Clientes', key: 'clientes' },
-                { label: 'Cartera', key: 'cartera' },
+                { label: 'Clientes',  key: 'clientes' },
                 { label: 'Empleados', key: 'empleados' },
-                { label: 'Ventas', key: 'ventas' },
+                { label: 'Cartera',   key: 'cartera' },
+                { label: 'Órdenes',   key: 'ordenes' },
               ].map(e => (
                 <div key={e.key} className="flex items-center justify-between py-1.5 border-b border-zinc-800">
                   <span className="text-zinc-400 text-sm">📥 {e.label}</span>
@@ -1022,11 +1027,11 @@ export default function ConfiguracionPage() {
             <div>
               <p className="text-zinc-400 text-xs font-semibold uppercase mb-2">Mapeo de campos</p>
               {[
-                { ext: 'uid', int: 'externalId' },
-                { ext: 'doc', int: 'nit' },
-                { ext: 'name + lastName', int: 'nombre' },
-                { ext: 'vSaldo', int: 'saldoPendiente' },
-                { ext: 'fModificado', int: 'ultimaSync' },
+                { ext: 'id',                  int: 'apiId' },
+                { ext: 'firstName+lastName',  int: 'nombre' },
+                { ext: 'cityId',              int: 'ciudad (DANE)' },
+                { ext: 'balance',             int: 'saldoPendiente' },
+                { ext: 'employeeId',          int: 'vendedor' },
               ].map(m => (
                 <div key={m.ext} className="flex items-center justify-between py-1 border-b border-zinc-800/50">
                   <span className="text-zinc-500 text-xs font-mono">{m.ext}</span>

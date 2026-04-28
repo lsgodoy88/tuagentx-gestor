@@ -1,6 +1,8 @@
 import { prisma } from '@/lib/prisma'
 import { calcularEstado } from '@/lib/cartera'
-import type { DeudaExterna } from './types'
+import type { AdaptadorIntegracion, DeudaExterna } from './types'
+import { UpTresAdapter } from './adapters/uptres'
+import { UpTres2Adapter } from './adapters/uptres2'
 
 export async function sincronizarDeudas(
   deudas: DeudaExterna[],
@@ -64,6 +66,11 @@ export async function sincronizarDeudas(
   }
 
   return clienteApiIds
+}
+
+export function crearAdaptador(tipo: string, config: Record<string, string>): AdaptadorIntegracion {
+  if (tipo === 'uptres2') return new UpTres2Adapter(config.apiKey, config.apiSecret)
+  return new UpTresAdapter(config.token)
 }
 
 export async function actualizarCache(

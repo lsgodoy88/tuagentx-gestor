@@ -4,14 +4,8 @@ import { authOptions } from '@/lib/auth'
 import https from 'https'
 
 const UPTRES_URL = 'https://www.uptres.top'
+const UPTRES2_URL = process.env.UPTRES2_URL ?? 'https://api2.uptres.top'
 const agent = new https.Agent({ rejectUnauthorized: false })
-
-const ENDPOINT_DEFS = [
-  { key: 'clientes',  path: '/clientes?desde=0&size=1' },
-  { key: 'cartera',   path: '/ordenventa?desde=0&size=1' },
-  { key: 'empleados', path: '/empleados?desde=0&size=1' },
-  { key: 'ventas',    path: '/ordenesventa?desde=0&size=1' },
-]
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -19,13 +13,80 @@ export async function POST(req: NextRequest) {
   const user = session.user as any
   if (user.role !== 'empresa') return NextResponse.json({ error: 'Solo empresa' }, { status: 403 })
 
-  const { token } = await req.json()
+  const body = await req.json()
+  const tipo: string = body.tipo ?? 'uptres'
+
+  // ── UpTres 2 — apiKey + apiSecret ──
+  if (tipo === 'uptres2') {
+    const { apiKey, apiSecret } = body
+    if (!apiKey || !apiSecret) return NextResponse.json({ error: 'apiKey y apiSecret requeridos' }, { status: 400 })
+
+    let token: string
+    try {
+      const loginRes = await fetch(`${UPTRES2_URL}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiKey, apiSecret }),
+        // @ts-ignore
+        agent,
+      })
+      const loginData = await loginRes.json()
+      if (!loginData.ok || !loginData.token) {
+        return NextResponse.json({ ok: false, error: loginData.message ?? 'Credenciales inválidas' })
+      }
+      token = loginData.token
+    } catch {
+      return NextResponse.json({ ok: false, error: 'No se pudo conectar con UpTres2' })
+    }
+
+    const epDefs = [
+      { key: 'clientes',  path: '/clientes?size=1' },
+      { key: 'empleados', path: '/empleados?size=1' },
+      { key: 'cartera',   path: '/cartera?size=1' },
+      { key: 'ordenes',   path: '/ordenes?size=1' },
+    ]
+    const endpoints: Record<string, boolean> = {}
+    const counts: Record<string, number> = {}
+
+    for (const ep of epDefs) {
+      try {
+        const res = await fetch(`${UPTRES2_URL}${ep.path}`, {
+          // @ts-ignore
+          agent,
+          headers: { Authorization: `Bearer ${token}` },
+        })
+        const data = await res.json()
+        if (data.ok) {
+          endpoints[ep.key] = true
+          counts[ep.key] = data.pagination?.totalItems ?? data.total ?? data.count ?? 1
+        } else {
+          endpoints[ep.key] = false
+          counts[ep.key] = 0
+        }
+      } catch {
+        endpoints[ep.key] = false
+        counts[ep.key] = 0
+      }
+    }
+
+    const activeCount = Object.values(endpoints).filter(Boolean).length
+    return NextResponse.json({ ok: activeCount > 0, endpoints, counts, activeCount })
+  }
+
+  // ── UpTres v1 — token ──
+  const { token } = body
   if (!token) return NextResponse.json({ error: 'Token requerido' }, { status: 400 })
 
+  const epDefs = [
+    { key: 'clientes',  path: '/clientes?desde=0&size=1' },
+    { key: 'cartera',   path: '/ordenventa?desde=0&size=1' },
+    { key: 'empleados', path: '/empleados?desde=0&size=1' },
+    { key: 'ordenes',   path: '/ordenesventa?desde=0&size=1' },
+  ]
   const endpoints: Record<string, boolean> = {}
   const counts: Record<string, number> = {}
 
-  for (const ep of ENDPOINT_DEFS) {
+  for (const ep of epDefs) {
     try {
       const res = await fetch(`${UPTRES_URL}${ep.path}`, {
         // @ts-ignore
@@ -47,6 +108,5 @@ export async function POST(req: NextRequest) {
   }
 
   const activeCount = Object.values(endpoints).filter(Boolean).length
-
   return NextResponse.json({ ok: activeCount > 0, endpoints, counts, activeCount })
 }

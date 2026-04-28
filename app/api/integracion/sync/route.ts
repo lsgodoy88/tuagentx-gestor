@@ -3,14 +3,25 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
-import { sincronizarDeudas, actualizarCache } from '@/lib/integracion/sync'
+import { crearAdaptador, sincronizarDeudas, actualizarCache } from '@/lib/integracion/sync'
+import { decrypt } from '@/lib/crypto-uptres'
 
 const UPTRES_URL = 'https://www.uptres.top'
 
+function resolverConfig(tipo: string, config: any): Record<string, string> {
+  if (tipo === 'uptres2') {
+    return {
+      apiKey: config.apiKey,
+      apiSecret: decrypt(config.apiSecret, process.env.UPTRES_SECRET!),
+    }
+  }
+  return { token: config.token }
+}
+
 async function runDelta(integracion: any): Promise<{ deudas: number; clientes: number }> {
-  const config = integracion.config as any
-  const adapter = new UpTresAdapter(config.token)
-  const desde = integracion.ultimaSync ?? undefined
+  const config = resolverConfig(integracion.tipo, integracion.config)
+  const adapter = crearAdaptador(integracion.tipo, config)
+  const desde = integracion.ultimaSync ? new Date(integracion.ultimaSync) : undefined
   const deudas = await adapter.fetchDeudas(desde)
   const afectados = await sincronizarDeudas(deudas, integracion.id, integracion.empresaId)
   await actualizarCache(afectados, integracion.id, integracion.empresaId)
@@ -32,7 +43,7 @@ export async function POST(req: NextRequest) {
   if (isCron) {
     if (tipo !== 'delta') return NextResponse.json({ error: 'Cron solo acepta tipo delta' }, { status: 400 })
     const integraciones = await (prisma as any).integracion.findMany({
-      where: { tipo: 'uptres', activa: true }
+      where: { tipo: { in: ['uptres', 'uptres2'] }, activa: true }
     })
     const resultados = []
     for (const integ of integraciones) {
@@ -54,12 +65,12 @@ export async function POST(req: NextRequest) {
   const empresaId = user.id
 
   const integracion = await (prisma as any).integracion.findFirst({
-    where: { empresaId, tipo: 'uptres', activa: true }
+    where: { empresaId, tipo: { in: ['uptres', 'uptres2'] }, activa: true }
   })
   if (!integracion) return NextResponse.json({ error: 'Sin integración activa' }, { status: 400 })
 
-  const config = integracion.config as any
-  const adapter = new UpTresAdapter(config.token)
+  const config = resolverConfig(integracion.tipo, integracion.config as any)
+  const adapter = crearAdaptador(integracion.tipo, config)
 
   const logs: string[] = []
   let clientesActualizados = 0
@@ -71,7 +82,7 @@ export async function POST(req: NextRequest) {
       const desde = integracion.ultimaSync ?? undefined
       const desdeDate = desde ? new Date(desde) : null
       logs.push(`Delta sync desde: ${desde ?? 'inicio'}`)
-      // 1. Clientes modificados
+
       const clientesExt = await adapter.fetchClientes()
       const clientesFiltrados = desdeDate
         ? clientesExt.filter((c: any) => c.fModificado && new Date(c.fModificado) > desdeDate)
@@ -87,7 +98,7 @@ export async function POST(req: NextRequest) {
         clientesActualizados++
       }
       logs.push(`Clientes delta: ${clientesActualizados}`)
-      // 2. Empleados modificados
+
       const empleadosExt = await adapter.fetchEmpleados()
       const empleadosFiltrados = desdeDate
         ? empleadosExt.filter((e: any) => e.fModificado && new Date(e.fModificado) > desdeDate)
@@ -101,8 +112,8 @@ export async function POST(req: NextRequest) {
         })
       }
       logs.push(`Empleados delta: ${empleadosFiltrados.length}`)
-      // 3. Deudas modificadas
-      const deudas = await adapter.fetchDeudas(desde)
+
+      const deudas = await adapter.fetchDeudas(desde ? new Date(desde) : undefined)
       logs.push(`Deudas obtenidas: ${deudas.length}`)
       const afectados = await sincronizarDeudas(deudas, integracion.id, empresaId)
       await actualizarCache(afectados, integracion.id, empresaId)
@@ -114,7 +125,6 @@ export async function POST(req: NextRequest) {
       logs.push(`Delta completado. Clientes afectados: ${afectados.size}`)
 
     } else if (tipo === 'inicial') {
-      // ── 1. Clientes — actualizar apiId por nit=doc ──
       logs.push('Sincronizando clientes...')
       const clientes = await adapter.fetchClientes()
       for (const c of clientes) {
@@ -129,73 +139,74 @@ export async function POST(req: NextRequest) {
       }
       logs.push(`Clientes actualizados: ${clientesActualizados}`)
 
-      // ── 2. Deudas — todas con vSaldo > 0 ──
       logs.push('Sincronizando deudas...')
       const deudas = await adapter.fetchDeudas()
       await sincronizarDeudas(deudas, integracion.id, empresaId)
       deudasInsertadas = deudas.length
       logs.push(`Deudas sincronizadas: ${deudasInsertadas}`)
 
-      // ── 3. Compras impulso — clientes en rutas fijas ──
-      logs.push('Sincronizando compras impulso...')
-      const ahora = new Date()
-      const inicioMesAnterior = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1).toISOString()
-      const clientesRuta = await (prisma as any).cliente.findMany({
-        where: { apiId: { not: null }, empresaId, rutasFijas: { some: {} } },
-        select: { id: true, apiId: true, nit: true }
-      })
-      logs.push(`Clientes en rutas fijas: ${clientesRuta.length}`)
-      const rawToken = adapter.getToken()
-      for (const c of clientesRuta) {
-        let pag = 0
-        while (true) {
-          const res = await fetch(
-            `${UPTRES_URL}/ordenventa?desde=0&page=${pag}&size=50&sort=numeroOrden&order=desc&search=${encodeURIComponent(c.nit || '')}&tipobusqueda=todos`,
-            { headers: { 'x-token': rawToken } }
-          )
-          const d = await res.json()
-          if (!d.ok) break
-          const ordenes = d.dataDBArray || []
-          if (!ordenes.length) break
-          let salir = false
-          for (const o of ordenes) {
-            if (o.fCreado < inicioMesAnterior) { salir = true; break }
-            const externalId = o.uid || o._id
-            await (prisma as any).syncCompra.upsert({
-              where: { integracionId_externalId: { integracionId: integracion.id, externalId } },
-              create: {
-                id: `sc-${externalId}`,
-                integracionId: integracion.id,
-                externalId,
-                clienteApiId: o.cliente?.uid || c.apiId,
-                empleadoExternalId: o.empleado?.uid || null,
-                numeroOrden: o.numeroOrden || 0,
-                numeroFactura: o.numeroFacturado || 0,
-                valor: parseFloat(o.vTotal || 0),
-                saldo: parseFloat(o.vSaldo || 0),
-                abono: parseFloat(o.vAbono || 0),
-                tipo: o.tipo || 'contado',
-                diasCredito: parseInt(o.dias || 0),
-                facturado: o.facturado || false,
-                fecha: o.fCreado ? new Date(o.fCreado) : null,
-                condition: o.condition ?? true,
-                modificadoEn: o.fModificado ? new Date(o.fModificado) : null,
-                data: o,
-              },
-              update: { saldo: parseFloat(o.vSaldo || 0), modificadoEn: o.fModificado ? new Date(o.fModificado) : null }
-            })
-            comprasInsertadas++
+      // Compras impulso solo para uptres v1
+      if (integracion.tipo === 'uptres') {
+        logs.push('Sincronizando compras impulso...')
+        const ahora = new Date()
+        const inicioMesAnterior = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1).toISOString()
+        const clientesRuta = await (prisma as any).cliente.findMany({
+          where: { apiId: { not: null }, empresaId, rutasFijas: { some: {} } },
+          select: { id: true, apiId: true, nit: true }
+        })
+        logs.push(`Clientes en rutas fijas: ${clientesRuta.length}`)
+        const rawToken = (adapter as UpTresAdapter).getToken()
+        for (const c of clientesRuta) {
+          let pag = 0
+          while (true) {
+            const res = await fetch(
+              `${UPTRES_URL}/ordenventa?desde=0&page=${pag}&size=50&sort=numeroOrden&order=desc&search=${encodeURIComponent(c.nit || '')}&tipobusqueda=todos`,
+              { headers: { 'x-token': rawToken } }
+            )
+            const d = await res.json()
+            if (!d.ok) break
+            const ordenes = d.dataDBArray || []
+            if (!ordenes.length) break
+            let salir = false
+            for (const o of ordenes) {
+              if (o.fCreado < inicioMesAnterior) { salir = true; break }
+              const externalId = o.uid || o._id
+              await (prisma as any).syncCompra.upsert({
+                where: { integracionId_externalId: { integracionId: integracion.id, externalId } },
+                create: {
+                  id: `sc-${externalId}`,
+                  integracionId: integracion.id,
+                  externalId,
+                  clienteApiId: o.cliente?.uid || c.apiId,
+                  empleadoExternalId: o.empleado?.uid || null,
+                  numeroOrden: o.numeroOrden || 0,
+                  numeroFactura: o.numeroFacturado || 0,
+                  valor: parseFloat(o.vTotal || 0),
+                  saldo: parseFloat(o.vSaldo || 0),
+                  abono: parseFloat(o.vAbono || 0),
+                  tipo: o.tipo || 'contado',
+                  diasCredito: parseInt(o.dias || 0),
+                  facturado: o.facturado || false,
+                  fecha: o.fCreado ? new Date(o.fCreado) : null,
+                  condition: o.condition ?? true,
+                  modificadoEn: o.fModificado ? new Date(o.fModificado) : null,
+                  data: o,
+                },
+                update: { saldo: parseFloat(o.vSaldo || 0), modificadoEn: o.fModificado ? new Date(o.fModificado) : null }
+              })
+              comprasInsertadas++
+            }
+            const lastPage = d.pagination?.lastPage ?? 0
+            if (salir || pag >= lastPage) break
+            pag++
           }
-          const lastPage = d.pagination?.lastPage ?? 0
-          if (salir || pag >= lastPage) break
-          pag++
         }
+        logs.push(`Compras impulso: ${comprasInsertadas}`)
       }
-      logs.push(`Compras impulso: ${comprasInsertadas}`)
 
       await (prisma as any).integracion.update({
         where: { id: integracion.id },
-        data: { syncInicial: true, ultimaSync: ahora, updatedAt: ahora }
+        data: { syncInicial: true, ultimaSync: new Date(), updatedAt: new Date() }
       })
     }
 

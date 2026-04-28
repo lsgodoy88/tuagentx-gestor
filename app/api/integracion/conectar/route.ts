@@ -12,18 +12,58 @@ export async function POST(req: NextRequest) {
   const user = session.user as any
   if (user.role !== 'empresa') return NextResponse.json({ error: 'Solo empresa' }, { status: 403 })
   const empresaId = user.id
-  const { email, password, token, tipo } = await req.json()
+
+  const body = await req.json()
+  const { email, password, token, tipo, apiKey, apiSecret } = body
+
+  // ── UpTres 2 — apiKey + apiSecret ──
+  if (tipo === 'uptres2') {
+    if (!apiKey || !apiSecret) return NextResponse.json({ error: 'apiKey y apiSecret requeridos' }, { status: 400 })
+
+    const encSecret = encrypt(apiSecret, process.env.UPTRES_SECRET!)
+    const configData = { apiKey, apiSecret: encSecret, nombre: 'API UpTres2' }
+
+    const existing = await (prisma as any).integracion.findFirst({
+      where: { empresaId, tipo: 'uptres2' }
+    })
+    let integracion: any
+    if (existing) {
+      integracion = await (prisma as any).integracion.update({
+        where: { id: existing.id },
+        data: { activa: true, config: configData, updatedAt: new Date() }
+      })
+    } else {
+      integracion = await (prisma as any).integracion.create({
+        data: {
+          id: `intg-${empresaId}-uptres2`,
+          empresaId,
+          nombre: 'API UpTres2',
+          tipo: 'uptres2',
+          activa: true,
+          config: configData,
+          updatedAt: new Date(),
+        }
+      })
+    }
+    // Desactivar integración uptres v1 si existía
+    await (prisma as any).integracion.updateMany({
+      where: { empresaId, tipo: 'uptres', activa: true },
+      data: { activa: false, updatedAt: new Date() }
+    })
+
+    return NextResponse.json({ ok: true, nombre: 'API UpTres2', syncInicial: integracion.syncInicial ?? false })
+  }
+
+  // ── UpTres v1 — token o email/password ──
   if (!token && (!email || !password)) return NextResponse.json({ error: 'Credenciales requeridas' }, { status: 400 })
 
   let nombre: string
   let configData: Record<string, string>
 
   if (token) {
-    // Flujo token directo (API UpTres)
     nombre = 'API UpTres'
     configData = { token, nombre }
   } else {
-    // Flujo email/password legado
     nombre = email
     try {
       const res = await fetch('https://www.uptres.top/login', {
@@ -51,11 +91,7 @@ export async function POST(req: NextRequest) {
   if (existing) {
     integracion = await (prisma as any).integracion.update({
       where: { id: existing.id },
-      data: {
-        activa: true,
-        config: configData,
-        updatedAt: new Date(),
-      }
+      data: { activa: true, config: configData, updatedAt: new Date() }
     })
   } else {
     integracion = await (prisma as any).integracion.create({
@@ -71,11 +107,7 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  return NextResponse.json({
-    ok: true,
-    nombre,
-    syncInicial: (integracion as any).syncInicial ?? false,
-  })
+  return NextResponse.json({ ok: true, nombre, syncInicial: (integracion as any).syncInicial ?? false })
 }
 
 export async function DELETE(_req: NextRequest) {
@@ -85,7 +117,7 @@ export async function DELETE(_req: NextRequest) {
   if (user.role !== 'empresa') return NextResponse.json({ error: 'Solo empresa' }, { status: 403 })
 
   await (prisma as any).integracion.updateMany({
-    where: { empresaId: user.id, tipo: 'uptres' },
+    where: { empresaId: user.id, tipo: { in: ['uptres', 'uptres2'] } },
     data: { activa: false, updatedAt: new Date() }
   })
 
