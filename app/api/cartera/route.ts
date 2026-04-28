@@ -177,7 +177,7 @@ export async function GET(req: NextRequest) {
         where,
         skip,
         take: limit,
-        orderBy: { saldoPendiente: 'desc' }
+        orderBy: { nombre: 'asc' }
       }),
       (prisma as any).carteraCache.count({ where })
     ])
