@@ -13,7 +13,6 @@ export async function POST(req: NextRequest) {
   const empresaId = user.role === 'empresa' ? user.id : user.empresaId
   const body = await req.json().catch(() => ({}))
   const vinculadaId: string | null = body.vinculadaId || null
-  console.log('[bodega/sync] vinculadaId:', vinculadaId, 'empresaId:', empresaId)
   let integracionEmpresaId = empresaId
   let origenVinculadaId: string | null = null
   if (vinculadaId) {
@@ -23,7 +22,6 @@ export async function POST(req: NextRequest) {
     })
     if (!vinculada || !vinculada.empresaClienteId) return NextResponse.json({ error: 'Empresa vinculada no encontrada' }, { status: 400 })
     integracionEmpresaId = vinculada.empresaClienteId
-  console.log('[bodega/sync] integracionEmpresaId:', integracionEmpresaId)
     origenVinculadaId = vinculadaId
   }
 
@@ -31,7 +29,6 @@ export async function POST(req: NextRequest) {
   const integracion = await (prisma as any).integracion.findFirst({
     where: { empresaId: integracionEmpresaId, tipo: 'uptres', activa: true }
   })
-  console.log('[bodega/sync] integracion encontrada:', integracion?.id)
   if (!integracion) return NextResponse.json({ error: 'Sin integración activa' }, { status: 400 })
 
   const config = integracion.config as any
