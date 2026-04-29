@@ -20,7 +20,7 @@ jobs:
             npm install --production=false
             npm run build
             if [ $? -eq 0 ]; then
-              pm2 restart gestor || pm2 start ecosystem.config.js
+              pm2 reload gestor --update-env
               pm2 save
               echo "✅ Deploy exitoso"
             else
