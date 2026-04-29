@@ -2698,15 +2698,17 @@ model SyncLog {
 
 
 model EmpresaVinculada {
-  id        String   @id @default(cuid())
-  empresaId String
-  nombre    String
-  apiKey    String   @unique @default(cuid())
-  color     String   @default("#8b5cf6")
-  activa    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  empresa   Empresa  @relation(fields: [empresaId], references: [id])
-  rutas     Ruta[]
+  id                String         @id @default(cuid())
+  empresaId         String
+  nombre            String
+  apiKey            String         @unique @default(cuid())
+  color             String         @default("#8b5cf6")
+  activa            Boolean        @default(true)
+  empresaClienteId  String?
+  createdAt         DateTime       @default(now())
+  empresa           Empresa        @relation(fields: [empresaId], references: [id])
+  rutas             Ruta[]
+  ordenesDespacho   OrdenDespacho[]
   @@map("EmpresaVinculada")
 }
 
@@ -2735,6 +2737,7 @@ model OrdenDespacho {
   fechaOrden        DateTime?
   origenVinculadaId String?
   createdAt         DateTime  @default(now())
+  empresaVinculada  EmpresaVinculada? @relation(fields: [origenVinculadaId], references: [id])
   updatedAt         DateTime  @updatedAt
   empresa           Empresa   @relation(fields: [empresaId], references: [id])
   alistadoPor       Empleado? @relation("AlistadoPor", fields: [alistadoPorId], references: [id])

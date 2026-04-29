@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
     const ciudadRaw: string | null = clienteData.ciudad || null
     const ciudad = ciudadRaw ? ciudadRaw.split('/').pop()?.trim() ?? ciudadRaw : null
     const data = {
-      numeroOrden: String(o.numeroFacturado || o.numeroOrden || ''),
+      numeroOrden: String(o.numeroFacturado || ''),
       clienteNombre: clienteData.nombre || 'Sin nombre',
       clienteNit: clienteData.nit || null,
       ciudad,

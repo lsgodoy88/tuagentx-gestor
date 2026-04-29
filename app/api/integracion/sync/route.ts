@@ -16,6 +16,7 @@ function resolverConfig(tipo: string, config: any): Record<string, string> {
 async function runDelta(integracion: any): Promise<{ deudas: number; clientes: number }> {
   const config = resolverConfig(integracion.tipo, integracion.config)
   const adapter = crearAdaptador(integracion.tipo, config)
+  await adapter.login()
   const desde = integracion.ultimaSync ? new Date(integracion.ultimaSync) : undefined
   const deudas = await adapter.fetchDeudas(desde)
   const afectados = await sincronizarDeudas(deudas, integracion.id, integracion.empresaId)
@@ -66,6 +67,7 @@ export async function POST(req: NextRequest) {
 
   const config = resolverConfig(integracion.tipo, integracion.config as any)
   const adapter = crearAdaptador(integracion.tipo, config)
+  await adapter.login()
 
   const logs: string[] = []
   let clientesActualizados = 0
@@ -85,11 +87,19 @@ export async function POST(req: NextRequest) {
         const doc = (c as any).doc?.trim()
         const uid = (c as any).uid?.trim() || (c as any)._id?.trim()
         if (!doc || !uid) continue
-        await (prisma as any).cliente.updateMany({
-          where: { apiId: uid, empresaId },
-          data: { ciudad: (c as any).ciudad || undefined, direccion: (c as any).dir || undefined, telefono: (c as any).nCel || undefined, email: (c as any).email || undefined }
-        })
-        clientesActualizados++
+        const nombre = `${(c as any).name || ''} ${(c as any).lastName || ''}`.trim() || 'Sin nombre'
+        const dataCliente = { ciudad: (c as any).ciudad || undefined, direccion: (c as any).dir || undefined, telefono: (c as any).nCel || undefined, email: (c as any).email || undefined }
+        try {
+          const existing = await (prisma as any).cliente.findFirst({ where: { nit: doc, empresaId } })
+          if (existing) {
+            await (prisma as any).cliente.update({ where: { id: existing.id }, data: { apiId: uid, ...dataCliente } })
+          } else {
+            await (prisma as any).cliente.create({ data: { nombre, nit: doc, apiId: uid, empresaId, ...dataCliente } })
+          }
+          clientesActualizados++
+        } catch(e: any) {
+          console.error('[DELTA] Error cliente', doc, e.message)
+        }
       }
       logs.push(`Clientes delta: ${clientesActualizados}`)
 
@@ -121,21 +131,31 @@ export async function POST(req: NextRequest) {
     } else if (tipo === 'inicial') {
       logs.push('Sincronizando clientes...')
       const clientes = await adapter.fetchClientes()
+      logs.push(`Clientes obtenidos del API: ${clientes.length}`)
       for (const c of clientes) {
         const doc = (c.doc as string)?.trim()
         const uid = ((c._id as string) || (c.uid as string))?.trim()
         if (!doc || !uid) continue
-        const updated = await (prisma as any).cliente.updateMany({
-          where: { nit: doc, empresaId, apiId: null },
-          data: { apiId: uid, ciudad: (c as any).ciudad || undefined, direccion: (c as any).dir || undefined, telefono: (c as any).nCel || undefined, email: (c as any).email || undefined }
-        })
-        if (updated.count > 0) clientesActualizados++
+        const nombre = `${(c as any).name || ''} ${(c as any).lastName || ''}`.trim() || 'Sin nombre'
+        const dataCliente = { apiId: uid, ciudad: (c as any).ciudad || undefined, direccion: (c as any).dir || undefined, telefono: (c as any).nCel || undefined, email: (c as any).email || undefined }
+        try {
+          const existing = await (prisma as any).cliente.findFirst({ where: { nit: doc, empresaId } })
+          if (existing) {
+            await (prisma as any).cliente.update({ where: { id: existing.id }, data: dataCliente })
+          } else {
+            await (prisma as any).cliente.create({ data: { nombre, nit: doc, empresaId, ...dataCliente } })
+          }
+          clientesActualizados++
+        } catch(e: any) {
+          console.error('[SYNC] Error cliente', doc, e.message)
+        }
       }
       logs.push(`Clientes actualizados: ${clientesActualizados}`)
 
       logs.push('Sincronizando deudas...')
       const deudas = await adapter.fetchDeudas()
-      await sincronizarDeudas(deudas, integracion.id, empresaId)
+      const afectados = await sincronizarDeudas(deudas, integracion.id, empresaId)
+      await actualizarCache(afectados, integracion.id, empresaId)
       deudasInsertadas = deudas.length
       logs.push(`Deudas sincronizadas: ${deudasInsertadas}`)
 

@@ -52,7 +52,7 @@ export async function GET() {
   if (ruta) {
     const numeroOrdenes = ruta.clientes
       .filter(rc => rc.notas?.startsWith('Bodega/'))
-      .map(rc => rc.notas!.split('/')[1])
+      .map(rc => { const m = rc.notas!.match(/#(\d+)/); return m ? m[1] : rc.notas!.split('/')[1] })
       .filter(Boolean)
 
     if (numeroOrdenes.length > 0) {
@@ -61,10 +61,13 @@ export async function GET() {
         select: { id: true, numeroOrden: true }
       })
       const mapOrden = new Map(ordenes.map(o => [o.numeroOrden, o.id]))
+      const mapNumero = new Map(ordenes.map(o => [o.numeroOrden, o.numeroOrden]))
       for (const rc of ruta.clientes) {
         if (rc.notas?.startsWith('Bodega/')) {
-          const num = rc.notas.split('/')[1]
+          const m = rc.notas.match(/#(\d+)/)
+          const num = m ? m[1] : rc.notas.split('/')[1]
           ;(rc as any).ordenDespachoId = mapOrden.get(num) || null
+          ;(rc as any).ordenNumero = mapNumero.get(num) || null
         }
       }
     }

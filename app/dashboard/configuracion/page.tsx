@@ -79,6 +79,9 @@ export default function ConfiguracionPage() {
   const [msgSync, setMsgSync] = useState('')
   const [ultimaSync, setUltimaSync] = useState('')
   const [modalValidacion, setModalValidacion] = useState(false)
+  const [faseConexion, setFaseConexion] = useState<'idle'|'validando'|'conectando'|'sincronizando'|'listo'|'error'>('idle')
+  const [endpointsFase, setEndpointsFase] = useState<Record<string, 'pendiente'|'ok'|'error'|'cargando'>>({})
+  const [syncResultado, setSyncResultado] = useState<Record<string, number>>({})
   const [validacion, setValidacion] = useState<{
     ok: boolean
     endpoints: Record<string, boolean>
@@ -111,8 +114,15 @@ export default function ConfiguracionPage() {
   const [vinculadas, setVinculadas] = useState<any[]>([])
   const [modalVinculada, setModalVinculada] = useState(false)
   const [nuevaVinculada, setNuevaVinculada] = useState({ nombre: '', color: '#8b5cf6' })
+  const [tokenGenerado, setTokenGenerado] = useState<string | null>(null)
   const [creandoVinculada, setCreandoVinculada] = useState(false)
   const [msgVinculada, setMsgVinculada] = useState('')
+  const [modalConectarToken, setModalConectarToken] = useState(false)
+  const [tokenInput, setTokenInput] = useState('')
+  const [tokenLookup, setTokenLookup] = useState<{ nombre: string; vinculadaId: string } | null>(null)
+  const [tokenMsg, setTokenMsg] = useState('')
+  const [buscandoToken, setBuscandoToken] = useState(false)
+  const [conectandoToken, setConectandoToken] = useState(false)
 
   // Acordeón
   const [seccionAbierta, setSeccionAbierta] = useState('')
@@ -267,17 +277,54 @@ export default function ConfiguracionPage() {
 
   async function validarUpTres() {
     if (!uptresApiKey || !uptresApiSecret) return
-    setConectandoErp(true); setMsgErp('')
+    setModalValidacion(true)
+    setFaseConexion('validando')
+    setEndpointsFase({ clientes: 'cargando', empleados: 'cargando', cartera: 'cargando', ordenes: 'cargando' })
+    setSyncResultado({})
+    setMsgErp('')
     const res = await fetch('/api/integracion/validar-uptres', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tipo: 'uptres', apiKey: uptresApiKey, apiSecret: uptresApiSecret }),
     })
     const data = await res.json()
-    setConectandoErp(false)
-    if (data.error) { setMsgErp(data.error); return }
+    if (data.error || !data.ok) {
+      setEndpointsFase({ clientes: 'error', empleados: 'error', cartera: 'error', ordenes: 'error' })
+      setFaseConexion('error')
+      setMsgErp(data.error || 'Sin conexión')
+      return
+    }
+    const epFase: Record<string, 'ok'|'error'> = {}
+    for (const k of Object.keys(data.endpoints)) epFase[k] = data.endpoints[k] ? 'ok' : 'error'
+    setEndpointsFase(epFase)
     setValidacion(data)
-    setModalValidacion(true)
+    await new Promise(r => setTimeout(r, 800))
+    setFaseConexion('conectando')
+    const resConn = await fetch('/api/integracion/conectar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo: 'uptres', apiKey: uptresApiKey, apiSecret: uptresApiSecret }),
+    })
+    const dataConn = await resConn.json()
+    if (!dataConn.ok) { setFaseConexion('error'); setMsgErp(dataConn.error || 'Error al conectar'); return }
+    setErpConectado(true); setErpNombre(dataConn.nombre ?? 'API UpTres'); setModoActivo('erp')
+    await new Promise(r => setTimeout(r, 500))
+    setFaseConexion('sincronizando')
+    const resSync = await fetch('/api/integracion/sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ tipo: 'inicial' }),
+    })
+    const dataSync = await resSync.json()
+    if (dataSync.ok) {
+      setSyncInicial(true)
+      setUltimaSync(new Date().toLocaleString('es-CO'))
+      setSyncResultado({ clientes: dataSync.clientesActualizados ?? 0, deudas: dataSync.deudasInsertadas ?? 0 })
+      setFaseConexion('listo')
+    } else {
+      setFaseConexion('error')
+      setMsgErp(dataSync.error || 'Error en sync inicial')
+    }
   }
 
   async function activarUpTres() {
@@ -366,20 +413,49 @@ export default function ConfiguracionPage() {
   }
 
   async function crearVinculada() {
-    if (!nuevaVinculada.nombre.trim()) return
     setCreandoVinculada(true)
-    const res = await fetch('/api/empresas-vinculadas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nuevaVinculada) })
+    const res = await fetch('/api/empresas-vinculadas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ color: nuevaVinculada.color }) })
     const data = await res.json()
     setCreandoVinculada(false)
     if (data.vinculada) {
       setVinculadas(prev => [...prev, data.vinculada])
-      setModalVinculada(false)
+      setTokenGenerado(data.vinculada.apiKey)
       setNuevaVinculada({ nombre: '', color: '#8b5cf6' })
     } else {
       setMsgVinculada(data.error || 'Error al crear')
     }
   }
 
+  async function buscarToken() {
+    if (!tokenInput.trim()) return
+    setBuscandoToken(true); setTokenMsg(''); setTokenLookup(null)
+    const res = await fetch(`/api/empresas-vinculadas/lookup?token=${tokenInput.trim()}`)
+    const data = await res.json()
+    setBuscandoToken(false)
+    if (data.ok) {
+      setTokenLookup({ nombre: data.nombre, vinculadaId: data.vinculadaId })
+    } else {
+      setTokenMsg(data.error || 'Token inválido')
+    }
+  }
+  async function confirmarConexionToken() {
+    if (!tokenLookup) return
+    setConectandoToken(true); setTokenMsg('')
+    const res = await fetch('/api/empresas-vinculadas/conectar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token: tokenInput.trim() })
+    })
+    const data = await res.json()
+    setConectandoToken(false)
+    if (data.ok) {
+      setTokenMsg(`✅ Vinculada a ${data.nombre}`)
+      setTokenLookup(null); setTokenInput('')
+      setTimeout(() => { setModalConectarToken(false); setTokenMsg('') }, 2000)
+    } else {
+      setTokenMsg(data.error || 'Error al conectar')
+    }
+  }
   async function eliminarVinculada(id: string) {
     await fetch(`/api/empresas-vinculadas?id=${id}`, { method: 'DELETE' })
     setVinculadas(prev => prev.filter(v => v.id !== id))
@@ -858,10 +934,16 @@ export default function ConfiguracionPage() {
           <Seccion titulo="Empresas vinculadas" icono="📦" isOpen={seccionAbierta === 'vinculadas'} onToggle={() => toggleSeccion('vinculadas')}>
             <div className="flex items-center justify-between">
               <p className="text-zinc-500 text-xs">Empresas externas con acceso a rutas via API</p>
-              <button onClick={() => { setModalVinculada(true); setMsgVinculada('') }}
-                className="bg-violet-600 hover:bg-violet-500 text-white font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors">
-                + Nueva
-              </button>
+              <div className="flex gap-2">
+                <button onClick={() => { setModalConectarToken(true); setTokenInput(''); setTokenLookup(null); setTokenMsg('') }}
+                  className="bg-zinc-700 hover:bg-zinc-600 text-white font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors">
+                  🔗 Token
+                </button>
+                <button onClick={() => { setModalVinculada(true); setMsgVinculada('') }}
+                  className="bg-violet-600 hover:bg-violet-500 text-white font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors">
+                  + Nueva
+                </button>
+              </div>
             </div>
             {vinculadas.length === 0 ? (
               <p className="text-zinc-500 text-sm text-center py-3">Sin empresas vinculadas</p>
@@ -1005,82 +1087,144 @@ export default function ConfiguracionPage() {
       {modalValidacion && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-sm space-y-4">
-            <h3 className="text-white font-bold">🔌 Validando API UpTres</h3>
-
-            <div>
-              <p className="text-zinc-400 text-xs font-semibold uppercase mb-2">Endpoints detectados</p>
-              {[
-                { label: 'Clientes',  key: 'clientes' },
-                { label: 'Empleados', key: 'empleados' },
-                { label: 'Cartera',   key: 'cartera' },
-                { label: 'Órdenes',   key: 'ordenes' },
-              ].map(e => (
-                <div key={e.key} className="flex items-center justify-between py-1.5 border-b border-zinc-800">
-                  <span className="text-zinc-400 text-sm">📥 {e.label}</span>
-                  <span className={validacion.endpoints[e.key] ? 'text-emerald-400 text-xs' : 'text-red-400 text-xs'}>
-                    {validacion.endpoints[e.key] ? `✅ ${validacion.counts[e.key]} registros` : '❌ Sin acceso'}
+            <div className="flex items-center justify-between">
+              <h3 className="text-white font-bold text-base">🔌 API UpTres</h3>
+              {faseConexion === 'listo' || faseConexion === 'error' ? (
+                <button onClick={() => { setModalValidacion(false); setFaseConexion('idle') }} className="text-zinc-500 hover:text-white text-xl">×</button>
+              ) : null}
+            </div>
+            {/* Endpoints */}
+            <div className="space-y-2">
+              <p className="text-zinc-400 text-xs font-semibold uppercase">Endpoints</p>
+              {Object.entries(endpointsFase).map(([k, estado]) => (
+                <div key={k} className="flex items-center justify-between py-1.5 border-b border-zinc-800/60">
+                  <span className="text-zinc-300 text-sm capitalize">{k}</span>
+                  <span className="text-xs">
+                    {estado === 'cargando' && <span className="text-zinc-400 animate-pulse">⏳ validando...</span>}
+                    {estado === 'ok' && <span className="text-emerald-400">✅ {validacion.counts?.[k] ?? 0} registros</span>}
+                    {estado === 'error' && <span className="text-red-400">❌ sin acceso</span>}
+                    {estado === 'pendiente' && <span className="text-zinc-600">—</span>}
                   </span>
                 </div>
               ))}
             </div>
-
-            <div>
-              <p className="text-zinc-400 text-xs font-semibold uppercase mb-2">Mapeo de campos</p>
-              {[
-                { ext: 'id',                  int: 'apiId' },
-                { ext: 'firstName+lastName',  int: 'nombre' },
-                { ext: 'cityId',              int: 'ciudad (DANE)' },
-                { ext: 'balance',             int: 'saldoPendiente' },
-                { ext: 'employeeId',          int: 'vendedor' },
-              ].map(m => (
-                <div key={m.ext} className="flex items-center justify-between py-1 border-b border-zinc-800/50">
-                  <span className="text-zinc-500 text-xs font-mono">{m.ext}</span>
-                  <span className="text-zinc-600 text-xs">→</span>
-                  <span className="text-zinc-400 text-xs font-mono">{m.int}</span>
-                  <span className="text-emerald-400 text-xs">✅</span>
+            {/* Fase actual */}
+            <div className={`rounded-xl p-3 text-center text-sm font-semibold ${
+              faseConexion === 'validando' ? 'bg-blue-500/10 text-blue-400' :
+              faseConexion === 'conectando' ? 'bg-amber-500/10 text-amber-400' :
+              faseConexion === 'sincronizando' ? 'bg-purple-500/10 text-purple-400' :
+              faseConexion === 'listo' ? 'bg-emerald-500/10 text-emerald-400' :
+              faseConexion === 'error' ? 'bg-red-500/10 text-red-400' : 'bg-zinc-800 text-zinc-400'
+            }`}>
+              {faseConexion === 'validando' && <span className="animate-pulse">🔄 Validando conexión...</span>}
+              {faseConexion === 'conectando' && <span className="animate-pulse">🔗 Activando integración...</span>}
+              {faseConexion === 'sincronizando' && <span className="animate-pulse">⚡ Sincronizando datos...</span>}
+              {faseConexion === 'listo' && (
+                <div className="space-y-1">
+                  <p>✅ Todo listo</p>
+                  {Object.keys(syncResultado).length > 0 && (
+                    <div className="text-xs text-emerald-300 space-y-0.5 mt-1">
+                      {syncResultado.clientes !== undefined && <p>👥 {syncResultado.clientes} clientes</p>}
+                      {syncResultado.deudas !== undefined && <p>📋 {syncResultado.deudas} deudas</p>}
+                    </div>
+                  )}
                 </div>
-              ))}
+              )}
+              {faseConexion === 'error' && <span>❌ {msgErp || 'Error de conexión'}</span>}
             </div>
-
-            <div className={`rounded-xl p-3 text-center text-sm font-semibold ${validacion.ok ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-              {validacion.ok ? `✅ ${validacion.activeCount}/4 endpoints activos` : '❌ Sin conexión'}
-            </div>
-
-            <div className="flex gap-2">
-              <button onClick={() => setModalValidacion(false)} className="flex-1 bg-zinc-800 text-white py-2 rounded-xl text-sm">Cancelar</button>
-              {validacion.ok && <button onClick={activarUpTres} className="flex-1 bg-emerald-600 text-white py-2 rounded-xl text-sm font-semibold">🚀 Activar</button>}
-            </div>
+            {faseConexion === 'error' && (
+              <div className="flex gap-2">
+                <button onClick={() => { setModalValidacion(false); setFaseConexion('idle') }} className="flex-1 bg-zinc-800 text-white py-2 rounded-xl text-sm">Cerrar</button>
+                <button onClick={validarUpTres} className="flex-1 bg-blue-600 text-white py-2 rounded-xl text-sm font-semibold">🔄 Reintentar</button>
+              </div>
+            )}
+            {faseConexion === 'listo' && (
+              <button onClick={() => { setModalValidacion(false); setFaseConexion('idle') }} className="w-full bg-emerald-600 text-white py-2 rounded-xl text-sm font-semibold">✓ Cerrar</button>
+            )}
           </div>
         </div>
       )}
 
       {/* Modal nueva vinculada */}
       {modalVinculada && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => setModalVinculada(false)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => { if (!tokenGenerado) setModalVinculada(false) }}>
           <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 w-full max-w-sm space-y-4 mx-4" onClick={e => e.stopPropagation()}>
-            <h3 className="text-white font-semibold">Nueva empresa vinculada</h3>
-            <div>
-              <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Nombre</label>
-              <input value={nuevaVinculada.nombre} onChange={e => setNuevaVinculada(p => ({ ...p, nombre: e.target.value }))} placeholder="Nombre de la empresa"
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-violet-500" autoFocus />
-            </div>
-            <div>
-              <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Color</label>
-              <div className="flex gap-2">
-                {['#8b5cf6', '#f97316', '#ec4899', '#06b6d4', '#84cc16', '#f59e0b'].map(c => (
-                  <button key={c} onClick={() => setNuevaVinculada(p => ({ ...p, color: c }))}
-                    className={`w-8 h-8 rounded-full border-2 transition-all ${nuevaVinculada.color === c ? 'border-white scale-110' : 'border-transparent'}`}
-                    style={{ backgroundColor: c }} />
-                ))}
+            {!tokenGenerado ? (
+              <>
+                <h3 className="text-white font-semibold">Nueva empresa vinculada</h3>
+                <div>
+                  <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Color identificador</label>
+                  <div className="flex gap-2">
+                    {['#8b5cf6', '#f97316', '#ec4899', '#06b6d4', '#84cc16', '#f59e0b'].map(c => (
+                      <button key={c} onClick={() => setNuevaVinculada(p => ({ ...p, color: c }))}
+                        className={`w-8 h-8 rounded-full border-2 transition-all ${nuevaVinculada.color === c ? 'border-white scale-110' : 'border-transparent'}`}
+                        style={{ backgroundColor: c }} />
+                    ))}
+                  </div>
+                </div>
+                {msgVinculada && <p className="text-sm text-red-400">{msgVinculada}</p>}
+                <div className="flex gap-2 justify-end">
+                  <button onClick={() => setModalVinculada(false)} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold px-4 py-2 rounded-xl text-sm">Cancelar</button>
+                  <button onClick={crearVinculada} disabled={creandoVinculada}
+                    className="bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
+                    {creandoVinculada ? 'Generando...' : 'Generar token'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="text-white font-semibold">✅ Token generado</h3>
+                <p className="text-zinc-400 text-xs">Comparte este token con la empresa. Solo se muestra una vez.</p>
+                <div className="bg-zinc-800 rounded-xl px-4 py-3 flex items-center gap-2">
+                  <p className="text-white font-mono text-xs flex-1 break-all">{tokenGenerado}</p>
+                  <button onClick={() => navigator.clipboard.writeText(tokenGenerado)}
+                    className="text-violet-400 hover:text-violet-300 flex-shrink-0 text-xs font-semibold">Copiar</button>
+                </div>
+                <p className="text-amber-400 text-xs text-center">⚠️ Este token no volverá a mostrarse</p>
+                <button onClick={() => { setTokenGenerado(null); setModalVinculada(false) }}
+                  className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 rounded-xl text-sm">
+                  ✓ Ya lo copié, cerrar
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+      {/* Modal ingresar token vinculación */}
+      {modalConectarToken && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => { setModalConectarToken(false); setTokenLookup(null); setTokenMsg('') }}>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-sm space-y-4 mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-white font-semibold">🔗 Conectar con empresa</h3>
+            <p className="text-zinc-400 text-xs">Ingresa el token que te compartió la empresa para vincularse.</p>
+            <input
+              value={tokenInput}
+              onChange={e => { setTokenInput(e.target.value); setTokenLookup(null); setTokenMsg('') }}
+              placeholder="Pega el token aquí..."
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-violet-500 font-mono"
+            />
+            {tokenLookup && (
+              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-3">
+                <p className="text-emerald-400 text-sm font-semibold">✅ Conectado a {tokenLookup.nombre}</p>
+                <p className="text-zinc-400 text-xs mt-0.5">Confirma para completar la vinculación</p>
               </div>
-            </div>
-            {msgVinculada && <p className="text-sm text-red-400">{msgVinculada}</p>}
-            <div className="flex gap-2 justify-end">
-              <button onClick={() => setModalVinculada(false)} className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold px-4 py-2 rounded-xl text-sm">Cancelar</button>
-              <button onClick={crearVinculada} disabled={creandoVinculada || !nuevaVinculada.nombre.trim()}
-                className="bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
-                {creandoVinculada ? 'Creando...' : 'Crear'}
-              </button>
+            )}
+            {tokenMsg && (
+              <p className={`text-xs text-center ${tokenMsg.startsWith('✅') ? 'text-emerald-400' : 'text-red-400'}`}>{tokenMsg}</p>
+            )}
+            <div className="flex gap-2">
+              <button onClick={() => { setModalConectarToken(false); setTokenLookup(null); setTokenMsg('') }}
+                className="flex-1 bg-zinc-800 text-white py-2 rounded-xl text-sm">Cancelar</button>
+              {!tokenLookup ? (
+                <button onClick={buscarToken} disabled={buscandoToken || !tokenInput.trim()}
+                  className="flex-1 bg-violet-600 hover:bg-violet-500 disabled:opacity-40 text-white py-2 rounded-xl text-sm font-semibold">
+                  {buscandoToken ? 'Buscando...' : 'Verificar'}
+                </button>
+              ) : (
+                <button onClick={confirmarConexionToken} disabled={conectandoToken}
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white py-2 rounded-xl text-sm font-semibold">
+                  {conectandoToken ? 'Conectando...' : '✓ Confirmar'}
+                </button>
+              )}
             </div>
           </div>
         </div>

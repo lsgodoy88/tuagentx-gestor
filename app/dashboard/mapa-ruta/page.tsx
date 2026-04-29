@@ -51,7 +51,7 @@ export default function MapaRutaPage() {
     const fechaRuta = rutaRes?.fecha ? new Date(new Date(rutaRes.fecha).getTime() - 5*60*60*1000).toISOString().split('T')[0] : hoyStr
     const visitasRes = await fetch(`/api/visitas/todas?fecha=${fechaRuta}`).then(r => r.json())
     setRuta(rutaRes)
-    setClientesOrdenados(rutaRes?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null })) || [])
+    setClientesOrdenados(rutaRes?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, ordenNumero: rc.ordenNumero || null, notas: rc.notas || null, ordenDespachoId: rc.ordenDespachoId || null })) || [])
     setVisitas(Array.isArray(visitasRes) ? visitasRes : (visitasRes?.visitas ?? []))
     setLoading(false)
   }
@@ -107,7 +107,7 @@ export default function MapaRutaPage() {
   async function optimizar() {
     if (!ruta?.clientes || !ubicacion) return
     setOptimizando(true)
-    const clientes = ruta.clientes.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null }))
+    const clientes = ruta.clientes.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, ordenNumero: rc.ordenNumero || null, notas: rc.notas || null, ordenDespachoId: rc.ordenDespachoId || null }))
     const res = await fetch('/api/rutas/optimizar', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -226,6 +226,7 @@ export default function MapaRutaPage() {
                     )}
                   </div>
                   {c.direccion && <p className="text-zinc-500 text-xs truncate">📍 {c.direccion}</p>}
+                  {c.ordenNumero && <p className="text-zinc-400 text-xs truncate">📦 {c.notas || ('#' + c.ordenNumero)}</p>}
                   {c.telefono && <a href={"tel:" + c.telefono} onClick={e => e.stopPropagation()} className="text-emerald-400 text-xs hover:text-emerald-300">📞 {c.telefono}</a>}
                 </div>
                 {esEjecutado ? (
@@ -277,6 +278,8 @@ export default function MapaRutaPage() {
         tipoForzado={isEntregas ? 'entrega' : undefined}
         distanciaLejos={isEntregas && distanciaLejos}
         titulo={isEntregas ? 'Registrar entrega' : 'Registrar visita'}
+        facturaPreset={clienteModal?.ordenNumero || undefined}
+        extraData={clienteModal?.ordenDespachoId ? { ordenDespachoId: clienteModal.ordenDespachoId } : {}}
       />
     </div>
   )

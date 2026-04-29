@@ -18,7 +18,7 @@ export const authOptions: NextAuthOptions = {
         const empresa = await prisma.empresa.findUnique({ where: { email: credentials.email } })
         if (empresa && await bcrypt.compare(credentials.password, empresa.password)) {
           const role = empresa.plan === 'superadmin' ? 'superadmin' : 'empresa'
-          return { id: empresa.id, email: empresa.email, name: empresa.nombre, role }
+          return { id: empresa.id, email: empresa.email, name: empresa.nombre, role, empresaId: empresa.id }
         }
 
         // Buscar en Empleado

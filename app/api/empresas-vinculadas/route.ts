@@ -28,11 +28,10 @@ export async function POST(req: NextRequest) {
   const empresaId = await getEmpresaId()
   if (!empresaId) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const { nombre, color } = await req.json()
-  if (!nombre?.trim()) return NextResponse.json({ error: 'Nombre requerido' }, { status: 400 })
+  const { color } = await req.json()
 
   const vinculada = await prisma.empresaVinculada.create({
-    data: { empresaId, nombre: nombre.trim(), color: color || '#8b5cf6' },
+    data: { empresaId, nombre: 'Pendiente', color: color || '#8b5cf6' },
   })
 
   return NextResponse.json({ vinculada })

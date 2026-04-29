@@ -45,5 +45,5 @@ export async function POST(req: NextRequest) {
     data: { nombre, email, password: hash, plan: plan || 'basico', maxSupervisores: maxSupervisores || 1, maxVendedores: maxVendedores || 1, maxEntregas: maxEntregas || 0, maxImpulsadoras: maxImpulsadoras || 0 }
   })
 
-  return NextResponse.json({ ok: true, email, empresa: empresa.nombre })
+  return NextResponse.json({ ok: true, email, password, empresa: empresa.nombre })
 }

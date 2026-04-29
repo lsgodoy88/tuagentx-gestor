@@ -115,7 +115,7 @@ export default function DashboardPage() {
         fetch('/api/me').then(r => r.json()),
       ]).then(([r, t, me]) => {
         setRuta(r)
-        setClientesOrdenados(r?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, rezago: rc.rezago, orden: rc.orden })) || [])
+        setClientesOrdenados(r?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, rezago: rc.rezago, orden: rc.orden, ordenNumero: rc.ordenNumero || null, notas: rc.notas || null, ordenDespachoId: rc.ordenDespachoId || null })) || [])
         setTurno(t)
         setPuedeCapturarGps(me?.puedeCapturarGps === true)
       })
@@ -723,9 +723,11 @@ export default function DashboardPage() {
                     <div key={c.id} className={"py-3 px-4 " + (entregado ? "opacity-50" : esRezago ? "bg-orange-500/5 border-l-2 border-orange-500" : "")}>
                       {/* Fila 1: número + nombre + botón */}
                       <div className="flex items-center gap-3">
-                        <div className={"w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 " + (entregado ? "bg-emerald-500/20 text-emerald-400" : esRezago ? "bg-orange-500/20 text-orange-400" : "bg-zinc-700 text-white")}>
-                          {entregado ? "✓" : esRezago ? "!" : c.orden + 1}
-                        </div>
+                        {(entregado || esRezago) && (
+                          <div className={"w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 " + (entregado ? "bg-emerald-500/20 text-emerald-400" : "bg-orange-500/20 text-orange-400")}>
+                            {entregado ? "✓" : "!"}
+                          </div>
+                        )}
                         <p className={"flex-1 min-w-0 text-sm font-bold truncate " + (entregado ? "text-zinc-500 line-through" : esRezago ? "text-orange-300" : "text-white")}>
                           {c.nombre}
                           {esRezago && !entregado && <span className="ml-1.5 text-orange-400 text-xs bg-orange-500/10 px-1.5 py-0.5 rounded font-semibold">Rezago</span>}
@@ -759,6 +761,12 @@ export default function DashboardPage() {
                             <a href={`https://www.google.com/maps?q=${c.lat},${c.lng}`} target="_blank"
                               className="ml-1.5 text-emerald-500 hover:text-emerald-400" onClick={e => e.stopPropagation()}>Maps</a>
                           )}
+                        </p>
+                      )}
+                      {/* Fila bodega */}
+                      {c.ordenNumero && (
+                        <p className="text-zinc-400 text-xs mt-1 pl-11">
+                          📦 {c.notas || ('Bodega #' + c.ordenNumero)}
                         </p>
                       )}
                       {/* Fila 3: badge empresa + teléfono */}
@@ -945,7 +953,7 @@ export default function DashboardPage() {
             fetch('/api/visitas/todas').then(r => r.json()),
           ]).then(([r, v]) => {
             setRuta(r)
-            setClientesOrdenados(r?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, rezago: rc.rezago, orden: rc.orden })) || [])
+            setClientesOrdenados(r?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, rezago: rc.rezago, orden: rc.orden, ordenNumero: rc.ordenNumero || null, notas: rc.notas || null, ordenDespachoId: rc.ordenDespachoId || null })) || [])
             setVisitasRuta(Array.isArray(v) ? v : [])
           })
         }}
@@ -965,7 +973,7 @@ export default function DashboardPage() {
             fetch('/api/visitas/todas').then(r => r.json()),
           ]).then(([r, v]) => {
             setRuta(r)
-            setClientesOrdenados(r?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, rezago: rc.rezago, orden: rc.orden })) || [])
+            setClientesOrdenados(r?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, rezago: rc.rezago, orden: rc.orden, ordenNumero: rc.ordenNumero || null, notas: rc.notas || null, ordenDespachoId: rc.ordenDespachoId || null })) || [])
             setVisitasRuta(Array.isArray(v) ? v : [])
           })
         }}
@@ -974,6 +982,8 @@ export default function DashboardPage() {
         distanciaLejos={distanciaLejos}
         puedeCapturarGps={puedeCapturarGps}
         titulo="📦 Registrar entrega"
+        facturaPreset={clienteModal?.ordenNumero || undefined}
+        extraData={clienteModal?.ordenDespachoId ? { ordenDespachoId: clienteModal.ordenDespachoId } : {}}
       />
 
     {/* Modal Recaudo Rápido */}

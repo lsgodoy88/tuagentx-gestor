@@ -73,40 +73,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: activeCount > 0, endpoints, counts, activeCount })
   }
 
-  // ── UpTres v1 — token ──
-  const { token } = body
-  if (!token) return NextResponse.json({ error: 'Token requerido' }, { status: 400 })
-
-  const epDefs = [
-    { key: 'clientes',  path: '/clientes?desde=0&size=1' },
-    { key: 'cartera',   path: '/ordenventa?desde=0&size=1' },
-    { key: 'empleados', path: '/empleados?desde=0&size=1' },
-    { key: 'ordenes',   path: '/ordenesventa?desde=0&size=1' },
-  ]
-  const endpoints: Record<string, boolean> = {}
-  const counts: Record<string, number> = {}
-
-  for (const ep of epDefs) {
-    try {
-      const res = await fetch(`${UPTRES_API_URL}${ep.path}`, {
-        // @ts-ignore
-        agent,
-        headers: { 'x-token': token },
-      })
-      const data = await res.json()
-      if (data.ok) {
-        endpoints[ep.key] = true
-        counts[ep.key] = data.pagination?.totalItems ?? data.total ?? 1
-      } else {
-        endpoints[ep.key] = false
-        counts[ep.key] = 0
-      }
-    } catch {
-      endpoints[ep.key] = false
-      counts[ep.key] = 0
-    }
-  }
-
-  const activeCount = Object.values(endpoints).filter(Boolean).length
-  return NextResponse.json({ ok: activeCount > 0, endpoints, counts, activeCount })
+  return NextResponse.json({ error: 'Tipo no soportado' }, { status: 400 })
 }

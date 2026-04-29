@@ -56,8 +56,13 @@ export class UpTresAdapter implements AdaptadorIntegracion {
         p.set('cursorDate', cursorDate)
         p.set('cursorId', cursorId)
       }
-      const res = await fetch(`${BASE}/${endpoint}?${p.toString()}`, { headers: this.headers })
-      const d = await res.json()
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 30000)
+      const res = await fetch(`${BASE}/${endpoint}?${p.toString()}`, { headers: this.headers, signal: controller.signal })
+      clearTimeout(timer)
+      const text = await res.text()
+      if (!text) break
+      const d = JSON.parse(text)
       if (!d.ok || !Array.isArray(d.data) || d.data.length === 0) break
       todos.push(...d.data)
       if (!d.nextCursor?.cursorDate || !d.nextCursor?.cursorId) break
@@ -116,10 +121,9 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,createdAt,updatedAt',
       includeTotal: 'false',
     }
-    if (desde) {
-      params.from = desde.toISOString().split('T')[0]
-      params.to = new Date().toISOString().split('T')[0]
-    }
+    const fromDate = desde ?? new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+    params.from = fromDate.toISOString().split('T')[0]
+    params.to = new Date().toISOString().split('T')[0]
     const data = await this.fetchAll('cartera', params)
     return data.map((o: any) => ({
       uid: o.id,
@@ -164,10 +168,9 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       expand: 'customer,items',
       includeTotal: 'false',
     }
-    if (desde) {
-      params.from = desde.toISOString().split('T')[0]
-      params.to = new Date().toISOString().split('T')[0]
-    }
+    const fromDate = desde ?? new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+    params.from = fromDate.toISOString().split('T')[0]
+    params.to = new Date().toISOString().split('T')[0]
     const data = await this.fetchAll('ordenes', params)
     return data.map((o: any) => ({
       uid: o.id,
