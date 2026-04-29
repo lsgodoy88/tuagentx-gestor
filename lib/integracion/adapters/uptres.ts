@@ -75,11 +75,11 @@ export class UpTresAdapter implements AdaptadorIntegracion {
 
   private async fetchAllSkip(endpoint: string, extraParams: Record<string, string> = {}): Promise<any[]> {
     const todos: any[] = []
-    let skip = 0
     const limit = 100
-    let total: number | null = null
+    let desde = '2000-01-01'
+    const seenIds = new Set<string>()
     while (true) {
-      const p = new URLSearchParams({ limit: String(limit), skip: String(skip), condition: 'true', includeTotal: 'true', ...extraParams })
+      const p = new URLSearchParams({ limit: String(limit), condition: 'true', desde, ...extraParams })
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), 30000)
       const res = await fetch(`${BASE}/${endpoint}?${p.toString()}`, { headers: this.headers, signal: controller.signal })
@@ -88,11 +88,16 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       if (!text) break
       const d = JSON.parse(text)
       if (!d.ok || !Array.isArray(d.data) || d.data.length === 0) break
-      todos.push(...d.data)
-      if (total === null && d.total) total = Number(d.total)
-      skip += limit
-      if (total !== null && skip >= total) break
+      // Filtrar duplicados
+      const nuevos = d.data.filter((item: any) => !seenIds.has(item.id))
+      if (nuevos.length === 0) break
+      nuevos.forEach((item: any) => seenIds.add(item.id))
+      todos.push(...nuevos)
       if (d.data.length < limit) break
+      // Usar updatedAt del último como nuevo cursor
+      const ultimo = d.data[d.data.length - 1]
+      if (!ultimo?.updatedAt) break
+      desde = ultimo.updatedAt.split('T')[0]
     }
     return todos
   }
