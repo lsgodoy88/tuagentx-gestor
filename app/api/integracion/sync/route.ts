@@ -132,24 +132,33 @@ export async function POST(req: NextRequest) {
       logs.push('Sincronizando clientes...')
       const clientes = await adapter.fetchClientes()
       logs.push(`Clientes obtenidos del API: ${clientes.length}`)
+      // Bulk load clientes existentes por nit
+      const nits = clientes.map((c: any) => (c.doc as string)?.trim()).filter(Boolean)
+      const existentes = await (prisma as any).cliente.findMany({
+        where: { nit: { in: nits }, empresaId },
+        select: { id: true, nit: true }
+      })
+      const mapaExistentes: Record<string, string> = {}
+      existentes.forEach((e: any) => { mapaExistentes[e.nit] = e.id })
+      // Preparar creates y updates
+      const toCreate: any[] = []
+      const toUpdate: any[] = []
       for (const c of clientes) {
         const doc = (c.doc as string)?.trim()
         const uid = ((c._id as string) || (c.uid as string))?.trim()
         if (!doc || !uid) continue
-        const nombre = `${(c as any).name || ''} ${(c as any).lastName || ''}`.trim() || 'Sin nombre'
+        const nombre = \`\${(c as any).name || ''} \${(c as any).lastName || ''}\`.trim() || 'Sin nombre'
         const dataCliente = { apiId: uid, ciudad: (c as any).ciudad || undefined, direccion: (c as any).dir || undefined, telefono: (c as any).nCel || undefined, email: (c as any).email || undefined }
-        try {
-          const existing = await (prisma as any).cliente.findFirst({ where: { nit: doc, empresaId } })
-          if (existing) {
-            await (prisma as any).cliente.update({ where: { id: existing.id }, data: dataCliente })
-          } else {
-            await (prisma as any).cliente.create({ data: { nombre, nit: doc, empresaId, ...dataCliente } })
-          }
-          clientesActualizados++
-        } catch(e: any) {
-          console.error('[SYNC] Error cliente', doc, e.message)
+        if (mapaExistentes[doc]) {
+          toUpdate.push({ id: mapaExistentes[doc], data: dataCliente })
+        } else {
+          toCreate.push({ nombre, nit: doc, empresaId, ...dataCliente })
         }
       }
+      // Batch create + parallel updates
+      if (toCreate.length > 0) await (prisma as any).cliente.createMany({ data: toCreate, skipDuplicates: true })
+      await Promise.all(toUpdate.map((u: any) => (prisma as any).cliente.update({ where: { id: u.id }, data: u.data })))
+      clientesActualizados = toCreate.length + toUpdate.length
       logs.push(`Clientes actualizados: ${clientesActualizados}`)
 
       logs.push('Sincronizando deudas...')
