@@ -130,7 +130,8 @@ export default function OrdenesPage() {
   async function sync() {
     setSyncing(true); setMsgSync('')
     try {
-      const res = await fetch('/api/bodega/sync', { method: 'POST' })
+      const body = origenId !== 'propia' ? JSON.stringify({ vinculadaId: origenId }) : '{}'
+      const res = await fetch('/api/bodega/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body })
       const data = await res.json()
       if (data.ok) {
         setMsgSync(`✅ ${data.sincronizados} sincronizadas`)

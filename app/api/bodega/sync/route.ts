@@ -11,17 +11,29 @@ export async function POST(req: NextRequest) {
   const user = session.user as any
   if (!['empresa', 'supervisor', 'bodega'].includes(user.role)) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
   const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const body = await req.json().catch(() => ({}))
+  const vinculadaId: string | null = body.vinculadaId || null
+  let integracionEmpresaId = empresaId
+  let origenVinculadaId: string | null = null
+  if (vinculadaId) {
+    const vinculada = await (prisma as any).empresaVinculada.findFirst({
+      where: { id: vinculadaId, empresaId, activa: true },
+      select: { id: true, empresaClienteId: true }
+    })
+    if (!vinculada || !vinculada.empresaClienteId) return NextResponse.json({ error: 'Empresa vinculada no encontrada' }, { status: 400 })
+    integracionEmpresaId = vinculada.empresaClienteId
+    origenVinculadaId = vinculadaId
+  }
 
   // Obtener integración activa
   const integracion = await (prisma as any).integracion.findFirst({
-    where: { empresaId, tipo: 'uptres', activa: true }
+    where: { empresaId: integracionEmpresaId, tipo: 'uptres', activa: true }
   })
   if (!integracion) return NextResponse.json({ error: 'Sin integración activa' }, { status: 400 })
 
   const config = integracion.config as any
   const apiSecret = decrypt(config.apiSecret, process.env.UPTRES_SECRET!)
   const adapter = new UpTresAdapter(config.apiKey, apiSecret)
-
   await adapter.login()
 
   // Obtener días historial
@@ -45,7 +57,7 @@ export async function POST(req: NextRequest) {
   // Bulk load clientes por apiId
   const customerIds = [...new Set(ordenesFiltradas.map((o: any) => o.cliente?.uid).filter(Boolean))] as string[]
   const clientes = await prisma.cliente.findMany({
-    where: { apiId: { in: customerIds }, empresaId },
+    where: { apiId: { in: customerIds }, empresaId: integracionEmpresaId },
     select: { apiId: true, nombre: true, nit: true, ciudad: true, direccion: true, telefono: true }
   })
   const mapaClientes = Object.fromEntries(clientes.map((c: any) => [c.apiId, c]))
@@ -80,7 +92,7 @@ export async function POST(req: NextRequest) {
     if (existente) {
       toUpdate.push({ id: existente.id, data })
     } else {
-      toCreate.push({ empresaId, origen: 'uptres', origenId, estado: 'pendiente', ...data })
+      toCreate.push({ empresaId, origen: 'uptres', origenId, estado: 'pendiente', origenVinculadaId, ...data })
     }
   }
 

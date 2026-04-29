@@ -62,6 +62,8 @@ export default function BodegaPage() {
   const [cargando, setCargando] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [msgSync, setMsgSync] = useState('')
+  const [origenSel, setOrigenSel] = useState('propia')
+  const [empresasOrigen, setEmpresasOrigen] = useState<any[]>([])
   const [saving, setSaving] = useState<Record<string, boolean>>({})
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [editTransporte, setEditTransporte] = useState<Record<string, { transportadora: string; guia: string }>>({})
@@ -85,16 +87,19 @@ export default function BodegaPage() {
     if (status !== 'authenticated') return
     if (!['empresa', 'supervisor', 'bodega'].includes(user?.role)) { router.push('/dashboard'); return }
     cargarDatos()
+    fetch('/api/bodega/empresas-origen').then(r => r.json()).then(d => setEmpresasOrigen(Array.isArray(d) ? d : []))
     fetch('/api/empleados?rol=entregas')
       .then(r => r.json())
       .then(d => setRepartidores(d.empleados || []))
       .catch(() => {})
   }, [status])
 
+  useEffect(() => { if (status === 'authenticated') cargarDatos() }, [origenSel])
+
   async function cargarDatos() {
     setCargando(true)
     try {
-      const res = await fetch('/api/bodega/despachos')
+      const res = await fetch(`/api/bodega/despachos?origenId=${origenSel}`)
       const data = await res.json()
       setDespachos(data.despachos || [])
       setCiudadLocal(data.ciudadLocal || null)
@@ -107,7 +112,8 @@ export default function BodegaPage() {
   async function sync() {
     setSyncing(true); setMsgSync('')
     try {
-      const res = await fetch('/api/bodega/sync', { method: 'POST' })
+      const body = origenSel !== 'propia' ? { vinculadaId: origenSel } : {}
+      const res = await fetch('/api/bodega/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
       const data = await res.json()
       if (data.ok) {
         setMsgSync(`✅ ${data.sincronizados} sincronizadas`)
@@ -300,6 +306,15 @@ export default function BodegaPage() {
             )
           })()}
 
+          {/* Selector empresa */}
+          {empresasOrigen.length > 1 && (
+            <select value={origenSel} onChange={e => setOrigenSel(e.target.value)}
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-white text-sm mb-3">
+              {empresasOrigen.map((e: any) => (
+                <option key={e.id} value={e.id}>{e.nombre}</option>
+              ))}
+            </select>
+          )}
           {/* Toolbar */}
           <div className="flex items-center justify-between">
             <p className="text-zinc-500 text-xs">{despachos.length} orden{despachos.length !== 1 ? 'es' : ''}</p>

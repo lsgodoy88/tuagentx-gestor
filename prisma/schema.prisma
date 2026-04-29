@@ -2701,7 +2701,7 @@ model EmpresaVinculada {
   id                String         @id @default(cuid())
   empresaId         String
   nombre            String
-  apiKey            String         @unique @default(cuid())
+  apiKey            String         @unique @default(uuid())
   color             String         @default("#8b5cf6")
   activa            Boolean        @default(true)
   empresaClienteId  String?

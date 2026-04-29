@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   const esVinculada = origenId !== 'propia' && origenId !== ''
 
   const whereOrigen = esVinculada
-    ? { origen: 'vinculada', origenVinculadaId: origenId }
+    ? { origenVinculadaId: origenId }
     : { origenVinculadaId: null }
 
   const despachos = await (prisma as any).ordenDespacho.findMany({
