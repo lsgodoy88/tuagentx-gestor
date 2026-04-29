@@ -72,13 +72,35 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     return todos
   }
 
+
+  private async fetchAllSkip(endpoint: string, extraParams: Record<string, string> = {}): Promise<any[]> {
+    const todos: any[] = []
+    let skip = 0
+    const limit = 100
+    while (true) {
+      const p = new URLSearchParams({ limit: String(limit), skip: String(skip), condition: 'true', ...extraParams })
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 30000)
+      const res = await fetch(`${BASE}/${endpoint}?${p.toString()}`, { headers: this.headers, signal: controller.signal })
+      clearTimeout(timer)
+      const text = await res.text()
+      if (!text) break
+      const d = JSON.parse(text)
+      if (!d.ok || !Array.isArray(d.data) || d.data.length === 0) break
+      todos.push(...d.data)
+      if (d.data.length < limit) break
+      skip += limit
+    }
+    return todos
+  }
   async fetchClientes(desde?: Date): Promise<ClienteExterno[]> {
     const params: Record<string, string> = {
       fields: 'id,firstName,lastName,document,email,phone,address,cityId,neighborhood,tradeName,updatedAt',
       includeTotal: 'false',
     }
     if (desde) params.desde = desde.toISOString().split('T')[0]
-    const data = await this.fetchAll('clientes', params)
+    // clientes usa skip en vez de cursor
+    const data = await this.fetchAllSkip('clientes', params)
     return data.map((c: any) => ({
       uid: c.id,
       _id: c.id,
