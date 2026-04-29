@@ -15,13 +15,19 @@ export async function GET() {
   const empresaId = await getEmpresaId()
   if (!empresaId) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
-  const vinculadas = await prisma.empresaVinculada.findMany({
-    where: { empresaId, activa: true },
-    include: { _count: { select: { rutas: true } } },
-    orderBy: { createdAt: 'asc' },
-  })
-
-  return NextResponse.json({ vinculadas })
+  const [generadas, conectadas] = await Promise.all([
+    prisma.empresaVinculada.findMany({
+      where: { empresaId, activa: true },
+      include: { _count: { select: { rutas: true } } },
+      orderBy: { createdAt: 'asc' },
+    }),
+    prisma.empresaVinculada.findMany({
+      where: { empresaClienteId: empresaId, activa: true },
+      include: { empresa: { select: { nombre: true } }, _count: { select: { rutas: true } } },
+      orderBy: { createdAt: 'asc' },
+    }),
+  ])
+  return NextResponse.json({ vinculadas: generadas, conectadas: conectadas.map(v => ({ ...v, esConectada: true, nombreEmpresaPrincipal: v.empresa.nombre })) })
 }
 
 export async function POST(req: NextRequest) {

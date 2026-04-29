@@ -112,6 +112,7 @@ export default function ConfiguracionPage() {
 
   // Empresas vinculadas
   const [vinculadas, setVinculadas] = useState<any[]>([])
+  const [conectadas, setConectadas] = useState<any[]>([])
   const [modalVinculada, setModalVinculada] = useState(false)
   const [nuevaVinculada, setNuevaVinculada] = useState({ nombre: '', color: '#8b5cf6' })
   const [tokenGenerado, setTokenGenerado] = useState<string | null>(null)
@@ -142,7 +143,7 @@ export default function ConfiguracionPage() {
     setSeccionAbierta(user?.role === 'empresa' || user?.role === 'supervisor' ? 'empresa' : 'perfil')
 
     if (user?.role === 'empresa' || user?.role === 'supervisor') {
-      fetch('/api/empresas-vinculadas').then(r => r.json()).then(d => setVinculadas(d.vinculadas || []))
+      fetch('/api/empresas-vinculadas').then(r => r.json()).then(d => { setVinculadas(d.vinculadas || []); setConectadas(d.conectadas || []) })
     }
 
     if (user?.role === 'empresa') {
@@ -945,7 +946,7 @@ export default function ConfiguracionPage() {
                 </button>
               </div>
             </div>
-            {vinculadas.length === 0 ? (
+            {vinculadas.length === 0 && conectadas.length === 0 ? (
               <p className="text-zinc-500 text-sm text-center py-3">Sin empresas vinculadas</p>
             ) : (
               <div className="space-y-2">
@@ -953,19 +954,22 @@ export default function ConfiguracionPage() {
                   <div key={v.id} className="bg-zinc-800 rounded-xl px-4 py-3 flex items-center gap-3">
                     <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: v.color }} />
                     <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm font-medium">{v.nombre}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <p className="text-zinc-500 text-xs font-mono truncate">{v.apiKey}</p>
-                        <button onClick={() => navigator.clipboard.writeText(v.apiKey)} className="text-zinc-500 hover:text-zinc-300 flex-shrink-0" title="Copiar API Key">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
-                        </button>
-                      </div>
-                      <p className="text-zinc-600 text-xs mt-0.5">{v._count?.rutas ?? 0} rutas</p>
+                      <p className="text-white text-sm font-medium">{v.nombre === 'Pendiente' ? '⏳ Esperando conexión' : v.nombre}</p>
+                      <p className="text-zinc-600 text-xs mt-0.5">{v._count?.rutas ?? 0} rutas · Generada por ti</p>
                     </div>
                     <button onClick={() => eliminarVinculada(v.id)}
                       className="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded-lg hover:bg-red-500/10 transition-colors flex-shrink-0">
                       Eliminar
                     </button>
+                  </div>
+                ))}
+                {conectadas.map(v => (
+                  <div key={v.id} className="bg-zinc-800 rounded-xl px-4 py-3 flex items-center gap-3">
+                    <span className="w-3 h-3 rounded-full flex-shrink-0 bg-emerald-500" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-medium">✅ {v.nombreEmpresaPrincipal}</p>
+                      <p className="text-zinc-500 text-xs mt-0.5">Conectada como cliente</p>
+                    </div>
                   </div>
                 ))}
               </div>
