@@ -77,8 +77,9 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     const todos: any[] = []
     let skip = 0
     const limit = 100
+    let total: number | null = null
     while (true) {
-      const p = new URLSearchParams({ limit: String(limit), skip: String(skip), condition: 'true', ...extraParams })
+      const p = new URLSearchParams({ limit: String(limit), skip: String(skip), condition: 'true', includeTotal: 'true', ...extraParams })
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), 30000)
       const res = await fetch(`${BASE}/${endpoint}?${p.toString()}`, { headers: this.headers, signal: controller.signal })
@@ -88,8 +89,10 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       const d = JSON.parse(text)
       if (!d.ok || !Array.isArray(d.data) || d.data.length === 0) break
       todos.push(...d.data)
-      if (d.data.length < limit) break
+      if (total === null && d.total) total = Number(d.total)
       skip += limit
+      if (total !== null && skip >= total) break
+      if (d.data.length < limit) break
     }
     return todos
   }
