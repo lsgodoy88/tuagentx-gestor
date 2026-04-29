@@ -13,6 +13,7 @@ export async function POST(req: NextRequest) {
   const empresaId = user.role === 'empresa' ? user.id : user.empresaId
   const body = await req.json().catch(() => ({}))
   const vinculadaId: string | null = body.vinculadaId || null
+  console.log('[bodega/sync] vinculadaId:', vinculadaId, 'empresaId:', empresaId)
   let integracionEmpresaId = empresaId
   let origenVinculadaId: string | null = null
   if (vinculadaId) {
