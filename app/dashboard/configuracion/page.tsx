@@ -357,7 +357,7 @@ export default function ConfiguracionPage() {
     setSincronizando(false)
     if (data.ok) { setMsgSync(`✅ Completado — ${data.clientesActualizados ?? 0} clientes, ${data.deudasInsertadas ?? 0} deudas`); setSyncInicial(true); setUltimaSync(new Date().toLocaleString('es-CO')); setSyncResultado({ clientes: data.clientesActualizados ?? 0, deudas: data.deudasInsertadas ?? 0 }) }
     else setMsgSync(data.error || 'Error en sincronización')
-    setTimeout(() => setMsgSync(''), 5000)
+    if (data.ok) setTimeout(() => setMsgSync(''), 8000)
   }
 
   async function syncDelta() {

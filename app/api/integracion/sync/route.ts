@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
         const doc = (c.doc as string)?.trim()
         const uid = ((c._id as string) || (c.uid as string))?.trim()
         if (!doc || !uid) continue
-        const nombre = \`\${(c as any).name || ''} \${(c as any).lastName || ''}\`.trim() || 'Sin nombre'
+        const nombre = ((c as any).name || '') + ' ' + ((c as any).lastName || '').trim() || 'Sin nombre'
         const dataCliente = { apiId: uid, ciudad: (c as any).ciudad || undefined, direccion: (c as any).dir || undefined, telefono: (c as any).nCel || undefined, email: (c as any).email || undefined }
         if (mapaExistentes[doc]) {
           toUpdate.push({ id: mapaExistentes[doc], data: dataCliente })
