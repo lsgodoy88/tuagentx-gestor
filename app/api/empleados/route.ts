@@ -110,6 +110,7 @@ export async function PUT(req: NextRequest) {
   if (ciudades !== undefined) data.ciudades = ciudades
   if (permisos !== undefined) data.permisos = permisos
   if (etiqueta !== undefined) data.etiqueta = etiqueta || null
+  if (apiId !== undefined) data.apiId = apiId || null
   if (listaIds !== undefined) {
     data.listasAsignadas = {
       deleteMany: {},
