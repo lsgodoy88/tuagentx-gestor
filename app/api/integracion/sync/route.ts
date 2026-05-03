@@ -185,7 +185,7 @@ export async function POST(req: NextRequest) {
         if (existe) {
           await (prisma as any).empleado.update({ where: { id: existe.id }, data: { nombre } })
         } else {
-          await (prisma as any).empleado.create({ data: { nombre, empresaId, apiId: uid, rol: 'vendedor', activo: true } })
+          await (prisma as any).empleado.create({ data: { nombre, empresaId, apiId: uid, rol: 'vendedor', activo: true, email: uid + '@sync.tuagentx.com', password: '' } })
         }
         empleadosSincronizados++
       }
