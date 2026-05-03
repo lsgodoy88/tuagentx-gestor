@@ -175,21 +175,27 @@ export async function POST(req: NextRequest) {
         })
       }
       logs.push(`Empleados sincronizados: ${empleadosExt.length}`)
-      logs.push('Sincronizando empleados...')
+      logs.push('Sincronizando empleados referencia...')
       const empleadosExt2 = await adapter.fetchEmpleados()
       for (const e of empleadosExt2) {
         const uid = ((e as any)._id || (e as any).uid)?.trim()
         if (!uid) continue
         const nombre = (((e as any).name || '') + ' ' + ((e as any).lastName || '')).trim() || 'Sin nombre'
-        const existe = await (prisma as any).empleado.findFirst({ where: { apiId: uid, empresaId } })
-        if (existe) {
-          await (prisma as any).empleado.update({ where: { id: existe.id }, data: { nombre } })
-        } else {
-          await (prisma as any).empleado.create({ data: { nombre, empresaId, apiId: uid, rol: 'vendedor', activo: true, email: uid + '@sync.tuagentx.com', password: '' } })
-        }
+        await (prisma as any).syncEmpleado.upsert({
+          where: { integracionId_externalId: { integracionId: integracion.id, externalId: uid } },
+          create: { integracionId: integracion.id, externalId: uid, nombre, data: e, modificadoEn: (e as any).fModificado ? new Date((e as any).fModificado) : null },
+          update: { nombre, data: e, modificadoEn: (e as any).fModificado ? new Date((e as any).fModificado) : null }
+        })
         empleadosSincronizados++
       }
-      logs.push(`Empleados sincronizados: ${empleadosSincronizados}`)
+      logs.push(`Empleados referencia: ${empleadosSincronizados}`)
+      // Actualizar nombre en empleados existentes enlazados
+      for (const e of empleadosExt2) {
+        const uid = ((e as any)._id || (e as any).uid)?.trim()
+        if (!uid) continue
+        const nombre = (((e as any).name || '') + ' ' + ((e as any).lastName || '')).trim() || 'Sin nombre'
+        await (prisma as any).empleado.updateMany({ where: { apiId: uid, empresaId }, data: { nombre } })
+      }
       logs.push('Sincronizando deudas...')
       const deudas = await adapter.fetchDeudas()
       const afectados = await sincronizarDeudas(deudas, integracion.id, empresaId)

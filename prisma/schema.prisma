@@ -2591,6 +2591,7 @@ model Integracion {
   deudas       SyncDeuda[]
   logs         SyncLog[]
   carteraCache CarteraCache[]
+  empleados    SyncEmpleado[]
   @@index([empresaId])
   @@index([subEmpresaId])
   @@map("Integracion")
@@ -2746,4 +2747,17 @@ model OrdenDespacho {
   @@index([empresaId, estado])
   @@index([empresaId, origen])
   @@map("OrdenDespacho")
+}
+
+model SyncEmpleado {
+  id            String      @id @default(cuid())
+  integracionId String
+  externalId    String
+  nombre        String
+  data          Json?
+  modificadoEn  DateTime?
+  integracion   Integracion @relation(fields: [integracionId], references: [id])
+  @@unique([integracionId, externalId])
+  @@index([integracionId])
+  @@map("SyncEmpleado")
 }
