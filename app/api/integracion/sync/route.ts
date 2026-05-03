@@ -180,9 +180,14 @@ export async function POST(req: NextRequest) {
       for (const e of empleadosExt2) {
         const uid = ((e as any)._id || (e as any).uid)?.trim()
         if (!uid) continue
-        const nombre = ((e as any).name || '') + ' ' + ((e as any).lastName || '').trim() || 'Sin nombre'
-        const r = await (prisma as any).empleado.updateMany({ where: { apiId: uid, empresaId }, data: { nombre } })
-        empleadosSincronizados += r.count
+        const nombre = (((e as any).name || '') + ' ' + ((e as any).lastName || '')).trim() || 'Sin nombre'
+        const existe = await (prisma as any).empleado.findFirst({ where: { apiId: uid, empresaId } })
+        if (existe) {
+          await (prisma as any).empleado.update({ where: { id: existe.id }, data: { nombre } })
+        } else {
+          await (prisma as any).empleado.create({ data: { nombre, empresaId, apiId: uid, rol: 'vendedor', activo: true } })
+        }
+        empleadosSincronizados++
       }
       logs.push(`Empleados sincronizados: ${empleadosSincronizados}`)
       logs.push('Sincronizando deudas...')
