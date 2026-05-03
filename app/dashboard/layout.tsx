@@ -118,7 +118,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: '/dashboard/rutas-fijas', label: 'Impulsos', icon: '⚡' },
       { href: '/dashboard/mapa', label: 'Mapa en vivo', icon: '📍' },
       { href: '/dashboard/visitas-admin', label: 'Visitas', icon: '📋' },
-      { href: '/dashboard/trazabilidad', label: 'Trazabilidad', icon: '📊' },
+      ...(((user as any)?.bodegaPuedeEnviar || (user as any)?.tieneVinculacion) ? [{ href: '/dashboard/trazabilidad', label: 'Trazabilidad', icon: '📊' }] : []),
       { href: '/dashboard/reportes', label: 'Reportes', icon: '📈' },
     ] : []),
     ...(isBodega ? [

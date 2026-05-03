@@ -220,7 +220,11 @@ export default function TrazabilidadPage() {
                 {/* Header — siempre visible, clickeable */}
                 <div onClick={() => toggleExpandido(orden.id)} className="flex items-center gap-2 p-3 cursor-pointer hover:bg-zinc-800/50 transition-colors">
                   <span className="text-zinc-400 font-mono text-xs flex-shrink-0">#{orden.numeroOrden}</span>
-                  <span className="text-white text-sm font-semibold truncate flex-1">{orden.clienteNombre}</span>
+                  {orden.clienteNombre === 'Sin nombre' ? (
+                    <span className="text-amber-400 text-xs font-semibold truncate flex-1">⚠️ ERROR DE DATOS</span>
+                  ) : (
+                    <span className="text-white text-sm font-semibold truncate flex-1">{orden.clienteNombre}</span>
+                  )}
                   <span className="text-zinc-400 text-xs flex-shrink-0">{orden.ciudad}</span>
                   <span className="flex-shrink-0">{ICONO_ESTADO[orden.estado] || '⚪'}</span>
                   <span className="text-zinc-500 text-xs flex-shrink-0">{abierto ? '▲' : '▼'}</span>

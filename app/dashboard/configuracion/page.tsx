@@ -937,11 +937,15 @@ export default function ConfiguracionPage() {
               <p className="text-zinc-500 text-xs">Empresas externas con acceso a rutas via API</p>
               <div className="flex gap-2">
                 <button onClick={() => { setModalConectarToken(true); setTokenInput(''); setTokenLookup(null); setTokenMsg('') }}
-                  className="bg-zinc-700 hover:bg-zinc-600 text-white font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors">
+                  disabled={bodegaPuedeEnviar}
+                  title={bodegaPuedeEnviar ? 'Tu empresa ya tiene bodega propia' : ''}
+                  className="bg-zinc-700 hover:bg-zinc-600 disabled:opacity-30 disabled:cursor-not-allowed text-white font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors">
                   🔗 Token
                 </button>
                 <button onClick={() => { setModalVinculada(true); setMsgVinculada('') }}
-                  className="bg-violet-600 hover:bg-violet-500 text-white font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors">
+                  disabled={!bodegaPuedeEnviar}
+                  title={!bodegaPuedeEnviar ? 'Requiere módulo bodega activo' : ''}
+                  className="bg-violet-600 hover:bg-violet-500 disabled:opacity-30 disabled:cursor-not-allowed text-white font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors">
                   + Nueva
                 </button>
               </div>

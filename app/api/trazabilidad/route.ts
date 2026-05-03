@@ -21,7 +21,19 @@ export async function GET(req: NextRequest) {
   const hasta = searchParams.get('hasta') || ''
   const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
 
-  const where: any = { empresaId: user.empresaId }
+  const empresa = await prisma.empresa.findUnique({
+    where: { id: user.empresaId },
+    select: { bodegaPuedeEnviar: true }
+  })
+  const vinculacion = await prisma.empresaVinculada.findFirst({
+    where: { empresaClienteId: user.empresaId, activa: true }
+  })
+  if (!empresa?.bodegaPuedeEnviar && !vinculacion) {
+    return NextResponse.json({ ordenes: [], total: 0, page: 1, pages: 0 })
+  }
+  const where: any = empresa?.bodegaPuedeEnviar
+    ? { empresaId: user.empresaId }
+    : { origenVinculadaId: vinculacion!.id }
 
   if (q) {
     where.OR = [

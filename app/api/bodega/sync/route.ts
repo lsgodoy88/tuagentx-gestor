@@ -76,6 +76,7 @@ export async function POST(req: NextRequest) {
   for (const o of ordenesFiltradas) {
     const origenId = o.uid as string
     if (!origenId) continue
+    if (!o.numeroFacturado) continue // Ignorar órdenes sin número de factura
     const clienteData = mapaClientes[o.cliente?.uid ?? ''] || {}
     const ciudadRaw: string | null = clienteData.ciudad || null
     const ciudad = ciudadRaw ? ciudadRaw.split('/').pop()?.trim() ?? ciudadRaw : null

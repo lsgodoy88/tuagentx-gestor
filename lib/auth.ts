@@ -18,7 +18,18 @@ export const authOptions: NextAuthOptions = {
         const empresa = await prisma.empresa.findUnique({ where: { email: credentials.email } })
         if (empresa && await bcrypt.compare(credentials.password, empresa.password)) {
           const role = empresa.plan === 'superadmin' ? 'superadmin' : 'empresa'
-          return { id: empresa.id, email: empresa.email, name: empresa.nombre, role, empresaId: empresa.id }
+          const vinculacion = await prisma.empresaVinculada.findFirst({
+            where: { empresaClienteId: empresa.id, activa: true }
+          })
+          return {
+            id: empresa.id,
+            email: empresa.email,
+            name: empresa.nombre,
+            role,
+            empresaId: empresa.id,
+            bodegaPuedeEnviar: empresa.bodegaPuedeEnviar ?? false,
+            tieneVinculacion: !!vinculacion,
+          }
         }
 
         // Buscar en Empleado
@@ -51,6 +62,8 @@ export const authOptions: NextAuthOptions = {
         token.userId = (user as any).id
         token.permisos = (user as any).permisos ?? {}
         token.etiqueta = (user as any).etiqueta ?? null
+        token.bodegaPuedeEnviar = (user as any).bodegaPuedeEnviar ?? false
+        token.tieneVinculacion = (user as any).tieneVinculacion ?? false
       }
       return token
     },
@@ -61,6 +74,8 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).id = (token.userId || token.sub) as string
         (session.user as any).permisos = token.permisos ?? {}
         ;(session.user as any).etiqueta = token.etiqueta ?? null
+        ;(session.user as any).bodegaPuedeEnviar = token.bodegaPuedeEnviar ?? false
+        ;(session.user as any).tieneVinculacion = token.tieneVinculacion ?? false
       }
       return session
     },

@@ -161,6 +161,19 @@ export async function POST(req: NextRequest) {
       clientesActualizados = toCreate.length + toUpdate.length
       logs.push(`Clientes actualizados: ${clientesActualizados}`)
 
+      // Sincronizar empleados
+      logs.push('Sincronizando empleados...')
+      const empleadosExt = await adapter.fetchEmpleados()
+      for (const e of empleadosExt) {
+        const uid = ((e as any)._id || (e as any).uid)?.trim()
+        if (!uid) continue
+        const nombre = `${(e as any).name || ''} ${(e as any).lastName || ''}`.trim() || 'Sin nombre'
+        await (prisma as any).empleado.updateMany({
+          where: { apiId: uid, empresaId },
+          data: { nombre }
+        })
+      }
+      logs.push(`Empleados sincronizados: ${empleadosExt.length}`)
       logs.push('Sincronizando deudas...')
       const deudas = await adapter.fetchDeudas()
       const afectados = await sincronizarDeudas(deudas, integracion.id, empresaId)

@@ -503,7 +503,7 @@ export default function OrdenesPage() {
                                 </div>
                               </div>
                               <button onClick={() => guardarTransporte(d.id)}
-                                disabled={isSaving || (!editTransporte[d.id]?.transportadora && !editTransporte[d.id]?.guia)}
+                                disabled={isSaving || !editTransporte[d.id]?.transportadora || !editTransporte[d.id]?.guia}
                                 className="bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-semibold px-4 py-1.5 rounded-xl text-xs transition-colors">
                                 {isSaving ? 'Guardando...' : 'Confirmar envío'}
                               </button>

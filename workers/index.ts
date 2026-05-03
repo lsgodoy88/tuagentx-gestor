@@ -94,3 +94,62 @@ export const entregasWorker = new Worker(
 entregasWorker.on('failed', (job, err) => {
   console.error(`[entregas] ${job?.name} falló:`, err.message)
 })
+
+// ── Queue: audit (noche) ─────────────────────────────────────────────────────
+export const auditQueue = new Queue('audit', { connection: REDIS })
+export const auditWorker = new Worker(
+  'audit',
+  async (job) => {
+    console.log(`[audit] ${job.name} iniciado ${new Date().toISOString()}`)
+    const res = await fetch('http://localhost:3020/api/audit/reporte', {
+      method: 'POST',
+      headers: { 'x-audit-secret': process.env.AUDIT_SECRET ?? '' },
+      signal: AbortSignal.timeout(120000),
+    })
+    const result = await res.json()
+    console.log(`[audit] ${job.name} resultado:`, JSON.stringify(result))
+    return result
+  },
+  { connection: REDIS, concurrency: 1 },
+)
+auditWorker.on('failed', (job, err) => {
+  console.error(`[audit] ${job?.name} falló:`, err.message)
+})
+
+// ── Queue: contexto (madrugada) ──────────────────────────────────────────────
+export const contextoQueue = new Queue('contexto', { connection: REDIS })
+export const contextoWorker = new Worker(
+  'contexto',
+  async (job) => {
+    console.log(`[contexto] ${job.name} iniciado ${new Date().toISOString()}`)
+    const { exec } = await import('child_process')
+    const { promisify } = await import('util')
+    const execAsync = promisify(exec)
+    const { stdout } = await execAsync('bash /srv/generar-contexto.sh', { timeout: 120000 })
+    console.log(`[contexto] completado:`, stdout.slice(-100))
+    return { ok: true }
+  },
+  { connection: REDIS, concurrency: 1 },
+)
+contextoWorker.on('failed', (job, err) => {
+  console.error(`[contexto] ${job?.name} fallo:`, err.message)
+})
+
+// ── Queue: mantenimiento (diario) ────────────────────────────────────────────
+export const mantenimientoQueue = new Queue('mantenimiento', { connection: REDIS })
+export const mantenimientoWorker = new Worker(
+  'mantenimiento',
+  async (job) => {
+    console.log(`[mantenimiento] ${job.name} iniciado ${new Date().toISOString()}`)
+    const { exec } = await import('child_process')
+    const { promisify } = await import('util')
+    const execAsync = promisify(exec)
+    await execAsync('bash /srv/master/scripts/mantenimiento.sh', { timeout: 60000 })
+    console.log(`[mantenimiento] completado`)
+    return { ok: true }
+  },
+  { connection: REDIS, concurrency: 1 },
+)
+mantenimientoWorker.on('failed', (job, err) => {
+  console.error(`[mantenimiento] ${job?.name} fallo:`, err.message)
+})

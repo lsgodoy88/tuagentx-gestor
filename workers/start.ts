@@ -15,7 +15,7 @@ try {
   }
 } catch { /* .env no encontrado — usar variables de entorno del proceso */ }
 
-import { rutasDiaQueue, integracionQueue, rutasDiaWorker, integracionWorker, entregasWorker } from './index'
+import { rutasDiaQueue, integracionQueue, rutasDiaWorker, integracionWorker, entregasWorker, auditQueue, auditWorker, contextoQueue, contextoWorker, mantenimientoQueue, mantenimientoWorker } from './index'
 
 async function main() {
   // ── Registrar jobs repetitivos ────────────────────────────────────────────
@@ -45,6 +45,27 @@ async function main() {
   console.log('  rutas-dia  → crear-rutas  (0 12 * * * UTC = 7am Bogotá)')
   console.log('  rutas-dia  → cerrar-rutas (0 2  * * * UTC = 9pm Bogotá)')
   console.log('  integracion → delta-sync  (0 8  * * * UTC = 3am Bogotá)')
+  // Audit: 06:00 UTC = 1:00 Bogota
+  await auditQueue.upsertJobScheduler(
+    'audit-diario',
+    { pattern: '0 6 * * *' },
+    { name: 'audit-diario', data: {} },
+  )
+  console.log('  audit      -> audit-diario (0 6 * * * UTC = 1am Bogota)')
+  // Contexto: 03:00 UTC = 10pm Bogota
+  await contextoQueue.upsertJobScheduler(
+    'generar-contexto',
+    { pattern: '0 3 * * *' },
+    { name: 'generar-contexto', data: {} },
+  )
+  console.log('  contexto      -> generar-contexto (0 3 * * * UTC = 10pm Bogota)')
+  // Mantenimiento: 14:00 UTC = 9am Bogota
+  await mantenimientoQueue.upsertJobScheduler(
+    'mantenimiento-diario',
+    { pattern: '0 14 * * *' },
+    { name: 'mantenimiento-diario', data: {} },
+  )
+  console.log('  mantenimiento -> mantenimiento-diario (0 14 * * * UTC = 9am Bogota)')
   console.log('[gestor-worker] Workers online. Esperando jobs...')
 
   // Mantener proceso vivo
@@ -54,6 +75,9 @@ async function main() {
       rutasDiaWorker.close(),
       integracionWorker.close(),
       entregasWorker.close(),
+      auditWorker.close(),
+      contextoWorker.close(),
+      mantenimientoWorker.close(),
     ])
     process.exit(0)
   })
