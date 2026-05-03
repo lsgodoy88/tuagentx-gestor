@@ -68,6 +68,9 @@ export default function EmpleadosPage() {
   const [precios, setPrecios] = useState<Record<string, number>>({})
   const [cantidades, setCantidades] = useState<Record<string, number>>({ supervisor: 0, vendedor: 0, entregas: 0, impulsadora: 0, bodega: 0 })
   const [modoEquipo, setModoEquipo] = useState<string | null>(null)
+  const [syncEmpleados, setSyncEmpleados] = useState<any[]>([])
+  const [tieneIntegracion, setTieneIntegracion] = useState(false)
+  const [apiIdSeleccionado, setApiIdSeleccionado] = useState('')
 
   useEffect(() => { loadData() }, [])
 
@@ -78,6 +81,7 @@ export default function EmpleadosPage() {
       fetch('/api/mi-empresa/estado').then(r => r.json()),
     ])
     fetch('/api/listas').then(r => r.json()).then(d => { if (Array.isArray(d)) setListas(d) })
+    fetch('/api/sync-empleados').then(r => r.json()).then(d => { if (d.ok) { setSyncEmpleados(d.empleados || []); setTieneIntegracion(d.tieneIntegracion || false) } })
     setEmpleados(empRes.empleados || [])
     setLimites(empRes.limites || {})
     setEmpresaNombre(meRes.nombre || '')
@@ -112,6 +116,7 @@ export default function EmpleadosPage() {
     setPassword('')
     setResultado(null)
     setError('')
+    setApiIdSeleccionado(empleadoExistente?.apiId || '')
     setModal(true)
   }
 
@@ -356,6 +361,22 @@ export default function EmpleadosPage() {
                       <option value="">Sin asignar</option>
                       {empleados.filter(e => e.rol === 'vendedor' && e.activo).map((v: any) => (
                         <option key={v.id} value={v.id}>{v.nombre}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                {(slotRol === 'vendedor' || editando?.rol === 'vendedor') && tieneIntegracion && syncEmpleados.length > 0 && (
+                  <div>
+                    <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Empleado UpTres</label>
+                    <select value={apiIdSeleccionado} onChange={e => {
+                      setApiIdSeleccionado(e.target.value)
+                      const emp = syncEmpleados.find((s: any) => s.externalId === e.target.value)
+                      if (emp && !nombre) setNombre(emp.nombre)
+                    }}
+                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500">
+                      <option value="">— Sin enlazar —</option>
+                      {syncEmpleados.map((s: any) => (
+                        <option key={s.externalId} value={s.externalId}>{s.nombre}</option>
                       ))}
                     </select>
                   </div>
