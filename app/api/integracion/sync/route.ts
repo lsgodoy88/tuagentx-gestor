@@ -174,6 +174,17 @@ export async function POST(req: NextRequest) {
         })
       }
       logs.push(`Empleados sincronizados: ${empleadosExt.length}`)
+      let empleadosSincronizados = 0
+      logs.push('Sincronizando empleados...')
+      const empleadosExt2 = await adapter.fetchEmpleados()
+      for (const e of empleadosExt2) {
+        const uid = ((e as any)._id || (e as any).uid)?.trim()
+        if (!uid) continue
+        const nombre = ((e as any).name || '') + ' ' + ((e as any).lastName || '').trim() || 'Sin nombre'
+        const r = await (prisma as any).empleado.updateMany({ where: { apiId: uid, empresaId }, data: { nombre } })
+        empleadosSincronizados += r.count
+      }
+      logs.push(`Empleados sincronizados: ${empleadosSincronizados}`)
       logs.push('Sincronizando deudas...')
       const deudas = await adapter.fetchDeudas()
       const afectados = await sincronizarDeudas(deudas, integracion.id, empresaId)
@@ -187,7 +198,7 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    return NextResponse.json({ ok: true, logs, clientesActualizados, deudasInsertadas })
+    return NextResponse.json({ ok: true, logs, clientesActualizados, deudasInsertadas, empleadosSincronizados: typeof empleadosSincronizados !== 'undefined' ? empleadosSincronizados : 0 })
   } catch (err: any) {
     logs.push(`ERROR: ${err.message}`)
     return NextResponse.json({ ok: false, error: err.message, logs }, { status: 500 })
