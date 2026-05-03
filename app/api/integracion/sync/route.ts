@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
   const logs: string[] = []
   let clientesActualizados = 0
   let deudasInsertadas = 0
+  let empleadosSincronizados = 0
 
   try {
     if (tipo === 'delta') {
@@ -174,7 +175,6 @@ export async function POST(req: NextRequest) {
         })
       }
       logs.push(`Empleados sincronizados: ${empleadosExt.length}`)
-      let empleadosSincronizados = 0
       logs.push('Sincronizando empleados...')
       const empleadosExt2 = await adapter.fetchEmpleados()
       for (const e of empleadosExt2) {
@@ -198,7 +198,7 @@ export async function POST(req: NextRequest) {
       })
     }
 
-    return NextResponse.json({ ok: true, logs, clientesActualizados, deudasInsertadas, empleadosSincronizados: typeof empleadosSincronizados !== 'undefined' ? empleadosSincronizados : 0 })
+    return NextResponse.json({ ok: true, logs, clientesActualizados, deudasInsertadas, empleadosSincronizados })
   } catch (err: any) {
     logs.push(`ERROR: ${err.message}`)
     return NextResponse.json({ ok: false, error: err.message, logs }, { status: 500 })
