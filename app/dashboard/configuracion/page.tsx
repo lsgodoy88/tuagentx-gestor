@@ -355,7 +355,7 @@ export default function ConfiguracionPage() {
     const res = await fetch('/api/integracion/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: 'inicial' }) })
     const data = await res.json()
     setSincronizando(false)
-    if (data.ok) { setMsgSync(`✅ Completado — ${data.clientesActualizados ?? 0} clientes, ${data.deudasInsertadas ?? 0} deudas`); setSyncInicial(true); setUltimaSync(new Date().toLocaleString('es-CO')); setSyncResultado({ clientes: data.clientesActualizados ?? 0, deudas: data.deudasInsertadas ?? 0 }) }
+    if (data.ok) { setMsgSync(`✅ ${data.clientesActualizados ?? 0} clientes · ${data.empleadosSincronizados ?? 0} empleados · ${data.deudasInsertadas ?? 0} deudas`); setSyncInicial(true); setUltimaSync(new Date().toLocaleString('es-CO')); setSyncResultado({ clientes: data.clientesActualizados ?? 0, empleados: data.empleadosSincronizados ?? 0, deudas: data.deudasInsertadas ?? 0 }) }
     else setMsgSync(data.error || 'Error en sincronización')
     // éxito permanente
   }
