@@ -111,10 +111,27 @@ export async function POST(req: NextRequest) {
       for (const e of empleadosFiltrados) {
         const uid = (e as any).uid?.trim() || (e as any)._id?.trim()
         if (!uid) continue
-        await (prisma as any).empleado.updateMany({
-          where: { apiId: uid, empresaId },
-          data: { nombre: `${(e as any).name || ''} ${(e as any).lastName || ''}`.trim() }
+        const nombre = ((e as any).name || '') + ' ' + ((e as any).lastName || '')
+        await (prisma as any).empleado.updateMany({ where: { apiId: uid, empresaId }, data: { nombre: nombre.trim() } })
+        await (prisma as any).syncEmpleado.upsert({
+          where: { integracionId_externalId: { integracionId: integracion.id, externalId: uid } },
+          create: { integracionId: integracion.id, externalId: uid, nombre: nombre.trim(), data: e },
+          update: { nombre: nombre.trim(), data: e }
         })
+      }
+      // Poblar SyncEmpleado si está vacío
+      const countSync = await (prisma as any).syncEmpleado.count({ where: { integracionId: integracion.id } })
+      if (countSync === 0) {
+        for (const e of empleadosExt) {
+          const uid2 = (e as any).uid?.trim() || (e as any)._id?.trim()
+          if (!uid2) continue
+          const nom2 = ((e as any).name || '') + ' ' + ((e as any).lastName || '')
+          await (prisma as any).syncEmpleado.upsert({
+            where: { integracionId_externalId: { integracionId: integracion.id, externalId: uid2 } },
+            create: { integracionId: integracion.id, externalId: uid2, nombre: nom2.trim(), data: e },
+            update: { nombre: nom2.trim(), data: e }
+          })
+        }
       }
       logs.push(`Empleados delta: ${empleadosFiltrados.length}`)
 
