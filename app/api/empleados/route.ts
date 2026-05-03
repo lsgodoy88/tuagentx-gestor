@@ -103,7 +103,7 @@ export async function PUT(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
-  const { id, nombre, email, telefono, password, vendedorId, puedeCapturarGps, listaIds, vendedorIds, permisos, ciudades, etiqueta } = await req.json()
+  const { id, nombre, email, telefono, password, vendedorId, puedeCapturarGps, listaIds, vendedorIds, permisos, ciudades, etiqueta, apiId } = await req.json()
   const data: any = { nombre, telefono: telefono || null, vendedorId: vendedorId !== undefined ? vendedorId : undefined, puedeCapturarGps: puedeCapturarGps !== undefined ? puedeCapturarGps : undefined }
   if (email) data.email = email
   if (password) data.password = await bcrypt.hash(password, 10)
