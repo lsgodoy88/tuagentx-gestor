@@ -126,7 +126,7 @@ export default function EmpleadosPage() {
       const res = await fetch('/api/empleados', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: editando.id, nombre, email: emailEdit || undefined, telefono, password: password || undefined, vendedorId: vendedorId || null, puedeCapturarGps, ciudades: ciudadesAsignadas, listaIds, vendedorIds: (slotRol === 'supervisor' || editando?.rol === 'supervisor') ? vendedorIds : undefined, permisos: (slotRol === 'supervisor' || editando?.rol === 'supervisor') ? permisos : undefined, etiqueta: (slotRol === 'supervisor' || editando?.rol === 'supervisor') ? etiqueta : undefined })
+        body: JSON.stringify({ id: editando.id, nombre, email: emailEdit || undefined, telefono, password: password || undefined, vendedorId: vendedorId || null, puedeCapturarGps, ciudades: ciudadesAsignadas, listaIds, vendedorIds: (slotRol === 'supervisor' || editando?.rol === 'supervisor') ? vendedorIds : undefined, permisos: (slotRol === 'supervisor' || editando?.rol === 'supervisor') ? permisos : undefined, etiqueta: (slotRol === 'supervisor' || editando?.rol === 'supervisor') ? etiqueta : undefined, apiId: apiIdSeleccionado || undefined })
       })
       const data = await res.json()
       setLoading(false)

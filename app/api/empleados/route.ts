@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
   }
 
   const [empleados, empresa] = await Promise.all([
-    prisma.empleado.findMany({ where: rolFiltro ? { empresaId, rol: rolFiltro } : { empresaId }, orderBy: { createdAt: 'desc' }, select: { id: true, nombre: true, email: true, rol: true, activo: true, telefono: true, vendedorId: true, empresaId: true, createdAt: true, puedeCapturarGps: true, ciudades: true, permisos: true, etiqueta: true, listasAsignadas: { select: { listaId: true, lista: { select: { nombre: true } } } }, vendedoresAsignados: { select: { vendedorId: true } } } }),
+    prisma.empleado.findMany({ where: rolFiltro ? { empresaId, rol: rolFiltro } : { empresaId }, orderBy: { createdAt: 'desc' }, select: { id: true, nombre: true, email: true, rol: true, activo: true, telefono: true, vendedorId: true, empresaId: true, createdAt: true, puedeCapturarGps: true, ciudades: true, permisos: true, etiqueta: true, apiId: true, listasAsignadas: { select: { listaId: true, lista: { select: { nombre: true } } } }, vendedoresAsignados: { select: { vendedorId: true } } } }),
     prisma.empresa.findUnique({ where: { id: empresaId }, select: { maxSupervisores: true, maxVendedores: true, maxEntregas: true, maxImpulsadoras: true, maxBodega: true } })
   ])
   return NextResponse.json({ empleados, limites: empresa })
@@ -105,6 +105,7 @@ export async function PUT(req: NextRequest) {
   const user = session.user as any
   const { id, nombre, email, telefono, password, vendedorId, puedeCapturarGps, listaIds, vendedorIds, permisos, ciudades, etiqueta, apiId } = await req.json()
   const data: any = { nombre, telefono: telefono || null, vendedorId: vendedorId !== undefined ? vendedorId : undefined, puedeCapturarGps: puedeCapturarGps !== undefined ? puedeCapturarGps : undefined }
+  console.log('[PUT empleados] apiId recibido:', apiId)
   if (email) data.email = email
   if (password) data.password = await bcrypt.hash(password, 10)
   if (ciudades !== undefined) data.ciudades = ciudades
