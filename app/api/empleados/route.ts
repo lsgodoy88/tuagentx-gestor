@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
   }
 
   const empresaId = user.role === 'empresa' ? user.id : user.empresaId
-  const { nombre, rol, telefono, password, vendedorId, puedeCapturarGps, ciudades, listaIds, vendedorIds, permisos, etiqueta } = await req.json()
+  const { nombre, rol, telefono, password, vendedorId, puedeCapturarGps, ciudades, listaIds, vendedorIds, permisos, etiqueta, apiId } = await req.json()
   if (!nombre || !rol || !password) return NextResponse.json({ error: 'Faltan datos' }, { status: 400 })
 
   // Obtener slug de la empresa
@@ -81,6 +81,7 @@ export async function POST(req: NextRequest) {
       ciudades: ciudades || [],
       permisos: permisos ?? {},
       etiqueta: etiqueta || null,
+      apiId: apiId || null,
       empresaId,
       ...(listaIds?.length ? { listasAsignadas: { create: (listaIds as string[]).map((listaId: string) => ({ listaId })) } } : {})
     }
