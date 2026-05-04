@@ -106,7 +106,12 @@ export async function POST(req: NextRequest) {
 
       const empleadosExt = await adapter.fetchEmpleados()
       const empleadosFiltrados = desdeDate
-        ? empleadosExt.filter((e: any) => e.fModificado && new Date(e.fModificado) > desdeDate)
+        ? empleadosExt.filter((e: any) => {
+          if (!e.fModificado) return true // sin fecha → incluir siempre
+          const fm = new Date(e.fModificado)
+          if (fm.getFullYear() < 2000) return true // fecha inválida → incluir siempre
+          return fm > desdeDate
+        })
         : empleadosExt
       for (const e of empleadosFiltrados) {
         const uid = (e as any).uid?.trim() || (e as any)._id?.trim()
