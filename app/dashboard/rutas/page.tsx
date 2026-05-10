@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { DIAS } from '@/lib/constants'
 import { checkPermiso } from '@/lib/permisos'
+import TarjetaVisita from '@/components/TarjetaVisita'
 
 function hoySufijo() {
   const now = new Date(Date.now() - 5 * 60 * 60 * 1000)
@@ -25,6 +26,43 @@ export default function RutasPage() {
   const esSupervisor = user?.role === 'supervisor'
   const esEmpresa = user?.role === 'empresa'
   const puedeAsignar = !user || esEmpresa || checkPermiso(session, 'asignarRutas')
+
+  // Tab principal
+  const [tabPrincipal, setTabPrincipal] = useState<'rutas' | 'visitas'>('rutas')
+
+  // Estados visitas
+  const [visitas, setVisitas] = useState<any[]>([])
+  const [visEmpleados, setVisEmpleados] = useState<any[]>([])
+  const [visEmpleadoFiltro, setVisEmpleadoFiltro] = useState('')
+  const [visFechaFiltro, setVisFechaFiltro] = useState('')
+  const [visClienteFiltro, setVisClienteFiltro] = useState('')
+  const [visLoading, setVisLoading] = useState(false)
+  const [visDetalle, setVisDetalle] = useState<string | null>(null)
+  const [visPage, setVisPage] = useState(1)
+  const [visTotal, setVisTotal] = useState(0)
+  const VIS_LIMIT = 15
+
+  async function buscarVisitas(p?: number) {
+    const pg = p ?? visPage
+    setVisLoading(true)
+    const params = new URLSearchParams()
+    if (visEmpleadoFiltro) params.set('empleadoId', visEmpleadoFiltro)
+    if (visFechaFiltro) params.set('fecha', visFechaFiltro)
+    if (visClienteFiltro) params.set('q', visClienteFiltro)
+    params.set('page', String(pg))
+    params.set('limit', String(VIS_LIMIT))
+    const res = await fetch('/api/visitas/admin?' + params.toString()).then(r => r.json())
+    if (res?.visitas) { setVisitas(res.visitas); setVisTotal(res.total || 0) }
+    else { setVisitas(Array.isArray(res) ? res : []); setVisTotal(0) }
+    setVisLoading(false)
+  }
+
+  useEffect(() => {
+    if (tabPrincipal === 'visitas' && visitas.length === 0) {
+      fetch('/api/empleados').then(r => r.json()).then(d => setVisEmpleados(Array.isArray(d) ? d : d?.empleados || []))
+      buscarVisitas()
+    }
+  }, [tabPrincipal])
 
   const [rutas, setRutas] = useState<any[]>([])
   const [empleados, setEmpleados] = useState<any[]>([])
@@ -304,7 +342,104 @@ export default function RutasPage() {
   const rutasPagina = rutasFiltradas.slice((pageRutas - 1) * PAGE_SIZE, pageRutas * PAGE_SIZE)
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto">
+      {/* Tabs principales */}
+      <div className="flex gap-1 border-b border-zinc-800">
+        <button onClick={() => setTabPrincipal('rutas')}
+          className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors ${tabPrincipal === 'rutas' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-zinc-400 hover:text-white'}`}>
+          🗺️ Rutas
+        </button>
+        <button onClick={() => setTabPrincipal('visitas')}
+          className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors ${tabPrincipal === 'visitas' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-zinc-400 hover:text-white'}`}>
+          📋 Visitas
+        </button>
+      </div>
+
+      {tabPrincipal === 'visitas' && (
+        <div className="space-y-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-2">
+            <div className="flex gap-2">
+              <input value={visClienteFiltro} onChange={e => setVisClienteFiltro(e.target.value)}
+                placeholder="Buscar cliente..." onKeyDown={e => e.key === 'Enter' && buscarVisitas()}
+                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-emerald-500" />
+              <button onClick={() => buscarVisitas()} disabled={visLoading}
+                className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-xl text-sm flex-shrink-0">
+                {visLoading ? '...' : '🔍'}
+              </button>
+            </div>
+            <div className="flex gap-2">
+              <select value={visEmpleadoFiltro} onChange={e => setVisEmpleadoFiltro(e.target.value)}
+                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm outline-none">
+                <option value="">Todos los empleados</option>
+                {visEmpleados.filter((e: any) => e.activo).map((e: any) => (
+                  <option key={e.id} value={e.id}>{e.nombre}</option>
+                ))}
+              </select>
+              <div className="relative flex-shrink-0">
+                <input type="date" value={visFechaFiltro} onChange={e => setVisFechaFiltro(e.target.value)}
+                  className="absolute inset-0 opacity-0 cursor-pointer w-full" />
+                <div className={"flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border " + (visFechaFiltro ? "bg-emerald-600 border-emerald-500 text-white" : "bg-zinc-800 border-zinc-700 text-zinc-400")}>
+                  <span>📅</span>
+                  {visFechaFiltro ? new Date(visFechaFiltro + 'T12:00:00Z').toLocaleDateString('es-CO', {day:'numeric', month:'short'}) : ''}
+                  {visFechaFiltro && <button onClick={e => { e.stopPropagation(); setVisFechaFiltro('') }} className="ml-1 text-white/70 hover:text-white">✕</button>}
+                </div>
+              </div>
+            </div>
+          </div>
+          <p className="text-zinc-500 text-xs">{visTotal || visitas.length} resultado{(visTotal || visitas.length) !== 1 ? 's' : ''}</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+            {visitas.map((v: any) => (
+              <div key={v.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+                <div className="flex items-center gap-3">
+                  <span className="text-lg flex-shrink-0">
+                    {v.tipo === 'venta' ? '💰' : v.tipo === 'cobro' ? '💵' : v.tipo === 'entrega' ? '📦' : '👁️'}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium truncate">{v.cliente?.nombre}</p>
+                    <p className="text-zinc-500 text-xs capitalize">{v.tipo} · {v.empleado?.nombre} · {new Date(v.createdAt).toLocaleDateString('es-CO', {day:'numeric', month:'short', year:'numeric'})}</p>
+                  </div>
+                  <div className="flex gap-1 flex-shrink-0">
+                    <button onClick={() => setVisDetalle(visDetalle === v.id ? null : v.id)}
+                      className="text-zinc-400 text-xs bg-zinc-800 px-2 py-1 rounded-lg hover:bg-zinc-700">
+                      {visDetalle === v.id ? 'Ocultar' : 'Ver'}
+                    </button>
+                    {v.lat && (
+                      <a href={"https://www.google.com/maps?q=" + v.lat + "," + v.lng}
+                        target="_blank" className="text-emerald-400 text-xs bg-emerald-500/10 px-2 py-1 rounded-lg">
+                        📍
+                      </a>
+                    )}
+                  </div>
+                </div>
+                {visDetalle === v.id && (
+                  <div className="mt-3">
+                    <TarjetaVisita visita={v} mostrarEmpleado={true} />
+                  </div>
+                )}
+              </div>
+            ))}
+            {visitas.length === 0 && !visLoading && (
+              <div className="col-span-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
+                <p className="text-3xl mb-2">📋</p>
+                <p className="text-zinc-400 text-sm">Sin visitas para los filtros seleccionados</p>
+              </div>
+            )}
+          </div>
+          {visTotal > VIS_LIMIT && (
+            <div className="flex items-center justify-between">
+              <span className="text-zinc-500 text-xs">{(visPage-1)*VIS_LIMIT+1}–{Math.min(visPage*VIS_LIMIT, visTotal)} de {visTotal}</span>
+              <div className="flex gap-2">
+                <button disabled={visPage===1} onClick={() => { const np = visPage-1; setVisPage(np); buscarVisitas(np) }}
+                  className="bg-zinc-800 border border-zinc-700 text-zinc-400 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40">← Ant</button>
+                <button disabled={visPage*VIS_LIMIT>=visTotal} onClick={() => { const np = visPage+1; setVisPage(np); buscarVisitas(np) }}
+                  className="bg-zinc-800 border border-zinc-700 text-zinc-400 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40">Sig →</button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tabPrincipal === 'rutas' && <>
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-white">Rutas</h1>
         <div className="flex items-center gap-2">
@@ -337,7 +472,7 @@ export default function RutasPage() {
         </div>
       </div>
 
-      <div className="space-y-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
         {rutasPagina.map((r: any) => {
           const esVinculada = r.empresaVinculadaId != null
           const totalClientes = r.clientes.length
@@ -470,6 +605,8 @@ export default function RutasPage() {
         )}
       </div>
 
+      </>
+      }
       {/* Modal nueva/editar ruta (solo no-supervisor) */}
       {modal && (
         <div className="fixed inset-0 bg-black/70 flex items-start justify-center z-50 pt-4 px-4 pb-4" >

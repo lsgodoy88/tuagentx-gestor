@@ -57,7 +57,7 @@ export async function GET() {
 
     if (numeroOrdenes.length > 0) {
       const ordenes = await prisma.ordenDespacho.findMany({
-        where: { empresaId: user.empresaId, numeroOrden: { in: numeroOrdenes } },
+        where: { empresaId: user.empresaId, numeroOrden: { in: numeroOrdenes }, estado: { in: ['pendiente', 'alistado', 'en_entrega'] } },
         select: { id: true, numeroOrden: true }
       })
       const mapOrden = new Map(ordenes.map(o => [o.numeroOrden, o.id]))
@@ -77,24 +77,12 @@ export async function GET() {
     const sinCoords = ruta.clientes.filter(rc =>
       !rc.cliente.lat && !rc.cliente.lng && !rc.cliente.latTmp && !rc.cliente.lngTmp
     )
-
-    const sync = sinCoords.slice(0, 3)
-    const background = sinCoords.slice(3)
-
-    for (let i = 0; i < sync.length; i++) {
-      if (i > 0) await sleep(DELAY_MS)
-      const coords = await geocodificarCliente(sync[i].clienteId, sync[i].cliente.direccion, sync[i].cliente.ciudad)
-      if (coords) {
-        ;(sync[i].cliente as any).latTmp = coords.latTmp
-        ;(sync[i].cliente as any).lngTmp = coords.lngTmp
-      }
-    }
-
-    if (background.length > 0) {
+    // Todo en background — nunca bloquear el response
+    if (sinCoords.length > 0) {
       setImmediate(async () => {
-        for (let i = 0; i < background.length; i++) {
+        for (let i = 0; i < sinCoords.length; i++) {
           if (i > 0) await sleep(DELAY_MS)
-          await geocodificarCliente(background[i].clienteId, background[i].cliente.direccion, background[i].cliente.ciudad)
+          await geocodificarCliente(sinCoords[i].clienteId, sinCoords[i].cliente.direccion, sinCoords[i].cliente.ciudad)
         }
       })
     }

@@ -1,6 +1,6 @@
 'use client'
 import { useSession } from 'next-auth/react'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 
 function slugify(n: string) {
   return n.toLowerCase().replace(/\s+/g, '').replace(/[^a-z0-9]/g, '').slice(0, 20)
@@ -71,6 +71,50 @@ export default function EmpleadosPage() {
   const [syncEmpleados, setSyncEmpleados] = useState<any[]>([])
   const [tieneIntegracion, setTieneIntegracion] = useState(false)
   const [apiIdSeleccionado, setApiIdSeleccionado] = useState('')
+
+  // Tab principal
+  const [tabPrincipal, setTabPrincipal] = useState<'rutas' | 'equipo'>('rutas')
+  // Tab rutas
+  const [subTabRutas, setSubTabRutas] = useState<'hoy' | 'historial'>('hoy')
+  const [turnosHoy, setTurnosHoy] = useState<any[]>([])
+  const [turnosHistorial, setTurnosHistorial] = useState<any[]>([])
+  const [filtroRol, setFiltroRol] = useState('')
+  const [loadingTurnos, setLoadingTurnos] = useState(false)
+  const [paginaHist, setPaginaHist] = useState(1)
+  const [totalPaginasHist, setTotalPaginasHist] = useState(1)
+  const [totalHist, setTotalHist] = useState(0)
+
+  async function cargarTurnos(modo: 'hoy' | 'historial', rol = '', page = 1) {
+    setLoadingTurnos(true)
+    try {
+      const res = await fetch(`/api/turnos/admin?modo=${modo}&rol=${rol}&page=${page}`)
+      const data = await res.json()
+      if (modo === 'hoy') {
+        setTurnosHoy(data.turnos || [])
+      } else {
+        if (page === 1) setTurnosHistorial(data.turnos || [])
+        else setTurnosHistorial(prev => [...prev, ...(data.turnos || [])])
+        setTotalPaginasHist(data.pages || 1)
+        setTotalHist(data.total || 0)
+        setPaginaHist(page)
+      }
+    } finally {
+      setLoadingTurnos(false)
+    }
+  }
+
+  useEffect(() => { cargarTurnos('hoy') }, [])
+
+  useEffect(() => {
+    if (subTabRutas === 'historial' && turnosHistorial.length === 0) cargarTurnos('historial', filtroRol)
+  }, [subTabRutas])
+
+  useEffect(() => {
+    if (subTabRutas === 'historial') { setPaginaHist(1); cargarTurnos('historial', filtroRol, 1) }
+  }, [filtroRol])
+
+  const DIAS = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb']
+  const ROL_ICON: Record<string,string> = { vendedor:'🛍️', entregas:'📦', supervisor:'👁️', impulsadora:'⭐', bodega:'🏭' }
 
   useEffect(() => { loadData() }, [])
 
@@ -158,10 +202,200 @@ export default function EmpleadosPage() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Empleados</h1>
-        <p className="text-zinc-400 text-sm mt-1">Gestiona los usuarios de tu equipo</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Activos</h1>
+          <p className="text-zinc-400 text-sm mt-1">Rutas y equipo</p>
+        </div>
       </div>
+
+      {/* Tabs principales */}
+      <div className="flex gap-1 border-b border-zinc-800">
+        <button onClick={() => setTabPrincipal('rutas')}
+          className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors ${tabPrincipal === 'rutas' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-zinc-400 hover:text-white'}`}>
+          🛣️ Rutas
+        </button>
+        <button onClick={() => setTabPrincipal('equipo')}
+          className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors ${tabPrincipal === 'equipo' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-zinc-400 hover:text-white'}`}>
+          👥 Equipo
+        </button>
+      </div>
+
+      {/* Tab Rutas */}
+      {tabPrincipal === 'rutas' && (
+        <div className="space-y-4">
+          {/* Subtabs */}
+          <div className="flex gap-2">
+            <button onClick={() => { setSubTabRutas('hoy'); cargarTurnos('hoy') }}
+              className={`px-4 py-2 text-xs font-semibold rounded-xl border transition-colors ${subTabRutas === 'hoy' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white'}`}>
+              📅 Hoy
+            </button>
+            <button onClick={() => setSubTabRutas('historial')}
+              className={`px-4 py-2 text-xs font-semibold rounded-xl border transition-colors ${subTabRutas === 'historial' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white'}`}>
+              📋 Historial
+            </button>
+          </div>
+
+          {/* Filtro rol — solo en historial */}
+          {subTabRutas === 'historial' && (
+            <div className="flex gap-2 flex-wrap">
+              {['', 'vendedor', 'entregas', 'supervisor', 'impulsadora', 'bodega'].map(r => (
+                <button key={r} onClick={() => setFiltroRol(r)}
+                  className={`px-3 py-1.5 text-xs rounded-xl border font-semibold transition-colors ${filtroRol === r ? 'bg-zinc-600 border-zinc-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white'}`}>
+                  {r === '' ? 'Todos' : ROL_ICON[r] + ' ' + r}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {loadingTurnos ? (
+            <div className="text-center py-10 text-zinc-500 text-sm">Cargando...</div>
+          ) : (
+            <>
+              {/* HOY */}
+              {subTabRutas === 'hoy' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {turnosHoy.length === 0 ? (
+                    <div className="col-span-full bg-zinc-900 border border-zinc-800 rounded-2xl p-10 text-center">
+                      <p className="text-3xl mb-2">😴</p>
+                      <p className="text-zinc-400">Sin turnos activos hoy</p>
+                    </div>
+                  ) : turnosHoy.map((t: any) => (
+                    <div key={t.id} className={`bg-zinc-900 border rounded-2xl p-4 space-y-3 ${t.activo ? 'border-emerald-800/50' : 'border-zinc-800'}`}>
+                      {/* Header */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-lg">{ROL_ICON[t.rol] || '👤'}</span>
+                          <p className="text-white font-semibold text-sm truncate">{t.empleado}</p>
+                        </div>
+                        <span className={`text-xs font-bold px-2 py-1 rounded-lg flex-shrink-0 ${t.activo ? (t.pausado ? 'bg-amber-500/20 text-amber-400' : 'bg-emerald-500/20 text-emerald-400') : 'bg-zinc-700 text-zinc-400'}`}>
+                          {t.activo ? (t.pausado ? '⏸ Pausa' : '🟢 Activo') : '✅ Fin'}
+                        </span>
+                      </div>
+                      {/* Inicio / Fin */}
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <p className="text-zinc-500 mb-0.5">🟢 Inicio</p>
+                          {t.latInicio && t.lngInicio ? (
+                            <a href={`https://www.google.com/maps?q=${t.latInicio},${t.lngInicio}`} target="_blank" rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline font-medium">{t.inicio}</a>
+                          ) : (
+                            <p className="text-white font-medium">{t.inicio}</p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-zinc-500 mb-0.5">🔴 Fin</p>
+                          {t.fin ? (
+                            t.latFin && t.lngFin ? (
+                              <a href={`https://www.google.com/maps?q=${t.latFin},${t.lngFin}`} target="_blank" rel="noopener noreferrer"
+                                className="text-blue-400 hover:text-blue-300 underline font-medium">{t.fin}</a>
+                            ) : (
+                              <p className="text-white font-medium">{t.fin}</p>
+                            )
+                          ) : (
+                            <p className="text-zinc-600">—</p>
+                          )}
+                        </div>
+                      </div>
+                      {/* Pausa */}
+                      {t.pausaMotivo && (
+                        <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2 text-xs">
+                          <span className="text-amber-400 font-semibold">
+                            ☕ {t.pausaMotivo}
+                            {t.pausaInicio ? ` · ${t.pausaInicio}` : ''}
+                            {t.pausaDuracionMin ? ` · ${t.pausaDuracionMin}min` : ''}
+                          </span>
+                        </div>
+                      )}
+                      {/* Duración */}
+                      <div className="flex items-center gap-3 text-xs border-t border-zinc-800 pt-2">
+                        <span className="text-zinc-500">⏱ Efectivo:</span>
+                        <span className="text-white font-semibold">{t.duracionEfectiva}</span>
+                        {t.pausaDuracionMin > 0 && (
+                          <><span className="text-zinc-600">Total:</span><span className="text-zinc-400">{t.duracionTotal}</span></>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* HISTORIAL */}
+              {subTabRutas === 'historial' && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {turnosHistorial.length === 0 ? (
+                    <div className="col-span-full bg-zinc-900 border border-zinc-800 rounded-2xl p-10 text-center">
+                      <p className="text-zinc-400">Sin historial en los últimos 30 días</p>
+                    </div>
+                  ) : turnosHistorial.map((t: any) => (
+                    <div key={t.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+                      {/* Header */}
+                      <div className="flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="text-lg">{ROL_ICON[t.rol] || '👤'}</span>
+                          <p className="text-white font-semibold text-sm truncate">{t.empleado}</p>
+                        </div>
+                        <span className="text-zinc-500 text-xs flex-shrink-0">{t.fecha}</span>
+                      </div>
+                      {/* Inicio / Fin */}
+                      <div className="grid grid-cols-2 gap-3 text-xs">
+                        <div>
+                          <p className="text-zinc-500 mb-0.5">🟢 Inicio</p>
+                          {t.latInicio && t.lngInicio ? (
+                            <a href={`https://www.google.com/maps?q=${t.latInicio},${t.lngInicio}`} target="_blank" rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline font-medium">{t.inicio}</a>
+                          ) : (
+                            <p className="text-white font-medium">{t.inicio}</p>
+                          )}
+                        </div>
+                        <div>
+                          <p className="text-zinc-500 mb-0.5">🔴 Fin</p>
+                          {t.latFin && t.lngFin ? (
+                            <a href={`https://www.google.com/maps?q=${t.latFin},${t.lngFin}`} target="_blank" rel="noopener noreferrer"
+                              className="text-blue-400 hover:text-blue-300 underline font-medium">{t.fin}</a>
+                          ) : (
+                            <p className="text-white font-medium">{t.fin || '—'}</p>
+                          )}
+                        </div>
+                      </div>
+                      {/* Pausa */}
+                      {t.pausaMotivo && (
+                        <p className="text-zinc-500 text-xs">
+                          ☕ {t.pausaMotivo}
+                          {t.pausaInicio ? ` · ${t.pausaInicio}` : ''}
+                          {t.pausaDuracionMin ? ` · ${t.pausaDuracionMin}min` : ''}
+                        </p>
+                      )}
+                      {/* Duración */}
+                      <div className="flex items-center gap-3 text-xs border-t border-zinc-800 pt-2">
+                        <span className="text-zinc-500">⏱ Efectivo:</span>
+                        <span className="text-white font-semibold">{t.duracionEfectiva}</span>
+                        {t.pausaDuracionMin > 0 && (
+                          <><span className="text-zinc-600">Total:</span><span className="text-zinc-400">{t.duracionTotal}</span></>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {/* Cargar más */}
+                  {paginaHist < totalPaginasHist && (
+                    <div className="col-span-full">
+                      <button onClick={() => cargarTurnos('historial', filtroRol, paginaHist + 1)}
+                        disabled={loadingTurnos}
+                        className="w-full bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 text-sm font-semibold py-3 rounded-xl border border-zinc-700">
+                        {loadingTurnos ? 'Cargando...' : `Cargar más (${turnosHistorial.length} de ${totalHist})`}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Tab Equipo — contenido original */}
+      {tabPrincipal === 'equipo' && (
+        <div className="space-y-4">
 
       {(() => {
         const haySupervisor = empleados.some(e => e.rol === 'supervisor' && e.activo)
@@ -547,6 +781,8 @@ export default function EmpleadosPage() {
               </>
             )}
           </div>
+        </div>
+      )}
         </div>
       )}
     </div>

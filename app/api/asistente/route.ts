@@ -4,6 +4,20 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import Anthropic from '@anthropic-ai/sdk'
 
+function fechaBogota() {
+  return new Date().toLocaleString('es-CO', {
+    timeZone: 'America/Bogota',
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  })
+}
+
+function fechaCorta(d: Date) {
+  return d.toLocaleDateString('es-CO', { timeZone: 'America/Bogota', day: '2-digit', month: '2-digit', year: 'numeric' })
+}
+
+const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
@@ -12,76 +26,253 @@ export async function POST(req: NextRequest) {
   const { mensaje, historial } = await req.json()
   if (!mensaje) return NextResponse.json({ error: 'Mensaje requerido' }, { status: 400 })
 
-  // Contexto completo de la empresa
-  const [empresa, empleados, clientes, visitas, rutas, rutasFijas] = await Promise.all([
-    prisma.empresa.findUnique({ where: { id: empresaId }, select: { nombre: true, email: true, plan: true } }).catch(() => null),
-    prisma.empleado.findMany({ where: { empresaId, activo: true }, select: { nombre: true, rol: true, telefono: true }, take: 50 }).catch(() => []),
-    prisma.cliente.findMany({ where: { empresaId }, select: { nombre: true, nombreComercial: true, ciudad: true, telefono: true, metaVenta: true }, take: 100, orderBy: { nombre: 'asc' } }).catch(() => []),
-    prisma.visita.findMany({
-      where: { empleado: { empresaId } },
-      orderBy: { fechaBogota: 'desc' },
-      take: 50,
-      select: { fechaBogota: true, tipo: true, nota: true, monto: true, cliente: { select: { nombre: true } }, empleado: { select: { nombre: true, rol: true } } }
+  // Fecha actual Bogotá
+  const ahoraBogota = fechaBogota()
+  const hoy = new Date()
+  const fechaHoyStr = hoy.toLocaleString('sv-SE', { timeZone: 'America/Bogota' }).split(' ')[0]
+  const inicioDia = new Date(fechaHoyStr + 'T00:00:00')
+  const inicioMes = new Date(fechaHoyStr.slice(0, 7) + '-01T00:00:00')
+
+  // ── Queries paralelas con datos AGREGADOS ──────────────────────────────────
+  const [
+    empresa,
+    empleados,
+    totalClientes,
+    clientesPorCiudad,
+    clientesPorLista,
+    visitasHoy,
+    visitasMes,
+    statsPorEmpleadoHoy,
+    statsPorEmpleadoMes,
+    rutas,
+    rutasFijas,
+    turnosActivos,
+    carteraResumen,
+    carteraPorEmpleado,
+    ordenesHoy,
+  ] = await Promise.all([
+
+    // Empresa
+    prisma.empresa.findUnique({
+      where: { id: empresaId },
+      select: { nombre: true, plan: true, ciudadEntregaLocal: true }
+    }).catch(() => null),
+
+    // Empleados activos
+    prisma.empleado.findMany({
+      where: { empresaId, activo: true },
+      select: { nombre: true, rol: true },
+      orderBy: { nombre: 'asc' }
     }).catch(() => []),
-    prisma.ruta.findMany({ where: { empresaId }, orderBy: { fecha: 'desc' }, take: 10, select: { nombre: true, fecha: true, cerrada: true, _count: { select: { clientes: true, empleados: true } } } }).catch(() => []),
-    prisma.rutaFija.findMany({ where: { empresaId }, select: { nombre: true, diaSemana: true, _count: { select: { clientes: true, empleados: true } } } }).catch(() => []),
+
+    // Total clientes
+    prisma.cliente.count({ where: { empresaId } }).catch(() => 0),
+
+    // Clientes por ciudad (top 20)
+    prisma.cliente.groupBy({
+      by: ['ciudad'],
+      where: { empresaId },
+      _count: { id: true },
+      orderBy: { _count: { id: 'desc' } },
+      take: 20,
+    }).catch(() => []),
+
+    // Clientes por lista
+    (prisma as any).listaClientes.findMany({
+      where: { empresaId },
+      select: { nombre: true, _count: { select: { clientes: true } } },
+      orderBy: { nombre: 'asc' }
+    }).catch(() => []),
+
+    // Visitas HOY — raw para agregar
+    prisma.visita.findMany({
+      where: { empleado: { empresaId }, fechaBogota: { gte: inicioDia } },
+      select: { tipo: true, monto: true, empleado: { select: { nombre: true } }, cliente: { select: { nombre: true, ciudad: true } } }
+    }).catch(() => []),
+
+    // Visitas MES — raw para agregar
+    prisma.visita.findMany({
+      where: { empleado: { empresaId }, fechaBogota: { gte: inicioMes } },
+      select: { tipo: true, monto: true, empleado: { select: { nombre: true } } }
+    }).catch(() => []),
+
+    // Stats por empleado HOY via groupBy
+    prisma.visita.groupBy({
+      by: ['tipo'],
+      where: { empleado: { empresaId }, fechaBogota: { gte: inicioDia } },
+      _count: { id: true },
+      _sum: { monto: true },
+    }).catch(() => []),
+
+    // Stats por empleado MES via groupBy
+    prisma.visita.groupBy({
+      by: ['tipo'],
+      where: { empleado: { empresaId }, fechaBogota: { gte: inicioMes } },
+      _count: { id: true },
+      _sum: { monto: true },
+    }).catch(() => []),
+
+    // Rutas recientes
+    prisma.ruta.findMany({
+      where: { empresaId },
+      orderBy: { fecha: 'desc' },
+      take: 10,
+      select: {
+        nombre: true, fecha: true, cerrada: true,
+        _count: { select: { clientes: true, empleados: true } },
+        empleados: { select: { empleado: { select: { nombre: true } } }, take: 5 }
+      }
+    }).catch(() => []),
+
+    // Rutas fijas
+    prisma.rutaFija.findMany({
+      where: { empresaId },
+      select: { nombre: true, diaSemana: true, _count: { select: { clientes: true, empleados: true } } }
+    }).catch(() => []),
+
+    // Turnos activos ahora
+    prisma.turno.findMany({
+      where: { empleado: { empresaId }, fin: null },
+      select: { empleado: { select: { nombre: true, rol: true } }, inicio: true, pausado: true }
+    }).catch(() => []),
+
+    // Cartera resumen
+    (prisma as any).carteraCache.aggregate({
+      where: { empresaId },
+      _count: { id: true },
+      _sum: { saldo: true },
+    }).catch(() => ({ _count: { id: 0 }, _sum: { saldo: 0 } })),
+
+    // Cartera por empleado top 10
+    (prisma as any).carteraCache.groupBy({
+      by: ['empleadoNombre'],
+      where: { empresaId },
+      _count: { id: true },
+      _sum: { saldo: true },
+      orderBy: { _sum: { saldo: 'desc' } },
+      take: 10,
+    }).catch(() => []),
+
+    // Órdenes bodega hoy
+    (prisma as any).ordenDespacho.groupBy({
+      by: ['estado'],
+      where: { empresaId, createdAt: { gte: inicioDia } },
+      _count: { id: true },
+    }).catch(() => []),
   ])
 
-  // Formatear contexto
-  const empleadosPorRol = empleados.reduce((acc: any, e: any) => {
-    acc[e.rol] = (acc[e.rol] || 0) + 1
-    return acc
-  }, {})
+  // ── Agregaciones en memoria ────────────────────────────────────────────────
 
-  const visitasPorTipo = visitas.reduce((acc: any, v: any) => {
-    acc[v.tipo] = (acc[v.tipo] || 0) + 1
-    return acc
-  }, {})
+  // Stats por empleado HOY
+  const empHoy: Record<string, any> = {}
+  for (const v of visitasHoy as any[]) {
+    const nom = v.empleado?.nombre || 'Sin nombre'
+    if (!empHoy[nom]) empHoy[nom] = { visitas: 0, ventas: 0, cobros: 0, montoVentas: 0, montoCobros: 0, clientes: new Set() }
+    empHoy[nom].visitas++
+    empHoy[nom].clientes.add(v.cliente?.nombre)
+    if (v.tipo === 'venta') { empHoy[nom].ventas++; empHoy[nom].montoVentas += Number(v.monto || 0) }
+    if (v.tipo === 'cobro') { empHoy[nom].cobros++; empHoy[nom].montoCobros += Number(v.monto || 0) }
+  }
 
-  const totalVentasRecientes = visitas.filter((v:any) => v.tipo === 'venta').reduce((acc:number, v:any) => acc + (v.monto || 0), 0)
-  const totalCobrosRecientes = visitas.filter((v:any) => v.tipo === 'cobro').reduce((acc:number, v:any) => acc + (v.monto || 0), 0)
+  // Stats por empleado MES
+  const empMes: Record<string, any> = {}
+  for (const v of visitasMes as any[]) {
+    const nom = v.empleado?.nombre || 'Sin nombre'
+    if (!empMes[nom]) empMes[nom] = { ventas: 0, cobros: 0, montoVentas: 0, montoCobros: 0 }
+    if (v.tipo === 'venta') { empMes[nom].ventas++; empMes[nom].montoVentas += Number(v.monto || 0) }
+    if (v.tipo === 'cobro') { empMes[nom].cobros++; empMes[nom].montoCobros += Number(v.monto || 0) }
+  }
 
-  const systemPrompt = `Eres TuAgentX, asistente inteligente del Gestor de Rutas y Ventas. Tienes acceso completo a la información de la empresa y puedes responder preguntas sobre empleados, clientes, visitas y rutas.
+  const totalVentasHoy = visitasHoy.filter((v:any) => v.tipo === 'venta').reduce((a:number,v:any) => a+Number(v.monto||0), 0)
+  const totalCobrosHoy = visitasHoy.filter((v:any) => v.tipo === 'cobro').reduce((a:number,v:any) => a+Number(v.monto||0), 0)
+  const totalVentasMes = visitasMes.filter((v:any) => v.tipo === 'venta').reduce((a:number,v:any) => a+Number(v.monto||0), 0)
+  const totalCobrosMes = visitasMes.filter((v:any) => v.tipo === 'cobro').reduce((a:number,v:any) => a+Number(v.monto||0), 0)
 
-EMPRESA: ${empresa?.nombre || 'N/A'} | Plan: ${empresa?.plan || 'N/A'}
+  const ordenesStats: Record<string, number> = {}
+  for (const o of ordenesHoy as any[]) ordenesStats[o.estado] = o._count.id
+
+  const empleadosPorRol: Record<string, number> = {}
+  for (const e of empleados as any[]) empleadosPorRol[e.rol] = (empleadosPorRol[e.rol] || 0) + 1
+
+  // ── System Prompt con datos REALES agregados ───────────────────────────────
+  const systemPrompt = `Eres TuAgentX, asistente inteligente del Gestor de la empresa ${empresa?.nombre || 'N/A'}.
+Tienes acceso a datos REALES y COMPLETOS de la BD. Usa SIEMPRE estos datos para responder con certeza.
+
+FECHA Y HORA ACTUAL (Bogotá): ${ahoraBogota}
 ROL DEL USUARIO: ${user.role} | Nombre: ${user.name}
+EMPRESA: ${empresa?.nombre || 'N/A'} | Ciudad local: ${empresa?.ciudadEntregaLocal || 'no configurada'}
 
-EQUIPO (${empleados.length} activos):
-${Object.entries(empleadosPorRol).map(([rol, cant]) => `- ${rol}: ${cant}`).join('\n') || 'Sin empleados'}
+━━ EQUIPO (${empleados.length} empleados activos) ━━
+Por rol: ${Object.entries(empleadosPorRol).map(([r,n]) => `${r}: ${n}`).join(' | ')}
+Lista completa:
+${(empleados as any[]).map((e:any) => `  ${e.nombre} — ${e.rol}`).join('\n') || '  Sin empleados'}
 
-EMPLEADOS:
-${empleados.map((e: any) => `- ${e.nombre} (${e.rol})`).join('\n') || 'Sin empleados'}
+En turno AHORA (${turnosActivos.length}):
+${(turnosActivos as any[]).map((t:any) => `  ${t.empleado.nombre} (${t.empleado.rol}) — inicio: ${fechaCorta(new Date(t.inicio))}${t.pausado ? ' [EN PAUSA]' : ''}`).join('\n') || '  Nadie en turno'}
 
-CLIENTES (${clientes.length} registrados):
-${clientes.slice(0, 20).map((c: any) => `- ${c.nombre}${c.nombreComercial ? ' / ' + c.nombreComercial : ''} | ${c.ciudad || 'sin ciudad'}`).join('\n') || 'Sin clientes'}
+━━ CLIENTES (${totalClientes} total) ━━
+Por ciudad (top 20):
+${(clientesPorCiudad as any[]).map((c:any) => `  ${c.ciudad || 'sin ciudad'}: ${c._count.id}`).join('\n') || '  Sin datos'}
 
-VISITAS RECIENTES (${visitas.length}):
-Por tipo: ventas=$${totalVentasRecientes.toLocaleString('es-CO')} | cobros=$${totalCobrosRecientes.toLocaleString('es-CO')}
-Distribucion: ${JSON.stringify(visitasPorTipo)}
-${visitas.slice(0, 10).map((v: any) => `- ${v.fechaBogota ? new Date(v.fechaBogota).toLocaleDateString('es-CO') : 'sin fecha'} | ${v.cliente?.nombre} | ${v.empleado?.nombre} | ${v.tipo}`).join('\n') || 'Sin visitas'}
+Por lista:
+${(clientesPorLista as any[]).map((l:any) => `  ${l.nombre}: ${l._count.clientes}`).join('\n') || '  Sin listas'}
 
-RUTAS RECIENTES:
-${rutas.map((r: any) => `- ${r.nombre} | ${r.fecha ? new Date(r.fecha).toLocaleDateString('es-CO') : 'sin fecha'} | ${r._count.clientes} clientes | ${r.cerrada ? 'cerrada' : 'abierta'}`).join('\n') || 'Sin rutas'}
+━━ ACTIVIDAD HOY (${fechaHoyStr}) ━━
+Total visitas: ${visitasHoy.length} | Ventas: ${fmt(totalVentasHoy)} | Cobros: ${fmt(totalCobrosHoy)}
 
-RUTAS FIJAS:
-${rutasFijas.map((r: any) => `- ${r.nombre} | Día: ${['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][r.diaSemana] || r.diaSemana} | ${r._count.clientes} clientes`).join('\n') || 'Sin rutas fijas'}
+Por empleado hoy:
+${Object.entries(empHoy).length > 0
+  ? Object.entries(empHoy).map(([n,s]:any) =>
+    `  ${n}: ${s.visitas} visitas | ${s.ventas} ventas (${fmt(s.montoVentas)}) | ${s.cobros} cobros (${fmt(s.montoCobros)}) | ${s.clientes.size} clientes`
+  ).join('\n')
+  : '  Sin actividad hoy'}
 
-Responde SIEMPRE en JSON con este formato exacto:
-{
-  "respuesta": "Tu mensaje al usuario (texto amigable, max 200 palabras)"
-}
-No incluyas nada fuera del JSON. No uses acciones ni herramientas.
-Reglas:
-- Usa los datos del contexto para responder directamente
-- Tono profesional y amigable
-- Sé CONCISO y DIRECTO: responde exactamente lo que se pregunta, sin agregar contexto ni información extra no solicitada
-- Máximo 2-3 líneas salvo que pidan un listado o detalle extenso
-- Si no tienes el dato exacto, usa lo que tienes disponible
+━━ ACTIVIDAD DEL MES ━━
+Total: Ventas ${fmt(totalVentasMes)} | Cobros ${fmt(totalCobrosMes)}
+
+Por empleado este mes:
+${Object.entries(empMes).length > 0
+  ? Object.entries(empMes).map(([n,s]:any) =>
+    `  ${n}: ${s.ventas} ventas (${fmt(s.montoVentas)}) | ${s.cobros} cobros (${fmt(s.montoCobros)})`
+  ).join('\n')
+  : '  Sin actividad este mes'}
+
+━━ RUTAS ━━
+Recientes:
+${(rutas as any[]).map((r:any) =>
+  `  ${r.nombre} | ${r.fecha ? fechaCorta(new Date(r.fecha)) : 'sin fecha'} | ${r._count.clientes} clientes | ${r._count.empleados} empleados | ${r.cerrada ? 'CERRADA' : 'ACTIVA'}`
+).join('\n') || '  Sin rutas'}
+
+Fijas:
+${(rutasFijas as any[]).map((r:any) =>
+  `  ${r.nombre} | ${['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][r.diaSemana] || r.diaSemana} | ${r._count.clientes} clientes`
+).join('\n') || '  Sin rutas fijas'}
+
+━━ CARTERA ━━
+Total registros: ${(carteraResumen as any)._count?.id || 0} | Saldo total pendiente: ${fmt(Number((carteraResumen as any)._sum?.saldo || 0))}
+
+Por vendedor (top 10):
+${(carteraPorEmpleado as any[]).map((e:any) =>
+  `  ${e.empleadoNombre || 'sin asignar'}: ${e._count.id} clientes | ${fmt(Number(e._sum.saldo || 0))}`
+).join('\n') || '  Sin cartera'}
+
+━━ ÓRDENES BODEGA HOY ━━
+Pendientes: ${ordenesStats['pendiente'] || 0} | Alistados: ${ordenesStats['alistado'] || 0} | Entregados: ${ordenesStats['entregado'] || 0}
+
+━━ INSTRUCCIONES ━━
+Responde SIEMPRE en JSON exacto:
+{ "respuesta": "mensaje al usuario (máximo 200 palabras)" }
+- USA los datos del contexto — son REALES y COMPLETOS de la BD
+- NUNCA inventes ni estimes — si el dato está arriba, úsalo con precisión
+- Fecha/hora SIEMPRE del contexto, NUNCA de tu entrenamiento
+- Tono profesional y amigable, responde exactamente lo que se pregunta
+- Máximo 2-3 líneas salvo que pidan listado o detalle extenso
 - Responde en español`
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+
   const messages: Anthropic.MessageParam[] = [
-    ...(historial || []).map((m: { rol: string; texto: string }) => ({
+    ...(historial || []).slice(-20).map((m: { rol: string; texto: string }) => ({
       role: (m.rol === 'user' ? 'user' : 'assistant') as 'user' | 'assistant',
       content: m.texto,
     })),
@@ -90,18 +281,18 @@ Reglas:
 
   try {
     const response = await anthropic.messages.create({
-      model: 'claude-sonnet-4-5',
+      model: 'claude-haiku-4-5',
       max_tokens: 512,
       system: systemPrompt,
       messages,
     })
+
     const raw = (response.content[0] as Anthropic.TextBlock).text
-    console.log('ASISTENTE RAW:', raw.substring(0, 200))
-    console.log('ASISTENTE RAW:', raw.substring(0, 200))
     try {
       const match = raw.match(/\{[\s\S]*\}/)
       const parsed = JSON.parse(match ? match[0] : raw)
-      // Guardar en BD
+
+      // Guardar historial (5 días de retención)
       try {
         const hace5dias = new Date()
         hace5dias.setDate(hace5dias.getDate() - 5)
@@ -112,31 +303,8 @@ Reglas:
             { id: crypto.randomUUID(), empresaId, rol: 'bot', texto: parsed.respuesta },
           ]
         })
-      } catch(e: any) { console.log('Error guardando:', e.message) }
-      // Guardar en BD
-      try {
-        const hace5dias = new Date()
-        hace5dias.setDate(hace5dias.getDate() - 5)
-        await prisma.asistenteChat.deleteMany({ where: { empresaId, creadoEn: { lt: hace5dias } } })
-        await prisma.asistenteChat.createMany({
-          data: [
-            { id: crypto.randomUUID(), empresaId, rol: 'user', texto: mensaje },
-            { id: crypto.randomUUID(), empresaId, rol: 'bot', texto: parsed.respuesta },
-          ]
-        })
-      } catch(e: any) { console.log('Error guardando:', e.message) }
-      // Guardar en BD
-      try {
-        const hace5dias = new Date()
-        hace5dias.setDate(hace5dias.getDate() - 5)
-        await prisma.asistenteChat.deleteMany({ where: { empresaId, creadoEn: { lt: hace5dias } } })
-        await prisma.asistenteChat.createMany({
-          data: [
-            { id: crypto.randomUUID(), empresaId, rol: 'user', texto: mensaje },
-            { id: crypto.randomUUID(), empresaId, rol: 'bot', texto: parsed.respuesta },
-          ]
-        })
-      } catch(e: any) { console.log('Error guardando:', e.message) }
+      } catch(e: any) { console.log('Error guardando historial:', e.message) }
+
       return NextResponse.json({ respuesta: parsed.respuesta })
     } catch {
       return NextResponse.json({ respuesta: raw })

@@ -22,6 +22,7 @@
     "@types/web-push": "^3.6.4",
     "bcryptjs": "^3.0.3",
     "bullmq": "^5.76.2",
+    "cropperjs": "^2.1.1",
     "exceljs": "^4.4.0",
     "html2canvas": "^1.4.1",
     "ioredis": "^5.10.0",
@@ -34,7 +35,9 @@
     "pg": "^8.20.0",
     "prisma": "^5.22.0",
     "react": "19.2.3",
+    "react-cropper": "^2.3.3",
     "react-dom": "19.2.3",
+    "react-easy-crop": "^5.5.7",
     "react-leaflet": "^5.0.0",
     "web-push": "^3.6.7"
   },

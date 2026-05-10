@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
   const fotosActuales = (orden.fotosAlistamiento as string[]) || []
   const idx = fotosActuales.length
   const filename = `${ordenId}_${idx}.jpg`
-  const urlPublica = `/fotos/alistamiento/${filename}`
+  const urlPublica = `/api/fotos/alistamiento/${filename}`
   const rutaFisica = path.join(process.cwd(), 'public', 'fotos', 'alistamiento', filename)
 
   const data = fotoBase64.replace(/^data:[^;]+;base64,/, '')

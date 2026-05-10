@@ -18,8 +18,13 @@ export const authOptions: NextAuthOptions = {
         const empresa = await prisma.empresa.findUnique({ where: { email: credentials.email } })
         if (empresa && await bcrypt.compare(credentials.password, empresa.password)) {
           const role = empresa.plan === 'superadmin' ? 'superadmin' : 'empresa'
-          const vinculacion = await prisma.empresaVinculada.findFirst({
-            where: { empresaClienteId: empresa.id, activa: true }
+          const vinculaciones = await prisma.empresaVinculada.findMany({
+            where: { empresaClienteId: empresa.id, activa: true },
+            select: { id: true }
+          })
+          const vinculacionesBodega = await prisma.empresaVinculada.findMany({
+            where: { empresaId: empresa.id, activa: true },
+            select: { id: true }
           })
           return {
             id: empresa.id,
@@ -28,7 +33,8 @@ export const authOptions: NextAuthOptions = {
             role,
             empresaId: empresa.id,
             bodegaPuedeEnviar: empresa.bodegaPuedeEnviar ?? false,
-            tieneVinculacion: !!vinculacion,
+            tieneVinculacion: vinculaciones.length > 0,
+            tieneVinculacionBodega: vinculacionesBodega.length > 0,
           }
         }
 
@@ -64,6 +70,7 @@ export const authOptions: NextAuthOptions = {
         token.etiqueta = (user as any).etiqueta ?? null
         token.bodegaPuedeEnviar = (user as any).bodegaPuedeEnviar ?? false
         token.tieneVinculacion = (user as any).tieneVinculacion ?? false
+        token.tieneVinculacion = (user as any).tieneVinculacion ?? false
       }
       return token
     },
@@ -75,6 +82,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).permisos = token.permisos ?? {}
         ;(session.user as any).etiqueta = token.etiqueta ?? null
         ;(session.user as any).bodegaPuedeEnviar = token.bodegaPuedeEnviar ?? false
+        ;(session.user as any).tieneVinculacion = token.tieneVinculacion ?? false
         ;(session.user as any).tieneVinculacion = token.tieneVinculacion ?? false
       }
       return session

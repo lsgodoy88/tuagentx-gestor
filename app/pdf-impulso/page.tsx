@@ -47,11 +47,14 @@ function ImpulsoPDFContent() {
     fetch('/api/impulso/pdf?fecha=' + fecha)
       .then(r => r.json())
       .then(d => { setDatos(d); setLoading(false) })
+      .catch(e => { console.error('PDF error:', e); setDatos({ mes: '', impulsadoras: [] }); setLoading(false) })
   }, [fecha])
 
   useEffect(() => {
     if (!datos) return
-    setTimeout(() => window.print(), 400)
+    // Solo autoprint en desktop
+    const isMobile = /Mobi|Android|iPhone|iPad/.test(navigator.userAgent)
+    if (!isMobile) setTimeout(() => window.print(), 400)
   }, [datos])
 
   const isIOS = typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)
@@ -63,7 +66,7 @@ function ImpulsoPDFContent() {
       Generando reporte...
     </div>
   )
-  if (!datos) return null
+  if (!datos) return <div style={{display:'flex',alignItems:'center',justifyContent:'center',height:'100vh',fontFamily:'Arial',color:'#dc2626'}}>Error al generar el reporte</div>
 
   return (
     <>

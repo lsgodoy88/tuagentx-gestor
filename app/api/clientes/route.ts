@@ -13,9 +13,11 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url)
   const q = searchParams.get('q') || ''
-  const page = parseInt(searchParams.get('page') || '1')
+  const cursor = searchParams.get('cursor') || null       // cursor-based
+  const page = parseInt(searchParams.get('page') || '1') // legacy offset
   const limit = parseInt(searchParams.get('limit') || '10')
-  const skip = (page - 1) * limit
+  const useCursor = !!cursor || searchParams.has('cursor')
+  const skip = useCursor ? undefined : (page - 1) * limit
 
   const where: any = { empresaId }
 
@@ -52,31 +54,42 @@ export async function GET(req: NextRequest) {
     ]
   }
 
-  const [clientes, total] = await Promise.all([
-    prisma.cliente.findMany({
+  const select = {
+    id: true,
+    nombre: true,
+    nombreComercial: true,
+    nit: true,
+    telefono: true,
+    ciudad: true,
+    direccion: true,
+    listaId: true,
+    ubicacionReal: true,
+    apiId: true,
+    maps: true,
+    lat: true,
+    lng: true,
+  }
+
+  if (useCursor) {
+    // Cursor-based: take limit+1 para saber si hay más
+    const clientes = await prisma.cliente.findMany({
       where,
       orderBy: { nombre: 'asc' },
-      skip,
-      take: limit,
-      select: {
-        id: true,
-        nombre: true,
-        nombreComercial: true,
-        nit: true,
-        telefono: true,
-        ciudad: true,
-        direccion: true,
-        listaId: true,
-        ubicacionReal: true,
-        apiId: true,
-        maps: true,
-        lat: true,
-        lng: true,
-      }
-    }),
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      select,
+    })
+    const hasMore = clientes.length > limit
+    const data = hasMore ? clientes.slice(0, limit) : clientes
+    const nextCursor = hasMore ? data[data.length - 1].id : null
+    return NextResponse.json({ clientes: data, nextCursor, hasMore })
+  }
+
+  // Legacy offset — mantener compatibilidad
+  const [clientes, total] = await Promise.all([
+    prisma.cliente.findMany({ where, orderBy: { nombre: 'asc' }, skip, take: limit, select }),
     prisma.cliente.count({ where })
   ])
-
   return NextResponse.json({ clientes, total, page, pages: Math.ceil(total / limit) })
 }
 

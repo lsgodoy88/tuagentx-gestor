@@ -15,7 +15,7 @@ try {
   }
 } catch { /* .env no encontrado — usar variables de entorno del proceso */ }
 
-import { rutasDiaQueue, integracionQueue, rutasDiaWorker, integracionWorker, entregasWorker, auditQueue, auditWorker, contextoQueue, contextoWorker, mantenimientoQueue, mantenimientoWorker } from './index'
+import { rutasDiaQueue, integracionQueue, rutasDiaWorker, integracionWorker, entregasWorker, auditQueue, auditWorker, contextoQueue, contextoWorker, mantenimientoQueue, mantenimientoWorker, bodegaSyncQueue, bodegaSyncWorker } from './index'
 
 async function main() {
   // ── Registrar jobs repetitivos ────────────────────────────────────────────
@@ -34,17 +34,17 @@ async function main() {
     { name: 'cerrar-rutas', data: {} },
   )
 
-  // Delta sync integración: 08:00 UTC = 3:00 Bogotá
+  // Delta sync integración: 10:00 UTC = 5:00 Bogotá
   await integracionQueue.upsertJobScheduler(
     'delta-sync',
-    { pattern: '0 8 * * *' },
+    { pattern: '0 10 * * *' },
     { name: 'delta-sync', data: {} },
   )
 
   console.log('[gestor-worker] Jobs registrados:')
   console.log('  rutas-dia  → crear-rutas  (0 12 * * * UTC = 7am Bogotá)')
   console.log('  rutas-dia  → cerrar-rutas (0 2  * * * UTC = 9pm Bogotá)')
-  console.log('  integracion → delta-sync  (0 8  * * * UTC = 3am Bogotá)')
+  console.log('  integracion → delta-sync  (0 10 * * * UTC = 5am Bogotá)')
   // Audit: 06:00 UTC = 1:00 Bogota
   await auditQueue.upsertJobScheduler(
     'audit-diario',
@@ -59,6 +59,14 @@ async function main() {
     { name: 'generar-contexto', data: {} },
   )
   console.log('  contexto      -> generar-contexto (0 3 * * * UTC = 10pm Bogota)')
+  // Bodega sync: 11:00 UTC = 6am Bogotá (después del delta-sync de 5am)
+  await bodegaSyncQueue.upsertJobScheduler(
+    'bodega-sync-diario',
+    { pattern: '0 11 * * *' },
+    { name: 'bodega-sync-diario', data: {} },
+  )
+  console.log('  bodega-sync -> bodega-sync-diario (0 11 * * * UTC = 6am Bogotá)')
+
   // Mantenimiento: 14:00 UTC = 9am Bogota
   await mantenimientoQueue.upsertJobScheduler(
     'mantenimiento-diario',
@@ -78,6 +86,7 @@ async function main() {
       auditWorker.close(),
       contextoWorker.close(),
       mantenimientoWorker.close(),
+      bodegaSyncWorker.close(),
     ])
     process.exit(0)
   })

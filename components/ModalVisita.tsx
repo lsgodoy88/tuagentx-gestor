@@ -22,6 +22,8 @@ interface Cliente {
   ubicacionReal?: boolean
   lat?: number
   lng?: number
+  latTmp?: number
+  lngTmp?: number
 }
 
 interface Props {
@@ -54,6 +56,7 @@ export default function ModalVisita({
   const [capturarGps, setCapturarGps] = useState(false)
   const [loading, setLoading] = useState(false)
   const [obteniendo, setObteniendo] = useState(false)
+  const [gpsProgress, setGpsProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
 
   // Buscador clientes
@@ -116,8 +119,17 @@ export default function ModalVisita({
     let ubicacion: { lat: number; lng: number } | null = null
     if (esperarGps) {
       setObteniendo(true)
+      setGpsProgress(0)
+      // Animar barra: 0→85% en 8s (el GPS tarda hasta 15s)
+      let prog = 0
+      const interval = setInterval(() => {
+        prog = Math.min(prog + Math.random() * 8, 85)
+        setGpsProgress(Math.round(prog))
+      }, 400)
       ubicacion = await getUbicacion()
-      setObteniendo(false)
+      clearInterval(interval)
+      setGpsProgress(100)
+      setTimeout(() => { setObteniendo(false); setGpsProgress(0) }, 400)
     }
     setError(null)
 
@@ -312,16 +324,50 @@ export default function ModalVisita({
             {isEntregas && <FirmaCanvas onFirma={setFirma} firma={firma} />}
 
             {/* GPS capture */}
-            {puedeCapturarGps && (
-              <div className="flex items-center gap-3 bg-zinc-800 rounded-xl px-4 py-3">
-                <input type="checkbox" id="capturarGpsModal" checked={capturarGps}
-                  onChange={e => setCapturarGps(e.target.checked)}
-                  className="w-4 h-4 accent-emerald-500" />
-                <label htmlFor="capturarGpsModal" className="text-zinc-300 text-sm cursor-pointer">
-                  {clienteActual!.ubicacionReal ? 'Actualizar ubicación de este cliente' : 'Guardar ubicación de este cliente'}
-                </label>
-              </div>
-            )}
+            {(() => {
+              const sinGpsReal = !clienteActual!.lat && !clienteActual!.lng
+              const sinGpsTmp = !clienteActual!.latTmp && !clienteActual!.lngTmp
+              const esPrimera = sinGpsReal && sinGpsTmp
+              return (
+                <div className="space-y-2">
+                  {/* Aviso primera visita — para impulsadora (sin puedeCapturarGps) */}
+                  {!puedeCapturarGps && esPrimera && (
+                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl px-4 py-3 space-y-2">
+                      <p className="text-blue-300 text-sm font-medium">📍 Primera visita a este cliente</p>
+                      <p className="text-zinc-400 text-xs">Tu ubicación GPS se guardará como punto de referencia para futuras comparaciones.</p>
+                      {obteniendo && (
+                        <div className="space-y-1">
+                          <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                            <div className="h-full bg-blue-500 rounded-full transition-all duration-300"
+                              style={{width: gpsProgress + '%'}} />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {/* Checkbox solo para vendedor autorizado */}
+                  {puedeCapturarGps && (
+                    <div className="flex items-center gap-3 bg-zinc-800 rounded-xl px-4 py-3">
+                      <input type="checkbox" id="capturarGpsModal" checked={capturarGps}
+                        onChange={e => setCapturarGps(e.target.checked)}
+                        className="w-4 h-4 accent-emerald-500" />
+                      <label htmlFor="capturarGpsModal" className="text-zinc-300 text-sm cursor-pointer">
+                        {clienteActual!.ubicacionReal ? 'Actualizar ubicación de este cliente' : 'Guardar ubicación de este cliente'}
+                      </label>
+                    </div>
+                  )}
+                  {/* Barra progreso GPS en background (vendedor) */}
+                  {puedeCapturarGps && obteniendo && (
+                    <div className="space-y-1">
+                      <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-500 rounded-full transition-all duration-300"
+                          style={{width: gpsProgress + '%'}} />
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })()}
 
             {error && <p className="text-red-400 text-xs text-center">{error}</p>}
             <p className="text-zinc-500 text-xs">📡 Se guardará tu ubicación GPS automáticamente</p>

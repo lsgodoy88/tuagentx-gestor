@@ -15,7 +15,7 @@ export default function InventarioPage() {
   }, [status])
 
   return (
-    <div className="p-4 space-y-4">
+    <div className="p-4 space-y-4 max-w-7xl mx-auto">
       <h1 className="text-2xl font-bold text-white">🏭 Inventario</h1>
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl">
         <div className="flex border-b border-zinc-800">

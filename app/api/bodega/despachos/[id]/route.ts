@@ -15,15 +15,14 @@ const r2 = new S3Client({
   },
 })
 
-async function subirFotoAlistamiento(base64: string, ordenId: string): Promise<string> {
+async function subirR2(base64: string, key: string, contentType: string): Promise<string> {
   const data = base64.replace(/^data:[^;]+;base64,/, '')
   const buffer = Buffer.from(data, 'base64')
-  const key = `alistamiento/${ordenId}.jpg`
   await r2.send(new PutObjectCommand({
     Bucket: process.env.R2_BUCKET!,
     Key: key,
     Body: buffer,
-    ContentType: 'image/jpeg',
+    ContentType: contentType,
   }))
   return key
 }
@@ -43,28 +42,66 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (!orden) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
 
   const body = await req.json()
-  const { estado, fotoAlistamiento, repartidorId, guiaTransporte, transportadora } = body
+  const { estado, fotoAlistamiento, repartidorId, guiaTransporte, transportadora, firmaBase64 } = body
 
   const update: Record<string, unknown> = {}
 
+  // Foto alistamiento
   if (fotoAlistamiento && typeof fotoAlistamiento === 'string' && fotoAlistamiento.startsWith('data:')) {
     const idx = ((orden.fotosAlistamiento as string[]) || []).length
     const key = `alistamiento/${id}_${idx}.jpg`
-    const data = fotoAlistamiento.replace(/^data:[^;]+;base64,/, '')
-    await r2.send(new PutObjectCommand({ Bucket: process.env.R2_BUCKET!, Key: key, Body: Buffer.from(data, 'base64'), ContentType: 'image/jpeg' }))
+    await subirR2(fotoAlistamiento, key, 'image/jpeg')
     const fotos = [...((orden.fotosAlistamiento as string[]) || []), key]
     update.fotosAlistamiento = fotos
-    update.fotoAlistamiento = key // legacy
+    update.fotoAlistamiento = key
   }
+
+  // Estado
   if (estado) {
     update.estado = estado
-    if (estado === 'alistado' && !((orden.fotosAlistamiento as string[]) || []).length && !fotoAlistamiento) return NextResponse.json({ error: 'Se requiere al menos una foto para alistar' }, { status: 422 })
+    if (estado === 'alistado' && !((orden.fotosAlistamiento as string[]) || []).length && !fotoAlistamiento)
+      return NextResponse.json({ error: 'Se requiere al menos una foto para alistar' }, { status: 422 })
     if (estado === 'alistado') {
       update.alistadoEl = new Date()
       if (empleadoId) update.alistadoPorId = empleadoId
     }
     if (estado === 'entregado') {
       update.entregadoEl = new Date()
+    }
+  }
+
+  // Firma entrega personal desde bodega
+  if (firmaBase64 && typeof firmaBase64 === 'string' && firmaBase64.startsWith('data:')) {
+    const firmaKey = `firmas/${id}.png`
+    await subirR2(firmaBase64, firmaKey, 'image/png')
+    update.firmaEntrega = firmaKey
+    update.estado = 'entregado'
+    update.entregadoEl = new Date()
+
+    // Crear Visita para trazabilidad
+    if (empleadoId) {
+      try {
+        // Buscar cliente por NIT
+        const cliente = await (prisma as any).cliente.findFirst({
+          where: { nit: orden.clienteNit, empresaId }
+        })
+        if (cliente) {
+          await (prisma as any).visita.create({
+            data: {
+              clienteId: cliente.id,
+              empleadoId,
+              empresaId,
+              estado: 'ejecutado',
+              fechaBogota: new Date().toISOString().split('T')[0],
+              firma: firmaKey,
+              ordenDespachoId: id,
+              notas: `Entrega personal bodega #${orden.numeroOrden}`,
+            }
+          })
+        }
+      } catch {
+        // No bloquear si falla la visita
+      }
     }
   }
 
@@ -81,7 +118,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     },
   })
 
-  // Si se asigna repartidor → intentar agregar a su ruta activa
+  // Si se asigna repartidor → agregar a su ruta activa
   if (estado === 'en_entrega' && repartidorId) {
     try {
       const rutaEmpleado = await prisma.rutaEmpleado.findFirst({

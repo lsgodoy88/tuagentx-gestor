@@ -19,9 +19,11 @@ export default function ClientesPage() {
     userRole === 'entregador' ? 'entregador' : 'vendedor'
   const [clientes, setClientes] = useState<any[]>([])
   const [modal, setModal] = useState(false)
+  const [tieneIntegracion, setTieneIntegracion] = useState(false)
   const [modalImport, setModalImport] = useState(false)
   const [buscar, setBuscar] = useState('')
-  const [page, setPage] = useState(1)
+  const [nextCursor, setNextCursor] = useState<string|null>(null)
+  const [hasMore, setHasMore] = useState(false)
   const [total, setTotal] = useState(0)
   const LIMIT = 15
   const [form, setForm] = useState({ nombre: '', nit: '', nombreComercial: '', direccion: '', ciudad: '', telefono: '', listaId: '', apiId: '', maps: '' })
@@ -51,20 +53,23 @@ export default function ClientesPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   useEffect(() => {
-    loadClientes('', 1)
+    loadClientes('', null)
     fetch('/api/listas').then(r=>r.json()).then(d=>{ if(Array.isArray(d)) setListas(d) })
     fetch('/api/empleados').then(r=>r.json()).then(d=>{ if(d.empleados) setVendedores(d.empleados.filter((e:any)=>e.rol==='vendedor'&&e.activo)) })
   }, [])
 
-  async function loadClientes(q: string = '', p: number = 1) {
-    if (p === 1) setLoading(true); else setLoadingMore(true)
-    const res = await fetch(`/api/clientes?q=${encodeURIComponent(q)}&page=${p}&limit=${LIMIT}`)
+  async function loadClientes(q: string = '', cursor: string | null = null) {
+    if (!cursor) setLoading(true); else setLoadingMore(true)
+    const params = new URLSearchParams({ q, limit: String(LIMIT) })
+    if (cursor) params.set('cursor', cursor)
+    const res = await fetch(`/api/clientes?${params}`)
     const data = await res.json()
     const nuevos = data.clientes ?? []
-    setClientes(p === 1 ? nuevos : prev => [...prev, ...nuevos])
-    setTotal(data.total ?? 0)
-    setPage(p)
-    if (p === 1) setLoading(false); else setLoadingMore(false)
+    setClientes(!cursor ? nuevos : prev => [...prev, ...nuevos])
+    setNextCursor(data.nextCursor ?? null)
+    setHasMore(data.hasMore ?? false)
+    setTotal(prev => !cursor ? nuevos.length : prev + nuevos.length)
+    if (!cursor) setLoading(false); else setLoadingMore(false)
   }
 
   async function crear() {
@@ -80,7 +85,7 @@ export default function ClientesPage() {
     setLoading(false)
     setModal(false)
     setForm({ nombre: '', nit: '', nombreComercial: '', direccion: '', ciudad: '', telefono: '', listaId: '', apiId: '', maps: '' })
-    loadClientes(buscar, 1)
+    loadClientes(buscar, null)
   }
 
   async function asignarGps(id: string) {
@@ -91,7 +96,7 @@ export default function ClientesPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id, lat: pos.coords.latitude, lng: pos.coords.longitude })
         })
-        loadClientes(buscar, 1)
+        loadClientes(buscar, null)
       },
       () => alert('No se pudo obtener la ubicacion'),
       { timeout: 15000, enableHighAccuracy: true, maximumAge: 0 }
@@ -101,7 +106,7 @@ export default function ClientesPage() {
   async function eliminar(id: string) {
     if (!confirm('¿Eliminar cliente?')) return
     await fetch('/api/clientes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
-    loadClientes(buscar, 1)
+    loadClientes(buscar, null)
   }
 
   function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -178,7 +183,7 @@ export default function ClientesPage() {
     setImporting(false)
     setModalImport(false)
     setImportData([])
-    loadClientes('', 1)
+    loadClientes('', null)
     setBuscar('')
     alert(`✅ ${data.count} clientes importados`)
   }
@@ -378,7 +383,7 @@ export default function ClientesPage() {
     const data = await res.json()
     setImportandoImpExp(false)
     setImportResultImpExp(data)
-    if (data.ok) { loadClientes('', 1); setBuscar('') }
+    if (data.ok) { loadClientes('', null); setBuscar('') }
   }
 
   async function guardarEdicion() {
@@ -389,7 +394,7 @@ export default function ClientesPage() {
       body: JSON.stringify(editForm)
     })
     setEditando(null)
-    loadClientes(buscar, 1)
+    loadClientes(buscar, null)
   }
 
   function ListasTab({ empresaId }: { empresaId?: string }) {
@@ -558,7 +563,7 @@ export default function ClientesPage() {
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {puedeEditar && <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={onFileChange} />}
           {puedeEditar && <input ref={fileRefImpExp} type="file" accept=".xlsx,.xls" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) onFileImpExp(f); e.target.value = '' }} />}
-          {puedeEditar && (
+          {puedeEditar && !tieneIntegracion && (
             <button onClick={() => { setPreviewRows([]); setImportResultImpExp(null); setModalImpExp(true) }}
               className="bg-zinc-800 hover:bg-zinc-700 text-white text-xs px-2.5 py-1.5 rounded-lg border border-zinc-700 whitespace-nowrap">
               📥 Importar / Exportar
@@ -589,7 +594,7 @@ export default function ClientesPage() {
           const q = e.target.value
           setBuscar(q)
           clearTimeout(debounceRef.current)
-          debounceRef.current = setTimeout(() => loadClientes(q, 1), 500)
+          debounceRef.current = setTimeout(() => loadClientes(q, null), 500)
         }}
           placeholder="Buscar por nombre, NIT o nombre comercial..."
           className="flex-1 min-w-0 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
@@ -646,7 +651,7 @@ export default function ClientesPage() {
           </div>
 
           {clientes.length < total && (
-            <button onClick={() => loadClientes(buscar, page + 1)} disabled={loadingMore}
+            <button onClick={() => loadClientes(buscar, nextCursor)} disabled={loadingMore || !hasMore}
               className="w-full mt-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 text-sm font-medium py-3 rounded-2xl border border-zinc-700 transition-colors">
               {loadingMore ? 'Cargando...' : `Cargar más (${clientes.length} de ${total})`}
             </button>
@@ -795,7 +800,7 @@ export default function ClientesPage() {
           onClose={() => setVisitaModal(null)}
           clienteInicial={visitaModal.cliente}
           tipoForzado={visitaModal.tipo}
-          onRegistrado={() => { setVisitaModal(null); loadClientes(buscar, 1) }}
+          onRegistrado={() => { setVisitaModal(null); loadClientes(buscar, null) }}
         />
       )}
 

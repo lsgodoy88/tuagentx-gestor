@@ -117,9 +117,10 @@ export default function RecaudosPage() {
   const [tab, setTab] = useState<'pendiente' | 'enviado' | 'todos'>('pendiente')
   const [fecha, setFecha] = useState<string>('')
   const [pagos, setPagos] = useState<Pago[]>([])
-  const [pages, setPages] = useState(1)
-  const [page, setPage] = useState(1)
+  const [nextCursor, setNextCursor] = useState<string|null>(null)
+  const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   const [vendedorId, setVendedorId] = useState('')
   const [vendedores, setVendedores] = useState<Vendedor[]>([])
   const [enviando, setEnviando] = useState<Set<string>>(new Set())
@@ -163,23 +164,24 @@ export default function RecaudosPage() {
       .catch(() => {})
   }, [isAdmin])
 
-  const fetchPagos = useCallback(async (p = 1) => {
+  const fetchPagos = useCallback(async (cursor: string | null = null) => {
     if (!isAdmin) return
-    setLoading(true)
-    setSeleccionados(new Set())
-    const params = new URLSearchParams({ page: String(p) })
+    if (!cursor) { setLoading(true); setSeleccionados(new Set()) } else setLoadingMore(true)
+    const params = new URLSearchParams()
     if (vendedorId) params.set('vendedorId', vendedorId)
     if (tab !== 'todos') params.set('estado', tab)
     if (fecha) params.set('fecha', fecha)
+    if (cursor) params.set('cursor', cursor)
     const res = await fetch(`/api/recaudos?${params}`)
     const data = await res.json()
-    setPagos(data.pagos ?? [])
-    setPages(data.pages ?? 1)
-    setPage(p)
-    setLoading(false)
+    const nuevos = data.pagos ?? []
+    setPagos(!cursor ? nuevos : prev => [...prev, ...nuevos])
+    setNextCursor(data.nextCursor ?? null)
+    setHasMore(data.hasMore ?? false)
+    if (!cursor) setLoading(false); else setLoadingMore(false)
   }, [tab, vendedorId, fecha, isAdmin])
 
-  useEffect(() => { fetchPagos(1) }, [fetchPagos])
+  useEffect(() => { fetchPagos(null) }, [fetchPagos])
 
   async function enviarPago(pagoId: string) {
     setEnviando(prev => new Set(prev).add(pagoId))
@@ -238,7 +240,7 @@ export default function RecaudosPage() {
   if (!isAdmin) return null
 
   return (
-    <div className="space-y-4 pb-28">
+    <div className="space-y-4 pb-28 max-w-7xl mx-auto">
 
       {/* Header: título + selector vendedor */}
       <div className="flex items-center justify-between gap-2">
@@ -248,7 +250,7 @@ export default function RecaudosPage() {
         </div>
         <select
           value={vendedorId}
-          onChange={e => { setVendedorId(e.target.value); setPage(1) }}
+          onChange={e => { setVendedorId(e.target.value) }}
           className="bg-[#18181b] border border-[#27272a] rounded-[8px] px-[10px] py-[6px] text-[13px] text-gray-300 outline-none max-w-[130px]">
           <option value="">Vendedores</option>
           {vendedores.map(v => (
@@ -282,7 +284,7 @@ export default function RecaudosPage() {
           {TABS.map(t => (
             <button
               key={t.key}
-              onClick={() => { setTab(t.key as any); setPage(1) }}
+              onClick={() => { setTab(t.key as any) }}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                 tab === t.key ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-white'
               }`}>
@@ -300,7 +302,7 @@ export default function RecaudosPage() {
             ref={fechaInputRef}
             type="date"
             value={fecha}
-            onChange={e => { if (e.target.value) { setFecha(e.target.value); setPage(1) } }}
+            onChange={e => { if (e.target.value) { setFecha(e.target.value) } }}
             className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
           />
         </div>
@@ -451,27 +453,17 @@ export default function RecaudosPage() {
         </div>
       )}
 
-      {/* Paginación */}
-      {pages > 1 && (
-        <div className="flex items-center justify-center gap-2 pt-2">
-          <button
-            onClick={() => fetchPagos(page - 1)}
-            disabled={page <= 1}
-            className="px-3 py-1.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm disabled:opacity-40 hover:text-white transition-colors">
-            ← Anterior
-          </button>
-          <span className="text-zinc-500 text-sm">{page} / {pages}</span>
-          <button
-            onClick={() => fetchPagos(page + 1)}
-            disabled={page >= pages}
-            className="px-3 py-1.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm disabled:opacity-40 hover:text-white transition-colors">
-            Siguiente →
+      {hasMore && (
+        <div className="flex justify-center pt-2">
+          <button onClick={() => fetchPagos(nextCursor)} disabled={loadingMore}
+            className="px-6 py-2 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-300 text-sm disabled:opacity-40 hover:text-white transition-colors">
+            {loadingMore ? 'Cargando...' : 'Cargar más'}
           </button>
         </div>
       )}
 
       {/* Barra fija siempre visible */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center gap-2 pl-24 pr-4 py-3 bg-[#0a0a0a] border-t border-[#1a1a1a] shadow-2xl">
+      <div className="fixed bottom-0 left-0 right-0 md:left-64 z-40 flex items-center gap-2 px-4 py-3 bg-[#0a0a0a] border-t border-[#1a1a1a] shadow-2xl">
         {haySeleccion ? (
           <>
             <button
@@ -480,7 +472,7 @@ export default function RecaudosPage() {
               {seleccionados.size} sel. <span className="text-zinc-500">✕</span>
             </button>
             <button
-              onClick={() => fetchPagos(1)}
+              onClick={() => fetchPagos(null)}
               className="flex-1 bg-[#18181b] border border-[#27272a] text-[#9ca3af] text-xs font-bold py-2 rounded-[8px]">
               Validar
             </button>
@@ -494,7 +486,7 @@ export default function RecaudosPage() {
         ) : (
           <>
             <button
-              onClick={() => fetchPagos(1)}
+              onClick={() => fetchPagos(null)}
               className="flex-1 bg-[#18181b] border border-[#27272a] text-[#9ca3af] text-xs font-bold py-2 rounded-[8px]">
               Validar todos
             </button>

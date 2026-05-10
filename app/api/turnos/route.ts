@@ -59,9 +59,20 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
   if (accion === 'reanudar') {
+    // Calcular duración real de la pausa antes de limpiar pausaInicio
+    const turnoActivo = await prisma.turno.findFirst({
+      where: { empleadoId: user.id, activo: true },
+      select: { pausaInicio: true, pausaDuracionMin: true }
+    })
+    let duracionRealMin = turnoActivo?.pausaDuracionMin || null
+    if (turnoActivo?.pausaInicio) {
+      const ms = Date.now() - new Date(turnoActivo.pausaInicio).getTime()
+      duracionRealMin = Math.round(ms / 60000)
+    }
     await prisma.turno.updateMany({
       where: { empleadoId: user.id, activo: true },
-      data: { pausado: false, pausaInicio: null, pausaMotivo: null, pausaDuracionMin: null }
+      data: { pausado: false, pausaInicio: null, pausaDuracionMin: duracionRealMin }
+      // pausaMotivo se conserva — no se borra
     })
     return NextResponse.json({ ok: true })
   }

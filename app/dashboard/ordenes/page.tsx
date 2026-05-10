@@ -1,7 +1,12 @@
 'use client'
 import { useSession } from 'next-auth/react'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
+const Cropper = dynamic(() => import('react-cropper'), { ssr: false })
+import './cropper.css'
+
+
 
 const BORDER: Record<string, string> = {
   pendiente:   'border-l-amber-400',
@@ -16,7 +21,7 @@ const BADGE: Record<string, string> = {
   alistado:    'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
   en_entrega:  'bg-blue-500/15 text-blue-400 border-blue-500/30',
   en_transito: 'bg-zinc-500/15 text-zinc-400 border-zinc-500/30',
-  entregado:   'bg-zinc-700/30 text-zinc-500 border-zinc-700/30',
+  entregado:   'bg-zinc-700/30 text-zinc-300 border-zinc-700/30',
 }
 
 const LABEL: Record<string, string> = {
@@ -74,6 +79,7 @@ export default function OrdenesPage() {
   const [ciudadLocal, setCiudadLocal] = useState<string | null>(null)
   const [bodegaPuedeEnviar, setBodegaPuedeEnviar] = useState(false)
   const [ultimaSync, setUltimaSync] = useState<string | null>(null)
+  const [diasHistorial, setDiasHistorial] = useState<number>(7)
   const [origenId, setOrigenId] = useState<string>('propia')
   const [empresasOrigen, setEmpresasOrigen] = useState<any[]>([])
   const [repartidores, setRepartidores] = useState<any[]>([])
@@ -84,18 +90,52 @@ export default function OrdenesPage() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [editTransporte, setEditTransporte] = useState<Record<string, { transportadora: string; guia: string }>>({})
   const [editRepartidor, setEditRepartidor] = useState<Record<string, string>>({})
-  const [galeria, setGaleria] = useState<{ fotos: string[], index: number } | null>(null)
+  const [galeria, setGaleria] = useState<{ fotos: string[], index: number, fecha?: string | null, esFirma?: boolean } | null>(null)
+  const [galeriaLoading, setGaleriaLoading] = useState(false)
+
+  async function abrirGaleriaConUrls(keys: string[], fecha?: string | null, esFirma = false) {
+    setGaleriaLoading(true)
+    try {
+      const urls = await Promise.all(keys.map(async (key) => {
+        if (key.startsWith('data:') || key.startsWith('http') || key.startsWith('/api/')) return key
+        const res = await fetch('/api/firma', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ firma: key })
+        })
+        const data = await res.json()
+        return data.url || key
+      }))
+      setGaleria({ fotos: urls, index: 0, fecha, esFirma })
+    } finally {
+      setGaleriaLoading(false)
+    }
+  }
   const [camaraActiva, setCamaraActiva] = useState(false)
   const [camaraOrdenId, setCamaraOrdenId] = useState<string | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
+  const [fotosCapturadas, setFotosCapturadas] = useState<string[]>([])
+  const [cropSrc, setCropSrc] = useState<string | null>(null)
+  const cropperRef = useRef<any>(null)
   const [zoomLevel, setZoomLevel] = useState(1)
   const [soportaZoom, setSoportaZoom] = useState(false)
   const [asignarTodasRepartidor, setAsignarTodasRepartidor] = useState('')
+  const [busqueda, setBusqueda] = useState('')
+  const [ciudadFiltro, setCiudadFiltro] = useState('')
+  const [seleccionados, setSeleccionados] = useState<string[]>([])
+  const [modoSeleccion, setModoSeleccion] = useState(false)
+  const [modalEnviarMasivo, setModalEnviarMasivo] = useState(false)
+  const [busquedaRemota, setBusquedaRemota] = useState<any[]>([])
+  const [buscandoRemoto, setBuscandoRemoto] = useState(false)
   const [asignandoTodas, setAsignandoTodas] = useState(false)
   const [modoEnvio, setModoEnvio] = useState<Record<string, 'local' | 'transportadora' | 'personal'>>({})
+  const [firmaData, setFirmaData] = useState<Record<string, string>>({})
+  const [firmaDibujando, setFirmaDibujando] = useState<Record<string, boolean>>({})
+  const firmaCanvasRefs = useRef<Record<string, HTMLCanvasElement | null>>({})
 
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const trackRef = useRef<MediaStreamTrack | null>(null)
 
   const esAdmin = user?.role === 'empresa' || user?.role === 'supervisor'
@@ -108,7 +148,19 @@ export default function OrdenesPage() {
     fetch('/api/bodega/empresas-origen').then(r => r.json()).then(setEmpresasOrigen).catch(() => {})
     fetch('/api/empleados?rol=entregas')
       .then(r => r.json())
-      .then(d => setRepartidores(d.empleados || []))
+      .then(d => {
+        const lista = d.empleados || []
+        setRepartidores(lista)
+        // Si hay un solo repartidor, preseleccionarlo en todos los alistados de localidad
+        if (lista.length === 1) {
+          setEditRepartidor(prev => {
+            const next = { ...prev }
+            // Se aplicará cuando se expanda cada card — usamos un key especial
+            next['__default__'] = lista[0].id
+            return next
+          })
+        }
+      })
       .catch(() => {})
   }, [status])
 
@@ -122,6 +174,7 @@ export default function OrdenesPage() {
       setCiudadLocal(data.ciudadLocal || null)
       setBodegaPuedeEnviar(data.bodegaPuedeEnviar ?? false)
       setUltimaSync(data.ultimaSyncBodega || null)
+      if (data.diasHistorialBodega) setDiasHistorial(data.diasHistorialBodega)
     } finally {
       setCargando(false)
     }
@@ -146,6 +199,32 @@ export default function OrdenesPage() {
     }
   }
 
+  async function cambiarDias(delta: number) {
+    const nuevo = Math.min(30, Math.max(1, diasHistorial + delta))
+    setDiasHistorial(nuevo)
+    await fetch('/api/mi-empresa/config', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ diasHistorialBodega: nuevo })
+    })
+    // Recargar sin sobreescribir diasHistorial
+    setCargando(true)
+    const id = origenId
+    try {
+      const params = new URLSearchParams()
+      if (id !== 'propia') params.set('origenId', id)
+      params.set('dias', String(nuevo))
+      const res = await fetch(`/api/bodega/despachos?${params.toString()}`)
+      const data = await res.json()
+      setDespachos(data.despachos || [])
+      setCiudadLocal(data.ciudadLocal || null)
+      setBodegaPuedeEnviar(data.bodegaPuedeEnviar ?? false)
+      setUltimaSync(data.ultimaSyncBodega || null)
+      // NO tocar diasHistorial aqui
+    } finally {
+      setCargando(false)
+    }
+  }
   async function patchOrden(id: string, body: Record<string, unknown>) {
     setSaving(p => ({ ...p, [id]: true }))
     try {
@@ -167,6 +246,7 @@ export default function OrdenesPage() {
     setCamaraOrdenId(ordenId)
     setCamaraActiva(true)
     setPreview(null)
+    setFotosCapturadas([])
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
     })
@@ -185,9 +265,9 @@ export default function OrdenesPage() {
     const capabilities = track.getCapabilities() as any
     const min = capabilities.zoom?.min ?? 1
     const max = capabilities.zoom?.max ?? 5
-    const nuevo = Math.min(max, Math.max(min, nivel))
-    await track.applyConstraints({ advanced: [{ zoom: nuevo } as any] })
-    setZoomLevel(nuevo)
+    const nuevoZ = Math.min(max, Math.max(min, nivel))
+    await track.applyConstraints({ advanced: [{ zoom: nuevoZ } as any] })
+    setZoomLevel(nuevoZ)
   }
 
   function capturarFoto() {
@@ -197,26 +277,45 @@ export default function OrdenesPage() {
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
     canvas.getContext('2d')!.drawImage(video, 0, 0)
-    const base64 = canvas.toDataURL('image/jpeg', 0.7)
-    streamRef.current?.getTracks().forEach(t => t.stop())
-    setPreview(base64)
+    const base64 = canvas.toDataURL('image/jpeg', 0.85)
+    setCropSrc(base64)
   }
 
-  async function usarFoto() {
-    if (!preview || !camaraOrdenId) return
+  async function confirmarRecorte() {
+    const cropper = cropperRef.current?.cropper
+    if (!cropper) return
+    const cropped = cropper.getCroppedCanvas({ maxWidth: 1280, maxHeight: 1280 }).toDataURL('image/jpeg', 0.85)
+    setFotosCapturadas(prev => [...prev, cropped])
+    setCropSrc(null)
+  }
+
+  function descartarRecorte() {
+    setCropSrc(null)
+  }
+
+  function eliminarFotoCapturada(idx: number) {
+    setFotosCapturadas(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  async function enviarFotos() {
+    if (!fotosCapturadas.length || !camaraOrdenId) return
+    streamRef.current?.getTracks().forEach(t => t.stop())
     setSaving(p => ({ ...p, [camaraOrdenId]: true }))
     try {
-      const res = await fetch('/api/bodega/foto', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ordenId: camaraOrdenId, fotoBase64: preview }),
-      }).then(r => r.json())
-      if (res.orden) setDespachos(prev => prev.map(d => d.id === camaraOrdenId ? { ...d, ...res.orden } : d))
+      for (const foto of fotosCapturadas) {
+        const res = await fetch('/api/bodega/foto', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ordenId: camaraOrdenId, fotoBase64: foto }),
+        }).then(r => r.json())
+        if (res.orden) setDespachos(prev => prev.map(d => d.id === camaraOrdenId ? { ...d, ...res.orden } : d))
+      }
     } finally {
       setSaving(p => ({ ...p, [camaraOrdenId!]: false }))
       setCamaraActiva(false)
       setCamaraOrdenId(null)
       setPreview(null)
+      setFotosCapturadas([])
     }
   }
 
@@ -225,6 +324,7 @@ export default function OrdenesPage() {
     setCamaraActiva(false)
     setCamaraOrdenId(null)
     setPreview(null)
+    setFotosCapturadas([])
   }
 
   function toggleExpanded(id: string) {
@@ -241,6 +341,18 @@ export default function OrdenesPage() {
     await patchOrden(id, { repartidorId: rid, estado: 'en_entrega' })
     setEditRepartidor(p => { const n = { ...p }; delete n[id]; return n })
     setExpanded(p => ({ ...p, [id]: false }))
+  }
+
+  async function enviarMasivo(repartidorId: string) {
+    if (!seleccionados.length || !repartidorId) return
+    setAsignandoTodas(true)
+    for (const id of seleccionados) {
+      await patchOrden(id, { repartidorId, estado: 'en_entrega' })
+    }
+    setSeleccionados([])
+    setModoSeleccion(false)
+    setModalEnviarMasivo(false)
+    setAsignandoTodas(false)
   }
 
   async function asignarTodas() {
@@ -262,6 +374,45 @@ export default function OrdenesPage() {
     setExpanded(p => ({ ...p, [id]: false }))
   }
 
+  const despachosVisibles = useMemo(() => despachos.filter(d => {
+    if (busqueda.trim()) {
+      // Con búsqueda activa: buscar en todos los tabs sin filtro de estado
+      const q = busqueda.toLowerCase()
+      const matchNombre = d.clienteNombre?.toLowerCase().includes(q)
+      const matchOrden = d.numeroOrden?.toLowerCase().includes(q)
+      const matchFactura = d.numeroFactura?.toLowerCase().includes(q)
+      return matchNombre || matchOrden || !!matchFactura
+    }
+    if (subTab === 'pendientes') {
+      if (d.estado !== 'pendiente') return false
+    } else if (subTab === 'alistados') {
+      if (d.estado !== 'alistado') return false
+      if (ciudadFiltro && d.ciudad !== ciudadFiltro) return false
+    } else {
+      if (!['en_entrega','en_transito','entregado'].includes(d.estado)) return false
+    }
+    if (false) { // búsqueda ya manejada arriba
+      const q = busqueda.toLowerCase()
+      const matchNombre = d.clienteNombre?.toLowerCase().includes(q)
+      const matchOrden = d.numeroOrden?.toLowerCase().includes(q)
+      if (!matchNombre && !matchOrden) return false
+    }
+    return true
+  }), [despachos, subTab, busqueda, ciudadFiltro])
+
+  async function ejecutarBusqueda() {
+    if (!busqueda.trim() || busqueda.length < 1) { setBusquedaRemota([]); return }
+    // Siempre buscar en API — ignora el filtro de días, busca toda la BD
+    setBuscandoRemoto(true)
+    try {
+      const res = await fetch(`/api/bodega/buscar?q=${encodeURIComponent(busqueda)}&origenId=${encodeURIComponent(origenId)}`)
+      const data = await res.json()
+      setBusquedaRemota(data.despachos || [])
+    } finally {
+      setBuscandoRemoto(false)
+    }
+  }
+
   if (status === 'loading' || cargando) {
     return (
       <div className="flex items-center justify-center py-20">
@@ -274,29 +425,59 @@ export default function OrdenesPage() {
   const cPendientes = despachos.filter(d => d.estado === 'pendiente').length
   const cAlistados  = despachos.filter(d => d.estado === 'alistado').length
   const cEntregadosHoy = despachos.filter(d => d.estado === 'entregado' && isHoy(d.entregadoEl)).length
+
   const sync_ = tiempoDesdeSync(ultimaSync)
 
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="max-w-7xl mx-auto space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Órdenes</h1>
-          <p className="text-zinc-400 text-sm mt-0.5">Alistamiento y despacho</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1 bg-zinc-800 border border-zinc-700 rounded-xl px-2 py-1">
+            <button onClick={() => cambiarDias(-1)} disabled={diasHistorial <= 1}
+              className="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-white disabled:opacity-30 text-sm font-bold">−</button>
+            <span className="text-white text-xs font-semibold w-8 text-center">{diasHistorial}d</span>
+            <button onClick={() => cambiarDias(1)} disabled={diasHistorial >= 30}
+              className="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-white disabled:opacity-30 text-sm font-bold">+</button>
+          </div>
+          <button onClick={sync} disabled={syncing}
+            className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-300 border border-zinc-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors">
+            <span className={syncing ? 'animate-spin inline-block' : ''}>🔄</span>
+            {syncing ? '...' : 'Sync'}
+          </button>
         </div>
       </div>
 
-      {/* Selector empresa origen */}
-      {empresasOrigen.length > 1 && (
-        <select
-          value={origenId}
-          onChange={e => { setOrigenId(e.target.value); cargarDatos(e.target.value) }}
-          className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm">
-          {empresasOrigen.map(e => (
-            <option key={e.id} value={e.id}>{e.nombre}</option>
-          ))}
-        </select>
-      )}
+      {/* Selector empresa origen + buscador */}
+      <div className="flex gap-2">
+        {empresasOrigen.length > 1 && (
+          <select
+            value={origenId}
+            onChange={e => { setOrigenId(e.target.value); cargarDatos(e.target.value); setBusqueda('') }}
+            className="bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm"
+            style={{width: '30%'}}>
+            {empresasOrigen.map(e => (
+              <option key={e.id} value={e.id}>{e.nombre}</option>
+            ))}
+          </select>
+        )}
+        <input
+          value={busqueda}
+          onChange={e => setBusqueda(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && ejecutarBusqueda()}
+          placeholder="Cliente u orden..."
+          className="bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-zinc-500 min-w-0"
+          style={{width: '60%'}}
+        />
+        <button onClick={ejecutarBusqueda}
+          className="bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 text-white rounded-xl text-sm flex-shrink-0"
+          style={{width: '10%'}}>
+          {buscandoRemoto ? '⏳' : '🔍'}
+        </button>
+      </div>
 
       {/* Sub-tabs + toolbar */}
       <div className="space-y-2">
@@ -333,48 +514,38 @@ export default function OrdenesPage() {
 
         {/* Sync line */}
         <div className="flex items-center gap-2">
-          <p className="text-zinc-500 text-xs flex-1">
+          <p className="text-zinc-300 text-xs flex-1">
             {despachos.length} orden{despachos.length !== 1 ? 'es' : ''}
             {' · '}
-            <span className={sync_.alerta ? 'text-amber-400' : 'text-zinc-500'}>
+            <span className={sync_.alerta ? 'text-amber-400' : 'text-zinc-300'}>
               Sync hace {sync_.texto}{sync_.alerta ? ' ⚠️' : ''}
             </span>
           </p>
           {msgSync && <span className="text-xs text-emerald-400">{msgSync}</span>}
-          <button onClick={sync} disabled={syncing}
-            className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-300 border border-zinc-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors">
-            <span className={syncing ? 'animate-spin inline-block' : ''}>🔄</span>
-            {syncing ? 'Sincronizando...' : 'Sync'}
-          </button>
         </div>
       </div>
 
-      {despachos.length === 0 ? (
+      {/* Filtro ciudad — solo en Alistados */}
+      {subTab === 'alistados' && (() => {
+        const ciudades = [...new Set(despachos.filter(d => d.estado === 'alistado' && d.ciudad).map(d => d.ciudad as string))].sort()
+        if (ciudades.length <= 1) return null
+        return (
+          <select value={ciudadFiltro} onChange={e => { setCiudadFiltro(e.target.value); setSeleccionados([]) }}
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm">
+            <option value="">🏙️ Todas las ciudades</option>
+            {ciudades.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        )
+      })()}
+      {despachos.length === 0 && busquedaRemota.length === 0 ? (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-10 text-center">
-          <p className="text-zinc-500 text-sm">Sin órdenes en el período configurado</p>
+          {buscandoRemoto ? <p className="text-zinc-300 text-sm">Buscando...</p> : <p className="text-zinc-300 text-sm">Sin órdenes en el período configurado</p>}
         </div>
       ) : (() => {
-        const despachosVisibles = despachos.filter(d => {
-          if (subTab === 'pendientes') return d.estado === 'pendiente'
-          if (subTab === 'alistados')  return d.estado === 'alistado'
-          return ['en_entrega','en_transito','entregado'].includes(d.estado)
-        })
         return (
-          <div className="space-y-2">
-            {subTab === 'alistados' && despachosVisibles.length > 0 && puedeEnviar && (
-              <div className="flex gap-2 items-center">
-                <select value={asignarTodasRepartidor} onChange={e => setAsignarTodasRepartidor(e.target.value)}
-                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs">
-                  <option value="">— Repartidor —</option>
-                  {repartidores.map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
-                </select>
-                <button onClick={asignarTodas} disabled={asignandoTodas || !asignarTodasRepartidor}
-                  className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white px-3 py-2 rounded-xl text-xs font-semibold">
-                  {asignandoTodas ? '...' : '🚚 Asignar todas'}
-                </button>
-              </div>
-            )}
-            {despachosVisibles.map(d => {
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+
+            {(despachosVisibles.length > 0 ? despachosVisibles : busquedaRemota).map((d: any) => {
               const ciudadRaw = d.ciudad || null
               const ciudadNombre = ciudadRaw ? ciudadRaw.split('/').pop()?.trim().replace(/\b\w/g, (c: string) => c.toUpperCase()) ?? ciudadRaw : null
               const border = BORDER[d.estado] ?? BORDER.pendiente
@@ -388,14 +559,20 @@ export default function OrdenesPage() {
               const tieneFotos = fotos.length > 0
               const btnFoto = tieneFotos ? (
                 <button
-                  onClick={() => setGaleria({ fotos, index: 0 })}
+                  onClick={() => abrirGaleriaConUrls(fotos, d.alistadoEl)}
                   className="flex items-center gap-1 text-zinc-400 hover:text-white text-xs">
-                  🖼️ {fotos.length > 1 ? `${fotos.length} fotos` : formatFechaCorta(d.alistadoEl)}
+                  🖼️ {fotos.length > 1 ? fotos.length : ''}
                 </button>
               ) : null
 
               return (
-                <div key={d.id} className={`bg-zinc-900 border border-zinc-800 border-l-4 ${border} rounded-2xl overflow-hidden`}>
+                <div key={d.id}
+                  className={`bg-zinc-900 border border-zinc-800 border-l-4 ${border} rounded-2xl overflow-hidden ${modoSeleccion && d.estado === 'alistado' ? 'cursor-pointer' : ''} ${modoSeleccion && seleccionados.includes(d.id) ? 'ring-2 ring-blue-500' : ''}`}
+                  onContextMenu={d.estado === 'alistado' ? (e) => { e.preventDefault(); if (!modoSeleccion) { setModoSeleccion(true); setSeleccionados([d.id]) } } : undefined}
+                  onTouchStart={d.estado === 'alistado' ? () => { longPressTimer.current = setTimeout(() => { setModoSeleccion(true); setSeleccionados([d.id]) }, 600) } : undefined}
+                  onTouchEnd={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null } }}
+                  onTouchMove={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null } }}
+                  onClick={modoSeleccion && d.estado === 'alistado' ? () => setSeleccionados(prev => prev.includes(d.id) ? prev.filter(x => x !== d.id) : [...prev, d.id]) : undefined}>
                   <div className="px-4 py-3 flex items-center gap-2">
                     <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-hidden">
                       <span className="text-white font-mono text-xs flex-shrink-0">#{d.numeroOrden}</span>
@@ -425,100 +602,199 @@ export default function OrdenesPage() {
 
                   {d.estado === 'alistado' && (
                     <div className="px-4 pb-3 pt-1 border-t border-zinc-800/60">
-                      <div className="flex items-center gap-3 mt-1">
+                      <div className="flex items-center gap-3 mt-1 flex-wrap">
                         {btnFoto}
-                        {puedeEnviar ? (
-                          <button onClick={() => toggleExpanded(d.id)}
-                            className="flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors">
-                            🚚 Enviar {isExpanded ? '▲' : '▼'}
-                          </button>
-                        ) : (
-                          <span className="text-zinc-600 text-xs italic">esperando envío...</span>
+                        <button onClick={() => toggleExpanded(d.id)}
+                          className="flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors">
+                          🚚 Enviar {isExpanded ? '▲' : '▼'}
+                        </button>
+                        {d.alistadoEl && (
+                          <span className="text-zinc-300 text-xs">Alistado {formatFechaCorta(d.alistadoEl)}</span>
+                        )}
+                        {d.alistadoPor && (
+                          <span className="text-zinc-300 text-xs">· {d.alistadoPor.nombre}</span>
                         )}
                       </div>
 
-                      {isExpanded && puedeEnviar && (
+                      {isExpanded && (
                         <div className="mt-3 space-y-3">
                           {/* Selector modo envío */}
-                          <div className="grid grid-cols-3 gap-2">
-                            <button onClick={() => setModoEnvio(p => ({ ...p, [d.id]: 'local' }))}
-                              className={`py-2 rounded-xl text-xs font-semibold border transition-colors ${(modoEnvio[d.id] ?? (esLocalidad ? 'local' : 'transportadora')) === 'local' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
-                              🏍️ Local
-                            </button>
-                            <button onClick={() => setModoEnvio(p => ({ ...p, [d.id]: 'transportadora' }))}
-                              className={`py-2 rounded-xl text-xs font-semibold border transition-colors ${(modoEnvio[d.id] ?? (esLocalidad ? 'local' : 'transportadora')) === 'transportadora' ? 'bg-orange-600 border-orange-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
-                              🚚 Nacional
-                            </button>
-                            <button onClick={() => setModoEnvio(p => ({ ...p, [d.id]: 'personal' }))}
-                              className={`py-2 rounded-xl text-xs font-semibold border transition-colors ${modoEnvio[d.id] === 'personal' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
-                              🤝 Personal
-                            </button>
-                          </div>
-
-                          {/* Local — asignar repartidor */}
-                          {(modoEnvio[d.id] ?? (esLocalidad ? 'local' : 'transportadora')) === 'local' && (
-                            <div className="space-y-2">
-                              <p className="text-zinc-500 text-xs font-semibold">Asignar repartidor</p>
-                              <div className="flex gap-2">
-                                <select
-                                  value={editRepartidor[d.id] ?? ''}
-                                  onChange={e => setEditRepartidor(p => ({ ...p, [d.id]: e.target.value }))}
-                                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-blue-500">
-                                  <option value="">— Seleccionar —</option>
-                                  {repartidores.map((r: any) => (
-                                    <option key={r.id} value={r.id}>{r.nombre}</option>
-                                  ))}
-                                </select>
-                                <button onClick={() => asignarRepartidor(d.id)}
-                                  disabled={isSaving || !editRepartidor[d.id]}
-                                  className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-semibold px-3 py-2 rounded-xl text-xs transition-colors">
-                                  {isSaving ? '...' : 'Asignar'}
+                          {(() => {
+                            const ciudadOrdenModo = d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''
+                            const esLocalModo = ciudadLocal ? ciudadOrdenModo === ciudadLocal.trim().toLowerCase() : false
+                            const modoActual = modoEnvio[d.id] ?? (esLocalModo ? 'local' : 'transportadora')
+                            return (
+                              <div className="grid grid-cols-3 gap-1.5">
+                                <button onClick={() => setModoEnvio(p => ({ ...p, [d.id]: 'local' }))}
+                                  className={`py-2 rounded-xl text-xs font-semibold border transition-colors ${modoActual === 'local' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
+                                  🏍️ Local
+                                </button>
+                                <button onClick={() => setModoEnvio(p => ({ ...p, [d.id]: 'transportadora' }))}
+                                  className={`py-2 rounded-xl text-xs font-semibold border transition-colors ${modoActual === 'transportadora' ? 'bg-orange-600 border-orange-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
+                                  📦 Guía
+                                </button>
+                                <button onClick={() => setModoEnvio(p => ({ ...p, [d.id]: 'personal' }))}
+                                  className={`py-2 rounded-xl text-xs font-semibold border transition-colors ${modoActual === 'personal' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
+                                  🤝 Personal
                                 </button>
                               </div>
-                            </div>
-                          )}
+                            )
+                          })()}
 
-                          {/* Transportadora */}
-                          {(modoEnvio[d.id] ?? (esLocalidad ? 'local' : 'transportadora')) === 'transportadora' && (
-                            <div className="space-y-2">
-                              <p className="text-zinc-500 text-xs font-semibold">Envío nacional</p>
-                              <div className="grid grid-cols-2 gap-2">
-                                <div>
-                                  <label className="text-zinc-600 text-xs block mb-1">Transportadora</label>
-                                  <input
-                                    value={editTransporte[d.id]?.transportadora ?? ''}
-                                    onChange={e => setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], transportadora: e.target.value } }))}
-                                    placeholder="Servientrega"
-                                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-orange-500"
-                                  />
-                                </div>
-                                <div>
-                                  <label className="text-zinc-600 text-xs block mb-1"># Guía</label>
-                                  <input
-                                    value={editTransporte[d.id]?.guia ?? ''}
-                                    onChange={e => setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], guia: e.target.value } }))}
-                                    placeholder="123456789"
-                                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-orange-500"
-                                  />
+                          {/* Local — una línea */}
+                          {(() => { const ciudadOrdenModo2 = d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''; const esLocalModo2 = ciudadLocal ? ciudadOrdenModo2 === ciudadLocal.trim().toLowerCase() : false; const modoActual2 = modoEnvio[d.id] ?? (esLocalModo2 ? 'local' : 'transportadora'); return modoActual2 === 'local' })() && (() => {
+                            const ciudadOrden = d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''
+                            const esLocalidad2 = ciudadLocal ? ciudadOrden === ciudadLocal.trim().toLowerCase() : false
+                            // Preseleccionar único repartidor si es localidad y no hay selección
+                            if (esLocalidad2 && repartidores.length === 1 && !editRepartidor[d.id]) {
+                              setTimeout(() => setEditRepartidor(p => ({ ...p, [d.id]: repartidores[0].id })), 0)
+                            }
+                            return (
+                              <div className="space-y-1.5">
+                                {!esLocalidad2 && (
+                                  <p className="text-amber-400 text-xs font-semibold">
+                                    {ciudadLocal ? '⚠️ Ciudad fuera de localidad — usa Guía o Personal' : '⚠️ Configura la ciudad local en Configuración → Despachos'}
+                                  </p>
+                                )}
+                                <div className="flex gap-2 items-center">
+                                  <select
+                                    value={editRepartidor[d.id] ?? ''}
+                                    onChange={e => setEditRepartidor(p => ({ ...p, [d.id]: e.target.value }))}
+                                    disabled={!esLocalidad2}
+                                    className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-blue-500 disabled:opacity-40">
+                                    <option value="">— Repartidor —</option>
+                                    {repartidores.map((r: any) => (
+                                      <option key={r.id} value={r.id}>{r.nombre}</option>
+                                    ))}
+                                  </select>
+                                  <button onClick={() => asignarRepartidor(d.id)}
+                                    disabled={isSaving || !editRepartidor[d.id] || !esLocalidad2}
+                                    className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors flex-shrink-0">
+                                    {isSaving ? '...' : '🚀 Enviar'}
+                                  </button>
                                 </div>
                               </div>
-                              <button onClick={() => guardarTransporte(d.id)}
-                                disabled={isSaving || !editTransporte[d.id]?.transportadora || !editTransporte[d.id]?.guia}
-                                className="bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-semibold px-4 py-1.5 rounded-xl text-xs transition-colors">
-                                {isSaving ? 'Guardando...' : 'Confirmar envío'}
-                              </button>
+                            )
+                          })()}
+
+                          {/* Guía — una línea */}
+                          {(() => { const cm = d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''; const eloc = ciudadLocal ? cm === ciudadLocal.trim().toLowerCase() : false; return (modoEnvio[d.id] ?? (eloc ? 'local' : 'transportadora')) === 'transportadora' })() && (
+                            <div className="space-y-1.5">
+                              <div className="flex gap-2 items-center">
+                                <input
+                                  value={editTransporte[d.id]?.guia ?? ''}
+                                  onChange={e => setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], guia: e.target.value } }))}
+                                  placeholder="# Guía o código de barras"
+                                  inputMode="text"
+                                  className="flex-1 bg-zinc-800 border border-orange-500/60 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-orange-500"
+                                />
+                                <button
+                                  title="Escanear código de barras"
+                                  onClick={() => {
+                                    const input = document.createElement('input')
+                                    input.type = 'file'
+                                    input.accept = 'image/*'
+                                    input.capture = 'environment'
+                                    input.onchange = async (ev: any) => {
+                                      const file = ev.target.files?.[0]
+                                      if (!file) return
+                                      if ('BarcodeDetector' in window) {
+                                        try {
+                                          const bitmap = await createImageBitmap(file)
+                                          const detector = new (window as any).BarcodeDetector()
+                                          const codes = await detector.detect(bitmap)
+                                          if (codes[0]?.rawValue) {
+                                            setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], guia: codes[0].rawValue } }))
+                                            return
+                                          }
+                                        } catch {}
+                                      }
+                                      // fallback: leer como texto
+                                      const reader = new FileReader()
+                                      reader.onload = () => {
+                                        const val = prompt('No se pudo leer el código. Ingresa manualmente:')
+                                        if (val) setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], guia: val } }))
+                                      }
+                                      reader.readAsDataURL(file)
+                                    }
+                                    input.click()
+                                  }}
+                                  className="bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 text-white px-3 py-2 rounded-xl text-base flex-shrink-0">
+                                  ▣
+                                </button>
+                                <button onClick={() => guardarTransporte(d.id)}
+                                  disabled={isSaving || !editTransporte[d.id]?.guia}
+                                  className="bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors flex-shrink-0">
+                                  {isSaving ? '...' : '📦'}
+                                </button>
+                              </div>
+                              <input
+                                value={editTransporte[d.id]?.transportadora ?? ''}
+                                onChange={e => setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], transportadora: e.target.value } }))}
+                                placeholder="Transportadora (opcional)"
+                                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-orange-500"
+                              />
                             </div>
                           )}
 
-                          {/* Entrega personal */}
-                          {modoEnvio[d.id] === 'personal' && (
+                          {/* Entrega personal con firma */}
+                          {(() => { const cm2 = d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''; const eloc2 = ciudadLocal ? cm2 === ciudadLocal.trim().toLowerCase() : false; return (modoEnvio[d.id] ?? (eloc2 ? 'local' : 'transportadora')) === 'personal' })() && (
                             <div className="space-y-2">
-                              <p className="text-zinc-500 text-xs font-semibold">El cliente o vendedor recoge en bodega</p>
-                              <button onClick={() => patchOrden(d.id, { estado: 'entregado', entregadoEl: new Date().toISOString() })}
-                                disabled={isSaving}
-                                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-xl text-xs">
-                                {isSaving ? 'Guardando...' : '✅ Confirmar entrega personal'}
-                              </button>
+                              <p className="text-zinc-300 text-xs font-semibold">Firma del cliente o vendedor</p>
+                              <div className="relative bg-white rounded-xl overflow-hidden" style={{height: 120}}>
+                                <canvas
+                                  ref={el => { firmaCanvasRefs.current[d.id] = el }}
+                                  width={400} height={120}
+                                  className="w-full h-full touch-none cursor-crosshair"
+                                  style={{touchAction: 'none'}}
+                                  onPointerDown={e => {
+                                    const canvas = firmaCanvasRefs.current[d.id]
+                                    if (!canvas) return
+                                    setFirmaDibujando(p => ({...p, [d.id]: true}))
+                                    const rect = canvas.getBoundingClientRect()
+                                    const ctx = canvas.getContext('2d')!
+                                    ctx.strokeStyle = '#1a1a1a'
+                                    ctx.lineWidth = 2
+                                    ctx.lineCap = 'round'
+                                    ctx.beginPath()
+                                    ctx.moveTo((e.clientX - rect.left) * (canvas.width / rect.width), (e.clientY - rect.top) * (canvas.height / rect.height))
+                                    e.currentTarget.setPointerCapture(e.pointerId)
+                                  }}
+                                  onPointerMove={e => {
+                                    if (!firmaDibujando[d.id]) return
+                                    const canvas = firmaCanvasRefs.current[d.id]
+                                    if (!canvas) return
+                                    const rect = canvas.getBoundingClientRect()
+                                    const ctx = canvas.getContext('2d')!
+                                    ctx.lineTo((e.clientX - rect.left) * (canvas.width / rect.width), (e.clientY - rect.top) * (canvas.height / rect.height))
+                                    ctx.stroke()
+                                  }}
+                                  onPointerUp={e => {
+                                    setFirmaDibujando(p => ({...p, [d.id]: false}))
+                                    const canvas = firmaCanvasRefs.current[d.id]
+                                    if (canvas) setFirmaData(p => ({...p, [d.id]: canvas.toDataURL('image/png')}))
+                                  }}
+                                />
+                                {!firmaData[d.id] && (
+                                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                                    <span className="text-zinc-400 text-xs">Firmar aquí</span>
+                                  </div>
+                                )}
+                              </div>
+                              <div className="flex gap-2">
+                                <button onClick={() => {
+                                  const canvas = firmaCanvasRefs.current[d.id]
+                                  if (canvas) { const ctx = canvas.getContext('2d')!; ctx.clearRect(0, 0, canvas.width, canvas.height) }
+                                  setFirmaData(p => { const n = {...p}; delete n[d.id]; return n })
+                                }} className="flex-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-xs py-2 rounded-xl font-semibold">
+                                  🗑 Limpiar
+                                </button>
+                                <button onClick={() => patchOrden(d.id, { estado: 'entregado', entregadoEl: new Date().toISOString(), firmaBase64: firmaData[d.id] })}
+                                  disabled={isSaving || !firmaData[d.id]}
+                                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold py-2 rounded-xl text-xs">
+                                  {isSaving ? 'Guardando...' : '✅ Confirmar'}
+                                </button>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -536,14 +812,27 @@ export default function OrdenesPage() {
                   {d.estado === 'en_transito' && (
                     <div className="px-4 pb-3 pt-1 border-t border-zinc-800/60 flex items-center gap-3 flex-wrap mt-1">
                       {btnFoto}
-                      <span className="text-zinc-400 text-xs">🚛 {d.transportadora} <span className="font-mono text-zinc-500">#{d.guiaTransporte}</span></span>
+                      <span className="text-zinc-300 text-xs">🚛 {d.transportadora} <span className="font-mono text-zinc-300">#{d.guiaTransporte}</span></span>
                     </div>
                   )}
 
                   {d.estado === 'entregado' && (
-                    <div className="px-4 pb-3 pt-1 border-t border-zinc-800/60 flex items-center gap-3 mt-1">
-                      {btnFoto}
-                      <span className="text-emerald-500 text-xs">✅ {formatFechaCorta(d.entregadoEl)}</span>
+                    <div className="px-4 pb-3 pt-1 border-t border-zinc-800/60 mt-1">
+                      <div className="flex items-center gap-3">
+                        <span className="text-emerald-500 text-xs font-semibold">✅ {formatFechaCorta(d.entregadoEl)}</span>
+                        {tieneFotos && (
+                          <button onClick={() => abrirGaleriaConUrls(fotos, d.entregadoEl)}
+                            className="flex items-center gap-1 text-zinc-400 hover:text-white text-xs">
+                            🖼️ {fotos.length > 1 ? fotos.length : ''}
+                          </button>
+                        )}
+                        {d.firmaEntrega && (
+                          <button onClick={() => abrirGaleriaConUrls([d.firmaEntrega], d.entregadoEl, true)}
+                            className="flex items-center gap-1 text-zinc-400 hover:text-white text-xs">
+                            ✍️
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -552,48 +841,153 @@ export default function OrdenesPage() {
           </div>
         )
       })()}
+      {/* Barra selección masiva */}
+      {modoSeleccion && (
+        <div className="fixed bottom-0 left-0 right-0 md:left-64 z-[1050] bg-zinc-950 border-t-2 border-blue-500 px-4 pt-3 pb-6 flex items-center gap-3 shadow-2xl">
+          <button onClick={() => { setModoSeleccion(false); setSeleccionados([]) }}
+            className="text-white text-sm px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-600 font-semibold">✕</button>
+          <button onClick={() => {
+            const ids = despachosVisibles.map((d: any) => d.id)
+            setSeleccionados(prev => prev.length === ids.length ? [] : ids)
+          }} className="text-white text-sm px-3 py-2 rounded-xl bg-zinc-800 border border-zinc-600 font-semibold">
+            {seleccionados.length === despachosVisibles.length ? '☑ Todos' : '☐ Todos'}
+          </button>
+          <span className="text-white text-sm font-semibold flex-1">{seleccionados.length} selec.</span>
+          {seleccionados.length > 0 && (
+            <button onClick={() => setModalEnviarMasivo(true)}
+              className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg">
+              🚚 Enviar {seleccionados.length}
+            </button>
+          )}
+        </div>
+      )}
+      {/* Modal enviar masivo */}
+      {modalEnviarMasivo && (
+        <div className="fixed inset-0 z-[990] bg-black/70 flex items-end">
+          <div className="w-full bg-zinc-900 border-t border-zinc-700 rounded-t-2xl p-5 space-y-3">
+            <p className="text-white font-semibold">Asignar repartidor — {seleccionados.length} orden{seleccionados.length > 1 ? 'es' : ''}</p>
+            <select value={asignarTodasRepartidor} onChange={e => setAsignarTodasRepartidor(e.target.value)}
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm">
+              <option value="">— Selecciona repartidor —</option>
+              {repartidores.map((r: any) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
+            </select>
+            <div className="flex gap-2">
+              <button onClick={() => setModalEnviarMasivo(false)}
+                className="flex-1 bg-zinc-800 text-white py-2.5 rounded-xl text-sm">Cancelar</button>
+              <button onClick={() => enviarMasivo(asignarTodasRepartidor)} disabled={asignandoTodas || !asignarTodasRepartidor}
+                className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold">
+                {asignandoTodas ? 'Enviando...' : 'Confirmar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal cámara fullscreen */}
       {camaraActiva && (
         <div className="fixed inset-0 bg-black z-50 flex flex-col overflow-hidden touch-none">
-          {!preview ? (
-            <>
-              <video ref={videoRef} autoPlay playsInline className="flex-1 object-cover w-full" style={{ touchAction: 'pinch-zoom' }} />
-              <div className="fixed bottom-0 left-0 right-0 p-6 flex items-center justify-between bg-black/80 z-10">
-                <button onClick={cerrarCamara} className="text-white text-sm">✕ Cancelar</button>
-                <button onClick={capturarFoto} className="w-16 h-16 rounded-full bg-white border-4 border-zinc-400" />
-                {soportaZoom ? (
-                  <div className="flex items-center gap-2">
-                    <button onClick={() => aplicarZoom(zoomLevel - 0.5)}
-                      className="w-10 h-10 rounded-full bg-zinc-700 text-white text-xl">−</button>
-                    <span className="text-white text-xs w-8 text-center">{zoomLevel.toFixed(1)}x</span>
-                    <button onClick={() => aplicarZoom(zoomLevel + 0.5)}
-                      className="w-10 h-10 rounded-full bg-zinc-700 text-white text-xl">+</button>
+          {/* Video fullscreen */}
+          <video ref={videoRef} autoPlay playsInline className="flex-1 object-cover w-full" style={{ touchAction: 'pinch-zoom' }} />
+          {/* Barra inferior */}
+          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent pt-6 pb-8 px-4">
+            {/* Miniaturas */}
+            {fotosCapturadas.length > 0 && (
+              <div className="flex gap-2 mb-4 overflow-x-auto">
+                {fotosCapturadas.map((f, i) => (
+                  <div key={i} className="relative flex-shrink-0">
+                    <img src={f} className="w-14 h-14 object-cover rounded-xl border-2 border-white/60" />
+                    <button onClick={() => eliminarFotoCapturada(i)}
+                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center font-bold">✕</button>
                   </div>
-                ) : (
-                  <div className="w-16" />
-                )}
+                ))}
               </div>
-            </>
-          ) : (
-            <div className="fixed inset-0 bg-black z-50 flex flex-col">
-              <img src={preview} className="flex-1 w-full object-contain" />
-              <div className="fixed bottom-0 left-0 right-0 p-6 flex gap-4 bg-black/80">
-                <button onClick={() => { setPreview(null); abrirCamara(camaraOrdenId!) }}
-                  className="flex-1 bg-zinc-800 text-white py-3 rounded-xl">🔄 Repetir</button>
-                <button onClick={usarFoto}
-                  className="flex-1 bg-emerald-600 text-white py-3 rounded-xl font-semibold">✓ Usar foto</button>
-              </div>
+            )}
+            {/* Controles principales */}
+            <div className="flex items-center justify-between">
+              {/* Cancelar */}
+              <button onClick={cerrarCamara}
+                className="w-16 h-16 rounded-2xl bg-zinc-800/80 border border-zinc-600 text-white text-xs flex flex-col items-center justify-center gap-1">
+                <span className="text-lg">✕</span>
+                <span>Cancelar</span>
+              </button>
+              {/* Disparador */}
+              <button onClick={capturarFoto}
+                className="w-20 h-20 rounded-full bg-white border-4 border-zinc-400 active:scale-95 transition-transform shadow-lg" />
+              {/* Enviar o placeholder */}
+              {fotosCapturadas.length > 0 ? (
+                <button onClick={enviarFotos}
+                  className="w-16 h-16 rounded-2xl bg-emerald-500 text-white text-xs flex flex-col items-center justify-center gap-1 font-bold">
+                  <span className="text-lg">✓</span>
+                  <span>{fotosCapturadas.length} foto{fotosCapturadas.length > 1 ? 's' : ''}</span>
+                </button>
+              ) : (
+                <div className="w-16 h-16" />
+              )}
             </div>
-          )}
+            {/* Zoom centrado */}
+            {soportaZoom && (
+              <div className="flex items-center justify-center gap-3 mt-3">
+                <button onClick={() => aplicarZoom(zoomLevel - 0.5)} className="w-8 h-8 rounded-full bg-zinc-700 text-white text-lg flex items-center justify-center">−</button>
+                <span className="text-white text-xs w-10 text-center">{zoomLevel.toFixed(1)}x</span>
+                <button onClick={() => aplicarZoom(zoomLevel + 0.5)} className="w-8 h-8 rounded-full bg-zinc-700 text-white text-lg flex items-center justify-center">+</button>
+              </div>
+            )}
+          </div>
         </div>
       )}
-
+      {/* Modal Cropper */}
+      {cropSrc && (
+        <div className="fixed inset-0 bg-black z-[1000] flex flex-col">
+          <div className="relative flex-1 overflow-hidden">
+            <Cropper
+              ref={cropperRef}
+              src={cropSrc!}
+              style={{ height: '100%', width: '100%' }}
+              viewMode={1}
+              dragMode="move"
+              autoCropArea={1}
+              restore={false}
+              guides={false}
+              center={false}
+              highlight={false}
+              cropBoxMovable={true}
+              cropBoxResizable={true}
+              toggleDragModeOnDblclick={false}
+              background={false}
+              responsive={true}
+            />
+          </div>
+          <div className="bg-black px-6 pb-8 pt-4 flex items-center justify-between">
+            <button onClick={descartarRecorte}
+              className="w-16 h-16 rounded-2xl bg-zinc-800 border border-zinc-600 text-white text-xs flex flex-col items-center justify-center gap-1">
+              <span className="text-lg">🗑️</span>
+              <span>Descartar</span>
+            </button>
+            <div className="flex flex-col items-center gap-1">
+              <p className="text-zinc-400 text-xs">Ajusta el recorte</p>
+              <p className="text-zinc-400 text-[10px]">Pellizca para zoom</p>
+            </div>
+            <button onClick={confirmarRecorte}
+              className="w-16 h-16 rounded-2xl bg-emerald-500 text-white text-xs flex flex-col items-center justify-center gap-1 font-bold">
+              <span className="text-lg">✓</span>
+              <span>Usar</span>
+            </button>
+          </div>
+        </div>
+      )}
       {/* Modal galería fullscreen */}
+      {galeriaLoading && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center">
+          <span className="text-white text-sm">Cargando imagen...</span>
+        </div>
+      )}
       {galeria && (
         <div className="fixed inset-0 bg-black z-50 flex flex-col">
           <div className="flex items-center justify-between px-4 py-3">
-            <span className="text-zinc-400 text-sm">{galeria.index + 1} / {galeria.fotos.length}</span>
+            <div>
+              <span className="text-zinc-400 text-sm">{galeria.esFirma ? '✍️ Firma' : '🖼️ Foto'} {galeria.fotos.length > 1 ? `${galeria.index + 1}/${galeria.fotos.length}` : ''}</span>
+              {galeria.fecha && <p className="text-zinc-300 text-xs">{formatFechaCorta(galeria.fecha)}</p>}
+            </div>
             <button onClick={() => setGaleria(null)} className="text-white text-2xl">✕</button>
           </div>
           <div className="flex-1 flex items-center justify-center relative overflow-hidden">

@@ -11,9 +11,11 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const q = searchParams.get('q') || ''
   const fecha = searchParams.get('fecha') || ''
-  const page = parseInt(searchParams.get('page') || '1')
+  const cursor = searchParams.get('cursor') || null
   const limit = parseInt(searchParams.get('limit') || '15')
-  const skip = (page - 1) * limit
+  const page = parseInt(searchParams.get('page') || '1')
+  const useCursor = !!cursor || searchParams.has('cursor')
+  const skip = useCursor ? undefined : (page - 1) * limit
 
   const where: any = { empleadoId: user.id }
 
@@ -32,21 +34,30 @@ export async function GET(req: NextRequest) {
     where.cliente = { nombre: { contains: q, mode: 'insensitive' } }
   }
 
-  const [visitas, total] = await Promise.all([
-    prisma.visita.findMany({
+  const select = {
+    id: true, tipo: true, monto: true, nota: true, factura: true,
+    firma: true, lat: true, lng: true, esLibre: true,
+    createdAt: true, fechaBogota: true, clienteId: true,
+    cliente: { select: { id: true, nombre: true, direccion: true } }
+  }
+
+  if (useCursor) {
+    const visitas = await prisma.visita.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      skip,
-      take: limit,
-      select: {
-        id: true, tipo: true, monto: true, nota: true, factura: true,
-        firma: true, lat: true, lng: true, esLibre: true,
-        createdAt: true, fechaBogota: true, clienteId: true,
-        cliente: { select: { id: true, nombre: true, direccion: true } }
-      }
-    }),
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      select,
+    })
+    const hasMore = visitas.length > limit
+    const data = hasMore ? visitas.slice(0, limit) : visitas
+    const nextCursor = hasMore ? data[data.length - 1].id : null
+    return NextResponse.json({ visitas: data, nextCursor, hasMore })
+  }
+
+  const [visitas, total] = await Promise.all([
+    prisma.visita.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take: limit, select }),
     prisma.visita.count({ where })
   ])
-
   return NextResponse.json({ visitas, total, page, pages: Math.ceil(total / limit) })
 }

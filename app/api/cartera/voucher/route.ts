@@ -96,7 +96,6 @@ export async function POST(req: NextRequest) {
     })
 
     const text = msg.choices[0]?.message?.content ?? ''
-    console.log('[voucher] text:', text.slice(0, 200))
     const match = text.match(/\{[\s\S]*\}/)
     if (match) datosIA = JSON.parse(match[0])
   } catch (e) {

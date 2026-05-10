@@ -33,6 +33,9 @@ model Empresa {
   ciudadEntregaLocal   String?
   diasHistorialBodega  Int             @default(7)
   bodegaPuedeEnviar    Boolean         @default(false)
+  syncVentasHoy       Int?            @default(0)
+  syncVentasFecha     DateTime?
+  syncVentasUltimo    DateTime?
   ultimaSyncBodega     DateTime?
   configRecibos   Json?           @default("{\"nit\": null, \"logo\": null, \"prefijo\": \"REC\", \"telefono\": null, \"direccion\": null, \"anchoPapel\": \"80mm\"}")
   chatsAsistente  AsistenteChat[]
@@ -47,6 +50,7 @@ model Empresa {
   CarteraCache    CarteraCache[]
   vinculadas      EmpresaVinculada[]
   ordenesDespacho OrdenDespacho[]
+  ventasMes       VentaMesCliente[]
 }
 
 model Empleado {
@@ -114,6 +118,7 @@ model Cliente {
   metaVenta       Float?
   nit             String?           @db.VarChar(255)
   ciudad          String?           @db.VarChar(255)
+  departamento   String?           @db.VarChar(255)
   listaId         String?
   apiId           String?
   maps            String?
@@ -125,6 +130,7 @@ model Cliente {
   lista           ListaClientes?    @relation(fields: [listaId], references: [id])
   rutaClientes    RutaCliente[]
   rutasFijas      RutaFijaCliente[]
+  ventasMes       VentaMesCliente[]
   visitas         Visita[]
 
   @@index([empresaId], map: "idx_cliente_empresa")
@@ -260,16 +266,36 @@ model RutaFijaEmpleado {
 }
 
 model RutaFijaCliente {
-  id         String   @id @default(cuid())
-  rutaFijaId String
-  clienteId  String
-  orden      Int      @default(0)
-  metaVenta  Float?
-  cliente    Cliente  @relation(fields: [clienteId], references: [id])
-  rutaFija   RutaFija @relation(fields: [rutaFijaId], references: [id])
+  id            String   @id @default(cuid())
+  rutaFijaId    String
+  clienteId     String
+  orden         Int      @default(0)
+  metaVenta     Float?
+  latImpulso    Float?
+  lngImpulso    Float?
+  latVendedor   Float?
+  lngVendedor   Float?
+  cliente       Cliente  @relation(fields: [clienteId], references: [id])
+  rutaFija      RutaFija @relation(fields: [rutaFijaId], references: [id])
 
   @@map("RutaFijaCliente")
 }
+model VentaMesCliente {
+  id               String   @id @default(cuid())
+  clienteId        String
+  empresaId        String
+  mes              String   // YYYY-MM
+  totalVenta       Float    @default(0)
+  cantidadVisitas  Int      @default(0)
+  updatedAt        DateTime @updatedAt
+  cliente          Cliente  @relation(fields: [clienteId], references: [id])
+  empresa          Empresa  @relation(fields: [empresaId], references: [id])
+
+  @@unique([clienteId, mes])
+  @@index([empresaId, mes])
+  @@map("VentaMesCliente")
+}
+
 
 model AuditLog {
   id         String   @id @default(cuid())

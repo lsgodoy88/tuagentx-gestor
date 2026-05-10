@@ -10,8 +10,11 @@
 }
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0a0a1a;
+  --foreground: #e2e8f0;
+  --card-bg: #080818;
+  --card-bg-2: #0d0d1a;
+  --border-blue: rgba(59, 130, 246, 0.45);
 }
 
 @theme inline {
@@ -21,17 +24,22 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Cards con borde azul suave */
+.card-dark {
+  background: var(--card-bg);
+  border: 1px solid var(--border-blue);
+  border-radius: 1rem;
+}
+.card-dark-2 {
+  background: var(--card-bg-2);
+  border: 1px solid var(--border-blue);
+  border-radius: 0.75rem;
 }
 
 .leaflet-label {
@@ -58,4 +66,49 @@ body {
 .cf-turnstile iframe {
   filter: brightness(0.15) !important;
   border-radius: 8px;
+}
+
+/* Tema global: fondo azul oscuro en cards */
+[class*="bg-zinc-900"][class*="border-zinc-800"],
+[class*="bg-zinc-900"][class*="border"][class*="zinc-800"] {
+  background: var(--card-bg) !important;
+  border-color: var(--border-blue) !important;
+}
+[class*="bg-zinc-800/60"][class*="border"][class*="zinc-700"] {
+  background: rgba(8, 8, 24, 0.7) !important;
+  border-color: var(--border-blue) !important;
+}
+
+/* Ocultar scrollbar manteniendo scroll funcional */
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { scrollbar-width: none; -ms-overflow-style: none; }
+
+/* Overlay sidebar móvil con efecto de puntos animados */
+.sidebar-overlay {
+  background: rgba(0,0,0,0.82);
+  position: relative;
+  overflow: hidden;
+}
+.sidebar-overlay::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle, rgba(59,130,246,0.25) 1px, transparent 1px),
+    radial-gradient(circle, rgba(59,130,246,0.15) 1px, transparent 1px);
+  background-size: 60px 60px, 90px 90px;
+  background-position: 0 0, 30px 30px;
+  animation: driftNodes 12s linear infinite;
+}
+.sidebar-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle, rgba(59,130,246,0.1) 1px, transparent 1px);
+  background-size: 120px 120px;
+  animation: driftNodes 20s linear infinite reverse;
+}
+@keyframes driftNodes {
+  0%   { background-position: 0 0, 30px 30px; }
+  100% { background-position: 60px 60px, 90px 90px; }
 }

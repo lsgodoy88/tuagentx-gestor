@@ -1,4 +1,7 @@
 import { prisma } from '@/lib/prisma'
+import fs from 'fs'
+import path from 'path'
+const municipiosDANE: Record<string, string> = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'public/municipios_dane.json'), 'utf-8'))
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
@@ -62,13 +65,24 @@ export async function POST(req: NextRequest) {
   })
   const mapaClientes = Object.fromEntries(clientes.map((c: any) => [c.apiId, c]))
 
-  // Buscar órdenes existentes
+  // Buscar órdenes existentes por origenId
   const origenIds = ordenesFiltradas.map((o: any) => o.uid).filter(Boolean) as string[]
+  const numeroOrdenes = ordenesFiltradas.map((o: any) => String(o.numeroFacturado || '')).filter(Boolean)
   const existentes = await prisma.ordenDespacho.findMany({
-    where: { empresaId, origenId: { in: origenIds } },
-    select: { id: true, origenId: true, estado: true }
+    where: {
+      empresaId,
+      OR: [
+        { origenId: { in: origenIds } },
+        { numeroOrden: { in: numeroOrdenes }, origenId: '' },
+        { numeroOrden: { in: numeroOrdenes }, origenId: null },
+      ]
+    },
+    select: { id: true, origenId: true, numeroOrden: true, estado: true }
   })
-  const existentesMap = Object.fromEntries(existentes.map((e: any) => [e.origenId, e]))
+  const existentesMap = Object.fromEntries([
+    ...existentes.filter((e: any) => e.origenId).map((e: any) => [e.origenId, e]),
+    ...existentes.filter((e: any) => !e.origenId).map((e: any) => [e.numeroOrden, e]),
+  ])
 
   const toCreate: any[] = []
   const toUpdate: any[] = []
@@ -78,20 +92,21 @@ export async function POST(req: NextRequest) {
     if (!origenId) continue
     if (!o.numeroFacturado) continue // Ignorar órdenes sin número de factura
     const clienteData = mapaClientes[o.cliente?.uid ?? ''] || {}
+    if (!clienteData.nombre) continue // Sin cliente en BD → no crear
     const ciudadRaw: string | null = clienteData.ciudad || null
     const ciudad = ciudadRaw ? ciudadRaw.split('/').pop()?.trim() ?? ciudadRaw : null
     const data = {
       numeroOrden: String(o.numeroFacturado || ''),
-      clienteNombre: clienteData.nombre || 'Sin nombre',
+      clienteNombre: clienteData.nombre,
       clienteNit: clienteData.nit || null,
       ciudad,
       direccion: clienteData.direccion || null,
       telefono: clienteData.telefono || null,
       fechaOrden: o.fCreado ? new Date(o.fCreado) : null,
     }
-    const existente = existentesMap[origenId]
+    const existente = existentesMap[origenId] || existentesMap[String(o.numeroFacturado || '')]
     if (existente) {
-      toUpdate.push({ id: existente.id, data })
+      toUpdate.push({ id: existente.id, data: { ...data, origenId: origenId || existente.origenId } })
     } else {
       toCreate.push({ empresaId, origen: 'uptres', origenId, estado: 'pendiente', origenVinculadaId, ...data })
     }

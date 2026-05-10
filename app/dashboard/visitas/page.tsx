@@ -20,7 +20,8 @@ export default function VisitasPage() {
   // Historial paginado
   const [historial, setHistorial] = useState<any[]>([])
   const [historialTotal, setHistorialTotal] = useState(0)
-  const [historialPage, setHistorialPage] = useState(1)
+  const [historialCursor, setHistorialCursor] = useState<string|null>(null)
+  const [historialHasMore, setHistorialHasMore] = useState(false)
   const [loadingHistorial, setLoadingHistorial] = useState(false)
   const [loadingMore, setLoadingMore] = useState(false)
   const [buscarHistorial, setBuscarHistorial] = useState('')
@@ -33,8 +34,17 @@ export default function VisitasPage() {
   const [firmaVer, setFirmaVer] = useState<any>(null)
   const [firmaUrlGenerada, setFirmaUrlGenerada] = useState<string | null>(null)
   const [detalleCliente, setDetalleCliente] = useState<string | null>(null)
+  const [ordenesAsignadas, setOrdenesAsignadas] = useState<any[]>([])
+  const [clienteModal, setClienteModal] = useState<any>(null)
 
-  useEffect(() => { loadHoy() }, [])
+  useEffect(() => {
+    loadHoy()
+    if (isEntregas) {
+      fetch('/api/bodega/despachos?estado=en_entrega').then(r => r.json()).then(d => {
+        setOrdenesAsignadas(d.despachos?.filter((o: any) => o.estado === 'en_entrega') || [])
+      }).catch(() => {})
+    }
+  }, [])
 
   async function loadHoy() {
     const [visRes, turRes, meRes] = await Promise.all([
@@ -47,23 +57,25 @@ export default function VisitasPage() {
     setPuedeCapturarGps(meRes?.puedeCapturarGps === true)
   }
 
-  async function loadHistorial(q: string, fecha: string, p: number) {
-    if (p === 1) setLoadingHistorial(true); else setLoadingMore(true)
-    const params = new URLSearchParams({ page: String(p), limit: '15' })
+  async function loadHistorial(q: string, fecha: string, cursor: string | null = null) {
+    if (!cursor) setLoadingHistorial(true); else setLoadingMore(true)
+    const params = new URLSearchParams({ limit: '15' })
     if (q) params.set('q', q)
     if (fecha) params.set('fecha', fecha)
+    if (cursor) params.set('cursor', cursor)
     const data = await fetch('/api/visitas/todas?' + params).then(r => r.json())
     const nuevas = data.visitas ?? []
-    setHistorial(p === 1 ? nuevas : prev => [...prev, ...nuevas])
-    setHistorialTotal(data.total ?? 0)
-    setHistorialPage(p)
-    if (p === 1) setLoadingHistorial(false); else setLoadingMore(false)
+    setHistorial(!cursor ? nuevas : prev => [...prev, ...nuevas])
+    setHistorialCursor(data.nextCursor ?? null)
+    setHistorialHasMore(data.hasMore ?? false)
+    setHistorialTotal(!cursor ? nuevas.length : prev => prev + nuevas.length)
+    if (!cursor) setLoadingHistorial(false); else setLoadingMore(false)
   }
 
   // Cargar historial al abrir tab
   useEffect(() => {
     if (tab === 'historial' && historial.length === 0) {
-      loadHistorial('', '', 1)
+      loadHistorial('', '', null)
     }
   }, [tab])
 
@@ -124,7 +136,7 @@ export default function VisitasPage() {
   }
 
   return (
-    <div className="max-w-md mx-auto space-y-6 pb-24">
+    <div className="max-w-2xl mx-auto space-y-6 pb-24 md:pb-0">
       <div>
         <h1 className="text-2xl font-bold text-white">{isEntregas ? 'Entregas' : 'Visitas'}</h1>
         <p className="text-zinc-400 text-sm mt-1">{visitasLibres.length} {isEntregas ? 'entregas' : 'visitas libres'} registradas hoy</p>
@@ -144,10 +156,33 @@ export default function VisitasPage() {
       {tab === 'nueva' && (
         <div className="space-y-4">
           {turno && puedeRegistrar ? (
+            isEntregas ? (
+              <div className="space-y-2">
+                {ordenesAsignadas.length === 0 && (
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-center">
+                    <p className="text-zinc-400 text-sm">No tienes órdenes asignadas pendientes de entrega</p>
+                  </div>
+                )}
+                {ordenesAsignadas.map((o: any) => (
+                  <div key={o.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-white text-sm font-semibold truncate">#{o.numeroOrden} · {o.clienteNombre}</p>
+                      {o.ciudad && <p className="text-zinc-400 text-xs">{o.ciudad}</p>}
+                    </div>
+                    <button onClick={() => {
+                      setClienteModal({ id: o.clienteId, nombre: o.clienteNombre, ordenDespachoId: o.id, ordenNumero: o.numeroOrden })
+                    }} className="flex-shrink-0 bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold px-3 py-2 rounded-xl transition-colors">
+                      Entregar
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : (
             <button onClick={() => setModal(true)}
               className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-4 rounded-2xl text-lg transition-colors">
-              + {isEntregas ? 'Registrar entrega' : 'Registrar visita libre'}
+              + Registrar visita libre
             </button>
+            )
           ) : turno && !puedeRegistrar ? (
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-center">
               <p className="text-zinc-400 text-sm">Sin permiso para registrar visitas</p>
@@ -174,7 +209,7 @@ export default function VisitasPage() {
               setBuscarHistorial(q)
               setFechaHistorial('')
               clearTimeout(debounceRef.current)
-              debounceRef.current = setTimeout(() => loadHistorial(q, '', 1), 500)
+              debounceRef.current = setTimeout(() => loadHistorial(q, '', null), 500)
             }}
               placeholder="Buscar cliente..."
               className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
@@ -184,12 +219,12 @@ export default function VisitasPage() {
                 setFechaHistorial(f)
                 setBuscarHistorial('')
                 clearTimeout(debounceRef.current)
-                loadHistorial('', f, 1)
+                loadHistorial('', f, null)
               }}
                 className="absolute inset-0 opacity-0 cursor-pointer w-full" />
               <div className={"flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors " + (fechaHistorial ? "bg-emerald-600 border-emerald-500 text-white" : "bg-zinc-800 border-zinc-700 text-zinc-400")}>
                 📅 {fechaHistorial ? new Date(fechaHistorial + 'T12:00:00Z').toLocaleDateString('es-CO', {day:'numeric', month:'short'}) : 'Fecha'}
-                {fechaHistorial && <button onClick={e => { e.stopPropagation(); setFechaHistorial(''); loadHistorial('', '', 1) }} className="ml-1 text-white/70 hover:text-white">×</button>}
+                {fechaHistorial && <button onClick={e => { e.stopPropagation(); setFechaHistorial(''); loadHistorial('', '', null) }} className="ml-1 text-white/70 hover:text-white">×</button>}
               </div>
             </div>
           </div>
@@ -209,10 +244,10 @@ export default function VisitasPage() {
           ) : (
             <div className="space-y-2">
               {historial.map(v => <CardVisita key={v.id} v={v} />)}
-              {historial.length < historialTotal && (
-                <button onClick={() => loadHistorial(buscarHistorial, fechaHistorial, historialPage + 1)} disabled={loadingMore}
+              {historialHasMore && (
+                <button onClick={() => loadHistorial(buscarHistorial, fechaHistorial, historialCursor)} disabled={loadingMore}
                   className="w-full bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 text-sm font-medium py-3 rounded-2xl border border-zinc-700 transition-colors">
-                  {loadingMore ? 'Cargando...' : `Cargar más (${historial.length} de ${historialTotal})`}
+                  {loadingMore ? 'Cargando...' : 'Cargar más'}
                 </button>
               )}
             </div>
@@ -230,6 +265,28 @@ export default function VisitasPage() {
         titulo={isEntregas ? 'Registrar entrega' : 'Registrar visita libre'}
         extraData={{ esLibre: true }}
       />
+
+      {/* Modal entrega por orden asignada */}
+      {clienteModal && (
+        <ModalVisita
+          key={clienteModal.id}
+          open={!!clienteModal}
+          onClose={() => setClienteModal(null)}
+          onRegistrado={() => {
+            setClienteModal(null)
+            loadHoy()
+            fetch('/api/bodega/despachos?estado=en_entrega').then(r => r.json()).then(d => {
+              setOrdenesAsignadas(d.despachos?.filter((o: any) => o.estado === 'en_entrega') || [])
+            }).catch(() => {})
+          }}
+          clienteInicial={clienteModal}
+          tipoForzado="entrega"
+          puedeCapturarGps={puedeCapturarGps}
+          titulo="📦 Registrar entrega"
+          extraData={{ ordenDespachoId: clienteModal.ordenDespachoId }}
+          facturaPreset={clienteModal.ordenNumero}
+        />
+      )}
 
       {firmaVer && (
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">

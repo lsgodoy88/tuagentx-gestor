@@ -45,6 +45,29 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     return { 'x-api-key': this.apiKey, 'Authorization': this.token }
   }
 
+  private async fetchAllSinCondition(endpoint: string, extraParams: Record<string, string> = {}): Promise<any[]> {
+    const todos: any[] = []
+    let cursorDate: string | null = null
+    let cursorId: string | null = null
+    while (true) {
+      const p = new URLSearchParams({ limit: '100', ...extraParams })
+      if (cursorDate && cursorId) { p.set('cursorDate', cursorDate); p.set('cursorId', cursorId) }
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), 30000)
+      const res = await fetch(`${BASE}/${endpoint}?${p.toString()}`, { headers: this.headers, signal: controller.signal })
+      clearTimeout(timer)
+      const text = await res.text()
+      if (!text) break
+      const d = JSON.parse(text)
+      if (!d.ok || !Array.isArray(d.data) || d.data.length === 0) break
+      todos.push(...d.data)
+      if (!d.nextCursor?.cursorDate || !d.nextCursor?.cursorId) break
+      cursorDate = d.nextCursor.cursorDate
+      cursorId = d.nextCursor.cursorId
+    }
+    return todos
+  }
+
   private async fetchAll(endpoint: string, extraParams: Record<string, string> = {}): Promise<any[]> {
     const todos: any[] = []
     let cursorDate: string | null = null
@@ -73,38 +96,14 @@ export class UpTresAdapter implements AdaptadorIntegracion {
   }
 
 
-  private async fetchAllSkip(endpoint: string, extraParams: Record<string, string> = {}): Promise<any[]> {
-    const todos: any[] = []
-    const limit = 100
-    let skip = 0
-    const seenIds = new Set<string>()
-    while (true) {
-      const p = new URLSearchParams({ limit: String(limit), skip: String(skip), condition: 'true', desde: '1970-01-01', ...extraParams })
-      const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 30000)
-      const res = await fetch(`${BASE}/${endpoint}?${p.toString()}`, { headers: this.headers, signal: controller.signal })
-      clearTimeout(timer)
-      const text = await res.text()
-      if (!text) break
-      const d = JSON.parse(text)
-      if (!d.ok || !Array.isArray(d.data) || d.data.length === 0) break
-      const nuevos = d.data.filter((item: any) => !seenIds.has(item.id))
-      if (nuevos.length === 0) break
-      nuevos.forEach((item: any) => seenIds.add(item.id))
-      todos.push(...nuevos)
-      if (d.data.length < limit) break
-      skip += limit
-    }
-    return todos
-  }
+
   async fetchClientes(desde?: Date): Promise<ClienteExterno[]> {
     const params: Record<string, string> = {
       fields: 'id,firstName,lastName,document,email,phone,address,cityId,neighborhood,tradeName,updatedAt',
       includeTotal: 'false',
     }
-    if (desde) params.desde = desde.toISOString().split('T')[0]
-    // clientes usa skip en vez de cursor
-    const data = await this.fetchAllSkip('clientes', params)
+    if (desde) params.fModificado = desde.toISOString()
+    const data = await this.fetchAll('clientes', params)
     return data.map((c: any) => ({
       uid: c.id,
       _id: c.id,
@@ -127,7 +126,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       fields: 'id,firstName,lastName,document,email,phone,cityId,updatedAt',
       includeTotal: 'false',
     }
-    if (desde) params.desde = desde.toISOString().split('T')[0]
+    if (desde) params.fModificado = desde.toISOString()
     const data = await this.fetchAll('empleados', params)
     return data.map((e: any) => ({
       uid: e.id,
@@ -188,16 +187,19 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     }))
   }
 
-  async fetchVentas(desde?: Date): Promise<VentaExterna[]> {
+  async fetchVentas(desde?: Date, customerId?: string): Promise<VentaExterna[]> {
     const params: Record<string, string> = {
       fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,isDelivered,isShipped,items,createdAt,updatedAt',
       expand: 'customer,items',
       includeTotal: 'false',
+      condition: 'false', // traer todas: activas y cerradas
     }
     const fromDate = desde ?? new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
     params.from = fromDate.toISOString().split('T')[0]
     params.to = new Date().toISOString().split('T')[0]
-    const data = await this.fetchAll('ordenes', params)
+    if (customerId) params.customerId = customerId
+    // fetchAll usa condition:true hardcodeado — lo sobreescribimos con fetchAllSinCondition
+    const data = await this.fetchAllSinCondition('ordenes', params)
     return data.map((o: any) => ({
       uid: o.id,
       _id: o.id,
@@ -210,6 +212,8 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       cliente: { uid: o.customerId },
       empleado: { uid: o.employeeId },
       productos: o.items || [],
+      // Nombre del cliente expandido directamente de la API
+      clienteNombreApi: o.customer?.name || o.customer?.tradeName || null,
     }))
   }
 }

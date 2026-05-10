@@ -7,10 +7,13 @@ export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
-  if (user.role !== 'empresa') return NextResponse.json({ error: 'Solo empresa' }, { status: 403 })
-
   const body = await req.json()
   const { horaInicioRuta, horaFinRuta, autoCrearRuta, autoCerrarRuta, diasCrearRuta, diasCerrarRuta, ciudadEntregaLocal, diasHistorialBodega, bodegaPuedeEnviar } = body
+  // bodega y supervisor solo pueden cambiar diasHistorialBodega
+  if (user.role !== 'empresa') {
+    if (!['bodega', 'supervisor'].includes(user.role)) return NextResponse.json({ error: 'Solo empresa' }, { status: 403 })
+    if (Object.keys(body).some((k: string) => k !== 'diasHistorialBodega')) return NextResponse.json({ error: 'Solo puedes cambiar dias historial' }, { status: 403 })
+  }
 
   const horaRegex = /^([01]\d|2[0-3]):[0-5]\d$/
   if (horaInicioRuta && !horaRegex.test(horaInicioRuta)) {
@@ -58,7 +61,7 @@ export async function PATCH(req: NextRequest) {
         "ciudadEntregaLocal"  = ${finalCiudad},
         "diasHistorialBodega" = ${finalDiasBodega},
         "bodegaPuedeEnviar"   = ${finalBodegaPuedeEnviar}
-    WHERE id = ${user.id}
+    WHERE id = ${user.role === 'empresa' ? user.id : user.empresaId}
   `
 
   return NextResponse.json({ ok: true })

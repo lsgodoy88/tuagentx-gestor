@@ -5,7 +5,7 @@ export default function ImpulsosPage() {
   const [mes, setMes] = useState(new Date().toISOString().slice(0, 7))
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">⚡ Impulsos</h1>
@@ -51,7 +51,8 @@ function ImpulsosTabla({ mes }: { mes: string }) {
   if (!datos) return null
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
       {datos.impulsadoras?.map((imp: any) => (
         <div key={imp.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
@@ -98,6 +99,7 @@ function ImpulsosTabla({ mes }: { mes: string }) {
           </table>
         </div>
       ))}
+      </div>
     </div>
   )
 }

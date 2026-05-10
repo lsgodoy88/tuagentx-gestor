@@ -25,11 +25,16 @@ export async function GET() {
   const supervisoresActivos = await prisma.empleado.count({
     where: { empresaId, rol: 'supervisor', activo: true },
   })
+  // Auto-migrar empresas sin modoEquipo a 'simple'
+  if (row && !row.modoEquipo) {
+    await prisma.empresa.update({ where: { id: empresaId }, data: { modoEquipo: 'simple' } }).catch(() => {})
+  }
+
   return NextResponse.json({
     activa: row?.activo ?? true,
     planFin,
     diasRestantes,
-    modoEquipo: row?.modoEquipo ?? null,
+    modoEquipo: row?.modoEquipo ?? 'simple',
     supervisoresActivos,
   })
 }

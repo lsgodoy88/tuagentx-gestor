@@ -105,7 +105,6 @@ export async function PUT(req: NextRequest) {
   const user = session.user as any
   const { id, nombre, email, telefono, password, vendedorId, puedeCapturarGps, listaIds, vendedorIds, permisos, ciudades, etiqueta, apiId } = await req.json()
   const data: any = { nombre, telefono: telefono || null, vendedorId: vendedorId !== undefined ? vendedorId : undefined, puedeCapturarGps: puedeCapturarGps !== undefined ? puedeCapturarGps : undefined }
-  console.log('[PUT empleados] apiId recibido:', apiId)
   if (email) data.email = email
   if (password) data.password = await bcrypt.hash(password, 10)
   if (ciudades !== undefined) data.ciudades = ciudades

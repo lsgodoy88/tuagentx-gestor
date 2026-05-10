@@ -57,15 +57,21 @@ export default function TrazabilidadPage() {
   const { data: session } = useSession()
   const user = session?.user as any
 
+  const esVendedor = user?.role === 'vendedor'
+  const esBodega = user?.role === 'bodega'
   const [tabPrincipal, setTabPrincipal] = useState<'despachos' | 'inventario'>('despachos')
   const [ordenes, setOrdenes] = useState<any[]>([])
   const [total, setTotal] = useState(0)
-  const [pages, setPages] = useState(1)
-  const [page, setPage] = useState(1)
+  const [nextCursor, setNextCursor] = useState<string|null>(null)
+  const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
 
   const [qInput, setQInput] = useState('')
   const [q, setQ] = useState('')
+  const [buscandoProfundo, setBuscandoProfundo] = useState(false)
+  const [fuenteBusqueda, setFuenteBusqueda] = useState<string | null>(null)
+  const [ordenesBusqueda, setOrdenesBusqueda] = useState<any[] | null>(null)
   const [estado, setEstado] = useState('')
   const [desde, setDesde] = useState(hace7)
   const [hasta, setHasta] = useState(hoy)
@@ -78,33 +84,63 @@ export default function TrazabilidadPage() {
     setExpandido(prev => ({ ...prev, [id]: !prev[id] }))
   }
 
-  async function cargar(p = 1) {
-    setLoading(true)
+  async function cargar(cursor: string | null = null) {
+    if (!cursor) setLoading(true); else setLoadingMore(true)
     const params = new URLSearchParams()
     if (q) params.set('q', q)
     if (estado) params.set('estado', estado)
     if (desde) params.set('desde', desde)
     if (hasta) params.set('hasta', hasta)
-    params.set('page', String(p))
+    if (cursor) params.set('cursor', cursor)
     const res = await fetch('/api/trazabilidad?' + params.toString()).then(r => r.json())
-    setOrdenes(res.ordenes || [])
-    setTotal(res.total || 0)
-    setPages(res.pages || 1)
-    setPage(p)
-    setLoading(false)
+    const nuevas = res.ordenes || []
+    setOrdenes(!cursor ? nuevas : prev => [...prev, ...nuevas])
+    setNextCursor(res.nextCursor ?? null)
+    setHasMore(res.hasMore ?? false)
+    setTotal(prev => !cursor ? nuevas.length : prev + nuevas.length)
+    if (!cursor) setLoading(false); else setLoadingMore(false)
   }
 
-  useEffect(() => { cargar(1) }, [q, estado, desde, hasta])
+  useEffect(() => { cargar(null) }, [q, estado, desde, hasta])
 
-  function buscar() { setQ(qInput) }
-  function limpiar() { setQ(''); setQInput(''); setEstado(''); setDesde(hace7()); setHasta(hoy()) }
+  async function buscar() {
+    const texto = qInput.trim()
+    if (!texto) { setQ(''); setOrdenesBusqueda(null); setFuenteBusqueda(null); return }
 
-  if (!['empresa', 'supervisor', 'superadmin'].includes(user?.role)) {
+    // Capa 1: buscar en memoria (ordenes ya cargadas)
+    const enMemoria = ordenes.filter(o =>
+      o.numeroOrden?.toLowerCase().includes(texto.toLowerCase()) ||
+      o.clienteNombre?.toLowerCase().includes(texto.toLowerCase())
+    )
+    if (enMemoria.length > 0) {
+      setOrdenesBusqueda(enMemoria)
+      setFuenteBusqueda('memoria')
+      return
+    }
+
+    // Capa 2 y 3: buscar en BD y SyncDeuda via endpoint
+    setBuscandoProfundo(true)
+    setOrdenesBusqueda(null)
+    try {
+      const res = await fetch('/api/trazabilidad/buscar?q=' + encodeURIComponent(texto)).then(r => r.json())
+      setOrdenesBusqueda(res.ordenes || [])
+      setFuenteBusqueda(res.fuente || 'no_encontrado')
+    } finally {
+      setBuscandoProfundo(false)
+    }
+  }
+
+  function limpiarBusqueda() {
+    setQInput(''); setOrdenesBusqueda(null); setFuenteBusqueda(null); setQ('')
+  }
+  function limpiar() { setQ(''); setQInput(''); setEstado(''); setDesde(hace7()); setHasta(hoy()); setOrdenesBusqueda(null); setFuenteBusqueda(null) }
+
+  if (!['empresa', 'supervisor', 'superadmin', 'vendedor', 'bodega', 'entregas'].includes(user?.role)) {
     return <div className="p-8 text-zinc-400">Sin acceso</div>
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 max-w-7xl mx-auto">
       <div>
         <h1 className="text-2xl font-bold text-white">Trazabilidad</h1>
       </div>
@@ -168,13 +204,25 @@ export default function TrazabilidadPage() {
       ) : ordenes.length === 0 ? (
         <div className="text-zinc-500 py-12 text-center">Sin resultados en el período</div>
       ) : (
-        <div className="space-y-2">
-          <p className="text-zinc-500 text-xs">{total} órdenes encontradas</p>
-          {ordenes.map(orden => {
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+          <div className="flex items-center gap-3">
+            <p className="text-zinc-500 text-xs">
+              {ordenesBusqueda !== null ? ordenesBusqueda.length : total} órdenes
+              {fuenteBusqueda === 'memoria' && ' · en pantalla'}
+              {fuenteBusqueda === 'bd' && ' · desde BD'}
+              {fuenteBusqueda === 'sync' && ' · desde historial'}
+              {fuenteBusqueda === 'no_encontrado' && ' · no encontrada'}
+            </p>
+            {buscandoProfundo && <span className="text-zinc-500 text-xs animate-pulse">Buscando...</span>}
+            {ordenesBusqueda !== null && (
+              <button onClick={limpiarBusqueda} className="text-zinc-500 hover:text-white text-xs">✕ Limpiar</button>
+            )}
+          </div>
+          {(ordenesBusqueda !== null ? ordenesBusqueda : ordenes).map(orden => {
             const fotos: string[] = Array.isArray(orden.fotosAlistamiento)
               ? orden.fotosAlistamiento
               : orden.fotoAlistamiento ? [orden.fotoAlistamiento] : []
-            const firma = orden.visitas?.[0]?.firma || null
+            const firma = orden.visitas?.[0]?.firma || orden.firmaEntrega || null
             const repartidorNombre = orden.repartidor?.nombre || null
             const entregadoPor = orden.visitas?.[0]?.empleado?.nombre || null
             const entregadoEl = orden.visitas?.[0]?.createdAt || orden.entregadoEl || null
@@ -210,7 +258,14 @@ export default function TrazabilidadPage() {
                 label: 'Entregado',
                 fecha: entregadoEl,
                 quien: entregadoPor,
-                accion: firma ? () => setFirmaModal(firma) : null,
+                accion: firma && !esVendedor ? () => {
+                  if (firma.startsWith('http') || firma.startsWith('data:') || firma.startsWith('/api/')) {
+                    setFirmaModal(firma)
+                  } else {
+                    fetch('/api/firma', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ firma }) })
+                      .then(r => r.json()).then(d => setFirmaModal(d.url || firma)).catch(() => setFirmaModal(firma))
+                  }
+                } : null,
                 accionLabel: '✍️',
               },
             ]
@@ -255,17 +310,11 @@ export default function TrazabilidadPage() {
             )
           })}
 
-          {/* Paginación */}
-          {pages > 1 && (
-            <div className="flex items-center justify-center gap-3 pt-2">
-              <button onClick={() => cargar(page - 1)} disabled={page === 1}
-                className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white text-sm px-4 py-2 rounded-xl">
-                ← Anterior
-              </button>
-              <span className="text-zinc-400 text-sm">{page} / {pages}</span>
-              <button onClick={() => cargar(page + 1)} disabled={page === pages}
-                className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white text-sm px-4 py-2 rounded-xl">
-                Siguiente →
+          {hasMore && (
+            <div className="flex justify-center pt-2">
+              <button onClick={() => cargar(nextCursor)} disabled={loadingMore}
+                className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white text-sm px-6 py-2 rounded-xl">
+                {loadingMore ? 'Cargando...' : 'Cargar más'}
               </button>
             </div>
           )}

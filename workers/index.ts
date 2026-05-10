@@ -73,6 +73,22 @@ integracionWorker.on('failed', (job, err) => {
 
 // ── Queue: entregas (on demand) ──────────────────────────────────────────────
 
+// ── Queue: bodega-sync (diario) ──────────────────────────────────────────────
+export const bodegaSyncQueue = new Queue('bodega-sync', { connection: REDIS })
+export const bodegaSyncWorker = new Worker(
+  'bodega-sync',
+  async (job) => {
+    console.log(`[bodega-sync] iniciado ${new Date().toISOString()}`)
+    const result = await callEndpoint('/api/bodega/sync-auto')
+    console.log('[bodega-sync] resultado:', JSON.stringify(result))
+    return result
+  },
+  { connection: REDIS, concurrency: 1 }
+)
+bodegaSyncWorker.on('failed', (job, err) => {
+  console.error(`[bodega-sync] ${job?.name} falló:`, err.message)
+})
+
 export const entregasQueue = new Queue('entregas', { connection: REDIS })
 
 export const entregasWorker = new Worker(

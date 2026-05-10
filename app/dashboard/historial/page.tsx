@@ -35,7 +35,7 @@ export default function HistorialPage() {
   const clientesAgrupados = Object.values(clientesMap)
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-6 pb-24 md:pb-0 max-w-7xl mx-auto">
       <div>
         <h1 className="text-2xl font-bold text-white">Historial</h1>
         <p className="text-zinc-400 text-sm mt-1">Registro de visitas por día</p>
@@ -53,7 +53,7 @@ export default function HistorialPage() {
           <p className="text-zinc-400 text-sm mt-1">No hay visitas registradas para este día</p>
         </div>
       ) : (
-        <div className="space-y-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <p className="text-zinc-400 text-xs font-semibold">{clientesAgrupados.length} PUNTOS VISITADOS</p>
           {clientesAgrupados.map((item: any) => {
             const tiempoMin = item.entrada && item.salida

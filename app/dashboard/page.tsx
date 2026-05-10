@@ -28,6 +28,7 @@ export default function DashboardPage() {
   const [loadingStats, setLoadingStats] = useState(false)
   const [modalVisita, setModalVisita] = useState<{open: boolean, tipo: string}>({open: false, tipo: 'visita'})
   const [clienteModal, setClienteModal] = useState<any>(null)
+  const [ordenesEntregadas, setOrdenesEntregadas] = useState<Set<string>>(new Set())
   const [distanciaLejos, setDistanciaLejos] = useState(false)
   const [clientesOrdenados, setClientesOrdenados] = useState<any[]>([])
   const [puedeCapturarGps, setPuedeCapturarGps] = useState(false)
@@ -393,7 +394,7 @@ export default function DashboardPage() {
               </div>
             ))}
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4">
               <p className="text-blue-400 text-xs font-semibold mb-1">VENTAS 30 DÍAS</p>
               <p className="text-white text-2xl font-bold">{"$" + (stats.ventasMes || 0).toLocaleString('es-CO')}</p>
@@ -404,7 +405,19 @@ export default function DashboardPage() {
               <p className="text-white text-2xl font-bold">{"$" + (stats.cobrosMes || 0).toLocaleString('es-CO')}</p>
               <p className="text-zinc-500 text-xs mt-1">{stats.porTipo?.cobro || 0} transacciones</p>
             </div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+              <p className="text-zinc-400 text-xs font-semibold mb-1">RUTAS ACTIVAS</p>
+              <p className="text-white text-2xl font-bold">{stats.rutasActivas || 0}</p>
+              <p className="text-zinc-500 text-xs mt-1">sin cerrar</p>
+            </div>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+              <p className="text-zinc-400 text-xs font-semibold mb-1">EN TURNO</p>
+              <p className="text-white text-2xl font-bold">{stats.enTurno || 0}</p>
+              <p className="text-zinc-500 text-xs mt-1">empleados activos</p>
+            </div>
           </div>
+          <div className="md:grid md:grid-cols-2 md:gap-6 space-y-6 md:space-y-0">
+          <div className="space-y-6">
           {stats.visitasPorDia && stats.visitasPorDia.length > 0 && (
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
               <p className="text-white font-semibold text-sm mb-4">Visitas últimos 7 días</p>
@@ -448,6 +461,8 @@ export default function DashboardPage() {
             </div>
             <p className="text-2xl font-bold text-white">{stats.rutasActivas || 0}</p>
           </div>
+          </div>{/* fin col izquierda */}
+          <div className="space-y-6">
           {/* Monitor empleados en turno */}
           {monitor.length > 0 && (
             <div className="space-y-4">
@@ -574,6 +589,8 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
+          </div>{/* fin col derecha */}
+          </div>{/* fin grid 2 cols */}
         </div>
       )}
       {isBodega && (
@@ -713,7 +730,7 @@ export default function DashboardPage() {
               </div>
               <div className="divide-y divide-zinc-800">
                 {clientesOrdenados.sort((a: any, b: any) => a.orden - b.orden).map((c: any) => {
-                  const entregado = visitasRuta.some((v: any) => {
+                  const entregado = ordenesEntregadas.has(c.ordenDespachoId) || visitasRuta.some((v: any) => {
                     if (v.clienteId !== c.id) return false
                     const fv = v.fechaBogota ? new Date(v.fechaBogota).toISOString().split('T')[0] : new Date(new Date(v.createdAt).getTime() - 5*60*60*1000).toISOString().split('T')[0]
                     return fv === fechaRuta
@@ -948,13 +965,18 @@ export default function DashboardPage() {
         open={modalVisita.open}
         onClose={() => { setModalVisita({ open: false, tipo: 'visita' }); setClienteInicialLibre(null) }}
         onRegistrado={() => {
+          // Marcar orden como entregada localmente de inmediato
+          if (clienteModal?.ordenDespachoId) {
+            setOrdenesEntregadas(prev => new Set([...prev, clienteModal.ordenDespachoId]))
+          }
+          const hoy = new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]
           Promise.all([
             fetch('/api/rutas/mi-ruta').then(r => r.json()),
-            fetch('/api/visitas/todas').then(r => r.json()),
+            fetch('/api/visitas/todas?fecha=' + hoy).then(r => r.json()),
           ]).then(([r, v]) => {
             setRuta(r)
             setClientesOrdenados(r?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, rezago: rc.rezago, orden: rc.orden, ordenNumero: rc.ordenNumero || null, notas: rc.notas || null, ordenDespachoId: rc.ordenDespachoId || null })) || [])
-            setVisitasRuta(Array.isArray(v) ? v : [])
+            setVisitasRuta(Array.isArray(v?.visitas) ? v.visitas : Array.isArray(v) ? v : [])
           })
         }}
         clienteInicial={clienteInicialLibre || undefined}
@@ -968,13 +990,18 @@ export default function DashboardPage() {
         open={!!clienteModal}
         onClose={() => setClienteModal(null)}
         onRegistrado={() => {
+          // Marcar orden como entregada localmente de inmediato
+          if (clienteModal?.ordenDespachoId) {
+            setOrdenesEntregadas(prev => new Set([...prev, clienteModal.ordenDespachoId]))
+          }
+          const hoy = new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]
           Promise.all([
             fetch('/api/rutas/mi-ruta').then(r => r.json()),
-            fetch('/api/visitas/todas').then(r => r.json()),
+            fetch('/api/visitas/todas?fecha=' + hoy).then(r => r.json()),
           ]).then(([r, v]) => {
             setRuta(r)
             setClientesOrdenados(r?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, rezago: rc.rezago, orden: rc.orden, ordenNumero: rc.ordenNumero || null, notas: rc.notas || null, ordenDespachoId: rc.ordenDespachoId || null })) || [])
-            setVisitasRuta(Array.isArray(v) ? v : [])
+            setVisitasRuta(Array.isArray(v?.visitas) ? v.visitas : Array.isArray(v) ? v : [])
           })
         }}
         clienteInicial={clienteModal}

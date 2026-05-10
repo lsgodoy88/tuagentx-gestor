@@ -17,9 +17,11 @@ export async function GET(req: NextRequest) {
   const vendedorId = searchParams.get('vendedorId') || undefined
   const estado = searchParams.get('estado') || undefined
   const fecha = searchParams.get('fecha') || undefined
+  const cursor = searchParams.get('cursor') || null
   const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
   const limit = 15
-  const skip = (page - 1) * limit
+  const useCursor = !!cursor || searchParams.has('cursor')
+  const skip = useCursor ? undefined : (page - 1) * limit
 
   const where: any = {
     Cartera: { empresaId },
@@ -35,28 +37,28 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const [pagos, total] = await Promise.all([
-    prisma.pagoCartera.findMany({
+  const include = {
+    Cartera: { include: { Cliente: { select: { id: true, nombre: true, nit: true, telefono: true } } } },
+    Empleado: { select: { id: true, nombre: true, rol: true } },
+  }
+
+  if (useCursor) {
+    const pagos = await prisma.pagoCartera.findMany({
       where,
-      skip,
-      take: limit,
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       orderBy: { createdAt: 'desc' },
-      include: {
-        Cartera: {
-          include: {
-            Cliente: { select: { id: true, nombre: true, nit: true, telefono: true } },
-          },
-        },
-        Empleado: { select: { id: true, nombre: true, rol: true } },
-      },
-    }),
+      include,
+    })
+    const hasMore = pagos.length > limit
+    const data = hasMore ? pagos.slice(0, limit) : pagos
+    const nextCursor = hasMore ? data[data.length - 1].id : null
+    return NextResponse.json({ pagos: data, nextCursor, hasMore })
+  }
+
+  const [pagos, total] = await Promise.all([
+    prisma.pagoCartera.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' }, include }),
     prisma.pagoCartera.count({ where }),
   ])
-
-  return NextResponse.json({
-    pagos,
-    total,
-    page,
-    pages: Math.ceil(total / limit),
-  })
+  return NextResponse.json({ pagos, total, page, pages: Math.ceil(total / limit) })
 }

@@ -365,10 +365,14 @@ export default function ConfiguracionPage() {
     const res = await fetch('/api/integracion/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: 'delta' }) })
     const data = await res.json()
     setSincronizando(false)
-    setMsgSync(data.ok ? '✅ Sync completada' : data.error || 'Error en sync')
-    setTimeout(() => setMsgSync(''), 4000)
+    if (data.ok) {
+      setMsgSync(`✅  Delta: ${data.clientesActualizados ?? 0} clientes · ${data.empleadosSincronizados ?? 0} empleados · ${data.deudasInsertadas ?? 0} deudas`)
+      setUltimaSync(new Date().toLocaleString('es-CO'))
+      setSyncResultado({ clientes: data.clientesActualizados ?? 0, empleados: data.empleadosSincronizados ?? 0, deudas: data.deudasInsertadas ?? 0 })
+    } else {
+      setMsgSync(data.error || 'Error en sync delta')
+    }
   }
-
   async function analizarDocs() {
     if (!docApi.trim()) return
     setAnalizando(true)
@@ -500,7 +504,7 @@ export default function ConfiguracionPage() {
   )
 
   return (
-    <div className="max-w-2xl space-y-3">
+    <div className="max-w-5xl mx-auto space-y-3">
       <div className="mb-2">
         <h1 className="text-2xl font-bold text-white">Configuración</h1>
         <p className="text-zinc-400 text-sm mt-1">Ajustes de tu cuenta</p>

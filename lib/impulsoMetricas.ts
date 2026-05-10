@@ -24,10 +24,13 @@ export interface DiaMetrica {
 const ORDEN = [1, 2, 3, 4, 5, 6, 0]
 
 /**
- * Construye los 7 días con puntos, meta, monto y % de cumplimiento.
- * Retorna null para días sin ruta configurada.
+ * ventasPorCliente: mapa clienteId -> monto total del mes
+ * Puede venir de SyncDeuda (ERP) o Visita (manual)
  */
-export function buildSemana(rutasFijas: any[], visitasMes: any[]): (DiaMetrica | null)[] {
+export function buildSemana(
+  rutasFijas: any[],
+  ventasPorCliente: Record<string, number>
+): (DiaMetrica | null)[] {
   return ORDEN.map(dia => {
     const ruta = rutasFijas.find((r: any) => r.diaSemana === dia)
     if (!ruta) return null
@@ -40,8 +43,7 @@ export function buildSemana(rutasFijas: any[], visitasMes: any[]): (DiaMetrica |
     )
 
     const puntos: PuntoMetrica[] = ruta.clientes.map((rc: any) => {
-      const ventas = visitasMes.filter((v: any) => v.clienteId === rc.clienteId)
-      const montoMes = ventas.reduce((a: number, v: any) => a + (v.monto || 0), 0)
+      const montoMes = ventasPorCliente[rc.clienteId] || 0
       const meta = rc.metaVenta || 0
       const pct = meta > 0 ? Math.round((montoMes / meta) * 100) : null
       const semaforo = pct === null ? 'gris' : pct >= 80 ? 'verde' : pct >= 50 ? 'amarillo' : 'rojo'
@@ -52,7 +54,7 @@ export function buildSemana(rutasFijas: any[], visitasMes: any[]): (DiaMetrica |
         nombreComercial: rc.cliente.nombreComercial || null,
         meta: esPrimero ? meta : 0,
         montoMes: esPrimero ? montoMes : 0,
-        ventasMes: ventas.length,
+        ventasMes: esPrimero ? (montoMes > 0 ? 1 : 0) : 0,
         pct: esPrimero ? pct : null,
         semaforo: esPrimero ? semaforo : 'gris',
         esPrimero,

@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { crearAdaptador, sincronizarDeudas, actualizarCache } from '@/lib/integracion/sync'
 import { decrypt } from '@/lib/crypto-uptres'
+import { recalcularVentasMesImpulsos } from '@/lib/integracion/venta-mes'
 
 
 function resolverConfig(tipo: string, config: any): Record<string, string> {
@@ -21,11 +22,39 @@ async function runDelta(integracion: any): Promise<{ deudas: number; clientes: n
   const deudas = await adapter.fetchDeudas(desde)
   const afectados = await sincronizarDeudas(deudas, integracion.id, integracion.empresaId)
   await actualizarCache(afectados, integracion.id, integracion.empresaId)
+
+  // Repoblar clientes con deudas activas que no tienen cache aún
+  const sinCache = await (prisma as any).syncDeuda.findMany({
+    where: { integracionId: integracion.id, saldo: { gt: 0 } },
+    select: { clienteApiId: true },
+    distinct: ['clienteApiId']
+  })
+  const todosSinCache = await (prisma as any).carteraCache.findMany({
+    where: { integracionId: integracion.id },
+    select: { clienteApiId: true }
+  })
+  const conCache = new Set(todosSinCache.map((c: any) => c.clienteApiId))
+  const faltantes = new Set<string>(
+    sinCache.map((d: any) => d.clienteApiId).filter((id: string) => id && !conCache.has(id))
+  )
+  if (faltantes.size > 0) {
+    console.log('[sync] Repoblando', faltantes.size, 'clientes sin cache')
+    await actualizarCache(faltantes, integracion.id, integracion.empresaId)
+  }
+
   await (prisma as any).integracion.update({
     where: { id: integracion.id },
     data: { ultimaSync: new Date() }
   })
-  return { deudas: deudas.length, clientes: afectados.size }
+
+  // Recalcular ventas por mes para clientes con ruta fija (impulsos)
+  try {
+    await recalcularVentasMesImpulsos(integracion.empresaId)
+  } catch (err: any) {
+    console.error('[ventaMes] Error recalculando:', err.message)
+  }
+
+  return { deudas: deudas.length, clientes: afectados.size + faltantes.size }
 }
 
 export async function POST(req: NextRequest) {
@@ -80,16 +109,14 @@ export async function POST(req: NextRequest) {
       const desdeDate = desde ? new Date(desde) : null
       logs.push(`Delta sync desde: ${desde ?? 'inicio'}`)
 
-      const clientesExt = await adapter.fetchClientes()
-      const clientesFiltrados = desdeDate
-        ? clientesExt.filter((c: any) => c.fModificado && new Date(c.fModificado) > desdeDate)
-        : clientesExt
+      const clientesExt = await adapter.fetchClientes(desdeDate ?? undefined)
+      const clientesFiltrados = clientesExt
       for (const c of clientesFiltrados) {
         const doc = (c as any).doc?.trim()
         const uid = (c as any).uid?.trim() || (c as any)._id?.trim()
         if (!doc || !uid) continue
         const nombre = `${(c as any).name || ''} ${(c as any).lastName || ''}`.trim() || 'Sin nombre'
-        const dataCliente = { ciudad: (c as any).ciudad || undefined, direccion: (c as any).dir || undefined, telefono: (c as any).nCel || undefined, email: (c as any).email || undefined }
+        const dataCliente = { ciudad: (c as any).ciudad || undefined, departamento: (c as any).departamento || undefined, direccion: (c as any).dir || undefined, telefono: (c as any).nCel || undefined, email: (c as any).email || undefined }
         try {
           const existing = await (prisma as any).cliente.findFirst({ where: { nit: doc, empresaId } })
           if (existing) {
@@ -99,12 +126,11 @@ export async function POST(req: NextRequest) {
           }
           clientesActualizados++
         } catch(e: any) {
-          console.error('[DELTA] Error cliente', doc, e.message)
         }
       }
       logs.push(`Clientes delta: ${clientesActualizados}`)
 
-      const empleadosExt = await adapter.fetchEmpleados()
+      const empleadosExt = await adapter.fetchEmpleados(desde ? new Date(desde) : undefined)
       const empleadosFiltrados = empleadosExt // siempre sincronizar todos
       for (const e of empleadosFiltrados) {
         const uid = (e as any).uid?.trim() || (e as any)._id?.trim()
@@ -131,6 +157,7 @@ export async function POST(req: NextRequest) {
           })
         }
       }
+      empleadosSincronizados = empleadosFiltrados.length
       logs.push(`Empleados delta: ${empleadosFiltrados.length}`)
 
       const deudas = await adapter.fetchDeudas(desde ? new Date(desde) : undefined)
@@ -164,16 +191,21 @@ export async function POST(req: NextRequest) {
         const uid = ((c._id as string) || (c.uid as string))?.trim()
         if (!doc || !uid) continue
         const nombre = ((c as any).name || '') + ' ' + ((c as any).lastName || '').trim() || 'Sin nombre'
-        const dataCliente = { apiId: uid, ciudad: (c as any).ciudad || undefined, direccion: (c as any).dir || undefined, telefono: (c as any).nCel || undefined, email: (c as any).email || undefined }
+        const dataCliente = { apiId: uid, ciudad: (c as any).ciudad || undefined, departamento: (c as any).departamento || undefined, direccion: (c as any).dir || undefined, telefono: (c as any).nCel || undefined, email: (c as any).email || undefined }
         if (mapaExistentes[doc]) {
-          toUpdate.push({ id: mapaExistentes[doc], data: dataCliente })
+          toUpdate.push({ id: mapaExistentes[doc], data: { ...dataCliente, nombreComercial: (c as any).nombreComercial || undefined } })
         } else {
-          toCreate.push({ nombre, nit: doc, empresaId, ...dataCliente })
+          toCreate.push({ nombre, nit: doc, empresaId, nombreComercial: (c as any).nombreComercial || undefined, ...dataCliente })
         }
       }
       // Batch create + parallel updates
       if (toCreate.length > 0) await (prisma as any).cliente.createMany({ data: toCreate, skipDuplicates: true })
-      await Promise.all(toUpdate.map((u: any) => (prisma as any).cliente.update({ where: { id: u.id }, data: u.data })))
+      // Batch updates de 50 para no saturar pool de conexiones
+      for (let i = 0; i < toUpdate.length; i += 50) {
+        await Promise.all(toUpdate.slice(i, i + 50).map((u: any) =>
+          (prisma as any).cliente.update({ where: { id: u.id }, data: u.data })
+        ))
+      }
       clientesActualizados = toCreate.length + toUpdate.length
       logs.push(`Clientes actualizados: ${clientesActualizados}`)
 
@@ -191,7 +223,7 @@ export async function POST(req: NextRequest) {
       }
       logs.push(`Empleados sincronizados: ${empleadosExt.length}`)
       logs.push('Sincronizando empleados referencia...')
-      const empleadosExt2 = await adapter.fetchEmpleados()
+      const empleadosExt2 = empleadosExt
       for (const e of empleadosExt2) {
         const uid = ((e as any)._id || (e as any).uid)?.trim()
         if (!uid) continue
@@ -221,6 +253,11 @@ export async function POST(req: NextRequest) {
       await (prisma as any).integracion.update({
         where: { id: integracion.id },
         data: { syncInicial: true, ultimaSync: new Date(), updatedAt: new Date() }
+      })
+      // Auto-activar bodegaPuedeEnviar tras sync inicial exitoso
+      await prisma.empresa.update({
+        where: { id: empresaId },
+        data: { bodegaPuedeEnviar: true }
       })
     }
 

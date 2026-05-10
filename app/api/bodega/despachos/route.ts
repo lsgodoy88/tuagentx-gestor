@@ -17,7 +17,8 @@ export async function GET(req: NextRequest) {
     SELECT "diasHistorialBodega", "ciudadEntregaLocal", "bodegaPuedeEnviar", "ultimaSyncBodega"
     FROM gestor."Empresa" WHERE id = ${empresaId} LIMIT 1
   `
-  const dias = rows[0]?.diasHistorialBodega ?? 7
+  const diasParam = req.nextUrl.searchParams.get('dias')
+  const dias = diasParam ? Math.min(30, Math.max(1, parseInt(diasParam))) : (rows[0]?.diasHistorialBodega ?? 7)
   const ciudadLocal = rows[0]?.ciudadEntregaLocal ?? null
   const bodegaPuedeEnviar = rows[0]?.bodegaPuedeEnviar ?? false
   const ultimaSyncBodega = rows[0]?.ultimaSyncBodega ?? null
@@ -36,6 +37,7 @@ export async function GET(req: NextRequest) {
     where: {
       empresaId,
       ...whereOrigen,
+
       OR: [
         { fechaOrden: { gte: desde } },
         { fechaOrden: null, createdAt: { gte: desde } },
@@ -48,7 +50,8 @@ export async function GET(req: NextRequest) {
     orderBy: [{ numeroOrden: 'desc' }],
   })
 
-  return NextResponse.json({ despachos, ciudadLocal, bodegaPuedeEnviar, ultimaSyncBodega })
+  const despachosFiltrados = despachos.filter((d: any) => d.clienteNombre && d.clienteNombre !== 'Sin nombre' && d.clienteNombre !== '')
+  return NextResponse.json({ despachos: despachosFiltrados, ciudadLocal, bodegaPuedeEnviar, ultimaSyncBodega, diasHistorialBodega: dias })
 }
 
 export async function POST(req: NextRequest) {

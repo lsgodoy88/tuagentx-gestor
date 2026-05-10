@@ -58,7 +58,7 @@ export default function PreciosPage() {
   if (loading) return <div className="p-8 text-zinc-400 text-center">Cargando...</div>
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 pb-24">
+    <div className="max-w-4xl mx-auto space-y-6 pb-24 md:pb-0">
       <div>
         <h1 className="text-2xl font-bold text-white">Precios</h1>
         <p className="text-zinc-400 text-sm mt-1">Configura el valor mensual por rol</p>

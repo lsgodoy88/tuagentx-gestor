@@ -42,7 +42,7 @@ export default function VisitasAdminPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4 pb-24">
+    <div className="max-w-5xl mx-auto space-y-4 pb-24 md:pb-0">
       <div>
         <h1 className="text-2xl font-bold text-white">Historial de visitas</h1>
         <p className="text-zinc-400 text-sm mt-1">Visitas libres de todos los empleados</p>

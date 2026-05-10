@@ -39,6 +39,37 @@ export default function MiRutaPage() {
   const [historial, setHistorial] = useState<any[]>([])
   const [rutaExpandida, setRutaExpandida] = useState<string | null>(null)
   const [optimizando, setOptimizando] = useState(false)
+  const [guardandoGps, setGuardandoGps] = useState<Record<string, boolean>>({})
+
+  async function guardarGpsCliente(clienteId: string) {
+    setGuardandoGps(p => ({ ...p, [clienteId]: true }))
+    try {
+      const pos = await new Promise<GeolocationPosition>((res, rej) =>
+        navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 10000 })
+      )
+      await fetch('/api/clientes/' + clienteId + '/gps', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lat: pos.coords.latitude, lng: pos.coords.longitude, ubicacionReal: true })
+      })
+      // Actualizar cliente en la lista local
+      setRuta((prev: any) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          clientes: prev.clientes.map((rc: any) =>
+            rc.cliente.id === clienteId
+              ? { ...rc, cliente: { ...rc.cliente, lat: pos.coords.latitude, lng: pos.coords.longitude, ubicacionReal: true } }
+              : rc
+          )
+        }
+      })
+    } catch(e) {
+      alert('No se pudo obtener GPS. Verifica los permisos.')
+    } finally {
+      setGuardandoGps(p => ({ ...p, [clienteId]: false }))
+    }
+  }
   const [rutaOptimizada, setRutaOptimizada] = useState<any[]>([])
   const [mostrarOptimizada, setMostrarOptimizada] = useState(false)
   const [clientesOrdenados, setClientesOrdenados] = useState<any[]>([])
@@ -190,7 +221,7 @@ export default function MiRutaPage() {
   return (
     <>
       {/* ── MOBILE (sin cambios) ── */}
-      <div className="lg:hidden max-w-md mx-auto space-y-6 pb-24">
+      <div className="lg:hidden max-w-2xl mx-auto space-y-6 pb-24">
         <div>
           <div className="flex items-center justify-between mb-1">
             <h1 className="text-2xl font-bold text-white">Mi ruta {ruta ? `— ${ruta.nombre}` : ""}</h1>
@@ -390,11 +421,22 @@ export default function MiRutaPage() {
                           {c.direccion.split(',')[0]}
                         </p>
                       )}
-                      {c.lat && c.lng ? (
-                        <span className="text-emerald-400 text-xs">🗺️ ✓</span>
-                      ) : c.maps ? (
-                        <span className="text-zinc-500 text-xs">🗺️</span>
-                      ) : null}
+                      {/* Checkbox GPS */}
+                      <div className="flex items-center gap-1 mt-0.5">
+                        {c.ubicacionReal ? (
+                          <label className="flex items-center gap-1 cursor-default">
+                            <input type="checkbox" checked readOnly className="accent-emerald-500 w-3 h-3" />
+                            <span className="text-emerald-400 text-[10px]">Ubicación guardada</span>
+                          </label>
+                        ) : (
+                          <label className="flex items-center gap-1 cursor-pointer" onClick={e => { e.stopPropagation(); guardarGpsCliente(c.id) }}>
+                            <input type="checkbox" checked={false} readOnly className="w-3 h-3" />
+                            <span className="text-zinc-500 text-[10px]">
+                              {guardandoGps[c.id] ? 'Guardando...' : 'Guardar ubicación'}
+                            </span>
+                          </label>
+                        )}
+                      </div>
                     </div>
                     {/* Badge etiqueta */}
                     {c.supervisorEtiqueta && (

@@ -72,27 +72,30 @@ export async function POST(req: NextRequest) {
 
   // Vincular despacho como entregado
   if (ordenDespachoId) {
+    const updateOrden: any = { estado: 'entregado', entregadoEl: new Date() }
+    if (firmaUrl) updateOrden.firmaEntrega = firmaUrl
     await prisma.ordenDespacho.update({
       where: { id: ordenDespachoId },
-      data: { estado: 'entregado', entregadoEl: new Date() }
+      data: updateOrden
     })
   }
 
-  // Verificar distancia GPS vs cliente (alerta si > 500 metros)
+  // Verificar distancia GPS vs cliente
   let alertaDistancia = null
-  if (lat && lng) {
-    const cli = await prisma.cliente.findUnique({ where: { id: clienteId } })
-    if (cli?.lat && cli?.lng) {
-      const distancia = distanciaMetros(lat, lng, cli.lat, cli.lng)
+  const cli = await prisma.cliente.findUnique({ where: { id: clienteId } })
+  if (lat && lng && cli) {
+    const refLat = cli.lat || cli.latTmp
+    const refLng = cli.lng || cli.lngTmp
+    if (refLat && refLng) {
+      const distancia = distanciaMetros(lat, lng, refLat, refLng)
       if (distancia > 500) alertaDistancia = Math.round(distancia)
     }
   }
 
-  // Solo actualizar GPS si capturarGps=true Y empleado tiene permiso Y cliente no tiene GPS
+  // Solo actualizar GPS si capturarGps=true Y empleado tiene permiso Y cliente no tiene GPS real
   if (lat && lng && capturarGps) {
     const emp = await (prisma.empleado as any).findUnique({ where: { id: user.id } })
-    const cli = await prisma.cliente.findUnique({ where: { id: clienteId } })
-    if (emp?.puedeCapturarGps) {
+    if (emp?.puedeCapturarGps && !cli?.lat) {
       await prisma.cliente.update({ where: { id: clienteId }, data: { lat, lng, ubicacionReal: true } })
     }
   }

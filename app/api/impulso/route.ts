@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     where: { empresaId, tipo: 'uptres', activa: true }
   })
 
-  let visitasMes: any[] = []
+  const ventasPorCliente: Record<string, number> = {}
   let comprasMes: any[] = []
   let modoSync = false
 
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
     modoSync = true
     // Obtener apiIds de los clientes en rutas fijas
     const clienteIds = rutasFijas.flatMap((r: any) =>
-      r.clientes.map((c: any) => c.clienteId)
+      (r.clientes || []).map((c: any) => c.clienteId)
     )
     const clientes = await (prisma as any).cliente.findMany({
       where: { id: { in: clienteIds }, apiId: { not: null } },
@@ -58,30 +58,35 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    // Mapear apiId -> clienteId para buildSemana
+    // Mapear apiId -> clienteId
     const apiIdToClienteId: Record<string, string> = {}
-    clientes.forEach((c: any) => { apiIdToClienteId[c.apiId] = c.id })
+    clientes.forEach((c: any) => { if (c.apiId) apiIdToClienteId[c.apiId] = c.id })
 
-    // Convertir comprasMes a formato visitasMes para buildSemana
-    visitasMes = comprasMes.map((c: any) => ({
-      clienteId: apiIdToClienteId[c.clienteApiId] || c.clienteApiId,
-      monto: Number(c.valor),
-      tipo: 'venta',
-      fechaBogota: c.fecha,
-    }))
+    // Construir ventasPorCliente desde SyncDeuda
+    for (const d of comprasMes) {
+      const cid = apiIdToClienteId[d.clienteApiId]
+      if (cid) ventasPorCliente[cid] = (ventasPorCliente[cid] || 0) + Number(d.valor)
+    }
+
+    // Clientes sin apiId → Visita
+    const sinApiId = clientes.filter((c: any) => !c.apiId).map((c: any) => c.id)
+    if (sinApiId.length > 0) {
+      const vis = await prisma.visita.findMany({
+        where: { clienteId: { in: sinApiId }, empleadoId: impulsadoraId, tipo: { in: ['venta','cobro'] }, fechaBogota: { gte: inicioMes, lte: finMes } },
+        select: { clienteId: true, monto: true }
+      })
+      for (const v of vis) ventasPorCliente[v.clienteId] = (ventasPorCliente[v.clienteId] || 0) + Number(v.monto || 0)
+    }
   } else {
     // Modo manual — visitas registradas por la impulsadora
-    visitasMes = await prisma.visita.findMany({
-      where: {
-        empleadoId: impulsadoraId,
-        tipo: { in: ['venta', 'cobro'] },
-        fechaBogota: { gte: inicioMes, lte: finMes }
-      },
-      take: 500
+    const vis = await prisma.visita.findMany({
+      where: { empleadoId: impulsadoraId, tipo: { in: ['venta', 'cobro'] }, fechaBogota: { gte: inicioMes, lte: finMes } },
+      take: 500, select: { clienteId: true, monto: true }
     })
+    for (const v of vis) ventasPorCliente[v.clienteId] = (ventasPorCliente[v.clienteId] || 0) + Number(v.monto || 0)
   }
 
-  const semana = buildSemana(rutasFijas, visitasMes).map((d, i) => {
+  const semana = buildSemana(rutasFijas, ventasPorCliente).map((d, i) => {
     const dia = [1, 2, 3, 4, 5, 6, 0][i]
     if (!d) return { dia, nombre: DIAS[dia], configurado: false, puntos: [], totalMeta: 0, totalMes: 0, pctTotal: null }
     return { ...d, configurado: true }

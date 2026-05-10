@@ -317,7 +317,7 @@ export default function BodegaPage() {
           )}
           {/* Toolbar */}
           <div className="flex items-center justify-between">
-            <p className="text-zinc-500 text-xs">{despachos.length} orden{despachos.length !== 1 ? 'es' : ''}</p>
+            <p className="text-zinc-300 text-xs">{despachos.length} orden{despachos.length !== 1 ? 'es' : ''}</p>
             <div>
               <div className="flex items-center gap-2">
                 {msgSync && <span className="text-xs text-emerald-400">{msgSync}</span>}
@@ -332,7 +332,7 @@ export default function BodegaPage() {
 
           {despachos.length === 0 ? (
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-10 text-center">
-              <p className="text-zinc-500 text-sm">Sin órdenes en el período configurado</p>
+              <p className="text-zinc-300 text-sm">Sin órdenes en el período configurado</p>
             </div>
           ) : (() => {
             const despachosVisibles = despachos.filter(d => {
@@ -424,7 +424,7 @@ export default function BodegaPage() {
                             🚚 Enviar {isExpanded ? '▲' : '▼'}
                           </button>
                         ) : (
-                          <span className="text-zinc-600 text-xs italic">esperando envío...</span>
+                          <span className="text-zinc-300 text-xs italic">esperando envío...</span>
                         )}
                       </div>
 
@@ -432,7 +432,7 @@ export default function BodegaPage() {
                         <div className="mt-3 space-y-3">
                           {esLocalidad ? (
                             <div className="space-y-2">
-                              <p className="text-zinc-500 text-xs font-semibold">Asignar repartidor</p>
+                              <p className="text-zinc-300 text-xs font-semibold">Asignar repartidor</p>
                               <div className="flex gap-2">
                                 <select
                                   value={editRepartidor[d.id] ?? ''}
@@ -452,10 +452,10 @@ export default function BodegaPage() {
                             </div>
                           ) : (
                             <div className="space-y-2">
-                              <p className="text-zinc-500 text-xs font-semibold">Envío nacional</p>
+                              <p className="text-zinc-300 text-xs font-semibold">Envío nacional</p>
                               <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                  <label className="text-zinc-600 text-xs block mb-1">Transportadora</label>
+                                  <label className="text-zinc-300 text-xs block mb-1">Transportadora</label>
                                   <input
                                     value={editTransporte[d.id]?.transportadora ?? ''}
                                     onChange={e => setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], transportadora: e.target.value } }))}
@@ -464,7 +464,7 @@ export default function BodegaPage() {
                                   />
                                 </div>
                                 <div>
-                                  <label className="text-zinc-600 text-xs block mb-1"># Guía</label>
+                                  <label className="text-zinc-300 text-xs block mb-1"># Guía</label>
                                   <input
                                     value={editTransporte[d.id]?.guia ?? ''}
                                     onChange={e => setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], guia: e.target.value } }))}
@@ -516,7 +516,7 @@ export default function BodegaPage() {
 
       {tab === 'inventario' && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-10 text-center">
-          <p className="text-zinc-500 text-sm">Próximamente</p>
+          <p className="text-zinc-300 text-sm">Próximamente</p>
         </div>
       )}
 

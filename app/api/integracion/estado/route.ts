@@ -3,29 +3,34 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
-  if (!session?.user) return NextResponse.json({ conectado: false })
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
-  if (user.role !== 'empresa') return NextResponse.json({ conectado: false })
-  const empresaId = user.id
+  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
 
   const integracion = await (prisma as any).integracion.findFirst({
-    where: { empresaId, tipo: 'uptres', activa: true }
+    where: { empresaId, tipo: 'uptres', activa: true },
+    select: { ultimaSync: true, updatedAt: true }
   })
 
-  if (!integracion) return NextResponse.json({ conectado: false })
+  const totalDeudas = await (prisma as any).syncDeuda.count({
+    where: { integracionId: undefined }
+  }).catch(() => 0)
 
-  const config = integracion.config as any
+  // Contar deudas via integracion
+  const integraciones = await (prisma as any).integracion.findMany({
+    where: { empresaId, tipo: 'uptres' },
+    select: { id: true }
+  })
+  const intIds = integraciones.map((i: any) => i.id)
+  const total = intIds.length > 0
+    ? await (prisma as any).syncDeuda.count({ where: { integracionId: { in: intIds } } })
+    : 0
 
   return NextResponse.json({
-    conectado: true,
-    tipo: integracion.tipo,
-    nombre: config?.nombre ?? '',
-    email: config?.email ?? '',
-    syncInicial: integracion.syncInicial ?? false,
-    ultimaSync: integracion.ultimaSync
-      ? new Date(integracion.ultimaSync).toLocaleString('es-CO', { timeZone: 'America/Bogota' })
-      : '',
+    ultimaSync: integracion?.ultimaSync ?? null,
+    totalDeudas: total,
+    tieneIntegracion: !!integracion,
   })
 }

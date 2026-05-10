@@ -92,7 +92,7 @@ export default function TurnoPage() {
   if (loading) return <div className="p-8 text-zinc-400">Cargando...</div>
 
   return (
-    <div className="max-w-md mx-auto space-y-6 pb-24">
+    <div className="max-w-2xl mx-auto space-y-6 pb-24 md:pb-0">
       <div>
         <h1 className="text-2xl font-bold text-white">Mi turno</h1>
         <p className="text-zinc-400 text-sm mt-1">Controla tu jornada de trabajo</p>
