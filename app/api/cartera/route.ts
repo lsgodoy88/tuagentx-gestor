@@ -200,13 +200,21 @@ export async function GET(req: NextRequest) {
         apiId: c.clienteApiId,
       },
       empleado: c.empleadoNombre ? { nombre: c.empleadoNombre } : null,
-      DetalleCartera: (c.deudas as any[] || []).map((d: any) => ({
-        ...d,
-        valorFactura: d.valor,
-        abonos: d.abono,
-        saldoPendiente: d.saldo,
-        estado: d.estado,
-      })),
+      DetalleCartera: (c.deudas as any[] || []).map((d: any) => {
+        const vf = Number(d.valor || 0)
+        const ab = Number(d.abono || 0)
+        const saldo = Math.max(0, vf - ab)
+        const { estado, label, color } = calcularEstado(saldo, vf, ab, d.fechaVencimiento ? new Date(d.fechaVencimiento) : null)
+        return {
+          ...d,
+          valorFactura: vf,
+          abonos: ab,
+          saldoPendiente: saldo,
+          estado,
+          estadoLabel: label,
+          estadoColor: color,
+        }
+      }),
       PagoCartera: [],
     }))
 

@@ -454,6 +454,12 @@ export default function RutasFijasPage() {
       {tab === 'rutas' && (
         <div className="space-y-4">
           {empleadosFiltrados.map((emp: any) => {
+            // Calcular qué clientes aparecen más de una vez en todas las rutas del empleado
+            const rutasEmp2 = rutasFijas.filter((r: any) => r.empleadoId === emp.id)
+            const _cliCount: Record<string, number> = {}
+            rutasEmp2.forEach((r: any) => r.clientes.forEach((rc: any) => { _cliCount[rc.clienteId] = (_cliCount[rc.clienteId] || 0) + 1 }))
+            const clientesRepetidos = new Set(Object.keys(_cliCount).filter(id => _cliCount[id] > 1))
+            const clientesPrimerDia: Record<string, number> = {} // clienteId -> diaNum de primera aparición
             const rutasEmp = rutasDeEmpleado(emp.id)
             return (
               <div key={emp.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
@@ -462,7 +468,7 @@ export default function RutasFijasPage() {
                                         const totalVenta = rutasEmp.reduce((a: number, r: any) => a + r.clientes.reduce((b: number, rc: any) => b + (ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || ventasHoy[rc.clienteId] || 0), 0), 0)
                     const pct = totalMeta > 0 ? Math.round((totalVenta / totalMeta) * 100) : null
                     const pctColor = pct === null ? '' : pct >= 100 ? 'text-emerald-400' : pct >= 70 ? 'text-yellow-400' : 'text-red-400'
-                    const barColor = pct === null ? '' : pct >= 100 ? 'bg-emerald-500' : pct >= 70 ? 'bg-yellow-500' : 'bg-red-500'
+                    const barColor = pct === null ? '' : pct >= 100 ? 'bg-blue-500' : pct >= 70 ? 'bg-cyan-500' : pct >= 40 ? 'bg-yellow-500' : 'bg-red-500'
                     return (
                       <div className="p-4 border-b border-zinc-800 space-y-3">
                         {/* Nombre */}
@@ -541,7 +547,7 @@ export default function RutasFijasPage() {
                         {rutaDia && !esOculto && metaTotal > 0 && logradoTotal > 0 && (
                           <div className="px-3 pb-1">
                             <div className="h-1 bg-zinc-700 rounded-full overflow-hidden">
-                              <div className={`h-full rounded-full ${pctTotal! >= 100 ? 'bg-emerald-500' : pctTotal! >= 70 ? 'bg-yellow-500' : 'bg-blue-500'}`}
+                              <div className={`h-full rounded-full ${pctTotal! >= 100 ? 'bg-blue-500' : pctTotal! >= 70 ? 'bg-cyan-500' : pctTotal! >= 40 ? 'bg-yellow-500' : 'bg-red-500'}`}
                                 style={{width: Math.min(pctTotal! || 0, 100) + '%'}} />
                             </div>
                           </div>
@@ -550,31 +556,44 @@ export default function RutasFijasPage() {
                         {rutaDia && !esOculto && (
                           <div className="px-2 pb-2 space-y-1">
                             {rutaDia.clientes.map((rc: any, i: number) => {
-                                                            const ventaMesActual = ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || 0
+                              const ventaMesActual = ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || 0
                               const logrado = ventaMesActual || ventasHoy[rc.clienteId] || 0
                               const pct = rc.metaVenta > 0 ? Math.round((logrado / rc.metaVenta) * 100) : null
+                              const esRep = clientesRepetidos.has(rc.clienteId) && clientesPrimerDia[rc.clienteId] !== diaNum
+                              if (!(rc.clienteId in clientesPrimerDia)) clientesPrimerDia[rc.clienteId] = diaNum
+                              const bCol = pct === null ? 'bg-zinc-600' : pct >= 100 ? 'bg-blue-500' : pct >= 70 ? 'bg-cyan-500' : pct >= 40 ? 'bg-yellow-500' : 'bg-red-500'
+                              if (esRep) return (
+                                <div key={rc.id} className="bg-zinc-900/40 opacity-50 rounded-xl px-3 py-2">
+                                  <p className="text-white text-xs font-medium truncate mb-1.5">{rc.cliente.nombre}</p>
+                                  <div className="h-1 bg-zinc-700 rounded-full overflow-hidden">
+                                    <div className={`h-full rounded-full ${bCol}`} style={{width: Math.min(pct || 0, 100) + '%'}} />
+                                  </div>
+                                </div>
+                              )
                               return (
                                 <div key={rc.id} className="bg-zinc-900/80 rounded-xl px-3 py-2.5 space-y-1">
                                   {/* Nombre + GPS — toque para expandir acciones */}
                                   <div className="flex items-center gap-2 cursor-pointer active:opacity-70"
                                     onClick={() => setExpandedCliente(expandedCliente === rc.id ? null : rc.id)}>
-                                    <p className="text-white text-sm font-semibold flex-1">{rc.cliente.nombre}</p>
+                                    <p className="text-white text-sm font-semibold flex-1 min-w-0 truncate">{rc.cliente.nombre}</p>
                                     {(rc.cliente.ubicacionReal || rc.cliente.latTmp) && <span className={`text-sm flex-shrink-0 ${rc.cliente.ubicacionReal ? "" : "opacity-50"}`}>📍</span>}
                                   </div>
                                   {/* Meta · Venta · % */}
-                                  <div className="flex items-baseline gap-4 flex-wrap">
+                                  <div className="grid gap-x-2" style={{gridTemplateColumns: rc.metaVenta > 0 ? '1fr 1fr auto' : '1fr auto'}}>
                                     {rc.metaVenta > 0 && (
-                                      <div>
-                                        <span className="text-zinc-500 text-xs">Meta </span>
-                                        <span className="text-white text-sm font-bold">${rc.metaVenta.toLocaleString('es-CO')}</span>
+                                      <div className="min-w-0">
+                                        <p className="text-zinc-500 text-xs">Meta</p>
+                                        <p className="text-white text-sm font-bold truncate">${rc.metaVenta.toLocaleString('es-CO')}</p>
                                       </div>
                                     )}
-                                    <div>
-                                      <span className="text-zinc-500 text-xs">Venta </span>
-                                      <span className={`text-sm font-bold ${logrado > 0 ? 'text-emerald-400' : 'text-zinc-600'}`}>${logrado.toLocaleString('es-CO')}</span>
+                                    <div className="min-w-0">
+                                      <p className="text-zinc-500 text-xs">Venta</p>
+                                      <p className={`text-sm font-bold truncate ${logrado > 0 ? 'text-emerald-400' : 'text-zinc-600'}`}>${logrado.toLocaleString('es-CO')}</p>
                                     </div>
                                     {pct !== null && (
-                                      <span className={`text-sm font-bold ${pct >= 100 ? 'text-emerald-400' : pct >= 70 ? 'text-yellow-400' : 'text-red-400'}`}>{pct}%</span>
+                                      <div className="flex items-end pb-0.5">
+                                        <span className={`text-sm font-bold ${pct >= 100 ? 'text-blue-400' : pct >= 70 ? 'text-cyan-400' : pct >= 40 ? 'text-yellow-400' : 'text-red-400'}`}>{pct}%</span>
+                                      </div>
                                     )}
                                   </div>
                                   {/* Histórico 3 meses — colapsable */}

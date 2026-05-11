@@ -1,6 +1,6 @@
 import { prisma } from '@/lib/prisma'
 
-export async function recalcularVentasMesImpulsos(empresaId: string): Promise<void> {
+export async function recalcularVentasMesImpulsos(empresaId: string, adapter?: any): Promise<void> {
   const clientesEnRutas = await (prisma as any).rutaFijaCliente.findMany({
     where: { rutaFija: { empresaId } },
     select: { clienteId: true },
@@ -24,30 +24,29 @@ export async function recalcularVentasMesImpulsos(empresaId: string): Promise<vo
   const conApiId = clientes.filter((c: any) => c.apiId)
   const sinApiId = clientes.filter((c: any) => !c.apiId)
 
-  if (conApiId.length > 0) {
-    const apiIds = conApiId.map((c: any) => c.apiId)
+  if (conApiId.length > 0 && adapter) {
     const apiIdToClienteId = Object.fromEntries(conApiId.map((c: any) => [c.apiId, c.id]))
 
-    const deudas = await (prisma as any).syncDeuda.findMany({
-      where: {
-        clienteApiId: { in: apiIds },
-        modificadoEn: { gte: inicioVentana },
-        condition: true,
-      },
-      select: { clienteApiId: true, valor: true, modificadoEn: true }
-    })
-
-    for (const d of deudas) {
-      const clienteId = apiIdToClienteId[d.clienteApiId]
-      if (!clienteId) continue
-      const mes = d.modificadoEn
-        ? new Date(d.modificadoEn).toISOString().slice(0, 7)
-        : ahora.toISOString().slice(0, 7)
-      const key = `${clienteId}::${mes}`
-      if (!mapa.has(key)) mapa.set(key, { clienteId, mes, total: 0, count: 0 })
-      const e = mapa.get(key)!
-      e.total += Number(d.valor)
-      e.count += 1
+    // Traer ventas reales de UpTres por cada cliente (máx ~10 en rutas fijas)
+    for (const cli of conApiId) {
+      try {
+        const ventas = await adapter.fetchVentas(inicioVentana, cli.apiId)
+        for (const v of ventas) {
+          if (v.cliente?.uid !== cli.apiId) continue // filtrar por cliente
+          const fechaRaw = v.fCreado || v.fModificado
+          if (!fechaRaw) continue
+          const fecha = new Date(fechaRaw)
+          if (isNaN(fecha.getTime())) continue
+          const mes = fecha.toISOString().slice(0, 7)
+          const clienteId = apiIdToClienteId[cli.apiId!]
+          if (!clienteId) continue
+          const key = `${clienteId}::${mes}`
+          if (!mapa.has(key)) mapa.set(key, { clienteId, mes, total: 0, count: 0 })
+          const e = mapa.get(key)!
+          e.total += Number(v.vTotal || 0)
+          e.count += 1
+        }
+      } catch {}
     }
   }
 
@@ -84,5 +83,4 @@ export async function recalcularVentasMesImpulsos(empresaId: string): Promise<vo
   )
 
   if (ops.length > 0) await (prisma as any).$transaction(ops)
-  console.log(`[ventaMes] ${empresaId} → ${ops.length} registros actualizados`)
 }

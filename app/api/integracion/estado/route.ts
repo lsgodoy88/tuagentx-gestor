@@ -11,26 +11,22 @@ export async function GET(req: NextRequest) {
 
   const integracion = await (prisma as any).integracion.findFirst({
     where: { empresaId, tipo: 'uptres', activa: true },
-    select: { ultimaSync: true, updatedAt: true }
+    select: { id: true, ultimaSync: true, updatedAt: true, syncInicial: true, config: true }
   })
 
-  const totalDeudas = await (prisma as any).syncDeuda.count({
-    where: { integracionId: undefined }
-  }).catch(() => 0)
-
-  // Contar deudas via integracion
-  const integraciones = await (prisma as any).integracion.findMany({
-    where: { empresaId, tipo: 'uptres' },
-    select: { id: true }
-  })
-  const intIds = integraciones.map((i: any) => i.id)
+  const intIds = integracion ? [integracion.id] : []
   const total = intIds.length > 0
     ? await (prisma as any).syncDeuda.count({ where: { integracionId: { in: intIds } } })
     : 0
 
   return NextResponse.json({
+    // Para cartera/rutas-fijas
     ultimaSync: integracion?.ultimaSync ?? null,
     totalDeudas: total,
     tieneIntegracion: !!integracion,
+    // Para configuración
+    conectado: !!integracion,
+    syncInicial: integracion?.syncInicial ?? false,
+    nombre: (integracion?.config as any)?.nombre ?? 'API UpTres',
   })
 }

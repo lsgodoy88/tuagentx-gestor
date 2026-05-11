@@ -4,6 +4,8 @@ import FirmaCanvas from '@/components/FirmaCanvas'
 import InputMoneda from '@/components/InputMoneda'
 import { useSession } from 'next-auth/react'
 import ModalVisita from '@/components/ModalVisita'
+import CarteraCard from '@/components/CarteraCard'
+import { estadoMasCritico } from '@/lib/cartera'
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 
@@ -41,6 +43,9 @@ export default function DashboardPage() {
   const [rrTotal, setRrTotal] = useState(0)
   const [rrPage, setRrPage] = useState(1)
   const [rrLoadingCli, setRrLoadingCli] = useState(false)
+  const [rrCartera, setRrCartera] = useState<any[]>([])
+  const [rrLoadingCartera, setRrLoadingCartera] = useState(false)
+  const [rrBuscarCartera, setRrBuscarCartera] = useState('')
   const [rrCliente, setRrCliente] = useState<any>(null)
   const [rrVerificando, setRrVerificando] = useState(false)
   const [rrSinDeuda, setRrSinDeuda] = useState(false)
@@ -194,6 +199,13 @@ export default function DashboardPage() {
     setModalVisita({ open: true, tipo })
   }
 
+  async function rrLoadCartera(q: string) {
+    setRrLoadingCartera(true)
+    const data = await fetchApi(`/api/cartera?q=${encodeURIComponent(q)}&limit=50`)
+    setRrCartera(data?.carteras || data?.cartera || [])
+    setRrLoadingCartera(false)
+  }
+
   async function rrLoadClientes(q: string, p: number) {
     setRrLoadingCli(true)
     const data = await fetchApi(`/api/clientes?q=${encodeURIComponent(q)}&page=${p}&limit=${RR_LIMIT}`)
@@ -205,7 +217,58 @@ export default function DashboardPage() {
   function abrirModalRecaudoRapido() {
     setModalRecaudoRapido(true)
     setRrBuscar(''); setRrPage(1); setRrCliente(null); setRrSinDeuda(false)
-    rrLoadClientes('', 1)
+    setRrBuscarCartera('')
+    rrLoadCartera('')
+  }
+
+  function abrirWhatsApp(cartera: any) {
+    const telefono = (cartera.telefono || cartera.cliente?.celular || '').replace(/\D/g, '')
+    if (!telefono) { alert('Cliente sin teléfono'); return }
+    const deudas = (cartera.DetalleCartera || cartera.deudas || [])
+      .filter((d: any) => d.estado !== 'pagada' && Number(d.saldo ?? d.saldoPendiente ?? 0) > 0)
+    const total = deudas.reduce((s: number, d: any) => s + Number(d.saldo ?? d.saldoPendiente ?? 0), 0)
+    const nombre = cartera.nombre || cartera.cliente?.nombre || ''
+    const msg = `Hola ${nombre}, te recordamos que tienes una deuda pendiente de $${Math.round(total).toLocaleString('es-CO')}. Por favor comunícate con nosotros para gestionar tu pago. Gracias.`
+    window.open(`https://wa.me/57${telefono}?text=${encodeURIComponent(msg)}`, '_blank')
+  }
+
+  async function cargarDetalleCartera(cartera: any) {
+    setLoadingDetalle(true)
+    const res = await fetch(`/api/cartera/${cartera.clienteId}`)
+    const data = await res.json()
+    setLoadingDetalle(false)
+    const detalleCartera = data.cartera
+    if (detalleCartera && data._modo === 'sync') {
+      const { calcularEstado } = await import('@/lib/cartera')
+      const detallesNorm = (detalleCartera.deudas || []).map((d: any) => ({
+        id: d.externalId,
+        valorFactura: d.valor,
+        abonos: d.valor - d.saldoReal,
+        saldoPendiente: d.saldoReal,
+        ...(() => {
+          const saldo = Math.max(0, d.saldoReal)
+          const vf = Number(d.valor || 0)
+          const ab = vf - saldo
+          const fv = d.fechaVencimiento ? new Date(d.fechaVencimiento) : null
+          const { estado, label, color } = calcularEstado(saldo, vf, ab, fv)
+          return { estado, estadoLabel: label, estadoColor: color }
+        })(),
+        numeroFactura: d.numeroFactura || d.numeroOrden,
+        fechaVencimiento: d.fechaVencimiento,
+        _sync: true,
+      }))
+      detalleCartera.DetalleCartera = detallesNorm
+    }
+    setDetalleData(detalleCartera)
+    const pendientes = (detalleCartera?.DetalleCartera || [])
+      .filter((d: any) => d.estado !== 'pagada')
+      .sort((a: any, b: any) => {
+        const fa = a.fechaVencimiento ? new Date(a.fechaVencimiento).getTime() : Infinity
+        const fb = b.fechaVencimiento ? new Date(b.fechaVencimiento).getTime() : Infinity
+        return fa - fb
+      })
+    setFacturasSeleccionadas(pendientes[0]?.id ? [pendientes[0].id] : [])
+    setLineasPago([crearLinea()])
   }
 
   async function rrSeleccionarCliente(cliente: any) {
@@ -1022,49 +1085,36 @@ export default function DashboardPage() {
             <h3 className="text-white font-bold text-lg">💵 Recaudo rápido</h3>
             <button onClick={() => { setModalRecaudoRapido(false); setRrCliente(null); setRrSinDeuda(false) }} className="text-zinc-500 hover:text-white text-xl">×</button>
           </div>
-          <div className="px-6 py-4 space-y-3">
+          <div className="px-4 py-4 space-y-3">
             {!rrCliente ? (
               <>
                 <input
-                  value={rrBuscar}
-                  onChange={e => { setRrBuscar(e.target.value); setRrPage(1); rrLoadClientes(e.target.value, 1) }}
-                  placeholder="Buscar cliente..."
+                  value={rrBuscarCartera}
+                  onChange={e => { setRrBuscarCartera(e.target.value); rrLoadCartera(e.target.value) }}
+                  placeholder="Buscar cliente con deuda..."
                   className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500"
                   autoFocus
                 />
-                <div className="space-y-2">
-                  {rrLoadingCli && <p className="text-zinc-500 text-xs text-center py-2">Cargando...</p>}
-                  {rrClientes.map((c: any) => (
-                    <button key={c.id} onClick={() => rrSeleccionarCliente(c)}
-                      className="w-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl p-3 text-left transition-colors">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-white text-sm font-medium">{c.nombre}</p>
-                          {c.nombreComercial && <p className="text-zinc-400 text-xs">{c.nombreComercial}</p>}
-                          {c.direccion && <p className="text-zinc-500 text-xs truncate">{c.direccion}</p>}
-                        </div>
-                        {c.lat && c.lng && (
-                          <a href={`https://www.google.com/maps?q=${c.lat},${c.lng}`} target="_blank"
-                            onClick={e => e.stopPropagation()}
-                            className="text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg text-xs flex-shrink-0 hover:bg-emerald-500/20">
-                            📍
-                          </a>
-                        )}
-                      </div>
-                    </button>
-                  ))}
-                  {rrTotal > RR_LIMIT && (
-                    <div className="flex items-center justify-between pt-2">
-                      <p className="text-zinc-600 text-xs">{((rrPage-1)*RR_LIMIT)+1}–{Math.min(rrPage*RR_LIMIT,rrTotal)} de {rrTotal}</p>
-                      <div className="flex gap-2">
-                        <button onClick={() => { const p = rrPage-1; setRrPage(p); rrLoadClientes(rrBuscar, p) }} disabled={rrPage===1}
-                          className="bg-zinc-700 hover:bg-zinc-600 disabled:opacity-40 text-white text-xs px-3 py-1.5 rounded-lg">← Ant</button>
-                        <button onClick={() => { const p = rrPage+1; setRrPage(p); rrLoadClientes(rrBuscar, p) }} disabled={rrPage*RR_LIMIT>=rrTotal}
-                          className="bg-zinc-700 hover:bg-zinc-600 disabled:opacity-40 text-white text-xs px-3 py-1.5 rounded-lg">Sig →</button>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                {rrLoadingCartera && (
+                  <div className="space-y-2">{Array.from({length:3}).map((_,i) => <div key={i} className="animate-pulse bg-zinc-800 rounded-xl h-16"/>)}</div>
+                )}
+                {!rrLoadingCartera && rrCartera.length === 0 && (
+                  <p className="text-zinc-500 text-sm text-center py-6">Sin clientes con deuda activa</p>
+                )}
+                {!rrLoadingCartera && rrCartera.map((cartera: any) => (
+                  <CarteraCard
+                    key={cartera.id || cartera.clienteId}
+                    cartera={cartera}
+                    rol={user?.role || 'vendedor'}
+                    fmt={fmt}
+                    onRecaudar={(c: any) => {
+                      setModalRecaudoRapido(false)
+                      setRecaudandoCartera(c)
+                      cargarDetalleCartera(c)
+                    }}
+                    onWhatsApp={abrirWhatsApp}
+                  />
+                ))}
               </>
             ) : rrVerificando ? (
               <div className="py-8 text-center">

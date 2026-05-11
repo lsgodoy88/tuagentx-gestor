@@ -38,7 +38,6 @@ async function runDelta(integracion: any): Promise<{ deudas: number; clientes: n
     sinCache.map((d: any) => d.clienteApiId).filter((id: string) => id && !conCache.has(id))
   )
   if (faltantes.size > 0) {
-    console.log('[sync] Repoblando', faltantes.size, 'clientes sin cache')
     await actualizarCache(faltantes, integracion.id, integracion.empresaId)
   }
 
@@ -49,7 +48,7 @@ async function runDelta(integracion: any): Promise<{ deudas: number; clientes: n
 
   // Recalcular ventas por mes para clientes con ruta fija (impulsos)
   try {
-    await recalcularVentasMesImpulsos(integracion.empresaId)
+    await recalcularVentasMesImpulsos(integracion.empresaId, adapter)
   } catch (err: any) {
     console.error('[ventaMes] Error recalculando:', err.message)
   }
@@ -86,8 +85,8 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
   const user = session.user as any
-  if (user.role !== 'empresa') return NextResponse.json({ error: 'Solo empresa' }, { status: 403 })
-  const empresaId = user.id
+  if (!['empresa', 'supervisor', 'vendedor'].includes(user.role)) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
+  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
 
   const integracion = await (prisma as any).integracion.findFirst({
     where: { empresaId, tipo: 'uptres', activa: true }, orderBy: { updatedAt: 'desc' }
@@ -190,7 +189,7 @@ export async function POST(req: NextRequest) {
         const doc = (c.doc as string)?.trim()
         const uid = ((c._id as string) || (c.uid as string))?.trim()
         if (!doc || !uid) continue
-        const nombre = ((c as any).name || '') + ' ' + ((c as any).lastName || '').trim() || 'Sin nombre'
+        const nombre = (((c as any).name || '') + ' ' + ((c as any).lastName || '')).trim() || 'Sin nombre'
         const dataCliente = { apiId: uid, ciudad: (c as any).ciudad || undefined, departamento: (c as any).departamento || undefined, direccion: (c as any).dir || undefined, telefono: (c as any).nCel || undefined, email: (c as any).email || undefined }
         if (mapaExistentes[doc]) {
           toUpdate.push({ id: mapaExistentes[doc], data: { ...dataCliente, nombreComercial: (c as any).nombreComercial || undefined } })

@@ -49,17 +49,42 @@ export async function sincronizarDeudas(
         saldoAnterior: saldo,
         abono: parseFloat(o.vAbono as string || '0'),
         diasCredito: parseInt(o.dias as string || '0'),
-        fechaVencimiento: o.fPago ? new Date(o.fPago) : null,
+        fechaVencimiento: (() => {
+          if (o.fPago) return new Date(o.fPago)
+          // Fallback: createdAt + creditDay si paidAt no viene del API
+          const dias = parseInt(String(o.dias || '0'))
+          if (dias > 0 && o.fCreado) {
+            const f = new Date(o.fCreado)
+            f.setDate(f.getDate() + dias)
+            return f
+          }
+          return null
+        })(),
         condition: true,
         modificadoEn: o.fModificado ? new Date(o.fModificado) : null,
+        externalUpdatedAt: o.fModificado ? new Date(o.fModificado) : null,
         data: o,
       },
       update: {
         saldoAnterior: existing?.saldo ?? saldo,
         saldo,
         abono: parseFloat(o.vAbono as string || '0'),
+        numeroFactura: o.numeroFacturado || 0,
+        diasCredito: parseInt(o.dias as string || '0'),
+        fechaVencimiento: (() => {
+          if (o.fPago) return new Date(o.fPago)
+          const dias = parseInt(String(o.dias || '0'))
+          if (dias > 0 && o.fCreado) {
+            const f = new Date(o.fCreado)
+            f.setDate(f.getDate() + dias)
+            return f
+          }
+          return null
+        })(),
         condition: true,
         modificadoEn: o.fModificado ? new Date(o.fModificado) : null,
+        externalUpdatedAt: o.fModificado ? new Date(o.fModificado) : null,
+        data: o,
       }
     })
   }

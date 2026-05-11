@@ -47,7 +47,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
     // Buscar todas las deudas de este cliente en SyncDeuda
     const deudas = await (prisma as any).syncDeuda.findMany({
       where: { integracionId: integracion.id, clienteApiId: cliente.apiId, condition: true },
-      orderBy: { fechaVencimiento: 'asc' }
+      orderBy: [{ fechaVencimiento: { sort: 'asc', nulls: 'last' } }]
     })
 
     // Para cada deuda calcular saldo real con lógica inteligente

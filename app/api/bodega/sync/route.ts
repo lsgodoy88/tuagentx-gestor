@@ -113,7 +113,9 @@ export async function POST(req: NextRequest) {
   }
 
   await prisma.ordenDespacho.createMany({ data: toCreate, skipDuplicates: true })
-  await Promise.all(toUpdate.map((u: any) => prisma.ordenDespacho.update({ where: { id: u.id }, data: u.data })))
+  for (let i = 0; i < toUpdate.length; i += 50) {
+    await Promise.all(toUpdate.slice(i, i + 50).map((u: any) => prisma.ordenDespacho.update({ where: { id: u.id }, data: u.data })))
+  }
 
   await (prisma as any).empresa.update({ where: { id: empresaId }, data: { ultimaSyncBodega: new Date() } })
 

@@ -25,11 +25,25 @@ async function poblarCarteraCache(integracionId: string, empresaId: string) {
 
   const deudasIds = deudas.map((d: any) => d.id)
   const pagosLocales = await (prisma as any).pagoCartera.findMany({
-    where: { syncDeudaId: { in: deudasIds } }
+    where: { syncDeudaId: { in: deudasIds } },
+    select: { syncDeudaId: true, monto: true, descuento: true, createdAt: true }
   })
+  // Mapa de pagos locales: solo contar pagos POSTERIORES al último updatedAt de UpTres
+  // Si UpTres cambió el saldo después del pago → UpTres ya lo contabilizó → no descontar
   const pagosMap: Record<string, number> = {}
+  const deudaUpdatedAtMap: Record<string, Date> = {}
+  for (const d of deudas) {
+    if (d.externalUpdatedAt) deudaUpdatedAtMap[d.id] = new Date(d.externalUpdatedAt)
+  }
   pagosLocales.forEach((p: any) => {
-    if (p.syncDeudaId) pagosMap[p.syncDeudaId] = (pagosMap[p.syncDeudaId] || 0) + Number(p.monto)
+    if (!p.syncDeudaId) return
+    const externalUpdatedAt = deudaUpdatedAtMap[p.syncDeudaId]
+    const pagoFecha = new Date(p.createdAt)
+    // Solo contar el pago si es POSTERIOR al último updatedAt de UpTres
+    // (si UpTres actualizó después del pago, ya lo contabilizó allá)
+    if (!externalUpdatedAt || pagoFecha > externalUpdatedAt) {
+      pagosMap[p.syncDeudaId] = (pagosMap[p.syncDeudaId] || 0) + Number(p.monto) + Number(p.descuento || 0)
+    }
   })
 
   const porCliente: Record<string, any[]> = {}
@@ -49,16 +63,21 @@ async function poblarCarteraCache(integracionId: string, empresaId: string) {
     }
     const empleadoPrincipal = Object.keys(conteoEmpleado).sort((a, b) => conteoEmpleado[b] - conteoEmpleado[a])[0] ?? null
 
-    const porEstado: Record<string, number> = { pendiente: 0, vencida: 0, mora: 0, critica: 0, pagada: 0 }
+    const porEstado: Record<string, number> = { critica: 0, mora: 0, vencida: 0, proxima: 0, pendiente: 0, vigente: 0, abonada: 0, pagada: 0 }
     let saldoTotal = 0
     let saldoPendiente = 0
 
-    const deudasDetalle = deudasCliente.map((d: any) => {
+    const deudasOrdenadas = [...deudasCliente].sort((a: any, b: any) => {
+      const fa = a.fechaVencimiento ? new Date(a.fechaVencimiento).getTime() : Infinity
+      const fb = b.fechaVencimiento ? new Date(b.fechaVencimiento).getTime() : Infinity
+      return fa - fb
+    })
+    const deudasDetalle = deudasOrdenadas.map((d: any) => {
       const saldoSync = Number(d.saldo)
-      const saldoAnt = Number(d.saldoAnterior ?? d.saldo)
       const pagosLocal = pagosMap[d.id] || 0
-      const saldoCambio = Math.abs(saldoSync - saldoAnt) > 0.01
-      const saldoReal = saldoCambio ? saldoSync : Math.max(0, saldoSync - pagosLocal)
+      // saldoSync ya refleja lo que UpTres contabilizó
+      // pagosLocal son solo los pagos registrados en TuAgentX POSTERIORES al último updatedAt de UpTres
+      const saldoReal = Math.max(0, saldoSync - pagosLocal)
 
       const valor = Number(d.valor)
       const { estado } = calcularEstado(saldoReal, valor, Number(d.abono), d.fechaVencimiento)

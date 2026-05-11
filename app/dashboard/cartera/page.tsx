@@ -12,12 +12,14 @@ type LineaPago = { id: string; metodoPago: 'efectivo' | 'transferencia'; monto: 
 function crearLinea(): LineaPago { return { id: crypto.randomUUID(), metodoPago: 'efectivo', monto: '', descuento: '', voucherKey: null, voucherDatosIA: null, cargandoVoucher: false } }
 
 const ESTADO_CONFIG: Record<string, { label: string; color: string; border: string; text: string }> = {
-  critica:  { label: '⛔ Crítica',   color: 'bg-red-950/40',     border: 'border-red-800/50',    text: 'text-red-400' },
-  mora:     { label: '🔴 En mora',   color: 'bg-rose-950/40',    border: 'border-rose-800/50',   text: 'text-rose-400' },
-  vencida:  { label: '🟠 Vencida',   color: 'bg-orange-950/40',  border: 'border-orange-800/50', text: 'text-orange-400' },
-  pendiente:{ label: '🟡 Pendiente', color: 'bg-yellow-950/40',  border: 'border-yellow-800/50', text: 'text-yellow-400' },
-  abonada:  { label: '🔵 Abonada',   color: 'bg-blue-950/40',    border: 'border-blue-800/50',   text: 'text-blue-400' },
-  pagada:   { label: '✅ Pagada',    color: 'bg-emerald-950/40', border: 'border-emerald-800/50',text: 'text-emerald-400' },
+  critica:  { label: '⛔ Crítica',     color: 'bg-red-950/40',     border: 'border-red-700/60',    text: 'text-red-400' },
+  mora:     { label: '🔴 En mora',     color: 'bg-rose-950/40',    border: 'border-rose-700/60',   text: 'text-rose-400' },
+  vencida:  { label: '🟠 Vencida',     color: 'bg-orange-950/40',  border: 'border-orange-700/60', text: 'text-orange-400' },
+  proxima:  { label: '⚠️ Por vencer',  color: 'bg-amber-950/40',   border: 'border-amber-700/60',  text: 'text-amber-400' },
+  pendiente:{ label: '🟡 Pendiente',   color: 'bg-yellow-950/40',  border: 'border-yellow-700/60', text: 'text-yellow-400' },
+  vigente:  { label: '🔵 Vigente',     color: 'bg-blue-950/40',    border: 'border-blue-700/60',   text: 'text-blue-400' },
+  abonada:  { label: '🔵 Abonada',     color: 'bg-blue-950/40',    border: 'border-blue-700/60',   text: 'text-blue-400' },
+  pagada:   { label: '✅ Pagada',      color: 'bg-emerald-950/40', border: 'border-emerald-700/60',text: 'text-emerald-400' },
 }
 
 export default function CarteraPage() {
@@ -25,6 +27,7 @@ export default function CarteraPage() {
   const router = useRouter()
   const user = session?.user as any
   const esAdmin = user?.role === 'empresa' || user?.role === 'supervisor'
+  const esVendedor = user?.role === 'vendedor'
   const [tab, setTab] = useState<'cartera' | 'clientes' | 'pagos'>('cartera')
   const [modalImportar, setModalImportar] = useState(false)
   const [mesAnalisis, setMesAnalisis] = useState(new Date().getMonth() + 1)
@@ -123,9 +126,15 @@ export default function CarteraPage() {
 
   async function sincronizar() {
     setSincronizando(true)
-    await fetch('/api/cartera/sync', { method: 'POST' })
+    try {
+      await fetch('/api/integracion/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo: 'delta' })
+      })
+    } catch {}
     await cargarDatos(buscar)
-    fetch('/api/integracion/estado').then(r => r.json()).then(d => setSyncInfo({ ultimaSync: d.ultimaSync ?? null })).catch(() => {})
+    fetch('/api/integracion/estado').then(r => r.json()).then(d => setSyncInfo({ ultimaSync: d.ultimaSync ?? null, tieneIntegracion: d.tieneIntegracion ?? false })).catch(() => {})
     setSincronizando(false)
   }
 
@@ -220,7 +229,6 @@ export default function CarteraPage() {
     setLoadingDetalle(true)
     const res = await fetch(`/api/cartera/${cartera.clienteId}`)
     const data = await res.json()
-    console.log('detalle response:', JSON.stringify(data).slice(0,200))
     setLoadingDetalle(false)
     // Normalizar modo sync y manual a misma estructura
     const detalleCartera = data.cartera
@@ -231,9 +239,14 @@ export default function CarteraPage() {
         valorFactura: d.valor,
         abonos: d.valor - d.saldoReal,
         saldoPendiente: d.saldoReal,
-        estado: d.saldoReal <= 0 ? 'pagada' : 'pendiente',
-        estadoLabel: d.saldoReal <= 0 ? 'Pagada' : 'Pendiente',
-        estadoColor: 'orange',
+        ...(() => {
+          const saldo = Math.max(0, d.saldoReal)
+          const vf = Number(d.valor || 0)
+          const ab = vf - saldo
+          const fv = d.fechaVencimiento ? new Date(d.fechaVencimiento) : null
+          const { estado, label, color } = calcularEstado(saldo, vf, ab, fv)
+          return { estado, estadoLabel: label, estadoColor: color }
+        })(),
         numeroFactura: d.numeroFactura || d.numeroOrden,
         fechaVencimiento: d.fechaVencimiento,
         concepto: d.numeroOrden ? `Orden ${d.numeroOrden}` : null,
@@ -244,7 +257,7 @@ export default function CarteraPage() {
     setDetalleData(detalleCartera)
     const pendientes = (detalleCartera?.DetalleCartera || [])
       .filter((d: any) => d.estado !== 'pagada')
-      .sort((a: any, b: any) => new Date(a.fechaVencimiento || a.fCreado || 0).getTime() - new Date(b.fechaVencimiento || b.fCreado || 0).getTime())
+      .sort((a: any, b: any) => { const fa = a.fechaVencimiento ? new Date(a.fechaVencimiento).getTime() : Infinity; const fb = b.fechaVencimiento ? new Date(b.fechaVencimiento).getTime() : Infinity; return fa - fb })
     const masAntigua = pendientes[0]?.id ? [pendientes[0].id] : []
     setFacturasSeleccionadas(masAntigua)
     setLineasPago([crearLinea()])
@@ -256,7 +269,7 @@ export default function CarteraPage() {
 
     const deudas = (cartera.DetalleCartera || cartera.deudas || [])
       .filter((d: any) => d.estado !== 'pagada' && Number(d.saldo ?? d.saldoPendiente ?? 0) > 0)
-      .sort((a: any, b: any) => new Date(a.fechaVencimiento || 0).getTime() - new Date(b.fechaVencimiento || 0).getTime())
+      .sort((a: any, b: any) => { const fa = a.fechaVencimiento ? new Date(a.fechaVencimiento).getTime() : Infinity; const fb = b.fechaVencimiento ? new Date(b.fechaVencimiento).getTime() : Infinity; return fa - fb })
 
     if (!deudas.length) { alert('Sin facturas pendientes'); return }
 
@@ -315,21 +328,42 @@ export default function CarteraPage() {
     let ultimoId: string | null = null
     let ultimoToken: string | null = null
     let ultimoAnchoPapel: string = '80mm'
+    // Detectar modo sync — DetalleCartera tiene _sync: true
+    const esModoSync = (detalleData?.DetalleCartera || []).some((d: any) => d._sync)
     for (const linea of lineasPago) {
-      const res = await fetch('/api/cartera/pago', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          carteraId: detalleData.id,
-          monto: Number(linea.monto || 0),
-          descuento: Number(linea.descuento || 0),
-          tipo: 'abono',
-          metodoPago: linea.metodoPago,
-          notas: notasPago || undefined,
-          detalleIds: facturasSeleccionadas,
-          ...(linea.voucherKey ? { voucherKey: linea.voucherKey, voucherDatosIA: linea.voucherDatosIA } : {}),
+      let res: Response
+      if (esModoSync) {
+        // Modo sync — pago directo sobre SyncDeuda
+        res = await fetch('/api/cartera/pago-sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            syncDeudaIds: facturasSeleccionadas,
+            clienteApiId: detalleData.clienteApiId,
+            integracionId: detalleData.integracionId,
+            monto: Number(linea.monto || 0),
+            descuento: Number(linea.descuento || 0),
+            metodoPago: linea.metodoPago,
+            notas: notasPago || undefined,
+            ...(linea.voucherKey ? { voucherKey: linea.voucherKey, voucherDatosIA: linea.voucherDatosIA } : {}),
+          })
         })
-      })
+      } else {
+        res = await fetch('/api/cartera/pago', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            carteraId: detalleData.id,
+            monto: Number(linea.monto || 0),
+            descuento: Number(linea.descuento || 0),
+            tipo: 'abono',
+            metodoPago: linea.metodoPago,
+            notas: notasPago || undefined,
+            detalleIds: facturasSeleccionadas,
+            ...(linea.voucherKey ? { voucherKey: linea.voucherKey, voucherDatosIA: linea.voucherDatosIA } : {}),
+          })
+        })
+      }
       const data = await res.json()
       if (data.pago) { ultimoId = data.pago.id; ultimoToken = data.pago.reciboToken || null; if (data.anchoPapel) ultimoAnchoPapel = data.anchoPapel }
     }
@@ -386,7 +420,7 @@ export default function CarteraPage() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-white">💰 Cartera</h1>        </div>
-        {esAdmin && (
+        {(esAdmin || esVendedor) && (
           <div className="flex items-center gap-2">
             <div className="flex flex-col items-end gap-0.5">
               <button onClick={sincronizar} disabled={sincronizando}
@@ -1015,7 +1049,16 @@ export default function CarteraPage() {
                             </div>
                             <div className="text-right flex-shrink-0">
                               <p className="text-white text-sm font-semibold">{fmt(saldo)}</p>
-                              <span className={`text-xs ${d.estadoColor === 'red' || d.estadoColor === 'rose' ? 'text-red-400' : d.estadoColor === 'orange' ? 'text-orange-400' : 'text-zinc-400'}`}>
+                              <span className={`text-xs ${
+                                d.estadoColor === 'red' ? 'text-red-400' :
+                                d.estadoColor === 'rose' ? 'text-rose-400' :
+                                d.estadoColor === 'orange' ? 'text-orange-400' :
+                                d.estadoColor === 'amber' ? 'text-amber-400' :
+                                d.estadoColor === 'yellow' ? 'text-yellow-400' :
+                                d.estadoColor === 'blue' ? 'text-blue-400' :
+                                d.estadoColor === 'emerald' ? 'text-emerald-400' :
+                                'text-zinc-400'
+                              }`}>
                                 {d.estadoLabel || d.estado}
                               </span>
                             </div>
@@ -1058,13 +1101,13 @@ export default function CarteraPage() {
                         {/* Efectivo: monto + descuento */}
                         {linea.metodoPago === 'efectivo' && (
                           <div className="flex gap-3">
-                            <div className="flex-[7]">
+                            <div className="flex-[6]">
                               <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Monto *</label>
                               <InputMoneda value={linea.monto}
                                 onChange={val => setLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, monto: val } : l))}
                                 className="w-full bg-zinc-700 border border-zinc-600 rounded-xl pr-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
                             </div>
-                            <div className="flex-[3]">
+                            <div className="flex-[4]">
                               <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Descuento</label>
                               <InputMoneda value={linea.descuento} placeholder="0" prefix=""
                                 onChange={val => setLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, descuento: val } : l))}
@@ -1105,7 +1148,7 @@ export default function CarteraPage() {
                                     <div><span className="text-zinc-500">Valor:</span> <span className="text-white font-semibold">{fmt(linea.voucherDatosIA.valor)}</span></div>
                                   )}
                                   {linea.voucherDatosIA.fecha && (
-                                    <div><span className="text-zinc-500">Fecha:</span> <span className="text-white">{linea.voucherDatosIA.fecha}</span></div>
+                                    <div className="whitespace-nowrap"><span className="text-zinc-500">Fecha:</span> <span className="text-white">{linea.voucherDatosIA.fecha}</span></div>
                                   )}
                                   {linea.voucherDatosIA.banco && (
                                     <div className="col-span-2"><span className="text-zinc-500">Banco:</span> <span className="text-white">{linea.voucherDatosIA.banco}</span></div>
@@ -1120,21 +1163,15 @@ export default function CarteraPage() {
                             {/* Monto bloqueado + descuento — solo después del voucher */}
                             {linea.voucherDatosIA && (
                               <div className="flex gap-3">
-                                <div className="flex-[7]">
+                                <div className="flex-[6]">
                                   <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Monto (IA)</label>
                                   <InputMoneda value={linea.monto} readOnly
                                     className="w-full bg-zinc-700/50 border border-zinc-600 rounded-xl pr-4 py-2.5 text-zinc-300 text-sm outline-none cursor-not-allowed" onChange={() => {}} />
                                 </div>
-                                <div className="flex-[3]">
+                                <div className="flex-[4]">
                                   <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Descuento</label>
                                   <InputMoneda value={linea.descuento} placeholder="0" prefix=""
-                                    onChange={val => {
-                                      const desc = val
-                                      const montoFinal = linea.voucherDatosIA?.valor != null
-                                        ? String(Math.max(0, Math.round(linea.voucherDatosIA.valor - Number(desc || 0))))
-                                        : linea.monto
-                                      setLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, descuento: desc, monto: montoFinal } : l))
-                                    }}
+                                    onChange={val => setLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, descuento: val } : l))}
                                     className="w-full bg-zinc-700 border border-zinc-600 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
                                 </div>
                               </div>
@@ -1154,7 +1191,9 @@ export default function CarteraPage() {
                   {(() => {
                     const lineasContables = lineasPago.filter(l => l.metodoPago === 'efectivo' || l.voucherDatosIA)
                     const totalPagado = lineasContables.reduce((s, l) => s + Number(l.monto || 0), 0)
-                    const saldoRestante = montoSeleccionado - totalPagado
+                    const totalDescuento = lineasContables.reduce((s, l) => s + Number(l.descuento || 0), 0)
+                    const totalAbonado = totalPagado + totalDescuento
+                    const saldoRestante = montoSeleccionado - totalAbonado
                     return (
                       <div className="bg-zinc-800/60 border border-zinc-700 rounded-xl px-4 py-3 space-y-1.5">
                         <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wide mb-2">Resumen</p>
@@ -1169,6 +1208,12 @@ export default function CarteraPage() {
                             <span className="text-zinc-400">Total pagado</span>
                             <span className="text-white font-bold">{fmt(totalPagado)}</span>
                           </div>
+                          {totalDescuento > 0 && (
+                            <div className="flex justify-between items-center text-xs">
+                              <span className="text-zinc-400">Descuento</span>
+                              <span className="text-orange-400 font-bold">{fmt(totalDescuento)}</span>
+                            </div>
+                          )}
                           <div className="flex justify-between items-center text-xs">
                             <span className="text-zinc-400">Deuda actual</span>
                             <span className="text-zinc-300">{fmt(montoSeleccionado)}</span>

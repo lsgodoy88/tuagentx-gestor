@@ -42,7 +42,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
   }
 
   private get headers() {
-    return { 'x-api-key': this.apiKey, 'Authorization': this.token }
+    return { 'x-api-key': this.apiKey, 'Authorization': `Bearer ${this.token}` }
   }
 
   private async fetchAllSinCondition(endpoint: string, extraParams: Record<string, string> = {}): Promise<any[]> {
@@ -102,7 +102,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       fields: 'id,firstName,lastName,document,email,phone,address,cityId,neighborhood,tradeName,updatedAt',
       includeTotal: 'false',
     }
-    if (desde) params.fModificado = desde.toISOString()
+    if (desde) params.desde = desde.toISOString().split('T')[0]
     const data = await this.fetchAll('clientes', params)
     return data.map((c: any) => ({
       uid: c.id,
@@ -126,7 +126,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       fields: 'id,firstName,lastName,document,email,phone,cityId,updatedAt',
       includeTotal: 'false',
     }
-    if (desde) params.fModificado = desde.toISOString()
+    if (desde) params.desde = desde.toISOString().split('T')[0]
     const data = await this.fetchAll('empleados', params)
     return data.map((e: any) => ({
       uid: e.id,
@@ -143,48 +143,78 @@ export class UpTresAdapter implements AdaptadorIntegracion {
 
   async fetchDeudas(desde?: Date): Promise<DeudaExterna[]> {
     const params: Record<string, string> = {
-      fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,createdAt,updatedAt',
+      fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt',
       includeTotal: 'false',
     }
-    const fromDate = desde ?? new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
+    const fromDate = desde ?? new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000)
     params.from = fromDate.toISOString().split('T')[0]
     params.to = new Date().toISOString().split('T')[0]
     const data = await this.fetchAll('cartera', params)
-    return data.map((o: any) => ({
-      uid: o.id,
-      _id: o.id,
-      numeroOrden: o.orderNumber,
-      numeroFacturado: o.invoiceNumber || null,
-      vTotal: o.total,
-      vSaldo: o.balance,
-      mediopago: o.paymentType,
-      fCreado: o.createdAt,
-      fModificado: o.updatedAt,
-      condition: true,
-      cliente: { uid: o.customerId },
-      empleado: { uid: o.employeeId },
-    }))
+    return data.map((o: any) => {
+      // Usar fPago directo de UpTres, o calcular desde createdAt + creditDay
+      let fPago: string | null = o.paidAt || null
+      if (!fPago && o.creditDay && o.createdAt) {
+        const dias = parseInt(o.creditDay || '0')
+        if (dias > 0) {
+          const fecha = new Date(o.createdAt)
+          fecha.setDate(fecha.getDate() + dias)
+          fPago = fecha.toISOString()
+        }
+      }
+      return {
+        uid: o.id,
+        _id: o.id,
+        numeroOrden: o.orderNumber,
+        numeroFacturado: o.invoiceNumber || null,
+        vTotal: o.total,
+        vSaldo: o.balance,
+        vAbono: String(parseFloat(o.total || '0') - parseFloat(o.balance || '0')),
+        dias: o.creditDay || '0',
+        mediopago: o.paymentType,
+        fCreado: o.createdAt,
+        fPago: fPago ?? undefined,
+        fModificado: o.updatedAt,
+        condition: true,
+        cliente: { uid: o.customerId },
+        empleado: { uid: o.employeeId },
+      }
+    })
   }
 
   async fetchDeudasCliente(clienteId: string): Promise<DeudaExterna[]> {
     const res = await fetch(
-      `${BASE}/cartera/cliente/${clienteId}?fields=id,orderNumber,total,balance,paymentType,createdAt,updatedAt&condition=true`,
+      `${BASE}/cartera/cliente/${clienteId}?fields=id,orderNumber,invoiceNumber,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt&condition=true`,
       { headers: this.headers }
     )
     const d = await res.json()
-    return (d.data || []).map((o: any) => ({
-      uid: o.id,
-      _id: o.id,
-      numeroOrden: o.orderNumber,
-      vTotal: o.total,
-      vSaldo: o.balance,
-      mediopago: o.paymentType,
-      fCreado: o.createdAt,
-      fModificado: o.updatedAt,
-      condition: true,
-      cliente: { uid: clienteId },
-      empleado: { uid: null },
-    }))
+    return (d.data || []).map((o: any) => {
+      // fPago directo de UpTres, o calcular desde createdAt + creditDay
+      let fPago: string | null = o.paidAt || null
+      if (!fPago && o.creditDay && o.createdAt) {
+        const dias = parseInt(o.creditDay || '0')
+        if (dias > 0) {
+          const fecha = new Date(o.createdAt)
+          fecha.setDate(fecha.getDate() + dias)
+          fPago = fecha.toISOString()
+        }
+      }
+      return {
+        uid: o.id,
+        _id: o.id,
+        numeroOrden: o.orderNumber,
+        numeroFacturado: o.invoiceNumber || null,
+        vTotal: o.total,
+        vSaldo: o.balance,
+        dias: o.creditDay || '0',
+        mediopago: o.paymentType,
+        fCreado: o.createdAt,
+        fPago: fPago ?? undefined,
+        fModificado: o.updatedAt,
+        condition: true,
+        cliente: { uid: clienteId },
+        empleado: { uid: null },
+      }
+    })
   }
 
   async fetchVentas(desde?: Date, customerId?: string): Promise<VentaExterna[]> {

@@ -18,8 +18,8 @@ interface CarteraCardProps {
   cartera: any
   rol: string
   fmt: (n: number) => string
-  onRecaudar?: () => void
-  onWhatsApp?: () => void
+  onRecaudar?: (cartera?: any) => void
+  onWhatsApp?: (cartera?: any) => void
 }
 
 const WhatsAppIcon = () => (
@@ -29,21 +29,25 @@ const WhatsAppIcon = () => (
 )
 
 const ESTADO_COLOR: Record<string, string> = {
-  critica: '#ef4444',
-  mora: '#f97316',
-  vencida: '#f59e0b',
-  pendiente: '#6366f1',
-  abonada: '#22c55e',
-  pagada: '#22c55e',
+  critica:  '#dc2626', // rojo intenso — vencida +90d
+  mora:     '#f43f5e', // rojo rosa — vencida 31-90d
+  vencida:  '#f97316', // naranja — vencida 1-30d
+  proxima:  '#f59e0b', // ámbar — vence en 0-7d
+  pendiente:'#eab308', // amarillo — vence en 8-30d
+  vigente:  '#3b82f6', // azul — vence en +30d
+  abonada:  '#3b82f6', // azul
+  pagada:   '#22c55e', // verde
 }
 
 const ESTADO_LABEL: Record<string, string> = {
-  critica: 'Crítica',
-  mora: 'En mora',
-  vencida: 'Vencida',
-  pendiente: 'Pendiente',
-  abonada: 'Abonada',
-  pagada: 'Pagada',
+  critica:  'Crítica',
+  mora:     'En mora',
+  vencida:  'Vencida',
+  proxima:  'Por vencer',
+  pendiente:'Pendiente',
+  vigente:  'Vigente',
+  abonada:  'Abonada',
+  pagada:   'Pagada',
 }
 
 function estadoPrincipal(porEstado: any): string {
@@ -60,7 +64,11 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onWhatsA
   const sincronizado = c._fuente === 'sync'
   const estado = estadoPrincipal(c.porEstado)
   const color = c.empresaVinculada?.color || ESTADO_COLOR[estado] || '#6366f1'
-  const deudas: DetalleDeuda[] = c.DetalleCartera || []
+  const deudas: DetalleDeuda[] = [...(c.DetalleCartera || [])].sort((a, b) => {
+    const fa = a.fechaVencimiento ? new Date(a.fechaVencimiento).getTime() : Infinity
+    const fb = b.fechaVencimiento ? new Date(b.fechaVencimiento).getTime() : Infinity
+    return fa - fb
+  })
 
   return (
     <div
@@ -130,7 +138,7 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onWhatsA
                 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ fontSize: 12, color: '#c4c4c4' }}>
-                      {d.numeroOrden ? `#${d.numeroOrden}` : d.numeroFactura ? `F${d.numeroFactura}` : `Deuda ${i+1}`}
+                      {d.numeroFactura ? `#${d.numeroFactura}` : d.numeroOrden ? `#${d.numeroOrden}` : `Deuda ${i+1}`}
                     </span>
                     {d.fechaVencimiento && (
                       <span style={{ fontSize: 11, color: '#c4c4c4', marginLeft: 6 }}>
@@ -158,7 +166,7 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onWhatsA
           {Number(c.saldoPendiente) > 0 && (
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               <button
-                onClick={e => { e.stopPropagation(); onRecaudar?.() }}
+                onClick={e => { e.stopPropagation(); onRecaudar?.(c) }}
                 style={{
                   flex: 1,
                   background: 'linear-gradient(135deg, #1d4ed8, #3b82f6)',
@@ -169,7 +177,7 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onWhatsA
                 💳 Recaudar
               </button>
               <button
-                onClick={e => { e.stopPropagation(); onWhatsApp?.() }}
+                onClick={e => { e.stopPropagation(); onWhatsApp?.(c) }}
                 title="Enviar recordatorio por WhatsApp"
                 style={{
                   background: '#25D366', border: 'none', borderRadius: 10,
