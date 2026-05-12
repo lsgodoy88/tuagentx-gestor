@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { randomBytes } from 'crypto'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -39,7 +40,13 @@ export async function GET(req: NextRequest) {
   const where: any = { empleadoId: { in: empleadoIds } }
   if (empleadoId && empleadoId !== 'all') where.empleadoId = empleadoId
   if (metodo && metodo !== 'all') where.metodopago = metodo
-  if (desde && hasta) where.fechaPago = { gte: desde, lt: hasta }
+  if (desde && hasta) {
+    // Filtrar por fechaPago — si es NULL, fallback a createdAt
+    where.OR = [
+      { fechaPago: { gte: desde, lt: hasta } },
+      { AND: [{ fechaPago: null }, { createdAt: { gte: desde, lt: hasta } }] }
+    ]
+  }
 
   const pagos = await (prisma as any).pagoCartera.findMany({
     where,
@@ -57,6 +64,7 @@ export async function GET(req: NextRequest) {
       metodopago: true,
       voucherKey: true,
       reciboToken: true,
+      tokenExpira: true,
       notas: true,
       carteraId: true,
       syncDeudaId: true,
@@ -95,6 +103,21 @@ export async function GET(req: NextRequest) {
     : []
   const detMap: Record<string, any> = {}
   detalles.forEach((d: any) => { detMap[d.carteraId] = d })
+
+  // Renovar tokens expirados — admin puede ver recibos viejos
+  const ahora = new Date()
+  const expirados = pagos.filter((p: any) =>
+    p.reciboToken && p.tokenExpira && new Date(p.tokenExpira) < ahora
+  )
+  for (const p of expirados) {
+    const nuevoToken = randomBytes(24).toString('hex')
+    const nuevaExp = new Date(Date.now() + 15 * 60 * 1000) // 15min
+    await (prisma as any).pagoCartera.update({
+      where: { id: p.id },
+      data: { reciboToken: nuevoToken, tokenExpira: nuevaExp }
+    })
+    p.reciboToken = nuevoToken
+  }
 
   const filas = pagos.map((p: any) => {
     let cliente = ''

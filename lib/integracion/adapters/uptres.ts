@@ -254,7 +254,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       cliente: { uid: o.customerId },
       empleado: { uid: o.employeeId },
       productos: o.items || [],
-      clienteNombreApi: o.customer?.name || o.customer?.tradeName || null,
+      clienteNombreApi: o.customer ? (`${o.customer.firstName || ''} ${o.customer.lastName || ''}`.trim() || o.customer.tradeName || o.customer.name || null) : null,
     }))
   }
 }
