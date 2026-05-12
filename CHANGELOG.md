@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.2.0] - 2026-05-12 (Versionado + Staging)
+
+### Added
+- Sistema de versionado: `scripts/gen-version.js` autogenera `lib/version.ts` en prebuild (commit, branch, tag, env, buildDate)
+- Endpoint público `/api/version` (sin BD, cache 60s)
+- `components/VersionFooter` con badge ámbar `STAGING` en `/dashboard/*`
+- Staging environment completo: `staging.tuagentx.com` (puerto 3011, PM2 `gestor-staging`, BD compartida con prod, sin worker)
+- `scripts/deploy.sh production|staging [ref]` con rollback automático, log y short-circuit por build commit
+- `CONTRIBUTING.md` documentando GitHub Flow + ciclo de release + reglas duras
+- Monitor (`/srv/panel/scripts/monitor.js`) ahora vigila `gestor-staging` cada 5min con auto-restart
+
+### Changed
+- Nginx: `sites-enabled/tuagentx` ahora es symlink a `sites-available/tuagentx` (una sola fuente de verdad). Backup en `/root/`.
+- Middleware: bypass de geo-block para `/api/version`
+
+### Fixed
+- `deploy.sh` short-circuit comparaba PREV_COMMIT vs HEAD post-pull (siempre igual si `git pull` corrió antes). Ahora compara contra `fullCommit` en `lib/version.ts` (lo que realmente refleja el build). `FORCE=1` para forzar.
+
 ## [1.1.0] - 2026-05-12 (Hardening sesión)
 
 ### Added
