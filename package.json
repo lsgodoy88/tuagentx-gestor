@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "prebuild": "node scripts/gen-version.js",
+    "gen-version": "node scripts/gen-version.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.92.0",

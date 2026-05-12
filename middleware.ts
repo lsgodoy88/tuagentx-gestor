@@ -8,6 +8,7 @@ const ALLOWED_COUNTRIES = ['CO', 'US', 'XX'] // XX = desconocido (desarrollo loc
 const BYPASS_PATHS = [
   '/api/cartera/recibo-publico',
   '/api/health',
+  '/api/version',
   '/api/voucher',
   '/recaudo/recibo',
   '/api/auth',

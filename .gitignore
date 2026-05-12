@@ -48,3 +48,4 @@ public/fotos/
 *.bak
 *.bak.*
 .backups-deprecated/
+lib/version.ts
