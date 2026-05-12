@@ -99,7 +99,22 @@ export async function POST(req: NextRequest) {
 
   const montoNum = Number(monto)
   const descuentoNum = Number(descuento)
+
+  // Validación de input
+  if (!Number.isFinite(montoNum) || montoNum < 0) {
+    return NextResponse.json({ error: 'Monto inválido' }, { status: 400 })
+  }
+  if (!Number.isFinite(descuentoNum) || descuentoNum < 0) {
+    return NextResponse.json({ error: 'Descuento inválido' }, { status: 400 })
+  }
+  if (notas && typeof notas === 'string' && notas.length > 1000) {
+    return NextResponse.json({ error: 'Notas demasiado largas (máx 1000)' }, { status: 400 })
+  }
+
   const totalAplicado = montoNum + descuentoNum
+  if (totalAplicado <= 0) {
+    return NextResponse.json({ error: 'El total del pago debe ser mayor a 0' }, { status: 400 })
+  }
 
   let numeroRecibo: string | null = null
   try { numeroRecibo = await getConsecutivo(empId) } catch {}
@@ -142,7 +157,9 @@ export async function POST(req: NextRequest) {
     select: { nombre: true }
   })
 
-  const pago = await prisma.pagoCartera.create({
+  const { pago, nuevoSaldo: saldoFinal } = await prisma.$transaction(async (tx: any) => {
+
+  const pago = await tx.pagoCartera.create({
     data: {
       carteraId,
       empleadoId: empId,
@@ -170,7 +187,7 @@ export async function POST(req: NextRequest) {
   })
 
   if (Array.isArray(detalleIds) && detalleIds.length > 0) {
-    const detalles = await prisma.detalleCartera.findMany({ where: { id: { in: detalleIds }, carteraId } })
+    const detalles = await tx.detalleCartera.findMany({ where: { id: { in: detalleIds }, carteraId } })
     const saldoTotal = detalles.reduce((acc: number, d: any) => {
       const vf = Number(d.valorFactura ?? d.valor)
       const ab = Number(d.abonos ?? 0)
@@ -185,16 +202,16 @@ export async function POST(req: NextRequest) {
       const nuevosAbonos = ab + abonoFactura
       const nuevaSaldo = Math.max(0, vf - nuevosAbonos)
       const { estado } = calcularEstado(nuevaSaldo, vf, nuevosAbonos, d.fechaVencimiento ?? null)
-      await prisma.detalleCartera.update({ where: { id: d.id }, data: { abonos: nuevosAbonos, estado } })
+      await tx.detalleCartera.update({ where: { id: d.id }, data: { abonos: nuevosAbonos, estado } })
     }
   } else if (tipo === 'total') {
-    await prisma.detalleCartera.updateMany({
+    await tx.detalleCartera.updateMany({
       where: { carteraId, estado: { not: 'pagada' } },
       data: { estado: 'pagada' }
     })
   }
 
-  const todosDetalles = await prisma.detalleCartera.findMany({ where: { carteraId } })
+  const todosDetalles = await tx.detalleCartera.findMany({ where: { carteraId } })
   const nuevoSaldo = todosDetalles.reduce((acc: number, d: any) => {
     if (d.estado === 'pagada') return acc
     const vf = Number(d.valorFactura ?? d.valor)
@@ -202,12 +219,15 @@ export async function POST(req: NextRequest) {
     return acc + Math.max(0, vf - ab)
   }, 0)
 
-  await prisma.cartera.update({
+  await tx.cartera.update({
     where: { id: carteraId },
     data: { saldoPendiente: Math.max(0, nuevoSaldo), updatedAt: new Date() }
   })
 
+    return { pago, nuevoSaldo }
+  }, { isolationLevel: 'Serializable', timeout: 10000 })
+
   const cfgEmp = (cartera as any)?.Empresa?.configRecibos as any
   const anchoPapel = cfgEmp?.anchoPapel || '80mm'
-  return NextResponse.json({ pago, saldoPendiente: Math.max(0, nuevoSaldo), anchoPapel })
+  return NextResponse.json({ pago, saldoPendiente: Math.max(0, saldoFinal), anchoPapel })
 }

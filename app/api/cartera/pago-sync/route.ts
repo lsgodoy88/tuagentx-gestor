@@ -59,6 +59,21 @@ export async function POST(req: NextRequest) {
   const descuentoNum = lineasValidas.length > 0
     ? lineasValidas.reduce((s: number, l: any) => s + l.descuento, 0)
     : Number(descuento)
+
+  // Validación de input
+  if (!Number.isFinite(montoNum) || montoNum < 0) {
+    return NextResponse.json({ error: 'Monto inválido' }, { status: 400 })
+  }
+  if (!Number.isFinite(descuentoNum) || descuentoNum < 0) {
+    return NextResponse.json({ error: 'Descuento inválido' }, { status: 400 })
+  }
+  if (montoNum + descuentoNum <= 0) {
+    return NextResponse.json({ error: 'El total del pago debe ser mayor a 0' }, { status: 400 })
+  }
+  // Limitar tamaño de notas y voucher para evitar abuso
+  if (notas && typeof notas === 'string' && notas.length > 1000) {
+    return NextResponse.json({ error: 'Notas demasiado largas (máx 1000)' }, { status: 400 })
+  }
   const metodoPagoFinal = lineasValidas.length > 1 ? 'mixto' : (lineasValidas[0]?.metodoPago || metodoPago)
   const totalAplicado = montoNum + descuentoNum
 
@@ -92,48 +107,57 @@ export async function POST(req: NextRequest) {
     restante -= aplicar
   }
 
-  const pago = await (prisma as any).pagoCartera.create({
-    data: {
-      empleadoId: empId,
-      monto: montoNum,
-      descuento: descuentoNum,
-      tipo: 'abono',
-      metodopago: metodoPagoFinal,
-      notas: notas || null,
-      ...(lineasValidas.length > 0 ? { lineasPago: lineasValidas } : {}),
-      ...(lat != null && lng != null ? { latCobro: Number(lat), lngCobro: Number(lng), gpsAccuracy: gpsAccuracy != null ? Number(gpsAccuracy) : null } : {}),
-      numeroRecibo,
-      reciboToken,
-      tokenExpira,
-      ...(aplicaciones.length > 0 ? { syncDeudaId: aplicaciones[0].syncDeudaId } : {}),
-      ...(lineasValidas.length === 0 && ['transferencia', 'nequi', 'banco'].includes(metodoPago) && voucherKey ? {
-        voucherKey,
-        voucherDatosIA: voucherDatosIA ?? undefined,
-      } : {}),
-      ...(aplicaciones.length > 0 ? {
-        Aplicaciones: {
-          create: aplicaciones.map(a => ({
-            syncDeudaId: a.syncDeudaId,
-            numeroFactura: a.numeroFactura,
-            externalId: a.externalId,
-            montoAplicado: a.montoAplicado,
-          }))
-        }
-      } : {}),
-    }
-  })
-
-  // Actualizar saldos de cada deuda aplicada
-  for (const a of aplicaciones) {
-    const d = deudas.find((x: any) => x.id === a.syncDeudaId)
-    if (!d) continue
-    const nuevoSaldo = Math.max(0, Number(d.saldo) - a.montoAplicado)
-    const nuevoAbono = Number(d.abono || 0) + a.montoAplicado
-    await (prisma as any).syncDeuda.update({
-      where: { id: d.id },
-      data: { saldo: nuevoSaldo, abono: nuevoAbono, condition: nuevoSaldo > 0 }
+  // Transacción: crear pago + actualizar saldos atómicamente
+  // Si otra request modifica el saldo entre medio, esta falla y se reintenta
+  const pago = await (prisma as any).$transaction(async (tx: any) => {
+    const pagoCreado = await tx.pagoCartera.create({
+      data: {
+        empleadoId: empId,
+        monto: montoNum,
+        descuento: descuentoNum,
+        tipo: 'abono',
+        metodopago: metodoPagoFinal,
+        notas: notas || null,
+        ...(lineasValidas.length > 0 ? { lineasPago: lineasValidas } : {}),
+        ...(lat != null && lng != null ? { latCobro: Number(lat), lngCobro: Number(lng), gpsAccuracy: gpsAccuracy != null ? Number(gpsAccuracy) : null } : {}),
+        numeroRecibo,
+        reciboToken,
+        tokenExpira,
+        ...(aplicaciones.length > 0 ? { syncDeudaId: aplicaciones[0].syncDeudaId } : {}),
+        ...(lineasValidas.length === 0 && ['transferencia', 'nequi', 'banco'].includes(metodoPago) && voucherKey ? {
+          voucherKey,
+          voucherDatosIA: voucherDatosIA ?? undefined,
+        } : {}),
+        ...(aplicaciones.length > 0 ? {
+          Aplicaciones: {
+            create: aplicaciones.map(a => ({
+              syncDeudaId: a.syncDeudaId,
+              numeroFactura: a.numeroFactura,
+              externalId: a.externalId,
+              montoAplicado: a.montoAplicado,
+            }))
+          }
+        } : {}),
+      }
     })
-  }
+
+    // Releer saldos dentro de la transacción y aplicar atómicamente
+    for (const a of aplicaciones) {
+      const sdActual = await tx.syncDeuda.findUnique({
+        where: { id: a.syncDeudaId },
+        select: { saldo: true, abono: true }
+      })
+      if (!sdActual) continue
+      const nuevoSaldo = Math.max(0, Number(sdActual.saldo) - a.montoAplicado)
+      const nuevoAbono = Number(sdActual.abono || 0) + a.montoAplicado
+      await tx.syncDeuda.update({
+        where: { id: a.syncDeudaId },
+        data: { saldo: nuevoSaldo, abono: nuevoAbono, condition: nuevoSaldo > 0 }
+      })
+    }
+
+    return pagoCreado
+  }, { isolationLevel: 'Serializable', timeout: 10000 })
 
   // Repoblar cache del cliente
   const integracion = await (prisma as any).integracion.findFirst({
