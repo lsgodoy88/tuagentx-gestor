@@ -28,6 +28,18 @@ log() { echo "[$(date -Iseconds)] [$ENV] $*" | tee -a "$LOG"; }
 [ -d "$APP_DIR" ] || { log "ERROR: $APP_DIR no existe"; exit 1; }
 cd "$APP_DIR"
 
+# ─── Lock — un solo deploy por entorno a la vez ───────────────────────────
+# Sin lock, dos deploys concurrentes pelean por node_modules/.next/HEAD
+# y el rollback de uno mueve HEAD bajo los pies del otro.
+LOCK_FILE="/tmp/tuagentx-deploy-${ENV}.lock"
+exec 200>"$LOCK_FILE"
+if ! flock -n 200; then
+  log "ERROR: otro deploy de $ENV ya está corriendo (lock=$LOCK_FILE)"
+  log "       espera a que termine o borra el lock si quedó huérfano"
+  exit 10
+fi
+# El lock se libera automáticamente al salir el shell (incluso en error)
+
 PREV_COMMIT=$(git rev-parse HEAD)
 log "── inicio deploy ref=$REF prev=$PREV_COMMIT"
 
