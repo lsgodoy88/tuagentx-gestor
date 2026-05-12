@@ -1,8 +1,8 @@
 import { prisma } from '@/lib/prisma'
 
-export async function recalcularVentasMesImpulsos(empresaId: string, adapter?: any): Promise<void> {
+export async function recalcularVentasMesImpulsos(empresaId: string, adapter?: any, empleadoId?: string): Promise<void> {
   const clientesEnRutas = await (prisma as any).rutaFijaCliente.findMany({
-    where: { rutaFija: { empresaId } },
+    where: { rutaFija: { empresaId, ...(empleadoId ? { empleadoId } : {}) } },
     select: { clienteId: true },
     distinct: ['clienteId'],
   })

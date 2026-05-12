@@ -14,7 +14,7 @@ function resolverConfig(config: any): Record<string, string> {
 }
 
 // ─── Lógica delta unificada — usada por cron y botón ───────────────────────
-async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor: string = 'cron'): Promise<{
+async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor: string = 'cron', empleadoId?: string): Promise<{
   clientes: number, empleados: number, deudas: number, zombis: number, confrontados: number, duracionMs: number
 }> {
   const log = (m: string) => { logs.push(m); console.log('[sync-delta]', m) }
@@ -123,7 +123,7 @@ async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor
 
   // Recalcular ventas mes impulsos
   try {
-    await recalcularVentasMesImpulsos(empresaId, adapter)
+    await recalcularVentasMesImpulsos(empresaId, adapter, empleadoId)
   } catch (err: any) {
     log(`[ventaMes] Error: ${err.message}`)
   }
@@ -289,7 +289,9 @@ export async function POST(req: NextRequest) {
 
   try {
     if (tipo === 'delta') {
-      const r = await ejecutarDelta(integracion, logs, 'manual')
+      const esAdminUser = ['empresa', 'supervisor'].includes(user.role)
+      const empId = !esAdminUser ? user.id : undefined
+      const r = await ejecutarDelta(integracion, logs, 'manual', empId)
       return NextResponse.json({ ok: true, logs, ...r })
 
     } else if (tipo === 'inicial') {
