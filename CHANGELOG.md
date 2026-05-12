@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.2.2] - 2026-05-12 (Lock de deploy concurrente)
+
+### Fixed
+- `scripts/deploy.sh` ahora toma un `flock` exclusivo por entorno (`/tmp/tuagentx-deploy-{env}.lock`). Dos deploys concurrentes del mismo entorno (típicamente shell timeout + retry) peleaban por `HEAD`/`node_modules`/`.next` y el rollback de uno terminaba moviendo el commit del otro. Ahora el segundo intento espera o sale con código 10.
+
 ## [1.2.1] - 2026-05-12 (Tests + CI)
 
 ### Added
