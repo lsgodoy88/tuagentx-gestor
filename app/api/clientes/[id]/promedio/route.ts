@@ -19,33 +19,24 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const hace3meses = new Date()
   hace3meses.setMonth(hace3meses.getMonth() - 3)
 
-  // Buscar en SyncDeuda si tiene integración ERP
+  // Buscar en VentaMesCliente si tiene integración ERP (datos reales de ventas)
   if (cliente.apiId) {
-    const deudas = await (prisma as any).syncDeuda.findMany({
-      where: {
-        clienteApiId: cliente.apiId,
-        modificadoEn: { gte: hace3meses },
-        condition: true,
-      },
-      select: { valor: true, modificadoEn: true }
+    const mesInicio = hace3meses.toISOString().slice(0, 7)
+    const ventasMes = await (prisma as any).ventaMesCliente.findMany({
+      where: { clienteId: cliente.id, mes: { gte: mesInicio } },
+      select: { totalVenta: true, cantidadVisitas: true, mes: true }
     })
 
-    if (deudas.length > 0) {
-      const porMes: Record<string, number> = {}
-      for (const d of deudas) {
-        const mes = d.modificadoEn
-          ? new Date(d.modificadoEn).toISOString().slice(0, 7)
-          : 'unknown'
-        porMes[mes] = (porMes[mes] || 0) + Number(d.valor)
-      }
-      const meses = Object.keys(porMes).length
-      const totalVentas = Object.values(porMes).reduce((a, b) => a + b, 0)
+    if (ventasMes.length > 0) {
+      const totalVentas = ventasMes.reduce((s: number, v: any) => s + Number(v.totalVenta), 0)
+      const meses = ventasMes.length
+      const cantidadVisitas = ventasMes.reduce((s: number, v: any) => s + (v.cantidadVisitas || 0), 0)
       const promedio = Math.round(totalVentas / meses)
       return NextResponse.json({
         promedio,
         totalVentas,
         meses,
-        cantidadVisitas: deudas.length,
+        cantidadVisitas,
         metaActual: cliente.metaVenta,
         fuente: 'erp'
       })

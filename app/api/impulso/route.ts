@@ -46,26 +46,16 @@ export async function GET(req: NextRequest) {
     })
     const apiIds = clientes.map((c: any) => c.apiId).filter(Boolean)
 
-    // Traer compras del mes desde SyncCompra
-    if (apiIds.length > 0) {
-      comprasMes = await (prisma as any).syncCompra.findMany({
-        where: {
-          integracionId: integracion.id,
-          clienteApiId: { in: apiIds },
-          condition: true,
-          fecha: { gte: inicioMes, lte: finMes }
-        }
+    // Traer ventas del mes desde VentaMesCliente (alimentada por fetchVentas real)
+    const mesActual = inicioMes.toISOString().slice(0, 7)
+    if (clienteIds.length > 0) {
+      const ventasMes = await (prisma as any).ventaMesCliente.findMany({
+        where: { clienteId: { in: clienteIds }, mes: mesActual },
+        select: { clienteId: true, totalVenta: true }
       })
-    }
-
-    // Mapear apiId -> clienteId
-    const apiIdToClienteId: Record<string, string> = {}
-    clientes.forEach((c: any) => { if (c.apiId) apiIdToClienteId[c.apiId] = c.id })
-
-    // Construir ventasPorCliente desde SyncDeuda
-    for (const d of comprasMes) {
-      const cid = apiIdToClienteId[d.clienteApiId]
-      if (cid) ventasPorCliente[cid] = (ventasPorCliente[cid] || 0) + Number(d.valor)
+      for (const v of ventasMes) {
+        ventasPorCliente[v.clienteId] = Number(v.totalVenta)
+      }
     }
 
     // Clientes sin apiId → Visita
