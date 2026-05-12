@@ -4,6 +4,8 @@ import FirmaCanvas from '@/components/FirmaCanvas'
 import { fetchApi, errorMsg } from '@/lib/fetchApi'
 import { useGpsContext } from '@/lib/gps-context'
 import { obtenerGpsMejor } from '@/lib/gps'
+import { useGpsEnDemanda } from '@/components/useGpsEnDemanda'
+import { GpsIndicator } from '@/components/GpsIndicator'
 
 const TIPOS = [
   { id: 'visita',  label: 'Visita',   icon: '👁️' },
@@ -47,6 +49,7 @@ export default function ModalVisita({
   titulo, extraData = {}, distanciaLejos, facturaPreset
 }: Props) {
   const [cliente, setCliente] = useState<Cliente | null>(clienteInicial || null)
+  const gpsDemand = useGpsEnDemanda()
   console.log('clienteInicial en modal:', clienteInicial)
   const [tipo, setTipo] = useState(tipoForzado || 'visita')
   const [monto, setMonto] = useState('')
@@ -117,19 +120,20 @@ export default function ModalVisita({
 
     setLoading(true)
     let ubicacion: { lat: number; lng: number } | null = null
-    if (esperarGps) {
+    // Esperar GPS en demanda (lanzado al abrir el modal)
+    if (gpsDemand.estado === 'buscando' || (esperarGps && gpsDemand.estado !== 'ok')) {
       setObteniendo(true)
-      setGpsProgress(0)
-      // Animar barra: 0→85% en 8s (el GPS tarda hasta 15s)
-      let prog = 0
-      const interval = setInterval(() => {
-        prog = Math.min(prog + Math.random() * 8, 85)
-        setGpsProgress(Math.round(prog))
-      }, 400)
-      ubicacion = await getUbicacion()
-      clearInterval(interval)
-      setGpsProgress(100)
-      setTimeout(() => { setObteniendo(false); setGpsProgress(0) }, 400)
+      const p = await gpsDemand.obtener()
+      setObteniendo(false)
+      if (p) {
+        ubicacion = { lat: p.lat, lng: p.lng }
+      } else if (esperarGps) {
+        // Tras 3 intentos fallidos: preguntar
+        const ok = window.confirm('No se pudo obtener tu ubicación tras 3 intentos. ¿Guardar sin GPS?')
+        if (!ok) { setLoading(false); return }
+      }
+    } else if (gpsDemand.estado === 'ok' && gpsDemand.pos) {
+      ubicacion = { lat: gpsDemand.pos.lat, lng: gpsDemand.pos.lng }
     }
     setError(null)
 
@@ -189,6 +193,12 @@ export default function ModalVisita({
       }
     }
   }
+
+  useEffect(() => {
+    if (open) gpsDemand.iniciar()
+    else gpsDemand.reset()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
 
   const clienteActual = cliente ?? clienteInicial ?? null
 
@@ -371,6 +381,11 @@ export default function ModalVisita({
 
             {error && <p className="text-red-400 text-xs text-center">{error}</p>}
             <p className="text-zinc-500 text-xs">📡 Se guardará tu ubicación GPS automáticamente</p>
+
+            {/* Indicador GPS */}
+            <div className="flex justify-center mb-1">
+              <GpsIndicator estado={gpsDemand.estado} intento={gpsDemand.intento} max={gpsDemand.MAX_INTENTOS} pos={gpsDemand.pos} />
+            </div>
 
             {/* Botones */}
             <div className="flex gap-2">

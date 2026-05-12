@@ -48,7 +48,8 @@ export default function CarteraPage() {
   const [paginaActual, setPaginaActual] = useState(1)
   const [cargandoMas, setCargandoMas] = useState(false)
   const [sincronizando, setSincronizando] = useState(false)
-  const [syncInfo, setSyncInfo] = useState<{ultimaSync: string|null, tieneIntegracion?: boolean}|null>(null)
+  const [syncInfo, setSyncInfo] = useState<{ultimaSync: string|null, ultimaSyncCompleta?: string|null, tieneIntegracion?: boolean}|null>(null)
+  const [modalSync, setModalSync] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Importar
@@ -134,7 +135,7 @@ export default function CarteraPage() {
       })
     } catch {}
     await cargarDatos(buscar)
-    fetch('/api/integracion/estado').then(r => r.json()).then(d => setSyncInfo({ ultimaSync: d.ultimaSync ?? null, tieneIntegracion: d.tieneIntegracion ?? false })).catch(() => {})
+    fetch('/api/integracion/estado').then(r => r.json()).then(d => setSyncInfo({ ultimaSync: d.ultimaSync ?? null, ultimaSyncCompleta: d.ultimaSyncCompleta ?? null, tieneIntegracion: d.tieneIntegracion ?? false })).catch(() => {})
     setSincronizando(false)
   }
 
@@ -416,24 +417,17 @@ export default function CarteraPage() {
   }
 
   return (
+    <>
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-white">💰 Cartera</h1>        </div>
         {(esAdmin || esVendedor) && (
           <div className="flex items-center gap-2">
-            <div className="flex flex-col items-end gap-0.5">
-              <button onClick={sincronizar} disabled={sincronizando}
-                className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-300 border border-zinc-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors">
-                <span className={sincronizando ? 'animate-spin inline-block' : ''}>🔄</span>
-                {sincronizando ? '...' : 'Sync'}
-              </button>
-              {syncInfo?.ultimaSync && (
-                <p className="text-zinc-600 text-[10px]">
-                  {new Date(syncInfo.ultimaSync).toLocaleString('es-CO', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}
-                </p>
-              )}
-            </div>
+            <button onClick={() => setModalSync(true)}
+              className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
+              <span>🔄</span> Sync
+            </button>
             {!syncInfo?.tieneIntegracion && (
               <button onClick={() => setModalImportar(true)}
                 className="inline-flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
@@ -1253,5 +1247,43 @@ export default function CarteraPage() {
         </div>
       )}
     </div>
+
+    {/* Modal Sync */}
+    {modalSync && syncInfo?.tieneIntegracion && (
+      <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center p-4 pt-20" onClick={() => setModalSync(false)}>
+        <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-5 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between">
+            <h3 className="text-white font-bold text-base">🔄 Sincronización</h3>
+            <button onClick={() => setModalSync(false)} className="text-zinc-500 hover:text-white text-xl">×</button>
+          </div>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between items-center">
+              <span className="text-zinc-400">Última sync rápida</span>
+              <span className="text-zinc-300 text-xs">
+                {syncInfo?.ultimaSync
+                  ? new Date(syncInfo.ultimaSync).toLocaleString('es-CO', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})
+                  : '—'}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-zinc-400">Última sync completa</span>
+              <span className="text-zinc-300 text-xs">
+                {syncInfo?.ultimaSyncCompleta
+                  ? new Date(syncInfo.ultimaSyncCompleta).toLocaleString('es-CO', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})
+                  : '—'}
+              </span>
+            </div>
+          </div>
+          <button
+            onClick={() => { setModalSync(false); sincronizar() }}
+            disabled={sincronizando}
+            className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition-colors flex items-center justify-center gap-2">
+            <span className={sincronizando ? 'animate-spin' : ''}>🔄</span>
+            {sincronizando ? 'Sincronizando...' : 'Actualizar ahora'}
+          </button>
+        </div>
+      </div>
+    )}
+    </>
   )
 }

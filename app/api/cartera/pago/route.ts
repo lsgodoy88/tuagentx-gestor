@@ -13,21 +13,61 @@ export async function GET(req: NextRequest) {
   const empresaId = user.role === 'empresa' ? user.id : user.empresaId
   const { searchParams } = new URL(req.url)
   const limit = parseInt(searchParams.get('limit') || '50')
-  const pagoWhere: any = { Cartera: { empresaId } }
-  if (user.role === 'vendedor') pagoWhere.empleadoId = user.id
-  const pagos = await prisma.pagoCartera.findMany({
+  const pagoWhere: any = {
+    OR: [
+      { Cartera: { empresaId } },
+      { AND: [{ carteraId: null }, { Empleado: { empresaId } }] },
+    ],
+  }
+  if (user.role === 'vendedor') pagoWhere.AND = [{ empleadoId: user.id }]
+  const pagos = await (prisma as any).pagoCartera.findMany({
     where: pagoWhere,
     orderBy: { createdAt: 'desc' },
     take: limit,
     include: {
       Cartera: { include: { Cliente: { select: { id: true, nombre: true, nit: true } } } },
       Empleado: { select: { id: true, nombre: true } },
+      Aplicaciones: true,
     }
   })
+
+  // Hidratar cliente para pagos sync (sin Cartera)
+  const syncPagos = pagos.filter((p: any) => !p.carteraId)
+  const clienteMap = new Map<string, any>()
+  if (syncPagos.length > 0) {
+    const apps = await (prisma as any).pagoCarteraDeuda.findMany({
+      where: { pagoId: { in: syncPagos.map((p: any) => p.id) } },
+      orderBy: { createdAt: 'asc' },
+    })
+    const firstAppByPago = new Map<string, any>()
+    for (const a of apps) if (!firstAppByPago.has(a.pagoId)) firstAppByPago.set(a.pagoId, a)
+    const sdIds = Array.from(new Set(apps.map((a: any) => a.syncDeudaId)))
+    const sds = sdIds.length > 0
+      ? await (prisma as any).syncDeuda.findMany({ where: { id: { in: sdIds } } })
+      : []
+    const sdMap = new Map(sds.map((s: any) => [s.id, s]))
+    const apiIds = Array.from(new Set(sds.map((s: any) => s.clienteApiId).filter(Boolean))) as string[]
+    const clientes = apiIds.length > 0
+      ? await (prisma as any).cliente.findMany({ where: { apiId: { in: apiIds }, empresaId } })
+      : []
+    const cliByApi = new Map(clientes.map((c: any) => [c.apiId, c]))
+    for (const p of syncPagos) {
+      const fa = firstAppByPago.get(p.id)
+      if (!fa) continue
+      const sd: any = sdMap.get(fa.syncDeudaId)
+      if (!sd) continue
+      const cli: any = cliByApi.get(sd.clienteApiId)
+      if (cli) clienteMap.set(p.id, { id: cli.id, nombre: cli.nombre, nit: cli.nit })
+    }
+  }
+
   const normalized = pagos.map((p: any) => ({
     ...p,
     metodoPago: p.metodopago,
-    cartera: { ...p.Cartera, cliente: p.Cartera?.Cliente },
+    cartera: {
+      ...(p.Cartera || {}),
+      cliente: p.Cartera?.Cliente || clienteMap.get(p.id) || null,
+    },
     empleado: p.Empleado,
   }))
   return NextResponse.json({ pagos: normalized })
@@ -40,7 +80,7 @@ export async function POST(req: NextRequest) {
   const empresaId = user.role === 'empresa' ? user.id : user.empresaId
   const empleadoId = user.role === 'empresa' ? null : user.id
   const body = await req.json()
-  const { carteraId, monto, descuento = 0, tipo = 'abono', metodoPago = 'efectivo', notas, detalleIds, voucherKey, voucherDatosIA } = body
+  const { carteraId, monto, descuento = 0, tipo = 'abono', metodoPago = 'efectivo', notas, detalleIds, voucherKey, voucherDatosIA, lat, lng, gpsAccuracy } = body
 
   if (!carteraId || !monto) return NextResponse.json({ error: 'carteraId y monto requeridos' }, { status: 400 })
 
@@ -83,6 +123,7 @@ export async function POST(req: NextRequest) {
         voucherKey,
         voucherDatosIA: voucherDatosIA ?? undefined,
       } : {}),
+      ...(lat != null && lng != null ? { latCobro: Number(lat), lngCobro: Number(lng), gpsAccuracy: gpsAccuracy != null ? Number(gpsAccuracy) : null } : {}),
     }
   })
 

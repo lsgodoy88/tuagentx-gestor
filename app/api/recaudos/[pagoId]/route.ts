@@ -25,12 +25,16 @@ export async function POST(
 
   const pago = await prisma.pagoCartera.findUnique({
     where: { id: pagoId },
-    include: { Cartera: { select: { empresaId: true } } },
+    include: {
+      Cartera: { select: { empresaId: true } },
+      Empleado: { select: { empresaId: true } },
+    },
   })
   if (!pago) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
   const empresaId = user.role === 'empresa' ? user.id : user.empresaId
-  if (pago.Cartera.empresaId !== empresaId) {
+  const pagoEmpresaId = pago.Cartera?.empresaId ?? pago.Empleado?.empresaId
+  if (pagoEmpresaId !== empresaId) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 

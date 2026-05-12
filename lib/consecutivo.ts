@@ -25,8 +25,18 @@ export async function getConsecutivo(empleadoId: string): Promise<string> {
     }
     consecutivoActual += 1
 
-    const usarEmpresa = cfg.usarConfigEmpresa !== false
-    const prefijo = (!usarEmpresa && cfg.prefijo) ? cfg.prefijo : (empCfg.prefijo || 'REC')
+    // Iniciales del nombre del empleado: "CARLOS NORBERTO LOZADA" -> "CL"
+    const iniciales = (empleado.nombre || '')
+      .trim()
+      .split(/\s+/)
+      .filter((w: string) => w.length > 0 && !/^(de|del|la|el|los|las|y|da|do)$/i.test(w))
+      .map((w: string) => w[0].toUpperCase())
+    const primera = iniciales[0] || 'X'
+    const ultima = iniciales.length > 1 ? iniciales[iniciales.length - 1] : ''
+    const inicialesEmpleado = (primera + ultima) || 'XX'
+
+    // Prefijo: explícito en empleado > explícito empresa > iniciales del empleado
+    const prefijo = cfg.prefijo || inicialesEmpleado
 
     await tx.empleado.update({
       where: { id: empleadoId },
@@ -39,7 +49,7 @@ export async function getConsecutivo(empleadoId: string): Promise<string> {
       },
     })
 
-    return `${prefijo}-${mmaa}-${String(consecutivoActual).padStart(3, '0')}`
+    return `${prefijo}${anio}${mes}${String(consecutivoActual).padStart(3, '0')}`
   })
 
   return numero

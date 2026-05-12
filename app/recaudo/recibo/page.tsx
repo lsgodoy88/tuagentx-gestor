@@ -84,7 +84,11 @@ function ReciboContent() {
       if (empresaDir) data.push(...Array.from(enc.encode(empresaDir + '\n')))
       const recNum = pago?.consecutivo || pago?.id?.slice(-8).toUpperCase()
       data.push(ESC, 0x45, 0x01)
-      data.push(...Array.from(enc.encode('RECIBO DE CAJA #' + recNum + '\n')))
+      data.push(GS, 0x21, 0x01) // doble alto
+      data.push(...Array.from(enc.encode('RECIBO DE CAJA\n')))
+      data.push(GS, 0x21, 0x11) // doble alto y ancho
+      data.push(...Array.from(enc.encode('#' + recNum + '\n')))
+      data.push(GS, 0x21, 0x00) // reset tamaño
       data.push(ESC, 0x45, 0x00)
       data.push(...sep(enc))
 
@@ -106,42 +110,53 @@ function ReciboContent() {
       const h       = fechaPago.getHours()
       const mi      = fechaPago.getMinutes()
       const horaStr = (h % 12 || 12) + ':' + String(mi).padStart(2,'0') + (h >= 12 ? ' PM' : ' AM')
-      const factura  = pago?.cartera?.DetalleCartera?.[0]?.numeroFactura || ''
+      const todasFacts = (pago?.cartera?.DetalleCartera || []).filter((d: any) => d?.numeroFactura)
       const vendedor = pago?.empleado?.nombre || ''
-      const metodos: Record<string,string> = { efectivo:'Efectivo', transferencia:'Transferencia', cheque:'Cheque', datafono:'Datafono' }
-      const formaPago = metodos[pago?.metodoPago] || pago?.metodoPago || ''
+      const metodos: Record<string,string> = { efectivo:'Efectivo', transferencia:'Transferencia', cheque:'Cheque', datafono:'Datafono', nequi:'Nequi', banco:'Banco' }
 
-      if (factura)  data.push(...Array.from(enc.encode(row('Factura:', factura))))
-      data.push(...Array.from(enc.encode(row('Fecha:', fechaStr))))
-      data.push(...Array.from(enc.encode(row('Hora:', horaStr))))
-      if (vendedor) data.push(...Array.from(enc.encode(row('Atendio:', vendedor))))
-      if (formaPago && !pago?.lineasPago) data.push(...Array.from(enc.encode(row('Forma pago:', formaPago))))
-      data.push(...sep(enc))
-
-      // --- VALORES ---
-      const saldoAnt  = Number(pago?.cartera?.saldoPendiente ?? 0) + Number(pago?.monto || 0) + Number(pago?.descuento || 0)
-      const saldoNuevo = Number(pago?.cartera?.saldoPendiente ?? 0)
-      data.push(...Array.from(enc.encode(row('Valor factura:', fmt2(saldoAnt)))))
-      data.push(...Array.from(enc.encode(row('Saldo anterior:', fmt2(saldoAnt)))))
-
-      if (pago?.lineasPago) {
-        for (const linea of pago.lineasPago) {
-          const lbl = (metodos[linea.metodoPago] || linea.metodoPago) + ':'
-          data.push(...Array.from(enc.encode(row(lbl, fmt2(Number(linea.monto))))))
-          if (linea.metodoPago === 'transferencia' && linea.voucherDatosIA?.referencia)
-            data.push(...Array.from(enc.encode('  Ref: ' + linea.voucherDatosIA.referencia + '\n')))
+      // FACTURAS: una seccion por factura con Valor, Saldo (antes), Fecha
+      for (let i = 0; i < todasFacts.length; i++) {
+        const f: any = todasFacts[i]
+        data.push(...sep(enc))
+        data.push(...Array.from(enc.encode(row(todasFacts.length === 1 ? 'Factura:' : 'Factura ' + (i+1) + ':', '#' + f.numeroFactura))))
+        if (f.valorFactura != null) data.push(...Array.from(enc.encode(row('Valor:', fmt2(Number(f.valorFactura))))))
+        if (f.saldoAntes != null) data.push(...Array.from(enc.encode(row('Saldo:', fmt2(Number(f.saldoAntes))))))
+        if (f.fechaCreacion) {
+          const d = new Date(f.fechaCreacion)
+          const fs = String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear()
+          data.push(...Array.from(enc.encode(row('Fecha:', fs))))
         }
-      } else {
-        data.push(...Array.from(enc.encode(row('Pago:', fmt2(Number(pago?.monto || 0))))))
       }
 
-      if (pago?.descuento && Number(pago.descuento) > 0)
+      // PAGOS: uno por linea (o uno solo si no hay multi-metodo)
+      const lineas = (pago?.lineasPago && pago.lineasPago.length > 0)
+        ? pago.lineasPago
+        : [{ metodoPago: pago?.metodoPago, monto: Number(pago?.monto || 0), voucherDatosIA: null }]
+      for (let i = 0; i < lineas.length; i++) {
+        const linea: any = lineas[i]
+        data.push(...sep(enc))
+        data.push(...Array.from(enc.encode(row(lineas.length === 1 ? 'Pago:' : 'Pago ' + (i+1) + ':', fmt2(Number(linea.monto || 0))))))
+        data.push(...Array.from(enc.encode(row('Fecha:', fechaStr))))
+        data.push(...Array.from(enc.encode(row('Hora:', horaStr))))
+        data.push(...Array.from(enc.encode(row('Metodo:', metodos[linea.metodoPago] || linea.metodoPago || ''))))
+        if (linea.voucherDatosIA?.referencia)
+          data.push(...Array.from(enc.encode(row('Ref:', String(linea.voucherDatosIA.referencia)))))
+      }
+
+      if (pago?.descuento && Number(pago.descuento) > 0) {
+        data.push(...sep(enc))
         data.push(...Array.from(enc.encode(row('Descuento:', fmt2(Number(pago.descuento))))))
+      }
+
+      data.push(...sep(enc))
+      if (vendedor) data.push(...Array.from(enc.encode(row('Atendio:', vendedor))))
+
       data.push(...sep(enc))
 
-      // --- SALDO FINAL bold ---
+      // --- NUEVO SALDO bold ---
+      const saldoNuevo = Number(pago?.cartera?.saldoPendiente ?? 0)
       data.push(ESC, 0x45, 0x01)
-      data.push(...Array.from(enc.encode(row('SALDO:', fmt2(saldoNuevo)))))
+      data.push(...Array.from(enc.encode(row('NUEVO SALDO:', fmt2(saldoNuevo)))))
       data.push(ESC, 0x45, 0x00)
       data.push(...sep(enc))
 
@@ -181,8 +196,13 @@ function ReciboContent() {
   const cliente = pago.cartera?.cliente
   const fecha = new Date(pago.createdAt)
   const reciboNum = pago.consecutivo || pago.numeroRecibo || pago.id.slice(-8).toUpperCase()
-  const saldoAnterior = Number(pago.cartera?.saldoPendiente ?? 0) + Number(pago.monto) + Number(pago.descuento)
   const saldoNuevo = Number(pago.cartera?.saldoPendiente ?? 0)
+  const saldoAnterior = pago.cartera?.saldoAnterior != null
+    ? Number(pago.cartera.saldoAnterior)
+    : saldoNuevo + Number(pago.monto) + Number(pago.descuento)
+  const valorFactura = pago.cartera?.valorFacturasPagadas != null
+    ? Number(pago.cartera.valorFacturasPagadas)
+    : saldoAnterior
   const isIOS = typeof navigator !== 'undefined' && /iphone|ipad|ipod/i.test(navigator.userAgent)
 
   const handleCompartirImagen = async () => {
@@ -276,52 +296,68 @@ function ReciboContent() {
         <div className={`ticket ${formato === '58mm' ? 'ticket-58' : 'ticket-80'}`} style={{ fontSize: fs.base }}>
 
           <div className="tc b" style={{ fontSize: fs.empresa, marginBottom: 2 }}>{empresa?.nombre || 'Empresa'}</div>
-          {empresa?.telefono && <div className="tc" style={{ fontSize: fs.small, color: '#555' }}>Tel: {empresa.telefono}</div>}
-          {empresa?.nit && <div className="tc" style={{ fontSize: fs.small, color: '#555' }}>NIT: {empresa.nit}</div>}
+          {(empresa?.telefono || empresa?.configRecibos?.telefono) && <div className="tc" style={{ fontSize: fs.small, color: '#555' }}>Tel: {empresa?.configRecibos?.telefono || empresa?.telefono}</div>}
+          {(empresa?.nit || empresa?.configRecibos?.nit) && <div className="tc" style={{ fontSize: fs.small, color: '#555' }}>NIT: {empresa?.configRecibos?.nit || empresa?.nit}</div>}
+          {empresa?.configRecibos?.direccion && <div className="tc" style={{ fontSize: fs.small, color: '#555' }}>{empresa.configRecibos.direccion}</div>}
 
           <hr className="sep" />
 
-          <div className="tc b" style={{ fontSize: fs.base + 1, letterSpacing: 1 }}>RECIBO PAGO</div>
-          <div className="tc" style={{ fontSize: fs.small, color: '#555' }}>#{reciboNum}</div>
+          <div className="tc b" style={{ fontSize: fs.base + 1, letterSpacing: 1 }}>RECIBO DE CAJA</div>
+          <div className="tc b" style={{ fontSize: fs.empresa, color: '#000', letterSpacing: 1 }}>#{reciboNum}</div>
 
           <hr className="sep" />
 
           <div className="row"><span className="lbl">Cliente:</span><span className="val b">{cliente?.nombre}</span></div>
           {cliente?.nit && <div className="row"><span className="lbl">NIT:</span><span className="val">{cliente.nit}</span></div>}
           {cliente?.telefono && <div className="row"><span className="lbl">Tel:</span><span className="val">{cliente.telefono}</span></div>}
-          <hr className="sep" />
-          {pago.cartera?.DetalleCartera?.[0]?.numeroFactura && (
-            <div className="row"><span className="lbl">Factura:</span><span className="val">{pago.cartera.DetalleCartera[0].numeroFactura}</span></div>
-          )}
-          <div className="row"><span className="lbl">Fecha:</span><span className="val">{String(fecha.getDate()).padStart(2,'0')}/{String(fecha.getMonth()+1).padStart(2,'0')}/{fecha.getFullYear()}</span></div>
-          <div className="row"><span className="lbl">Hora:</span><span className="val">{(fecha.getHours()%12||12)}:{String(fecha.getMinutes()).padStart(2,'0')} {fecha.getHours()>=12?'PM':'AM'}</span></div>
-          <div className="row"><span className="lbl">Atendió:</span><span className="val">{pago.empleado?.nombre || '-'}</span></div>
-          {!pago.lineasPago && pago.metodoPago && (
-            <div className="row"><span className="lbl">Forma de pago:</span><span className="val b">{metodoLabel[pago.metodoPago] || pago.metodoPago}</span></div>
-          )}
-          <hr className="sep" />
-          <div className="srow"><span className="lbl">Valor factura:</span><span>{fmt(saldoAnterior)}</span></div>
-          <div className="srow"><span className="lbl">Saldo anterior:</span><span>{fmt(saldoNuevo + Number(pago.monto) + Number(pago.descuento))}</span></div>
-          {pago.lineasPago ? (
-            pago.lineasPago.map((linea: any, i: number) => (
-              <div key={i}>
-                <div className="srow">
-                  <span className="lbl">{metodoLabel[linea.metodoPago] || linea.metodoPago}:</span>
-                  <span className="b" style={{ color: '#059669' }}>{fmt(Number(linea.monto))}</span>
-                </div>
-                {linea.metodoPago === 'transferencia' && linea.voucherDatosIA?.referencia && (
-                  <div style={{ fontSize: fs.small - 1, color: '#888', textAlign: 'right', marginBottom: 2 }}>Ref: {linea.voucherDatosIA.referencia}</div>
+
+          {(() => {
+            const facts = (pago.cartera?.DetalleCartera || []).filter((d: any) => d?.numeroFactura)
+            return facts.map((f: any, i: number) => (
+              <div key={'f'+i}>
+                <hr className="sep" />
+                <div className="row"><span className="lbl b">{facts.length === 1 ? 'Factura:' : 'Factura ' + (i+1) + ':'}</span><span className="val b">#{f.numeroFactura}</span></div>
+                {f.valorFactura != null && <div className="row"><span className="lbl">Valor:</span><span className="val">{fmt(Number(f.valorFactura))}</span></div>}
+                {f.saldoAntes != null && <div className="row"><span className="lbl">Saldo:</span><span className="val">{fmt(Number(f.saldoAntes))}</span></div>}
+                {f.fechaCreacion && (() => {
+                  const d = new Date(f.fechaCreacion)
+                  return <div className="row"><span className="lbl">Fecha:</span><span className="val">{String(d.getDate()).padStart(2,'0')}/{String(d.getMonth()+1).padStart(2,'0')}/{d.getFullYear()}</span></div>
+                })()}
+              </div>
+            ))
+          })()}
+
+          {(() => {
+            const lineas = pago.lineasPago && pago.lineasPago.length > 0
+              ? pago.lineasPago
+              : [{ metodoPago: pago.metodoPago, monto: Number(pago.monto), voucherDatosIA: null }]
+            return lineas.map((linea: any, i: number) => (
+              <div key={'p'+i}>
+                <hr className="sep" />
+                <div className="row"><span className="lbl b">{lineas.length === 1 ? 'Pago:' : 'Pago ' + (i+1) + ':'}</span><span className="val b" style={{ color: '#059669' }}>{fmt(Number(linea.monto))}</span></div>
+                <div className="row"><span className="lbl">Fecha:</span><span className="val">{String(fecha.getDate()).padStart(2,'0')}/{String(fecha.getMonth()+1).padStart(2,'0')}/{fecha.getFullYear()}</span></div>
+                <div className="row"><span className="lbl">Hora:</span><span className="val">{(fecha.getHours()%12||12)}:{String(fecha.getMinutes()).padStart(2,'0')} {fecha.getHours()>=12?'PM':'AM'}</span></div>
+                <div className="row"><span className="lbl">Método:</span><span className="val">{metodoLabel[linea.metodoPago] || linea.metodoPago}</span></div>
+                {linea.voucherDatosIA?.referencia && (
+                  <div className="row"><span className="lbl">Ref:</span><span className="val" style={{ fontSize: fs.small - 1 }}>{linea.voucherDatosIA.referencia}</span></div>
                 )}
               </div>
             ))
-          ) : (
-            <div className="srow"><span className="lbl">Pago:</span><span className="b" style={{ color: '#059669' }}>{fmt(Number(pago.monto))}</span></div>
-          )}
+          })()}
+
           {Number(pago.descuento) > 0 && (
-            <div className="srow"><span className="lbl">Descuento:</span><span style={{ color: '#059669' }}>{fmt(Number(pago.descuento))}</span></div>
+            <>
+              <hr className="sep" />
+              <div className="srow"><span className="lbl">Descuento:</span><span style={{ color: '#059669' }}>{fmt(Number(pago.descuento))}</span></div>
+            </>
           )}
+
+          <hr className="sep" />
+          <div className="row"><span className="lbl">Atendió:</span><span className="val">{pago.empleado?.nombre || '-'}</span></div>
+
+          <hr className="sep" />
           <div className="saldo-final" style={{ fontSize: fs.saldo }}>
-            <span>SALDO:</span>
+            <span>NUEVO SALDO:</span>
             <span style={{ color: saldoNuevo === 0 ? '#059669' : '#dc2626' }}>{fmt(saldoNuevo)}</span>
           </div>
 

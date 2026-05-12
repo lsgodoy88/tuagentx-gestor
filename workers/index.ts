@@ -60,7 +60,7 @@ export const integracionWorker = new Worker(
   'integracion',
   async (job) => {
     console.log(`[integracion] ${job.name} iniciado ${new Date().toISOString()}`)
-    const result = await callEndpoint('/api/integracion/sync', { tipo: 'delta' })
+    const result = await callEndpoint('/api/integracion/sync', { tipo: 'completo' })
     console.log(`[integracion] ${job.name} resultado:`, JSON.stringify(result))
     return result
   },

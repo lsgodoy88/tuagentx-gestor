@@ -2,68 +2,233 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { crearAdaptador, sincronizarDeudas, actualizarCache } from '@/lib/integracion/sync'
+import { crearAdaptador, sincronizarDeudas, actualizarCache, marcarZombis, refrescarDeudasConPagosPendientes } from '@/lib/integracion/sync'
 import { decrypt } from '@/lib/crypto-uptres'
 import { recalcularVentasMesImpulsos } from '@/lib/integracion/venta-mes'
 
-
-function resolverConfig(tipo: string, config: any): Record<string, string> {
+function resolverConfig(config: any): Record<string, string> {
   return {
     apiKey: config.apiKey,
     apiSecret: decrypt(config.apiSecret, process.env.UPTRES_SECRET!),
   }
 }
 
-async function runDelta(integracion: any): Promise<{ deudas: number; clientes: number }> {
-  const config = resolverConfig(integracion.tipo, integracion.config)
+// ─── Lógica delta unificada — usada por cron y botón ───────────────────────
+async function ejecutarDelta(integracion: any, logs: string[] = []): Promise<{
+  clientes: number, empleados: number, deudas: number, zombis: number, confrontados: number
+}> {
+  const log = (m: string) => { logs.push(m); console.log('[sync-delta]', m) }
+
+  const config = resolverConfig(integracion.config)
   const adapter = crearAdaptador(integracion.tipo, config)
   await adapter.login()
-  const desde = integracion.ultimaSync ? new Date(integracion.ultimaSync) : undefined
-  const deudas = await adapter.fetchDeudas(desde)
-  const afectados = await sincronizarDeudas(deudas, integracion.id, integracion.empresaId)
-  await actualizarCache(afectados, integracion.id, integracion.empresaId)
 
-  // Repoblar clientes con deudas activas que no tienen cache aún
+  const empresaId = integracion.empresaId
+  const desde = integracion.ultimaSync ? new Date(integracion.ultimaSync) : undefined
+
+  // ── Clientes delta ────────────────────────────────────────────────────────
+  const clientesExt = await adapter.fetchClientes(desde)
+  let clientesActualizados = 0
+  const toUpdateCli: any[] = []
+  const toCreateCli: any[] = []
+  const nits = clientesExt.map((c: any) => (c.doc as string)?.trim()).filter(Boolean)
+  const existentesCli = await (prisma as any).cliente.findMany({
+    where: { nit: { in: nits }, empresaId },
+    select: { id: true, nit: true }
+  })
+  const mapaExistentes: Record<string, string> = {}
+  existentesCli.forEach((e: any) => { mapaExistentes[e.nit] = e.id })
+
+  for (const c of clientesExt) {
+    const doc = (c as any).doc?.trim()
+    const uid = (c as any).uid?.trim() || (c as any)._id?.trim()
+    if (!doc || !uid) continue
+    const nombre = `${(c as any).name || ''} ${(c as any).lastName || ''}`.trim() || 'Sin nombre'
+    const data = {
+      apiId: uid,
+      ciudad: (c as any).ciudad || undefined,
+      departamento: (c as any).departamento || undefined,
+      direccion: (c as any).dir || undefined,
+      telefono: (c as any).nCel || undefined,
+      email: (c as any).email || undefined,
+    }
+    if (mapaExistentes[doc]) {
+      toUpdateCli.push({ id: mapaExistentes[doc], data })
+    } else {
+      toCreateCli.push({ nombre, nit: doc, empresaId, ...data })
+    }
+  }
+  if (toCreateCli.length > 0) await (prisma as any).cliente.createMany({ data: toCreateCli, skipDuplicates: true })
+  for (let i = 0; i < toUpdateCli.length; i += 50) {
+    await Promise.all(toUpdateCli.slice(i, i + 50).map((u: any) =>
+      (prisma as any).cliente.update({ where: { id: u.id }, data: u.data })
+    ))
+  }
+  clientesActualizados = toCreateCli.length + toUpdateCli.length
+  log(`Clientes delta: ${clientesActualizados}`)
+
+  // ── Empleados delta ───────────────────────────────────────────────────────
+  const empleadosExt = await adapter.fetchEmpleados(desde)
+  for (const e of empleadosExt) {
+    const uid = ((e as any).uid || (e as any)._id)?.trim()
+    if (!uid) continue
+    const nombre = `${(e as any).name || ''} ${(e as any).lastName || ''}`.trim() || 'Sin nombre'
+    await (prisma as any).empleado.updateMany({ where: { apiId: uid, empresaId }, data: { nombre } })
+    await (prisma as any).syncEmpleado.upsert({
+      where: { integracionId_externalId: { integracionId: integracion.id, externalId: uid } },
+      create: { integracionId: integracion.id, externalId: uid, nombre, data: e },
+      update: { nombre, data: e }
+    })
+  }
+  log(`Empleados delta: ${empleadosExt.length}`)
+
+  // ── Deudas: toda la cartera activa ────────────────────────────────────────
+  const deudas = await adapter.fetchDeudas() // sin filtro de fecha — detecta zombis
+  log(`Deudas activas en UpTres: ${deudas.length}`)
+  const afectados = await sincronizarDeudas(deudas, integracion.id, empresaId)
+
+  // Marcar zombis — deudas que ya no aparecen en UpTres
+  const externalIdsVivas = new Set(deudas.map((d: any) => d.externalId || d.uid).filter(Boolean))
+  const zombis = await marcarZombis(externalIdsVivas as Set<string>, integracion.id, empresaId)
+  log(`Deudas cerradas en UpTres (zombis): ${zombis}`)
+
+  // Refrescar pagos locales pendientes de confrontación
+  const refresco = await refrescarDeudasConPagosPendientes(adapter as any, integracion.id, empresaId)
+  log(`Refresco: ${refresco.clientes} clientes, ${refresco.deudasActualizadas} deudas, ${refresco.confrontados} pagos`)
+
+  // Repoblar clientes sin cache
   const sinCache = await (prisma as any).syncDeuda.findMany({
     where: { integracionId: integracion.id, saldo: { gt: 0 } },
-    select: { clienteApiId: true },
-    distinct: ['clienteApiId']
+    select: { clienteApiId: true }, distinct: ['clienteApiId']
   })
-  const todosSinCache = await (prisma as any).carteraCache.findMany({
-    where: { integracionId: integracion.id },
-    select: { clienteApiId: true }
-  })
-  const conCache = new Set(todosSinCache.map((c: any) => c.clienteApiId))
+  const conCache = new Set(
+    (await (prisma as any).carteraCache.findMany({
+      where: { integracionId: integracion.id },
+      select: { clienteApiId: true }
+    })).map((c: any) => c.clienteApiId)
+  )
   const faltantes = new Set<string>(
     sinCache.map((d: any) => d.clienteApiId).filter((id: string) => id && !conCache.has(id))
   )
-  if (faltantes.size > 0) {
-    await actualizarCache(faltantes, integracion.id, integracion.empresaId)
-  }
+  const todosAfectados = new Set([...afectados, ...faltantes])
+  await actualizarCache(todosAfectados, integracion.id, empresaId)
+  log(`Cache actualizado: ${todosAfectados.size} clientes`)
 
+  // Actualizar ultimaSync
   await (prisma as any).integracion.update({
     where: { id: integracion.id },
     data: { ultimaSync: new Date() }
   })
 
-  // Recalcular ventas por mes para clientes con ruta fija (impulsos)
+  // Recalcular ventas mes impulsos
   try {
-    await recalcularVentasMesImpulsos(integracion.empresaId, adapter)
+    await recalcularVentasMesImpulsos(empresaId, adapter)
   } catch (err: any) {
-    console.error('[ventaMes] Error recalculando:', err.message)
+    log(`[ventaMes] Error: ${err.message}`)
   }
 
-  return { deudas: deudas.length, clientes: afectados.size + faltantes.size }
+  return {
+    clientes: clientesActualizados,
+    empleados: empleadosExt.length,
+    deudas: deudas.length,
+    zombis,
+    confrontados: refresco.confrontados,
+  }
 }
 
+// ─── Lógica inicial ─────────────────────────────────────────────────────────
+async function ejecutarInicial(integracion: any, adapter: any, empresaId: string, logs: string[]): Promise<{
+  clientes: number, empleados: number, deudas: number
+}> {
+  const log = (m: string) => { logs.push(m); console.log('[sync-inicial]', m) }
+
+  // Clientes
+  log('Sincronizando clientes...')
+  const clientes = await adapter.fetchClientes()
+  log(`Clientes obtenidos: ${clientes.length}`)
+  const nits = clientes.map((c: any) => (c.doc as string)?.trim()).filter(Boolean)
+  const existentesCli = await (prisma as any).cliente.findMany({
+    where: { nit: { in: nits }, empresaId },
+    select: { id: true, nit: true }
+  })
+  const mapaExistentes: Record<string, string> = {}
+  existentesCli.forEach((e: any) => { mapaExistentes[e.nit] = e.id })
+  const toCreate: any[] = []
+  const toUpdate: any[] = []
+  for (const c of clientes) {
+    const doc = (c.doc as string)?.trim()
+    const uid = ((c._id as string) || (c.uid as string))?.trim()
+    if (!doc || !uid) continue
+    const nombre = (((c as any).name || '') + ' ' + ((c as any).lastName || '')).trim() || 'Sin nombre'
+    const data = {
+      apiId: uid,
+      ciudad: (c as any).ciudad || undefined,
+      departamento: (c as any).departamento || undefined,
+      direccion: (c as any).dir || undefined,
+      telefono: (c as any).nCel || undefined,
+      email: (c as any).email || undefined,
+    }
+    if (mapaExistentes[doc]) {
+      toUpdate.push({ id: mapaExistentes[doc], data: { ...data, nombreComercial: (c as any).nombreComercial || undefined } })
+    } else {
+      toCreate.push({ nombre, nit: doc, empresaId, nombreComercial: (c as any).nombreComercial || undefined, ...data })
+    }
+  }
+  if (toCreate.length > 0) await (prisma as any).cliente.createMany({ data: toCreate, skipDuplicates: true })
+  for (let i = 0; i < toUpdate.length; i += 50) {
+    await Promise.all(toUpdate.slice(i, i + 50).map((u: any) =>
+      (prisma as any).cliente.update({ where: { id: u.id }, data: u.data })
+    ))
+  }
+  log(`Clientes actualizados: ${toCreate.length + toUpdate.length}`)
+
+  // Empleados
+  log('Sincronizando empleados...')
+  const empleadosExt = await adapter.fetchEmpleados()
+  for (const e of empleadosExt) {
+    const uid = ((e as any)._id || (e as any).uid)?.trim()
+    if (!uid) continue
+    const nombre = `${(e as any).name || ''} ${(e as any).lastName || ''}`.trim() || 'Sin nombre'
+    await (prisma as any).empleado.updateMany({ where: { apiId: uid, empresaId }, data: { nombre } })
+    await (prisma as any).syncEmpleado.upsert({
+      where: { integracionId_externalId: { integracionId: integracion.id, externalId: uid } },
+      create: { integracionId: integracion.id, externalId: uid, nombre, data: e, modificadoEn: (e as any).fModificado ? new Date((e as any).fModificado) : null },
+      update: { nombre, data: e, modificadoEn: (e as any).fModificado ? new Date((e as any).fModificado) : null }
+    })
+  }
+  log(`Empleados: ${empleadosExt.length}`)
+
+  // Deudas
+  log('Sincronizando deudas...')
+  const deudas = await adapter.fetchDeudas()
+  log(`Deudas obtenidas: ${deudas.length}`)
+  const afectados = await sincronizarDeudas(deudas, integracion.id, empresaId)
+
+  // Zombis — deudas en BD que no vinieron del API
+  const externalIdsVivas = new Set(deudas.map((d: any) => d.externalId || d.uid).filter(Boolean))
+  const zombis = await marcarZombis(externalIdsVivas as Set<string>, integracion.id, empresaId)
+  if (zombis > 0) log(`Deudas cerradas (zombis): ${zombis}`)
+
+  await actualizarCache(afectados, integracion.id, empresaId)
+  log(`Cache actualizado: ${afectados.size} clientes`)
+
+  await (prisma as any).integracion.update({
+    where: { id: integracion.id },
+    data: { syncInicial: true, ultimaSync: new Date(), updatedAt: new Date() }
+  })
+  await prisma.empresa.update({ where: { id: empresaId }, data: { bodegaPuedeEnviar: true } })
+
+  return { clientes: toCreate.length + toUpdate.length, empleados: empleadosExt.length, deudas: deudas.length }
+}
+
+// ─── Handler ─────────────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   const cronSecret = req.headers.get('x-cron-secret')
   const isCron = cronSecret === process.env.CRON_SECRET
-
   const body = await req.json()
   const { tipo } = body
 
-  // ── Modo cron — delta sobre todas las integraciones activas ──
+  // ── Cron — delta automático sobre todas las integraciones ──
   if (isCron) {
     if (tipo !== 'delta') return NextResponse.json({ error: 'Cron solo acepta tipo delta' }, { status: 400 })
     const integraciones = await (prisma as any).integracion.findMany({
@@ -71,8 +236,9 @@ export async function POST(req: NextRequest) {
     })
     const resultados = []
     for (const integ of integraciones) {
+      const logs: string[] = []
       try {
-        const r = await runDelta(integ)
+        const r = await ejecutarDelta(integ, logs)
         resultados.push({ empresaId: integ.empresaId, ok: true, ...r })
       } catch (err: any) {
         resultados.push({ empresaId: integ.empresaId, ok: false, error: err.message })
@@ -81,7 +247,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, resultados })
   }
 
-  // ── Modo sesión ──
+  // ── Sesión ──
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
   const user = session.user as any
@@ -93,174 +259,24 @@ export async function POST(req: NextRequest) {
   })
   if (!integracion) return NextResponse.json({ error: 'Sin integración activa' }, { status: 400 })
 
-  const config = resolverConfig(integracion.tipo, integracion.config as any)
-  const adapter = crearAdaptador(integracion.tipo, config)
-  await adapter.login()
-
   const logs: string[] = []
-  let clientesActualizados = 0
-  let deudasInsertadas = 0
-  let empleadosSincronizados = 0
 
   try {
     if (tipo === 'delta') {
-      const desde = integracion.ultimaSync ?? undefined
-      const desdeDate = desde ? new Date(desde) : null
-      logs.push(`Delta sync desde: ${desde ?? 'inicio'}`)
-
-      const clientesExt = await adapter.fetchClientes(desdeDate ?? undefined)
-      const clientesFiltrados = clientesExt
-      for (const c of clientesFiltrados) {
-        const doc = (c as any).doc?.trim()
-        const uid = (c as any).uid?.trim() || (c as any)._id?.trim()
-        if (!doc || !uid) continue
-        const nombre = `${(c as any).name || ''} ${(c as any).lastName || ''}`.trim() || 'Sin nombre'
-        const dataCliente = { ciudad: (c as any).ciudad || undefined, departamento: (c as any).departamento || undefined, direccion: (c as any).dir || undefined, telefono: (c as any).nCel || undefined, email: (c as any).email || undefined }
-        try {
-          const existing = await (prisma as any).cliente.findFirst({ where: { nit: doc, empresaId } })
-          if (existing) {
-            await (prisma as any).cliente.update({ where: { id: existing.id }, data: { apiId: uid, ...dataCliente } })
-          } else {
-            await (prisma as any).cliente.create({ data: { nombre, nit: doc, apiId: uid, empresaId, ...dataCliente } })
-          }
-          clientesActualizados++
-        } catch(e: any) {
-        }
-      }
-      logs.push(`Clientes delta: ${clientesActualizados}`)
-
-      const empleadosExt = await adapter.fetchEmpleados(desde ? new Date(desde) : undefined)
-      const empleadosFiltrados = empleadosExt // siempre sincronizar todos
-      for (const e of empleadosFiltrados) {
-        const uid = (e as any).uid?.trim() || (e as any)._id?.trim()
-        if (!uid) continue
-        const nombre = ((e as any).name || '') + ' ' + ((e as any).lastName || '')
-        await (prisma as any).empleado.updateMany({ where: { apiId: uid, empresaId }, data: { nombre: nombre.trim() } })
-        await (prisma as any).syncEmpleado.upsert({
-          where: { integracionId_externalId: { integracionId: integracion.id, externalId: uid } },
-          create: { integracionId: integracion.id, externalId: uid, nombre: nombre.trim(), data: e },
-          update: { nombre: nombre.trim(), data: e }
-        })
-      }
-      // Poblar SyncEmpleado si está vacío
-      const countSync = await (prisma as any).syncEmpleado.count({ where: { integracionId: integracion.id } })
-      if (countSync === 0) {
-        for (const e of empleadosExt) {
-          const uid2 = (e as any).uid?.trim() || (e as any)._id?.trim()
-          if (!uid2) continue
-          const nom2 = ((e as any).name || '') + ' ' + ((e as any).lastName || '')
-          await (prisma as any).syncEmpleado.upsert({
-            where: { integracionId_externalId: { integracionId: integracion.id, externalId: uid2 } },
-            create: { integracionId: integracion.id, externalId: uid2, nombre: nom2.trim(), data: e },
-            update: { nombre: nom2.trim(), data: e }
-          })
-        }
-      }
-      empleadosSincronizados = empleadosFiltrados.length
-      logs.push(`Empleados delta: ${empleadosFiltrados.length}`)
-
-      const deudas = await adapter.fetchDeudas(desde ? new Date(desde) : undefined)
-      logs.push(`Deudas obtenidas: ${deudas.length}`)
-      const afectados = await sincronizarDeudas(deudas, integracion.id, empresaId)
-      await actualizarCache(afectados, integracion.id, empresaId)
-      await (prisma as any).integracion.update({
-        where: { id: integracion.id },
-        data: { ultimaSync: new Date() }
-      })
-      deudasInsertadas = deudas.length
-      logs.push(`Delta completado. Clientes afectados: ${afectados.size}`)
+      const r = await ejecutarDelta(integracion, logs)
+      return NextResponse.json({ ok: true, logs, ...r })
 
     } else if (tipo === 'inicial') {
-      logs.push('Sincronizando clientes...')
-      const clientes = await adapter.fetchClientes()
-      logs.push(`Clientes obtenidos del API: ${clientes.length}`)
-      // Bulk load clientes existentes por nit
-      const nits = clientes.map((c: any) => (c.doc as string)?.trim()).filter(Boolean)
-      const existentes = await (prisma as any).cliente.findMany({
-        where: { nit: { in: nits }, empresaId },
-        select: { id: true, nit: true }
-      })
-      const mapaExistentes: Record<string, string> = {}
-      existentes.forEach((e: any) => { mapaExistentes[e.nit] = e.id })
-      // Preparar creates y updates
-      const toCreate: any[] = []
-      const toUpdate: any[] = []
-      for (const c of clientes) {
-        const doc = (c.doc as string)?.trim()
-        const uid = ((c._id as string) || (c.uid as string))?.trim()
-        if (!doc || !uid) continue
-        const nombre = (((c as any).name || '') + ' ' + ((c as any).lastName || '')).trim() || 'Sin nombre'
-        const dataCliente = { apiId: uid, ciudad: (c as any).ciudad || undefined, departamento: (c as any).departamento || undefined, direccion: (c as any).dir || undefined, telefono: (c as any).nCel || undefined, email: (c as any).email || undefined }
-        if (mapaExistentes[doc]) {
-          toUpdate.push({ id: mapaExistentes[doc], data: { ...dataCliente, nombreComercial: (c as any).nombreComercial || undefined } })
-        } else {
-          toCreate.push({ nombre, nit: doc, empresaId, nombreComercial: (c as any).nombreComercial || undefined, ...dataCliente })
-        }
-      }
-      // Batch create + parallel updates
-      if (toCreate.length > 0) await (prisma as any).cliente.createMany({ data: toCreate, skipDuplicates: true })
-      // Batch updates de 50 para no saturar pool de conexiones
-      for (let i = 0; i < toUpdate.length; i += 50) {
-        await Promise.all(toUpdate.slice(i, i + 50).map((u: any) =>
-          (prisma as any).cliente.update({ where: { id: u.id }, data: u.data })
-        ))
-      }
-      clientesActualizados = toCreate.length + toUpdate.length
-      logs.push(`Clientes actualizados: ${clientesActualizados}`)
+      if (integracion.syncInicial) return NextResponse.json({ error: 'Sync inicial ya ejecutado' }, { status: 400 })
+      const config = resolverConfig(integracion.config)
+      const adapter = crearAdaptador(integracion.tipo, config)
+      await adapter.login()
+      const r = await ejecutarInicial(integracion, adapter, empresaId, logs)
+      return NextResponse.json({ ok: true, logs, ...r })
 
-      // Sincronizar empleados
-      logs.push('Sincronizando empleados...')
-      const empleadosExt = await adapter.fetchEmpleados()
-      for (const e of empleadosExt) {
-        const uid = ((e as any)._id || (e as any).uid)?.trim()
-        if (!uid) continue
-        const nombre = `${(e as any).name || ''} ${(e as any).lastName || ''}`.trim() || 'Sin nombre'
-        await (prisma as any).empleado.updateMany({
-          where: { apiId: uid, empresaId },
-          data: { nombre }
-        })
-      }
-      logs.push(`Empleados sincronizados: ${empleadosExt.length}`)
-      logs.push('Sincronizando empleados referencia...')
-      const empleadosExt2 = empleadosExt
-      for (const e of empleadosExt2) {
-        const uid = ((e as any)._id || (e as any).uid)?.trim()
-        if (!uid) continue
-        const nombre = (((e as any).name || '') + ' ' + ((e as any).lastName || '')).trim() || 'Sin nombre'
-        await (prisma as any).syncEmpleado.upsert({
-          where: { integracionId_externalId: { integracionId: integracion.id, externalId: uid } },
-          create: { integracionId: integracion.id, externalId: uid, nombre, data: e, modificadoEn: (e as any).fModificado ? new Date((e as any).fModificado) : null },
-          update: { nombre, data: e, modificadoEn: (e as any).fModificado ? new Date((e as any).fModificado) : null }
-        })
-        empleadosSincronizados++
-      }
-      logs.push(`Empleados referencia: ${empleadosSincronizados}`)
-      // Actualizar nombre en empleados existentes enlazados
-      for (const e of empleadosExt2) {
-        const uid = ((e as any)._id || (e as any).uid)?.trim()
-        if (!uid) continue
-        const nombre = (((e as any).name || '') + ' ' + ((e as any).lastName || '')).trim() || 'Sin nombre'
-        await (prisma as any).empleado.updateMany({ where: { apiId: uid, empresaId }, data: { nombre } })
-      }
-      logs.push('Sincronizando deudas...')
-      const deudas = await adapter.fetchDeudas()
-      const afectados = await sincronizarDeudas(deudas, integracion.id, empresaId)
-      await actualizarCache(afectados, integracion.id, empresaId)
-      deudasInsertadas = deudas.length
-      logs.push(`Deudas sincronizadas: ${deudasInsertadas}`)
-
-      await (prisma as any).integracion.update({
-        where: { id: integracion.id },
-        data: { syncInicial: true, ultimaSync: new Date(), updatedAt: new Date() }
-      })
-      // Auto-activar bodegaPuedeEnviar tras sync inicial exitoso
-      await prisma.empresa.update({
-        where: { id: empresaId },
-        data: { bodegaPuedeEnviar: true }
-      })
+    } else {
+      return NextResponse.json({ error: 'Tipo no válido. Usar: delta | inicial' }, { status: 400 })
     }
-
-    return NextResponse.json({ ok: true, logs, clientesActualizados, deudasInsertadas, empleadosSincronizados })
   } catch (err: any) {
     logs.push(`ERROR: ${err.message}`)
     return NextResponse.json({ ok: false, error: err.message, logs }, { status: 500 })

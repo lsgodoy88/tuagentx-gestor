@@ -6,7 +6,7 @@ export async function GET(req: NextRequest) {
   const token = searchParams.get('token')
   if (!token) return NextResponse.json({ error: 'Token requerido' }, { status: 400 })
 
-  const pago = await prisma.pagoCartera.findFirst({
+  const pago = await (prisma as any).pagoCartera.findFirst({
     where: { reciboToken: token },
     include: {
       Cartera: {
@@ -16,27 +16,83 @@ export async function GET(req: NextRequest) {
           DetalleCartera: { take: 1, orderBy: { createdAt: 'desc' } },
         }
       },
-      Empleado: { select: { id: true, nombre: true } },
+      Empleado: { select: { id: true, nombre: true, empresaId: true } },
+      Aplicaciones: true,
     }
   })
 
-  if (!pago) return NextResponse.json({ error: 'Token inválido' }, { status: 404 })
+  if (!pago) return NextResponse.json({ error: 'Token invalido' }, { status: 404 })
 
-  // Verificar expiración
   if (pago.tokenExpira && new Date() > new Date(pago.tokenExpira)) {
     return NextResponse.json({ error: 'TOKEN_EXPIRADO', pagoId: pago.id }, { status: 410 })
+  }
+
+  let carteraData: any = null
+  if (pago.Cartera) {
+    carteraData = {
+      ...pago.Cartera,
+      cliente: pago.Cartera?.Cliente,
+      empresa: pago.Cartera?.Empresa,
+      DetalleCartera: pago.Cartera?.DetalleCartera,
+    }
+  } else {
+    const empresa = pago.Empleado?.empresaId
+      ? await (prisma as any).empresa.findUnique({ where: { id: pago.Empleado.empresaId } })
+      : null
+
+    let cliente = null
+    const aplicacion = pago.Aplicaciones?.[0]
+    if (aplicacion) {
+      const sd = await (prisma as any).syncDeuda.findUnique({ where: { id: aplicacion.syncDeudaId } })
+      if (sd?.clienteApiId && empresa) {
+        cliente = await (prisma as any).cliente.findFirst({
+          where: { apiId: sd.clienteApiId, empresaId: empresa.id }
+        })
+      }
+    }
+
+    // Hidratar valores de cada SyncDeuda aplicada
+    const syncDeudaIds = (pago.Aplicaciones || []).map((a: any) => a.syncDeudaId)
+    const syncDeudas = syncDeudaIds.length > 0
+      ? await (prisma as any).syncDeuda.findMany({ where: { id: { in: syncDeudaIds } } })
+      : []
+    const sdMap = new Map(syncDeudas.map((sd: any) => [sd.id, sd]))
+
+    const detalleCartera = (pago.Aplicaciones || []).map((a: any) => {
+      const sd: any = sdMap.get(a.syncDeudaId)
+      const saldoActual = sd ? Number(sd.saldo) : 0
+      return {
+        numeroFactura: a.numeroFactura,
+        montoAplicado: Number(a.montoAplicado),
+        valorFactura: sd ? Number(sd.valor) : 0,
+        saldoActual,
+        saldoAntes: saldoActual + Number(a.montoAplicado),
+        fechaCreacion: (sd?.data as any)?.createdAt || null,
+      }
+    })
+
+    // Totales: lo que este pago tocó
+    const valorFacturasPagadas = detalleCartera.reduce((s: number, d: any) => s + d.valorFactura, 0)
+    const saldoNuevo = detalleCartera.reduce((s: number, d: any) => s + d.saldoActual, 0)
+    const montoPago = Number(pago.monto) + Number(pago.descuento || 0)
+    const saldoAnterior = saldoNuevo + montoPago
+
+    carteraData = {
+      cliente,
+      empresa,
+      DetalleCartera: detalleCartera,
+      saldoPendiente: saldoNuevo,
+      saldoAnterior,
+      valorFacturasPagadas,
+      _modo: 'sync',
+    }
   }
 
   const normalized = {
     ...pago,
     metodoPago: pago.metodopago,
     consecutivo: pago.numeroRecibo,
-    cartera: {
-      ...pago.Cartera,
-      cliente: pago.Cartera?.Cliente,
-      empresa: pago.Cartera?.Empresa,
-      DetalleCartera: pago.Cartera?.DetalleCartera,
-    },
+    cartera: carteraData,
     empleado: pago.Empleado,
   }
 

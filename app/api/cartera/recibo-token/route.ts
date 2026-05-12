@@ -12,9 +12,19 @@ export async function POST(req: NextRequest) {
   const { pagoId } = await req.json()
   if (!pagoId) return NextResponse.json({ error: 'pagoId requerido' }, { status: 400 })
 
-  // Verificar que el pago pertenece a la empresa
-  const pago = await prisma.pagoCartera.findFirst({
-    where: { id: pagoId, Cartera: { empresaId } }
+  // Verificar que el pago pertenece a la empresa (Cartera manual o Empleado sync)
+  const pago = await (prisma as any).pagoCartera.findFirst({
+    where: {
+      id: pagoId,
+      OR: [
+        { Cartera: { empresaId } },
+        { AND: [{ carteraId: null }, { Empleado: { empresaId } }] },
+      ],
+    },
+    include: {
+      Cartera: { include: { Empresa: { select: { configRecibos: true } } } },
+      Empleado: { include: { empresa: { select: { configRecibos: true } } } },
+    }
   })
   if (!pago) return NextResponse.json({ error: 'Pago no encontrado' }, { status: 404 })
 
@@ -27,7 +37,7 @@ export async function POST(req: NextRequest) {
     data: { reciboToken, tokenExpira }
   })
 
-  const cfg = (pago as any)?.Cartera?.empresa?.configRecibos as any
+  const cfg = ((pago as any)?.Cartera?.Empresa?.configRecibos || (pago as any)?.Empleado?.empresa?.configRecibos) as any
   const anchoPapel = cfg?.anchoPapel || '80mm'
   return NextResponse.json({ reciboToken, tokenExpira, anchoPapel })
 }

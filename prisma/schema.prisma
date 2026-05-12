@@ -9,48 +9,48 @@ datasource db {
 }
 
 model Empresa {
-  id              String          @id @default(cuid())
-  nombre          String
-  email           String          @unique
-  password        String
-  plan            String          @default("basico")
-  activo          Boolean         @default(true)
-  maxSupervisores Int             @default(1)
-  maxVendedores   Int             @default(1)
-  maxEntregas     Int             @default(0)
-  maxBodega       Int             @default(0)
-  maxImpulsadoras Int             @default(0)
-  createdAt       DateTime        @default(now())
-  planFin         DateTime?       @db.Timestamp(6)
-  telefono        String?         @db.VarChar(20)
-  modoEquipo      String?
-  horaInicioRuta  String          @default("06:00")
-  horaFinRuta     String          @default("20:00")
-  autoCrearRuta   Boolean         @default(false)
-  autoCerrarRuta  Boolean         @default(false)
-  diasCrearRuta   String          @default("0,1,2,3,4")
-  diasCerrarRuta  String          @default("0,1,2,3,4")
-  ciudadEntregaLocal   String?
-  diasHistorialBodega  Int             @default(7)
-  bodegaPuedeEnviar    Boolean         @default(false)
-  syncVentasHoy       Int?            @default(0)
+  id                  String             @id @default(cuid())
+  nombre              String
+  email               String             @unique
+  password            String
+  plan                String             @default("basico")
+  activo              Boolean            @default(true)
+  maxSupervisores     Int                @default(1)
+  maxVendedores       Int                @default(1)
+  maxEntregas         Int                @default(0)
+  maxBodega           Int                @default(0)
+  maxImpulsadoras     Int                @default(0)
+  createdAt           DateTime           @default(now())
+  planFin             DateTime?          @db.Timestamp(6)
+  telefono            String?            @db.VarChar(20)
+  modoEquipo          String?
+  horaInicioRuta      String             @default("06:00")
+  horaFinRuta         String             @default("20:00")
+  autoCrearRuta       Boolean            @default(false)
+  autoCerrarRuta      Boolean            @default(false)
+  diasCrearRuta       String             @default("0,1,2,3,4")
+  diasCerrarRuta      String             @default("0,1,2,3,4")
+  ciudadEntregaLocal  String?
+  diasHistorialBodega Int                @default(7)
+  bodegaPuedeEnviar   Boolean            @default(false)
+  syncVentasHoy       Int?               @default(0)
   syncVentasFecha     DateTime?
   syncVentasUltimo    DateTime?
-  ultimaSyncBodega     DateTime?
-  configRecibos   Json?           @default("{\"nit\": null, \"logo\": null, \"prefijo\": \"REC\", \"telefono\": null, \"direccion\": null, \"anchoPapel\": \"80mm\"}")
-  chatsAsistente  AsistenteChat[]
-  Cartera         Cartera[]
-  clientes        Cliente[]
-  empleados       Empleado[]
-  rutas           Ruta[]
-  rutasFijas      RutaFija[]
-  metasRecaudo    MetaRecaudo[]
-  subEmpresas     SubEmpresa[]
-  integraciones   Integracion[]
-  CarteraCache    CarteraCache[]
-  vinculadas      EmpresaVinculada[]
-  ordenesDespacho OrdenDespacho[]
-  ventasMes       VentaMesCliente[]
+  ultimaSyncBodega    DateTime?
+  configRecibos       Json?              @default("{\"nit\": null, \"logo\": null, \"prefijo\": \"REC\", \"telefono\": null, \"direccion\": null, \"anchoPapel\": \"80mm\"}")
+  chatsAsistente      AsistenteChat[]
+  Cartera             Cartera[]
+  clientes            Cliente[]
+  empleados           Empleado[]
+  rutas               Ruta[]
+  rutasFijas          RutaFija[]
+  metasRecaudo        MetaRecaudo[]
+  subEmpresas         SubEmpresa[]
+  integraciones       Integracion[]
+  CarteraCache        CarteraCache[]
+  vinculadas          EmpresaVinculada[]
+  ordenesDespacho     OrdenDespacho[]
+  ventasMes           VentaMesCliente[]
 }
 
 model Empleado {
@@ -86,8 +86,8 @@ model Empleado {
   supervisorAsignado  SupervisorVendedor[] @relation("VendedorSupervisor")
   turnos              Turno[]
   visitas             Visita[]
-  ordenesAlistadas    OrdenDespacho[] @relation("AlistadoPor")
-  ordenesRepartidas   OrdenDespacho[] @relation("RepartidorDespacho")
+  ordenesAlistadas    OrdenDespacho[]      @relation("AlistadoPor")
+  ordenesRepartidas   OrdenDespacho[]      @relation("RepartidorDespacho")
 
   @@map("Empleado")
 }
@@ -118,7 +118,7 @@ model Cliente {
   metaVenta       Float?
   nit             String?           @db.VarChar(255)
   ciudad          String?           @db.VarChar(255)
-  departamento   String?           @db.VarChar(255)
+  departamento    String?           @db.VarChar(255)
   listaId         String?
   apiId           String?
   maps            String?
@@ -141,28 +141,28 @@ model Cliente {
 }
 
 model Turno {
-  id         String    @id @default(cuid())
-  empleadoId String
-  inicio     DateTime  @default(now())
-  fin        DateTime?
-  latInicio  Float?
-  lngInicio  Float?
-  latFin     Float?
-  lngFin     Float?
-  activo     Boolean   @default(true)
-  pausado        Boolean   @default(false)
-  pausaInicio    DateTime?
-  pausaMotivo    String?
+  id               String    @id @default(cuid())
+  empleadoId       String
+  inicio           DateTime  @default(now())
+  fin              DateTime?
+  latInicio        Float?
+  lngInicio        Float?
+  latFin           Float?
+  lngFin           Float?
+  activo           Boolean   @default(true)
+  pausado          Boolean   @default(false)
+  pausaInicio      DateTime?
+  pausaMotivo      String?
   pausaDuracionMin Int?
-  empleado   Empleado  @relation(fields: [empleadoId], references: [id])
-  visitas    Visita[]
+  empleado         Empleado  @relation(fields: [empleadoId], references: [id])
+  visitas          Visita[]
 
   @@index([empleadoId], map: "idx_turno_empleado")
   @@map("Turno")
 }
 
 model Visita {
-  id                String    @id @default(cuid())
+  id                String         @id @default(cuid())
   empleadoId        String
   clienteId         String
   turnoId           String?
@@ -170,18 +170,18 @@ model Visita {
   lng               Float?
   nota              String?
   foto              String?
-  tipo              String    @default("visita")
+  tipo              String         @default("visita")
   monto             Float?
   fechaBogota       DateTime?
-  esLibre           Boolean   @default(false)
+  esLibre           Boolean        @default(false)
   factura           String?
   firma             String?
   rutaFijaClienteId String?
   ordenDespachoId   String?
-  createdAt         DateTime  @default(now())
-  cliente           Cliente   @relation(fields: [clienteId], references: [id])
-  empleado          Empleado  @relation(fields: [empleadoId], references: [id])
-  turno             Turno?    @relation(fields: [turnoId], references: [id])
+  createdAt         DateTime       @default(now())
+  cliente           Cliente        @relation(fields: [clienteId], references: [id])
+  empleado          Empleado       @relation(fields: [empleadoId], references: [id])
+  turno             Turno?         @relation(fields: [turnoId], references: [id])
   ordenDespacho     OrdenDespacho? @relation(fields: [ordenDespachoId], references: [id])
 
   @@index([empleadoId], map: "idx_visita_empleado")
@@ -266,36 +266,36 @@ model RutaFijaEmpleado {
 }
 
 model RutaFijaCliente {
-  id            String   @id @default(cuid())
-  rutaFijaId    String
-  clienteId     String
-  orden         Int      @default(0)
-  metaVenta     Float?
-  latImpulso    Float?
-  lngImpulso    Float?
-  latVendedor   Float?
-  lngVendedor   Float?
-  cliente       Cliente  @relation(fields: [clienteId], references: [id])
-  rutaFija      RutaFija @relation(fields: [rutaFijaId], references: [id])
+  id          String   @id @default(cuid())
+  rutaFijaId  String
+  clienteId   String
+  orden       Int      @default(0)
+  metaVenta   Float?
+  latImpulso  Float?
+  lngImpulso  Float?
+  latVendedor Float?
+  lngVendedor Float?
+  cliente     Cliente  @relation(fields: [clienteId], references: [id])
+  rutaFija    RutaFija @relation(fields: [rutaFijaId], references: [id])
 
   @@map("RutaFijaCliente")
 }
+
 model VentaMesCliente {
-  id               String   @id @default(cuid())
-  clienteId        String
-  empresaId        String
-  mes              String   // YYYY-MM
-  totalVenta       Float    @default(0)
-  cantidadVisitas  Int      @default(0)
-  updatedAt        DateTime @updatedAt
-  cliente          Cliente  @relation(fields: [clienteId], references: [id])
-  empresa          Empresa  @relation(fields: [empresaId], references: [id])
+  id              String   @id @default(cuid())
+  clienteId       String
+  empresaId       String
+  mes             String // YYYY-MM
+  totalVenta      Float    @default(0)
+  cantidadVisitas Int      @default(0)
+  updatedAt       DateTime @updatedAt
+  cliente         Cliente  @relation(fields: [clienteId], references: [id])
+  empresa         Empresa  @relation(fields: [empresaId], references: [id])
 
   @@unique([clienteId, mes])
   @@index([empresaId, mes])
   @@map("VentaMesCliente")
 }
-
 
 model AuditLog {
   id         String   @id @default(cuid())
@@ -385,28 +385,51 @@ model DetalleCartera {
 }
 
 model PagoCartera {
-  id           String    @id @default(dbgenerated("(gen_random_uuid())::text"))
-  carteraId    String
-  empleadoId   String
-  monto        Decimal   @db.Decimal(12, 2)
-  descuento    Decimal?  @default(0) @db.Decimal(12, 2)
-  tipo         String?   @default("abono")
-  metodopago   String?   @default("efectivo")
-  notas        String?
-  reciboUrl    String?
-  createdAt    DateTime? @default(now()) @db.Timestamp(6)
-  numeroRecibo String?
-  reciboToken    String?  @unique
+  id             String             @id @default(dbgenerated("(gen_random_uuid())::text"))
+  carteraId      String?
+  empleadoId     String
+  monto          Decimal            @db.Decimal(12, 2)
+  descuento      Decimal?           @default(0) @db.Decimal(12, 2)
+  tipo           String?            @default("abono")
+  metodopago     String?            @default("efectivo")
+  notas          String?
+  reciboUrl      String?
+  createdAt      DateTime?          @default(now()) @db.Timestamp(6)
+  numeroRecibo   String?
+  reciboToken    String?            @unique
   tokenExpira    DateTime?
   voucherKey     String?
   voucherDatosIA Json?
+  lineasPago     Json?
+  latCobro       Float?
+  lngCobro       Float?
+  gpsAccuracy    Float?
   syncDeudaId    String?
-  envioEstado    String    @default("pendiente")
+  envioEstado    String             @default("pendiente")
   envioFecha     DateTime?
   envioRef       String?
   envioVariacion Json?
-  Cartera        Cartera   @relation(fields: [carteraId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Empleado       Empleado  @relation(fields: [empleadoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Cartera        Cartera?           @relation(fields: [carteraId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Empleado       Empleado           @relation(fields: [empleadoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Aplicaciones   PagoCarteraDeuda[]
+
+  @@index([empleadoId])
+  @@index([syncDeudaId])
+}
+
+model PagoCarteraDeuda {
+  id            String      @id @default(cuid())
+  pagoId        String
+  syncDeudaId   String
+  numeroFactura Int?
+  externalId    String?
+  montoAplicado Decimal     @db.Decimal(14, 2)
+  createdAt     DateTime    @default(now())
+  PagoCartera   PagoCartera @relation(fields: [pagoId], references: [id], onDelete: Cascade)
+
+  @@index([pagoId])
+  @@index([syncDeudaId])
+  @@map("PagoCarteraDeuda")
 }
 
 model PushSuscripcion {
@@ -2566,21 +2589,22 @@ model xc_knex_migrationsv0_lock {
 }
 
 model MetaRecaudo {
-  id          String   @id @default(cuid())
-  empleadoId  String
-  empresaId   String
-  mes         Int      // 1-12
-  anio        Int
-  metaPesos   Decimal  @db.Decimal(14, 2)
-  metaPct     Decimal? @db.Decimal(5, 2)  // % de cartera asignada
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  empleado    Empleado @relation(fields: [empleadoId], references: [id])
-  empresa     Empresa  @relation(fields: [empresaId], references: [id])
+  id         String   @id @default(cuid())
+  empleadoId String
+  empresaId  String
+  mes        Int // 1-12
+  anio       Int
+  metaPesos  Decimal  @db.Decimal(14, 2)
+  metaPct    Decimal? @db.Decimal(5, 2) // % de cartera asignada
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  empleado   Empleado @relation(fields: [empleadoId], references: [id])
+  empresa    Empresa  @relation(fields: [empresaId], references: [id])
 
   @@unique([empleadoId, mes, anio])
   @@map("MetaRecaudo")
 }
+
 model SubEmpresa {
   id            String        @id @default(cuid())
   empresaId     String
@@ -2595,29 +2619,32 @@ model SubEmpresa {
   rutas         Ruta[]
   rutasFijas    RutaFija[]
   integraciones Integracion[]
+
   @@index([empresaId])
   @@map("SubEmpresa")
 }
 
 model Integracion {
-  id           String       @id @default(cuid())
+  id           String         @id @default(cuid())
   empresaId    String
   subEmpresaId String?
   nombre       String
-  tipo         String       // uptres | siigo | alegra | custom
-  activa       Boolean      @default(true)
-  config       Json?        // credenciales encriptadas, URLs base, etc.
+  tipo         String // uptres | siigo | alegra | custom
+  activa       Boolean        @default(true)
+  config       Json? // credenciales encriptadas, URLs base, etc.
   ultimaSync   DateTime?
-  syncInicial  Boolean   @default(false)
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-  empresa      Empresa      @relation(fields: [empresaId], references: [id])
-  subEmpresa   SubEmpresa?  @relation(fields: [subEmpresaId], references: [id])
+  ultimaSyncCompleta DateTime?
+  syncInicial  Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  empresa      Empresa        @relation(fields: [empresaId], references: [id])
+  subEmpresa   SubEmpresa?    @relation(fields: [subEmpresaId], references: [id])
   compras      SyncCompra[]
   deudas       SyncDeuda[]
   logs         SyncLog[]
   carteraCache CarteraCache[]
   empleados    SyncEmpleado[]
+
   @@index([empresaId])
   @@index([subEmpresaId])
   @@map("Integracion")
@@ -2627,8 +2654,8 @@ model CarteraCache {
   id                  String    @id @default(cuid())
   empresaId           String
   integracionId       String
-  clienteId           String?   // FK a Cliente local (null si no existe aun)
-  clienteApiId        String    // ID en UpTres
+  clienteId           String? // FK a Cliente local (null si no existe aun)
+  clienteApiId        String // ID en UpTres
   nombre              String
   nit                 String?
   telefono            String?
@@ -2637,15 +2664,15 @@ model CarteraCache {
   empleadoNombre      String?
   saldoTotal          Decimal   @db.Decimal(14, 2)
   saldoPendiente      Decimal   @db.Decimal(14, 2)
-  porEstado           Json?     // {pendiente, vencida, mora, critica, pagada}
-  deudas              Json?     // array detalle de cada orden
+  porEstado           Json? // {pendiente, vencida, mora, critica, pagada}
+  deudas              Json? // array detalle de cada orden
   totalDeudas         Int       @default(0)
   ultimaActualizacion DateTime  @default(now())
   ultimaConsulta      DateTime?
   saldoValidado       Boolean   @default(false)
 
-  empresa     Empresa      @relation(fields: [empresaId], references: [id])
-  integracion Integracion  @relation(fields: [integracionId], references: [id])
+  empresa     Empresa     @relation(fields: [empresaId], references: [id])
+  integracion Integracion @relation(fields: [integracionId], references: [id])
 
   @@unique([integracionId, clienteApiId])
   @@index([empresaId])
@@ -2655,27 +2682,28 @@ model CarteraCache {
 }
 
 model SyncCompra {
-  id                  String      @id @default(cuid())
-  integracionId       String
-  externalId          String      // uid/_id de UpTres
-  clienteApiId        String      // cliente.uid de UpTres = Cliente.apiId
-  empleadoExternalId  String?     // empleado.uid de UpTres
-  numeroOrden         Int?
-  numeroFactura       Int?
-  valor               Decimal     @db.Decimal(14, 2)
-  saldo               Decimal     @default(0) @db.Decimal(14, 2)
-  abono               Decimal     @default(0) @db.Decimal(14, 2)
-  tipo                String?     // credito | contado
-  diasCredito         Int?
-  facturado           Boolean     @default(false)
-  fecha               DateTime?
-  fechaVencimiento    DateTime?
-  nameciudad          String?
-  condition           Boolean     @default(true)
-  data                Json?       // JSON crudo completo del externo
-  modificadoEn        DateTime?   // fModificado del externo para delta sync
-  sincronizadoEl      DateTime    @default(now())
-  integracion         Integracion @relation(fields: [integracionId], references: [id])
+  id                 String      @id @default(cuid())
+  integracionId      String
+  externalId         String // uid/_id de UpTres
+  clienteApiId       String // cliente.uid de UpTres = Cliente.apiId
+  empleadoExternalId String? // empleado.uid de UpTres
+  numeroOrden        Int?
+  numeroFactura      Int?
+  valor              Decimal     @db.Decimal(14, 2)
+  saldo              Decimal     @default(0) @db.Decimal(14, 2)
+  abono              Decimal     @default(0) @db.Decimal(14, 2)
+  tipo               String? // credito | contado
+  diasCredito        Int?
+  facturado          Boolean     @default(false)
+  fecha              DateTime?
+  fechaVencimiento   DateTime?
+  nameciudad         String?
+  condition          Boolean     @default(true)
+  data               Json? // JSON crudo completo del externo
+  modificadoEn       DateTime? // fModificado del externo para delta sync
+  sincronizadoEl     DateTime    @default(now())
+  integracion        Integracion @relation(fields: [integracionId], references: [id])
+
   @@unique([integracionId, externalId])
   @@index([clienteApiId])
   @@index([integracionId])
@@ -2683,25 +2711,26 @@ model SyncCompra {
 }
 
 model SyncDeuda {
-  id               String      @id @default(cuid())
-  integracionId    String
-  externalId       String      // uid de la orden de credito en UpTres
-  clienteApiId     String      // cliente.uid = Cliente.apiId
+  id                 String      @id @default(cuid())
+  integracionId      String
+  externalId         String // uid de la orden de credito en UpTres
+  clienteApiId       String // cliente.uid = Cliente.apiId
   empleadoExternalId String?
-  numeroOrden      Int?
-  numeroFactura    Int?
-  valor            Decimal     @db.Decimal(14, 2)
-  saldo            Decimal     @db.Decimal(14, 2)
-  saldoAnterior    Decimal?    @db.Decimal(14, 2)
-  abono            Decimal     @default(0) @db.Decimal(14, 2)
-  diasCredito      Int?
-  fechaVencimiento DateTime?
-  condition        Boolean     @default(true)
-  data             Json?       // JSON crudo completo del externo
-  modificadoEn     DateTime?
-  externalUpdatedAt DateTime?  // updatedAt de UpTres — señal de cambio en origen
-  sincronizadoEl   DateTime    @default(now())
-  integracion      Integracion @relation(fields: [integracionId], references: [id])
+  numeroOrden        Int?
+  numeroFactura      Int?
+  valor              Decimal     @db.Decimal(14, 2)
+  saldo              Decimal     @db.Decimal(14, 2)
+  saldoAnterior      Decimal?    @db.Decimal(14, 2)
+  abono              Decimal     @default(0) @db.Decimal(14, 2)
+  diasCredito        Int?
+  fechaVencimiento   DateTime?
+  condition          Boolean     @default(true)
+  data               Json? // JSON crudo completo del externo
+  modificadoEn       DateTime?
+  externalUpdatedAt  DateTime? // updatedAt de UpTres — señal de cambio en origen
+  sincronizadoEl     DateTime    @default(now())
+  integracion        Integracion @relation(fields: [integracionId], references: [id])
+
   @@unique([integracionId, externalId])
   @@index([clienteApiId])
   @@index([integracionId])
@@ -2720,28 +2749,29 @@ model SyncLog {
   estado               String      @default("ok") // ok | parcial | error
   createdAt            DateTime    @default(now())
   integracion          Integracion @relation(fields: [integracionId], references: [id])
+
   @@index([integracionId])
   @@map("SyncLog")
 }
 
-
 model EmpresaVinculada {
-  id                String         @id @default(cuid())
-  empresaId         String
-  nombre            String
-  apiKey            String         @unique @default(uuid())
-  color             String         @default("#8b5cf6")
-  activa            Boolean        @default(true)
-  empresaClienteId  String?
-  createdAt         DateTime       @default(now())
-  empresa           Empresa        @relation(fields: [empresaId], references: [id])
-  rutas             Ruta[]
-  ordenesDespacho   OrdenDespacho[]
+  id               String          @id @default(cuid())
+  empresaId        String
+  nombre           String
+  apiKey           String          @unique @default(uuid())
+  color            String          @default("#8b5cf6")
+  activa           Boolean         @default(true)
+  empresaClienteId String?
+  createdAt        DateTime        @default(now())
+  empresa          Empresa         @relation(fields: [empresaId], references: [id])
+  rutas            Ruta[]
+  ordenesDespacho  OrdenDespacho[]
+
   @@map("EmpresaVinculada")
 }
 
 model OrdenDespacho {
-  id                String    @id @default(cuid())
+  id                String            @id @default(cuid())
   empresaId         String
   origen            String
   origenId          String?
@@ -2751,9 +2781,9 @@ model OrdenDespacho {
   ciudad            String?
   direccion         String?
   telefono          String?
-  estado            String    @default("pendiente")
-  fotoAlistamiento  String?   // legacy
-  fotosAlistamiento Json?     // array de URLs
+  estado            String            @default("pendiente")
+  fotoAlistamiento  String? // legacy
+  fotosAlistamiento Json? // array de URLs
   alistadoEl        DateTime?
   alistadoPorId     String?
   repartidorId      String?
@@ -2764,13 +2794,14 @@ model OrdenDespacho {
   guiaTransporte    String?
   fechaOrden        DateTime?
   origenVinculadaId String?
-  createdAt         DateTime  @default(now())
+  createdAt         DateTime          @default(now())
   empresaVinculada  EmpresaVinculada? @relation(fields: [origenVinculadaId], references: [id])
-  updatedAt         DateTime  @updatedAt
-  empresa           Empresa   @relation(fields: [empresaId], references: [id])
-  alistadoPor       Empleado? @relation("AlistadoPor", fields: [alistadoPorId], references: [id])
-  repartidor        Empleado? @relation("RepartidorDespacho", fields: [repartidorId], references: [id])
+  updatedAt         DateTime          @updatedAt
+  empresa           Empresa           @relation(fields: [empresaId], references: [id])
+  alistadoPor       Empleado?         @relation("AlistadoPor", fields: [alistadoPorId], references: [id])
+  repartidor        Empleado?         @relation("RepartidorDespacho", fields: [repartidorId], references: [id])
   visitas           Visita[]
+
   @@index([empresaId, estado])
   @@index([empresaId, origen])
   @@map("OrdenDespacho")
@@ -2784,6 +2815,7 @@ model SyncEmpleado {
   data          Json?
   modificadoEn  DateTime?
   integracion   Integracion @relation(fields: [integracionId], references: [id])
+
   @@unique([integracionId, externalId])
   @@index([integracionId])
   @@map("SyncEmpleado")

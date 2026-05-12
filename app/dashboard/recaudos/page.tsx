@@ -351,7 +351,7 @@ export default function RecaudosPage() {
                   {/* Nombre + vendedor */}
                   <div className="flex-1 min-w-0">
                     <p className="text-white font-semibold text-sm truncate leading-tight">
-                      {pago.Cartera.Cliente.nombre}
+                      {pago.Cartera?.Cliente?.nombre || (pago as any).cliente?.nombre || ((pago as any).carteraId ? 'Cliente' : '(Pago sync)')}
                     </p>
                     <p className="text-zinc-500 text-xs truncate leading-tight mt-0.5">
                       {pago.Empleado.nombre}
@@ -463,7 +463,7 @@ export default function RecaudosPage() {
       )}
 
       {/* Barra fija siempre visible */}
-      <div className="fixed bottom-0 left-0 right-0 md:left-64 z-40 flex items-center gap-2 px-4 py-3 bg-[#0a0a0a] border-t border-[#1a1a1a] shadow-2xl">
+      <div className="fixed bottom-0 left-20 right-0 md:left-64 z-40 flex items-center gap-2 px-4 py-3 bg-[#0a0a0a] border-t border-[#1a1a1a] shadow-2xl">
         {haySeleccion ? (
           <>
             <button

@@ -146,9 +146,12 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt',
       includeTotal: 'false',
     }
-    const fromDate = desde ?? new Date(Date.now() - 5 * 365 * 24 * 60 * 60 * 1000)
-    params.from = fromDate.toISOString().split('T')[0]
-    params.to = new Date().toISOString().split('T')[0]
+    if (desde) {
+      // Delta: solo las creadas desde la ultima sync (UpTres filtra por createdAt)
+      params.from = desde.toISOString().split('T')[0]
+      params.to = new Date().toISOString().split('T')[0]
+    }
+    // Sin desde: trae TODAS las activas (sync completo). condition=true ya filtra.
     const data = await this.fetchAll('cartera', params)
     return data.map((o: any) => {
       // Usar fPago directo de UpTres, o calcular desde createdAt + creditDay

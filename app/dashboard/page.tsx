@@ -5,6 +5,8 @@ import InputMoneda from '@/components/InputMoneda'
 import { useSession } from 'next-auth/react'
 import ModalVisita from '@/components/ModalVisita'
 import CarteraCard from '@/components/CarteraCard'
+import { useGpsEnDemanda } from '@/components/useGpsEnDemanda'
+import { GpsIndicator } from '@/components/GpsIndicator'
 import { estadoMasCritico } from '@/lib/cartera'
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
@@ -52,6 +54,7 @@ export default function DashboardPage() {
   // Modal pago cartera
   const [recaudandoCartera, setRecaudandoCartera] = useState<any>(null)
   const [detalleData, setDetalleData] = useState<any>(null)
+  const gpsRecaudo = useGpsEnDemanda()
   const [loadingDetalle, setLoadingDetalle] = useState(false)
   const [facturasSeleccionadas, setFacturasSeleccionadas] = useState<string[]>([])
   const [lineasPago, setLineasPago] = useState<LineaPago[]>([crearLinea()])
@@ -232,12 +235,19 @@ export default function DashboardPage() {
     window.open(`https://wa.me/57${telefono}?text=${encodeURIComponent(msg)}`, '_blank')
   }
 
+  useEffect(() => {
+    if (detalleData) gpsRecaudo.iniciar()
+    else gpsRecaudo.reset()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detalleData])
+
   async function cargarDetalleCartera(cartera: any) {
     setLoadingDetalle(true)
     const res = await fetch(`/api/cartera/${cartera.clienteId}`)
     const data = await res.json()
     setLoadingDetalle(false)
     const detalleCartera = data.cartera
+    if (detalleCartera) detalleCartera._modo = data._modo
     if (detalleCartera && data._modo === 'sync') {
       const { calcularEstado } = await import('@/lib/cartera')
       const detallesNorm = (detalleCartera.deudas || []).map((d: any) => ({
@@ -323,25 +333,68 @@ export default function DashboardPage() {
     if (!detalleData) return
     const total = lineasPago.reduce((s, l) => s + Number(l.monto || 0), 0)
     if (total === 0) return
+
+    // Esperar GPS si todavia esta buscando
+    let gpsCoords: { lat: number; lng: number } | null = null
+    if (gpsRecaudo.estado === 'ok' && gpsRecaudo.pos) {
+      gpsCoords = { lat: gpsRecaudo.pos.lat, lng: gpsRecaudo.pos.lng }
+    } else if (gpsRecaudo.estado === 'buscando') {
+      const pp = await gpsRecaudo.obtener()
+      if (pp) gpsCoords = { lat: pp.lat, lng: pp.lng }
+    }
+
     setGuardandoPago(true)
     let ultimoToken: string | null = null
-    for (const linea of lineasPago) {
-      const res = await fetch('/api/cartera/pago', {
+    const esSync = detalleData._modo === 'sync'
+    const lineasValidas = lineasPago
+      .filter(l => Number(l.monto || 0) > 0)
+      .map(l => ({
+        metodoPago: l.metodoPago,
+        monto: Number(l.monto || 0),
+        descuento: Number(l.descuento || 0),
+        voucherKey: l.voucherKey || null,
+        voucherDatosIA: l.voucherDatosIA || null,
+      }))
+    const montoTotal = lineasValidas.reduce((s, l) => s + l.monto, 0)
+    const descuentoTotal = lineasValidas.reduce((s, l) => s + l.descuento, 0)
+
+    if (esSync) {
+      const res = await fetch('/api/cartera/pago-sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          carteraId: detalleData.id,
-          monto: Number(linea.monto || 0),
-          descuento: Number(linea.descuento || 0),
-          tipo: 'abono',
-          metodoPago: linea.metodoPago,
+          clienteApiId: detalleData.cliente?.apiId || detalleData.clienteApiId || detalleData.apiId,
+          syncDeudaIds: facturasSeleccionadas,
+          monto: montoTotal,
+          descuento: descuentoTotal,
+          metodoPago: lineasValidas.length === 1 ? lineasValidas[0].metodoPago : 'mixto',
           notas: notasPago || undefined,
-          detalleIds: facturasSeleccionadas,
-          ...(linea.voucherKey ? { voucherKey: linea.voucherKey, voucherDatosIA: linea.voucherDatosIA } : {}),
+          lineasPago: lineasValidas,
+          ...(gpsCoords ? { lat: gpsCoords.lat, lng: gpsCoords.lng, gpsAccuracy: gpsRecaudo.pos?.accuracy ?? null } : {}),
         })
       })
       const d = await res.json()
       if (d.pago?.reciboToken) ultimoToken = d.pago.reciboToken
+    } else {
+      for (const linea of lineasValidas) {
+        const res = await fetch('/api/cartera/pago', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            carteraId: detalleData.id,
+            monto: linea.monto,
+            descuento: linea.descuento,
+            tipo: 'abono',
+            metodoPago: linea.metodoPago,
+            notas: notasPago || undefined,
+            detalleIds: facturasSeleccionadas,
+            ...(linea.voucherKey ? { voucherKey: linea.voucherKey, voucherDatosIA: linea.voucherDatosIA } : {}),
+            ...(gpsCoords ? { lat: gpsCoords.lat, lng: gpsCoords.lng, gpsAccuracy: gpsRecaudo.pos?.accuracy ?? null } : {}),
+          })
+        })
+        const d = await res.json()
+        if (d.pago?.reciboToken) ultimoToken = d.pago.reciboToken
+      }
     }
     setGuardandoPago(false)
     if (ultimoToken) window.open('/recaudo/recibo?token=' + ultimoToken, '_blank')
@@ -1340,7 +1393,10 @@ export default function DashboardPage() {
                       placeholder="Observaciones..."
                       className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
                   </div>
-                  <div className="flex gap-2 pt-1">
+                  <div className="flex justify-center pt-1">
+                    <GpsIndicator estado={gpsRecaudo.estado} intento={gpsRecaudo.intento} max={gpsRecaudo.MAX_INTENTOS} pos={gpsRecaudo.pos} />
+                  </div>
+                  <div className="flex gap-2">
                     <button onClick={() => setRecaudandoCartera(null)}
                       className="flex-1 bg-zinc-800 text-white text-sm py-3 rounded-xl">Cancelar</button>
                     <button onClick={registrarPago}

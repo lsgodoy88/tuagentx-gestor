@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
 
   const integracion = await (prisma as any).integracion.findFirst({
     where: { empresaId, tipo: 'uptres', activa: true },
-    select: { id: true, ultimaSync: true, updatedAt: true, syncInicial: true, config: true }
+    select: { id: true, ultimaSync: true, ultimaSyncCompleta: true, updatedAt: true, syncInicial: true, config: true }
   })
 
   const intIds = integracion ? [integracion.id] : []
@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({
     // Para cartera/rutas-fijas
     ultimaSync: integracion?.ultimaSync ?? null,
+    ultimaSyncCompleta: (integracion as any)?.ultimaSyncCompleta ?? null,
     totalDeudas: total,
     tieneIntegracion: !!integracion,
     // Para configuración

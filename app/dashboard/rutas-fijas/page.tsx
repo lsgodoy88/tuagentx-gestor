@@ -22,7 +22,7 @@ export default function RutasFijasPage() {
   const [diaSemana, setDiaSemana] = useState(1)
   const [cliSeleccionados, setCliSeleccionados] = useState<string[]>([])
   const [metas, setMetas] = useState<Record<string, number>>({})
-  const [modalMeta, setModalMeta] = useState<{id: string, nombre: string} | null>(null)
+  const [modalMeta, setModalMeta] = useState<{id: string, nombre: string, rutaFijaId?: string} | null>(null)
   const [inputMeta, setInputMeta] = useState('')
   const [promedio, setPromedio] = useState<any>(null)
   const [calculandoPromedio, setCalculandoPromedio] = useState(false)
@@ -41,7 +41,7 @@ export default function RutasFijasPage() {
   const [pageCli, setPageCli] = useState(1)
   const [totalCli, setTotalCli] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [ocultos, setOcultos] = useState<string[]>([])
+  const [diaAbiertoEmp, setDiaAbiertoEmp] = useState<Record<string, number>>({})
   const [tab, setTab] = useState<'historial'|'rutas'>('rutas')
   const [modalVerRuta, setModalVerRuta] = useState<{emp: any, dia: number, ruta: any}|null>(null)
   const [bottomSheet, setBottomSheet] = useState<{rc: any, rutaId: string}|null>(null)
@@ -222,8 +222,12 @@ export default function RutasFijasPage() {
     setLoadingHistorial(false)
   }
 
-  function toggleOculto(id: string) {
-    setOcultos(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  function abrirDiaAcordeon(empId: string, diaNum: number) {
+    setDiaAbiertoEmp(prev => ({ ...prev, [empId]: prev[empId] === diaNum ? -1 : diaNum }))
+  }
+  function esDiaAbierto(empId: string, diaNum: number) {
+    const v = diaAbiertoEmp[empId]
+    return v === undefined ? diaNum === 1 : v === diaNum
   }
   function rutasDeEmpleado(empId: string) {
     return rutasFijas.filter(r => r.empleados.some((re: any) => re.empleadoId === empId))
@@ -300,7 +304,7 @@ export default function RutasFijasPage() {
     (!esVendedor || e.vendedorId === user?.id)
   )
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-3 max-w-7xl mx-auto">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">{esVendedor ? 'Mis impulsos' : 'Rutas Fijas'}</h1>
@@ -455,17 +459,30 @@ export default function RutasFijasPage() {
         <div className="space-y-4">
           {empleadosFiltrados.map((emp: any) => {
             // Calcular qué clientes aparecen más de una vez en todas las rutas del empleado
-            const rutasEmp2 = rutasFijas.filter((r: any) => r.empleadoId === emp.id)
+            const rutasEmp2 = rutasFijas.filter((r: any) => r.empleados?.some((re: any) => re.empleadoId === emp.id))
             const _cliCount: Record<string, number> = {}
             rutasEmp2.forEach((r: any) => r.clientes.forEach((rc: any) => { _cliCount[rc.clienteId] = (_cliCount[rc.clienteId] || 0) + 1 }))
             const clientesRepetidos = new Set(Object.keys(_cliCount).filter(id => _cliCount[id] > 1))
             const clientesPrimerDia: Record<string, number> = {} // clienteId -> diaNum de primera aparición
+            ;[1,2,3,4,5,6,0].forEach((dn) => {
+              const rd = rutasEmp2.find((r: any) => r.diaSemana === dn)
+              if (!rd) return
+              rd.clientes.forEach((rc: any) => {
+                if (!(rc.clienteId in clientesPrimerDia)) clientesPrimerDia[rc.clienteId] = dn
+              })
+            })
             const rutasEmp = rutasDeEmpleado(emp.id)
             return (
               <div key={emp.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                 {(() => {
-                    const totalMeta = rutasEmp.reduce((a: number, r: any) => a + r.clientes.reduce((b: number, rc: any) => b + (rc.metaVenta || 0), 0), 0)
-                                        const totalVenta = rutasEmp.reduce((a: number, r: any) => a + r.clientes.reduce((b: number, rc: any) => b + (ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || ventasHoy[rc.clienteId] || 0), 0), 0)
+                    const metaPorCliente: Record<string, number> = {}
+                    const ventaPorCliente: Record<string, number> = {}
+                    rutasEmp.forEach((r: any) => r.clientes.forEach((rc: any) => {
+                      if (!(rc.clienteId in metaPorCliente)) metaPorCliente[rc.clienteId] = rc.metaVenta || 0
+                      if (!(rc.clienteId in ventaPorCliente)) ventaPorCliente[rc.clienteId] = ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || ventasHoy[rc.clienteId] || 0
+                    }))
+                    const totalMeta = Object.values(metaPorCliente).reduce((a, b) => a + b, 0)
+                    const totalVenta = Object.values(ventaPorCliente).reduce((a, b) => a + b, 0)
                     const pct = totalMeta > 0 ? Math.round((totalVenta / totalMeta) * 100) : null
                     const pctColor = pct === null ? '' : pct >= 100 ? 'text-emerald-400' : pct >= 70 ? 'text-yellow-400' : 'text-red-400'
                     const barColor = pct === null ? '' : pct >= 100 ? 'bg-blue-500' : pct >= 70 ? 'bg-cyan-500' : pct >= 40 ? 'bg-yellow-500' : 'bg-red-500'
@@ -479,7 +496,7 @@ export default function RutasFijasPage() {
                             <p className="text-zinc-500 text-xs">{rutasEmp.length} {rutasEmp.length === 1 ? 'día configurado' : 'días configurados'}</p>
                           </div>
                           {pct !== null && (
-                            <span className={`text-2xl font-black flex-shrink-0 ${pctColor}`}>{pct}%</span>
+                            <span className={`text-base font-bold flex-shrink-0 ${pctColor}`}>{pct}%</span>
                           )}
                         </div>
                         {/* Barra + cifras */}
@@ -498,11 +515,11 @@ export default function RutasFijasPage() {
                       </div>
                     )
                   })()}
-                <div className="p-2 space-y-1.5">
+                <div className="p-2 space-y-2">
                   {[1,2,3,4,5,6,0].map((diaNum) => {
                     const dia = DIAS[diaNum]
                     const rutaDia = rutasEmp.find(r => r.diaSemana === diaNum)
-                    const esOculto = rutaDia ? ocultos.includes(rutaDia.id) : false
+                    const esOculto = rutaDia ? !esDiaAbierto(emp.id, diaNum) : true
                     const metaTotal = rutaDia ? rutaDia.clientes.reduce((a: number, rc: any) => a + (rc.metaVenta || 0), 0) : 0
                                         const logradoTotal = rutaDia ? rutaDia.clientes.reduce((a: number, rc: any) => a + (ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || ventasHoy[rc.clienteId] || 0), 0) : 0
                     const pctTotal = metaTotal > 0 ? Math.round((logradoTotal / metaTotal) * 100) : null
@@ -511,7 +528,7 @@ export default function RutasFijasPage() {
                         {/* Header del día — tap para colapsar */}
                         <div
                           className={"flex items-center gap-3 px-3 py-2.5 " + (rutaDia ? 'cursor-pointer hover:bg-zinc-700/30 transition-colors' : '')}
-                          onClick={() => rutaDia && toggleOculto(rutaDia.id)}>
+                          onClick={() => rutaDia && abrirDiaAcordeon(emp.id, diaNum)}>
                           {/* Día */}
                           <span className={"text-sm font-bold w-[72px] flex-shrink-0 " + (rutaDia ? 'text-white' : 'text-zinc-600')}>{dia}</span>
                           {/* Info */}
@@ -519,9 +536,6 @@ export default function RutasFijasPage() {
                             {rutaDia ? (
                               <div className="flex items-center gap-2 flex-wrap">
 
-                                {pctTotal !== null && logradoTotal > 0 && (
-                                  <span className={`text-xs font-bold ${pctTotal >= 100 ? 'text-emerald-400' : pctTotal >= 70 ? 'text-yellow-400' : 'text-red-400'}`}>{pctTotal}%</span>
-                                )}
                               </div>
                             ) : (
                               <span className="text-zinc-600 text-xs">Sin asignar</span>
@@ -544,8 +558,8 @@ export default function RutasFijasPage() {
                           </div>
                         </div>
                         {/* Barra progreso total del día */}
-                        {rutaDia && !esOculto && metaTotal > 0 && logradoTotal > 0 && (
-                          <div className="px-3 pb-1">
+                        {rutaDia && metaTotal > 0 && logradoTotal > 0 && (
+                          <div className="px-3 pb-2">
                             <div className="h-1 bg-zinc-700 rounded-full overflow-hidden">
                               <div className={`h-full rounded-full ${pctTotal! >= 100 ? 'bg-blue-500' : pctTotal! >= 70 ? 'bg-cyan-500' : pctTotal! >= 40 ? 'bg-yellow-500' : 'bg-red-500'}`}
                                 style={{width: Math.min(pctTotal! || 0, 100) + '%'}} />
@@ -560,16 +574,7 @@ export default function RutasFijasPage() {
                               const logrado = ventaMesActual || ventasHoy[rc.clienteId] || 0
                               const pct = rc.metaVenta > 0 ? Math.round((logrado / rc.metaVenta) * 100) : null
                               const esRep = clientesRepetidos.has(rc.clienteId) && clientesPrimerDia[rc.clienteId] !== diaNum
-                              if (!(rc.clienteId in clientesPrimerDia)) clientesPrimerDia[rc.clienteId] = diaNum
                               const bCol = pct === null ? 'bg-zinc-600' : pct >= 100 ? 'bg-blue-500' : pct >= 70 ? 'bg-cyan-500' : pct >= 40 ? 'bg-yellow-500' : 'bg-red-500'
-                              if (esRep) return (
-                                <div key={rc.id} className="bg-zinc-900/40 opacity-50 rounded-xl px-3 py-2">
-                                  <p className="text-white text-xs font-medium truncate mb-1.5">{rc.cliente.nombre}</p>
-                                  <div className="h-1 bg-zinc-700 rounded-full overflow-hidden">
-                                    <div className={`h-full rounded-full ${bCol}`} style={{width: Math.min(pct || 0, 100) + '%'}} />
-                                  </div>
-                                </div>
-                              )
                               return (
                                 <div key={rc.id} className="bg-zinc-900/80 rounded-xl px-3 py-2.5 space-y-1">
                                   {/* Nombre + GPS — toque para expandir acciones */}
@@ -583,16 +588,16 @@ export default function RutasFijasPage() {
                                     {rc.metaVenta > 0 && (
                                       <div className="min-w-0">
                                         <p className="text-zinc-500 text-xs">Meta</p>
-                                        <p className="text-white text-sm font-bold truncate">${rc.metaVenta.toLocaleString('es-CO')}</p>
+                                        <p className={`text-white text-sm font-bold truncate ${esRep ? 'line-through decoration-zinc-500 text-zinc-500' : ''}`}>${rc.metaVenta.toLocaleString('es-CO')}</p>
                                       </div>
                                     )}
                                     <div className="min-w-0">
                                       <p className="text-zinc-500 text-xs">Venta</p>
-                                      <p className={`text-sm font-bold truncate ${logrado > 0 ? 'text-emerald-400' : 'text-zinc-600'}`}>${logrado.toLocaleString('es-CO')}</p>
+                                      <p className={`text-sm font-bold truncate ${esRep ? 'line-through decoration-zinc-500 text-zinc-500' : (logrado > 0 ? 'text-emerald-400' : 'text-zinc-600')}`}>${logrado.toLocaleString('es-CO')}</p>
                                     </div>
                                     {pct !== null && (
                                       <div className="flex items-end pb-0.5">
-                                        <span className={`text-sm font-bold ${pct >= 100 ? 'text-blue-400' : pct >= 70 ? 'text-cyan-400' : pct >= 40 ? 'text-yellow-400' : 'text-red-400'}`}>{pct}%</span>
+                                        <span className={`text-sm font-bold ${esRep ? 'line-through decoration-zinc-500 text-zinc-500' : (pct >= 100 ? 'text-blue-400' : pct >= 70 ? 'text-cyan-400' : pct >= 40 ? 'text-yellow-400' : 'text-red-400')}`}>{pct}%</span>
                                       </div>
                                     )}
                                   </div>
@@ -626,7 +631,7 @@ export default function RutasFijasPage() {
                                   {expandedCliente === rc.id && (!esImpulsadora && puedeAsignar) && (
                                     <div className="flex gap-2 pt-1.5 border-t border-zinc-800/40 mt-1">
                                       <button
-                                        onClick={() => { setModalMeta({ id: rc.clienteId, nombre: rc.cliente.nombre }); setInputMeta(rc.metaVenta ? String(rc.metaVenta) : ''); setPromedio(null); setExpandedCliente(null) }}
+                                        onClick={() => { setModalMeta({ id: rc.clienteId, nombre: rc.cliente.nombre, rutaFijaId: rutaDia.id }); setInputMeta(rc.metaVenta ? String(rc.metaVenta) : ''); setPromedio(null); setExpandedCliente(null) }}
                                         className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded-lg py-1 text-xs transition-colors flex items-center justify-center gap-1">
                                         <span className="text-[11px]">✏️</span> Editar meta
                                       </button>
@@ -674,7 +679,9 @@ export default function RutasFijasPage() {
                 <div className="space-y-2">
                   <p className="text-zinc-400 text-xs font-semibold">SELECCIONADOS</p>
                   {[...cliSeleccionados].sort((a,b) => (metas[b]||0) - (metas[a]||0)).map((cid, idx) => {
-                    const cli: any = clientes.find((x: any) => x.id === cid) || { id: cid, nombre: cid }
+                    const cli: any = clientes.find((x: any) => x.id === cid)
+                      || rutasFijas.flatMap((r: any) => r.clientes || []).find((rc: any) => rc.clienteId === cid)?.cliente
+                      || { id: cid, nombre: cid.startsWith('cm') || cid.length > 24 ? 'Cargando...' : cid }
                     const meta = metas[cid]
                     return (
                       <div key={cid} className="flex items-center gap-2 bg-zinc-800 rounded-xl px-3 py-2.5">
@@ -808,12 +815,18 @@ export default function RutasFijasPage() {
                   const meta = Number(inputMeta)
                   setMetas(m => ({ ...m, [modalMeta.id]: meta }))
                   if (!cliSeleccionados.includes(modalMeta.id)) setCliSeleccionados(p => [...p, modalMeta.id])
-                  // Guardar meta en Cliente
                   await fetch('/api/clientes/' + modalMeta.id + '/meta', {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
+                    method: 'PATCH', headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ metaVenta: meta })
                   }).catch(() => {})
+                  // Si edita meta del dia especifico (chip o bottomSheet), persistir en RutaFijaCliente
+                  if (modalMeta.rutaFijaId) {
+                    await fetch('/api/rutas-fijas/meta-cliente', {
+                      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ rutaFijaId: modalMeta.rutaFijaId, clienteId: modalMeta.id, metaVenta: meta })
+                    }).catch(() => {})
+                    await loadData()
+                  }
                   setModalMeta(null)
                   setInputMeta('')
                   setPromedio(null)
@@ -876,7 +889,7 @@ export default function RutasFijasPage() {
             )}
             <button
               onClick={() => {
-                setModalMeta({ id: bottomSheet.rc.clienteId, nombre: bottomSheet.rc.cliente.nombre })
+                setModalMeta({ id: bottomSheet.rc.clienteId, nombre: bottomSheet.rc.cliente.nombre, rutaFijaId: bottomSheet.rutaId })
                 setInputMeta(bottomSheet.rc.metaVenta ? String(bottomSheet.rc.metaVenta) : '')
                 setPromedio(null)
                 setBottomSheet(null)

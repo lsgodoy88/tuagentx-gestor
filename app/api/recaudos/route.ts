@@ -24,7 +24,10 @@ export async function GET(req: NextRequest) {
   const skip = useCursor ? undefined : (page - 1) * limit
 
   const where: any = {
-    Cartera: { empresaId },
+    OR: [
+      { Cartera: { empresaId } },
+      { AND: [{ carteraId: null }, { Empleado: { empresaId } }] },
+    ],
   }
 
   if (vendedorId) where.empleadoId = vendedorId
@@ -53,12 +56,44 @@ export async function GET(req: NextRequest) {
     const hasMore = pagos.length > limit
     const data = hasMore ? pagos.slice(0, limit) : pagos
     const nextCursor = hasMore ? data[data.length - 1].id : null
-    return NextResponse.json({ pagos: data, nextCursor, hasMore })
+    const dataHidratada = await hidratarSync(data, empresaId)
+    return NextResponse.json({ pagos: dataHidratada, nextCursor, hasMore })
   }
 
   const [pagos, total] = await Promise.all([
     prisma.pagoCartera.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' }, include }),
     prisma.pagoCartera.count({ where }),
   ])
-  return NextResponse.json({ pagos, total, page, pages: Math.ceil(total / limit) })
+  const pagosHidratados = await hidratarSync(pagos, empresaId)
+  return NextResponse.json({ pagos: pagosHidratados, total, page, pages: Math.ceil(total / limit) })
+}
+
+async function hidratarSync(pagos: any[], empresaId: string) {
+  const syncPagos = pagos.filter((p: any) => !p.carteraId)
+  if (syncPagos.length === 0) return pagos
+  // Mapear pago.id -> primera Aplicacion
+  const apps = await (prisma as any).pagoCarteraDeuda.findMany({
+    where: { pagoId: { in: syncPagos.map((p: any) => p.id) } },
+    orderBy: { createdAt: 'asc' },
+  })
+  const firstApp = new Map<string, any>()
+  for (const a of apps) if (!firstApp.has(a.pagoId)) firstApp.set(a.pagoId, a)
+  const sdIds = Array.from(new Set(apps.map((a: any) => a.syncDeudaId)))
+  const sds = sdIds.length > 0
+    ? await (prisma as any).syncDeuda.findMany({ where: { id: { in: sdIds } } })
+    : []
+  const sdMap = new Map(sds.map((s: any) => [s.id, s]))
+  const apiIds = Array.from(new Set(sds.map((s: any) => s.clienteApiId).filter(Boolean)))
+  const clientes = apiIds.length > 0
+    ? await (prisma as any).cliente.findMany({ where: { apiId: { in: apiIds }, empresaId } })
+    : []
+  const cliMap = new Map(clientes.map((c: any) => [c.apiId, c]))
+  return pagos.map((p: any) => {
+    if (p.carteraId) return p
+    const fa = firstApp.get(p.id)
+    if (!fa) return p
+    const sd: any = sdMap.get(fa.syncDeudaId)
+    const cli: any = sd ? cliMap.get(sd.clienteApiId) : null
+    return { ...p, cliente: cli ? { id: cli.id, nombre: cli.nombre, nit: cli.nit, telefono: cli.telefono } : null }
+  })
 }
