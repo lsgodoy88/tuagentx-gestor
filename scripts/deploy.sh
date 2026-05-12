@@ -39,8 +39,15 @@ git pull --ff-only origin "$REF" 2>/dev/null || log "no fast-forward (ref puede 
 NEW_COMMIT=$(git rev-parse HEAD)
 log "checkout ok  new=$NEW_COMMIT"
 
-if [ "$PREV_COMMIT" = "$NEW_COMMIT" ]; then
-  log "sin cambios — saliendo"
+# Short-circuit: comparar contra el commit del BUILD actual (lib/version.ts),
+# no contra el HEAD anterior — si git pull ya se hizo antes pero no se rebuildeó,
+# el build sigue desactualizado.
+BUILD_COMMIT=""
+if [ -f lib/version.ts ]; then
+  BUILD_COMMIT=$(grep -oE '"fullCommit": "[a-f0-9]+"' lib/version.ts | grep -oE '[a-f0-9]{40}' || true)
+fi
+if [ -n "$BUILD_COMMIT" ] && [ "$BUILD_COMMIT" = "$NEW_COMMIT" ] && [ -z "${FORCE:-}" ]; then
+  log "build ya en $NEW_COMMIT — saliendo (FORCE=1 para forzar)"
   exit 0
 fi
 
