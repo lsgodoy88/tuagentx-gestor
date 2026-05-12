@@ -16,13 +16,35 @@ jobs:
     timeout-minutes: 10
 
     env:
-      # Dummy values — el build de Next no se conecta, solo necesita las vars seteadas
+      # Dummy values — el build de Next no se conecta, pero módulos se instancian
+      # al recolectar páginas y necesitan las vars presentes.
       DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?schema=gestor"
       NEXTAUTH_SECRET: "ci-secret"
       NEXTAUTH_URL: "http://localhost:3010"
+      NEXTAUTH_TRUST_HOST: "true"
       REDIS_URL: "redis://localhost:6379"
       DEPLOY_ENV: "ci"
       DEPLOY_BRANCH: ${{ github.head_ref || github.ref_name }}
+      # Stubs para clientes instanciados a top-level
+      OPENAI_API_KEY: "sk-ci-dummy"
+      ANTHROPIC_API_KEY: "sk-ant-ci-dummy"
+      EVOLUTION_API_URL: "http://localhost:8080"
+      EVOLUTION_API_KEY: "ci-dummy"
+      MASTER_API_SECRET: "ci-dummy"
+      UPTRES_SECRET: "ci-dummy-32-bytes-padding-xxxxx"
+      CRON_SECRET: "ci-dummy"
+      VAPID_PUBLIC_KEY: "BGM43jCYmNx71QbrprleQr4ob0WhwaZj65jrB4H7QzjDiOVpvxsOeciZSEEI3um1GN4LnXrhz_z8TI4wpt41-P8"
+      VAPID_PRIVATE_KEY: "7AuUptsIOAMdq5mD4cEtYTWQzAkL6RESvV8FYJ6cjs4"
+      VAPID_EMAIL: "mailto:ci@tuagentx.com"
+      R2_ACCOUNT_ID: "ci"
+      R2_ACCESS_KEY_ID: "ci"
+      R2_SECRET_ACCESS_KEY: "ci"
+      R2_BUCKET: "ci"
+      R2_ENDPOINT: "https://ci.r2.cloudflarestorage.com"
+      TURNSTILE_SITE_KEY_GESTOR: "ci"
+      TURNSTILE_SECRET_KEY_GESTOR: "ci"
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY_GESTOR: "ci"
+      TZ: "America/Bogota"
 
     steps:
       - uses: actions/checkout@v4
@@ -54,7 +76,6 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    continue-on-error: true  # warnings sin bloquear PR hasta que el código esté limpio
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -62,4 +83,6 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci --no-audit --no-fund
-      - run: npm run lint
+      - name: Lint (informativo, no bloquea)
+        run: npm run lint
+        continue-on-error: true
