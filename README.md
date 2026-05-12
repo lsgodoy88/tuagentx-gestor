@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# TuAgentX Gestor
 
-## Getting Started
+SaaS para gestión de ventas en campo, cartera y despachos. Integración con UpTres ERP.
 
-First, run the development server:
+## Stack
+
+- Next.js 16 (App Router)
+- PostgreSQL + Prisma
+- BullMQ + Redis (jobs/cron)
+- NextAuth (sesiones JWT)
+- PM2 (proceso)
+- Cloudflare R2 (vouchers + backups)
+- Sentry (errores)
+
+## Setup local
 
 ```bash
+git clone git@github.com:lsgodoy88/tuagentx-gestor.git
+cd tuagentx-gestor
+npm ci
+cp .env.example .env  # configurar DATABASE_URL, NEXTAUTH_SECRET, etc.
+npx prisma migrate deploy
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Deploy producción
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Ver [DEPLOY.md](./DEPLOY.md) para runbook completo de despliegue desde cero y DR.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Comandos útiles
 
-## Learn More
+```bash
+# Build
+cd /srv/gestor && npm run build 2>&1 | tail -5 && pm2 restart gestor
 
-To learn more about Next.js, take a look at the following resources:
+# Logs
+pm2 logs gestor
+pm2 logs gestor-worker
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+# Backup manual
+/etc/tuagentx/backup.sh
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Health check
+curl https://gestor.tuagentx.com/api/health
+```
 
-## Deploy on Vercel
+## Estructura
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `app/api/` — endpoints REST
+- `app/dashboard/` — UI autenticada
+- `lib/` — helpers compartidos (auth, fechas, recibos, prisma-selects)
+- `lib/integracion/` — adapters (UpTres) + sync engine
+- `prisma/` — schema + migraciones
+- `workers/` — jobs BullMQ + cron scheduling
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Versionado
+
+Ver [CHANGELOG.md](./CHANGELOG.md)
