@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
   const empresaId = user.role === 'empresa' ? user.id : user.empresaId
   const empleadoId = user.role === 'empresa' ? null : user.id
   const body = await req.json()
-  const { carteraId, monto, descuento = 0, tipo = 'abono', metodoPago = 'efectivo', notas, detalleIds, voucherKey, voucherDatosIA, lat, lng, gpsAccuracy } = body
+  const { carteraId, monto, descuento = 0, tipo = 'abono', metodoPago = 'efectivo', notas, detalleIds, voucherKey, voucherDatosIA, lat, lng, gpsAccuracy, fechaPago } = body
 
   if (!carteraId || !monto) return NextResponse.json({ error: 'carteraId y monto requeridos' }, { status: 400 })
 
@@ -107,6 +107,29 @@ export async function POST(req: NextRequest) {
   const reciboToken = randomBytes(24).toString('hex')
   const tokenExpira = new Date(Date.now() + 15 * 60 * 1000)
 
+  // fechaPago — del voucher si es transferencia, sino ahora
+  let fechaPagoFinal: Date = new Date()
+  if (fechaPago) {
+    fechaPagoFinal = new Date(fechaPago)
+  } else if (voucherDatosIA?.fecha) {
+    const f = new Date(voucherDatosIA.fecha)
+    if (!isNaN(f.getTime())) fechaPagoFinal = f
+  }
+
+  // Saldo anterior — sumar todas las DetalleCartera afectadas
+  let saldoAnteriorTotal: number | null = null
+  let numFact: number | null = null
+  if (Array.isArray(detalleIds) && detalleIds.length > 0) {
+    const detalles = await (prisma as any).detalleCartera.findMany({
+      where: { id: { in: detalleIds } },
+      select: { saldoPendiente: true, numeroFactura: true }
+    })
+    if (detalles.length > 0) {
+      saldoAnteriorTotal = detalles.reduce((s: number, d: any) => s + Number(d.saldoPendiente), 0)
+      numFact = detalles[0].numeroFactura ?? null
+    }
+  }
+
   const pago = await prisma.pagoCartera.create({
     data: {
       carteraId,
@@ -119,12 +142,15 @@ export async function POST(req: NextRequest) {
       numeroRecibo,
       reciboToken,
       tokenExpira,
+      fechaPago: fechaPagoFinal,
+      saldoAnterior: saldoAnteriorTotal,
+      numeroFactura: numFact,
       ...(['transferencia', 'nequi', 'banco'].includes(metodoPago) && voucherKey ? {
         voucherKey,
         voucherDatosIA: voucherDatosIA ?? undefined,
       } : {}),
       ...(lat != null && lng != null ? { latCobro: Number(lat), lngCobro: Number(lng), gpsAccuracy: gpsAccuracy != null ? Number(gpsAccuracy) : null } : {}),
-    }
+    } as any
   })
 
   if (Array.isArray(detalleIds) && detalleIds.length > 0) {

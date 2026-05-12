@@ -400,6 +400,9 @@ model PagoCartera {
   tokenExpira    DateTime?
   voucherKey     String?
   voucherDatosIA Json?
+  fechaPago      DateTime?
+  saldoAnterior  Decimal?           @db.Decimal(14, 2)
+  numeroFactura  Int?
   lineasPago     Json?
   latCobro       Float?
   lngCobro       Float?
