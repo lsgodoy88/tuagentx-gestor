@@ -210,7 +210,6 @@ export default function TrazabilidadPage() {
               {ordenesBusqueda !== null ? ordenesBusqueda.length : total} órdenes
               {fuenteBusqueda === 'memoria' && ' · en pantalla'}
               {fuenteBusqueda === 'bd' && ' · desde BD'}
-              {fuenteBusqueda === 'sync' && ' · desde historial'}
               {fuenteBusqueda === 'no_encontrado' && ' · no encontrada'}
             </p>
             {buscandoProfundo && <span className="text-zinc-500 text-xs animate-pulse">Buscando...</span>}
