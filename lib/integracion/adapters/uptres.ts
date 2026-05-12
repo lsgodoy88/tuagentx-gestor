@@ -221,18 +221,27 @@ export class UpTresAdapter implements AdaptadorIntegracion {
   }
 
   async fetchVentas(desde?: Date, customerId?: string): Promise<VentaExterna[]> {
-    const params: Record<string, string> = {
+    const baseParams: Record<string, string> = {
       fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,isDelivered,isShipped,items,createdAt,updatedAt',
       expand: 'customer,items',
       includeTotal: 'false',
-      condition: 'false', // traer todas: activas y cerradas
     }
     const fromDate = desde ?? new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
-    params.from = fromDate.toISOString().split('T')[0]
-    params.to = new Date().toISOString().split('T')[0]
-    if (customerId) params.customerId = customerId
-    // fetchAll usa condition:true hardcodeado — lo sobreescribimos con fetchAllSinCondition
-    const data = await this.fetchAllSinCondition('ordenes', params)
+    baseParams.from = fromDate.toISOString().split('T')[0]
+    baseParams.to = new Date().toISOString().split('T')[0]
+    if (customerId) baseParams.customerId = customerId
+
+    // Traer condition=true (activas) y condition=false (cerradas) — combinar ambas
+    const [activas, cerradas] = await Promise.all([
+      this.fetchAllSinCondition('ordenes', { ...baseParams, condition: 'true' }),
+      this.fetchAllSinCondition('ordenes', { ...baseParams, condition: 'false' }),
+    ])
+
+    // Deduplicar por id
+    const mapaOrdenes = new Map<string, any>()
+    for (const o of [...activas, ...cerradas]) mapaOrdenes.set(o.id, o)
+    const data = Array.from(mapaOrdenes.values())
+
     return data.map((o: any) => ({
       uid: o.id,
       _id: o.id,
@@ -245,7 +254,6 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       cliente: { uid: o.customerId },
       empleado: { uid: o.employeeId },
       productos: o.items || [],
-      // Nombre del cliente expandido directamente de la API
       clienteNombreApi: o.customer?.name || o.customer?.tradeName || null,
     }))
   }
