@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { randomBytes } from 'crypto'
+import { getEmpresaId } from '@/lib/auth-helpers'
+import { generarReciboToken } from '@/lib/recibos'
 import { calcularEstado } from '@/lib/cartera'
 import { getConsecutivo } from '@/lib/consecutivo' 
 
@@ -10,7 +11,7 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
   const empleadoId = user.role === 'empresa' ? null : user.id
 
   const body = await req.json()
@@ -70,8 +71,7 @@ export async function POST(req: NextRequest) {
       })
     : []
 
-  const reciboToken = randomBytes(24).toString('hex')
-  const tokenExpira = new Date(Date.now() + 15 * 60 * 1000)
+  const { reciboToken, tokenExpira } = generarReciboToken()
   let numeroRecibo: string | null = null
   try { numeroRecibo = await getConsecutivo(empId) } catch {}
 

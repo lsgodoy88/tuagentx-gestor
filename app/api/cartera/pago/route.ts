@@ -2,15 +2,16 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getEmpresaId } from '@/lib/auth-helpers'
+import { generarReciboToken } from '@/lib/recibos'
 import { calcularEstado } from '@/lib/cartera'
 import { getConsecutivo } from '@/lib/consecutivo'
-import { randomBytes } from 'crypto'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
   const { searchParams } = new URL(req.url)
   const limit = parseInt(searchParams.get('limit') || '50')
   const pagoWhere: any = {
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
   const empleadoId = user.role === 'empresa' ? null : user.id
   const body = await req.json()
   const { carteraId, monto, descuento = 0, tipo = 'abono', metodoPago = 'efectivo', notas, detalleIds, voucherKey, voucherDatosIA, lat, lng, gpsAccuracy, fechaPago } = body
@@ -104,8 +105,7 @@ export async function POST(req: NextRequest) {
   try { numeroRecibo = await getConsecutivo(empId) } catch {}
 
   // Token temporal 15 minutos
-  const reciboToken = randomBytes(24).toString('hex')
-  const tokenExpira = new Date(Date.now() + 15 * 60 * 1000)
+  const { reciboToken, tokenExpira } = generarReciboToken()
 
   // fechaPago — del voucher si es transferencia, sino ahora
   let fechaPagoFinal: Date = new Date()

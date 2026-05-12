@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { randomBytes } from 'crypto'
+import { getEmpresaId } from '@/lib/auth-helpers'
+import { generarReciboToken } from '@/lib/recibos'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
   if (!['empresa', 'supervisor'].includes(user.role)) {
     return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
   }
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
 
   const { searchParams } = new URL(req.url)
   const mes = searchParams.get('mes') // YYYY-MM
@@ -114,8 +115,7 @@ export async function GET(req: NextRequest) {
     p.reciboToken && p.tokenExpira && new Date(p.tokenExpira) < ahora
   )
   for (const p of expirados) {
-    const nuevoToken = randomBytes(24).toString('hex')
-    const nuevaExp = new Date(Date.now() + 15 * 60 * 1000) // 15min
+    const { reciboToken: nuevoToken, tokenExpira: nuevaExp } = generarReciboToken()
     await (prisma as any).pagoCartera.update({
       where: { id: p.id },
       data: { reciboToken: nuevoToken, tokenExpira: nuevaExp }
