@@ -20,15 +20,20 @@ export async function POST(req: NextRequest) {
 
   const cliente = await prisma.cliente.findFirst({
     where: { apiId: clienteApiId, empresaId },
-    select: { id: true }
+    select: { id: true, nombre: true }
   })
   if (!cliente) return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
 
   let empId = empleadoId
+  let vendedorNom: string | null = null
   if (!empId) {
     const emp = await prisma.empleado.findFirst({ where: { empresaId, activo: true } })
     if (!emp) return NextResponse.json({ error: 'Sin empleado activo' }, { status: 400 })
     empId = emp.id
+    vendedorNom = emp.nombre
+  } else {
+    const emp = await prisma.empleado.findUnique({ where: { id: empId }, select: { nombre: true } })
+    vendedorNom = emp?.nombre || null
   }
 
   const empresa = await prisma.empresa.findUnique({

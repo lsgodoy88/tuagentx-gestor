@@ -66,6 +66,10 @@ export async function GET(req: NextRequest) {
       reciboToken: true,
       tokenExpira: true,
       notas: true,
+      clienteApiId: true,
+      clienteNombre: true,
+      valorFactura: true,
+      vendedorNombre: true,
       carteraId: true,
       syncDeudaId: true,
       Cartera: { select: { Cliente: { select: { nombre: true } } } },
@@ -120,21 +124,25 @@ export async function GET(req: NextRequest) {
   }
 
   const filas = pagos.map((p: any) => {
-    let cliente = ''
-    let venta: number | null = null
+    // Prioridad: datos congelados al momento del pago → fallback a JOINs (pagos viejos)
+    let cliente = p.clienteNombre || ''
+    let venta: number | null = p.valorFactura !== null ? Number(p.valorFactura) : null
     let factura: number | null = p.numeroFactura ?? null
 
-    if (p.syncDeudaId && sdMap[p.syncDeudaId]) {
-      const sd = sdMap[p.syncDeudaId]
-      cliente = cliSyncMap[sd.clienteApiId] || ''
-      venta = Number(sd.valor) || null
-      factura = factura ?? sd.numeroFactura ?? null
-    } else if (p.Cartera?.Cliente?.nombre) {
-      cliente = p.Cartera.Cliente.nombre
-      const det = detMap[p.carteraId]
-      if (det) {
-        venta = Number(det.valorFactura) || null
-        factura = factura ?? det.numeroFactura ?? null
+    // Fallback a JOIN si datos congelados están vacíos (pagos viejos)
+    if (!cliente || venta === null) {
+      if (p.syncDeudaId && sdMap[p.syncDeudaId]) {
+        const sd = sdMap[p.syncDeudaId]
+        if (!cliente) cliente = cliSyncMap[sd.clienteApiId] || ''
+        if (venta === null) venta = Number(sd.valor) || null
+        factura = factura ?? sd.numeroFactura ?? null
+      } else if (p.Cartera?.Cliente?.nombre) {
+        if (!cliente) cliente = p.Cartera.Cliente.nombre
+        const det = detMap[p.carteraId]
+        if (det) {
+          if (venta === null) venta = Number(det.valorFactura) || null
+          factura = factura ?? det.numeroFactura ?? null
+        }
       }
     }
 
@@ -142,7 +150,7 @@ export async function GET(req: NextRequest) {
       id: p.id,
       registrado: p.createdAt,
       pagado: p.fechaPago ?? p.createdAt,
-      vendedor: empleadoMap[p.empleadoId] || '—',
+      vendedor: p.vendedorNombre || empleadoMap[p.empleadoId] || '—',
       empleadoId: p.empleadoId,
       cliente,
       factura,

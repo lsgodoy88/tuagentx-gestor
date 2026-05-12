@@ -403,6 +403,10 @@ model PagoCartera {
   fechaPago      DateTime?
   saldoAnterior  Decimal?           @db.Decimal(14, 2)
   numeroFactura  Int?
+  clienteApiId   String?            // Congelado al momento del pago
+  clienteNombre  String?            // Congelado al momento del pago
+  valorFactura   Decimal?           @db.Decimal(14, 2) // Valor original
+  vendedorNombre String?            // Congelado al momento del pago
   lineasPago     Json?
   latCobro       Float?
   lngCobro       Float?

@@ -116,19 +116,31 @@ export async function POST(req: NextRequest) {
     if (!isNaN(f.getTime())) fechaPagoFinal = f
   }
 
-  // Saldo anterior — sumar todas las DetalleCartera afectadas
+  // Saldo anterior + valor factura — sumar DetalleCartera afectadas
   let saldoAnteriorTotal: number | null = null
+  let valorFacturaTotal: number | null = null
   let numFact: number | null = null
   if (Array.isArray(detalleIds) && detalleIds.length > 0) {
     const detalles = await (prisma as any).detalleCartera.findMany({
       where: { id: { in: detalleIds } },
-      select: { saldoPendiente: true, numeroFactura: true }
+      select: { saldoPendiente: true, numeroFactura: true, valorFactura: true }
     })
     if (detalles.length > 0) {
       saldoAnteriorTotal = detalles.reduce((s: number, d: any) => s + Number(d.saldoPendiente), 0)
+      valorFacturaTotal = detalles.reduce((s: number, d: any) => s + Number(d.valorFactura || 0), 0)
       numFact = detalles[0].numeroFactura ?? null
     }
   }
+
+  // Congelar nombres
+  const clienteData = await (prisma as any).cartera.findUnique({
+    where: { id: carteraId },
+    select: { Cliente: { select: { apiId: true, nombre: true } } }
+  })
+  const empleadoData = await prisma.empleado.findUnique({
+    where: { id: empId },
+    select: { nombre: true }
+  })
 
   const pago = await prisma.pagoCartera.create({
     data: {
@@ -145,6 +157,10 @@ export async function POST(req: NextRequest) {
       fechaPago: fechaPagoFinal,
       saldoAnterior: saldoAnteriorTotal,
       numeroFactura: numFact,
+      clienteApiId: clienteData?.Cliente?.apiId || null,
+      clienteNombre: clienteData?.Cliente?.nombre || null,
+      valorFactura: valorFacturaTotal,
+      vendedorNombre: empleadoData?.nombre || null,
       ...(['transferencia', 'nequi', 'banco'].includes(metodoPago) && voucherKey ? {
         voucherKey,
         voucherDatosIA: voucherDatosIA ?? undefined,
