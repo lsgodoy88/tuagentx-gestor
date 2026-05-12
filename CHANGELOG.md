@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.2.1] - 2026-05-12 (Tests + CI)
+
+### Added
+- GitHub Actions workflow `.github/workflows/ci.yml` con 3 jobs (build, lint, test) en cada PR a main y push a ramas feature/*
+- Vitest setup completo (`vitest.config.ts`, scripts test/test:watch/test:coverage)
+- 156 tests cubriendo el código puro de `lib/`:
+  - `fechas` (13), `fecha` legacy (12), `recibos` (8)
+  - `auth-helpers` (19), `permisos` (10)
+  - `crypto-uptres` (10) — encriptación AES-256-CBC de API keys
+  - `cartera` (22) — estados pagada/vencida/mora/crítica con bordes
+  - `impulsoMetricas` (15) — semáforo + deduplicación esPrimero
+  - `gps.distanciaMetros` (8) — Haversine
+  - `maps.expandirDireccion` (31) — abreviaturas colombianas + URL Google Maps
+
+### Notes
+- Build de CI usa env stubs (OPENAI/R2/VAPID/etc) — varios endpoints instancian clientes a top-level
+- Tests de endpoints requieren mocking de Prisma (próxima iteración)
+
 ## [1.2.0] - 2026-05-12 (Versionado + Staging)
 
 ### Added
