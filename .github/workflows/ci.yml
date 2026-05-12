@@ -86,3 +86,20 @@ jobs:
       - name: Lint (informativo, no bloquea)
         run: npm run lint
         continue-on-error: true
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - run: npm ci --no-audit --no-fund
+      - name: Prisma generate
+        env:
+          DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?schema=gestor"
+        run: npx prisma generate
+      - name: Run tests
+        run: npm test
