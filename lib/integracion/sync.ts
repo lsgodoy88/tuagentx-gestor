@@ -125,40 +125,39 @@ export async function refrescarDeudasConPagosPendientes(
   integracionId: string,
   empresaId: string
 ): Promise<{ clientes: number, confrontados: number, deudasActualizadas: number }> {
-  // SyncDeudas con al menos un PagoCarteraDeuda sin confrontar
-  const pendientes = await (prisma as any).pagoCarteraDeuda.findMany({
-    where: { confrontadoEn: null },
-    include: { PagoCartera: { select: { empleadoId: true } } },
+  // Buscar SyncDeudas activas que tienen pagos locales registrados
+  const pagos = await (prisma as any).pagoCartera.findMany({
+    where: { syncDeudaId: { not: null } },
+    select: { syncDeudaId: true, createdAt: true },
+    distinct: ['syncDeudaId'],
   })
-  console.log('[refresco] Aplicaciones pendientes:', pendientes.length)
-  if (pendientes.length === 0) return { clientes: 0, confrontados: 0, deudasActualizadas: 0 }
+  if (pagos.length === 0) return { clientes: 0, confrontados: 0, deudasActualizadas: 0 }
 
-  // Agrupar por cliente
-  const sdIds = Array.from(new Set(pendientes.map((p: any) => p.syncDeudaId)))
+  const sdIds = pagos.map((p: any) => p.syncDeudaId).filter(Boolean)
   const sds = await (prisma as any).syncDeuda.findMany({
-    where: { id: { in: sdIds }, integracionId, empresaId },
+    where: { id: { in: sdIds }, integracionId, condition: true },
   })
   const clienteApiIds = Array.from(new Set(sds.map((s: any) => s.clienteApiId).filter(Boolean))) as string[]
 
   let deudasActualizadas = 0
-  let confrontados = 0
-  console.log('[refresco] Clientes a consultar:', clienteApiIds.length)
+
   for (const cliApiId of clienteApiIds) {
     let externas: DeudaExterna[] = []
     try {
       externas = await adapter.fetchDeudasCliente(cliApiId)
-      console.log('[refresco] Cliente', cliApiId, 'devolvio', externas.length, 'deudas')
-    } catch (e: any) { console.log('[refresco] Error cliente', cliApiId, e.message); continue }
-    const externasMap = new Map(externas.map((e: any) => [e.id, e]))
+    } catch { continue }
+
+    const externasMap = new Map(externas.map((e: any) => [e.uid || e.id, e]))
     const sdsDelCli = sds.filter((s: any) => s.clienteApiId === cliApiId)
+
     for (const sd of sdsDelCli) {
       const ext: any = externasMap.get(sd.externalId)
       if (!ext) continue
-      const nuevoSaldo = Number(ext.balance ?? ext.saldo ?? 0)
+      const nuevoSaldo = Number(ext.vSaldo ?? ext.balance ?? 0)
       const nuevoUpd = ext.fModificado ? new Date(ext.fModificado) : new Date()
-      const cambio = nuevoSaldo !== Number(sd.saldo) || nuevoUpd.getTime() !== new Date(sd.externalUpdatedAt || 0).getTime()
-      if (cambio) {
-        console.log('[refresco] CAMBIO factura', sd.numeroFactura || sd.externalId, 'saldo', Number(sd.saldo), '->', nuevoSaldo)
+      const cambioSaldo = Math.abs(nuevoSaldo - Number(sd.saldo)) > 0.01
+      const cambioUpd = nuevoUpd.getTime() !== new Date(sd.externalUpdatedAt || 0).getTime()
+      if (cambioSaldo || cambioUpd) {
         await (prisma as any).syncDeuda.update({
           where: { id: sd.id },
           data: {
@@ -169,21 +168,10 @@ export async function refrescarDeudasConPagosPendientes(
           },
         })
         deudasActualizadas++
-        // Marcar como confrontados los pagos locales anteriores al nuevo externalUpdatedAt
-        const aplicacionesViejas = pendientes.filter((p: any) =>
-          p.syncDeudaId === sd.id && new Date(p.createdAt) <= nuevoUpd
-        )
-        if (aplicacionesViejas.length > 0) {
-          await (prisma as any).pagoCarteraDeuda.updateMany({
-            where: { id: { in: aplicacionesViejas.map((a: any) => a.id) } },
-            data: { confrontadoEn: new Date() },
-          })
-          confrontados += aplicacionesViejas.length
-        }
       }
     }
   }
-  return { clientes: clienteApiIds.length, confrontados, deudasActualizadas }
+  return { clientes: clienteApiIds.length, confrontados: 0, deudasActualizadas }
 }
 
 export function crearAdaptador(tipo: string, config: Record<string, string>): AdaptadorIntegracion {

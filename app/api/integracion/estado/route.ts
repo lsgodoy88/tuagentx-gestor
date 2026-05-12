@@ -19,15 +19,35 @@ export async function GET(req: NextRequest) {
     ? await (prisma as any).syncDeuda.count({ where: { integracionId: { in: intIds } } })
     : 0
 
+  // Historial sync — últimas 10 ejecuciones
+  const historial = integracion ? await (prisma as any).syncLog.findMany({
+    where: { integracionId: integracion.id },
+    orderBy: { createdAt: 'desc' },
+    take: 10,
+    select: {
+      id: true,
+      inicio: true,
+      fin: true,
+      duracionMs: true,
+      clientesActualizados: true,
+      empleadosSincronizados: true,
+      deudasSincronizadas: true,
+      zombis: true,
+      pagosConfrontados: true,
+      disparadoPor: true,
+      estado: true,
+      errores: true,
+    }
+  }) : []
+
   return NextResponse.json({
-    // Para cartera/rutas-fijas
     ultimaSync: integracion?.ultimaSync ?? null,
     ultimaSyncCompleta: (integracion as any)?.ultimaSyncCompleta ?? null,
     totalDeudas: total,
     tieneIntegracion: !!integracion,
-    // Para configuración
     conectado: !!integracion,
     syncInicial: integracion?.syncInicial ?? false,
     nombre: (integracion?.config as any)?.nombre ?? 'API UpTres',
+    historial,
   })
 }

@@ -78,6 +78,7 @@ export default function ConfiguracionPage() {
   const [sincronizando, setSincronizando] = useState(false)
   const [msgSync, setMsgSync] = useState('')
   const [ultimaSync, setUltimaSync] = useState('')
+  const [syncHistorial, setSyncHistorial] = useState<any[]>([])
   const [modalValidacion, setModalValidacion] = useState(false)
   const [faseConexion, setFaseConexion] = useState<'idle'|'validando'|'conectando'|'sincronizando'|'listo'|'error'>('idle')
   const [endpointsFase, setEndpointsFase] = useState<Record<string, 'pendiente'|'ok'|'error'|'cargando'>>({})
@@ -152,6 +153,7 @@ export default function ConfiguracionPage() {
           setErpConectado(true); setErpNombre(d.nombre ?? '')
           setSyncInicial(d.syncInicial ?? false)
           setUltimaSync(d.ultimaSync ?? '')
+          setSyncHistorial(d.historial || [])
           setModoActivo('erp'); setModoSel('erp')
         }
       })
@@ -706,7 +708,45 @@ export default function ConfiguracionPage() {
                           <span className="text-emerald-400">✅</span>
                           <p className="text-emerald-400 text-sm font-semibold">Conectado</p>
                         </div>
-                        {ultimaSync && <p className="text-zinc-500 text-xs mt-0.5">Última sync: {ultimaSync}</p>}
+                        {ultimaSync && <p className="text-zinc-500 text-xs mt-0.5">Última sync: {new Date(ultimaSync).toLocaleString('es-CO', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</p>}
+
+                        {/* Bitácora sync */}
+                        {syncHistorial.length > 0 && (
+                          <div className="mt-4">
+                            <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wide mb-2">Historial sync</p>
+                            <div className="space-y-1.5">
+                              {syncHistorial.map((s: any) => {
+                                const durSeg = s.duracionMs ? Math.round(s.duracionMs / 1000) : null
+                                const fecha = new Date(s.inicio).toLocaleString('es-CO', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})
+                                return (
+                                  <div key={s.id} className={`rounded-xl px-3 py-2 text-xs border ${s.estado === 'error' ? 'bg-red-500/10 border-red-500/20' : 'bg-zinc-800/60 border-zinc-700/50'}`}>
+                                    <div className="flex items-center justify-between gap-2 mb-1">
+                                      <span className="text-zinc-300 font-medium">{fecha}</span>
+                                      <div className="flex items-center gap-2">
+                                        <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${s.disparadoPor === 'manual' ? 'bg-blue-500/20 text-blue-400' : 'bg-zinc-700 text-zinc-400'}`}>
+                                          {s.disparadoPor === 'manual' ? 'Manual' : 'Auto'}
+                                        </span>
+                                        <span className={s.estado === 'error' ? 'text-red-400' : 'text-emerald-400'}>
+                                          {s.estado === 'error' ? '✗' : '✓'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    {s.estado !== 'error' ? (
+                                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-zinc-500">
+                                        <span>{s.deudasSincronizadas} deudas</span>
+                                        {s.zombis > 0 && <span className="text-orange-400">{s.zombis} cerradas</span>}
+                                        {s.pagosConfrontados > 0 && <span className="text-cyan-400">{s.pagosConfrontados} pagos</span>}
+                                        {durSeg && <span>{durSeg}s</span>}
+                                      </div>
+                                    ) : (
+                                      <p className="text-red-400">{(s.errores as any)?.message || 'Error desconocido'}</p>
+                                    )}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
                       {!syncInicial ? (
                         <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 space-y-2">

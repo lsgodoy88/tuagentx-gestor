@@ -2745,6 +2745,11 @@ model SyncLog {
   clientesActualizados Int         @default(0)
   comprasSincronizadas Int         @default(0)
   deudasSincronizadas  Int         @default(0)
+  zombis               Int         @default(0)
+  pagosConfrontados    Int         @default(0)
+  empleadosSincronizados Int       @default(0)
+  duracionMs           Int?
+  disparadoPor         String      @default("cron") // cron | manual
   errores              Json?
   estado               String      @default("ok") // ok | parcial | error
   createdAt            DateTime    @default(now())

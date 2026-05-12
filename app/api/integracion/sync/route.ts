@@ -14,10 +14,11 @@ function resolverConfig(config: any): Record<string, string> {
 }
 
 // ─── Lógica delta unificada — usada por cron y botón ───────────────────────
-async function ejecutarDelta(integracion: any, logs: string[] = []): Promise<{
-  clientes: number, empleados: number, deudas: number, zombis: number, confrontados: number
+async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor: string = 'cron'): Promise<{
+  clientes: number, empleados: number, deudas: number, zombis: number, confrontados: number, duracionMs: number
 }> {
   const log = (m: string) => { logs.push(m); console.log('[sync-delta]', m) }
+  const inicio = new Date()
 
   const config = resolverConfig(integracion.config)
   const adapter = crearAdaptador(integracion.tipo, config)
@@ -127,12 +128,37 @@ async function ejecutarDelta(integracion: any, logs: string[] = []): Promise<{
     log(`[ventaMes] Error: ${err.message}`)
   }
 
+  const fin = new Date()
+  const duracionMs = fin.getTime() - inicio.getTime()
+
+  // Guardar bitácora
+  try {
+    await (prisma as any).syncLog.create({
+      data: {
+        integracionId: integracion.id,
+        inicio,
+        fin,
+        duracionMs,
+        clientesActualizados,
+        empleadosSincronizados: empleadosExt.length,
+        deudasSincronizadas: deudas.length,
+        zombis,
+        pagosConfrontados: refresco.confrontados,
+        disparadoPor,
+        estado: 'ok',
+      }
+    })
+  } catch (err: any) {
+    log(`[syncLog] Error guardando bitácora: ${err.message}`)
+  }
+
   return {
     clientes: clientesActualizados,
     empleados: empleadosExt.length,
     deudas: deudas.length,
     zombis,
     confrontados: refresco.confrontados,
+    duracionMs,
   }
 }
 
@@ -263,7 +289,7 @@ export async function POST(req: NextRequest) {
 
   try {
     if (tipo === 'delta') {
-      const r = await ejecutarDelta(integracion, logs)
+      const r = await ejecutarDelta(integracion, logs, 'manual')
       return NextResponse.json({ ok: true, logs, ...r })
 
     } else if (tipo === 'inicial') {
@@ -279,6 +305,23 @@ export async function POST(req: NextRequest) {
     }
   } catch (err: any) {
     logs.push(`ERROR: ${err.message}`)
+    // Intentar guardar error en bitácora
+    try {
+      const integ = await (prisma as any).integracion.findFirst({ where: { empresaId, tipo: 'uptres', activa: true } })
+      if (integ) {
+        await (prisma as any).syncLog.create({
+          data: {
+            integracionId: integ.id,
+            inicio: new Date(),
+            fin: new Date(),
+            duracionMs: 0,
+            disparadoPor: tipo === 'inicial' ? 'manual-inicial' : 'manual',
+            estado: 'error',
+            errores: { message: err.message },
+          }
+        })
+      }
+    } catch {}
     return NextResponse.json({ ok: false, error: err.message, logs }, { status: 500 })
   }
 }
