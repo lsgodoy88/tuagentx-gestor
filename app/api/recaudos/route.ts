@@ -83,13 +83,26 @@ async function hidratarSync(pagos: any[], empresaId: string) {
     ? await (prisma as any).syncDeuda.findMany({ where: { id: { in: sdIds } } })
     : []
   const sdMap = new Map(sds.map((s: any) => [s.id, s]))
-  const apiIds = Array.from(new Set(sds.map((s: any) => s.clienteApiId).filter(Boolean)))
+  // Combinar apiIds de SyncDeuda + clienteApiId congelados en PagoCartera
+  const apiIdsCongelados = syncPagos.map((p: any) => p.clienteApiId).filter(Boolean)
+  const apiIds = Array.from(new Set([
+    ...sds.map((s: any) => s.clienteApiId).filter(Boolean),
+    ...apiIdsCongelados,
+  ]))
   const clientes = apiIds.length > 0
     ? await (prisma as any).cliente.findMany({ where: { apiId: { in: apiIds }, empresaId } })
     : []
   const cliMap = new Map(clientes.map((c: any) => [c.apiId, c]))
   return pagos.map((p: any) => {
     if (p.carteraId) return p
+    // Prioridad: datos congelados en PagoCartera
+    if (p.clienteApiId) {
+      const cli: any = cliMap.get(p.clienteApiId)
+      if (cli) return { ...p, cliente: { id: cli.id, nombre: cli.nombre, nit: cli.nit, telefono: cli.telefono } }
+      // Sin cliente en BD pero con nombre congelado
+      if (p.clienteNombre) return { ...p, cliente: { nombre: p.clienteNombre } }
+    }
+    // Fallback pagos viejos
     const fa = firstApp.get(p.id)
     if (!fa) return p
     const sd: any = sdMap.get(fa.syncDeudaId)

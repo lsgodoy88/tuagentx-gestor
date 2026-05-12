@@ -41,13 +41,22 @@ export async function GET(req: NextRequest) {
       : null
 
     let cliente = null
-    const aplicacion = pago.Aplicaciones?.[0]
-    if (aplicacion) {
-      const sd = await (prisma as any).syncDeuda.findUnique({ where: { id: aplicacion.syncDeudaId } })
-      if (sd?.clienteApiId && empresa) {
-        cliente = await (prisma as any).cliente.findFirst({
-          where: { apiId: sd.clienteApiId, empresaId: empresa.id }
-        })
+    // Prioridad 1: datos congelados en PagoCartera
+    if (pago.clienteApiId && empresa) {
+      cliente = await (prisma as any).cliente.findFirst({
+        where: { apiId: pago.clienteApiId, empresaId: empresa.id }
+      })
+    }
+    // Fallback: pagos viejos sin datos congelados → SyncDeuda
+    if (!cliente) {
+      const aplicacion = pago.Aplicaciones?.[0]
+      if (aplicacion) {
+        const sd = await (prisma as any).syncDeuda.findUnique({ where: { id: aplicacion.syncDeudaId } })
+        if (sd?.clienteApiId && empresa) {
+          cliente = await (prisma as any).cliente.findFirst({
+            where: { apiId: sd.clienteApiId, empresaId: empresa.id }
+          })
+        }
       }
     }
 
@@ -60,13 +69,20 @@ export async function GET(req: NextRequest) {
 
     const detalleCartera = (pago.Aplicaciones || []).map((a: any) => {
       const sd: any = sdMap.get(a.syncDeudaId)
-      const saldoActual = sd ? Number(sd.saldo) : 0
+      // Prioridad: datos congelados en PagoCartera (válido cuando hay 1 sola aplicación)
+      const valorFact = (pago.Aplicaciones?.length === 1 && pago.valorFactura)
+        ? Number(pago.valorFactura)
+        : (sd ? Number(sd.valor) : 0)
+      const saldoAntesCongelado = (pago.Aplicaciones?.length === 1 && pago.saldoAnterior !== null)
+        ? Number(pago.saldoAnterior)
+        : null
+      const saldoActual = sd ? Number(sd.saldo) : (saldoAntesCongelado !== null ? saldoAntesCongelado - Number(a.montoAplicado) : 0)
       return {
         numeroFactura: a.numeroFactura,
         montoAplicado: Number(a.montoAplicado),
-        valorFactura: sd ? Number(sd.valor) : 0,
+        valorFactura: valorFact,
         saldoActual,
-        saldoAntes: saldoActual + Number(a.montoAplicado),
+        saldoAntes: saldoAntesCongelado !== null ? saldoAntesCongelado : saldoActual + Number(a.montoAplicado),
         fechaCreacion: (sd?.data as any)?.createdAt || null,
       }
     })
