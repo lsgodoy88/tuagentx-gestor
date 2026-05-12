@@ -35,7 +35,7 @@ async function callEndpoint(path: string, body?: Record<string, unknown>) {
 
 // ── Queue: rutas-dia ─────────────────────────────────────────────────────────
 
-export const rutasDiaQueue = new Queue('rutas-dia', { connection: REDIS })
+export const rutasDiaQueue = new Queue('rutas-dia', { connection: REDIS, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 60000 }, removeOnComplete: 50, removeOnFail: 100 } })
 
 export const rutasDiaWorker = new Worker(
   'rutas-dia',
@@ -54,7 +54,7 @@ rutasDiaWorker.on('failed', (job, err) => {
 
 // ── Queue: integracion ───────────────────────────────────────────────────────
 
-export const integracionQueue = new Queue('integracion', { connection: REDIS })
+export const integracionQueue = new Queue('integracion', { connection: REDIS, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 60000 }, removeOnComplete: 50, removeOnFail: 100 } })
 
 export const integracionWorker = new Worker(
   'integracion',
@@ -74,7 +74,7 @@ integracionWorker.on('failed', (job, err) => {
 // ── Queue: entregas (on demand) ──────────────────────────────────────────────
 
 // ── Queue: bodega-sync (diario) ──────────────────────────────────────────────
-export const bodegaSyncQueue = new Queue('bodega-sync', { connection: REDIS })
+export const bodegaSyncQueue = new Queue('bodega-sync', { connection: REDIS, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 60000 }, removeOnComplete: 50, removeOnFail: 100 } })
 export const bodegaSyncWorker = new Worker(
   'bodega-sync',
   async (job) => {
@@ -89,7 +89,7 @@ bodegaSyncWorker.on('failed', (job, err) => {
   console.error(`[bodega-sync] ${job?.name} falló:`, err.message)
 })
 
-export const entregasQueue = new Queue('entregas', { connection: REDIS })
+export const entregasQueue = new Queue('entregas', { connection: REDIS, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 60000 }, removeOnComplete: 50, removeOnFail: 100 } })
 
 export const entregasWorker = new Worker(
   'entregas',
@@ -112,7 +112,7 @@ entregasWorker.on('failed', (job, err) => {
 })
 
 // ── Queue: audit (noche) ─────────────────────────────────────────────────────
-export const auditQueue = new Queue('audit', { connection: REDIS })
+export const auditQueue = new Queue('audit', { connection: REDIS, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 60000 }, removeOnComplete: 50, removeOnFail: 100 } })
 export const auditWorker = new Worker(
   'audit',
   async (job) => {
@@ -133,7 +133,7 @@ auditWorker.on('failed', (job, err) => {
 })
 
 // ── Queue: contexto (madrugada) ──────────────────────────────────────────────
-export const contextoQueue = new Queue('contexto', { connection: REDIS })
+export const contextoQueue = new Queue('contexto', { connection: REDIS, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 60000 }, removeOnComplete: 50, removeOnFail: 100 } })
 export const contextoWorker = new Worker(
   'contexto',
   async (job) => {
@@ -152,7 +152,7 @@ contextoWorker.on('failed', (job, err) => {
 })
 
 // ── Queue: mantenimiento (diario) ────────────────────────────────────────────
-export const mantenimientoQueue = new Queue('mantenimiento', { connection: REDIS })
+export const mantenimientoQueue = new Queue('mantenimiento', { connection: REDIS, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 60000 }, removeOnComplete: 50, removeOnFail: 100 } })
 export const mantenimientoWorker = new Worker(
   'mantenimiento',
   async (job) => {
