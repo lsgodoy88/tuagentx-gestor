@@ -71,47 +71,8 @@ export async function GET(req: NextRequest) {
     select: SELECT
   })
 
-  if (ordenesDirectas.length > 0) {
-    return NextResponse.json({ ordenes: ordenesDirectas, fuente: 'bd' })
-  }
-
-  // 2. Buscar en SyncDeuda por numeroOrden → encontrar cliente → buscar OrdenDespacho
-  const syncDeudas = await (prisma as any).syncDeuda.findMany({
-    where: {
-      integracion: { empresaId },
-      OR: [
-        { numeroOrden: { contains: q, mode: 'insensitive' } },
-        { numeroFactura: { contains: q, mode: 'insensitive' } },
-      ]
-    },
-    select: { clienteApiId: true, numeroOrden: true },
-    take: 10
+  return NextResponse.json({
+    ordenes: ordenesDirectas,
+    fuente: ordenesDirectas.length > 0 ? 'bd' : 'no_encontrado'
   })
-
-  if (syncDeudas.length > 0) {
-    const apiIds = [...new Set(syncDeudas.map((d: any) => d.clienteApiId).filter(Boolean))]
-    const clientes = await prisma.cliente.findMany({
-      where: { apiId: { in: apiIds as string[] }, empresaId },
-      select: { nit: true, nombre: true }
-    })
-    const nits = clientes.map((c: any) => c.nit).filter(Boolean)
-
-    if (nits.length > 0) {
-      const whereSyncOrdenes: any = { empresaId, clienteNit: { in: nits } }
-      if (nitsVendedor !== null && nitsVendedor.length > 0) {
-        whereSyncOrdenes.clienteNit = { in: nits.filter((n: string) => nitsVendedor!.includes(n)) }
-      }
-      const ordenesPorSync = await prisma.ordenDespacho.findMany({
-        where: whereSyncOrdenes,
-        orderBy: { fechaOrden: 'desc' },
-        take: 20,
-        select: SELECT
-      })
-      if (ordenesPorSync.length > 0) {
-        return NextResponse.json({ ordenes: ordenesPorSync, fuente: 'sync' })
-      }
-    }
-  }
-
-  return NextResponse.json({ ordenes: [], fuente: 'no_encontrado' })
 }
