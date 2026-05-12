@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getEmpresaId, ROLES_ADMIN_BODEGA } from '@/lib/auth-helpers'
 
-const ROLES = ['empresa', 'supervisor', 'bodega']
+const ROLES = ROLES_ADMIN_BODEGA
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
   const user = session.user as any
   if (!ROLES.includes(user.role)) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
 
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
 
   const rows = await prisma.$queryRaw<[{ diasHistorialBodega: number; ciudadEntregaLocal: string | null; bodegaPuedeEnviar: boolean; ultimaSyncBodega: Date | null }]>`
     SELECT "diasHistorialBodega", "ciudadEntregaLocal", "bodegaPuedeEnviar", "ultimaSyncBodega"
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
   const user = session.user as any
   if (!ROLES.includes(user.role)) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
 
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
   const body = await req.json()
   const { numeroOrden, clienteNombre, clienteNit, ciudad, direccion, telefono } = body
 

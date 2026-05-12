@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getEmpresaId } from '@/lib/auth-helpers'
 
 async function getMonitorData(empresaId: string, hoy: Date) {
   const turnos = await prisma.turno.findMany({
@@ -110,7 +111,7 @@ export async function GET() {
     return NextResponse.json(resultados)
   }
 
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
   const resultado = await getMonitorData(empresaId, hoy)
   return NextResponse.json(resultado)
 }

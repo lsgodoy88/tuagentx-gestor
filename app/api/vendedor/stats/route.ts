@@ -2,10 +2,11 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { nowBogota } from '@/lib/fechas'
 import { DIAS } from '@/lib/constants'
 
 function fechaBogotaHoy() {
-  return new Date(Date.now() - 5 * 60 * 60 * 1000)
+  return nowBogota()
 }
 
 export async function GET() {

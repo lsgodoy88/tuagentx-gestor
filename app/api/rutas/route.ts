@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getEmpresaId } from '@/lib/auth-helpers'
 import { audit } from '@/lib/audit'
 import { fechaBogotaStr, inicioDiaBogota, finDiaBogota } from '@/lib/fecha'
 
@@ -9,7 +10,7 @@ export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
 
   const rutas = await prisma.ruta.findMany({
     where: { empresaId },
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
 
   const { nombre, fecha, empleadoIds, clienteIds } = await req.json()
   if (!nombre) return NextResponse.json({ error: 'Nombre requerido' }, { status: 400 })

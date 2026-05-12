@@ -2,9 +2,10 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getEmpresaId, ROLES_ADMIN_BODEGA } from '@/lib/auth-helpers'
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 
-const ROLES = ['empresa', 'supervisor', 'bodega']
+const ROLES = ROLES_ADMIN_BODEGA
 
 const r2 = new S3Client({
   region: 'auto',
@@ -33,7 +34,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const user = session.user as any
   if (!ROLES.includes(user.role)) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
 
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
   const empleadoId = user.role !== 'empresa' ? user.id : null
   const { id } = await params
 

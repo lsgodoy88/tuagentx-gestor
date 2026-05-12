@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getEmpresaId } from '@/lib/auth-helpers'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
   const { searchParams } = new URL(req.url)
   const mes  = parseInt(searchParams.get('mes')  || String(new Date().getMonth() + 1))
   const anio = parseInt(searchParams.get('anio') || String(new Date().getFullYear()))
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
   if (user.role === 'vendedor') return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
   const { empleadoId, mes, anio, metaPesos, metaPct } = await req.json()
   if (!empleadoId || !mes || !anio || !metaPesos)
     return NextResponse.json({ error: 'Faltan campos' }, { status: 400 })

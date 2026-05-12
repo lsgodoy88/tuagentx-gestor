@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { nowBogota, fechaHoyBogota } from '@/lib/fechas'
 import { subirFirma } from '@/lib/r2'
 import { audit } from '@/lib/audit'
 import { distanciaMetros } from '@/lib/gps'
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
       nota: nota || null,
       tipo: tipo || 'visita',
       monto: monto ? Number(monto) : null,
-      fechaBogota: new Date(Date.now() - 5 * 60 * 60 * 1000),
+      fechaBogota: nowBogota(),
       esLibre: esLibre === true,
       rutaFijaClienteId: rutaFijaClienteId || null,
       factura: factura || null,
@@ -112,7 +113,7 @@ export async function POST(req: NextRequest) {
   }
   // Verificar si la ruta del empleado quedó completa
   if (!esLibre) {
-    const fechaHoy = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const fechaHoy = fechaHoyBogota()
     const rutaActiva = await prisma.ruta.findFirst({
       where: {
         cerrada: false,

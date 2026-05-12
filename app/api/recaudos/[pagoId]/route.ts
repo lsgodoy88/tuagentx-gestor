@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getEmpresaId, ROLES_ADMIN } from '@/lib/auth-helpers'
 
 export async function POST(
   req: NextRequest,
@@ -11,7 +12,7 @@ export async function POST(
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
 
-  if (!['empresa', 'supervisor'].includes(user.role)) {
+  if (!ROLES_ADMIN.includes(user.role)) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
@@ -32,7 +33,7 @@ export async function POST(
   })
   if (!pago) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
   const pagoEmpresaId = pago.Cartera?.empresaId ?? pago.Empleado?.empresaId
   if (pagoEmpresaId !== empresaId) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })

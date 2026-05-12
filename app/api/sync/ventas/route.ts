@@ -2,24 +2,26 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getEmpresaId, ROLES_ADMIN, ROLES_VENDEDOR_RUTAS } from '@/lib/auth-helpers'
+import { fechaHoyBogota } from '@/lib/fechas'
 import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 
-const ROLES_PERMITIDOS = ['empresa', 'supervisor', 'vendedor', 'impulsadora']
+const ROLES_PERMITIDOS = ROLES_VENDEDOR_RUTAS
 const MAX_SYNC_DIA = 2
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
 
   const empresa = await prisma.empresa.findUnique({
     where: { id: empresaId },
     select: { syncVentasHoy: true, syncVentasFecha: true, syncVentasUltimo: true } as any
   }) as any
 
-  const hoyBogota = new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]
+  const hoyBogota = fechaHoyBogota()
   const mismaFecha = empresa?.syncVentasFecha?.toISOString().split('T')[0] === hoyBogota
   const usadosHoy = mismaFecha ? (empresa?.syncVentasHoy ?? 0) : 0
   const restantes = MAX_SYNC_DIA - usadosHoy
@@ -41,12 +43,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
   }
 
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
-  const hoyBogota = new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]
+  const empresaId = getEmpresaId(user)
+  const hoyBogota = fechaHoyBogota()
 
   // Verificar límite
   // Límite por empleado (vendedor/impulsadora) o por empresa (admin)
-  const esAdmin2 = ['empresa', 'supervisor'].includes(user.role)
+  const esAdmin2 = ROLES_ADMIN.includes(user.role)
   const limiteKey = !esAdmin2 ? `sync-ventas:${user.id}:${hoyBogota}` : `sync-ventas:${empresaId}:${hoyBogota}`
 
   const empresa = await prisma.empresa.findUnique({
@@ -73,7 +75,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Filtrar por empleado si es vendedor/impulsadora — solo sus rutas fijas
-  const esAdmin = ['empresa', 'supervisor'].includes(user.role)
+  const esAdmin = ROLES_ADMIN.includes(user.role)
   const empleadoId = !esAdmin ? user.id : undefined
 
   const rutasFijas = await (prisma as any).rutaFija.findMany({

@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { getEmpresaId, ROLES_ADMIN_BODEGA } from '@/lib/auth-helpers'
 import fs from 'fs'
 import path from 'path'
 const municipiosDANE: Record<string, string> = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'public/municipios_dane.json'), 'utf-8'))
@@ -12,8 +13,8 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
   const user = session.user as any
-  if (!['empresa', 'supervisor', 'bodega'].includes(user.role)) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  if (!ROLES_ADMIN_BODEGA.includes(user.role)) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
+  const empresaId = getEmpresaId(user)
   const body = await req.json().catch(() => ({}))
   const vinculadaId: string | null = body.vinculadaId || null
   let integracionEmpresaId = empresaId

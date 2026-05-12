@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getEmpresaId } from '@/lib/auth-helpers'
 import { audit } from '@/lib/audit'
 import bcrypt from 'bcryptjs'
 
@@ -15,7 +16,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const rolFiltro = searchParams.get('rol')
   const user = session.user as any
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
 
   // Supervisor: solo ve sus vendedores + impulsadoras de esos vendedores
   if (user.role === 'supervisor') {
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
 
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
   const { nombre, rol, telefono, password, vendedorId, puedeCapturarGps, ciudades, listaIds, vendedorIds, permisos, etiqueta, apiId } = await req.json()
   if (!nombre || !rol || !password) return NextResponse.json({ error: 'Faltan datos' }, { status: 400 })
 

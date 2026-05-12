@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getEmpresaId, ROLES_ADMIN_VENDEDOR, ROLES_ADMIN } from '@/lib/auth-helpers'
 import { crearAdaptador, sincronizarDeudas, actualizarCache, marcarZombis, refrescarDeudasConPagosPendientes } from '@/lib/integracion/sync'
 import { decrypt } from '@/lib/crypto-uptres'
 import { recalcularVentasMesImpulsos } from '@/lib/integracion/venta-mes'
@@ -277,8 +278,8 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
   const user = session.user as any
-  if (!['empresa', 'supervisor', 'vendedor'].includes(user.role)) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  if (!ROLES_ADMIN_VENDEDOR.includes(user.role)) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
+  const empresaId = getEmpresaId(user)
 
   const integracion = await (prisma as any).integracion.findFirst({
     where: { empresaId, tipo: 'uptres', activa: true }, orderBy: { updatedAt: 'desc' }
@@ -289,7 +290,7 @@ export async function POST(req: NextRequest) {
 
   try {
     if (tipo === 'delta') {
-      const esAdminUser = ['empresa', 'supervisor'].includes(user.role)
+      const esAdminUser = ROLES_ADMIN.includes(user.role)
       const empId = !esAdminUser ? user.id : undefined
       const r = await ejecutarDelta(integracion, logs, 'manual', empId)
       return NextResponse.json({ ok: true, logs, ...r })

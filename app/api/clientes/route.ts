@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getEmpresaId } from '@/lib/auth-helpers'
 import { checkPermiso } from '@/lib/permisos'
 import { expandirDireccion } from '@/lib/maps'
 
@@ -9,7 +10,7 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
 
   const { searchParams } = new URL(req.url)
   const q = searchParams.get('q') || ''
@@ -97,7 +98,7 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
 
   const body = await req.json()
 
@@ -157,7 +158,7 @@ export async function PATCH(req: NextRequest) {
   if (user.role === 'supervisor' && !checkPermiso(session, 'editarClientes')) {
     return NextResponse.json({ error: 'Sin permiso para editar clientes' }, { status: 403 })
   }
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
   const body = await req.json()
   const { id, apiId: _apiId, maps: mapsManual, ...campos } = body
 
@@ -189,7 +190,7 @@ export async function DELETE(req: NextRequest) {
   if (user.role === 'supervisor' && !checkPermiso(session, 'editarClientes')) {
     return NextResponse.json({ error: 'Sin permiso para editar clientes' }, { status: 403 })
   }
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
   const { id } = await req.json()
   const deleted = await prisma.cliente.deleteMany({ where: { id, empresaId } })
   if (deleted.count === 0) return NextResponse.json({ error: 'No encontrado o sin permisos' }, { status: 404 })

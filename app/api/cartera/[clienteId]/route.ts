@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getEmpresaId } from '@/lib/auth-helpers'
 import { calcularEstado } from '@/lib/cartera'
 import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { sincronizarDeudas, actualizarCache } from '@/lib/integracion/sync'
@@ -10,7 +11,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
   const { clienteId } = await params
 
   // ── Detectar integración UpTres activa ──

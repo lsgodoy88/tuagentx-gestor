@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getEmpresaId } from '@/lib/auth-helpers'
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ ranking: [] })
     const user = session.user as any
-    const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+    const empresaId = getEmpresaId(user)
 
     const ahora = new Date()
     const inicioRanking = new Date()
@@ -42,7 +43,7 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
 
   const fecha = searchParams.get('fecha') || new Date().toISOString().split('T')[0]
   const empleadoId = searchParams.get('empleadoId') || null

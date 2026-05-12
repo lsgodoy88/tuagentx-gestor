@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getEmpresaId } from '@/lib/auth-helpers'
 
 function formatHora(d: Date) {
   return d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
   const user = session.user as any
   const esAdmin = user.role === "empresa" || user.role === "supervisor"
   if (!esAdmin) return NextResponse.json({ error: "Sin acceso" }, { status: 403 })
-  const empresaId = user.role === "empresa" ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
 
   const { searchParams } = new URL(req.url)
   const modo = searchParams.get("modo") || "hoy"

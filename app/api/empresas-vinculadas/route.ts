@@ -2,17 +2,18 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getEmpresaId } from '@/lib/auth-helpers'
 
-async function getEmpresaId() {
+async function obtenerEmpresaId() {
   const session = await getServerSession(authOptions)
   if (!session) return null
   const user = session.user as any
   if (user.role !== 'empresa' && user.role !== 'supervisor') return null
-  return user.role === 'empresa' ? user.id : user.empresaId
+  return getEmpresaId(user)
 }
 
 export async function GET() {
-  const empresaId = await getEmpresaId()
+  const empresaId = await obtenerEmpresaId()
   if (!empresaId) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const [generadas, conectadas] = await Promise.all([
@@ -31,7 +32,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const empresaId = await getEmpresaId()
+  const empresaId = await obtenerEmpresaId()
   if (!empresaId) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const { color } = await req.json()
@@ -44,7 +45,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const empresaId = await getEmpresaId()
+  const empresaId = await obtenerEmpresaId()
   if (!empresaId) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
   const id = req.nextUrl.searchParams.get('id')

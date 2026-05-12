@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getEmpresaId, ROLES_ADMIN } from '@/lib/auth-helpers'
 import { calcularEstado } from '@/lib/cartera'
 import ExcelJS from 'exceljs'
 
@@ -9,10 +10,10 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
-  if (!['empresa', 'supervisor'].includes(user.role)) {
+  if (!ROLES_ADMIN.includes(user.role)) {
     return NextResponse.json({ error: 'Sin permisos' }, { status: 403 })
   }
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
 
   const contentType = req.headers.get('content-type') || ''
 

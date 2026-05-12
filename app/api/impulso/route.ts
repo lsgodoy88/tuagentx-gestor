@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getEmpresaId } from '@/lib/auth-helpers'
+import { nowBogota } from '@/lib/fechas'
 import { DIAS } from '@/lib/constants'
 import { buildSemana } from '@/lib/impulsoMetricas'
 
@@ -14,7 +16,7 @@ export async function GET(req: NextRequest) {
   if (!impulsadoraId) return NextResponse.json({ error: 'Falta impulsadoraId' }, { status: 400 })
 
   const user = session.user as any
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
 
   const inicioMes = new Date(fecha.slice(0, 7) + '-01T00:00:00.000Z')
   const finMes = new Date(new Date(inicioMes).setMonth(inicioMes.getMonth() + 1) - 1)
@@ -108,7 +110,7 @@ export async function POST(req: NextRequest) {
       tipo: tipo || 'venta',
       monto: Number(monto),
       nota: nota || null,
-      fechaBogota: new Date(Date.now() - 5 * 60 * 60 * 1000),
+      fechaBogota: nowBogota(),
     }
   })
   return NextResponse.json({ ok: true, visita })

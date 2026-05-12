@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getEmpresaId } from '@/lib/auth-helpers'
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -10,7 +11,7 @@ export async function GET() {
 
   if (user.role === 'superadmin') return NextResponse.json({ activa: true })
 
-  const empresaId = user.role === 'empresa' ? user.id : user.empresaId
+  const empresaId = getEmpresaId(user)
   if (!empresaId) return NextResponse.json({ activa: true })
 
   // planFin y modoEquipo fueron agregados via ALTER TABLE — rawSQL para planFin
