@@ -45,21 +45,39 @@ export async function POST(req: NextRequest) {
   const hoyBogota = new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]
 
   // Verificar límite
+  // Límite por empleado (vendedor/impulsadora) o por empresa (admin)
+  const esAdmin2 = ['empresa', 'supervisor'].includes(user.role)
+  const limiteKey = !esAdmin2 ? `sync-ventas:${user.id}:${hoyBogota}` : `sync-ventas:${empresaId}:${hoyBogota}`
+
   const empresa = await prisma.empresa.findUnique({
     where: { id: empresaId },
     select: { syncVentasHoy: true, syncVentasFecha: true } as any
   }) as any
 
-  const mismaFecha = empresa?.syncVentasFecha?.toISOString().split('T')[0] === hoyBogota
-  const usadosHoy = mismaFecha ? (empresa?.syncVentasHoy ?? 0) : 0
+  // Para vendedor: verificar límite en Empleado
+  let usadosHoy = 0
+  if (!esAdmin2) {
+    const emp = await (prisma as any).empleado.findUnique({
+      where: { id: user.id },
+      select: { syncVentasHoy: true, syncVentasFecha: true }
+    })
+    const mismaFechaEmp = emp?.syncVentasFecha?.toISOString().split('T')[0] === hoyBogota
+    usadosHoy = mismaFechaEmp ? (emp?.syncVentasHoy ?? 0) : 0
+  } else {
+    const mismaFecha = empresa?.syncVentasFecha?.toISOString().split('T')[0] === hoyBogota
+    usadosHoy = mismaFecha ? (empresa?.syncVentasHoy ?? 0) : 0
+  }
 
   if (usadosHoy >= MAX_SYNC_DIA) {
     return NextResponse.json({ error: 'Límite de 2 sync diarios alcanzado', restantes: 0 }, { status: 429 })
   }
 
-  // Traer clientes de rutas fijas
+  // Filtrar por empleado si es vendedor/impulsadora — solo sus rutas fijas
+  const esAdmin = ['empresa', 'supervisor'].includes(user.role)
+  const empleadoId = !esAdmin ? user.id : undefined
+
   const rutasFijas = await (prisma as any).rutaFija.findMany({
-    where: { empresaId },
+    where: { empresaId, ...(empleadoId ? { empleadoId } : {}) },
     include: { clientes: { include: { cliente: { select: { id: true, apiId: true } } } } }
   })
 
@@ -127,15 +145,25 @@ export async function POST(req: NextRequest) {
     await (prisma as any).$transaction(ops)
   }
 
-  // Actualizar contador
-  await (prisma as any).empresa.update({
-    where: { id: empresaId },
-    data: {
-      syncVentasHoy: usadosHoy + 1,
-      syncVentasFecha: new Date(hoyBogota),
-      syncVentasUltimo: new Date(),
-    } as any
-  })
+  // Actualizar contador — por empleado o por empresa
+  if (!esAdmin2) {
+    await (prisma as any).empleado.update({
+      where: { id: user.id },
+      data: {
+        syncVentasHoy: usadosHoy + 1,
+        syncVentasFecha: new Date(hoyBogota),
+      } as any
+    }).catch(() => {}) // si el campo no existe, ignorar
+  } else {
+    await (prisma as any).empresa.update({
+      where: { id: empresaId },
+      data: {
+        syncVentasHoy: usadosHoy + 1,
+        syncVentasFecha: new Date(hoyBogota),
+        syncVentasUltimo: new Date(),
+      } as any
+    })
+  }
 
   return NextResponse.json({
     ok: true,
