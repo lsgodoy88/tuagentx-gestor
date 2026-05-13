@@ -48,7 +48,8 @@ export default function CarteraPage() {
   const [paginaActual, setPaginaActual] = useState(1)
   const [cargandoMas, setCargandoMas] = useState(false)
   const [sincronizando, setSincronizando] = useState(false)
-  const [syncInfo, setSyncInfo] = useState<{ultimaSync: string|null, ultimaSyncCompleta?: string|null, tieneIntegracion?: boolean}|null>(null)
+  type SyncLogItem = { id: string; inicio: string; fin: string|null; duracionMs: number; clientesActualizados: number; empleadosSincronizados: number; deudasSincronizadas: number; zombis: number; pagosConfrontados: number; disparadoPor: string; estado: string; errores: any }
+  const [syncInfo, setSyncInfo] = useState<{ultimaSync: string|null, ultimaSyncCompleta?: string|null, tieneIntegracion?: boolean, historial?: SyncLogItem[]}|null>(null)
   const [modalSync, setModalSync] = useState(false)
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -121,7 +122,7 @@ export default function CarteraPage() {
 
   useEffect(() => {
     fetch('/api/integracion/estado').then(r => r.json()).then(d => {
-      setSyncInfo({ ultimaSync: d.ultimaSync ?? null, tieneIntegracion: d.tieneIntegracion ?? false })
+      setSyncInfo({ ultimaSync: d.ultimaSync ?? null, ultimaSyncCompleta: d.ultimaSyncCompleta ?? null, tieneIntegracion: d.tieneIntegracion ?? false, historial: d.historial ?? [] })
     }).catch(() => {})
   }, [])
 
@@ -135,7 +136,7 @@ export default function CarteraPage() {
       })
     } catch {}
     await cargarDatos(buscar)
-    fetch('/api/integracion/estado').then(r => r.json()).then(d => setSyncInfo({ ultimaSync: d.ultimaSync ?? null, ultimaSyncCompleta: d.ultimaSyncCompleta ?? null, tieneIntegracion: d.tieneIntegracion ?? false })).catch(() => {})
+    fetch('/api/integracion/estado').then(r => r.json()).then(d => setSyncInfo({ ultimaSync: d.ultimaSync ?? null, ultimaSyncCompleta: d.ultimaSyncCompleta ?? null, tieneIntegracion: d.tieneIntegracion ?? false, historial: d.historial ?? [] })).catch(() => {})
     setSincronizando(false)
   }
 
@@ -1248,10 +1249,10 @@ export default function CarteraPage() {
       )}
     </div>
 
-    {/* Modal Sync */}
+    {/* Modal Sync con historial */}
     {modalSync && syncInfo?.tieneIntegracion && (
       <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center p-4 pt-20" onClick={() => setModalSync(false)}>
-        <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-5 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="bg-[#18181b] border border-zinc-800 rounded-2xl p-5 w-full max-w-md space-y-4 max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
           <div className="flex items-center justify-between">
             <h3 className="text-white font-bold text-base">🔄 Sincronización</h3>
             <button onClick={() => setModalSync(false)} className="text-zinc-500 hover:text-white text-xl">×</button>
@@ -1281,6 +1282,48 @@ export default function CarteraPage() {
             <span className={sincronizando ? 'animate-spin' : ''}>🔄</span>
             {sincronizando ? 'Sincronizando...' : 'Actualizar ahora'}
           </button>
+          {/* Historial de últimas syncs */}
+          {(syncInfo?.historial?.length ?? 0) > 0 && (
+            <div className="border-t border-zinc-800 pt-4">
+              <div className="text-zinc-400 text-xs font-semibold mb-2">Últimas {syncInfo!.historial!.length} ejecuciones</div>
+              <div className="space-y-2">
+                {syncInfo!.historial!.map((h: SyncLogItem) => (
+                  <div key={h.id} className="bg-zinc-900/60 rounded-lg p-2.5 text-xs space-y-1">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5">
+                        <span className={
+                          h.estado === 'ok' ? 'text-emerald-500' :
+                          h.estado === 'error' ? 'text-red-500' : 'text-amber-500'
+                        }>●</span>
+                        <span className="text-zinc-300">
+                          {new Date(h.inicio).toLocaleString('es-CO', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}
+                        </span>
+                        <span className="text-zinc-600">·</span>
+                        <span className="text-zinc-500">{h.disparadoPor === 'cron' ? '⏰ auto' : '👤 manual'}</span>
+                      </div>
+                      <span className="text-zinc-500">{h.duracionMs ? `${(h.duracionMs/1000).toFixed(1)}s` : '—'}</span>
+                    </div>
+                    {h.estado === 'ok' && (
+                      <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-zinc-400">
+                        {h.clientesActualizados > 0 && <span>👤 {h.clientesActualizados}</span>}
+                        {h.deudasSincronizadas > 0 && <span>💰 {h.deudasSincronizadas}</span>}
+                        {h.zombis > 0 && <span>🪦 {h.zombis}</span>}
+                        {h.pagosConfrontados > 0 && <span>✓ {h.pagosConfrontados}</span>}
+                        {h.clientesActualizados === 0 && h.deudasSincronizadas === 0 && h.zombis === 0 && h.pagosConfrontados === 0 && (
+                          <span className="text-zinc-600 italic">sin cambios</span>
+                        )}
+                      </div>
+                    )}
+                    {h.estado === 'error' && h.errores && (
+                      <div className="text-red-400 text-[11px]">
+                        {(h.errores as any)?.message || 'Error desconocido'}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     )}
