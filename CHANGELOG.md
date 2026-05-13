@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.3.2] - 2026-05-12 (Integración completa + consecutivo)
+
+### Added
+- 42 tests sobre helpers críticos previamente sin cobertura:
+  - `lib/integracion/sync.refrescarDeudasConPagosPendientes` (13) — confronta pagos locales con UpTres por cliente, resiliente a falla por cliente
+  - `lib/integracion/venta-mes.recalcularVentasMesImpulsos` (12) — fuente dual (ERP UpTres + Visita.tipo='venta'), batch en $transaction
+  - `lib/consecutivo.getConsecutivo` (17) — generador de numeroRecibo con iniciales del vendedor, reset por mes, prefijo manual override
+
+### Documentado por tests
+- `getConsecutivo` filtra 'Y' como conectivo castellano (afecta iniciales como 'PEDRO Y CARMEN' → 'PC')
+- El fallback `'XX'` para nombre vacío es dead code: primera siempre = 'X' default, jamás llega al fallback. Resultado real es `'X'` no `'XX'`
+- `recalcularVentasMesImpulsos` ignora fechas inválidas y ventas con cliente.uid distinto del solicitado
+
+### Notes
+- Total: 360 tests pasando en CI
+- `lib/integracion/sync.ts` 100% cubierto (4/4 helpers exportados)
+- Queda sin cobertura: `lib/integracion/adapters/uptres.ts` (245 líneas, HTTP-based, requiere mock fetch)
+
 ## [1.3.1] - 2026-05-12 (Cartera + integracion completas)
 
 ### Added
