@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.3.1] - 2026-05-12 (Cartera + integracion completas)
+
+### Added
+- 46 tests nuevos cubriendo el resto del módulo cartera + helpers de integracion:
+  - `/api/cartera/pago` POST (24) — variante con Cartera/DetalleCartera, distribución proporcional, fechaPago cascada
+  - `/api/cartera/recibo-token` POST (7) — renovación de token 15min
+  - `/api/cartera/recibo/[pagoId]` GET (10) — recibo autenticado con hidratación de cliente en cascada (incluye fallback cuando cliente fue borrado de BD)
+  - `lib/integracion/sync.sincronizarDeudas` (12) — upsert desde fetch UpTres con cascada fPago/fCreado+dias/null
+  - `lib/integracion/sync.marcarZombis` (5) — cierre de deudas que UpTres ya no devuelve
+  - `lib/integracion/sync.actualizarCache` (12) — reconstrucción de CarteraCache con saldoReal=saldoSync-pagosLocalNoConfrontados
+
+### Notes
+- Total: 318 tests pasando en CI
+- Cartera completamente cubierto: pago, pago-sync, recibo-publico, recibo-token, recibo/[pagoId]
+- Helpers críticos de integracion cubiertos: queda solo el orchestrator (/api/integracion/sync route) y el adapter UpTres
+
 ## [1.3.0] - 2026-05-12 (Endpoint tests + Prisma mocking)
 
 ### Added
