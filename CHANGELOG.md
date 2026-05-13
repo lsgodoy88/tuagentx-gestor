@@ -1,5 +1,24 @@
 # Changelog
 
+## [1.3.0] - 2026-05-12 (Endpoint tests + Prisma mocking)
+
+### Added
+- Patrón de testing de endpoints con mock de Prisma (`vi.mock('@/lib/prisma')`) + `next-auth` + `lib/auth`
+- Helper `mockTx()` para mockear `prisma.$transaction(async (tx) => { ... })` — invoca el callback con un `tx` mock customizable por test
+- 92 tests nuevos sobre 6 endpoints críticos:
+  - `/api/health` (8) — BD + sync<26h drive el monitor
+  - `/api/clientes/[id]/promedio` (10) — fuente erp vs app, fallback, multitenant
+  - `/api/clientes/[id]/gps` (13) — protección de GPS confirmado, override admin
+  - `/api/clientes/[id]/meta` (7) — null/0/string numéricos
+  - `/api/turnos` (15) — pausa real vs solicitada (fix del bug histórico)
+  - `/api/cartera/pago-sync` (25) — Serializable transaction, FIFO, anti race-condition
+  - `/api/cartera/recibo-publico` (15) — token expirado, modo Cartera vs sync con datos congelados
+
+### Notes
+- Total: 248 tests pasando en CI cada PR
+- 100% coverage de líneas en `lib/`: auth-helpers, cartera, crypto-uptres, fechas, fecha (legacy), impulsoMetricas, maps, permisos, recibos
+- Patrón documentado para futuros endpoints: copia esqueleto de cualquier test existente, ajusta tablas y mocks
+
 ## [1.2.2] - 2026-05-12 (Lock de deploy concurrente)
 
 ### Fixed
