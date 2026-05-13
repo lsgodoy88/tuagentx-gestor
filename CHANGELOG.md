@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.4.1] - 2026-05-12 (OSRM full Colombia + proxy hardening)
+
+### Fixed
+- **`/api/osrm-route` no valida más rutas truncadas como válidas**: OSRM responde `code:"Ok"` con HTTP 200 aún cuando origen/destino están fuera del dataset cargado, pero devuelve `distance:0` y `geometry.coordinates` vacío. El frontend pintaba polylines mutilados en el mapa de delivery.
+- Ahora el proxy valida `distance > 0` AND `geometry.coordinates.length >= 2`, y devuelve `503 OSRM_OUT_OF_BOUNDS` si no se cumple. El cliente cae al fallback de línea recta.
+
+### Changed (infra, fuera del repo)
+- **Dataset OSRM ampliado de Ibagué a Colombia completa**: regenerado `colombia.osrm` desde `/srv/osrm/colombia.osm.pbf` (299MB pbf → 478MB osrm + supporting files). Container `osrm-ibague` ahora apunta a `colombia.osrm` (nombre del container mantenido por compat).
+- Memoria del container: ~960MB en runtime (de 7.8GB del VPS, sostenible). RAM peak durante extract: 3GB.
+- Verificado end-to-end: Bogotá, Cali, Medellín, intra-ciudad e inter-ciudad (Ibagué→Bogotá 187km/193min) routes correctos.
+- Dataset viejo (`ibague.osrm`, ~10MB) sigue en disco como fallback. Rollback: `docker stop osrm-ibague && docker rm osrm-ibague && docker run -d --name osrm-ibague --restart unless-stopped -p 5000:5000 -v /srv/osrm:/data osrm/osrm-backend osrm-routed --algorithm mld /data/ibague.osrm`
+
+### Notes
+- Resuelve pendiente #6 de CONTEXTO: "OSRM ampliar bbox fuera de Ibagué"
+- `bbox` en CONTEXTO-2.md (`-75.35,4.25,-74.85,4.65`) está OBSOLETO; ahora cubre toda Colombia
+
 ## [1.4.0] - 2026-05-12 (Popup sync con historial + más cobertura)
 
 ### Added (features)
