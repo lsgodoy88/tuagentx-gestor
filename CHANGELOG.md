@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.3.4] - 2026-05-12 (UpTres adapter + helpers utilitarios)
+
+### Added
+- 48 tests sobre la última frontera de lib/ y utilidades de uso ancho:
+  - `lib/integracion/adapters/uptres.UpTresAdapter` (24) — login + headers + fetchClientes/Empleados/Deudas/DeudasCliente/Ventas con global.fetch mockeado, paginación cursor, fallbacks, casos DANE
+  - `lib/fetchApi.fetchApi` + `errorMsg` (19) — retry helper usado en TODO el frontend, contrato fire-and-forget que nunca throws
+  - `lib/audit.audit` (5) — logger AuditLog con error swallowed
+
+### Notes
+- Total: 428 tests pasando en CI
+- **lib/integracion 100% cubierto** (sync helpers + orchestrator + venta-mes + adapter UpTres)
+- **lib/ helpers utilitarios 100% cubiertos** (fetchApi, audit, recibos, fechas, cartera, gps, maps, permisos, crypto-uptres, auth-helpers, consecutivo, impulsoMetricas)
+- Sin cobertura (decisión consciente): `lib/r2.ts` (S3 client wrapper), `lib/push.ts` (web push), `lib/version.ts` (autogenerado)
+- Sin cobertura en endpoints: `/api/cartera/voucher` (OCR OpenAI + sharp + execFile pdf, alta complejidad mocking), endpoints CRUD pequeños (recaudos, firma, cotizacion, ordenes — patrón ya establecido para copiar)
+
 ## [1.3.3] - 2026-05-12 (Orquestador sync + consecutivo)
 
 ### Added
