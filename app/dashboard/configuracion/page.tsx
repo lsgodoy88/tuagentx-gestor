@@ -157,7 +157,7 @@ export default function ConfiguracionPage() {
           setModoActivo('erp'); setModoSel('erp')
         }
       })
-      fetch('/api/clientes?limit=500').then(r => r.json()).then(d => setClientes(d.clientes || [])).catch(() => {})
+      fetch('/api/clientes?page=1&limit=500').then(r => r.json()).then(d => setClientes(d.clientes || [])).catch(() => {})
       fetch('/api/mi-empresa/config').then(r => r.json()).then(d => {
         if (d.horaInicioRuta) setHoraInicio(d.horaInicioRuta)
         if (d.horaFinRuta) setHoraFin(d.horaFinRuta)

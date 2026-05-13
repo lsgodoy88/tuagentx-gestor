@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   const cursor = searchParams.get('cursor') || null       // cursor-based
   const page = parseInt(searchParams.get('page') || '1') // legacy offset
   const limit = parseInt(searchParams.get('limit') || '10')
-  const useCursor = !!cursor || searchParams.has('cursor')
+  const useCursor = !!cursor || searchParams.has('cursor') || (searchParams.has('limit') && !searchParams.has('page'))
   const skip = useCursor ? undefined : (page - 1) * limit
 
   const where: any = { empresaId }

@@ -218,9 +218,7 @@ export default function TrazabilidadPage() {
             )}
           </div>
           {(ordenesBusqueda !== null ? ordenesBusqueda : ordenes).map(orden => {
-            const fotos: string[] = Array.isArray(orden.fotosAlistamiento)
-              ? orden.fotosAlistamiento
-              : orden.fotoAlistamiento ? [orden.fotoAlistamiento] : []
+            const fotos: string[] = Array.isArray(orden.fotosAlistamiento) ? orden.fotosAlistamiento : []
             const firma = orden.visitas?.[0]?.firma || orden.firmaEntrega || null
             const repartidorNombre = orden.repartidor?.nombre || null
             const entregadoPor = orden.visitas?.[0]?.empleado?.nombre || null

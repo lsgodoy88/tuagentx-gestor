@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   const hasta = searchParams.get('hasta') || ''
   const cursor = searchParams.get('cursor') || null
   const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
-  const useCursor = !!cursor || searchParams.has('cursor')
+  const useCursor = !!cursor || searchParams.has('cursor') || (searchParams.has('limit') && !searchParams.has('page'))
 
   // Rol entregas: solo sus órdenes entregadas (repartidorId = empleadoId)
   if (esEntregas) {
@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
       prisma.ordenDespacho.count({ where }),
       prisma.ordenDespacho.findMany({
         where,
-        orderBy: { entregadoEl: 'desc' },
+        orderBy: [{ numeroOrden: 'desc' }, { entregadoEl: 'desc' }],
         skip: (page - 1) * PAGE_SIZE,
         take: PAGE_SIZE,
         select: {
@@ -59,7 +59,9 @@ export async function GET(req: NextRequest) {
           alistadoPor: { select: { nombre: true } },
           repartidor: { select: { nombre: true } },
           visitas: {
+            where: { tipo: 'entrega' },
             orderBy: { createdAt: 'asc' },
+            take: 1,
             select: { id: true, firma: true, createdAt: true, empleado: { select: { nombre: true } } }
           }
         }
@@ -116,7 +118,7 @@ export async function GET(req: NextRequest) {
       prisma.ordenDespacho.count({ where }),
       prisma.ordenDespacho.findMany({
         where,
-        orderBy: { fechaOrden: 'desc' },
+        orderBy: [{ numeroOrden: 'desc' }, { fechaOrden: 'desc' }],
         skip: (page - 1) * PAGE_SIZE,
         take: PAGE_SIZE,
         select: {
@@ -126,7 +128,9 @@ export async function GET(req: NextRequest) {
           alistadoPor: { select: { nombre: true } },
           repartidor: { select: { nombre: true } },
           visitas: {
+            where: { tipo: 'entrega' },
             orderBy: { createdAt: 'asc' },
+            take: 1,
             select: { id: true, firma: true, createdAt: true, empleado: { select: { nombre: true } } }
           }
         }
@@ -189,7 +193,9 @@ export async function GET(req: NextRequest) {
     alistadoPor: { select: { nombre: true } },
     repartidor: { select: { nombre: true } },
     visitas: {
+      where: { tipo: 'entrega' },
       orderBy: { createdAt: 'asc' as const },
+      take: 1,
       select: { id: true, firma: true, createdAt: true, empleado: { select: { nombre: true } } }
     }
   }
@@ -197,7 +203,7 @@ export async function GET(req: NextRequest) {
   if (useCursor) {
     const ordenes = await prisma.ordenDespacho.findMany({
       where,
-      orderBy: { fechaOrden: 'desc' },
+      orderBy: [{ numeroOrden: 'desc' }, { fechaOrden: 'desc' }],
       take: PAGE_SIZE + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
       select: baseSelect,
@@ -212,7 +218,7 @@ export async function GET(req: NextRequest) {
     prisma.ordenDespacho.count({ where }),
     prisma.ordenDespacho.findMany({
       where,
-      orderBy: { fechaOrden: 'desc' },
+      orderBy: [{ numeroOrden: 'desc' }, { fechaOrden: 'desc' }],
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
       select: baseSelect,

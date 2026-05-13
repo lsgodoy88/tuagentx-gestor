@@ -1,6 +1,5 @@
 'use client'
 import AsistenteGestor from '@/components/AsistenteGestor'
-import VersionFooter from '@/components/VersionFooter'
 
 function gearPath(cx: number, cy: number, outerR: number, innerR: number, teeth: number): string {
   const pts: string[] = []
@@ -229,7 +228,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       items: [
         { href: '/dashboard/rutas', label: 'Rutas', icon: '🗺️' },
         { href: '/dashboard/rutas-fijas', label: 'Impulsos', icon: '⚡' },
-        { href: '/dashboard/mapa', label: 'Mapa en vivo', icon: '📍' },
 
         { href: '/dashboard/trazabilidad', label: 'Trazabilidad', icon: '📊' },
       ]
@@ -248,7 +246,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     ...(isEmpleado && user?.role !== 'impulsadora' ? [{
       items: [
         { href: '/dashboard/visitas', label: 'Visitas', icon: '📋' },
-        { href: '/dashboard/mapa', label: 'Mapa en vivo', icon: '📍' },
         ...(user?.role === 'vendedor' ? [
           { href: '/dashboard/clientes', label: 'Clientes', icon: '🏪' },
           { href: '/dashboard/cartera', label: 'Cartera', icon: '💰' },
@@ -279,7 +276,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: '/dashboard/recaudos', label: 'Recaudos', icon: '💳' },
       { href: '/dashboard/rutas', label: 'Rutas', icon: '🗺️' },
       { href: '/dashboard/rutas-fijas', label: 'Impulsos', icon: '⚡' },
-      { href: '/dashboard/mapa', label: 'Mapa en vivo', icon: '📍' },
       { href: '/dashboard/visitas-admin', label: 'Visitas', icon: '📋' },
       { href: '/dashboard/trazabilidad', label: 'Trazabilidad', icon: '📊' },
       { href: '/dashboard/reportes', label: 'Reportes', icon: '📈' },
@@ -290,7 +286,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     ] : []),
     ...(isEmpleado && user?.role !== 'impulsadora' ? [
       { href: '/dashboard/visitas', label: 'Visitas', icon: '📋' },
-      { href: '/dashboard/mapa', label: 'Mapa en vivo', icon: '📍' },
       ...(user?.role === 'vendedor' ? [
         { href: '/dashboard/clientes', label: 'Clientes', icon: '🏪' },
         { href: '/dashboard/cartera', label: 'Cartera', icon: '💰' },
@@ -568,7 +563,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className={`flex-1 overflow-x-auto overflow-y-auto p-4 md:p-6 pb-32 md:pb-6${bloqueado ? ' pointer-events-none opacity-50' : ''}`}>
           <div className="max-w-screen-xl mx-auto w-full space-y-6">
             <PermisosGuard role={user?.role}><GpsContext.Provider value={{ setSincronizandoGps }}>{children}</GpsContext.Provider></PermisosGuard>
-            <VersionFooter />
           </div>
         </div>
       </main>

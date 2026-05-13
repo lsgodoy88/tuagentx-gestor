@@ -47,14 +47,34 @@ export async function GET(req: NextRequest) {
     alistadoPor: { select: { nombre: true } },
     repartidor: { select: { nombre: true } },
     visitas: {
+      where: { tipo: 'entrega' },
       orderBy: { createdAt: 'asc' as const },
+      take: 1,
       select: { id: true, firma: true, createdAt: true, empleado: { select: { nombre: true } } }
     }
   }
 
+  // Calcular alcance por vinculaciones (igual que /api/trazabilidad)
+  const empresa = await prisma.empresa.findUnique({
+    where: { id: empresaId },
+    select: { bodegaPuedeEnviar: true }
+  })
+  const vinculaciones = await prisma.empresaVinculada.findMany({
+    where: { empresaClienteId: empresaId, activa: true }
+  })
+
+  let scopeWhere: any
+  if (vinculaciones.length > 0 && !empresa?.bodegaPuedeEnviar) {
+    // Empresa cliente (tipo Leche): solo sus órdenes vinculadas en bodega de proveedor
+    scopeWhere = { origenVinculadaId: { in: vinculaciones.map((v: any) => v.id) } }
+  } else {
+    // Empresa propia: solo órdenes propias no-vinculadas
+    scopeWhere = { empresaId, origenVinculadaId: null }
+  }
+
   // 1. Buscar en OrdenDespacho directamente (BD completa sin filtro fechas)
   const whereDirecto: any = {
-    empresaId,
+    ...scopeWhere,
     OR: [
       { numeroOrden: { contains: q, mode: 'insensitive' } },
       { clienteNombre: { contains: q, mode: 'insensitive' } },
@@ -66,7 +86,7 @@ export async function GET(req: NextRequest) {
 
   const ordenesDirectas = await prisma.ordenDespacho.findMany({
     where: whereDirecto,
-    orderBy: { fechaOrden: 'desc' },
+    orderBy: [{ numeroOrden: 'desc' }, { fechaOrden: 'desc' }],
     take: 20,
     select: SELECT
   })
