@@ -268,25 +268,25 @@ describe('POST /api/integracion/sync — orchestrator', () => {
     })
   })
 
-  describe('manual: empleadoId para vendedor en delta', () => {
-    it('supervisor → recalcularVentasMesImpulsos sin empleadoId (todas las rutas)', async () => {
+  describe('manual delta: separación cartera vs impulsos', () => {
+    it('supervisor manual → NO llama recalcularVentasMesImpulsos (cartera quirúrgica)', async () => {
       const { recalcularVentasMesImpulsos } = await import('@/lib/integracion/venta-mes')
       vi.mocked(getServerSession).mockResolvedValue(SUPERVISOR)
       vi.mocked((prisma as any).integracion.findFirst).mockResolvedValue(integracionBase)
 
       await POST(makeReq({ tipo: 'delta' }))
 
-      expect(recalcularVentasMesImpulsos).toHaveBeenCalledWith('emp-1', expect.anything(), undefined)
+      expect(recalcularVentasMesImpulsos).not.toHaveBeenCalled()
     })
 
-    it('vendedor → recalcularVentasMesImpulsos con user.id (solo sus rutas)', async () => {
+    it('vendedor manual → NO llama recalcularVentasMesImpulsos (solo sus deudas)', async () => {
       const { recalcularVentasMesImpulsos } = await import('@/lib/integracion/venta-mes')
       vi.mocked(getServerSession).mockResolvedValue(VENDEDOR)
       vi.mocked((prisma as any).integracion.findFirst).mockResolvedValue(integracionBase)
 
       await POST(makeReq({ tipo: 'delta' }))
 
-      expect(recalcularVentasMesImpulsos).toHaveBeenCalledWith('emp-1', expect.anything(), 'usr-v')
+      expect(recalcularVentasMesImpulsos).not.toHaveBeenCalled()
     })
   })
 })
