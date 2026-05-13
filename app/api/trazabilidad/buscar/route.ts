@@ -86,7 +86,7 @@ export async function GET(req: NextRequest) {
 
   const ordenesDirectas = await prisma.ordenDespacho.findMany({
     where: whereDirecto,
-    orderBy: [{ numeroOrden: 'desc' }, { fechaOrden: 'desc' }],
+    orderBy: { fechaOrden: 'desc' },
     take: 20,
     select: SELECT
   })

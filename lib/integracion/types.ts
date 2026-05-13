@@ -53,6 +53,7 @@ export interface AdaptadorIntegracion {
   fetchClientes(desde?: Date): Promise<ClienteExterno[]>
   fetchDeudas(desde?: Date): Promise<DeudaExterna[]>
   fetchDeudasCliente(nit: string): Promise<DeudaExterna[]>
+  fetchDeudasEmpleado(empleadoApiId: string): Promise<DeudaExterna[]>
   fetchEmpleados(desde?: Date): Promise<EmpleadoExterno[]>
   fetchVentas(desde?: Date): Promise<VentaExterna[]>
 }
