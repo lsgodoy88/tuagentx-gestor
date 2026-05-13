@@ -28,6 +28,9 @@ export default function DashboardPage() {
   const [visitasRuta, setVisitasRuta] = useState<any[]>([])
   const [resumenFinanciero, setResumenFinanciero] = useState<any>(null)
   const [monitor, setMonitor] = useState<any[]>([])
+  const [syncInfo, setSyncInfo] = useState<any>(null)
+  const [modalSync, setModalSync] = useState(false)
+  const [sincronizando, setSincronizando] = useState(false)
   const [empresaDetalleSA, setEmpresaDetalleSA] = useState<string | null>(null)
   const [loadingStats, setLoadingStats] = useState(false)
   const [modalVisita, setModalVisita] = useState<{open: boolean, tipo: string}>({open: false, tipo: 'visita'})
@@ -137,10 +140,27 @@ export default function DashboardPage() {
       }
     } else {
       fetch('/api/stats').then(r => r.json()).then(d => setStats(d)).catch(() => {})
+    if (isEmpresa || isSupervisor) fetch('/api/integracion/estado').then(r => r.json()).then(d => setSyncInfo(d)).catch(() => {})
     if (isEmpresa || isSupervisor) fetch('/api/monitor').then(r => r.json()).then(d => { if (Array.isArray(d)) setMonitor(d) }).catch(() => {})
     if (isEmpresa || isSupervisor || isBodega) fetch('/api/bodega/despachos').then(r => r.json()).then(d => { if (d.despachos) { const hoy = new Date().toDateString(); setBodegaStats({ pendientes: d.despachos.filter((o:any) => o.estado==='pendiente').length, alistados: d.despachos.filter((o:any) => o.estado==='alistado').length, entregados: d.despachos.filter((o:any) => ['en_entrega','entregado'].includes(o.estado) && new Date(o.entregadoEl||'').toDateString()===hoy).length }) } }).catch(()=>{})
     }
   }, [user])
+  async function dispararSync() {
+    setSincronizando(true)
+    try {
+      await fetch('/api/integracion/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo: 'delta' })
+      })
+      const res = await fetch('/api/integracion/estado').then(r => r.json())
+      setSyncInfo(res)
+      // recargar stats
+      fetch('/api/stats').then(r => r.json()).then(d => setStats(d)).catch(() => {})
+    } catch {}
+    setSincronizando(false)
+  }
+
   async function iniciarTurno() {
     setBloqueadoTurno(true)
     setTimeout(() => refRuta.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
@@ -489,9 +509,19 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 pb-20 md:pb-0 max-w-5xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Bienvenido, {user?.name}</h1>
-        <p className="text-zinc-400 text-sm mt-1 capitalize">{user?.role}</p>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-white">Bienvenido, {user?.name}</h1>
+          <p className="text-zinc-400 text-sm mt-1 capitalize">{user?.role}</p>
+        </div>
+        {(isEmpresa || isSupervisor) && syncInfo?.tieneIntegracion && (
+          <button
+            onClick={() => setModalSync(true)}
+            disabled={sincronizando}
+            className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-semibold px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50">
+            <span>{sincronizando ? '⏳' : '🔄'}</span> {sincronizando ? 'Sincronizando...' : 'Sync'}
+          </button>
+        )}
       </div>
       {(isEmpresa || isSupervisor) && (
         <div className="space-y-6">
@@ -1412,6 +1442,48 @@ export default function DashboardPage() {
         </div>
       )
     })()}
+
+    {modalSync && syncInfo?.tieneIntegracion && (
+      <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center p-4 pt-20" onClick={() => setModalSync(false)}>
+        <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-md w-full" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-white font-bold text-lg">🔄 Sincronización</h3>
+            <button onClick={() => setModalSync(false)} className="text-zinc-500 hover:text-white text-xl">×</button>
+          </div>
+          <div className="space-y-3 text-sm">
+            <div className="bg-zinc-800/60 rounded-xl p-3">
+              <div className="text-zinc-400 text-xs mb-1">Última sincronización</div>
+              <div className="text-white font-semibold">
+                {syncInfo.ultimaSync
+                  ? new Date(syncInfo.ultimaSync).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })
+                  : 'Nunca'}
+              </div>
+            </div>
+            {syncInfo.historial && syncInfo.historial.length > 0 && (
+              <div className="bg-zinc-800/60 rounded-xl p-3 max-h-48 overflow-y-auto">
+                <div className="text-zinc-400 text-xs mb-2">Historial reciente</div>
+                <div className="space-y-1.5">
+                  {syncInfo.historial.slice(0, 5).map((h: any) => (
+                    <div key={h.id} className="text-xs flex justify-between">
+                      <span className="text-zinc-300">{new Date(h.inicio).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                      <span className="text-zinc-500">
+                        {h.clientesActualizados} cli · {h.deudasSincronizadas} deu
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          <button
+            onClick={() => { setModalSync(false); dispararSync() }}
+            disabled={sincronizando}
+            className="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-xl disabled:opacity-50">
+            {sincronizando ? 'Sincronizando...' : 'Sincronizar ahora'}
+          </button>
+        </div>
+      </div>
+    )}
     </div>
   )
 }

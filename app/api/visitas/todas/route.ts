@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const cursor = searchParams.get('cursor') || null
   const limit = parseInt(searchParams.get('limit') || '15')
   const page = parseInt(searchParams.get('page') || '1')
-  const useCursor = !!cursor || searchParams.has('cursor')
+  const useCursor = !!cursor || searchParams.has('cursor') || (searchParams.has('limit') && !searchParams.has('page'))
   const skip = useCursor ? undefined : (page - 1) * limit
 
   const where: any = { empleadoId: user.id }

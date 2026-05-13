@@ -294,7 +294,7 @@ export default function ModalVisita({
             )}
 
             {/* Monto */}
-            {!isEntregas && tipo !== 'visita' && (
+            {!isEntregas && tipo === 'cobro' && (
               <div>
                 <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Monto ($)</label>
                 <input type="number" value={monto} onChange={e => setMonto(e.target.value)}

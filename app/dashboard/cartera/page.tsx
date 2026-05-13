@@ -425,9 +425,11 @@ export default function CarteraPage() {
           <h1 className="text-2xl font-bold text-white">💰 Cartera</h1>        </div>
         {(esAdmin || esVendedor) && (
           <div className="flex items-center gap-2">
-            <button onClick={() => setModalSync(true)}
-              className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
-              <span>🔄</span> Sync
+            <button
+              onClick={() => esAdmin ? setModalSync(true) : sincronizar()}
+              disabled={sincronizando}
+              className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-semibold px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50">
+              <span>{sincronizando ? '⏳' : '🔄'}</span> {sincronizando ? 'Sincronizando...' : 'Sync'}
             </button>
             {!syncInfo?.tieneIntegracion && (
               <button onClick={() => setModalImportar(true)}

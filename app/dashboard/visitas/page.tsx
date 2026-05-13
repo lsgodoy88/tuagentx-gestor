@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { fetchApi } from '@/lib/fetchApi'
 import ModalVisita from '@/components/ModalVisita'
+import MapaEnVivo from '@/components/MapaEnVivo'
 import { checkPermiso } from '@/lib/permisos'
 
 export default function VisitasPage() {
@@ -28,7 +29,7 @@ export default function VisitasPage() {
   const [fechaHistorial, setFechaHistorial] = useState('')
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-  const [tab, setTab] = useState<'nueva' | 'historial'>('nueva')
+  const [tab, setTab] = useState<'mapa' | 'nueva' | 'historial'>('mapa')
 
   // Firma viewer
   const [firmaVer, setFirmaVer] = useState<any>(null)
@@ -143,15 +144,21 @@ export default function VisitasPage() {
       </div>
 
       <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
+        <button onClick={() => setTab('mapa')}
+          className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'mapa' ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-300")}>
+          🗺️ Mapa
+        </button>
         <button onClick={() => setTab('nueva')}
           className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'nueva' ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-300")}>
-          {isEntregas ? '📦 Nueva entrega' : '📍 Nueva visita'}
+          {isEntregas ? '📦 Nueva' : '📍 Nueva'}
         </button>
         <button onClick={() => setTab('historial')}
           className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'historial' ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-300")}>
           Historial
         </button>
       </div>
+
+      {tab === 'mapa' && <MapaEnVivo embebido />}
 
       {tab === 'nueva' && (
         <div className="space-y-4">

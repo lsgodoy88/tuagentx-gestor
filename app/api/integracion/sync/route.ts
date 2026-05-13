@@ -15,7 +15,7 @@ function resolverConfig(config: any): Record<string, string> {
 }
 
 // ─── Lógica delta unificada — usada por cron y botón ───────────────────────
-async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor: string = 'cron', empleadoId?: string): Promise<{
+async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor: string = 'cron', empleadoId?: string, incluirImpulsos: boolean = false): Promise<{
   clientes: number, empleados: number, deudas: number, zombis: number, confrontados: number, duracionMs: number
 }> {
   const log = (m: string) => { logs.push(m); console.log('[sync-delta]', m) }
@@ -28,19 +28,24 @@ async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor
   const empresaId = integracion.empresaId
   const desde = integracion.ultimaSync ? new Date(integracion.ultimaSync) : undefined
 
+  const T = (label: string, t0: number) => log(`⏱ ${label}: ${((Date.now()-t0)/1000).toFixed(2)}s`)
+
   // ── Clientes delta ────────────────────────────────────────────────────────
+  let _t = Date.now()
   const clientesExt = await adapter.fetchClientes(desde)
+  T(`fetchClientes (${clientesExt.length})`, _t)
   let clientesActualizados = 0
   const toUpdateCli: any[] = []
   const toCreateCli: any[] = []
   const nits = clientesExt.map((c: any) => (c.doc as string)?.trim()).filter(Boolean)
   const existentesCli = await (prisma as any).cliente.findMany({
     where: { nit: { in: nits }, empresaId },
-    select: { id: true, nit: true }
+    select: { id: true, nit: true, apiId: true, ciudad: true, departamento: true, direccion: true, telefono: true, email: true, nombre: true }
   })
-  const mapaExistentes: Record<string, string> = {}
-  existentesCli.forEach((e: any) => { mapaExistentes[e.nit] = e.id })
+  const mapaExistentes: Record<string, any> = {}
+  existentesCli.forEach((e: any) => { mapaExistentes[e.nit] = e })
 
+  let skipped = 0
   for (const c of clientesExt) {
     const doc = (c as any).doc?.trim()
     const uid = (c as any).uid?.trim() || (c as any)._id?.trim()
@@ -54,8 +59,17 @@ async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor
       telefono: (c as any).nCel || undefined,
       email: (c as any).email || undefined,
     }
-    if (mapaExistentes[doc]) {
-      toUpdateCli.push({ id: mapaExistentes[doc], data })
+    const ex = mapaExistentes[doc]
+    if (ex) {
+      // Saltar si todos los campos son iguales (UpTres no nos dio nada nuevo)
+      const igual = ex.apiId === data.apiId
+        && (ex.ciudad || undefined) === data.ciudad
+        && (ex.departamento || undefined) === data.departamento
+        && (ex.direccion || undefined) === data.direccion
+        && (ex.telefono || undefined) === data.telefono
+        && (ex.email || undefined) === data.email
+      if (igual) { skipped++; continue }
+      toUpdateCli.push({ id: ex.id, data })
     } else {
       toCreateCli.push({ nombre, nit: doc, empresaId, ...data })
     }
@@ -67,9 +81,11 @@ async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor
     ))
   }
   clientesActualizados = toCreateCli.length + toUpdateCli.length
-  log(`Clientes delta: ${clientesActualizados}`)
+  T(`upsert clientes`, _t)
+  log(`Clientes delta: ${clientesActualizados} (saltados ${skipped})`)
 
   // ── Empleados delta ───────────────────────────────────────────────────────
+  _t = Date.now()
   const empleadosExt = await adapter.fetchEmpleados(desde)
   for (const e of empleadosExt) {
     const uid = ((e as any).uid || (e as any)._id)?.trim()
@@ -82,20 +98,29 @@ async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor
       update: { nombre, data: e }
     })
   }
+  T(`empleados (${empleadosExt.length})`, _t)
   log(`Empleados delta: ${empleadosExt.length}`)
 
   // ── Deudas: toda la cartera activa ────────────────────────────────────────
+  _t = Date.now()
   const deudas = await adapter.fetchDeudas() // sin filtro de fecha — detecta zombis
+  T(`fetchDeudas (${deudas.length})`, _t)
   log(`Deudas activas en UpTres: ${deudas.length}`)
+  _t = Date.now()
   const afectados = await sincronizarDeudas(deudas, integracion.id, empresaId)
+  T(`sincronizarDeudas (afectados ${afectados.size})`, _t)
 
   // Marcar zombis — deudas que ya no aparecen en UpTres
+  _t = Date.now()
   const externalIdsVivas = new Set(deudas.map((d: any) => d.externalId || d.uid).filter(Boolean))
   const zombis = await marcarZombis(externalIdsVivas as Set<string>, integracion.id, empresaId)
+  T(`marcarZombis (${zombis})`, _t)
   log(`Deudas cerradas en UpTres (zombis): ${zombis}`)
 
   // Refrescar pagos locales pendientes de confrontación
+  _t = Date.now()
   const refresco = await refrescarDeudasConPagosPendientes(adapter as any, integracion.id, empresaId)
+  T(`refrescarPagos (${refresco.confrontados} conf)`, _t)
   log(`Refresco: ${refresco.clientes} clientes, ${refresco.deudasActualizadas} deudas, ${refresco.confrontados} pagos`)
 
   // Repoblar clientes sin cache
@@ -113,7 +138,9 @@ async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor
     sinCache.map((d: any) => d.clienteApiId).filter((id: string) => id && !conCache.has(id))
   )
   const todosAfectados = new Set([...afectados, ...faltantes])
+  _t = Date.now()
   await actualizarCache(todosAfectados, integracion.id, empresaId)
+  T(`actualizarCache (${todosAfectados.size})`, _t)
   log(`Cache actualizado: ${todosAfectados.size} clientes`)
 
   // Actualizar ultimaSync
@@ -122,11 +149,13 @@ async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor
     data: { ultimaSync: new Date() }
   })
 
-  // Recalcular ventas mes impulsos
-  try {
-    await recalcularVentasMesImpulsos(empresaId, adapter, empleadoId)
-  } catch (err: any) {
-    log(`[ventaMes] Error: ${err.message}`)
+  // Recalcular ventas-mes (solo cuando viene del cron diario)
+  if (incluirImpulsos) {
+    try {
+      await recalcularVentasMesImpulsos(empresaId, adapter, empleadoId)
+    } catch (err: any) {
+      log(`[ventaMes] Error: ${err.message}`)
+    }
   }
 
   const fin = new Date()
@@ -161,6 +190,60 @@ async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor
     confrontados: refresco.confrontados,
     duracionMs,
   }
+}
+
+// ─── Lógica vendedor — sólo sus deudas vía /cartera/empleado/{id} ─────────
+async function ejecutarDeltaVendedor(integracion: any, empleadoApiId: string, logs: string[] = []): Promise<{
+  clientes: number, empleados: number, deudas: number, zombis: number, confrontados: number, duracionMs: number
+}> {
+  const log = (m: string) => { logs.push(m); console.log('[sync-vendedor]', m) }
+  const inicio = new Date()
+
+  const config = resolverConfig(integracion.config)
+  const adapter = crearAdaptador(integracion.tipo, config)
+  await adapter.login()
+
+  const empresaId = integracion.empresaId
+  const T = (label: string, t0: number) => log(`⏱ ${label}: ${((Date.now()-t0)/1000).toFixed(2)}s`)
+
+  // Solo las deudas del empleado
+  let _t = Date.now()
+  const deudas = await (adapter as any).fetchDeudasEmpleado(empleadoApiId)
+  T(`fetchDeudasEmpleado (${deudas.length})`, _t)
+
+  _t = Date.now()
+  const afectados = await sincronizarDeudas(deudas, integracion.id, empresaId)
+  T(`sincronizarDeudas (${afectados.size})`, _t)
+
+  // Refrescar pagos pendientes del vendedor
+  _t = Date.now()
+  const refresco = await refrescarDeudasConPagosPendientes(adapter as any, integracion.id, empresaId)
+  T(`refrescarPagos (${refresco.confrontados})`, _t)
+
+  _t = Date.now()
+  await actualizarCache(afectados, integracion.id, empresaId)
+  T(`actualizarCache (${afectados.size})`, _t)
+
+  const fin = new Date()
+  const duracionMs = fin.getTime() - inicio.getTime()
+
+  try {
+    await (prisma as any).syncLog.create({
+      data: {
+        integracionId: integracion.id,
+        inicio, fin, duracionMs,
+        clientesActualizados: 0,
+        empleadosSincronizados: 0,
+        deudasSincronizadas: deudas.length,
+        zombis: 0,
+        pagosConfrontados: refresco.confrontados,
+        disparadoPor: 'vendedor',
+        estado: 'ok',
+      }
+    })
+  } catch {}
+
+  return { clientes: 0, empleados: 0, deudas: deudas.length, zombis: 0, confrontados: refresco.confrontados, duracionMs }
 }
 
 // ─── Lógica inicial ─────────────────────────────────────────────────────────
@@ -265,7 +348,7 @@ export async function POST(req: NextRequest) {
     for (const integ of integraciones) {
       const logs: string[] = []
       try {
-        const r = await ejecutarDelta(integ, logs)
+        const r = await ejecutarDelta(integ, logs, 'cron', undefined, true)
         resultados.push({ empresaId: integ.empresaId, ok: true, ...r })
       } catch (err: any) {
         resultados.push({ empresaId: integ.empresaId, ok: false, error: err.message })
@@ -291,8 +374,21 @@ export async function POST(req: NextRequest) {
   try {
     if (tipo === 'delta') {
       const esAdminUser = ROLES_ADMIN.includes(user.role)
-      const empId = !esAdminUser ? user.id : undefined
-      const r = await ejecutarDelta(integracion, logs, 'manual', empId)
+      if (!esAdminUser) {
+        // Vendedor: solo sus deudas vía /cartera/empleado/{apiId}
+        const empleado = await (prisma as any).empleado.findFirst({
+          where: { id: user.id, empresaId },
+          select: { apiId: true }
+        })
+        if (!empleado?.apiId) {
+          // Sin apiId, no podemos pedir a UpTres por empleado — caer a delta normal
+          const r = await ejecutarDelta(integracion, logs, 'manual', user.id)
+          return NextResponse.json({ ok: true, logs, ...r })
+        }
+        const r = await ejecutarDeltaVendedor(integracion, empleado.apiId, logs)
+        return NextResponse.json({ ok: true, logs, ...r })
+      }
+      const r = await ejecutarDelta(integracion, logs, 'manual', undefined)
       return NextResponse.json({ ok: true, logs, ...r })
 
     } else if (tipo === 'inicial') {

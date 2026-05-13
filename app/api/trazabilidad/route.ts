@@ -5,6 +5,56 @@ import { prisma } from '@/lib/prisma'
 
 const PAGE_SIZE = 20
 
+
+// Construye WHERE SQL parametrizado a partir del objeto where dinámico
+function buildWhereSQL(where: any): { sql: string; params: any[] } {
+  const parts: string[] = []
+  const params: any[] = []
+  let i = 1
+  const empresaId = where.empresaId
+  const origenVinculadaId = where.origenVinculadaId
+  if (empresaId && origenVinculadaId === null) {
+    parts.push(`"empresaId" = \$${i++}`); params.push(empresaId)
+    parts.push(`"origenVinculadaId" IS NULL`)
+  } else if (where.OR && Array.isArray(where.OR) && where.OR[0]?.empresaId) {
+    const orParts: string[] = []
+    for (const cond of where.OR) {
+      if (cond.empresaId && cond.origenVinculadaId === null) {
+        orParts.push(`("empresaId" = \$${i++} AND "origenVinculadaId" IS NULL)`)
+        params.push(cond.empresaId)
+      } else if (cond.origenVinculadaId?.in) {
+        const placeholders = cond.origenVinculadaId.in.map(() => `\$${i++}`).join(',')
+        orParts.push(`"origenVinculadaId" IN (${placeholders})`)
+        params.push(...cond.origenVinculadaId.in)
+      }
+    }
+    if (orParts.length > 0) parts.push(`(${orParts.join(' OR ')})`)
+  } else if (where.origenVinculadaId?.in) {
+    const placeholders = where.origenVinculadaId.in.map(() => `\$${i++}`).join(',')
+    parts.push(`"origenVinculadaId" IN (${placeholders})`)
+    params.push(...where.origenVinculadaId.in)
+  } else if (empresaId) {
+    parts.push(`"empresaId" = \$${i++}`); params.push(empresaId)
+  }
+  if (where.estado) { parts.push(`"estado" = \$${i++}`); params.push(where.estado) }
+  if (where.fechaOrden?.gte) { parts.push(`"fechaOrden" >= \$${i++}`); params.push(where.fechaOrden.gte) }
+  if (where.fechaOrden?.lte) { parts.push(`"fechaOrden" <= \$${i++}`); params.push(where.fechaOrden.lte) }
+  if (where.OR && where.OR[0]?.numeroOrden) {
+    // búsqueda q
+    const qOrParts: string[] = []
+    for (const cond of where.OR) {
+      if (cond.numeroOrden?.contains) {
+        qOrParts.push(`"numeroOrden" ILIKE \$${i++}`); params.push(`%${cond.numeroOrden.contains}%`)
+      }
+      if (cond.clienteNombre?.contains) {
+        qOrParts.push(`"clienteNombre" ILIKE \$${i++}`); params.push(`%${cond.clienteNombre.contains}%`)
+      }
+    }
+    if (qOrParts.length > 0) parts.push(`(${qOrParts.join(' OR ')})`)
+  }
+  return { sql: parts.length > 0 ? parts.join(' AND ') : 'TRUE', params }
+}
+
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
@@ -23,7 +73,7 @@ export async function GET(req: NextRequest) {
   const hasta = searchParams.get('hasta') || ''
   const cursor = searchParams.get('cursor') || null
   const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
-  const useCursor = !!cursor || searchParams.has('cursor')
+  const useCursor = !!cursor || searchParams.has('cursor') || (searchParams.has('limit') && !searchParams.has('page'))
 
   // Rol entregas: solo sus órdenes entregadas (repartidorId = empleadoId)
   if (esEntregas) {
@@ -59,7 +109,9 @@ export async function GET(req: NextRequest) {
           alistadoPor: { select: { nombre: true } },
           repartidor: { select: { nombre: true } },
           visitas: {
+            where: { tipo: 'entrega' },
             orderBy: { createdAt: 'asc' },
+            take: 1,
             select: { id: true, firma: true, createdAt: true, empleado: { select: { nombre: true } } }
           }
         }
@@ -126,7 +178,9 @@ export async function GET(req: NextRequest) {
           alistadoPor: { select: { nombre: true } },
           repartidor: { select: { nombre: true } },
           visitas: {
+            where: { tipo: 'entrega' },
             orderBy: { createdAt: 'asc' },
+            take: 1,
             select: { id: true, firma: true, createdAt: true, empleado: { select: { nombre: true } } }
           }
         }
@@ -189,34 +243,65 @@ export async function GET(req: NextRequest) {
     alistadoPor: { select: { nombre: true } },
     repartidor: { select: { nombre: true } },
     visitas: {
+      where: { tipo: 'entrega' },
       orderBy: { createdAt: 'asc' as const },
+      take: 1,
       select: { id: true, firma: true, createdAt: true, empleado: { select: { nombre: true } } }
     }
   }
 
   if (useCursor) {
-    const ordenes = await prisma.ordenDespacho.findMany({
-      where,
-      orderBy: { fechaOrden: 'desc' },
-      take: PAGE_SIZE + 1,
-      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+    const { sql: whereSQL, params } = buildWhereSQL(where)
+    // Obtener PAGE_SIZE+1 IDs ordenados numéricamente en SQL
+    let cursorClause = ''
+    if (cursor) {
+      const cursorRow: any[] = await prisma.$queryRawUnsafe(
+        `SELECT "numeroOrden", "fechaOrden" FROM gestor."OrdenDespacho" WHERE id = $1`,
+        cursor
+      )
+      if (cursorRow[0]) {
+        const ord = parseInt(cursorRow[0].numeroOrden, 10) || 0
+        const fec = cursorRow[0].fechaOrden ? new Date(cursorRow[0].fechaOrden).toISOString() : null
+        cursorClause = ` AND ((CASE WHEN "numeroOrden" ~ '^[0-9]+$' THEN CAST("numeroOrden" AS INTEGER) ELSE 0 END) < ${ord} OR ((CASE WHEN "numeroOrden" ~ '^[0-9]+$' THEN CAST("numeroOrden" AS INTEGER) ELSE 0 END) = ${ord} AND "fechaOrden" < '${fec}'::timestamp))`
+      }
+    }
+    const idRows: any[] = await prisma.$queryRawUnsafe(
+      `SELECT id FROM gestor."OrdenDespacho" WHERE ${whereSQL}${cursorClause}
+       ORDER BY (CASE WHEN "numeroOrden" ~ '^[0-9]+$' THEN CAST("numeroOrden" AS INTEGER) ELSE 0 END) DESC, "fechaOrden" DESC
+       LIMIT ${PAGE_SIZE + 1}`,
+      ...params
+    )
+    const hasMore = idRows.length > PAGE_SIZE
+    const finalIds = (hasMore ? idRows.slice(0, PAGE_SIZE) : idRows).map((r: any) => r.id)
+    const ordenesRaw = await prisma.ordenDespacho.findMany({
+      where: { id: { in: finalIds } },
       select: baseSelect,
     })
-    const hasMore = ordenes.length > PAGE_SIZE
-    const data = hasMore ? ordenes.slice(0, PAGE_SIZE) : ordenes
+    const orderMap = new Map(finalIds.map((id, i) => [id, i]))
+    const data = ordenesRaw.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0))
     const nextCursor = hasMore ? data[data.length - 1].id : null
     return NextResponse.json({ ordenes: data, nextCursor, hasMore })
   }
 
-  const [total, ordenes] = await Promise.all([
-    prisma.ordenDespacho.count({ where }),
-    prisma.ordenDespacho.findMany({
-      where,
-      orderBy: { fechaOrden: 'desc' },
-      skip: (page - 1) * PAGE_SIZE,
-      take: PAGE_SIZE,
-      select: baseSelect,
-    })
-  ])
+  const { sql: whereSQL, params } = buildWhereSQL(where)
+  const [countRow]: any[] = await prisma.$queryRawUnsafe(
+    `SELECT COUNT(*)::int AS c FROM gestor."OrdenDespacho" WHERE ${whereSQL}`,
+    ...params
+  )
+  const total = countRow.c
+  const offset = (page - 1) * PAGE_SIZE
+  const idRows: any[] = await prisma.$queryRawUnsafe(
+    `SELECT id FROM gestor."OrdenDespacho" WHERE ${whereSQL}
+     ORDER BY (CASE WHEN "numeroOrden" ~ '^[0-9]+$' THEN CAST("numeroOrden" AS INTEGER) ELSE 0 END) DESC, "fechaOrden" DESC
+     LIMIT ${PAGE_SIZE} OFFSET ${offset}`,
+    ...params
+  )
+  const finalIds = idRows.map((r: any) => r.id)
+  const ordenesRaw = await prisma.ordenDespacho.findMany({
+    where: { id: { in: finalIds } },
+    select: baseSelect,
+  })
+  const orderMap = new Map(finalIds.map((id, i) => [id, i]))
+  const ordenes = ordenesRaw.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0))
   return NextResponse.json({ ordenes, total, page, pages: Math.ceil(total / PAGE_SIZE) })
 }

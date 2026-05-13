@@ -60,6 +60,33 @@ async function syncEmpresa(empresaId: string, origenVinculadaId: string | null =
       ciudadNombre = ciudadNombre.split('/').pop()?.trim() || ciudadNombre
     }
 
+    let direccion = (orden as any).direccion || ''
+    let telefono = (orden as any).telefono || ''
+    let clienteNit = (orden as any).clienteNit || ''
+
+    // Fallback: si UpTres no devolvió ciudad/dirección/teléfono, buscar en Cliente local
+    if (!ciudadNombre || !direccion || !telefono) {
+      const apiId = (orden as any).cliente?.uid
+      if (apiId || clienteNit) {
+        const cli = await (prisma as any).cliente.findFirst({
+          where: {
+            empresaId: empresaDestino,
+            OR: [
+              apiId ? { apiId } : undefined,
+              clienteNit ? { nit: clienteNit } : undefined,
+            ].filter(Boolean)
+          },
+          select: { ciudad: true, direccion: true, telefono: true, nit: true }
+        })
+        if (cli) {
+          if (!ciudadNombre && cli.ciudad) ciudadNombre = cli.ciudad
+          if (!direccion && cli.direccion) direccion = cli.direccion
+          if (!telefono && cli.telefono) telefono = cli.telefono
+          if (!clienteNit && cli.nit) clienteNit = cli.nit
+        }
+      }
+    }
+
     // No crear si no hay nombre de cliente
     const nombreOrden = orden.clienteNombre || (orden as any).clienteNombreApi
     if (!nombreOrden) continue
@@ -72,10 +99,10 @@ async function syncEmpresa(empresaId: string, origenVinculadaId: string | null =
         origenVinculadaId,
         numeroOrden: invoiceNum,
         clienteNombre: nombreOrden,
-        clienteNit: orden.clienteNit || '',
+        clienteNit,
         ciudad: ciudadNombre,
-        direccion: orden.direccion || '',
-        telefono: orden.telefono || '',
+        direccion,
+        telefono,
         estado: 'pendiente',
         fechaOrden: orden.fCreado ? new Date(orden.fCreado) : new Date(),
       }

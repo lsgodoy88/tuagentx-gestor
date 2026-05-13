@@ -25,12 +25,21 @@ function getDepartamento(cityId?: string | number | null): string | null {
   return departamentosDANE[depKey] || null
 }
 
+// Cache global de tokens UpTres (vida ~1h). Clave: apiKey
+const tokenCache = new Map<string, { token: string; expiraEn: number }>()
+
 export class UpTresAdapter implements AdaptadorIntegracion {
   private token: string = ''
 
   constructor(private apiKey: string, private apiSecret: string) {}
 
   async login(): Promise<void> {
+    // Reusar token cacheado si está vigente (margen 5 min)
+    const cached = tokenCache.get(this.apiKey)
+    if (cached && cached.expiraEn > Date.now() + 5 * 60 * 1000) {
+      this.token = cached.token
+      return
+    }
     const res = await fetch(AUTH_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -39,6 +48,8 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     const d = await res.json()
     if (!d.ok || !d.token) throw new Error('Login UpTres fallido: ' + (d.msg || ''))
     this.token = d.token
+    // UpTres firma JWT con expiración ~1h; cacheamos por 55min
+    tokenCache.set(this.apiKey, { token: d.token, expiraEn: Date.now() + 55 * 60 * 1000 })
   }
 
   private get headers() {
@@ -184,6 +195,57 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     })
   }
 
+  async fetchDeudasEmpleado(empleadoApiId: string): Promise<DeudaExterna[]> {
+    // Trae todas las deudas activas asociadas a un empleado (vendedor)
+    // Usa cursor paginación si hay muchas
+    const todas: any[] = []
+    let cursorDate: string | null = null
+    let cursorId: string | null = null
+    const fields = 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt'
+    while (true) {
+      const p = new URLSearchParams({ limit: '100', condition: 'true', includeTotal: 'false', fields })
+      if (cursorDate && cursorId) {
+        p.set('cursorDate', cursorDate)
+        p.set('cursorId', cursorId)
+      }
+      const res = await fetch(`${BASE}/cartera/empleado/${empleadoApiId}?${p.toString()}`, { headers: this.headers })
+      const d = await res.json()
+      if (!d.ok || !Array.isArray(d.data) || d.data.length === 0) break
+      todas.push(...d.data)
+      if (!d.nextCursor?.cursorDate || !d.nextCursor?.cursorId) break
+      cursorDate = d.nextCursor.cursorDate
+      cursorId = d.nextCursor.cursorId
+    }
+    return todas.map((o: any) => {
+      let fPago: string | null = o.paidAt || null
+      if (!fPago && o.creditDay && o.createdAt) {
+        const dias = parseInt(o.creditDay || '0')
+        if (dias > 0) {
+          const fecha = new Date(o.createdAt)
+          fecha.setDate(fecha.getDate() + dias)
+          fPago = fecha.toISOString()
+        }
+      }
+      return {
+        uid: o.id,
+        _id: o.id,
+        numeroOrden: o.orderNumber,
+        numeroFacturado: o.invoiceNumber || null,
+        vTotal: o.total,
+        vSaldo: o.balance,
+        vAbono: String(parseFloat(o.total || '0') - parseFloat(o.balance || '0')),
+        dias: o.creditDay || '0',
+        mediopago: o.paymentType,
+        fCreado: o.createdAt,
+        fPago: fPago ?? undefined,
+        fModificado: o.updatedAt,
+        condition: true,
+        cliente: { uid: o.customerId },
+        empleado: { uid: o.employeeId },
+      }
+    })
+  }
+
   async fetchDeudasCliente(clienteId: string): Promise<DeudaExterna[]> {
     const res = await fetch(
       `${BASE}/cartera/cliente/${clienteId}?fields=id,orderNumber,invoiceNumber,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt&condition=true`,
@@ -222,7 +284,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
 
   async fetchVentas(desde?: Date, customerId?: string): Promise<VentaExterna[]> {
     const baseParams: Record<string, string> = {
-      fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,isDelivered,isShipped,items,createdAt,updatedAt',
+      fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,isDelivered,isShipped,items,createdAt,updatedAt,cityId,address,phone',
       expand: 'customer,items',
       includeTotal: 'false',
     }
@@ -255,6 +317,11 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       empleado: { uid: o.employeeId },
       productos: o.items || [],
       clienteNombreApi: o.customer ? (`${o.customer.firstName || ''} ${o.customer.lastName || ''}`.trim() || o.customer.tradeName || o.customer.name || null) : null,
+      cityId: o.cityId || o.customer?.cityId || null,
+      ciudad: getCiudad(o.cityId || o.customer?.cityId),
+      direccion: o.address || o.customer?.address || null,
+      telefono: o.phone || o.customer?.phone || null,
+      clienteNit: o.customer?.document || null,
     }))
   }
 }

@@ -4,7 +4,7 @@ import ModalVisita from '@/components/ModalVisita'
 import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import ExcelJS from 'exceljs'
+import type ExcelJSType from 'exceljs'
 import { checkPermiso } from '@/lib/permisos'
 
 export default function ClientesPage() {
@@ -115,7 +115,7 @@ export default function ClientesPage() {
     const reader = new FileReader()
     reader.onload = async (ev) => {
       const buffer = ev.target?.result as ArrayBuffer
-      const wb = new ExcelJS.Workbook()
+      const ExcelJS = (await import('exceljs')).default; const wb = new ExcelJS.Workbook()
       await wb.xlsx.load(buffer)
       const ws = wb.worksheets[0]
       const rows: any[] = []
@@ -189,7 +189,7 @@ export default function ClientesPage() {
   }
 
   async function descargarExcel() {
-    const wb = new ExcelJS.Workbook()
+    const ExcelJS = (await import('exceljs')).default; const wb = new ExcelJS.Workbook()
 
     // Hoja Listas
     const wsListas = wb.addWorksheet('Listas')
@@ -218,7 +218,7 @@ export default function ClientesPage() {
     const grayKeys = ['api', 'nit']
     const blueKeys = ['maps']
 
-    function setupHeaders(ws: ExcelJS.Worksheet) {
+    function setupHeaders(ws: ExcelJSType.Worksheet) {
       ws.columns = sheetCols
       ws.getRow(1).eachCell((cell, colNum) => {
         const key = ws.getColumn(colNum).key as string
@@ -228,7 +228,7 @@ export default function ClientesPage() {
       })
     }
 
-    function applyDV(ws: ExcelJS.Worksheet) {
+    function applyDV(ws: ExcelJSType.Worksheet) {
       const cCol = ws.getColumn('ciudad').number
       const lCol = ws.getColumn('lista').number
       for (let r = 2; r <= 10000; r++) {
@@ -263,7 +263,7 @@ export default function ClientesPage() {
   }
 
   async function descargarErrores() {
-    const wb = new ExcelJS.Workbook()
+    const ExcelJS = (await import('exceljs')).default; const wb = new ExcelJS.Workbook()
     const ws = wb.addWorksheet('Clientes')
     ws.columns = [
       { header: 'nit', key: 'nit', width: 15 },
@@ -312,11 +312,11 @@ export default function ClientesPage() {
 
   async function onFileImpExp(file: File) {
     const buffer = await file.arrayBuffer()
-    const wb = new ExcelJS.Workbook()
+    const ExcelJS = (await import('exceljs')).default; const wb = new ExcelJS.Workbook()
     await wb.xlsx.load(buffer)
     // Leer hojas Existentes y Nuevos; si no existen, usar la primera hoja
     const sheetNames = ['Existentes', 'Nuevos']
-    const sheetsToRead = sheetNames.map(n => wb.getWorksheet(n)).filter(Boolean) as ExcelJS.Worksheet[]
+    const sheetsToRead = sheetNames.map(n => wb.getWorksheet(n)).filter(Boolean) as ExcelJSType.Worksheet[]
     if (sheetsToRead.length === 0) sheetsToRead.push(wb.worksheets[0])
     const rawRows: any[] = []
     sheetsToRead.forEach(ws => {
@@ -650,10 +650,10 @@ export default function ClientesPage() {
             )}
           </div>
 
-          {clientes.length < total && (
-            <button onClick={() => loadClientes(buscar, nextCursor)} disabled={loadingMore || !hasMore}
+          {hasMore && (
+            <button onClick={() => loadClientes(buscar, nextCursor)} disabled={loadingMore}
               className="w-full mt-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 text-sm font-medium py-3 rounded-2xl border border-zinc-700 transition-colors">
-              {loadingMore ? 'Cargando...' : `Cargar más (${clientes.length} de ${total})`}
+              {loadingMore ? 'Cargando...' : `Cargar más (${clientes.length} cargados)`}
             </button>
           )}
         </div>
