@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.3.3] - 2026-05-12 (Orquestador sync + consecutivo)
+
+### Added
+- 37 tests sobre el endpoint más complejo del sistema y el helper de numeroRecibo:
+  - `POST /api/integracion/sync` orchestrator (20) — dispatching cron vs manual, auth/autorización, tipo dispatch, error handling con SyncLog, empleadoId scope
+  - `lib/consecutivo.getConsecutivo` (17) — formato CL2605001, iniciales con filtro de conectivos castellanos, reset por mes, prefijo manual override
+
+### Documentado por tests
+- `getConsecutivo` filtra 'Y' como conectivo (afecta iniciales tipo 'PEDRO Y CARMEN' → 'PC')
+- Fallback `'XX'` en consecutivo es dead code: cuando nombre vacío, cae en `'X'` single
+- Orchestrator: cron NO requiere sesión cuando x-cron-secret matches
+- Orchestrator: falla en una integración del batch cron NO rompe a las demás
+- Orchestrator: rol vendedor scope su recalcularVentasMesImpulsos a sus rutas; supervisor a todas
+
+### Notes
+- Total: 380 tests pasando en CI
+- `/api/integracion/sync` cubierto sin necesidad de re-testear helpers (mockeados): aislamiento limpio entre orchestrator y unidades
+- Único endpoint complejo restante: `/api/cartera/voucher` (OCR con OpenAI + sharp + PDF conversion)
+- Único módulo lib/ restante: `lib/integracion/adapters/uptres.ts` (245 líneas HTTP, requiere mock de fetch)
+
 ## [1.3.2] - 2026-05-12 (Integración completa + consecutivo)
 
 ### Added
