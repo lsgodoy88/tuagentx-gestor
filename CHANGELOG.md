@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.4.0] - 2026-05-12 (Popup sync con historial + más cobertura)
+
+### Added (features)
+- **Popup Sync con historial** (cartera): el modal de sincronización ahora muestra las últimas 10 ejecuciones (cron + manual) con:
+  - Timestamp + duración (ej. "12.3s")
+  - Origen visible: ⏰ auto vs 👤 manual
+  - Estado con color: ● verde=ok, ● rojo=error, ● ámbar=otro
+  - Contadores: 👤 clientes, 💰 deudas, 🪦 zombis cerrados, ✓ pagos confrontados
+  - "sin cambios" explícito cuando todo está en cero
+  - Mensaje de error visible si la ejecución falló
+- Resuelve pendiente #5 de CONTEXTO. Sin cambios de API (consume `d.historial` que ya retornaba `/api/integracion/estado`).
+
+### Added (tests)
+- 21 tests para `GET /api/recaudos` — filtros (vendedor/estado/fecha), paginación dual offset+cursor, hidratación de cliente para pagos sync con cascada
+- Total: 449 tests pasando en CI
+
+### Coverage achieved en este ciclo
+- Endpoints contables principales: pago, pago-sync, recibo-publico, recibo-token, recibo/[pagoId], recaudos
+- Helpers: cartera, recibos, consecutivo, crypto, fechas, gps, maps, permisos, auth-helpers, impulsoMetricas, fetchApi, audit
+- Integración: sincronizarDeudas, marcarZombis, actualizarCache, refrescarDeudasConPagosPendientes, recalcularVentasMesImpulsos, UpTresAdapter, /api/integracion/sync orchestrator
+
 ## [1.3.4] - 2026-05-12 (UpTres adapter + helpers utilitarios)
 
 ### Added
