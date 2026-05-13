@@ -11,6 +11,18 @@ export async function GET(req: NextRequest) {
     )
     if (!res.ok) return NextResponse.json({ error: 'OSRM error' }, { status: 502 })
     const data = await res.json()
+
+    // OSRM responde "Ok" aún para puntos fuera del dataset, pero con
+    // distance:0 o sin geometry. Validar para que el frontend caiga al
+    // fallback de línea recta en vez de pintar rutas truncadas/inválidas.
+    const route = data?.routes?.[0]
+    const hasValidGeometry = Array.isArray(route?.geometry?.coordinates) && route.geometry.coordinates.length >= 2
+    const hasValidDistance = typeof route?.distance === 'number' && route.distance > 0
+
+    if (!route || !hasValidGeometry || !hasValidDistance) {
+      return NextResponse.json({ error: 'OSRM_OUT_OF_BOUNDS' }, { status: 503 })
+    }
+
     return NextResponse.json(data)
   } catch {
     return NextResponse.json({ error: 'OSRM no disponible' }, { status: 503 })
