@@ -313,7 +313,7 @@ export default function RutasFijasPage() {
         </div>
         {syncVentas && (
           <div className="flex flex-col items-end gap-1">
-            <button onClick={ejecutarSyncVentas} disabled={!syncVentas.puedeSync || sincronizandoVentas}
+            <button onClick={ejecutarSyncVentas} disabled={sincronizandoVentas}
               className={`flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-300 border border-zinc-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors ${sincronizandoVentas ? 'btn-shimmer' : ''}`}>
               <SyncIcon spinning={sincronizandoVentas} className="w-3.5 h-3.5 text-blue-400" />
               {sincronizandoVentas ? '...' : 'Sync'}
@@ -322,7 +322,7 @@ export default function RutasFijasPage() {
               {syncVentas.ultimoSync
                 ? 'Hace ' + Math.round((Date.now() - new Date(syncVentas.ultimoSync).getTime()) / 60000) + 'min'
                 : 'Sin sync hoy'
-              } · {syncVentas.restantes}/2
+              }
             </p>
           </div>
         )}

@@ -8,7 +8,7 @@ import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 
 const ROLES_PERMITIDOS = ROLES_VENDEDOR_RUTAS
-const MAX_SYNC_DIA = 2
+const MAX_SYNC_DIA = Infinity
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
     usadosHoy,
     restantes,
     ultimoSync: empresa?.syncVentasUltimo ?? null,
-    puedeSync: restantes > 0,
+    puedeSync: true,
   })
 }
 
@@ -70,9 +70,7 @@ export async function POST(req: NextRequest) {
     usadosHoy = mismaFecha ? (empresa?.syncVentasHoy ?? 0) : 0
   }
 
-  if (usadosHoy >= MAX_SYNC_DIA) {
-    return NextResponse.json({ error: 'Límite de 2 sync diarios alcanzado', restantes: 0 }, { status: 429 })
-  }
+
 
   // Filtrar por empleado si es vendedor/impulsadora — solo sus rutas fijas
   const esAdmin = ROLES_ADMIN.includes(user.role)
@@ -170,7 +168,7 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({
     ok: true,
     actualizados: mapa.size,
-    restantes: MAX_SYNC_DIA - (usadosHoy + 1),
+    restantes: null,
     ultimoSync: new Date(),
   })
 }
