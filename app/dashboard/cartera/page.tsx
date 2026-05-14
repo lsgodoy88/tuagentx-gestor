@@ -388,7 +388,7 @@ export default function CarteraPage() {
     }, 0) ?? 0
 
   if (status === 'loading' || loading) return (
-    <div className="space-y-4">
+    <div className="space-y-4 max-w-7xl mx-auto">
       {Array.from({ length: 4 }).map((_, i) => (
         <div key={i} className="animate-pulse bg-zinc-900 border border-zinc-800 rounded-2xl h-24" />
       ))}
@@ -419,7 +419,7 @@ export default function CarteraPage() {
 
   return (
     <>
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-white">💰 Cartera</h1>        </div>

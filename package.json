@@ -44,6 +44,7 @@
     "react-dom": "19.2.3",
     "react-easy-crop": "^5.5.7",
     "react-leaflet": "^5.0.0",
+    "reactflow": "^11.11.4",
     "web-push": "^3.6.7"
   },
   "devDependencies": {

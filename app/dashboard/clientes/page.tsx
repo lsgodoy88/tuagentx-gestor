@@ -447,7 +447,7 @@ export default function ClientesPage() {
     }
 
     return (
-      <div className="space-y-3">
+      <div className="space-y-3 max-w-7xl mx-auto">
         {esAdmin && (
           <div className="flex justify-end">
             <button onClick={() => { setNombreLista(''); setModalCrear(true) }}
@@ -554,7 +554,7 @@ export default function ClientesPage() {
   })
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white">Clientes</h1>

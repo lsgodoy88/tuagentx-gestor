@@ -212,6 +212,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           { href: '/dashboard/empresas', label: 'Empresas', icon: '🏢' },
           { href: '/dashboard/monitor', label: 'Control', icon: '📡' },
           { href: '/dashboard/precios', label: 'Precios', icon: '💰' },
+          { href: '/dashboard/code', label: 'Code', icon: '🧬' },
         ] : []),
       ]
     },
@@ -268,6 +269,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: '/dashboard/empresas', label: 'Empresas', icon: '🏢' },
       { href: '/dashboard/monitor', label: 'Control', icon: '📡' },
       { href: '/dashboard/precios', label: 'Precios', icon: '💰' },
+      { href: '/dashboard/code', label: 'Code', icon: '🧬' },
     ] : []),
     ...(isEmpresa || isSupervisor ? [
       { href: '/dashboard/empleados', label: 'Activos', icon: '👥' },

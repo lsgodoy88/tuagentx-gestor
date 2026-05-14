@@ -9,11 +9,13 @@ const municipiosDANE: Record<string, string> = JSON.parse(
   fs.readFileSync(path.join(process.cwd(), 'public/municipios_dane.json'), 'utf-8')
 )
 
-async function syncEmpresa(empresaId: string, origenVinculadaId: string | null = null) {
+async function syncEmpresa(empresaIdConIntegracion: string, origenVinculadaId: string | null = null, empresaBodegaId?: string) {
+  // empresaIdConIntegracion: dueño de la API de UpTres (de donde traemos órdenes)
+  // empresaBodegaId: dónde guardamos los OrdenDespacho (default = misma empresa)
   const integracion = await (prisma as any).integracion.findFirst({
-    where: { empresaId, tipo: 'uptres', activa: true }
+    where: { empresaId: empresaIdConIntegracion, tipo: 'uptres', activa: true }
   })
-  if (!integracion) return { empresaId, error: 'Sin integración' }
+  if (!integracion) return { empresaId: empresaIdConIntegracion, error: 'Sin integración' }
 
   const config = integracion.config as any
   const apiSecret = decrypt(config.apiSecret, process.env.UPTRES_SECRET!)
@@ -21,7 +23,7 @@ async function syncEmpresa(empresaId: string, origenVinculadaId: string | null =
   await adapter.login()
 
   // Días historial de la empresa PRINCIPAL (no la vinculada)
-  const principal = empresaId // empresaId ya es la empresa con bodega
+  const principal = empresaBodegaId || empresaIdConIntegracion
 
   const rows = await prisma.$queryRaw<[{ diasHistorialBodega: number }]>`
     SELECT "diasHistorialBodega" FROM gestor."Empresa" WHERE id = ${principal} LIMIT 1
@@ -37,20 +39,19 @@ async function syncEmpresa(empresaId: string, origenVinculadaId: string | null =
     return fc >= desdeTs
   })
 
-  // Upsert órdenes
+  // Upsert órdenes por origenId (estable de UpTres)
   let nuevas = 0
-  const empresaDestino = empresaId // La bodega es siempre la empresa principal
+  let actualizadas = 0
+  const empresaDestino = empresaBodegaId || empresaIdConIntegracion
 
   for (const orden of ordenesFiltradas) {
-    const invoiceNum = String(orden.numeroFacturado || orden.numeroOrden)
-    const existing = await (prisma as any).ordenDespacho.findFirst({
-      where: {
-        empresaId: empresaDestino,
-        numeroOrden: invoiceNum,
-        ...(origenVinculadaId ? { origenVinculadaId } : { origenVinculadaId: null })
-      }
-    })
-    if (existing) continue
+    const origenId = String(orden.uid || (orden as any)._id || '')
+    if (!origenId) continue
+
+    const numPedido = String(orden.numeroOrden || '')
+    const numFactura = orden.numeroFacturado ? String(orden.numeroFacturado) : null
+    const vendedorApiId = (orden as any).empleado?.uid || null
+    const clienteApiId = (orden as any).cliente?.uid || null
 
     // Normalizar ciudad
     let ciudadNombre = (orden.ciudad as string) || ''
@@ -64,15 +65,14 @@ async function syncEmpresa(empresaId: string, origenVinculadaId: string | null =
     let telefono = (orden as any).telefono || ''
     let clienteNit = (orden as any).clienteNit || ''
 
-    // Fallback: si UpTres no devolvió ciudad/dirección/teléfono, buscar en Cliente local
-    if (!ciudadNombre || !direccion || !telefono) {
-      const apiId = (orden as any).cliente?.uid
-      if (apiId || clienteNit) {
+    // Fallback: completar desde Cliente local si UpTres no trajo todo
+    if (!ciudadNombre || !direccion || !telefono || !clienteNit) {
+      if (clienteApiId || clienteNit) {
         const cli = await (prisma as any).cliente.findFirst({
           where: {
             empresaId: empresaDestino,
             OR: [
-              apiId ? { apiId } : undefined,
+              clienteApiId ? { apiId: clienteApiId } : undefined,
               clienteNit ? { nit: clienteNit } : undefined,
             ].filter(Boolean)
           },
@@ -87,27 +87,52 @@ async function syncEmpresa(empresaId: string, origenVinculadaId: string | null =
       }
     }
 
-    // No crear si no hay nombre de cliente
     const nombreOrden = orden.clienteNombre || (orden as any).clienteNombreApi
     if (!nombreOrden) continue
 
-    await (prisma as any).ordenDespacho.create({
-      data: {
+    // Buscar por origenId (estable, no por numeroOrden)
+    const existing = await (prisma as any).ordenDespacho.findFirst({
+      where: {
         empresaId: empresaDestino,
-        origen: origenVinculadaId ? 'vinculada' : 'propia',
-        origenId: orden.uid || orden.clienteId || '',
-        origenVinculadaId,
-        numeroOrden: invoiceNum,
-        clienteNombre: nombreOrden,
-        clienteNit,
-        ciudad: ciudadNombre,
-        direccion,
-        telefono,
-        estado: 'pendiente',
-        fechaOrden: orden.fCreado ? new Date(orden.fCreado) : new Date(),
-      }
+        origenId,
+        ...(origenVinculadaId ? { origenVinculadaId } : { origenVinculadaId: null })
+      },
+      select: { id: true, estado: true }
     })
-    nuevas++
+
+    const dataBase = {
+      numeroOrden: numPedido,
+      numeroFactura: numFactura,
+      vendedorApiId,
+      clienteApiId,
+      clienteNombre: nombreOrden,
+      clienteNit,
+      ciudad: ciudadNombre,
+      direccion,
+      telefono,
+      fechaOrden: orden.fCreado ? new Date(orden.fCreado as string) : new Date(),
+    }
+
+    if (existing) {
+      // Update: refrescar numeroFactura/datos pero no tocar estado de flujo (pendiente/alistado/entregado)
+      await (prisma as any).ordenDespacho.update({
+        where: { id: existing.id },
+        data: dataBase,
+      })
+      actualizadas++
+    } else {
+      await (prisma as any).ordenDespacho.create({
+        data: {
+          ...dataBase,
+          empresaId: empresaDestino,
+          origen: origenVinculadaId ? 'vinculada' : 'propia',
+          origenId,
+          origenVinculadaId,
+          estado: 'pendiente',
+        }
+      })
+      nuevas++
+    }
   }
 
   // Actualizar ultimaSyncBodega
@@ -116,7 +141,7 @@ async function syncEmpresa(empresaId: string, origenVinculadaId: string | null =
     data: { ultimaSyncBodega: new Date() }
   })
 
-  return { empresaId: empresaDestino, ordenes: ordenesFiltradas.length, nuevas }
+  return { empresaId: empresaDestino, ordenes: ordenesFiltradas.length, nuevas, actualizadas }
 }
 
 export async function POST(req: NextRequest) {
@@ -147,7 +172,7 @@ export async function POST(req: NextRequest) {
 
       for (const v of vinculadas) {
         try {
-          const rv = await syncEmpresa(v.empresaClienteId, v.id)
+          const rv = await syncEmpresa(v.empresaClienteId, v.id, empresaId)
           resultados.push({ ...rv, vinculada: v.nombre })
         } catch (err: any) {
           resultados.push({ vinculada: v.nombre, error: err.message })

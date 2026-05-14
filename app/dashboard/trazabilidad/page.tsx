@@ -110,6 +110,7 @@ export default function TrazabilidadPage() {
     // Capa 1: buscar en memoria (ordenes ya cargadas)
     const enMemoria = ordenes.filter(o =>
       o.numeroOrden?.toLowerCase().includes(texto.toLowerCase()) ||
+      o.numeroFactura?.toLowerCase().includes(texto.toLowerCase()) ||
       o.clienteNombre?.toLowerCase().includes(texto.toLowerCase())
     )
     if (enMemoria.length > 0) {
@@ -186,12 +187,22 @@ export default function TrazabilidadPage() {
             🔍
           </button>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center">
           <input type="date" value={desde} onChange={e => setDesde(e.target.value)}
             className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm outline-none" />
-          <span className="text-zinc-500 self-center">—</span>
+          <span className="text-zinc-500">—</span>
           <input type="date" value={hasta} onChange={e => setHasta(e.target.value)}
             className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm outline-none" />
+          <span className="text-zinc-400 text-xs whitespace-nowrap px-2">
+            <span className="text-white font-semibold">{ordenesBusqueda !== null ? ordenesBusqueda.length : total}</span> órdenes
+            {fuenteBusqueda === 'memoria' && <span className="text-zinc-500"> · en pantalla</span>}
+            {fuenteBusqueda === 'bd' && <span className="text-zinc-500"> · BD</span>}
+            {fuenteBusqueda === 'no_encontrado' && <span className="text-zinc-500"> · no encontrada</span>}
+          </span>
+          {buscandoProfundo && <span className="text-zinc-500 text-xs animate-pulse">Buscando...</span>}
+          {ordenesBusqueda !== null && (
+            <button onClick={limpiarBusqueda} className="text-zinc-500 hover:text-white text-xs">✕</button>
+          )}
           {(q || estado || desde !== hace7() || hasta !== hoy()) && (
             <button onClick={limpiar} className="text-zinc-500 hover:text-white text-xs px-2">Limpiar</button>
           )}
@@ -204,19 +215,7 @@ export default function TrazabilidadPage() {
       ) : ordenes.length === 0 ? (
         <div className="text-zinc-500 py-12 text-center">Sin resultados en el período</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-          <div className="flex items-center gap-3">
-            <p className="text-zinc-500 text-xs">
-              {ordenesBusqueda !== null ? ordenesBusqueda.length : total} órdenes
-              {fuenteBusqueda === 'memoria' && ' · en pantalla'}
-              {fuenteBusqueda === 'bd' && ' · desde BD'}
-              {fuenteBusqueda === 'no_encontrado' && ' · no encontrada'}
-            </p>
-            {buscandoProfundo && <span className="text-zinc-500 text-xs animate-pulse">Buscando...</span>}
-            {ordenesBusqueda !== null && (
-              <button onClick={limpiarBusqueda} className="text-zinc-500 hover:text-white text-xs">✕ Limpiar</button>
-            )}
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-w-6xl mx-auto">
           {(ordenesBusqueda !== null ? ordenesBusqueda : ordenes).map(orden => {
             const fotos: string[] = Array.isArray(orden.fotosAlistamiento) ? orden.fotosAlistamiento : []
             const firma = orden.visitas?.[0]?.firma || orden.firmaEntrega || null
@@ -271,7 +270,7 @@ export default function TrazabilidadPage() {
               <div key={orden.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                 {/* Header — siempre visible, clickeable */}
                 <div onClick={() => toggleExpandido(orden.id)} className="flex items-center gap-2 p-3 cursor-pointer hover:bg-zinc-800/50 transition-colors">
-                  <span className="text-zinc-400 font-mono text-xs flex-shrink-0">#{orden.numeroOrden}</span>
+                  <span className="text-zinc-400 font-mono text-xs flex-shrink-0">#{orden.numeroOrden}{orden.numeroFactura && orden.numeroFactura !== orden.numeroOrden ? ` / fac ${orden.numeroFactura}` : ''}</span>
                   {orden.clienteNombre === 'Sin nombre' ? (
                     <span className="text-amber-400 text-xs font-semibold truncate flex-1">⚠️ ERROR DE DATOS</span>
                   ) : (

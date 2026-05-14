@@ -103,7 +103,7 @@ export async function GET(req: NextRequest) {
         skip: (page - 1) * PAGE_SIZE,
         take: PAGE_SIZE,
         select: {
-          id: true, numeroOrden: true, clienteNombre: true, ciudad: true,
+          id: true, numeroOrden: true, numeroFactura: true, vendedorApiId: true, clienteNombre: true, ciudad: true,
           estado: true, fechaOrden: true, alistadoEl: true, entregadoEl: true,
           fotosAlistamiento: true, firmaEntrega: true,
           alistadoPor: { select: { nombre: true } },
@@ -120,41 +120,22 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ ordenes, total, page, pages: Math.ceil(total / PAGE_SIZE) })
   }
 
-  // Vendedor: filtrar por sus propios clientes via SyncDeuda
+  // Vendedor: filtrar por vendedorApiId guardado directo en OrdenDespacho
   if (esVendedor) {
-    // Buscar SyncEmpleado por nombre del empleado logueado
-    const syncEmp = await (prisma as any).syncEmpleado.findFirst({
-      where: {
-        integracion: { empresaId: user.empresaId },
-        nombre: { contains: user.name, mode: 'insensitive' }
-      }
+    const empleado = await (prisma as any).empleado.findUnique({
+      where: { id: user.id },
+      select: { apiId: true }
     })
-    const externalId = syncEmp?.externalId || null
-
-    // Obtener NITs de clientes asignados a este vendedor
-    const clientesApiIds = externalId ? await (prisma as any).syncDeuda.findMany({
-      where: { empleadoExternalId: externalId },
-      select: { clienteApiId: true },
-      distinct: ['clienteApiId']
-    }) : []
-
-    const apiIds = clientesApiIds.map((d: any) => d.clienteApiId).filter(Boolean)
-
-    // Obtener NITs reales de esos clientes
-    const clientes = apiIds.length > 0 ? await prisma.cliente.findMany({
-      where: { apiId: { in: apiIds }, empresaId: user.empresaId },
-      select: { nit: true }
-    }) : []
-
-    const nits = clientes.map((c: any) => c.nit).filter(Boolean)
+    const miApiId = empleado?.apiId
 
     const where: any = {
       empresaId: user.empresaId,
-      origenVinculadaId: null, // Solo órdenes propias, no vinculadas
-      ...(nits.length > 0 ? { clienteNit: { in: nits } } : { clienteNit: '__ninguno__' })
+      origenVinculadaId: null,
+      ...(miApiId ? { vendedorApiId: miApiId } : { vendedorApiId: '__ninguno__' })
     }
     if (q) where.OR = [
       { numeroOrden: { contains: q, mode: 'insensitive' } },
+      { numeroFactura: { contains: q, mode: 'insensitive' } },
       { clienteNombre: { contains: q, mode: 'insensitive' } },
     ]
     if (estado) where.estado = estado
@@ -172,7 +153,7 @@ export async function GET(req: NextRequest) {
         skip: (page - 1) * PAGE_SIZE,
         take: PAGE_SIZE,
         select: {
-          id: true, numeroOrden: true, clienteNombre: true, ciudad: true,
+          id: true, numeroOrden: true, numeroFactura: true, vendedorApiId: true, clienteNombre: true, ciudad: true,
           estado: true, fechaOrden: true, alistadoEl: true, entregadoEl: true,
           fotosAlistamiento: true, firmaEntrega: true,
           alistadoPor: { select: { nombre: true } },

@@ -260,7 +260,7 @@ export default function BodegaPage() {
   const puedeEnviar = esAdmin || bodegaPuedeEnviar
 
   return (
-    <div className="max-w-2xl space-y-4">
+    <div className="max-w-2xl mx-auto space-y-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Bodega</h1>

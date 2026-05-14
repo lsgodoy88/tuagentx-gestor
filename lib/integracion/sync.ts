@@ -69,6 +69,9 @@ export async function sincronizarDeudas(
         saldoAnterior: existing?.saldo ?? saldo,
         saldo,
         abono: parseFloat(o.vAbono as string || '0'),
+        clienteApiId: clienteUid,
+        empleadoExternalId: o.empleado?.uid || null,
+        numeroOrden: o.numeroOrden || 0,
         numeroFactura: o.numeroFacturado || 0,
         diasCredito: parseInt(o.dias as string || '0'),
         fechaVencimiento: (() => {

@@ -2788,6 +2788,9 @@ model OrdenDespacho {
   origen            String
   origenId          String?
   numeroOrden       String
+  numeroFactura     String?
+  vendedorApiId     String?
+  clienteApiId      String?
   clienteNombre     String
   clienteNit        String?
   ciudad            String?
@@ -2816,6 +2819,9 @@ model OrdenDespacho {
 
   @@index([empresaId, estado])
   @@index([empresaId, origen])
+  @@index([empresaId, origenId])
+  @@index([empresaId, vendedorApiId])
+  @@index([empresaId, numeroFactura])
   @@map("OrdenDespacho")
 }
 
