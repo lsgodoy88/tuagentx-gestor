@@ -147,75 +147,61 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
           )}
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 overflow-y-auto" style={{ maxHeight: '500px' }}>
-          <p className="text-zinc-400 text-xs font-semibold mb-3">TIMELINE</p>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 overflow-y-auto" style={{ maxHeight: '500px' }}>
+          <p className="text-zinc-600 text-[10px] font-bold tracking-widest mb-2 px-1">TIMELINE</p>
           {datos.visitas.length === 0 ? (
-            <p className="text-zinc-600 text-sm">Sin visitas</p>
+            <p className="text-zinc-600 text-sm px-1">Sin visitas</p>
           ) : (
-            <div className="space-y-3">
-              {datos.visitas.map((v: any, i: number) => (
-                <button key={v.id} onClick={() => setVisitaSeleccionada(v)}
-                  className={`w-full text-left p-3 rounded-xl border transition-all fade-up stagger-${Math.min(i+1, 8)} ` + (visitaSeleccionada?.id === v.id ? "border-emerald-500 bg-emerald-500/10" : "border-zinc-800 bg-zinc-800 hover:border-zinc-700")}>
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: colorEmpleado(v.empleadoId) }} />
-                    <span className="text-zinc-400 text-xs">{new Date(v.createdAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</span>
+            <div className="space-y-1">
+              {datos.visitas.map((v: any, i: number) => {
+                const isOpen = visitaSeleccionada?.id === v.id
+                const tipoIcon: Record<string, string> = { visita: '🤝', recaudo: '💵', venta: '🧾', entrega: '📦' }
+                const icon = tipoIcon[v.tipo] ?? '🤝'
+                const hora = new Date(v.createdAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })
+                const dir = [v.cliente?.direccion, v.cliente?.ciudad].filter(Boolean).join(', ')
+                const mapsUrl = v.lat && v.lng ? `https://www.google.com/maps?q=${v.lat},${v.lng}` : (v.cliente?.maps || null)
+                return (
+                  <div key={v.id}
+                    className={`bg-zinc-800 border rounded-xl overflow-hidden transition-colors fade-up stagger-${Math.min(i+1,8)} ${isOpen ? 'border-zinc-600' : 'border-zinc-800 hover:border-zinc-700'}`}>
+                    {/* Línea 1 — siempre visible */}
+                    <button onClick={() => setVisitaSeleccionada(isOpen ? null : v)}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-left">
+                      {!esEmpleado && (
+                        <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: colorEmpleado(v.empleadoId) }} />
+                      )}
+                      <span className="text-sm flex-shrink-0">{icon}</span>
+                      <span className="text-white text-xs font-medium flex-1 truncate">{v.cliente?.nombre || v.cliente?.nombreComercial}</span>
+                      <span className="text-zinc-500 text-[11px] flex-shrink-0 tabular-nums">{hora}</span>
+                    </button>
+                    {/* Línea 2 — solo desplegada */}
+                    {isOpen && dir && (
+                      <div className="flex items-center gap-2 px-3 pb-2">
+                        <span className="text-zinc-500 text-[11px] flex-1 truncate">{dir}</span>
+                        {mapsUrl && (
+                          <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+                            className="flex-shrink-0 text-[11px] font-semibold text-zinc-400 border border-zinc-600 rounded-md px-2 py-0.5 hover:text-white hover:border-zinc-500 transition-colors">
+                            ↗ Maps
+                          </a>
+                        )}
+                      </div>
+                    )}
+                    {isOpen && !dir && mapsUrl && (
+                      <div className="px-3 pb-2">
+                        <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+                          className="text-[11px] font-semibold text-zinc-400 border border-zinc-600 rounded-md px-2 py-0.5 hover:text-white hover:border-zinc-500 transition-colors">
+                          ↗ Maps
+                        </a>
+                      </div>
+                    )}
                   </div>
-                  <p className="text-white text-sm font-medium truncate">{v.cliente?.nombre}</p>
-                  <p className="text-zinc-500 text-xs truncate">{v.empleado?.nombre}</p>
-                  {v.nota && <p className="text-zinc-400 text-xs mt-1 truncate">{v.nota}</p>}
-                </button>
-              ))}
+                )
+              })}
             </div>
           )}
         </div>
       </div>
 
-      {visitaSeleccionada && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-white font-semibold">Detalle de visita</p>
-            <button onClick={() => setVisitaSeleccionada(null)} className="text-zinc-500 hover:text-white">✕</button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <p className="text-zinc-400 text-xs">Cliente</p>
-              <p className="text-white text-sm">{visitaSeleccionada.cliente?.nombre}</p>
-            </div>
-            <div>
-              <p className="text-zinc-400 text-xs">Empleado</p>
-              <p className="text-white text-sm">{visitaSeleccionada.empleado?.nombre}</p>
-            </div>
-            <div>
-              <p className="text-zinc-400 text-xs">Hora</p>
-              <p className="text-white text-sm">{new Date(visitaSeleccionada.createdAt).toLocaleTimeString('es-CO')}</p>
-            </div>
-            <div>
-              <p className="text-zinc-400 text-xs">Coordenadas</p>
-              <a href={`https://www.google.com/maps?q=${visitaSeleccionada.lat},${visitaSeleccionada.lng}`}
-                target="_blank" className="text-emerald-400 text-sm hover:underline">
-                Ver en Maps →
-              </a>
-            </div>
-            {visitaSeleccionada.nota && (
-              <div className="col-span-2 md:col-span-4">
-                <p className="text-zinc-400 text-xs">Nota</p>
-                <p className="text-white text-sm">{visitaSeleccionada.nota}</p>
-              </div>
-            )}
-            {visitaSeleccionada.factura && (
-              <div className="col-span-2 md:col-span-4">
-                <p className="text-zinc-400 text-xs">Factura</p>
-                <p className="text-blue-400 text-sm font-semibold">{visitaSeleccionada.factura}</p>
-              </div>
-            )}
-            {visitaSeleccionada.firma && (
-              <div className="col-span-2 md:col-span-4">
-                <FirmaInline firma={visitaSeleccionada.firma} />
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+
     </div>
   )
 }
