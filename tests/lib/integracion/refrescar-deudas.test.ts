@@ -194,7 +194,10 @@ describe('lib/integracion/sync — refrescarDeudasConPagosPendientes', () => {
     expect(result.deudasActualizadas).toBe(1)   // solo el que no falló
   })
 
-  it('UpTres devuelve balance (no vSaldo) → tolera ambos campos', async () => {
+  it('adapter siempre retorna vSaldo (no balance crudo) → refrescar usa vSaldo', async () => {
+    // El adapter mapea o.balance → vSaldo en fetchDeudasCliente.
+    // refrescarDeudasConPagosPendientes lee ext.vSaldo directamente.
+    // El fallback ext.balance era dead code y fue eliminado.
     vi.mocked((prisma as any).pagoCartera.findMany).mockResolvedValue([
       { syncDeudaId: 'sd-1', createdAt: new Date() },
     ])
@@ -202,7 +205,7 @@ describe('lib/integracion/sync — refrescarDeudasConPagosPendientes', () => {
       { id: 'sd-1', clienteApiId: 'api-c1', externalId: 'ext-1', saldo: 100, valor: 100, externalUpdatedAt: null },
     ])
     const adapter = makeAdapter({
-      'api-c1': [{ uid: 'ext-1', balance: 25, fModificado: '2026-05-10' }], // ← balance, no vSaldo
+      'api-c1': [{ uid: 'ext-1', vSaldo: 25, fModificado: '2026-05-10' }], // ← vSaldo (nombre interno correcto)
     })
 
     await refrescarDeudasConPagosPendientes(adapter, INT_ID, EMP_ID)
