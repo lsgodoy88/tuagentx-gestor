@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { checkPermiso } from '@/lib/permisos'
 
 import { DIAS } from '@/lib/constants'
+import { SyncIcon } from '@/components/SyncIcon'
 import { distanciaMetros } from '@/lib/gps'
 
 export default function RutasFijasPage() {
@@ -313,8 +314,8 @@ export default function RutasFijasPage() {
         {syncVentas && (
           <div className="flex flex-col items-end gap-1">
             <button onClick={ejecutarSyncVentas} disabled={!syncVentas.puedeSync || sincronizandoVentas}
-              className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-300 border border-zinc-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors">
-              <span className={sincronizandoVentas ? 'animate-spin inline-block' : ''}>🔄</span>
+              className={`flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-300 border border-zinc-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors ${sincronizandoVentas ? 'btn-shimmer' : ''}`}>
+              <SyncIcon spinning={sincronizandoVentas} className="w-3.5 h-3.5 text-blue-400" />
               {sincronizandoVentas ? '...' : 'Sync'}
             </button>
             <p className="text-zinc-600 text-[10px] text-right">
