@@ -188,7 +188,6 @@ export class UpTresAdapter implements AdaptadorIntegracion {
         fCreado: o.createdAt,
         fPago: fPago ?? undefined,
         fModificado: o.updatedAt,
-        condition: true,
         cliente: { uid: o.customerId },
         empleado: { uid: o.employeeId },
       }
@@ -239,7 +238,6 @@ export class UpTresAdapter implements AdaptadorIntegracion {
         fCreado: o.createdAt,
         fPago: fPago ?? undefined,
         fModificado: o.updatedAt,
-        condition: true,
         cliente: { uid: o.customerId },
         empleado: { uid: o.employeeId },
       }
@@ -275,7 +273,6 @@ export class UpTresAdapter implements AdaptadorIntegracion {
         fCreado: o.createdAt,
         fPago: fPago ?? undefined,
         fModificado: o.updatedAt,
-        condition: true,
         cliente: { uid: clienteId },
         empleado: { uid: null },
       }
@@ -284,13 +281,14 @@ export class UpTresAdapter implements AdaptadorIntegracion {
 
   async fetchVentas(desde?: Date, customerId?: string): Promise<VentaExterna[]> {
     const baseParams: Record<string, string> = {
-      fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,isDelivered,isShipped,items,createdAt,updatedAt,cityId,address,phone',
+      fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,items,createdAt,updatedAt,cityId,address,phone',
       expand: 'customer,items',
       includeTotal: 'false',
     }
     const fromDate = desde ?? new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)
     baseParams.from = fromDate.toISOString().split('T')[0]
-    baseParams.to = new Date().toISOString().split('T')[0]
+    const manana = new Date(); manana.setDate(manana.getDate() + 1)
+    baseParams.to = manana.toISOString().split('T')[0]
     if (customerId) baseParams.customerId = customerId
 
     // Traer condition=true (activas) y condition=false (cerradas) — combinar ambas
@@ -298,6 +296,11 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       this.fetchAllSinCondition('ordenes', { ...baseParams, condition: 'true' }),
       this.fetchAllSinCondition('ordenes', { ...baseParams, condition: 'false' }),
     ])
+    if (activas.length > 0) {
+      const s = activas[0]
+      console.log(`[fetchVentas] KEYS: ${Object.keys(s).join(',')}`)
+      console.log(`[fetchVentas] RAW: ${JSON.stringify(s).substring(0,500)}`)
+    }
 
     // Deduplicar por id
     const mapaOrdenes = new Map<string, any>()
@@ -312,13 +315,11 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       vTotal: o.total,
       fCreado: o.createdAt,
       fModificado: o.updatedAt,
-      condition: true,
       cliente: { uid: o.customerId },
       empleado: { uid: o.employeeId },
       productos: o.items || [],
       clienteNombreApi: o.customer ? (`${o.customer.firstName || ''} ${o.customer.lastName || ''}`.trim() || o.customer.tradeName || o.customer.name || null) : null,
       cityId: o.cityId || o.customer?.cityId || null,
-      ciudad: getCiudad(o.cityId || o.customer?.cityId),
       direccion: o.address || o.customer?.address || null,
       telefono: o.phone || o.customer?.phone || null,
       clienteNit: o.customer?.document || null,

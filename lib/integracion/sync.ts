@@ -160,7 +160,7 @@ export async function refrescarDeudasConPagosPendientes(
     for (const sd of sdsDelCli) {
       const ext: any = externasMap.get(sd.externalId)
       if (!ext) continue
-      const nuevoSaldo = Number(ext.vSaldo ?? ext.balance ?? 0)
+      const nuevoSaldo = Number(ext.vSaldo ?? 0)
       const nuevoUpd = ext.fModificado ? new Date(ext.fModificado) : new Date()
       const cambioSaldo = Math.abs(nuevoSaldo - Number(sd.saldo)) > 0.01
       const cambioUpd = nuevoUpd.getTime() !== new Date(sd.externalUpdatedAt || 0).getTime()
