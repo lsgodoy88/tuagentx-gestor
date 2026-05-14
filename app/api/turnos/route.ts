@@ -24,19 +24,22 @@ export async function POST(req: NextRequest) {
   const { accion, lat, lng, motivo, duracionMin } = await req.json()
 
   if (accion === 'iniciar') {
-    // Cerrar turno activo si existe
-    await prisma.turno.updateMany({
-      where: { empleadoId: user.id, activo: true },
-      data: { activo: false, fin: new Date() }
-    })
-    const turno = await prisma.turno.create({
-      data: {
-        id: crypto.randomUUID(),
-        empleadoId: user.id,
-        latInicio: lat || null,
-        lngInicio: lng || null,
-        activo: true,
-      }
+    const nuevoId = crypto.randomUUID()
+    const turno = await prisma.$transaction(async (tx) => {
+      // Cerrar cualquier turno activo previo
+      await tx.turno.updateMany({
+        where: { empleadoId: user.id, activo: true },
+        data: { activo: false, fin: new Date() }
+      })
+      return tx.turno.create({
+        data: {
+          id: nuevoId,
+          empleadoId: user.id,
+          latInicio: lat || null,
+          lngInicio: lng || null,
+          activo: true,
+        }
+      })
     })
     await audit('TURNO_INICIADO', user.email, `Turno: ${turno.id}`, user.id, user.empresaId)
     return NextResponse.json({ ok: true, turno })
@@ -59,20 +62,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
   if (accion === 'reanudar') {
-    // Calcular duración real de la pausa antes de limpiar pausaInicio
-    const turnoActivo = await prisma.turno.findFirst({
-      where: { empleadoId: user.id, activo: true },
-      select: { pausaInicio: true, pausaDuracionMin: true }
-    })
-    let duracionRealMin = turnoActivo?.pausaDuracionMin || null
-    if (turnoActivo?.pausaInicio) {
-      const ms = Date.now() - new Date(turnoActivo.pausaInicio).getTime()
-      duracionRealMin = Math.round(ms / 60000)
-    }
-    await prisma.turno.updateMany({
-      where: { empleadoId: user.id, activo: true },
-      data: { pausado: false, pausaInicio: null, pausaDuracionMin: duracionRealMin }
-      // pausaMotivo se conserva — no se borra
+    await prisma.$transaction(async (tx) => {
+      // Leer y calcular duración real dentro de la misma transacción
+      const turnoActivo = await tx.turno.findFirst({
+        where: { empleadoId: user.id, activo: true },
+        select: { id: true, pausaInicio: true, pausaDuracionMin: true }
+      })
+      if (!turnoActivo) return
+      let duracionRealMin = turnoActivo.pausaDuracionMin || null
+      if (turnoActivo.pausaInicio) {
+        const ms = Date.now() - new Date(turnoActivo.pausaInicio).getTime()
+        duracionRealMin = Math.round(ms / 60000)
+      }
+      await tx.turno.update({
+        where: { id: turnoActivo.id },
+        data: { pausado: false, pausaInicio: null, pausaDuracionMin: duracionRealMin }
+        // pausaMotivo se conserva — no se borra
+      })
     })
     return NextResponse.json({ ok: true })
   }

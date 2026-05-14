@@ -10,6 +10,21 @@ export async function sincronizarDeudas(
 ): Promise<Set<string>> {
   const clienteApiIds = new Set<string>()
 
+  // 1. Traer todos los existentes de una sola vez
+  const externalIds = deudas.map(o => (o.uid || o._id) as string).filter(Boolean)
+  const existentes = await (prisma as any).syncDeuda.findMany({
+    where: { integracionId, externalId: { in: externalIds } },
+    select: { externalId: true, saldo: true }
+  })
+  const mapaExistentes = new Map<string, number>(
+    existentes.map((e: any) => [e.externalId, parseFloat(e.saldo)])
+  )
+
+  // 2. Calcular operaciones en memoria
+  const toCreate: any[] = []
+  const toUpdateSaldo: Array<{ externalId: string, saldo: number, saldoAnterior: number }> = []
+  const toDeactivate: string[] = []
+
   for (const o of deudas) {
     const externalId = (o.uid || o._id) as string
     const clienteUid = o.cliente?.uid
@@ -17,26 +32,27 @@ export async function sincronizarDeudas(
 
     const saldo = parseFloat(o.vSaldo as string || '0')
     const activo = (o.condition === true || o.condition === undefined) && saldo > 0
-
     clienteApiIds.add(clienteUid)
 
     if (!activo) {
-      // Marcar como inactiva si existe
-      await (prisma as any).syncDeuda.updateMany({
-        where: { integracionId, externalId },
-        data: { condition: false }
-      })
+      if (mapaExistentes.has(externalId)) toDeactivate.push(externalId)
       continue
     }
 
-    const existing = await (prisma as any).syncDeuda.findUnique({
-      where: { integracionId_externalId: { integracionId, externalId } },
-      select: { saldo: true }
-    })
-
-    await (prisma as any).syncDeuda.upsert({
-      where: { integracionId_externalId: { integracionId, externalId } },
-      create: {
+    if (mapaExistentes.has(externalId)) {
+      // Ya existe — solo actualizar saldo
+      toUpdateSaldo.push({ externalId, saldo, saldoAnterior: mapaExistentes.get(externalId) ?? saldo })
+    } else {
+      // Nueva — insertar completa
+      const fechaVenc = (() => {
+        if (o.fPago) return new Date(o.fPago)
+        const dias = parseInt(String(o.dias || '0'))
+        if (dias > 0 && o.fCreado) {
+          const f = new Date(o.fCreado); f.setDate(f.getDate() + dias); return f
+        }
+        return null
+      })()
+      toCreate.push({
         id: `sd-${externalId}`,
         integracionId,
         externalId,
@@ -49,48 +65,33 @@ export async function sincronizarDeudas(
         saldoAnterior: saldo,
         abono: parseFloat(o.vAbono as string || '0'),
         diasCredito: parseInt(o.dias as string || '0'),
-        fechaVencimiento: (() => {
-          if (o.fPago) return new Date(o.fPago)
-          // Fallback: createdAt + creditDay si paidAt no viene del API
-          const dias = parseInt(String(o.dias || '0'))
-          if (dias > 0 && o.fCreado) {
-            const f = new Date(o.fCreado)
-            f.setDate(f.getDate() + dias)
-            return f
-          }
-          return null
-        })(),
+        fechaVencimiento: fechaVenc,
         condition: true,
         modificadoEn: o.fModificado ? new Date(o.fModificado) : null,
         externalUpdatedAt: o.fModificado ? new Date(o.fModificado) : null,
         data: o,
-      },
-      update: {
-        saldoAnterior: existing?.saldo ?? saldo,
-        saldo,
-        abono: parseFloat(o.vAbono as string || '0'),
-        clienteApiId: clienteUid,
-        empleadoExternalId: o.empleado?.uid || null,
-        numeroOrden: o.numeroOrden || 0,
-        numeroFactura: o.numeroFacturado || 0,
-        diasCredito: parseInt(o.dias as string || '0'),
-        fechaVencimiento: (() => {
-          if (o.fPago) return new Date(o.fPago)
-          const dias = parseInt(String(o.dias || '0'))
-          if (dias > 0 && o.fCreado) {
-            const f = new Date(o.fCreado)
-            f.setDate(f.getDate() + dias)
-            return f
-          }
-          return null
-        })(),
-        condition: true,
-        modificadoEn: o.fModificado ? new Date(o.fModificado) : null,
-        externalUpdatedAt: o.fModificado ? new Date(o.fModificado) : null,
-        data: o,
-      }
-    })
+      })
+    }
   }
+
+  // 3. Ejecutar todo en una sola transacción — o todo o nada
+  await prisma.$transaction(async (tx: any) => {
+    if (toCreate.length > 0) {
+      await tx.syncDeuda.createMany({ data: toCreate, skipDuplicates: true })
+    }
+    for (const u of toUpdateSaldo) {
+      await tx.syncDeuda.updateMany({
+        where: { integracionId, externalId: u.externalId },
+        data: { saldo: u.saldo, saldoAnterior: u.saldoAnterior }
+      })
+    }
+    if (toDeactivate.length > 0) {
+      await tx.syncDeuda.updateMany({
+        where: { integracionId, externalId: { in: toDeactivate } },
+        data: { condition: false }
+      })
+    }
+  }, { timeout: 30000 })
 
   return clienteApiIds
 }
@@ -112,10 +113,13 @@ export async function marcarZombis(
   })
   const zombis = localesActivas.filter((sd: any) => !externalIdsVivas.has(sd.externalId))
   if (zombis.length === 0) return 0
-  await (prisma as any).syncDeuda.updateMany({
-    where: { id: { in: zombis.map((z: any) => z.id) } },
-    data: { saldo: 0, condition: false, externalUpdatedAt: new Date() },
-  })
+  // Transacción: marcar todos los zombis de una vez o ninguno
+  await prisma.$transaction(async (tx: any) => {
+    await tx.syncDeuda.updateMany({
+      where: { id: { in: zombis.map((z: any) => z.id) } },
+      data: { saldo: 0, condition: false, externalUpdatedAt: new Date() },
+    })
+  }, { timeout: 15000 })
   return zombis.length
 }
 

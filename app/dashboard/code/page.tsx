@@ -208,7 +208,7 @@ export default function CodePage() {
             </button>
           </div>
           <button onClick={cargar} disabled={loading}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs disabled:opacity-50">
+            className={`bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg text-xs disabled:opacity-50 ${(loading) ? 'btn-shimmer' : ''}`}>
             {loading ? '⏳' : '🔄'} Sync
           </button>
         </div>

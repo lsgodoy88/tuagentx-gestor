@@ -2,34 +2,44 @@ import { prisma } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN_BODEGA } from '@/lib/auth-helpers'
 import fs from 'fs'
 import path from 'path'
-const municipiosDANE: Record<string, string> = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'public/municipios_dane.json'), 'utf-8'))
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 
+const municipiosDANE: Record<string, string> = JSON.parse(
+  fs.readFileSync(path.join(process.cwd(), 'public/municipios_dane.json'), 'utf-8')
+)
+
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
   const user = session.user as any
   if (!ROLES_ADMIN_BODEGA.includes(user.role)) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
+
   const empresaId = getEmpresaId(user)
   const body = await req.json().catch(() => ({}))
   const vinculadaId: string | null = body.vinculadaId || null
+
+  // Determinar empresa con integración + dónde guardar
   let integracionEmpresaId = empresaId
   let origenVinculadaId: string | null = null
+  let empresaBodegaId = empresaId
+
   if (vinculadaId) {
     const vinculada = await (prisma as any).empresaVinculada.findFirst({
       where: { id: vinculadaId, empresaId, activa: true },
       select: { id: true, empresaClienteId: true }
     })
-    if (!vinculada || !vinculada.empresaClienteId) return NextResponse.json({ error: 'Empresa vinculada no encontrada' }, { status: 400 })
+    if (!vinculada || !vinculada.empresaClienteId) {
+      return NextResponse.json({ error: 'Empresa vinculada no encontrada' }, { status: 400 })
+    }
     integracionEmpresaId = vinculada.empresaClienteId
     origenVinculadaId = vinculadaId
+    // empresaBodegaId queda en empresaId (la bodega del proveedor)
   }
 
-  // Obtener integración activa
   const integracion = await (prisma as any).integracion.findFirst({
     where: { empresaId: integracionEmpresaId, tipo: 'uptres', activa: true }
   })
@@ -40,90 +50,122 @@ export async function POST(req: NextRequest) {
   const adapter = new UpTresAdapter(config.apiKey, apiSecret)
   await adapter.login()
 
-  // Obtener días historial
-  const rows = await prisma.$queryRaw<[{ diasHistorialBodega: number }]>`
-    SELECT "diasHistorialBodega" FROM gestor."Empresa" WHERE id = ${empresaId} LIMIT 1
-  `
-  const dias = rows[0]?.diasHistorialBodega ?? 7
+  // diasHistorialBodega de la empresa (default 30)
+  const empresaRow = await (prisma as any).empresa.findUnique({
+    where: { id: integracionEmpresaId },
+    select: { diasHistorialBodega: true }
+  })
+  const dias = empresaRow?.diasHistorialBodega ?? 30
   const desde = new Date()
   desde.setDate(desde.getDate() - dias)
 
-  // Fetch órdenes
   const ordenes = await adapter.fetchVentas(desde)
-
-  // Filtrar por fCreado >= desde
   const desdeTs = desde.getTime()
   const ordenesFiltradas = ordenes.filter((o: any) => {
-    const fc = o.fCreado ? new Date(o.fCreado).getTime() : 0
+    const fc = o.fCreado ? new Date(o.fCreado as string).getTime() : 0
     return fc >= desdeTs
   })
 
-  // Bulk load clientes por apiId
-  const customerIds = [...new Set(ordenesFiltradas.map((o: any) => o.cliente?.uid).filter(Boolean))] as string[]
-  const clientes = await prisma.cliente.findMany({
-    where: { apiId: { in: customerIds }, empresaId: integracionEmpresaId },
-    select: { apiId: true, nombre: true, nit: true, ciudad: true, direccion: true, telefono: true }
+  // 1. Filtrar válidas: con factura, nombre y origenId
+  const ordenesValidas = ordenesFiltradas.filter((o: any) => {
+    const numFactura = o.numeroFacturado ? String(o.numeroFacturado) : null
+    const nombre = o.clienteNombre || o.clienteNombreApi
+    const origenId = String(o.uid || o._id || '')
+    return numFactura && nombre && origenId
   })
-  const mapaClientes = Object.fromEntries(clientes.map((c: any) => [c.apiId, c]))
 
-  // Buscar órdenes existentes por origenId
-  const origenIds = ordenesFiltradas.map((o: any) => o.uid).filter(Boolean) as string[]
-  const numeroOrdenes = ordenesFiltradas.map((o: any) => String(o.numeroFacturado || '')).filter(Boolean)
-  const existentes = await prisma.ordenDespacho.findMany({
+  // 2. Un query para saber cuáles ya existen
+  const origenIds = ordenesValidas.map((o: any) => String(o.uid || o._id))
+  const existentes = await (prisma as any).ordenDespacho.findMany({
     where: {
-      empresaId,
-      OR: [
-        { origenId: { in: origenIds } },
-        { numeroOrden: { in: numeroOrdenes }, origenId: '' },
-        { numeroOrden: { in: numeroOrdenes }, origenId: null },
-      ]
+      empresaId: empresaBodegaId,
+      origenId: { in: origenIds },
+      ...(origenVinculadaId ? { origenVinculadaId } : { origenVinculadaId: null })
     },
-    select: { id: true, origenId: true, numeroOrden: true, estado: true }
+    select: { origenId: true }
   })
-  const existentesMap = Object.fromEntries([
-    ...existentes.filter((e: any) => e.origenId).map((e: any) => [e.origenId, e]),
-    ...existentes.filter((e: any) => !e.origenId).map((e: any) => [e.numeroOrden, e]),
-  ])
+  const existentesSet = new Set(existentes.map((e: any) => e.origenId))
 
-  const toCreate: any[] = []
-  const toUpdate: any[] = []
+  const nuevasOrdenes = ordenesValidas.filter((o: any) => !existentesSet.has(String(o.uid || o._id)))
 
-  for (const o of ordenesFiltradas) {
-    const origenId = o.uid as string
-    if (!origenId) continue
-    if (!o.numeroFacturado) continue // Ignorar órdenes sin número de factura
-    const clienteData = mapaClientes[o.cliente?.uid ?? ''] || {}
-    if (!clienteData.nombre) continue // Sin cliente en BD → no crear
-    const ciudadRaw: string | null = clienteData.ciudad || null
-    const ciudad = ciudadRaw ? ciudadRaw.split('/').pop()?.trim() ?? ciudadRaw : null
-    const data = {
-      numeroOrden: String(o.numeroFacturado || ''),
-      clienteNombre: clienteData.nombre,
-      clienteNit: clienteData.nit || null,
-      ciudad,
-      direccion: clienteData.direccion || null,
-      telefono: clienteData.telefono || null,
-      fechaOrden: o.fCreado ? new Date(o.fCreado) : null,
-    }
-    const existente = existentesMap[origenId] || existentesMap[String(o.numeroFacturado || '')]
-    if (existente) {
-      toUpdate.push({ id: existente.id, data: { ...data, origenId: origenId || existente.origenId } })
-    } else {
-      toCreate.push({ empresaId, origen: 'uptres', origenId, estado: 'pendiente', origenVinculadaId, ...data })
-    }
+  if (nuevasOrdenes.length === 0) {
+    await (prisma as any).empresa.update({ where: { id: empresaId }, data: { ultimaSyncBodega: new Date() } })
+    return NextResponse.json({ ok: true, sincronizados: 0, nuevas: 0, actualizadas: 0 })
   }
 
-  await prisma.ordenDespacho.createMany({ data: toCreate, skipDuplicates: true })
-  for (let i = 0; i < toUpdate.length; i += 50) {
-    await Promise.all(toUpdate.slice(i, i + 50).map((u: any) => prisma.ordenDespacho.update({ where: { id: u.id }, data: u.data })))
-  }
+  // 3. Un query para todos los clientes necesarios
+  const clienteApiIds = [...new Set(nuevasOrdenes.map((o: any) => o.cliente?.uid).filter(Boolean))]
+  const clienteNits = [...new Set(nuevasOrdenes.map((o: any) => o.clienteNit).filter(Boolean))]
+  const clientesLocales = await (prisma as any).cliente.findMany({
+    where: {
+      empresaId: integracionEmpresaId,
+      OR: [
+        clienteApiIds.length > 0 ? { apiId: { in: clienteApiIds } } : undefined,
+        clienteNits.length > 0 ? { nit: { in: clienteNits } } : undefined,
+      ].filter(Boolean)
+    },
+    select: { apiId: true, nit: true, ciudad: true, direccion: true, telefono: true }
+  })
+  const mapaClientePorApiId = new Map(clientesLocales.filter((c: any) => c.apiId).map((c: any) => [c.apiId, c]))
+  const mapaClientePorNit = new Map(clientesLocales.filter((c: any) => c.nit).map((c: any) => [c.nit, c]))
 
-  await (prisma as any).empresa.update({ where: { id: empresaId }, data: { ultimaSyncBodega: new Date() } })
+  // 4. Construir en memoria
+  const toCreate = nuevasOrdenes.map((orden: any) => {
+    const origenId = String(orden.uid || orden._id)
+    const numPedido = String(orden.numeroOrden || '')
+    const numFactura = String(orden.numeroFacturado)
+    const vendedorApiId = orden.empleado?.uid || null
+    const clienteApiId = orden.cliente?.uid || null
+
+    let ciudadNombre = (orden.ciudad as string) || ''
+    if (orden.cityId && municipiosDANE[String(orden.cityId)]) {
+      ciudadNombre = municipiosDANE[String(orden.cityId)]
+    } else if (ciudadNombre.includes('/')) {
+      ciudadNombre = ciudadNombre.split('/').pop()?.trim() || ciudadNombre
+    }
+
+    let direccion = orden.direccion || ''
+    let telefono = orden.telefono || ''
+    let clienteNit = orden.clienteNit || ''
+
+    const cli = (clienteApiId && mapaClientePorApiId.get(clienteApiId)) ||
+                (clienteNit && mapaClientePorNit.get(clienteNit))
+    if (cli) {
+      if (!ciudadNombre && cli.ciudad) ciudadNombre = cli.ciudad
+      if (!direccion && cli.direccion) direccion = cli.direccion
+      if (!telefono && cli.telefono) telefono = cli.telefono
+      if (!clienteNit && cli.nit) clienteNit = cli.nit
+    }
+
+    return {
+      numeroOrden: numPedido,
+      numeroFactura: numFactura,
+      vendedorApiId,
+      clienteApiId,
+      clienteNombre: orden.clienteNombre || orden.clienteNombreApi,
+      clienteNit,
+      ciudad: ciudadNombre,
+      direccion,
+      telefono,
+      fechaOrden: orden.fCreado ? new Date(orden.fCreado as string) : new Date(),
+      empresaId: empresaBodegaId,
+      origen: origenVinculadaId ? 'vinculada' : 'propia',
+      origenId,
+      origenVinculadaId,
+      estado: 'pendiente',
+    }
+  })
+
+  // 5. Transacción — todo o nada
+  await prisma.$transaction(async (tx: any) => {
+    await tx.ordenDespacho.createMany({ data: toCreate, skipDuplicates: true })
+    await tx.empresa.update({ where: { id: empresaId }, data: { ultimaSyncBodega: new Date() } })
+  }, { timeout: 30000 })
 
   return NextResponse.json({
     ok: true,
-    sincronizados: toCreate.length + toUpdate.length,
+    sincronizados: toCreate.length,
     nuevas: toCreate.length,
-    actualizadas: toUpdate.length
+    actualizadas: 0
   })
 }

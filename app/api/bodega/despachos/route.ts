@@ -34,22 +34,29 @@ export async function GET(req: NextRequest) {
     ? { origenVinculadaId: origenId }
     : { origenVinculadaId: null }
 
-  const despachos = await (prisma as any).ordenDespacho.findMany({
-    where: {
-      empresaId,
-      ...whereOrigen,
-
-      OR: [
-        { fechaOrden: { gte: desde } },
-        { fechaOrden: null, createdAt: { gte: desde } },
-      ],
-    },
+  // Traer IDs ordenados por numeroOrden int DESC, fechaOrden DESC vía SQL nativo
+  const desdeIso = desde.toISOString()
+  const origenSQL = esVinculada
+    ? `"origenVinculadaId" = '${origenId.replace(/'/g, "''")}'`
+    : `"origenVinculadaId" IS NULL`
+  const idRows = await prisma.$queryRawUnsafe<{ id: string }[]>(
+    `SELECT id FROM gestor."OrdenDespacho"
+     WHERE "empresaId" = $1
+       AND ${origenSQL}
+       AND ("fechaOrden" >= $2::timestamp OR ("fechaOrden" IS NULL AND "createdAt" >= $2::timestamp))
+     ORDER BY (CASE WHEN "numeroFactura" ~ '^[0-9]+$' THEN CAST("numeroFactura" AS INTEGER) ELSE 0 END) DESC`,
+    empresaId, desdeIso
+  )
+  const ordenIds = idRows.map(r => r.id)
+  const despachosRaw = ordenIds.length > 0 ? await (prisma as any).ordenDespacho.findMany({
+    where: { id: { in: ordenIds } },
     include: {
       alistadoPor: { select: { id: true, nombre: true } },
       repartidor: { select: { id: true, nombre: true } },
     },
-    orderBy: [{ numeroOrden: 'desc' }],
-  })
+  }) : []
+  const orderMap = new Map(ordenIds.map((id, i) => [id, i]))
+  const despachos = despachosRaw.sort((a: any, b: any) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0))
 
   const despachosFiltrados = despachos.filter((d: any) => d.clienteNombre && d.clienteNombre !== 'Sin nombre' && d.clienteNombre !== '')
   return NextResponse.json({ despachos: despachosFiltrados, ciudadLocal, bodegaPuedeEnviar, ultimaSyncBodega, diasHistorialBodega: dias })

@@ -142,7 +142,7 @@ export default function ListasPage() {
               <button onClick={() => setModalCrear(false)}
                 className="flex-1 bg-zinc-800 text-white text-sm py-3 rounded-xl">Cancelar</button>
               <button onClick={crear} disabled={loading || !nombre.trim()}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold text-sm py-3 rounded-xl">
+                className={`flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold text-sm py-3 rounded-xl ${(loading || !nombre.trim()) ? 'btn-shimmer' : ''}`}>
                 {loading ? 'Guardando...' : 'Crear'}
               </button>
             </div>
@@ -190,7 +190,7 @@ export default function ListasPage() {
               <button onClick={() => { setModalEditar(null); setNombre(''); setVendedorIds([]) }}
                 className="flex-1 bg-zinc-800 text-white text-sm py-3 rounded-xl">Cancelar</button>
               <button onClick={guardarEdicion} disabled={loading || !nombre.trim()}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold text-sm py-3 rounded-xl">
+                className={`flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold text-sm py-3 rounded-xl ${(loading || !nombre.trim()) ? 'btn-shimmer' : ''}`}>
                 {loading ? 'Guardando...' : 'Guardar'}
               </button>
             </div>

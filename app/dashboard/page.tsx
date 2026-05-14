@@ -9,6 +9,8 @@ import { useGpsEnDemanda } from '@/components/useGpsEnDemanda'
 import { GpsIndicator } from '@/components/GpsIndicator'
 import { estadoMasCritico } from '@/lib/cartera'
 import { useEffect, useState, useRef } from 'react'
+import { CountUp, LiveDot, SkeletonCard, LoadingBorder } from '@/components/FX'
+import { SyncIcon } from '@/components/SyncIcon'
 import { useRouter } from 'next/navigation'
 
 type LineaPago = { id: string; metodoPago: 'efectivo' | 'transferencia'; monto: string; descuento: string; voucherKey: string | null; voucherDatosIA: any; cargandoVoucher: boolean }
@@ -518,8 +520,8 @@ export default function DashboardPage() {
           <button
             onClick={() => setModalSync(true)}
             disabled={sincronizando}
-            className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-semibold px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50">
-            <span>{sincronizando ? '⏳' : '🔄'}</span> {sincronizando ? 'Sincronizando...' : 'Sync'}
+            className={`flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-semibold px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50 ${sincronizando ? 'btn-shimmer' : ''}`}>
+            <SyncIcon spinning={sincronizando} className="w-4 h-4 text-blue-400" /> {sincronizando ? 'Sincronizando...' : 'Sync'}
           </button>
         )}
       </div>
@@ -527,38 +529,46 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
-              { label: 'Empleados', value: stats.empleados, icon: '👥', sub: (stats.enTurno || 0) + ' en turno' },
-              { label: 'Clientes', value: stats.clientes, icon: '🏪', sub: 'registrados' },
-              { label: 'Visitas hoy', value: stats.visitasHoy || 0, icon: '📍', sub: 'del día' },
-              { label: 'Ventas hoy', value: '$' + (stats.ventasHoy || 0).toLocaleString('es-CO'), icon: '💰', sub: 'en efectivo' },
-            ].map(s => (
-              <div key={s.label} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+              { label: 'Empleados', value: stats.empleados, icon: '👥', sub: (stats.enTurno || 0) + ' en turno', numeric: true },
+              { label: 'Clientes', value: stats.clientes, icon: '🏪', sub: 'registrados', numeric: true },
+              { label: 'Visitas hoy', value: stats.visitasHoy || 0, icon: '📍', sub: 'del día', numeric: true },
+              { label: 'Ventas hoy', value: stats.ventasHoy || 0, icon: '💰', sub: 'en efectivo', numeric: true, money: true },
+            ].map((s, i) => (
+              <div key={s.label} className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-${i+1} ${loadingStats ? 'loading-border' : ''}`}>
                 <div className="text-2xl mb-2">{s.icon}</div>
-                <div className="text-xl font-bold text-white truncate">{s.value}</div>
+                <div className="text-xl font-bold text-white truncate">
+                  {s.money ? <>$<CountUp end={Number(s.value) || 0} /></> : <CountUp end={Number(s.value) || 0} />}
+                </div>
                 <div className="text-zinc-400 text-xs mt-0.5">{s.label}</div>
                 <div className="text-zinc-600 text-xs">{s.sub}</div>
               </div>
             ))}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className="bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4">
+            <div className={`bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 hover-lift fade-up stagger-5 ${loadingStats ? 'loading-border' : ''}`}>
               <p className="text-blue-400 text-xs font-semibold mb-1">VENTAS 30 DÍAS</p>
-              <p className="text-white text-2xl font-bold">{"$" + (stats.ventasMes || 0).toLocaleString('es-CO')}</p>
+              <p className="text-white text-2xl font-bold">$<CountUp end={stats.ventasMes || 0} /></p>
               <p className="text-zinc-500 text-xs mt-1">{stats.porTipo?.venta || 0} transacciones</p>
             </div>
-            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4">
+            <div className={`bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 hover-lift fade-up stagger-6 ${loadingStats ? 'loading-border-emerald' : ''}`}>
               <p className="text-emerald-400 text-xs font-semibold mb-1">COBROS 30 DÍAS</p>
-              <p className="text-white text-2xl font-bold">{"$" + (stats.cobrosMes || 0).toLocaleString('es-CO')}</p>
+              <p className="text-white text-2xl font-bold">$<CountUp end={stats.cobrosMes || 0} /></p>
               <p className="text-zinc-500 text-xs mt-1">{stats.porTipo?.cobro || 0} transacciones</p>
             </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+            <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-7 ${loadingStats ? 'loading-border' : ''}`}>
               <p className="text-zinc-400 text-xs font-semibold mb-1">RUTAS ACTIVAS</p>
-              <p className="text-white text-2xl font-bold">{stats.rutasActivas || 0}</p>
+              <p className="text-white text-2xl font-bold flex items-center gap-2">
+                <CountUp end={stats.rutasActivas || 0} />
+                {(stats.rutasActivas || 0) > 0 && <LiveDot color="emerald" />}
+              </p>
               <p className="text-zinc-500 text-xs mt-1">sin cerrar</p>
             </div>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+            <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-8 ${loadingStats ? 'loading-border' : ''}`}>
               <p className="text-zinc-400 text-xs font-semibold mb-1">EN TURNO</p>
-              <p className="text-white text-2xl font-bold">{stats.enTurno || 0}</p>
+              <p className="text-white text-2xl font-bold flex items-center gap-2">
+                <CountUp end={stats.enTurno || 0} />
+                {(stats.enTurno || 0) > 0 && <LiveDot color="blue" />}
+              </p>
               <p className="text-zinc-500 text-xs mt-1">empleados activos</p>
             </div>
           </div>
@@ -740,16 +750,16 @@ export default function DashboardPage() {
         </div>
       )}
       {isBodega && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-white font-semibold text-sm">📦 Órdenes bodega hoy</h3>
             <a href="/dashboard/ordenes" className="text-emerald-400 text-xs">Ver órdenes →</a>
           </div>
           {bodegaStats ? (
             <div className="grid grid-cols-3 gap-2">
-              <div className="text-center"><p className="text-2xl font-bold text-amber-400">{bodegaStats.pendientes}</p><p className="text-zinc-500 text-xs">🟡 Pendientes</p></div>
-              <div className="text-center"><p className="text-2xl font-bold text-emerald-400">{bodegaStats.alistados}</p><p className="text-zinc-500 text-xs">🟢 Alistados</p></div>
-              <div className="text-center"><p className="text-2xl font-bold text-blue-400">{bodegaStats.entregados}</p><p className="text-zinc-500 text-xs">✅ Entregados</p></div>
+              <div className="text-center fade-up stagger-1"><p className="text-2xl font-bold text-amber-400 flex items-center justify-center gap-1.5"><CountUp end={bodegaStats.pendientes} />{bodegaStats.pendientes > 0 && <LiveDot color="amber" />}</p><p className="text-zinc-500 text-xs">🟡 Pendientes</p></div>
+              <div className="text-center fade-up stagger-2"><p className="text-2xl font-bold text-emerald-400"><CountUp end={bodegaStats.alistados} /></p><p className="text-zinc-500 text-xs">🟢 Alistados</p></div>
+              <div className="text-center fade-up stagger-3"><p className="text-2xl font-bold text-blue-400"><CountUp end={bodegaStats.entregados} /></p><p className="text-zinc-500 text-xs">✅ Entregados</p></div>
             </div>
           ) : <p className="text-zinc-500 text-xs text-center">Cargando...</p>}
         </div>
@@ -760,7 +770,7 @@ export default function DashboardPage() {
             // TARJETA PAUSA
             <div className="rounded-2xl p-4 border bg-amber-500/8 border-amber-500/20">
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-3 h-3 rounded-full bg-amber-400 animate-pulse" />
+                <span className="relative inline-flex h-3 w-3 align-middle"><span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 live-ping" /><span className="relative inline-flex rounded-full h-3 w-3 bg-amber-400" /></span>
                 <span className="font-semibold text-amber-400">En pausa · {turno.pausaMotivo}</span>
               </div>
               <div className="grid grid-cols-2 gap-2 mb-3">
@@ -780,7 +790,7 @@ export default function DashboardPage() {
             // TARJETA TURNO ACTIVO
             <div className="rounded-2xl p-4 border bg-emerald-500/10 border-emerald-500/20">
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-3 h-3 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="relative inline-flex h-3 w-3 align-middle"><span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 live-ping" /><span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" /></span>
                 <span className="font-semibold text-emerald-400">Turno activo</span>
               </div>
               <div className="grid grid-cols-2 gap-2 mb-3">
@@ -963,28 +973,28 @@ export default function DashboardPage() {
               {loadingStats && <div className="text-zinc-400 text-center py-4 text-sm">Cargando estadísticas...</div>}
               {!loadingStats && statsVendedor && (
                 <div className="space-y-4">
-                  <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up">
                     <p className="text-white font-bold mb-3">Hoy</p>
                     <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-zinc-800 rounded-xl p-3">
+                      <div className="bg-zinc-800 rounded-xl p-3 hover-lift">
                         <p className="text-zinc-400 text-xs">Visitas</p>
-                        <p className="text-white text-2xl font-bold">{statsVendedor.hoy.total}</p>
+                        <p className="text-white text-2xl font-bold"><CountUp end={statsVendedor.hoy.total || 0} /></p>
                       </div>
-                      <div className="bg-zinc-800 rounded-xl p-3">
+                      <div className="bg-zinc-800 rounded-xl p-3 hover-lift">
                         <p className="text-zinc-400 text-xs">Ventas</p>
-                        <p className="text-white text-2xl font-bold">{statsVendedor.hoy.ventas}</p>
+                        <p className="text-white text-2xl font-bold"><CountUp end={statsVendedor.hoy.ventas || 0} /></p>
                       </div>
-                      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
+                      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 hover-lift">
                         <p className="text-zinc-400 text-xs">$ Ventas</p>
-                        <p className="text-emerald-400 font-bold">${statsVendedor.hoy.montoVentas.toLocaleString('es-CO')}</p>
+                        <p className="text-emerald-400 font-bold">$<CountUp end={statsVendedor.hoy.montoVentas || 0} /></p>
                       </div>
-                      <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+                      <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 hover-lift">
                         <p className="text-zinc-400 text-xs">Recaudo</p>
-                        <p className="text-blue-400 font-bold">${statsVendedor.hoy.montoCobros.toLocaleString('es-CO')}</p>
+                        <p className="text-blue-400 font-bold">$<CountUp end={statsVendedor.hoy.montoCobros || 0} /></p>
                       </div>
                     </div>
                   </div>
-                  <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-2">
                     <p className="text-white font-bold mb-3">Últimos 6 días</p>
                     <div className="overflow-x-auto">
                       <div>
@@ -1179,7 +1189,7 @@ export default function DashboardPage() {
                   autoFocus
                 />
                 {rrLoadingCartera && (
-                  <div className="space-y-2">{Array.from({length:3}).map((_,i) => <div key={i} className="animate-pulse bg-zinc-800 rounded-xl h-16"/>)}</div>
+                  <div className="space-y-2">{Array.from({length:3}).map((_,i) => <div key={i} className="shimmer rounded-xl h-16"/>)}</div>
                 )}
                 {!rrLoadingCartera && rrCartera.length === 0 && (
                   <p className="text-zinc-500 text-sm text-center py-6">Sin clientes con deuda activa</p>
@@ -1256,7 +1266,7 @@ export default function DashboardPage() {
                 {recaudandoCartera.cliente?.nit && <p className="text-zinc-400 text-xs">NIT: {recaudandoCartera.cliente.nit}</p>}
               </div>
               {loadingDetalle ? (
-                <div className="space-y-2">{Array.from({length:3}).map((_,i)=><div key={i} className="animate-pulse bg-zinc-800 rounded-xl h-12"/>)}</div>
+                <div className="space-y-2">{Array.from({length:3}).map((_,i)=><div key={i} className="shimmer rounded-xl h-12"/>)}</div>
               ) : !detalleData ? (
                 <p className="text-zinc-500 text-sm text-center py-4">Sin cartera registrada</p>
               ) : (

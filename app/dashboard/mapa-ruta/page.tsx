@@ -148,7 +148,7 @@ export default function MapaRutaPage() {
         </div>
         {clientesConGps.length >= 2 && (
           <button onClick={optimizar} disabled={optimizando || !ubicacion}
-            className={"font-semibold px-3 py-2 rounded-xl transition-colors flex items-center gap-1.5 " + (optimizando ? "bg-zinc-700 text-zinc-400" : "bg-emerald-600 text-white hover:bg-emerald-500")}>
+            className={("font-semibold px-3 py-2 rounded-xl transition-colors flex items-center gap-1.5 " + (optimizando ? "bg-zinc-700 text-zinc-400" : "bg-emerald-600 text-white hover:bg-emerald-500")) + ((optimizando || !ubicacion) ? ' btn-shimmer' : '')}>
             {optimizando ? <span>Calculando...</span> : <><span style={{fontSize:'18px'}}>🤖</span><span style={{fontSize:'13px',fontWeight:'bold'}}> IA</span></>}
           </button>
         )}

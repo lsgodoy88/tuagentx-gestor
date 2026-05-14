@@ -5,6 +5,7 @@ import { fetchApi, errorMsg } from '@/lib/fetchApi'
 import { useSession } from 'next-auth/react'
 import { useEffect, useRef, useState } from 'react'
 import ModalVisita from '@/components/ModalVisita'
+import { CountUp, LiveDot } from '@/components/FX'
 
 const MapaRutaVivo = dynamic(() => import('../mapa-ruta/MapaRutaVivo'), { ssr: false })
 import { obtenerGpsMejor, calentar } from '@/lib/gps'
@@ -155,8 +156,9 @@ export default function MiRutaPage() {
   function renderClienteCard(c: any, i: number) {
     const esEjecutado = visitasCliente(c.id).length > 0
     const visitas = visitasCliente(c.id)
+    const staggerClass = `fade-up stagger-${Math.min(i+1, 8)}`
     return (
-      <div key={c.id} className={"rounded-xl border overflow-hidden " + (esEjecutado ? "bg-zinc-900 border-zinc-700/30" : "bg-zinc-900 border-zinc-800")}>
+      <div key={c.id} className={`rounded-xl border overflow-hidden ${staggerClass} ` + (esEjecutado ? "bg-zinc-900 border-zinc-700/30" : "bg-zinc-900 border-zinc-800")}>
         <div className="flex items-center gap-3 p-3" onClick={() => esEjecutado && setDetalleCliente(detalleCliente === c.id ? null : c.id)} style={{cursor: esEjecutado ? 'pointer' : 'default'}}>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 min-w-0">
@@ -197,7 +199,7 @@ export default function MiRutaPage() {
               <div key={v.id} className="flex items-center gap-2">
                 <span className="text-xs">{v.tipo === "venta" ? "💰" : v.tipo === "cobro" ? "💵" : v.tipo === "entrega" ? "📦" : "👁️"}</span>
                 <span className="text-zinc-400 text-xs capitalize">{v.tipo}</span>
-                {v.monto && <span className="text-emerald-400 text-xs font-semibold">${Number(v.monto).toLocaleString("es-CO")}</span>}
+                {v.monto && <span className="text-emerald-400 text-xs font-semibold">$<CountUp end={Number(v.monto)} duration={500} /></span>}
                 {v.nota && <span className="text-zinc-500 text-xs truncate">— {v.nota}</span>}
                 <span className="text-zinc-600 text-xs ml-auto">{new Date(v.createdAt).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}</span>
               </div>
@@ -208,7 +210,18 @@ export default function MiRutaPage() {
     )
   }
 
-  if (loading) return <div className="p-8 text-zinc-400">Cargando...</div>
+  if (loading) return (
+    <div className="max-w-2xl mx-auto space-y-3 p-4">
+      <div className="shimmer h-8 w-2/3 rounded-lg" />
+      <div className="shimmer h-4 w-1/2 rounded" />
+      <div className="shimmer h-32 rounded-2xl mt-4" />
+      <div className="space-y-2 mt-4">
+        {Array.from({length: 6}).map((_, i) => (
+          <div key={i} className={`shimmer rounded-xl h-20 fade-up stagger-${i+1}`} />
+        ))}
+      </div>
+    </div>
+  )
 
   const clientesConGps = clientesOrdenados.filter((c: any) => c.ubicacionReal).length
   const ejecutadasCount = clientesOrdenados.filter(c => visitasCliente(c.id).length > 0).length
@@ -228,8 +241,8 @@ export default function MiRutaPage() {
           </div>
           {ruta && (
             <div className="flex gap-3 mt-1">
-              <span className="text-emerald-400 text-sm">✅ {clientesOrdenados.filter((c: any) => visitasCliente(c.id).length > 0).length} ejecutadas</span>
-              <span className="text-zinc-400 text-sm">⏳ {clientesOrdenados.filter((c: any) => visitasCliente(c.id).length === 0).length} pendientes</span>
+              <span className="text-emerald-400 text-sm flex items-center gap-1">✅ <CountUp end={clientesOrdenados.filter((c: any) => visitasCliente(c.id).length > 0).length} /> ejecutadas</span>
+              <span className="text-zinc-400 text-sm flex items-center gap-1">⏳ <CountUp end={clientesOrdenados.filter((c: any) => visitasCliente(c.id).length === 0).length} /> pendientes {clientesOrdenados.filter((c: any) => visitasCliente(c.id).length === 0).length > 0 && <LiveDot color="amber" />}</span>
             </div>
           )}
         </div>
@@ -242,14 +255,14 @@ export default function MiRutaPage() {
           </div>
         ) : (
           <div className="space-y-3">
-            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4">
-              <p className="text-emerald-400 font-bold text-lg">{ruta.nombre}</p>
-              <p className="text-zinc-400 text-xs mt-1">🏪 {clientesOrdenados.length} clientes asignados</p>
-              {clientesConGps > 0 && <p className="text-emerald-400 text-xs mt-0.5">📍 {clientesConGps} con GPS</p>}
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 fade-up hover-lift">
+              <p className="text-emerald-400 font-bold text-lg flex items-center gap-2">{ruta.nombre} <LiveDot color="emerald" /></p>
+              <p className="text-zinc-400 text-xs mt-1">🏪 <CountUp end={clientesOrdenados.length} /> clientes asignados</p>
+              {clientesConGps > 0 && <p className="text-emerald-400 text-xs mt-0.5">📍 <CountUp end={clientesConGps} /> con GPS</p>}
               {clientesConGps >= 2 && (
                 <button onClick={mostrarOptimizada ? () => setMostrarOptimizada(false) : optimizarRuta}
                   disabled={optimizando}
-                  className={"w-full mt-3 font-semibold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2 " + (mostrarOptimizada ? "bg-blue-500/10 border border-blue-500/20 text-blue-400" : "bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white")}>
+                  className={`w-full mt-3 font-semibold py-2.5 rounded-xl text-sm transition-colors flex items-center justify-center gap-2 ${optimizando ? 'btn-shimmer' : ''} ` + (mostrarOptimizada ? "bg-blue-500/10 border border-blue-500/20 text-blue-400" : "bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white")}>
                   {optimizando ? '⏳ Calculando ruta...' : mostrarOptimizada ? '✅ Ruta optimizada — Ver original' : '🤖 Optimizar ruta con IA'}
                 </button>
               )}

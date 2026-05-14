@@ -4,6 +4,7 @@ import { useSession } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
+import { CountUp, LiveDot } from '@/components/FX'
 const MapaVivo = dynamic(() => import('@/app/dashboard/mapa/MapaVivo'), { ssr: false })
 const COLORES = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4']
 
@@ -71,7 +72,7 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
           </div>
           {!rutaId && (
             <div className="flex items-center gap-2 mt-1">
-              <p className="text-zinc-400 text-sm flex-1">{datos.visitas.length} visitas con GPS</p>
+              <p className="text-zinc-400 text-sm flex-1 flex items-center gap-2"><CountUp end={datos.visitas.length} /> visitas con GPS {datos.visitas.length > 0 && <LiveDot color="emerald" />}</p>
               {!esEmpleado && <select value={empleadoId} onChange={e => setEmpleadoId(e.target.value)}
                 className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 text-white text-xs outline-none max-w-[140px]">
                 <option value="">Vendedores</option>
@@ -89,13 +90,13 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
               </div>
             </div>
           )}
-          {rutaId && <p className="text-zinc-400 text-sm mt-1">{datos.visitas.length} visitas con GPS</p>}
+          {rutaId && <p className="text-zinc-400 text-sm mt-1 flex items-center gap-2"><CountUp end={datos.visitas.length} /> visitas con GPS {datos.visitas.length > 0 && <LiveDot color="emerald" />}</p>}
         </div>
       )}
 
       {embebido && (
         <div className="flex items-center gap-2">
-          <p className="text-zinc-400 text-sm flex-1">{datos.visitas.length} visitas con GPS</p>
+          <p className="text-zinc-400 text-sm flex-1 flex items-center gap-2"><CountUp end={datos.visitas.length} /> visitas con GPS {datos.visitas.length > 0 && <LiveDot color="emerald" />}</p>
           {!esEmpleado && <select value={empleadoId} onChange={e => setEmpleadoId(e.target.value)}
             className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 text-white text-xs outline-none max-w-[140px]">
             <option value="">Vendedores</option>
@@ -117,8 +118,11 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
       {!esEmpleado && datos.empleados.length > 0 && (
         <div className="flex gap-3 flex-wrap">
           {datos.empleados.map((e: any, i: number) => (
-            <div key={e.id} className="flex items-center gap-1.5">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORES[i % COLORES.length] }} />
+            <div key={e.id} className={`flex items-center gap-1.5 fade-up stagger-${Math.min(i+1, 8)}`}>
+              <span className="relative inline-flex h-3 w-3 align-middle">
+                <span className="absolute inline-flex h-full w-full rounded-full opacity-75 live-ping" style={{ backgroundColor: COLORES[i % COLORES.length] }} />
+                <span className="relative inline-flex rounded-full h-3 w-3" style={{ backgroundColor: COLORES[i % COLORES.length] }} />
+              </span>
               <span className="text-zinc-400 text-xs">{e.nombre}</span>
             </div>
           ))}
@@ -128,7 +132,7 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden" style={{ height: '500px' }}>
           {loading ? (
-            <div className="h-full flex items-center justify-center text-zinc-400">Cargando mapa...</div>
+            <div className="h-full p-4 space-y-3"><div className="shimmer h-full rounded-xl" /></div>
           ) : datos.visitas.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-zinc-400 space-y-2">
               <span className="text-4xl">🗺️</span>
@@ -149,9 +153,9 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
             <p className="text-zinc-600 text-sm">Sin visitas</p>
           ) : (
             <div className="space-y-3">
-              {datos.visitas.map((v: any) => (
+              {datos.visitas.map((v: any, i: number) => (
                 <button key={v.id} onClick={() => setVisitaSeleccionada(v)}
-                  className={"w-full text-left p-3 rounded-xl border transition-all " + (visitaSeleccionada?.id === v.id ? "border-emerald-500 bg-emerald-500/10" : "border-zinc-800 bg-zinc-800 hover:border-zinc-700")}>
+                  className={`w-full text-left p-3 rounded-xl border transition-all fade-up stagger-${Math.min(i+1, 8)} ` + (visitaSeleccionada?.id === v.id ? "border-emerald-500 bg-emerald-500/10" : "border-zinc-800 bg-zinc-800 hover:border-zinc-700")}>
                   <div className="flex items-center gap-2 mb-1">
                     <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: colorEmpleado(v.empleadoId) }} />
                     <span className="text-zinc-400 text-xs">{new Date(v.createdAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</span>

@@ -156,9 +156,11 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'No se pueden eliminar rutas. El historial debe preservarse.' }, { status: 403 })
   }
   const { id } = await req.json()
-  await prisma.rutaEmpleado.deleteMany({ where: { rutaId: id } })
-  await prisma.rutaCliente.deleteMany({ where: { rutaId: id } })
-  await prisma.ruta.delete({ where: { id } })
+  await prisma.$transaction([
+    prisma.rutaEmpleado.deleteMany({ where: { rutaId: id } }),
+    prisma.rutaCliente.deleteMany({ where: { rutaId: id } }),
+    prisma.ruta.delete({ where: { id } }),
+  ])
   return NextResponse.json({ ok: true })
 }
 
@@ -169,11 +171,11 @@ export async function PATCH(req: NextRequest) {
   const { id, nombre, fecha, empleadoIds, clienteIds } = await req.json()
   const supData = user.role === 'supervisor' ? { supervisorId: user.id, supervisorEtiqueta: (user as any).etiqueta || null } : {}
 
-  // Eliminar relaciones actuales
-  await prisma.rutaEmpleado.deleteMany({ where: { rutaId: id } })
-  await prisma.rutaCliente.deleteMany({ where: { rutaId: id } })
-
-  // Recrear
+  // Eliminar y recrear en una sola transacción
+  await prisma.$transaction([
+    prisma.rutaEmpleado.deleteMany({ where: { rutaId: id } }),
+    prisma.rutaCliente.deleteMany({ where: { rutaId: id } }),
+  ])
   const ruta = await prisma.ruta.update({
     where: { id },
     data: {

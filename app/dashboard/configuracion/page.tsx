@@ -754,7 +754,7 @@ export default function ConfiguracionPage() {
                           <p className="text-zinc-400 text-xs">Carga todos los clientes, cartera y datos de impulso. Solo se ejecuta una vez.</p>
                           {msgSync && <p className="text-sm text-emerald-400">{msgSync}</p>}
                           <button onClick={ejecutarSyncInicial} disabled={sincronizando}
-                            className="w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black font-semibold px-4 py-2 rounded-xl text-sm">
+                            className={`w-full bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black font-semibold px-4 py-2 rounded-xl text-sm ${(sincronizando) ? 'btn-shimmer' : ''}`}>
                             {sincronizando ? 'Sincronizando...' : '🚀 Ejecutar sincronización inicial'}
                           </button>
                         </div>
@@ -767,7 +767,7 @@ export default function ConfiguracionPage() {
                       )}
                       <div className="flex gap-2 flex-wrap">
                         <button onClick={syncDelta} disabled={sincronizando}
-                          className="bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/20 font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
+                          className={`bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/20 font-semibold px-4 py-2 rounded-xl text-sm transition-colors ${(sincronizando) ? 'btn-shimmer' : ''}`}>
                           {sincronizando ? 'Sincronizando...' : '🔄 Sync'}
                         </button>
                         <button onClick={desconectarERP}

@@ -74,20 +74,18 @@ export async function recalcularVentasMesImpulsos(empresaId: string, adapter?: a
     }
   }
 
-  // Borrar registros previos de la ventana para esos clientes (evita basura si una venta cambió de mes)
+  // Borrar y reinsertar en una sola transacción — nunca borrar sin reinsertar
   const inicioMes = inicioVentana.toISOString().slice(0, 7)
-  await (prisma as any).ventaMesCliente.deleteMany({
-    where: {
-      clienteId: { in: clienteIds },
-      mes: { gte: inicioMes }
-    }
-  })
-
   const ops = Array.from(mapa.values()).map((e) =>
     (prisma as any).ventaMesCliente.create({
       data: { clienteId: e.clienteId, empresaId, mes: e.mes, totalVenta: e.total, cantidadVisitas: e.count }
     })
   )
 
-  if (ops.length > 0) await (prisma as any).$transaction(ops)
+  await (prisma as any).$transaction([
+    (prisma as any).ventaMesCliente.deleteMany({
+      where: { clienteId: { in: clienteIds }, mes: { gte: inicioMes } }
+    }),
+    ...ops
+  ], { timeout: 30000 })
 }

@@ -85,11 +85,13 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  // Eliminar ruta existente
+  // Eliminar existente y crear nueva en una sola transacción
   if (existente) {
-    await prisma.rutaFijaEmpleado.deleteMany({ where: { rutaFijaId: existente.id } })
-    await prisma.rutaFijaCliente.deleteMany({ where: { rutaFijaId: existente.id } })
-    await prisma.rutaFija.delete({ where: { id: existente.id } })
+    await prisma.$transaction([
+      prisma.rutaFijaEmpleado.deleteMany({ where: { rutaFijaId: existente.id } }),
+      prisma.rutaFijaCliente.deleteMany({ where: { rutaFijaId: existente.id } }),
+      prisma.rutaFija.delete({ where: { id: existente.id } }),
+    ])
   }
 
   const ruta = await prisma.rutaFija.create({
@@ -122,8 +124,10 @@ export async function DELETE(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const { id } = await req.json()
-  await prisma.rutaFijaEmpleado.deleteMany({ where: { rutaFijaId: id } })
-  await prisma.rutaFijaCliente.deleteMany({ where: { rutaFijaId: id } })
-  await prisma.rutaFija.delete({ where: { id } })
+  await prisma.$transaction([
+    prisma.rutaFijaEmpleado.deleteMany({ where: { rutaFijaId: id } }),
+    prisma.rutaFijaCliente.deleteMany({ where: { rutaFijaId: id } }),
+    prisma.rutaFija.delete({ where: { id } }),
+  ])
   return NextResponse.json({ ok: true })
 }

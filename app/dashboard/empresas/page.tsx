@@ -320,7 +320,7 @@ export default function EmpresasPage() {
                 )}
                 {paso === 2 && (
                   <button onClick={crear} disabled={loading}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold text-sm py-3 rounded-xl">
+                    className={`flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold text-sm py-3 rounded-xl ${(loading) ? 'btn-shimmer' : ''}`}>
                     {loading ? 'Creando...' : 'Crear empresa'}
                   </button>
                 )}

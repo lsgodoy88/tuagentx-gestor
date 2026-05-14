@@ -173,7 +173,7 @@ export default function VisitasPage() {
                 {ordenesAsignadas.map((o: any) => (
                   <div key={o.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-white text-sm font-semibold truncate">#{o.numeroOrden} · {o.clienteNombre}</p>
+                      <p className="text-white text-sm font-semibold truncate">#{o.numeroFactura || o.numeroOrden} · {o.clienteNombre}</p>
                       {o.ciudad && <p className="text-zinc-400 text-xs">{o.ciudad}</p>}
                     </div>
                     <button onClick={() => {

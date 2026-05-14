@@ -1,4 +1,5 @@
 'use client'
+import { SyncIcon } from '@/components/SyncIcon'
 import { useSession } from 'next-auth/react'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
@@ -79,7 +80,7 @@ export default function OrdenesPage() {
   const [ciudadLocal, setCiudadLocal] = useState<string | null>(null)
   const [bodegaPuedeEnviar, setBodegaPuedeEnviar] = useState(false)
   const [ultimaSync, setUltimaSync] = useState<string | null>(null)
-  const [diasHistorial, setDiasHistorial] = useState<number>(7)
+  const [diasHistorial, setDiasHistorial] = useState<number>(() => { if (typeof window === 'undefined') return 10; const v = parseInt(localStorage.getItem('diasHistorialVista') || '10'); return Math.min(30, Math.max(1, v)) })
   const [origenId, setOrigenId] = useState<string>('propia')
   const [empresasOrigen, setEmpresasOrigen] = useState<any[]>([])
   const [repartidores, setRepartidores] = useState<any[]>([])
@@ -144,8 +145,13 @@ export default function OrdenesPage() {
     if (status === 'unauthenticated') { router.push('/login'); return }
     if (status !== 'authenticated') return
     if (!['empresa', 'supervisor', 'bodega'].includes(user?.role)) { router.push('/dashboard'); return }
-    cargarDatos('propia')
-    fetch('/api/bodega/empresas-origen').then(r => r.json()).then(setEmpresasOrigen).catch(() => {})
+    fetch('/api/bodega/empresas-origen').then(r => r.json()).then(lista => {
+      setEmpresasOrigen(lista)
+      if (lista.length > 0) {
+        setOrigenId(lista[0].id)
+        cargarDatos(lista[0].id)
+      }
+    }).catch(() => { cargarDatos('propia') })
     fetch('/api/empleados?rol=entregas')
       .then(r => r.json())
       .then(d => {
@@ -174,7 +180,7 @@ export default function OrdenesPage() {
       setCiudadLocal(data.ciudadLocal || null)
       setBodegaPuedeEnviar(data.bodegaPuedeEnviar ?? false)
       setUltimaSync(data.ultimaSyncBodega || null)
-      if (data.diasHistorialBodega) setDiasHistorial(data.diasHistorialBodega)
+      // dias ya en localStorage, no sobrescribir
     } finally {
       setCargando(false)
     }
@@ -202,11 +208,7 @@ export default function OrdenesPage() {
   async function cambiarDias(delta: number) {
     const nuevo = Math.min(30, Math.max(1, diasHistorial + delta))
     setDiasHistorial(nuevo)
-    await fetch('/api/mi-empresa/config', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ diasHistorialBodega: nuevo })
-    })
+    try { localStorage.setItem('diasHistorialVista', String(nuevo)) } catch {}
     // Recargar sin sobreescribir diasHistorial
     setCargando(true)
     const id = origenId
@@ -432,11 +434,9 @@ export default function OrdenesPage() {
     <div className="max-w-7xl mx-auto space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Órdenes</h1>
-        </div>
+        <h1 className="text-2xl font-bold text-white">Órdenes</h1>
         <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 bg-zinc-800 border border-zinc-700 rounded-xl px-2 py-1">
+          <div className="flex items-center gap-1 bg-zinc-800 border border-zinc-700 rounded-xl px-1 py-1">
             <button onClick={() => cambiarDias(-1)} disabled={diasHistorial <= 1}
               className="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-white disabled:opacity-30 text-sm font-bold">−</button>
             <span className="text-white text-xs font-semibold w-8 text-center">{diasHistorial}d</span>
@@ -444,8 +444,8 @@ export default function OrdenesPage() {
               className="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-white disabled:opacity-30 text-sm font-bold">+</button>
           </div>
           <button onClick={sync} disabled={syncing}
-            className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-300 border border-zinc-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors">
-            <span className={syncing ? 'animate-spin inline-block' : ''}>🔄</span>
+            className={`flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-300 border border-zinc-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors ${syncing ? 'btn-shimmer' : ''}`}>
+            <SyncIcon spinning={syncing} className="w-3.5 h-3.5 text-blue-400" />
             {syncing ? '...' : 'Sync'}
           </button>
         </div>
@@ -575,7 +575,7 @@ export default function OrdenesPage() {
                   onClick={modoSeleccion && d.estado === 'alistado' ? () => setSeleccionados(prev => prev.includes(d.id) ? prev.filter(x => x !== d.id) : [...prev, d.id]) : undefined}>
                   <div className="px-4 py-3 flex items-center gap-2">
                     <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-hidden">
-                      <span className="text-white font-mono text-xs flex-shrink-0">#{d.numeroOrden}</span>
+                      <span className="text-white font-mono text-xs flex-shrink-0">#{d.numeroFactura || d.numeroOrden}</span>
                       <span className="text-zinc-700 flex-shrink-0">·</span>
                       <span className="text-white font-semibold text-sm truncate flex-1">{nombreCorto(d.clienteNombre)}</span>
                       {ciudadNombre && <span className="text-zinc-400 text-xs flex-shrink-0 ml-1">{ciudadNombre}</span>}

@@ -460,7 +460,7 @@ export default function RutasPage() {
           </div>
           {puedeAsignar && !esSupervisor && (
             <>
-            <button onClick={generarRutaHoy} disabled={generando} className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-xl text-sm whitespace-nowrap">
+            <button onClick={generarRutaHoy} disabled={generando} className={`bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-xl text-sm whitespace-nowrap ${(generando) ? 'btn-shimmer' : ''}`}>
               {generando ? "⏳" : "🔄"} {generando ? "Generando..." : "Generar hoy"}
             </button>
             <button onClick={() => setModal(true)}
@@ -705,7 +705,7 @@ export default function RutasPage() {
                   </button>
                 ) : (
                   <button onClick={crear} disabled={loading}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold text-sm py-3 rounded-xl">
+                    className={`flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold text-sm py-3 rounded-xl ${(loading) ? 'btn-shimmer' : ''}`}>
                     {loading ? 'Guardando...' : 'Crear ruta'}
                   </button>
                 )}
@@ -838,7 +838,7 @@ export default function RutasPage() {
                 <input value={nombre} onChange={e => setNombre(e.target.value)}
                   className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm font-semibold outline-none focus:border-emerald-500" />
                 <button onClick={guardarEdicion} disabled={loading}
-                  className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold text-sm px-4 py-2 rounded-xl whitespace-nowrap">
+                  className={`bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold text-sm px-4 py-2 rounded-xl whitespace-nowrap ${(loading) ? 'btn-shimmer' : ''}`}>
                   {loading ? '...' : 'Guardar'}
                 </button>
                 <button onClick={cerrarModalEditar} className="text-zinc-400 hover:text-white text-xl">×</button>

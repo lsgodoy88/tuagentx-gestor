@@ -90,17 +90,17 @@ export async function POST(req: NextRequest) {
           .filter((rc: any) => !visitadosSet.has(rc.clienteId))
           .map((rc: any) => rc.clienteId)
 
-        if (sinVisita.length > 0) {
-          await prisma.rutaCliente.updateMany({
+        // Marcar rezagos y cerrar ruta en una sola transacción
+        await prisma.$transaction([
+          ...(sinVisita.length > 0 ? [prisma.rutaCliente.updateMany({
             where: { rutaId: ruta.id, clienteId: { in: sinVisita } },
             data: { rezago: true }
+          })] : []),
+          prisma.ruta.update({
+            where: { id: ruta.id },
+            data: { cerrada: true, cerradaEl: new Date() }
           })
-        }
-
-        await prisma.ruta.update({
-          where: { id: ruta.id },
-          data: { cerrada: true, cerradaEl: new Date() }
-        })
+        ])
         rutasCerradas++
       }
     }

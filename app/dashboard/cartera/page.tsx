@@ -3,6 +3,8 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { calcularEstado, estadoMasCritico } from '@/lib/cartera'
+import { CountUp, LiveDot, LoadingBorder } from '@/components/FX'
+import { SyncIcon } from '@/components/SyncIcon'
 import InputMoneda from '@/components/InputMoneda'
 import CarteraCard from '@/components/CarteraCard'
 
@@ -390,7 +392,7 @@ export default function CarteraPage() {
   if (status === 'loading' || loading) return (
     <div className="space-y-4 max-w-7xl mx-auto">
       {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="animate-pulse bg-zinc-900 border border-zinc-800 rounded-2xl h-24" />
+        <div key={i} className="shimmer rounded-2xl h-24" />
       ))}
     </div>
   )
@@ -428,8 +430,8 @@ export default function CarteraPage() {
             <button
               onClick={() => esAdmin ? setModalSync(true) : sincronizar()}
               disabled={sincronizando}
-              className="flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-semibold px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50">
-              <span>{sincronizando ? '⏳' : '🔄'}</span> {sincronizando ? 'Sincronizando...' : 'Sync'}
+              className={`flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-semibold px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50 ${sincronizando ? 'btn-shimmer' : ''}`}>
+              <SyncIcon spinning={sincronizando} className="w-4 h-4 text-blue-400" /> {sincronizando ? 'Sincronizando...' : 'Sync'}
             </button>
             {!syncInfo?.tieneIntegracion && (
               <button onClick={() => setModalImportar(true)}
@@ -591,12 +593,12 @@ export default function CarteraPage() {
 
             {/* Meta del mes — vendedor: card destacada con cartera, %, meta y cumplimiento */}
             {user?.role === 'vendedor' && (
-              <div className="rounded-2xl p-4 border" style={{ background: 'linear-gradient(135deg, #064e3b, #065f46)', borderColor: '#065f46' }}>
+              <div className="rounded-2xl p-4 border fade-up hover-lift" style={{ background: 'linear-gradient(135deg, #064e3b, #065f46)', borderColor: '#065f46' }}>
                 <p className="text-xs font-bold text-emerald-300 uppercase tracking-widest mb-3">🎯 Mi meta — {MESES[mes-1]} {anio}</p>
                 <div className="grid grid-cols-3 gap-3 mb-3">
                   <div>
                     <p className="text-emerald-300/70 text-xs mb-0.5">Cartera total</p>
-                    <p className="text-white font-bold text-base leading-tight">{fmt(totalCartera)}</p>
+                    <p className="text-white font-bold text-base leading-tight">$<CountUp end={Math.round(totalCartera)} /></p>
                   </div>
                   <div className="text-center">
                     <p className="text-emerald-300/70 text-xs mb-0.5">% asignado</p>
@@ -604,7 +606,7 @@ export default function CarteraPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-emerald-300/70 text-xs mb-0.5">Meta</p>
-                    <p className="text-white font-bold text-base leading-tight">{metaPesos > 0 ? fmt(metaPesos) : '—'}</p>
+                    <p className="text-white font-bold text-base leading-tight">{metaPesos > 0 ? <>$<CountUp end={Math.round(metaPesos)} /></> : '—'}</p>
                   </div>
                 </div>
                 {metaPesos > 0 ? (
@@ -617,7 +619,7 @@ export default function CarteraPage() {
                       <div className="h-full rounded-full transition-all" style={{ width: `${pctMeta}%`, background: `linear-gradient(90deg, #059669, ${colorMeta})` }} />
                     </div>
                     <div className="flex gap-4 text-xs text-emerald-300">
-                      <span>Recaudo: <span className="text-white font-bold">{fmt(totalRecaudadoMes)}</span></span>
+                      <span>Recaudo: <span className="text-white font-bold">$<CountUp end={Math.round(totalRecaudadoMes)} /></span></span>
                       <span>Desc: <span className="text-white font-bold">{fmt(totalDescMes)}</span></span>
                       <span>Falta: <span className="text-white font-bold">{fmt(Math.max(0, metaPesos - totalMes))}</span></span>
                     </div>
@@ -630,24 +632,24 @@ export default function CarteraPage() {
 
             {/* KPIs */}
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+              <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-1 ${loadingBusqueda ? 'loading-border' : ''}`}>
                 <p className="text-zinc-500 text-xs mb-1 uppercase tracking-wide">Cartera total</p>
-                <p className="text-white font-bold text-lg">{fmt(totalCartera)}</p>
-                <p className="text-zinc-600 text-xs mt-1">{carteras.length} clientes</p>
+                <p className="text-white font-bold text-lg">$<CountUp end={Math.round(totalCartera)} /></p>
+                <p className="text-zinc-600 text-xs mt-1"><CountUp end={carteras.length} /> clientes</p>
               </div>
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+              <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-2 ${loadingBusqueda ? 'loading-border-red' : ''}`}>
                 <p className="text-zinc-500 text-xs mb-1 uppercase tracking-wide">Pendiente</p>
-                <p className="text-red-400 font-bold text-lg">{fmt(totalPend)}</p>
+                <p className="text-red-400 font-bold text-lg flex items-center gap-2">$<CountUp end={Math.round(totalPend)} />{totalPend > 0 && <LiveDot color="red" />}</p>
                 <p className="text-zinc-600 text-xs mt-1">{totalCartera > 0 ? Math.round((totalPend/totalCartera)*100) : 0}% sin cobrar</p>
               </div>
-              <div className="bg-emerald-950/40 border border-emerald-800/30 rounded-2xl p-4">
+              <div className={`bg-emerald-950/40 border border-emerald-800/30 rounded-2xl p-4 hover-lift fade-up stagger-3 ${loadingBusqueda ? 'loading-border-emerald' : ''}`}>
                 <p className="text-zinc-500 text-xs mb-1 uppercase tracking-wide">Recaudado</p>
-                <p className="text-emerald-400 font-bold text-lg">{fmt(totalMes)}</p>
+                <p className="text-emerald-400 font-bold text-lg">$<CountUp end={Math.round(totalMes)} /></p>
                 <p className="text-zinc-600 text-xs mt-1">{pagosMes.length} pagos · {variacion >= 0 ? '+' : ''}{variacion}% vs ant.</p>
               </div>
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+              <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-4 ${loadingBusqueda ? 'loading-border-amber' : ''}`}>
                 <p className="text-zinc-500 text-xs mb-1 uppercase tracking-wide">Descuentos</p>
-                <p className="text-orange-400 font-bold text-lg">{fmt(totalDescMes)}</p>
+                <p className="text-orange-400 font-bold text-lg">$<CountUp end={Math.round(totalDescMes)} /></p>
                 <p className="text-zinc-600 text-xs mt-1">aplicados este mes</p>
               </div>
             </div>
@@ -831,7 +833,7 @@ export default function CarteraPage() {
                   )}
 
                   <button onClick={guardarMeta} disabled={guardandoMeta || !metaForm.empleadoId || !metaForm.metaPct}
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold py-3 rounded-xl text-sm transition-colors">
+                    className={`w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold py-3 rounded-xl text-sm transition-colors ${(guardandoMeta || !metaForm.empleadoId || !metaForm.metaPct) ? 'btn-shimmer' : ''}`}>
                     {guardandoMeta ? 'Guardando...' : '💾 Guardar meta'}
                   </button>
                 </div>
@@ -866,8 +868,8 @@ export default function CarteraPage() {
             )}
           </div>
           {hayMas && (
-            <button onClick={cargarMas} disabled={cargandoMas}
-              className="w-full bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 text-sm font-semibold py-3 rounded-xl transition-colors">
+            <button onClick={cargarMas} disabled={cargandoMas} data-loading={cargandoMas}
+              className={`w-full bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 text-sm font-semibold py-3 rounded-xl transition-colors ${(cargandoMas) ? 'btn-shimmer' : ''}`}>
               {cargandoMas ? 'Cargando...' : 'Cargar más'}
             </button>
           )}
@@ -941,7 +943,7 @@ export default function CarteraPage() {
                     </table>
                   </div>
                   <button onClick={importarArchivo} disabled={importando}
-                    className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold py-3 rounded-2xl text-sm">
+                    className={`w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold py-3 rounded-2xl text-sm ${(importando) ? 'btn-shimmer' : ''}`}>
                     {importando ? 'Importando...' : 'Importar archivo'}
                   </button>
                 </div>
@@ -1018,7 +1020,7 @@ export default function CarteraPage() {
               </div>
 
               {loadingDetalle ? (
-                <div className="space-y-2">{Array.from({length:3}).map((_,i)=><div key={i} className="animate-pulse bg-zinc-800 rounded-xl h-12"/>)}</div>
+                <div className="space-y-2">{Array.from({length:3}).map((_,i)=><div key={i} className="shimmer rounded-xl h-12"/>)}</div>
               ) : !detalleData ? (
                 <p className="text-zinc-500 text-sm text-center py-4">Sin cartera registrada</p>
               ) : (

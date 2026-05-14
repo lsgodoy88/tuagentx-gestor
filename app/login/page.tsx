@@ -159,7 +159,7 @@ export default function LoginPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold rounded-xl py-3 transition-colors mt-2"
+                className={`w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold rounded-xl py-3 transition-colors mt-2 ${(loading) ? 'btn-shimmer' : ''}`}
               >
                 {loading ? 'Ingresando...' : 'Ingresar →'}
               </button>

@@ -51,35 +51,34 @@ async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor
     const uid = (c as any).uid?.trim() || (c as any)._id?.trim()
     if (!doc || !uid) continue
     const nombre = `${(c as any).name || ''} ${(c as any).lastName || ''}`.trim() || 'Sin nombre'
-    const data = {
-      apiId: uid,
-      ciudad: (c as any).ciudad || undefined,
-      departamento: (c as any).departamento || undefined,
-      direccion: (c as any).dir || undefined,
-      telefono: (c as any).nCel || undefined,
-      email: (c as any).email || undefined,
-    }
     const ex = mapaExistentes[doc]
     if (ex) {
-      // Saltar si todos los campos son iguales (UpTres no nos dio nada nuevo)
-      const igual = ex.apiId === data.apiId
-        && (ex.ciudad || undefined) === data.ciudad
-        && (ex.departamento || undefined) === data.departamento
-        && (ex.direccion || undefined) === data.direccion
-        && (ex.telefono || undefined) === data.telefono
-        && (ex.email || undefined) === data.email
-      if (igual) { skipped++; continue }
-      toUpdateCli.push({ id: ex.id, data })
+      // Solo actualizar direccion y telefono — el resto se congela
+      const cambio: any = {}
+      const dir = (c as any).dir || undefined
+      const tel = (c as any).nCel || undefined
+      if (dir && dir !== (ex.direccion || undefined)) cambio.direccion = dir
+      if (tel && tel !== (ex.telefono || undefined)) cambio.telefono = tel
+      if (Object.keys(cambio).length === 0) { skipped++; continue }
+      toUpdateCli.push({ id: ex.id, data: cambio })
     } else {
-      toCreateCli.push({ nombre, nit: doc, empresaId, ...data })
+      toCreateCli.push({
+        nombre, nit: doc, empresaId,
+        apiId: uid,
+        ciudad: (c as any).ciudad || undefined,
+        departamento: (c as any).departamento || undefined,
+        direccion: (c as any).dir || undefined,
+        telefono: (c as any).nCel || undefined,
+        email: (c as any).email || undefined,
+      })
     }
   }
-  if (toCreateCli.length > 0) await (prisma as any).cliente.createMany({ data: toCreateCli, skipDuplicates: true })
-  for (let i = 0; i < toUpdateCli.length; i += 50) {
-    await Promise.all(toUpdateCli.slice(i, i + 50).map((u: any) =>
-      (prisma as any).cliente.update({ where: { id: u.id }, data: u.data })
-    ))
-  }
+  await prisma.$transaction(async (tx: any) => {
+    if (toCreateCli.length > 0) await tx.cliente.createMany({ data: toCreateCli, skipDuplicates: true })
+    for (const u of toUpdateCli) {
+      await tx.cliente.update({ where: { id: u.id }, data: u.data })
+    }
+  }, { timeout: 60000 })
   clientesActualizados = toCreateCli.length + toUpdateCli.length
   T(`upsert clientes`, _t)
   log(`Clientes delta: ${clientesActualizados} (saltados ${skipped})`)
@@ -95,7 +94,7 @@ async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor
     await (prisma as any).syncEmpleado.upsert({
       where: { integracionId_externalId: { integracionId: integracion.id, externalId: uid } },
       create: { integracionId: integracion.id, externalId: uid, nombre, data: e },
-      update: { nombre, data: e }
+      update: { nombre } // solo nombre — el resto se congela
     })
   }
   T(`empleados (${empleadosExt.length})`, _t)
@@ -279,17 +278,23 @@ async function ejecutarInicial(integracion: any, adapter: any, empresaId: string
       email: (c as any).email || undefined,
     }
     if (mapaExistentes[doc]) {
-      toUpdate.push({ id: mapaExistentes[doc], data: { ...data, nombreComercial: (c as any).nombreComercial || undefined } })
+      // Solo actualizar direccion y telefono — el resto se congela
+      const cambio: any = {}
+      const dir = (c as any).dir || undefined
+      const tel = (c as any).nCel || undefined
+      if (dir) cambio.direccion = dir
+      if (tel) cambio.telefono = tel
+      if (Object.keys(cambio).length > 0) toUpdate.push({ id: mapaExistentes[doc], data: cambio })
     } else {
       toCreate.push({ nombre, nit: doc, empresaId, nombreComercial: (c as any).nombreComercial || undefined, ...data })
     }
   }
-  if (toCreate.length > 0) await (prisma as any).cliente.createMany({ data: toCreate, skipDuplicates: true })
-  for (let i = 0; i < toUpdate.length; i += 50) {
-    await Promise.all(toUpdate.slice(i, i + 50).map((u: any) =>
-      (prisma as any).cliente.update({ where: { id: u.id }, data: u.data })
-    ))
-  }
+  await prisma.$transaction(async (tx: any) => {
+    if (toCreate.length > 0) await tx.cliente.createMany({ data: toCreate, skipDuplicates: true })
+    for (const u of toUpdate) {
+      await tx.cliente.update({ where: { id: u.id }, data: u.data })
+    }
+  }, { timeout: 60000 })
   log(`Clientes actualizados: ${toCreate.length + toUpdate.length}`)
 
   // Empleados
@@ -303,7 +308,7 @@ async function ejecutarInicial(integracion: any, adapter: any, empresaId: string
     await (prisma as any).syncEmpleado.upsert({
       where: { integracionId_externalId: { integracionId: integracion.id, externalId: uid } },
       create: { integracionId: integracion.id, externalId: uid, nombre, data: e, modificadoEn: (e as any).fModificado ? new Date((e as any).fModificado) : null },
-      update: { nombre, data: e, modificadoEn: (e as any).fModificado ? new Date((e as any).fModificado) : null }
+      update: { nombre } // solo nombre — el resto se congela
     })
   }
   log(`Empleados: ${empleadosExt.length}`)

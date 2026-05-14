@@ -79,72 +79,70 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     update.estado = 'entregado'
     update.entregadoEl = new Date()
 
-    // Crear Visita para trazabilidad
-    if (empleadoId) {
-      try {
-        // Buscar cliente por NIT
-        const cliente = await (prisma as any).cliente.findFirst({
-          where: { nit: orden.clienteNit, empresaId }
-        })
-        if (cliente) {
-          await (prisma as any).visita.create({
-            data: {
-              clienteId: cliente.id,
-              empleadoId,
-              empresaId,
-              estado: 'ejecutado',
-              fechaBogota: new Date().toISOString().split('T')[0],
-              firma: firmaKey,
-              ordenDespachoId: id,
-              notas: `Entrega personal bodega #${orden.numeroOrden}`,
-            }
-          })
-        }
-      } catch {
-        // No bloquear si falla la visita
-      }
-    }
+
   }
 
   if (repartidorId !== undefined) update.repartidorId = repartidorId || null
   if (guiaTransporte !== undefined) update.guiaTransporte = guiaTransporte
   if (transportadora !== undefined) update.transportadora = transportadora
 
-  const updated = await (prisma as any).ordenDespacho.update({
-    where: { id },
-    data: update,
-    include: {
-      alistadoPor: { select: { id: true, nombre: true } },
-      repartidor: { select: { id: true, nombre: true } },
-    },
-  })
+  // Todo lo de DB en una sola transacción — o todo o nada
+  const updated = await prisma.$transaction(async (tx: any) => {
+    const ordenActualizada = await tx.ordenDespacho.update({
+      where: { id },
+      data: update,
+      include: {
+        alistadoPor: { select: { id: true, nombre: true } },
+        repartidor: { select: { id: true, nombre: true } },
+      },
+    })
 
-  // Si se asigna repartidor → agregar a su ruta activa
-  if (estado === 'en_entrega' && repartidorId) {
-    try {
-      const rutaEmpleado = await prisma.rutaEmpleado.findFirst({
+    // Firma entrega → crear Visita dentro de la misma transacción
+    if (firmaBase64 && empleadoId) {
+      const cliente = await tx.cliente.findFirst({
+        where: { nit: orden.clienteNit, empresaId }
+      })
+      if (cliente) {
+        await tx.visita.create({
+          data: {
+            clienteId: cliente.id,
+            empleadoId,
+            empresaId,
+            estado: 'ejecutado',
+            fechaBogota: new Date().toISOString().split('T')[0],
+            firma: update.firmaEntrega as string,
+            ordenDespachoId: id,
+            notas: `Entrega personal bodega #${orden.numeroFactura || orden.numeroOrden}`,
+          }
+        })
+      }
+    }
+
+    // Asignar a ruta activa del repartidor
+    if (estado === 'en_entrega' && repartidorId) {
+      const rutaEmpleado = await tx.rutaEmpleado.findFirst({
         where: { empleadoId: repartidorId, ruta: { cerrada: false } },
         include: { ruta: true },
       })
       if (rutaEmpleado && orden.clienteNit) {
-        const cliente = await (prisma as any).cliente.findFirst({
+        const cliente = await tx.cliente.findFirst({
           where: { nit: orden.clienteNit, empresaId },
         })
         if (cliente) {
-          await (prisma as any).rutaCliente.create({
+          await tx.rutaCliente.create({
             data: {
               rutaId: rutaEmpleado.rutaId,
               clienteId: cliente.id,
               orden: 999,
-              notas: `Bodega/${empresa?.nombre || 'Bodega'} #${orden.numeroOrden}`,
+              notas: `Bodega/${empresa?.nombre || 'Bodega'} #${orden.numeroFactura || orden.numeroOrden}`,
             },
           })
         }
       }
-    } catch {
-      // No bloquear el despacho si falla la asignación de ruta
     }
-  }
+
+    return ordenActualizada
+  })
 
   return NextResponse.json({ orden: updated })
 }

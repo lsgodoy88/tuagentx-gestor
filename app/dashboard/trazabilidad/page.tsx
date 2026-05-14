@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
+import { SyncIcon } from '@/components/SyncIcon'
 
 function fmtFecha(d: string | null | undefined) {
   if (!d) return '—'
@@ -73,11 +74,38 @@ export default function TrazabilidadPage() {
   const [fuenteBusqueda, setFuenteBusqueda] = useState<string | null>(null)
   const [ordenesBusqueda, setOrdenesBusqueda] = useState<any[] | null>(null)
   const [estado, setEstado] = useState('')
-  const [desde, setDesde] = useState(hace7)
-  const [hasta, setHasta] = useState(hoy)
+  const [diasHistorial, setDiasHistorial] = useState<number>(() => { if (typeof window === 'undefined') return 10; const v = parseInt(localStorage.getItem('diasHistorialVista') || '10'); return Math.min(30, Math.max(1, v)) })
+  // Mantengo desde/hasta como fallback null (no usados activamente)
+  const desde = ''
+  const hasta = ''
 
   const [expandido, setExpandido] = useState<Record<string, boolean>>({})
   const [fotoModal, setFotoModal] = useState<string | null>(null)
+  const [sincronizando, setSincronizando] = useState(false)
+  const [syncMsg, setSyncMsg] = useState<string | null>(null)
+
+  function cambiarDias(delta: number) {
+    const nuevo = Math.min(30, Math.max(1, diasHistorial + delta))
+    setDiasHistorial(nuevo)
+    try { localStorage.setItem('diasHistorialVista', String(nuevo)) } catch {}
+  }
+
+  async function sincronizar() {
+    setSincronizando(true)
+    setSyncMsg(null)
+    try {
+      const res = await fetch('/api/bodega/sync', { method: 'POST', headers: {'Content-Type':'application/json'}, body: '{}' }).then(r => r.json())
+      if (res.error) { setSyncMsg('⚠ ' + res.error); return }
+      const n = (res.creadas ?? 0) + (res.actualizadas ?? 0)
+      setSyncMsg(`✓ ${res.creadas ?? 0} nuevas, ${res.actualizadas ?? 0} actualizadas`)
+      await cargar(null)
+      setTimeout(() => setSyncMsg(null), 4000)
+    } catch (e: any) {
+      setSyncMsg('⚠ Error: ' + (e?.message || 'desconocido'))
+    } finally {
+      setSincronizando(false)
+    }
+  }
   const [firmaModal, setFirmaModal] = useState<string | null>(null)
 
   function toggleExpandido(id: string) {
@@ -89,8 +117,7 @@ export default function TrazabilidadPage() {
     const params = new URLSearchParams()
     if (q) params.set('q', q)
     if (estado) params.set('estado', estado)
-    if (desde) params.set('desde', desde)
-    if (hasta) params.set('hasta', hasta)
+    if (diasHistorial > 0) params.set('dias', String(diasHistorial))
     if (cursor) params.set('cursor', cursor)
     const res = await fetch('/api/trazabilidad?' + params.toString()).then(r => r.json())
     const nuevas = res.ordenes || []
@@ -101,7 +128,7 @@ export default function TrazabilidadPage() {
     if (!cursor) setLoading(false); else setLoadingMore(false)
   }
 
-  useEffect(() => { cargar(null) }, [q, estado, desde, hasta])
+  useEffect(() => { cargar(null) }, [q, estado, diasHistorial])
 
   async function buscar() {
     const texto = qInput.trim()
@@ -134,7 +161,7 @@ export default function TrazabilidadPage() {
   function limpiarBusqueda() {
     setQInput(''); setOrdenesBusqueda(null); setFuenteBusqueda(null); setQ('')
   }
-  function limpiar() { setQ(''); setQInput(''); setEstado(''); setDesde(hace7()); setHasta(hoy()); setOrdenesBusqueda(null); setFuenteBusqueda(null) }
+  function limpiar() { setQ(''); setQInput(''); setEstado(''); setDiasHistorial(7); setOrdenesBusqueda(null); setFuenteBusqueda(null) }
 
   if (!['empresa', 'supervisor', 'superadmin', 'vendedor', 'bodega', 'entregas'].includes(user?.role)) {
     return <div className="p-8 text-zinc-400">Sin acceso</div>
@@ -142,9 +169,31 @@ export default function TrazabilidadPage() {
 
   return (
     <div className="space-y-5 max-w-7xl mx-auto">
-      <div>
+      <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-white">Trazabilidad</h1>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-1 bg-zinc-800 border border-zinc-700 rounded-xl px-1 py-1">
+            <button onClick={() => cambiarDias(-1)} disabled={diasHistorial <= 1}
+              className="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-white disabled:opacity-30 text-sm font-bold">−</button>
+            <span className="text-white text-xs font-semibold w-8 text-center">{diasHistorial}d</span>
+            <button onClick={() => cambiarDias(1)} disabled={diasHistorial >= 30}
+              className="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-white disabled:opacity-30 text-sm font-bold">+</button>
+          </div>
+          {['empresa','supervisor','superadmin','bodega'].includes(user?.role) && (
+            <>
+              {syncMsg && <span className="text-xs text-zinc-400 hidden sm:block">{syncMsg}</span>}
+              <button
+                onClick={sincronizar}
+                disabled={sincronizando}
+                className={`flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors disabled:opacity-50 ${sincronizando ? 'btn-shimmer' : ''}`}>
+                <SyncIcon spinning={sincronizando} className="w-3.5 h-3.5 text-blue-400" />
+                {sincronizando ? '...' : 'Sync'}
+              </button>
+            </>
+          )}
+        </div>
       </div>
+      {syncMsg && <p className="text-xs text-zinc-400 sm:hidden">{syncMsg}</p>}
 
       {/* Tabs principales */}
       <div className="flex border-b border-zinc-800">
@@ -188,12 +237,7 @@ export default function TrazabilidadPage() {
           </button>
         </div>
         <div className="flex gap-2 items-center">
-          <input type="date" value={desde} onChange={e => setDesde(e.target.value)}
-            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm outline-none" />
-          <span className="text-zinc-500">—</span>
-          <input type="date" value={hasta} onChange={e => setHasta(e.target.value)}
-            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm outline-none" />
-          <span className="text-zinc-400 text-xs whitespace-nowrap px-2">
+          <span className="text-zinc-400 text-xs whitespace-nowrap px-2 flex-1">
             <span className="text-white font-semibold">{ordenesBusqueda !== null ? ordenesBusqueda.length : total}</span> órdenes
             {fuenteBusqueda === 'memoria' && <span className="text-zinc-500"> · en pantalla</span>}
             {fuenteBusqueda === 'bd' && <span className="text-zinc-500"> · BD</span>}
@@ -270,7 +314,7 @@ export default function TrazabilidadPage() {
               <div key={orden.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                 {/* Header — siempre visible, clickeable */}
                 <div onClick={() => toggleExpandido(orden.id)} className="flex items-center gap-2 p-3 cursor-pointer hover:bg-zinc-800/50 transition-colors">
-                  <span className="text-zinc-400 font-mono text-xs flex-shrink-0">#{orden.numeroOrden}{orden.numeroFactura && orden.numeroFactura !== orden.numeroOrden ? ` / fac ${orden.numeroFactura}` : ''}</span>
+                  <span className="text-zinc-400 font-mono text-xs flex-shrink-0">#{orden.numeroFactura || orden.numeroOrden}</span>
                   {orden.clienteNombre === 'Sin nombre' ? (
                     <span className="text-amber-400 text-xs font-semibold truncate flex-1">⚠️ ERROR DE DATOS</span>
                   ) : (

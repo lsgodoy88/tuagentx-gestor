@@ -25,10 +25,8 @@ async function syncEmpresa(empresaIdConIntegracion: string, origenVinculadaId: s
   // Días historial de la empresa PRINCIPAL (no la vinculada)
   const principal = empresaBodegaId || empresaIdConIntegracion
 
-  const rows = await prisma.$queryRaw<[{ diasHistorialBodega: number }]>`
-    SELECT "diasHistorialBodega" FROM gestor."Empresa" WHERE id = ${principal} LIMIT 1
-  `
-  const dias = rows[0]?.diasHistorialBodega ?? 7
+  // SIEMPRE traer 30 días desde UpTres; la vista filtra localmente
+  const dias = 30
   const desde = new Date()
   desde.setDate(desde.getDate() - dias)
 
@@ -39,21 +37,61 @@ async function syncEmpresa(empresaIdConIntegracion: string, origenVinculadaId: s
     return fc >= desdeTs
   })
 
-  // Upsert órdenes por origenId (estable de UpTres)
+    // Insert-only: traer una vez, guardar, nunca sobreescribir
   let nuevas = 0
-  let actualizadas = 0
   const empresaDestino = empresaBodegaId || empresaIdConIntegracion
 
-  for (const orden of ordenesFiltradas) {
-    const origenId = String(orden.uid || (orden as any)._id || '')
-    if (!origenId) continue
-
-    const numPedido = String(orden.numeroOrden || '')
+  // 1. Filtrar órdenes válidas (con factura y nombre)
+  const ordenesValidas = ordenesFiltradas.filter((orden: any) => {
     const numFactura = orden.numeroFacturado ? String(orden.numeroFacturado) : null
-    const vendedorApiId = (orden as any).empleado?.uid || null
-    const clienteApiId = (orden as any).cliente?.uid || null
+    const nombre = orden.clienteNombre || orden.clienteNombreApi
+    const origenId = String(orden.uid || orden._id || '')
+    return numFactura && nombre && origenId
+  })
 
-    // Normalizar ciudad
+  // 2. Un solo query para saber cuáles ya existen
+  const origenIds = ordenesValidas.map((o: any) => String(o.uid || o._id))
+  const existentes = await (prisma as any).ordenDespacho.findMany({
+    where: {
+      empresaId: empresaDestino,
+      origenId: { in: origenIds },
+      ...(origenVinculadaId ? { origenVinculadaId } : { origenVinculadaId: null })
+    },
+    select: { origenId: true }
+  })
+  const existentesSet = new Set(existentes.map((e: any) => e.origenId))
+
+  // 3. Solo las nuevas
+  const nuevasOrdenes = ordenesValidas.filter((o: any) => !existentesSet.has(String(o.uid || o._id)))
+  if (nuevasOrdenes.length === 0) {
+    await prisma.empresa.update({ where: { id: empresaDestino }, data: { ultimaSyncBodega: new Date() } })
+    return { empresaId: empresaDestino, ordenes: ordenesFiltradas.length, nuevas: 0, actualizadas: 0 }
+  }
+
+  // 4. Fallback de clientes — un solo query por todos los apiIds/nits únicos
+  const clienteApiIds = [...new Set(nuevasOrdenes.map((o: any) => o.cliente?.uid).filter(Boolean))]
+  const clienteNits = [...new Set(nuevasOrdenes.map((o: any) => o.clienteNit).filter(Boolean))]
+  const clientesLocales = await (prisma as any).cliente.findMany({
+    where: {
+      empresaId: empresaIdConIntegracion,
+      OR: [
+        clienteApiIds.length > 0 ? { apiId: { in: clienteApiIds } } : undefined,
+        clienteNits.length > 0 ? { nit: { in: clienteNits } } : undefined,
+      ].filter(Boolean)
+    },
+    select: { apiId: true, nit: true, ciudad: true, direccion: true, telefono: true }
+  })
+  const mapaClientePorApiId = new Map(clientesLocales.filter((c: any) => c.apiId).map((c: any) => [c.apiId, c]))
+  const mapaClientePorNit = new Map(clientesLocales.filter((c: any) => c.nit).map((c: any) => [c.nit, c]))
+
+  // 5. Construir registros en memoria
+  const toCreate = nuevasOrdenes.map((orden: any) => {
+    const origenId = String(orden.uid || orden._id)
+    const numPedido = String(orden.numeroOrden || '')
+    const numFactura = String(orden.numeroFacturado)
+    const vendedorApiId = orden.empleado?.uid || null
+    const clienteApiId = orden.cliente?.uid || null
+
     let ciudadNombre = (orden.ciudad as string) || ''
     if (orden.cityId && municipiosDANE[String(orden.cityId)]) {
       ciudadNombre = municipiosDANE[String(orden.cityId)]
@@ -61,87 +99,48 @@ async function syncEmpresa(empresaIdConIntegracion: string, origenVinculadaId: s
       ciudadNombre = ciudadNombre.split('/').pop()?.trim() || ciudadNombre
     }
 
-    let direccion = (orden as any).direccion || ''
-    let telefono = (orden as any).telefono || ''
-    let clienteNit = (orden as any).clienteNit || ''
+    let direccion = orden.direccion || ''
+    let telefono = orden.telefono || ''
+    let clienteNit = orden.clienteNit || ''
 
-    // Fallback: completar desde Cliente local si UpTres no trajo todo
-    if (!ciudadNombre || !direccion || !telefono || !clienteNit) {
-      if (clienteApiId || clienteNit) {
-        const cli = await (prisma as any).cliente.findFirst({
-          where: {
-            empresaId: empresaDestino,
-            OR: [
-              clienteApiId ? { apiId: clienteApiId } : undefined,
-              clienteNit ? { nit: clienteNit } : undefined,
-            ].filter(Boolean)
-          },
-          select: { ciudad: true, direccion: true, telefono: true, nit: true }
-        })
-        if (cli) {
-          if (!ciudadNombre && cli.ciudad) ciudadNombre = cli.ciudad
-          if (!direccion && cli.direccion) direccion = cli.direccion
-          if (!telefono && cli.telefono) telefono = cli.telefono
-          if (!clienteNit && cli.nit) clienteNit = cli.nit
-        }
-      }
+    // Fallback desde mapa de clientes ya cargado
+    const cli = (clienteApiId && mapaClientePorApiId.get(clienteApiId)) ||
+                (clienteNit && mapaClientePorNit.get(clienteNit))
+    if (cli) {
+      if (!ciudadNombre && cli.ciudad) ciudadNombre = cli.ciudad
+      if (!direccion && cli.direccion) direccion = cli.direccion
+      if (!telefono && cli.telefono) telefono = cli.telefono
+      if (!clienteNit && cli.nit) clienteNit = cli.nit
     }
 
-    const nombreOrden = orden.clienteNombre || (orden as any).clienteNombreApi
-    if (!nombreOrden) continue
-
-    // Buscar por origenId (estable, no por numeroOrden)
-    const existing = await (prisma as any).ordenDespacho.findFirst({
-      where: {
-        empresaId: empresaDestino,
-        origenId,
-        ...(origenVinculadaId ? { origenVinculadaId } : { origenVinculadaId: null })
-      },
-      select: { id: true, estado: true }
-    })
-
-    const dataBase = {
+    return {
       numeroOrden: numPedido,
       numeroFactura: numFactura,
       vendedorApiId,
       clienteApiId,
-      clienteNombre: nombreOrden,
+      clienteNombre: orden.clienteNombre || orden.clienteNombreApi,
       clienteNit,
       ciudad: ciudadNombre,
       direccion,
       telefono,
       fechaOrden: orden.fCreado ? new Date(orden.fCreado as string) : new Date(),
+      empresaId: empresaDestino,
+      origen: origenVinculadaId ? 'vinculada' : 'propia',
+      origenId,
+      origenVinculadaId,
+      estado: 'pendiente',
     }
-
-    if (existing) {
-      // Update: refrescar numeroFactura/datos pero no tocar estado de flujo (pendiente/alistado/entregado)
-      await (prisma as any).ordenDespacho.update({
-        where: { id: existing.id },
-        data: dataBase,
-      })
-      actualizadas++
-    } else {
-      await (prisma as any).ordenDespacho.create({
-        data: {
-          ...dataBase,
-          empresaId: empresaDestino,
-          origen: origenVinculadaId ? 'vinculada' : 'propia',
-          origenId,
-          origenVinculadaId,
-          estado: 'pendiente',
-        }
-      })
-      nuevas++
-    }
-  }
-
-  // Actualizar ultimaSyncBodega
-  await prisma.empresa.update({
-    where: { id: empresaDestino },
-    data: { ultimaSyncBodega: new Date() }
   })
 
-  return { empresaId: empresaDestino, ordenes: ordenesFiltradas.length, nuevas, actualizadas }
+  // 6. Insertar todo en una transacción
+  await prisma.$transaction(async (tx: any) => {
+    await tx.ordenDespacho.createMany({ data: toCreate, skipDuplicates: true })
+    await tx.empresa.update({ where: { id: empresaDestino }, data: { ultimaSyncBodega: new Date() } })
+  }, { timeout: 30000 })
+
+  nuevas = toCreate.length
+
+  return { empresaId: empresaDestino, ordenes: ordenesFiltradas.length, nuevas, actualizadas: 0 }
 }
 
 export async function POST(req: NextRequest) {

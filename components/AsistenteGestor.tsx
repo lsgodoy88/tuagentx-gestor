@@ -116,7 +116,7 @@ export default function AsistenteGestor({ onClose }: Props) {
               className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-zinc-500"
             />
             <button onClick={enviar} disabled={!input.trim() || cargando}
-              className="w-10 h-10 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 rounded-xl flex items-center justify-center transition-colors flex-shrink-0">
+              className={`w-10 h-10 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 rounded-xl flex items-center justify-center transition-colors flex-shrink-0 ${(!input.trim() || cargando) ? 'btn-shimmer' : ''}`}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
               </svg>

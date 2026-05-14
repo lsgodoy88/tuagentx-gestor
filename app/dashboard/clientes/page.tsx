@@ -905,7 +905,7 @@ export default function ClientesPage() {
             <div className="flex gap-2 pt-2">
               <button onClick={() => setModal(false)} className="flex-1 bg-zinc-800 text-white text-sm py-3 rounded-xl">Cancelar</button>
               <button onClick={crear} disabled={loading || !form.nombre}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold text-sm py-3 rounded-xl">
+                className={`flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold text-sm py-3 rounded-xl ${(loading || !form.nombre) ? 'btn-shimmer' : ''}`}>
                 {loading ? 'Guardando...' : 'Guardar'}
               </button>
             </div>

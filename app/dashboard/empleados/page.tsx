@@ -774,7 +774,7 @@ export default function EmpleadosPage() {
                   <button onClick={() => setModal(false)}
                     className="flex-1 bg-zinc-800 text-white text-sm py-3 rounded-xl">Cancelar</button>
                   <button onClick={guardar} disabled={loading || !nombre || (!editando && !password)}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold text-sm py-3 rounded-xl">
+                    className={`flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold text-sm py-3 rounded-xl ${(loading || !nombre || (!editando && !password)) ? 'btn-shimmer' : ''}`}>
                     {loading ? 'Guardando...' : editando ? 'Guardar' : 'Crear'}
                   </button>
                 </div>
