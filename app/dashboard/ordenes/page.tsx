@@ -170,17 +170,20 @@ export default function OrdenesPage() {
       .catch(() => {})
   }, [status])
 
-  async function cargarDatos(origen?: string) {
+  async function cargarDatos(origen?: string, diasOverride?: number) {
     setCargando(true)
     const id = origen ?? origenId
+    const dias = diasOverride ?? diasHistorial
     try {
-      const res = await fetch(`/api/bodega/despachos${id !== 'propia' ? `?origenId=${id}` : ''}`)
+      const params = new URLSearchParams()
+      if (id !== 'propia') params.set('origenId', id)
+      params.set('dias', String(dias))
+      const res = await fetch(`/api/bodega/despachos?${params.toString()}`)
       const data = await res.json()
       setDespachos(data.despachos || [])
       setCiudadLocal(data.ciudadLocal || null)
       setBodegaPuedeEnviar(data.bodegaPuedeEnviar ?? false)
       setUltimaSync(data.ultimaSyncBodega || null)
-      // dias ya en localStorage, no sobrescribir
     } finally {
       setCargando(false)
     }
