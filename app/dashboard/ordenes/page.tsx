@@ -297,11 +297,28 @@ export default function OrdenesPage() {
       })
       const data = await res.json()
       if (data.orden) {
-        setDespachos(prev => prev.map(d => d.id === id ? { ...d, ...data.orden } : d))
+        const ordenActualizada = data.orden
+        setDespachos(prev => prev.map(d => d.id === id ? { ...d, ...ordenActualizada } : d))
         setDespachosPorTab(prev => {
           const next = { ...prev }
-          for (const tab of Object.keys(next)) {
-            next[tab] = next[tab].map((d: any) => d.id === id ? { ...d, ...data.orden } : d)
+          const estadoNuevo = ordenActualizada.estado
+          const esDespachada = ['en_entrega','en_transito','entregado'].includes(estadoNuevo)
+          for (const tab of Object.keys(next) as Array<'pendiente'|'alistado'|'despachado'>) {
+            const tabEsDespachado = tab === 'despachado'
+            if (esDespachada && !tabEsDespachado) {
+              // Sacar del tab origen
+              next[tab] = next[tab].filter((d: any) => d.id !== id)
+            } else if (esDespachada && tabEsDespachado) {
+              // Insertar al frente del tab despachado si no estaba
+              const yaExiste = next[tab].some((d: any) => d.id === id)
+              if (yaExiste) {
+                next[tab] = next[tab].map((d: any) => d.id === id ? { ...d, ...ordenActualizada } : d)
+              } else {
+                next[tab] = [{ ...ordenActualizada }, ...next[tab]]
+              }
+            } else {
+              next[tab] = next[tab].map((d: any) => d.id === id ? { ...d, ...ordenActualizada } : d)
+            }
           }
           return next
         })
