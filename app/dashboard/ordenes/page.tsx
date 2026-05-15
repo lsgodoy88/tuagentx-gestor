@@ -75,7 +75,7 @@ export default function OrdenesPage() {
   const router = useRouter()
   const user = session?.user as any
 
-  const [subTab, setSubTab] = useState<'pendientes' | 'alistados' | 'entregados'>('pendientes')
+  const [subTab, setSubTab] = useState<'pendientes' | 'alistados' | 'entregados'>('pendientes') // legacy — usar tabActivo
   const [despachos, setDespachos] = useState<any[]>([])
   const [ciudadLocal, setCiudadLocal] = useState<string | null>(null)
   const [bodegaPuedeEnviar, setBodegaPuedeEnviar] = useState(false)
@@ -88,6 +88,11 @@ export default function OrdenesPage() {
   const [syncing, setSyncing] = useState(false)
   const [msgSync, setMsgSync] = useState('')
   const [saving, setSaving] = useState<Record<string, boolean>>({})
+  const [tabActivo, setTabActivo] = useState<'pendiente'|'alistado'|'despachado'>('pendiente')
+  const [cursores, setCursores] = useState<Record<string, string|null>>({ pendiente: null, alistado: null, despachado: null })
+  const [hayMasPorTab, setHayMasPorTab] = useState<Record<string, boolean>>({ pendiente: false, alistado: false, despachado: false })
+  const [despachosPorTab, setDespachosPorTab] = useState<Record<string, any[]>>({ pendiente: [], alistado: [], despachado: [] })
+  const [cargandoMasTab, setCargandoMasTab] = useState(false)
   const [toastEnvio, setToastEnvio] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [editTransporte, setEditTransporte] = useState<Record<string, { transportadora: string; guia: string }>>({})
@@ -171,23 +176,44 @@ export default function OrdenesPage() {
       .catch(() => {})
   }, [status])
 
-  async function cargarDatos(origen?: string, diasOverride?: number) {
-    setCargando(true)
+  async function cargarTab(tab: 'pendiente'|'alistado'|'despachado', origen?: string, reset = false) {
     const id = origen ?? origenId
-    const dias = diasOverride ?? diasHistorial
+    if (reset) {
+      setCursores(p => ({ ...p, [tab]: null }))
+      setDespachosPorTab(p => ({ ...p, [tab]: [] }))
+    }
+    if (tab === tabActivo || reset) setCargando(true)
     try {
       const params = new URLSearchParams()
       if (id !== 'propia') params.set('origenId', id)
-      params.set('dias', String(dias))
-      const res = await fetch(`/api/bodega/despachos?${params.toString()}`)
-      const data = await res.json()
-      setDespachos(data.despachos || [])
+      params.set('estado', tab)
+      if (!reset && cursores[tab]) params.set('cursor', cursores[tab]!)
+      if (busqueda) params.set('q', busqueda)
+      const data = await fetch(`/api/bodega/despachos?${params}`).then(r => r.json())
+      setDespachosPorTab(p => ({ ...p, [tab]: reset ? (data.despachos || []) : [...(p[tab] || []), ...(data.despachos || [])] }))
+      setCursores(p => ({ ...p, [tab]: data.nextCursor || null }))
+      setHayMasPorTab(p => ({ ...p, [tab]: !!data.hayMas }))
       setCiudadLocal(data.ciudadLocal || null)
       setBodegaPuedeEnviar(data.bodegaPuedeEnviar ?? false)
       setUltimaSync(data.ultimaSyncBodega || null)
     } finally {
       setCargando(false)
     }
+  }
+
+  // Mantener compatibilidad con código existente que llama cargarDatos
+  async function cargarDatos(origen?: string) {
+    await Promise.all([
+      cargarTab('pendiente', origen, true),
+      cargarTab('alistado', origen, true),
+      cargarTab('despachado', origen, true),
+    ])
+  }
+
+  async function cargarMasTab() {
+    if (cargandoMasTab || !hayMasPorTab[tabActivo]) return
+    setCargandoMasTab(true)
+    try { await cargarTab(tabActivo) } finally { setCargandoMasTab(false) }
   }
 
   async function sync() {
@@ -384,31 +410,20 @@ export default function OrdenesPage() {
     setExpanded(p => ({ ...p, [id]: false }))
   }
 
-  const despachosVisibles = useMemo(() => despachos.filter(d => {
-    if (busqueda.trim()) {
-      // Con búsqueda activa: buscar en todos los tabs sin filtro de estado
-      const q = busqueda.toLowerCase()
-      const matchNombre = d.clienteNombre?.toLowerCase().includes(q)
-      const matchOrden = d.numeroOrden?.toLowerCase().includes(q)
-      const matchFactura = d.numeroFactura?.toLowerCase().includes(q)
-      return matchNombre || matchOrden || !!matchFactura
-    }
-    if (subTab === 'pendientes') {
-      if (d.estado !== 'pendiente') return false
-    } else if (subTab === 'alistados') {
-      if (d.estado !== 'alistado') return false
-      if (ciudadFiltro && d.ciudad !== ciudadFiltro) return false
-    } else {
-      if (!['en_entrega','en_transito','entregado'].includes(d.estado)) return false
-    }
-    if (false) { // búsqueda ya manejada arriba
-      const q = busqueda.toLowerCase()
-      const matchNombre = d.clienteNombre?.toLowerCase().includes(q)
-      const matchOrden = d.numeroOrden?.toLowerCase().includes(q)
-      if (!matchNombre && !matchOrden) return false
-    }
-    return true
-  }), [despachos, subTab, busqueda, ciudadFiltro])
+  // Datos por tab — vienen paginados del servidor
+  const pendientes  = despachosPorTab['pendiente']  || []
+  const alistados   = despachosPorTab['alistado']   || []
+  const despachados = despachosPorTab['despachado'] || []
+
+    const despachosVisibles = useMemo(() => {
+      const base = tabActivo === 'pendiente' ? pendientes : tabActivo === 'alistado' ? alistados : despachados
+      return base.filter(d => {
+        if (!busqueda) return true
+        const q = busqueda.toLowerCase()
+        return (d.clienteNombre || '').toLowerCase().includes(q) ||
+               (d.numeroFactura || '').toLowerCase().includes(q)
+      })
+    }, [tabActivo, pendientes, alistados, despachados, busqueda])
 
   async function ejecutarBusqueda() {
     if (!busqueda.trim() || busqueda.length < 1) { setBusquedaRemota([]); return }
@@ -432,9 +447,9 @@ export default function OrdenesPage() {
   }
 
   const puedeEnviar = esAdmin || bodegaPuedeEnviar
-  const cPendientes = despachos.filter(d => d.estado === 'pendiente').length
-  const cAlistados  = despachos.filter(d => d.estado === 'alistado').length
-  const cEntregadosHoy = despachos.filter(d => d.estado === 'entregado' && isHoy(d.entregadoEl)).length
+  const cPendientes   = pendientes.length
+  const cAlistados    = alistados.length
+  const cEntregadosHoy = despachados.filter(d => d.estado === 'entregado' && isHoy(d.entregadoEl)).length
 
   const sync_ = tiempoDesdeSync(ultimaSync)
 
@@ -444,20 +459,11 @@ export default function OrdenesPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-white">Órdenes</h1>
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-1 bg-zinc-800 border border-zinc-700 rounded-xl px-1 py-1">
-            <button onClick={() => cambiarDias(-1)} disabled={diasHistorial <= 1}
-              className="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-white disabled:opacity-30 text-sm font-bold">−</button>
-            <span className="text-white text-xs font-semibold w-8 text-center">{diasHistorial}d</span>
-            <button onClick={() => cambiarDias(1)} disabled={diasHistorial >= 30}
-              className="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-white disabled:opacity-30 text-sm font-bold">+</button>
-          </div>
-          <button onClick={sync} disabled={syncing}
-            className={`flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-300 border border-zinc-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors ${syncing ? 'btn-shimmer' : ''}`}>
-            <SyncIcon spinning={syncing} className="w-3.5 h-3.5 text-blue-400" />
-            {syncing ? '...' : 'Sync'}
-          </button>
-        </div>
+        <button onClick={sync} disabled={syncing}
+          className={`flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-300 border border-zinc-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors ${syncing ? 'btn-shimmer' : ''}`}>
+          <SyncIcon spinning={syncing} className="w-3.5 h-3.5 text-blue-400" />
+          {syncing ? '...' : 'Sync'}
+        </button>
       </div>
 
       {/* Selector empresa origen + buscador */}
@@ -490,36 +496,22 @@ export default function OrdenesPage() {
 
       {/* Sub-tabs + toolbar */}
       <div className="space-y-2">
-        {(() => {
-          const cEntregados = despachos.filter(d => ['en_entrega','en_transito','entregado'].includes(d.estado)).length
-          const pills: { id: typeof subTab; label: string; count: number; active: string; inactive: string; badge: string }[] = [
-            { id: 'pendientes', label: 'Pendientes', count: cPendientes,
-              active: 'bg-amber-500 border-amber-500 text-white',
-              inactive: 'bg-zinc-800 border-zinc-700 text-amber-400 hover:bg-zinc-700',
-              badge: 'bg-amber-600/60' },
-            { id: 'alistados',  label: 'Alistados',  count: cAlistados,
-              active: 'bg-emerald-600 border-emerald-600 text-white',
-              inactive: 'bg-zinc-800 border-zinc-700 text-emerald-400 hover:bg-zinc-700',
-              badge: 'bg-emerald-700/60' },
-            { id: 'entregados', label: 'Entregados', count: cEntregados,
-              active: 'bg-blue-600 border-blue-600 text-white',
-              inactive: 'bg-zinc-800 border-zinc-700 text-blue-400 hover:bg-zinc-700',
-              badge: 'bg-blue-700/60' },
-          ]
-          return (
-            <div className="flex gap-2">
-              {pills.map(p => (
-                <button key={p.id} onClick={() => setSubTab(p.id)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
-                    subTab === p.id ? p.active : p.inactive
-                  }`}>
-                  {p.label}
-                  <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white ${p.badge}`}>{p.count}</span>
-                </button>
-              ))}
-            </div>
-          )
-        })()}
+        <div className="flex gap-2">
+          {([
+            { id: 'pendiente',  label: 'Pendientes',  count: cPendientes,   activeC: 'bg-amber-500 border-amber-500',   inactiveC: 'bg-zinc-800 border-zinc-700 text-amber-400',   badge: 'bg-amber-600/60' },
+            { id: 'alistado',   label: 'Alistados',   count: cAlistados,    activeC: 'bg-emerald-600 border-emerald-600', inactiveC: 'bg-zinc-800 border-zinc-700 text-emerald-400', badge: 'bg-emerald-700/60' },
+            { id: 'despachado', label: 'Despachados', count: despachados.length, activeC: 'bg-blue-600 border-blue-600', inactiveC: 'bg-zinc-800 border-zinc-700 text-blue-400',    badge: 'bg-blue-700/60' },
+          ] as const).map(p => (
+            <button key={p.id}
+              onClick={() => { setTabActivo(p.id as any); setSubTab(p.id === 'pendiente' ? 'pendientes' : p.id === 'alistado' ? 'alistados' : 'entregados') }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
+                tabActivo === p.id ? p.activeC + ' text-white' : p.inactiveC + ' hover:bg-zinc-700'
+              }`}>
+              {p.label}
+              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white ${p.badge}`}>{p.count}</span>
+            </button>
+          ))}
+        </div>
 
         {/* Sync line */}
         <div className="flex items-center gap-2">
@@ -850,6 +842,54 @@ export default function OrdenesPage() {
           </div>
         )
       })()}
+      {/* Bitácora despachados */}
+      {tabActivo === 'despachado' && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-zinc-800">
+            <p className="text-zinc-400 text-xs font-bold tracking-wide">DESPACHADOS — últimos 30 días</p>
+          </div>
+          <div className="divide-y divide-zinc-800">
+            {despachados.length === 0 && (
+              <p className="text-zinc-600 text-sm text-center py-6">Sin despachos</p>
+            )}
+            {despachados.map((d: any) => {
+              const confirmado = !!(d.repartidorId || d.guiaTransporte || d.transportadora)
+              const fecha = d.entregadoEl
+                ? new Date(d.entregadoEl).toLocaleDateString('es-CO', { day:'2-digit', month:'2-digit' })
+                : null
+              return (
+                <div key={d.id} className="flex items-center gap-3 px-4 py-2.5">
+                  <span className="text-zinc-400 text-xs font-bold w-12 flex-shrink-0 tabular-nums">#{d.numeroFactura || '--'}</span>
+                  <span className="text-white text-xs font-medium flex-1 truncate">{d.clienteNombre}</span>
+                  <span className="text-zinc-500 text-xs flex-shrink-0 w-12 text-right">{fecha || ''}</span>
+                  {confirmado ? (
+                    <span className="text-base flex-shrink-0" title={d.repartidor?.nombre || d.transportadora || 'Asignado'}>🚚</span>
+                  ) : (
+                    <span className="w-5 flex-shrink-0" />
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          {hayMasPorTab['despachado'] && (
+            <div className="px-4 py-3 border-t border-zinc-800">
+              <button onClick={cargarMasTab} disabled={cargandoMasTab}
+                className="w-full text-zinc-400 text-xs font-semibold py-2 hover:text-white disabled:opacity-40">
+                {cargandoMasTab ? 'Cargando...' : 'Cargar más'}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Botón cargar más — tabs Pendientes y Alistados */}
+      {tabActivo !== 'despachado' && hayMasPorTab[tabActivo] && (
+        <button onClick={cargarMasTab} disabled={cargandoMasTab}
+          className="w-full bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-semibold py-3 rounded-2xl hover:text-white disabled:opacity-40 transition-colors">
+          {cargandoMasTab ? 'Cargando...' : `Cargar más`}
+        </button>
+      )}
+
       {/* Barra selección masiva */}
       {modoSeleccion && (
         <div className="fixed bottom-0 left-0 right-0 md:left-64 z-[1050] bg-zinc-950 border-t-2 border-blue-500 px-4 pt-3 pb-6 flex items-center gap-3 shadow-2xl">
