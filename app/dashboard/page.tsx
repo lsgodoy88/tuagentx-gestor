@@ -35,6 +35,7 @@ export default function DashboardPage() {
   const [sincronizando, setSincronizando] = useState(false)
   const [empresaDetalleSA, setEmpresaDetalleSA] = useState<string | null>(null)
   const [loadingStats, setLoadingStats] = useState(false)
+  const [mostrarEstadisticas, setMostrarEstadisticas] = useState(false)
   const [modalVisita, setModalVisita] = useState<{open: boolean, tipo: string}>({open: false, tipo: 'visita'})
   const [clienteModal, setClienteModal] = useState<any>(null)
   const [ordenesEntregadas, setOrdenesEntregadas] = useState<Set<string>>(new Set())
@@ -147,6 +148,18 @@ export default function DashboardPage() {
     if (isEmpresa || isSupervisor || isBodega) fetch('/api/bodega/despachos').then(r => r.json()).then(d => { if (d.despachos) { const hoy = new Date().toDateString(); setBodegaStats({ pendientes: d.despachos.filter((o:any) => o.estado==='pendiente').length, alistados: d.despachos.filter((o:any) => o.estado==='alistado').length, entregados: d.despachos.filter((o:any) => ['en_entrega','entregado'].includes(o.estado) && new Date(o.entregadoEl||'').toDateString()===hoy).length }) } }).catch(()=>{})
     }
   }, [user])
+  async function cargarEstadisticas() {
+    setMostrarEstadisticas(prev => !prev)
+    if (!mostrarEstadisticas) {
+      setLoadingStats(true)
+      try {
+        const d = await fetch('/api/stats').then(r => r.json())
+        setStats(d)
+      } catch {}
+      setLoadingStats(false)
+    }
+  }
+
   async function dispararSync() {
     setSincronizando(true)
     try {
@@ -516,14 +529,7 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-white">Bienvenido, {user?.name}</h1>
           <p className="text-zinc-400 text-sm mt-1 capitalize">{user?.role}</p>
         </div>
-        {(isEmpresa || isSupervisor) && syncInfo?.tieneIntegracion && (
-          <button
-            onClick={() => setModalSync(true)}
-            disabled={sincronizando}
-            className={`flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-semibold px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50 ${sincronizando ? 'btn-shimmer' : ''}`}>
-            <SyncIcon spinning={sincronizando} className="w-4 h-4 text-blue-400" /> {sincronizando ? 'Sincronizando...' : 'Sync'}
-          </button>
-        )}
+
       </div>
       {(isEmpresa || isSupervisor) && (
         <div className="space-y-6">
@@ -572,6 +578,15 @@ export default function DashboardPage() {
               <p className="text-zinc-500 text-xs mt-1">empleados activos</p>
             </div>
           </div>
+          {/* Botón Estadísticas */}
+          <button
+            onClick={cargarEstadisticas}
+            className={`w-full flex items-center justify-between bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-2xl px-4 py-3 transition-colors ${loadingStats ? 'btn-shimmer' : ''}`}>
+            <span className="text-white font-semibold text-sm">📊 Estadísticas</span>
+            <span className="text-zinc-500 text-xs">{mostrarEstadisticas ? '▲ Ocultar' : '▼ Ver'}</span>
+          </button>
+
+          {mostrarEstadisticas ? (
           <div className="md:grid md:grid-cols-2 md:gap-6 space-y-6 md:space-y-0">
           <div className="space-y-6">
           {stats.visitasPorDia && stats.visitasPorDia.length > 0 && (
@@ -617,7 +632,7 @@ export default function DashboardPage() {
             </div>
             <p className="text-2xl font-bold text-white">{stats.rutasActivas || 0}</p>
           </div>
-          </div>{/* fin col izquierda */}
+          </div>
           <div className="space-y-6">
           {/* Monitor empleados en turno */}
           {monitor.length > 0 && (
@@ -745,8 +760,9 @@ export default function DashboardPage() {
               </div>
             </div>
           )}
-          </div>{/* fin col derecha */}
-          </div>{/* fin grid 2 cols */}
+          </div>
+          </div>
+          ) : null}
         </div>
       )}
       {isBodega && (
