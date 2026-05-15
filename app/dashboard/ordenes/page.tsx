@@ -909,7 +909,7 @@ export default function OrdenesPage() {
       )}
 
       {/* Botón cargar más — tabs Pendientes y Alistados */}
-      {tabActivo !== 'despachado' && hayMasPorTab[tabActivo] && (
+      {hayMasPorTab[tabActivo] && (
         <button onClick={cargarMasTab} disabled={cargandoMasTab}
           className="w-full bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-semibold py-3 rounded-2xl hover:text-white disabled:opacity-40 transition-colors">
           {cargandoMasTab ? 'Cargando...' : `Cargar más`}
