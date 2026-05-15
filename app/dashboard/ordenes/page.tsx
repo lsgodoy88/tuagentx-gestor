@@ -851,7 +851,7 @@ export default function OrdenesPage() {
             if (!f.despachada) {
               return (
                 <div key={f.numero} className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5">
-                  <span className="text-white text-xs font-bold tabular-nums">{f.numero}:</span>
+                  <span className="text-white font-mono text-xs">#{f.numero}</span>
                 </div>
               )
             }
@@ -859,7 +859,7 @@ export default function OrdenesPage() {
             const d = despachados.find((o: any) => o.numeroFactura === String(f.numero))
             if (!d) return (
               <div key={f.numero} className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5">
-                <span className="text-white text-xs font-bold tabular-nums">{f.numero}: {f.clienteNombre}</span>
+                <span className="text-white font-mono text-xs">#{f.numero}</span>
               </div>
             )
             // Despachada — misma card completa del map principal
