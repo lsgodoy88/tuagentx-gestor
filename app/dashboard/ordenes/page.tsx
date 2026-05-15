@@ -538,7 +538,7 @@ export default function OrdenesPage() {
           </select>
         )
       })()}
-      {despachos.length === 0 && busquedaRemota.length === 0 ? (
+      {despachosVisibles.length === 0 && busquedaRemota.length === 0 && tabActivo !== 'despachado' ? (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-10 text-center">
           {buscandoRemoto ? <p className="text-zinc-300 text-sm">Buscando...</p> : <p className="text-zinc-300 text-sm">Sin órdenes en el período configurado</p>}
         </div>
