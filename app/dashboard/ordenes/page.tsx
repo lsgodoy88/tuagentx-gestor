@@ -542,19 +542,23 @@ export default function OrdenesPage() {
 
       {/* Sub-tabs + toolbar */}
       <div className="space-y-2">
-        <div className="flex gap-2">
+        <div className="flex gap-1.5 bg-zinc-900 border border-zinc-800 rounded-2xl p-1">
           {([
-            { id: 'pendiente',  label: 'Pendientes',  count: cPendientes,   activeC: 'bg-amber-500 border-amber-500',   inactiveC: 'bg-zinc-800 border-zinc-700 text-amber-400',   badge: 'bg-amber-600/60' },
-            { id: 'alistado',   label: 'Alistados',   count: cAlistados,    activeC: 'bg-emerald-600 border-emerald-600', inactiveC: 'bg-zinc-800 border-zinc-700 text-emerald-400', badge: 'bg-emerald-700/60' },
-            { id: 'despachado', label: 'Despachados', count: despachados.length, activeC: 'bg-blue-600 border-blue-600', inactiveC: 'bg-zinc-800 border-zinc-700 text-blue-400',    badge: 'bg-blue-700/60' },
+            { id: 'pendiente',  label: 'PENDIENTES',  count: cPendientes,      activeC: 'bg-amber-500',    countC: 'text-white' },
+            { id: 'alistado',   label: 'ALISTADOS',   count: cAlistados,       activeC: 'bg-emerald-600',  countC: 'text-white' },
+            { id: 'despachado', label: 'DESPACHADOS', count: despachados.length, activeC: 'bg-blue-600',   countC: 'text-white' },
           ] as const).map(p => (
             <button key={p.id}
               onClick={() => { setTabActivo(p.id as any); setSubTab(p.id === 'pendiente' ? 'pendientes' : p.id === 'alistado' ? 'alistados' : 'entregados') }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition-colors ${
-                tabActivo === p.id ? p.activeC + ' text-white' : p.inactiveC + ' hover:bg-zinc-700'
+              className={`flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl transition-all ${
+                tabActivo === p.id ? p.activeC : 'hover:bg-zinc-800'
               }`}>
-              {p.label}
-              <span className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold text-white ${p.badge}`}>{p.count}</span>
+              <span className={`text-xl font-black leading-none tabular-nums ${
+                tabActivo === p.id ? 'text-white' : 'text-zinc-500'
+              }`}>{p.count}</span>
+              <span className={`text-[8px] font-bold tracking-wider ${
+                tabActivo === p.id ? 'text-white/80' : 'text-zinc-600'
+              }`}>{p.label}</span>
             </button>
           ))}
         </div>
