@@ -150,9 +150,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           rutaEmpleado = { rutaId: rutaNueva.id }
         }
 
-        // Evitar duplicar si ya está en la ruta
+        // La clave de unicidad es la factura — mismo cliente puede tener N facturas distintas
+        // o venir de Lumeli y de Leche el mismo día
+        const notaOrden = `Bodega/${empresa?.nombre || 'Bodega'} #${orden.numeroFactura || orden.numeroOrden}`
         const yaEnRuta = await tx.rutaCliente.findFirst({
-          where: { rutaId: rutaEmpleado.rutaId, clienteId: cliente.id }
+          where: { rutaId: rutaEmpleado.rutaId, notas: notaOrden }
         })
         if (!yaEnRuta) {
           await tx.rutaCliente.create({
@@ -160,7 +162,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
               rutaId: rutaEmpleado.rutaId,
               clienteId: cliente.id,
               orden: 999,
-              notas: `Bodega/${empresa?.nombre || 'Bodega'} #${orden.numeroFactura || orden.numeroOrden}`,
+              notas: notaOrden,
             },
           })
         }
