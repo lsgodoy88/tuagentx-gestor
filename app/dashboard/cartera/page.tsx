@@ -90,9 +90,48 @@ export default function CarteraPage() {
   }, [status])
 
   async function cargarDatos(q = '') {
-    if (!q && carteras.length === 0) setLoading(true); else setLoadingBusqueda(true)
     setPaginaActual(1)
     const url = q ? `/api/cartera?limit=15&q=${encodeURIComponent(q)}` : '/api/cartera?limit=15'
+
+    // Stale-while-revalidate: mostrar caché inmediatamente, red en paralelo
+    if (!q) {
+      const cached = loadCache<any>('cartera')
+      if (cached) {
+        const { r1, r2, r3 } = cached.data
+        setCarteras(r1.carteras || [])
+        setHayMas((r1.pages ?? 1) > 1)
+        setPagos(r2.pagos || [])
+        setMetas(r3.metas || [])
+        const age = Math.floor((Date.now() - cached.savedAt) / 60_000)
+        setCacheAgeCartera(age)
+        setLoading(false)
+        // Fetch en segundo plano para actualizar
+        Promise.all([
+          fetch(url).then(r => r.json()),
+          fetch('/api/cartera/pago?limit=500').then(r => r.json()).catch(() => ({ pagos: [] })),
+          fetch('/api/cartera/metas').then(r => r.json()).catch(() => ({ metas: [] })),
+        ]).then(([nr1, nr2, nr3]) => {
+          if (nr1.carteras) {
+            saveCache('cartera', { r1: nr1, r2: nr2, r3: nr3 })
+            setCarteras(nr1.carteras || [])
+            setHayMas((nr1.pages ?? 1) > 1)
+            setPagos(nr2.pagos || [])
+            setMetas(nr3.metas || [])
+            setOffline(false)
+            setCacheAgeCartera(null)
+          }
+        }).catch(() => {
+          // Sin red — los datos del caché ya están en pantalla, solo marcar offline
+          setOffline(true)
+        })
+        return
+      }
+      // Sin caché — carga normal con spinner
+      setLoading(true)
+    } else {
+      setLoadingBusqueda(true)
+    }
+
     let r1: any, r2: any, r3: any
     try {
       ;[r1, r2, r3] = await Promise.all([
@@ -107,17 +146,9 @@ export default function CarteraPage() {
       }
     } catch {
       if (q) { setLoadingBusqueda(false); return }
-      const cached = loadCache<any>('cartera')
-      if (cached) {
-        const age = Math.floor((Date.now() - cached.savedAt) / 60_000)
-        ;({ r1, r2, r3 } = cached.data)
-        setOffline(true)
-        setCacheAgeCartera(age)
-      } else {
-        setLoading(false)
-        setOffline(true)
-        return
-      }
+      setOffline(true)
+      setLoading(false)
+      return
     }
     setCarteras(r1.carteras || [])
     setHayMas((r1.pages ?? 1) > 1)
