@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
   const estadosFiltro: Record<string, string[]> = {
     pendiente:  ['pendiente'],
     alistado:   ['alistado'],
-    despachado: ['en_entrega', 'entregado'],
+    despachado: ['en_entrega', 'en_transito', 'entregado'],
   }
   const estados = estadosFiltro[estado] ?? ['pendiente']
 

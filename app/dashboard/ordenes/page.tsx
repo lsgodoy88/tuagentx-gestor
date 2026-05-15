@@ -638,7 +638,7 @@ export default function OrdenesPage() {
                 <button
                   onClick={() => abrirGaleriaConUrls(fotos, d.alistadoEl)}
                   className="flex items-center gap-1 text-zinc-400 hover:text-white text-xs">
-                  🖼️ {fotos.length > 1 ? fotos.length : ''}
+                  📷 {fotos.length > 1 ? fotos.length : ''}
                 </button>
               ) : null
 
@@ -688,7 +688,7 @@ export default function OrdenesPage() {
                         {d.alistadoEl && (
                           <span className="text-zinc-300 text-xs">Alistado {formatFechaCorta(d.alistadoEl)}</span>
                         )}
-                        {d.alistadoPor && (
+                        {d.alistadoPor && d.alistadoPor.nombre && d.alistadoPor.nombre.toLowerCase() !== 'bodega' && (
                           <span className="text-zinc-300 text-xs">· {d.alistadoPor.nombre}</span>
                         )}
                       </div>
@@ -704,7 +704,7 @@ export default function OrdenesPage() {
                               <div className="grid grid-cols-3 gap-1.5">
                                 <button onClick={() => setModoEnvio(p => ({ ...p, [d.id]: 'local' }))}
                                   className={`py-2 rounded-xl text-xs font-semibold border transition-colors ${modoActual === 'local' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
-                                  🏍️ Local
+                                  🚚 Local
                                 </button>
                                 <button onClick={() => setModoEnvio(p => ({ ...p, [d.id]: 'transportadora' }))}
                                   className={`py-2 rounded-xl text-xs font-semibold border transition-colors ${modoActual === 'transportadora' ? 'bg-orange-600 border-orange-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
@@ -745,7 +745,7 @@ export default function OrdenesPage() {
                                     ))}
                                   </select>
                                   <button onClick={() => asignarRepartidor(d.id)}
-                                    disabled={isSaving || !editRepartidor[d.id] || !esLocalidad2}
+                                    disabled={isSaving || !editRepartidor[d.id]}
                                     className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors flex-shrink-0">
                                     {isSaving ? '...' : '🚀 Enviar'}
                                   </button>
