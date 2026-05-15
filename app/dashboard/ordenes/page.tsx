@@ -303,18 +303,25 @@ export default function OrdenesPage() {
           const next = { ...prev }
           const estadoNuevo = ordenActualizada.estado
           const esDespachada = ['en_entrega','en_transito','entregado'].includes(estadoNuevo)
+          const esAlistada = estadoNuevo === 'alistado'
           for (const tab of Object.keys(next) as Array<'pendiente'|'alistado'|'despachado'>) {
-            const tabEsDespachado = tab === 'despachado'
-            if (esDespachada && !tabEsDespachado) {
-              // Sacar del tab origen
+            if (esDespachada && tab !== 'despachado') {
               next[tab] = next[tab].filter((d: any) => d.id !== id)
-            } else if (esDespachada && tabEsDespachado) {
-              // Insertar al frente del tab despachado si no estaba
+            } else if (esDespachada && tab === 'despachado') {
               const yaExiste = next[tab].some((d: any) => d.id === id)
               if (yaExiste) {
                 next[tab] = next[tab].map((d: any) => d.id === id ? { ...d, ...ordenActualizada } : d)
               } else {
                 next[tab] = [{ ...ordenActualizada }, ...next[tab]]
+              }
+            } else if (esAlistada && tab === 'pendiente') {
+              next[tab] = next[tab].filter((d: any) => d.id !== id)
+            } else if (esAlistada && tab === 'alistado') {
+              const yaExiste = next[tab].some((d: any) => d.id === id)
+              if (yaExiste) {
+                next[tab] = next[tab].map((d: any) => d.id === id ? { ...d, ...ordenActualizada } : d)
+              } else {
+                next[tab] = [...next[tab], { ...ordenActualizada }]
               }
             } else {
               next[tab] = next[tab].map((d: any) => d.id === id ? { ...d, ...ordenActualizada } : d)
@@ -457,7 +464,7 @@ export default function OrdenesPage() {
   async function asignarTodas() {
     if (!asignarTodasRepartidor) return
     setAsignandoTodas(true)
-    const alistadas = despachos.filter(d => d.estado === 'alistado')
+    const alistadas = (despachosPorTab['alistado'] || [])
     for (const d of alistadas) {
       await patchOrden(d.id, { repartidorId: asignarTodasRepartidor, estado: 'en_entrega' })
     }
@@ -583,7 +590,7 @@ export default function OrdenesPage() {
         {/* Sync line */}
         <div className="flex items-center gap-2">
           <p className="text-zinc-300 text-xs flex-1">
-            {despachos.length} orden{despachos.length !== 1 ? 'es' : ''}
+            {despachosVisibles.length} orden{despachosVisibles.length !== 1 ? 'es' : ''}
             {' · '}
             <span className={sync_.alerta ? 'text-amber-400' : 'text-zinc-300'}>
               Sync hace {sync_.texto}{sync_.alerta ? ' ⚠️' : ''}
@@ -595,7 +602,7 @@ export default function OrdenesPage() {
 
       {/* Filtro ciudad — solo en Alistados */}
       {subTab === 'alistados' && (() => {
-        const ciudades = [...new Set(despachos.filter(d => d.estado === 'alistado' && d.ciudad).map(d => d.ciudad as string))].sort()
+        const ciudades = [...new Set((despachosPorTab['alistado'] || []).filter((d: any) => d.ciudad).map((d: any) => d.ciudad as string))].sort()
         if (ciudades.length <= 1) return null
         return (
           <select value={ciudadFiltro} onChange={e => { setCiudadFiltro(e.target.value); setSeleccionados([]) }}
