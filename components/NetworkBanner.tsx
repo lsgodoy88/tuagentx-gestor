@@ -15,8 +15,8 @@ export function NetworkBanner() {
 
   return (
     <div className="fixed top-0 left-0 right-0 z-[9999] flex items-center justify-center gap-2
-                    bg-amber-500/95 backdrop-blur-sm text-black text-[11px] font-semibold
-                    px-3 py-1.5 shadow-lg">
+                    bg-amber-500/95 backdrop-blur-sm text-black text-sm font-bold
+                    px-3 py-2.5 shadow-lg">
       <span className="w-1.5 h-1.5 rounded-full bg-black/40 animate-pulse flex-shrink-0" />
       Sin conexión
       {mins !== null && (
