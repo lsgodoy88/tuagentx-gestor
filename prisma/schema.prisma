@@ -421,7 +421,7 @@ model PagoCartera {
   Aplicaciones   PagoCarteraDeuda[]
 
   @@index([empleadoId])
-  @@index([syncDeudaId])
+  @@index([syncDeudaId])  @@index([empleadoId, createdAt(sort: Desc)])
 }
 
 model PagoCarteraDeuda {
