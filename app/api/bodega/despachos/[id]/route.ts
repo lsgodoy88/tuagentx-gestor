@@ -61,7 +61,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // Estado
   if (estado) {
     update.estado = estado
-    if (estado === 'alistado' && !((orden.fotosAlistamiento as string[]) || []).length && !fotoAlistamiento)
+    if (estado === 'alistado' && !((orden.fotosAlistamiento as string[]) || []).length && !fotoAlistamiento && !firmaBase64)
       return NextResponse.json({ error: 'Se requiere al menos una foto para alistar' }, { status: 422 })
     if (estado === 'alistado') {
       update.alistadoEl = new Date()

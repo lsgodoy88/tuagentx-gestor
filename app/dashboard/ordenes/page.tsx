@@ -304,6 +304,8 @@ export default function OrdenesPage() {
           const estadoNuevo = ordenActualizada.estado
           const esDespachada = ['en_entrega','en_transito','entregado'].includes(estadoNuevo)
           const esAlistada = estadoNuevo === 'alistado'
+          if (esDespachada) setTabActivo('despachado')
+          else if (esAlistada) setTabActivo('alistado')
           for (const tab of Object.keys(next) as Array<'pendiente'|'alistado'|'despachado'>) {
             if (esDespachada && tab !== 'despachado') {
               next[tab] = next[tab].filter((d: any) => d.id !== id)
