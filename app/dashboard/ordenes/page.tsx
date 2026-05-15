@@ -862,20 +862,46 @@ export default function OrdenesPage() {
                 <span className="text-white text-xs font-bold tabular-nums">{f.numero}: {f.clienteNombre}</span>
               </div>
             )
-            // Despachada — mostrar datos del control directamente
+            // Despachada — misma card completa del map principal
+            const d = despachados.find((o: any) => o.numeroFactura === String(f.numero)) || {
+              id: String(f.numero), numeroFactura: String(f.numero), clienteNombre: f.clienteNombre,
+              estado: 'en_entrega', ciudad: null, fechaOrden: null, createdAt: null,
+              fotoAlistamiento: null, fotosAlistamiento: null, alistadoEl: f.entregadoEl,
+              alistadoPor: null, repartidor: f.confirmado ? { nombre: '' } : null,
+              entregadoEl: f.entregadoEl, repartidorId: null, guiaTransporte: null, transportadora: null,
+            }
+            const ciudadRaw2 = d.ciudad || null
+            const ciudadNombre2 = ciudadRaw2 ? ciudadRaw2.split('/').pop()?.trim().replace(/\w/g, (x: string) => x.toUpperCase()) ?? ciudadRaw2 : null
+            const border2 = BORDER[d.estado] ?? BORDER.pendiente
+            const isSaving2 = saving[d.id]
+            const isExpanded2 = expanded[d.id]
+            const horaOrden2 = d.alistadoEl ? formatFechaCorta(d.alistadoEl) : d.fechaOrden ? formatFechaCorta(d.fechaOrden) : ''
+            const fotoKey2 = d.fotoAlistamiento
+            const fotos2: string[] = (d.fotosAlistamiento as string[] | null) || (fotoKey2 ? [fotoKey2] : [])
+            const tieneFotos2 = fotos2.length > 0
             return (
-              <div key={f.numero} className="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2.5 space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-white text-xs font-bold tabular-nums flex-shrink-0">{f.numero}:</span>
-                  <span className="text-white text-xs font-medium flex-1 truncate">{f.clienteNombre}</span>
-                  {f.confirmado && <span className="text-sm flex-shrink-0">🚚</span>}
+              <div key={f.numero} className={`bg-zinc-900 border border-zinc-800 border-l-4 ${border2} rounded-2xl overflow-hidden`}>
+                <div className="px-4 py-3 flex items-center gap-2">
+                  <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-hidden">
+                    <span className="text-white font-mono text-xs flex-shrink-0">#{d.numeroFactura}</span>
+                    <span className="text-zinc-700 flex-shrink-0">·</span>
+                    <span className="text-white font-semibold text-sm truncate flex-1">{nombreCorto(d.clienteNombre)}</span>
+                    {ciudadNombre2 && <span className="text-zinc-400 text-xs flex-shrink-0 ml-1">{ciudadNombre2}</span>}
+                  </div>
                 </div>
-                {f.entregadoEl && (
-                  <p className="text-zinc-500 text-xs tabular-nums">
-                    {new Date(f.entregadoEl).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'numeric'})}
-                    {' '}{new Date(f.entregadoEl).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',hour12:true})}
-                  </p>
-                )}
+                <div className="px-4 pb-3 pt-1 border-t border-zinc-800/60">
+                  <div className="flex items-center gap-3 mt-1 flex-wrap">
+                    {tieneFotos2 && (
+                      <button onClick={() => abrirGaleriaConUrls(fotos2, d.alistadoEl)}
+                        className="flex items-center gap-1 text-zinc-400 hover:text-white text-xs">
+                        🖼️ {fotos2.length > 1 ? fotos2.length : ''}
+                      </button>
+                    )}
+                    {horaOrden2 && <span className="text-zinc-300 text-xs">{horaOrden2}</span>}
+                    {d.repartidor && <span className="text-zinc-300 text-xs">· {d.repartidor.nombre}</span>}
+                    {f.confirmado && <span className="text-sm">🚚</span>}
+                  </div>
+                </div>
               </div>
             )
           })}
