@@ -101,6 +101,48 @@ export async function GET(req: NextRequest) {
     FROM gestor."Empresa" WHERE id = ${empresaId} LIMIT 1
   `
 
+  // Control de consecutivos — solo para tab despachado
+  let controlFacturas: any[] = []
+  if (estado === 'despachado') {
+    const controlRows = await prisma.$queryRawUnsafe<any[]>(`
+      SELECT
+        "numeroFactura",
+        "clienteNombre",
+        "entregadoEl",
+        "repartidorId",
+        "guiaTransporte",
+        "transportadora",
+        estado,
+        CAST("numeroFactura" AS INTEGER) AS nf_int
+      FROM gestor."OrdenDespacho"
+      WHERE "empresaId" = $1
+        AND ${origenSQL}
+        AND "numeroFactura" ~ '^[0-9]+$'
+        AND ("fechaOrden" >= $2::timestamp OR ("fechaOrden" IS NULL AND "createdAt" >= $2::timestamp))
+      ORDER BY nf_int DESC
+      LIMIT 200
+    `, empresaId, desdeIso)
+
+    // Rango completo min-max y marcar huecos (no despachadas)
+    if (controlRows.length > 0) {
+      const max = controlRows[0].nf_int
+      const min = controlRows[controlRows.length - 1].nf_int
+      const mapaFacturas = new Map(controlRows.map(r => [r.nf_int, r]))
+      for (let n = max; n >= min; n--) {
+        const r = mapaFacturas.get(n)
+        const despachada = r && ['en_entrega','entregado','en_transito'].includes(r.estado)
+        controlFacturas.push({
+          numero: n,
+          clienteNombre: r?.clienteNombre || null,
+          entregadoEl:   despachada ? r?.entregadoEl || null : null,
+          confirmado:    despachada && !!(r?.repartidorId || r?.guiaTransporte || r?.transportadora),
+          despachada,
+          hueco: !r,  // número que no existe en BD
+        })
+      }
+    }
+  }
+
   return NextResponse.json({
     despachos,
     nextCursor,
@@ -108,5 +150,6 @@ export async function GET(req: NextRequest) {
     ciudadLocal:       meta[0]?.ciudadEntregaLocal ?? null,
     bodegaPuedeEnviar: meta[0]?.bodegaPuedeEnviar ?? false,
     ultimaSyncBodega:  meta[0]?.ultimaSyncBodega ?? null,
+    controlFacturas,
   })
 }

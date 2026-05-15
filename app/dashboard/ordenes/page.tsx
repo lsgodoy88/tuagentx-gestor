@@ -93,6 +93,7 @@ export default function OrdenesPage() {
   const [hayMasPorTab, setHayMasPorTab] = useState<Record<string, boolean>>({ pendiente: false, alistado: false, despachado: false })
   const [despachosPorTab, setDespachosPorTab] = useState<Record<string, any[]>>({ pendiente: [], alistado: [], despachado: [] })
   const [cargandoMasTab, setCargandoMasTab] = useState(false)
+  const [controlFacturas, setControlFacturas] = useState<any[]>([])
   const [toastEnvio, setToastEnvio] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [editTransporte, setEditTransporte] = useState<Record<string, { transportadora: string; guia: string }>>({})
@@ -193,6 +194,7 @@ export default function OrdenesPage() {
       setDespachosPorTab(p => ({ ...p, [tab]: reset ? (data.despachos || []) : [...(p[tab] || []), ...(data.despachos || [])] }))
       setCursores(p => ({ ...p, [tab]: data.nextCursor || null }))
       setHayMasPorTab(p => ({ ...p, [tab]: !!data.hayMas }))
+      if (tab === 'despachado' && data.controlFacturas) setControlFacturas(data.controlFacturas)
       setCiudadLocal(data.ciudadLocal || null)
       setBodegaPuedeEnviar(data.bodegaPuedeEnviar ?? false)
       setUltimaSync(data.ultimaSyncBodega || null)
@@ -842,43 +844,31 @@ export default function OrdenesPage() {
           </div>
         )
       })()}
-      {/* Bitácora despachados */}
-      {tabActivo === 'despachado' && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-          <div className="px-4 py-2.5 border-b border-zinc-800">
-            <p className="text-zinc-400 text-xs font-bold tracking-wide">DESPACHADOS — últimos 30 días</p>
-          </div>
-          <div className="divide-y divide-zinc-800">
-            {despachados.length === 0 && (
-              <p className="text-zinc-600 text-sm text-center py-6">Sin despachos</p>
-            )}
-            {despachados.map((d: any) => {
-              const confirmado = !!(d.repartidorId || d.guiaTransporte || d.transportadora)
-              const fecha = d.entregadoEl
-                ? new Date(d.entregadoEl).toLocaleDateString('es-CO', { day:'2-digit', month:'2-digit' })
-                : null
-              return (
-                <div key={d.id} className="flex items-center gap-3 px-4 py-2.5">
-                  <span className="text-zinc-400 text-xs font-bold w-12 flex-shrink-0 tabular-nums">#{d.numeroFactura || '--'}</span>
-                  <span className="text-white text-xs font-medium flex-1 truncate">{d.clienteNombre}</span>
-                  <span className="text-zinc-500 text-xs flex-shrink-0 w-12 text-right">{fecha || ''}</span>
-                  {confirmado ? (
-                    <span className="text-base flex-shrink-0" title={d.repartidor?.nombre || d.transportadora || 'Asignado'}>🚚</span>
-                  ) : (
-                    <span className="w-5 flex-shrink-0" />
+      {/* Control de consecutivos — solo en tab Despachados */}
+      {tabActivo === 'despachado' && controlFacturas.length > 0 && (
+        <div className="space-y-1">
+          {controlFacturas.map((f: any) => (
+            f.despachada ? (
+              <div key={f.numero} className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-zinc-400 text-xs font-bold tabular-nums flex-shrink-0">{f.numero}:</span>
+                  <span className="text-white text-xs font-medium flex-1 truncate">{f.clienteNombre}</span>
+                  {f.entregadoEl && (
+                    <span className="text-zinc-500 text-xs flex-shrink-0 tabular-nums">
+                      {new Date(f.entregadoEl).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'numeric'})}
+                      {' '}
+                      {new Date(f.entregadoEl).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',hour12:true})}
+                    </span>
                   )}
+                  {f.confirmado && <span className="flex-shrink-0 text-sm">🚚</span>}
                 </div>
-              )
-            })}
-          </div>
-          {hayMasPorTab['despachado'] && (
-            <div className="px-4 py-3 border-t border-zinc-800">
-              <button onClick={cargarMasTab} disabled={cargandoMasTab}
-                className="w-full text-zinc-400 text-xs font-semibold py-2 hover:text-white disabled:opacity-40">
-                {cargandoMasTab ? 'Cargando...' : 'Cargar más'}
-              </button>
-            </div>
-          )}
+              </div>
+            ) : (
+              <div key={f.numero} className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5">
+                <span className="text-zinc-600 text-xs font-bold tabular-nums">{f.numero}:</span>
+              </div>
+            )
+          ))}
         </div>
       )}
 
