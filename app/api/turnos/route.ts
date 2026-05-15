@@ -12,7 +12,7 @@ export async function GET() {
   // Turno activo del empleado
   const turno = await prisma.turno.findFirst({
     where: { empleadoId: user.id, activo: true },
-    include: { visitas: { include: { cliente: true }, orderBy: { createdAt: 'desc' } } }
+    select: { id: true, empleadoId: true, inicio: true, fin: true, activo: true, pausado: true, pausaInicio: true, pausaDuracionMin: true, pausaMotivo: true, latInicio: true, lngInicio: true, latFin: true, lngFin: true }
   })
   return NextResponse.json(turno || null)
 }

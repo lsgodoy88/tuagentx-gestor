@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
   // Vendedor: todas sus metas (el cliente filtra por mes)
   if (user.role === 'vendedor') {
     const metas = await prisma.metaRecaudo.findMany({
-      where: { empleadoId: user.id }
+      where: { empleadoId: user.id, anio: { gte: anio - 1 } }
     })
     return NextResponse.json({ metas })
   }
