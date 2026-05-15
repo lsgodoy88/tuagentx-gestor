@@ -544,7 +544,7 @@ export default function OrdenesPage() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-10 text-center">
           {buscandoRemoto ? <p className="text-zinc-300 text-sm">Buscando...</p> : <p className="text-zinc-300 text-sm">Sin órdenes en el período configurado</p>}
         </div>
-      ) : (() => {
+      ) : tabActivo === 'despachado' ? null : (() => {
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
 
@@ -847,13 +847,38 @@ export default function OrdenesPage() {
       {/* Control de consecutivos — solo en tab Despachados */}
       {tabActivo === 'despachado' && controlFacturas.length > 0 && (
         <div className="space-y-1">
-          {controlFacturas.map((f: any) => (
-            f.despachada ? null : (
+          {controlFacturas.map((f: any) => {
+            if (!f.despachada) {
+              return (
+                <div key={f.numero} className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5">
+                  <span className="text-white text-xs font-bold tabular-nums">{f.numero}:</span>
+                </div>
+              )
+            }
+            // Buscar la card completa en los datos del tab
+            const d = despachados.find((o: any) => o.numeroFactura === String(f.numero))
+            if (!d) return (
               <div key={f.numero} className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5">
-                <span className="text-white text-xs font-bold tabular-nums">{f.numero}:</span>
+                <span className="text-white text-xs font-bold tabular-nums">{f.numero}: {f.clienteNombre}</span>
               </div>
             )
-          ))}
+            // Despachada — mostrar datos del control directamente
+            return (
+              <div key={f.numero} className="bg-zinc-900 border border-zinc-700 rounded-xl px-4 py-2.5 space-y-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-white text-xs font-bold tabular-nums flex-shrink-0">{f.numero}:</span>
+                  <span className="text-white text-xs font-medium flex-1 truncate">{f.clienteNombre}</span>
+                  {f.confirmado && <span className="text-sm flex-shrink-0">🚚</span>}
+                </div>
+                {f.entregadoEl && (
+                  <p className="text-zinc-500 text-xs tabular-nums">
+                    {new Date(f.entregadoEl).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'numeric'})}
+                    {' '}{new Date(f.entregadoEl).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',hour12:true})}
+                  </p>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 
