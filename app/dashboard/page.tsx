@@ -137,7 +137,15 @@ export default function DashboardPage() {
         setTurno(t)
         setPuedeCapturarGps(me?.puedeCapturarGps === true)
       })
-      // vendedor/stats se carga solo al presionar botón Estadísticas
+      // Cargar hoy inmediatamente al montar para mostrar contadores del día
+      if (user.role === 'vendedor') {
+        setLoadingStats(true)
+        fetch('/api/vendedor/stats').then(r => r.json()).then(d => {
+          setStatsVendedor(d)
+          setLoadingStats(false)
+        }).catch(() => setLoadingStats(false))
+      }
+      // (el histórico se carga al presionar Estadísticas si no estaba cargado)
     } else {
       fetch('/api/stats').then(r => r.json()).then(d => setStats(d)).catch(() => {})
     if (isEmpresa || isSupervisor) fetch('/api/integracion/estado').then(r => r.json()).then(d => setSyncInfo(d)).catch(() => {})
@@ -146,17 +154,8 @@ export default function DashboardPage() {
     }
   }, [user])
   async function cargarStatsVendedor() {
-    setMostrarEstadisticasVendedor(prev => {
-      const next = !prev
-      if (next && !statsVendedor) {
-        setLoadingStats(true)
-        fetch('/api/vendedor/stats').then(r => r.json()).then(d => {
-          setStatsVendedor(d)
-          setLoadingStats(false)
-        }).catch(() => setLoadingStats(false))
-      }
-      return next
-    })
+    setMostrarEstadisticasVendedor(prev => !prev)
+    // statsVendedor ya se cargó al montar — no recargar
   }
 
   async function cargarEstadisticas() {
@@ -1001,36 +1000,40 @@ export default function DashboardPage() {
           )}
           {user?.role === 'vendedor' && (
             <div className="space-y-4">
+              {/* Hoy — siempre visible */}
+              {statsVendedor && (
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 fade-up">
+                  <p className="text-white font-bold mb-3">Hoy</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-zinc-800 rounded-xl p-3">
+                      <p className="text-zinc-400 text-xs">Visitas</p>
+                      <p className="text-white text-2xl font-bold"><CountUp end={statsVendedor.hoy.total || 0} /></p>
+                    </div>
+                    <div className="bg-zinc-800 rounded-xl p-3">
+                      <p className="text-zinc-400 text-xs">Ventas</p>
+                      <p className="text-white text-2xl font-bold"><CountUp end={statsVendedor.hoy.ventas || 0} /></p>
+                    </div>
+                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
+                      <p className="text-zinc-400 text-xs">$ Ventas</p>
+                      <p className="text-emerald-400 font-bold">$<CountUp end={statsVendedor.hoy.montoVentas || 0} /></p>
+                    </div>
+                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+                      <p className="text-zinc-400 text-xs">Recaudo</p>
+                      <p className="text-blue-400 font-bold">$<CountUp end={statsVendedor.hoy.montoCobros || 0} /></p>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {/* Estadísticas — históricos bajo demanda */}
               <button
                 onClick={cargarStatsVendedor}
                 className={`w-full flex items-center justify-between bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-2xl px-4 py-3 transition-colors ${loadingStats ? 'btn-shimmer' : ''}`}>
                 <span className="text-white font-semibold text-sm">📊 Estadísticas</span>
                 <span className="text-zinc-500 text-xs">{mostrarEstadisticasVendedor ? '▲ Ocultar' : '▼ Ver'}</span>
               </button>
-              {mostrarEstadisticasVendedor && loadingStats && <div className="text-zinc-400 text-center py-4 text-sm">Cargando estadísticas...</div>}
+              {mostrarEstadisticasVendedor && loadingStats && <div className="text-zinc-400 text-center py-4 text-sm">Cargando...</div>}
               {mostrarEstadisticasVendedor && !loadingStats && statsVendedor && (
                 <div className="space-y-4">
-                  <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up">
-                    <p className="text-white font-bold mb-3">Hoy</p>
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="bg-zinc-800 rounded-xl p-3 hover-lift">
-                        <p className="text-zinc-400 text-xs">Visitas</p>
-                        <p className="text-white text-2xl font-bold"><CountUp end={statsVendedor.hoy.total || 0} /></p>
-                      </div>
-                      <div className="bg-zinc-800 rounded-xl p-3 hover-lift">
-                        <p className="text-zinc-400 text-xs">Ventas</p>
-                        <p className="text-white text-2xl font-bold"><CountUp end={statsVendedor.hoy.ventas || 0} /></p>
-                      </div>
-                      <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 hover-lift">
-                        <p className="text-zinc-400 text-xs">$ Ventas</p>
-                        <p className="text-emerald-400 font-bold">$<CountUp end={statsVendedor.hoy.montoVentas || 0} /></p>
-                      </div>
-                      <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 hover-lift">
-                        <p className="text-zinc-400 text-xs">Recaudo</p>
-                        <p className="text-blue-400 font-bold">$<CountUp end={statsVendedor.hoy.montoCobros || 0} /></p>
-                      </div>
-                    </div>
-                  </div>
                   <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-2">
                     <p className="text-white font-bold mb-3">Últimos 6 días</p>
                     <div className="overflow-x-auto">
