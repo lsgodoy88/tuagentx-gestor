@@ -1206,7 +1206,6 @@ export default function DashboardPage() {
         distanciaLejos={distanciaLejos}
         puedeCapturarGps={puedeCapturarGps}
         titulo="📦 Registrar entrega"
-        facturaPreset={clienteModal?.ordenNumero || undefined}
         extraData={clienteModal?.ordenDespachoId ? { ordenDespachoId: clienteModal.ordenDespachoId } : {}}
       />
 
