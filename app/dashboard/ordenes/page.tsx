@@ -849,23 +849,25 @@ export default function OrdenesPage() {
         <div className="space-y-1">
           {controlFacturas.map((f: any) => (
             f.despachada ? (
-              <div key={f.numero} className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 space-y-0.5">
+              <div key={f.numero} className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5">
+                {/* L1 — número + nombre + 🚚 */}
                 <div className="flex items-center gap-2">
-                  <span className="text-zinc-400 text-xs font-bold tabular-nums flex-shrink-0">{f.numero}:</span>
+                  <span className="text-white text-xs font-bold tabular-nums flex-shrink-0">{f.numero}:</span>
                   <span className="text-white text-xs font-medium flex-1 truncate">{f.clienteNombre}</span>
-                  {f.entregadoEl && (
-                    <span className="text-zinc-500 text-xs flex-shrink-0 tabular-nums">
-                      {new Date(f.entregadoEl).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'numeric'})}
-                      {' '}
-                      {new Date(f.entregadoEl).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',hour12:true})}
-                    </span>
-                  )}
                   {f.confirmado && <span className="flex-shrink-0 text-sm">🚚</span>}
                 </div>
+                {/* L2 — fecha si existe */}
+                {f.entregadoEl && (
+                  <p className="text-zinc-500 text-xs mt-0.5 tabular-nums">
+                    {new Date(f.entregadoEl).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'numeric'})}
+                    {' '}
+                    {new Date(f.entregadoEl).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',hour12:true})}
+                  </p>
+                )}
               </div>
             ) : (
-              <div key={f.numero} className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5">
-                <span className="text-zinc-600 text-xs font-bold tabular-nums">{f.numero}:</span>
+              <div key={f.numero} className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5">
+                <span className="text-white text-xs font-bold tabular-nums">{f.numero}:</span>
               </div>
             )
           ))}

@@ -109,6 +109,7 @@ export async function GET(req: NextRequest) {
         "numeroFactura",
         "clienteNombre",
         "entregadoEl",
+        "alistadoEl",
         "repartidorId",
         "guiaTransporte",
         "transportadora",
@@ -134,7 +135,7 @@ export async function GET(req: NextRequest) {
         controlFacturas.push({
           numero: n,
           clienteNombre: r?.clienteNombre || null,
-          entregadoEl:   despachada ? r?.entregadoEl || null : null,
+          entregadoEl:   despachada ? (r?.entregadoEl || r?.alistadoEl || null) : null,
           confirmado:    despachada && !!(r?.repartidorId || r?.guiaTransporte || r?.transportadora),
           despachada,
           hueco: !r,  // número que no existe en BD
