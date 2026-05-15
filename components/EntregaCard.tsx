@@ -35,70 +35,74 @@ export default function EntregaCard({
   const mapsUrl = lat && lng ? `https://www.google.com/maps?q=${lat},${lng}` : null
 
   return (
-    <div className={`py-3 px-4 ${entregado ? 'opacity-40' : rezago ? 'bg-amber-500/5 border-l-2 border-amber-500' : ''}`}>
+    <div className={`px-4 py-3 space-y-2 ${
+      entregado ? 'opacity-40' : rezago ? 'border-l-2 border-amber-500 bg-amber-500/5' : ''
+    }`}>
 
-      {/* Línea 1 — nombre + botón */}
-      <div className="flex items-center gap-2">
-        <p className={`flex-1 text-sm font-semibold truncate ${entregado ? 'line-through text-zinc-500' : rezago ? 'text-amber-300' : 'text-white'}`}>
-          {cliente.nombre}
-          {rezago && !entregado && (
-            <span className="ml-1.5 text-[10px] font-bold text-amber-400 bg-amber-500/10 px-1.5 py-0.5 rounded">
-              pendiente
+      {/* L1 — nombre */}
+      <p className={`text-base font-bold leading-snug ${
+        entregado ? 'line-through text-zinc-500' : rezago ? 'text-amber-200' : 'text-white'
+      }`}>
+        {cliente.nombre}
+        {rezago && !entregado && (
+          <span className="ml-2 text-[10px] font-bold text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded align-middle">
+            rezago
+          </span>
+        )}
+      </p>
+
+      {/* L2 — dirección */}
+      {cliente.direccion && (
+        <p className="text-sm text-zinc-400 leading-snug">
+          {cliente.direccion}{cliente.ciudad ? `, ${cliente.ciudad}` : ''}
+        </p>
+      )}
+
+      {/* L3 — factura + empresa + quién alistó */}
+      {(numeroFactura || empresaOrigen || alistadoPor) && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {numeroFactura && (
+            <span className="text-sm font-bold text-zinc-200">#{numeroFactura}</span>
+          )}
+          {empresaOrigen && (
+            <span className="text-xs font-semibold text-zinc-300 bg-zinc-800 border border-zinc-700 px-2 py-0.5 rounded-md">
+              {empresaOrigen}
             </span>
           )}
-        </p>
-        {!entregado && turnoActivo && onEntregar && (
-          <button onClick={onEntregar}
-            className={`flex-shrink-0 text-white text-xs font-semibold px-3 py-1.5 rounded-lg ${rezago ? 'bg-amber-500 hover:bg-amber-400' : 'bg-emerald-600 hover:bg-emerald-500'}`}>
-            Entregar
-          </button>
-        )}
-        {entregado && <span className="text-emerald-400 text-xs flex-shrink-0">Listo</span>}
-      </div>
-
-      {/* Línea 2 — dirección + maps */}
-      {cliente.direccion && (
-        <div className="flex items-center gap-1.5 mt-1">
-          <span className="text-zinc-500 text-xs truncate flex-1">
-            {cliente.direccion}{cliente.ciudad ? `, ${cliente.ciudad}` : ''}
-          </span>
-          {mapsUrl && (
-            <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
-              className="flex-shrink-0 text-[11px] font-semibold text-zinc-400 border border-zinc-700 rounded-md px-1.5 py-0.5 hover:text-white hover:border-zinc-500 transition-colors"
-              onClick={e => e.stopPropagation()}>
-              ↗ Maps
-            </a>
+          {alistadoPor && (
+            <span className="text-xs text-zinc-500">por {alistadoPor}</span>
+          )}
+          {asignadoEn && (
+            <span className="text-xs text-zinc-600">{fechaCorta(asignadoEn)}</span>
           )}
         </div>
       )}
 
-      {/* Línea 3 — factura · empresa · quién alistó · fecha · llamar */}
-      <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-        {numeroFactura && (
-          <span className="text-zinc-300 text-[11px] font-semibold">
-            Fac. {numeroFactura}
-          </span>
+      {/* L4 — acciones */}
+      <div className="flex items-center gap-2 pt-0.5">
+        {!entregado && turnoActivo && onEntregar && (
+          <button onClick={onEntregar}
+            className={`flex items-center justify-center w-9 h-9 rounded-xl text-white text-base flex-shrink-0 ${
+              rezago ? 'bg-amber-500 hover:bg-amber-400' : 'bg-emerald-600 hover:bg-emerald-500'
+            }`}>
+            ✓
+          </button>
         )}
-        {empresaOrigen && (
-          <span className="text-[10px] font-semibold text-zinc-400 bg-zinc-800 px-1.5 py-0.5 rounded">
-            {empresaOrigen}
-          </span>
+        {entregado && (
+          <span className="w-9 h-9 flex items-center justify-center text-emerald-400 text-base flex-shrink-0">✓</span>
         )}
-        {alistadoPor && (
-          <span className="text-zinc-500 text-[10px]">
-            por {alistadoPor}
-          </span>
-        )}
-        {asignadoEn && (
-          <span className="text-zinc-600 text-[10px]">
-            {fechaCorta(asignadoEn)}
-          </span>
+        {mapsUrl && (
+          <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
+            onClick={e => e.stopPropagation()}
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 text-base transition-colors flex-shrink-0">
+            ↗
+          </a>
         )}
         {cliente.telefono && (
           <a href={`tel:${cliente.telefono}`}
-            className="ml-auto text-blue-400 text-[11px] hover:text-blue-300 flex-shrink-0"
-            onClick={e => e.stopPropagation()}>
-            Llamar
+            onClick={e => e.stopPropagation()}
+            className="w-9 h-9 flex items-center justify-center rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 text-base transition-colors flex-shrink-0">
+            📞
           </a>
         )}
       </div>
