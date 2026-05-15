@@ -850,7 +850,7 @@ export default function OrdenesPage() {
           {controlFacturas.map((f: any) => {
             if (!f.despachada) {
               return (
-                <div key={f.numero} className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5">
+                <div key={f.numero} className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-1.5">
                   <span className="text-white font-mono text-xs">#{f.numero}</span>
                 </div>
               )
@@ -889,8 +889,8 @@ export default function OrdenesPage() {
                     {ciudadNombre2 && <span className="text-zinc-400 text-xs flex-shrink-0 ml-1">{ciudadNombre2}</span>}
                   </div>
                 </div>
-                <div className="px-4 pb-3 pt-1 border-t border-zinc-800/60">
-                  <div className="flex items-center gap-3 mt-1 flex-wrap">
+                <div className="px-4 pb-2 pt-0">
+                  <div className="flex items-center gap-2 flex-wrap" style={{paddingLeft: "calc(1rem + 2ch + 6px)"}}>
                     {tieneFotos2 && (
                       <button onClick={() => abrirGaleriaConUrls(fotos2, desp.alistadoEl)}
                         className="flex items-center gap-1 text-zinc-400 hover:text-white text-xs">
