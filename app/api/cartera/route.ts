@@ -154,10 +154,10 @@ export async function GET(req: NextRequest) {
     const where: any = { integracionId: integracion.id, saldoPendiente: { gt: 0 } }
     if (user.role === 'vendedor') {
       // En modo sync: filtrar por empleadoExternalId (apiId del empleado)
-      const empleado = await (prisma as any).empleado.findUnique({ where: { id: user.id }, select: { apiId: true } })
-      if (empleado?.apiId) {
+      const miApiId = (user as any).apiId || null
+      if (miApiId) {
         const deudasEmpleado = await (prisma as any).syncDeuda.findMany({
-          where: { integracionId: integracion.id, empleadoExternalId: empleado.apiId, condition: true },
+          where: { integracionId: integracion.id, empleadoExternalId: miApiId, condition: true },
           select: { clienteApiId: true }
         })
         const clienteApiIds = [...new Set(deudasEmpleado.map((d: any) => d.clienteApiId))]

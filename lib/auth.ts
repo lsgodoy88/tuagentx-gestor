@@ -52,7 +52,8 @@ export const authOptions: NextAuthOptions = {
             empresaId: empleado.empresaId,
             puedeCapturarGPS: (empleado as any).puedeCapturarGPS,
             permisos: (empleado as any).permisos ?? {},
-            etiqueta: (empleado as any).etiqueta ?? null
+            etiqueta: (empleado as any).etiqueta ?? null,
+            apiId: (empleado as any).apiId ?? null,
           }
         }
 
@@ -71,6 +72,7 @@ export const authOptions: NextAuthOptions = {
         token.bodegaPuedeEnviar = (user as any).bodegaPuedeEnviar ?? false
         token.tieneVinculacion = (user as any).tieneVinculacion ?? false
         token.tieneVinculacion = (user as any).tieneVinculacion ?? false
+        token.apiId = (user as any).apiId ?? null
       }
       return token
     },
@@ -84,6 +86,7 @@ export const authOptions: NextAuthOptions = {
         ;(session.user as any).bodegaPuedeEnviar = token.bodegaPuedeEnviar ?? false
         ;(session.user as any).tieneVinculacion = token.tieneVinculacion ?? false
         ;(session.user as any).tieneVinculacion = token.tieneVinculacion ?? false
+        ;(session.user as any).apiId = token.apiId ?? null
       }
       return session
     },

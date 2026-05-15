@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   const tipo = searchParams.get('tipo')
   const q = searchParams.get('q')
   const page = parseInt(searchParams.get('page') || '1')
-  const limit = parseInt(searchParams.get('limit') || '200')
+  const limit = parseInt(searchParams.get('limit') || '50')
   const skip = (page - 1) * limit
   const where: any = {
     empleado: { empresaId },
@@ -40,7 +40,7 @@ export async function GET(req: NextRequest) {
   const [visitas, total] = await Promise.all([
     prisma.visita.findMany({
       where,
-      include: { cliente: true, empleado: { select: { id: true, nombre: true, email: true, telefono: true, rol: true, activo: true, vendedorId: true, puedeCapturarGps: true, empresaId: true, createdAt: true } } },
+      select: { id: true, tipo: true, monto: true, nota: true, factura: true, firma: true, lat: true, lng: true, createdAt: true, fechaBogota: true, clienteId: true, empleadoId: true, cliente: { select: { id: true, nombre: true, ciudad: true } }, empleado: { select: { id: true, nombre: true, rol: true } } },
       orderBy: { createdAt: 'desc' },
       skip,
       take: limit,

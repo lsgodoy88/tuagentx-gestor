@@ -14,13 +14,14 @@ export async function GET() {
       ruta: {
         include: {
           clientes: {
-            include: { cliente: true },
+            select: { id: true, orden: true, rezago: true, clienteId: true, cliente: { select: { id: true, nombre: true, nombreComercial: true, direccion: true, ciudad: true, telefono: true, lat: true, lng: true, ubicacionReal: true } } },
             orderBy: { orden: 'asc' }
           }
         }
       }
     },
-    orderBy: { ruta: { createdAt: 'desc' } }
+    orderBy: { ruta: { createdAt: 'desc' } },
+    take: 30
   })
 
   return NextResponse.json(rutasEmpleado.map((re: any) => re.ruta))

@@ -25,7 +25,7 @@ export async function GET(req: NextRequest) {
 
     const visitas = await prisma.visita.findMany({
       where: { empleado: { empresaId }, createdAt: { gte: inicioRanking } },
-      include: { empleado: { select: { id: true, nombre: true, email: true, telefono: true, rol: true, activo: true, vendedorId: true, puedeCapturarGps: true, empresaId: true, createdAt: true } } }
+      include: { empleado: { select: { id: true, nombre: true, rol: true } } }
     })
 
     const mapaEmpleados: any = {}
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
       createdAt: { gte: inicio, lte: fin },
       ...(empleadoId ? { empleadoId } : {})
     },
-    include: { empleado: { select: { id: true, nombre: true, email: true, telefono: true, rol: true, activo: true, vendedorId: true, puedeCapturarGps: true, empresaId: true, createdAt: true } }, cliente: true },
+    include: { empleado: { select: { id: true, nombre: true, rol: true } }, cliente: { select: { id: true, nombre: true } } },
     orderBy: { createdAt: 'asc' }
   })
 
@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
       inicio: { gte: inicio, lte: fin },
       ...(empleadoId ? { empleadoId } : {})
     },
-    include: { empleado: { select: { id: true, nombre: true, email: true, telefono: true, rol: true, activo: true, vendedorId: true, puedeCapturarGps: true, empresaId: true, createdAt: true } } }
+    include: { empleado: { select: { id: true, nombre: true, rol: true } } }
   })
 
   // Resumen por empleado
