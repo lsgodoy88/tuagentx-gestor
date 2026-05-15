@@ -889,14 +889,15 @@ export default function OrdenesPage() {
                   {d.estado === 'en_transito' && (
                     <div className="px-4 pb-3 pt-1 border-t border-zinc-800/60 flex items-center gap-3 flex-wrap mt-1">
                       {btnFoto}
-                      <span className="text-zinc-300 text-xs">🚛 {d.transportadora} <span className="font-mono text-zinc-300">#{d.guiaTransporte}</span></span>
+                      <span className="text-zinc-400 text-xs">📦 {formatHora(d.alistadoEl)}</span>
+                      {d.guiaTransporte && <span className="text-zinc-500 font-mono text-xs">#{d.guiaTransporte}</span>}
                     </div>
                   )}
 
                   {d.estado === 'entregado' && (
                     <div className="px-4 pb-3 pt-1 border-t border-zinc-800/60 mt-1">
                       <div className="flex items-center gap-3">
-                        <span className="text-emerald-500 text-xs font-semibold">✅ {formatFechaCorta(d.entregadoEl)}</span>
+                        <span className="text-emerald-500 text-xs font-semibold">{d.firmaEntrega ? '🤝' : '✅'} {formatFechaCorta(d.entregadoEl)}</span>
                         {tieneFotos && (
                           <button onClick={() => abrirGaleriaConUrls(fotos, d.entregadoEl)}
                             className="flex items-center gap-1 text-zinc-400 hover:text-white text-xs">
