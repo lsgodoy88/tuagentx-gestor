@@ -214,89 +214,83 @@ export async function POST(req: NextRequest) {
   for (const e of empleados as any[]) empleadosPorRol[e.rol] = (empleadosPorRol[e.rol] || 0) + 1
 
   // ── System Prompt con datos REALES agregados ───────────────────────────────
-  const systemPrompt = `Eres TuAgentX, asistente inteligente del Gestor de la empresa ${empresa?.nombre || 'N/A'}.
-Tienes acceso a datos REALES y COMPLETOS de la BD. Usa SIEMPRE estos datos para responder con certeza.
+  // ── Detectar intención para contexto selectivo ────────────────────────────
+  const msgLower = mensaje.toLowerCase()
+  const esEquipo     = /empleado|turno|vendedor|equipo|quien|staff|trabajo|activo|pausa/i.test(msgLower)
+  const esClientes   = /cliente|ciudad|lista|registro|base/i.test(msgLower)
+  const esActividad  = /visita|hoy|venta|cobro|actividad|día|hizo|realizó|ejecutó/i.test(msgLower)
+  const esMes        = /mes|mensual|semana|período|rendimiento|ranking/i.test(msgLower)
+  const esRutas      = /ruta|recorrido|itinerario|zona/i.test(msgLower)
+  const esCartera    = /cartera|deuda|saldo|cobrar|pendiente|mora|vencid|pago|factura/i.test(msgLower)
+  const esBodega     = /bodega|orden|despacho|alistado|entregado|pedido/i.test(msgLower)
+  const esGeneral    = !esEquipo && !esClientes && !esActividad && !esMes && !esRutas && !esCartera && !esBodega
 
-FECHA Y HORA ACTUAL (Bogotá): ${ahoraBogota}
-ROL DEL USUARIO: ${user.role} | Nombre: ${user.name}
-EMPRESA: ${empresa?.nombre || 'N/A'} | Ciudad local: ${empresa?.ciudadEntregaLocal || 'no configurada'}
+  // Bloques de contexto
+  const bloqueBase = `Eres TuAgentX, asistente del Gestor de ${empresa?.nombre || 'N/A'}.
+Datos REALES de la BD. NUNCA inventes. Fecha Bogotá: ${ahoraBogota}
+Usuario: ${user.role} — ${user.name} | Empresa: ${empresa?.nombre || 'N/A'}`
 
-━━ EQUIPO (${empleados.length} empleados activos) ━━
-Por rol: ${Object.entries(empleadosPorRol).map(([r,n]) => `${r}: ${n}`).join(' | ')}
-Lista completa:
-${(empleados as any[]).map((e:any) => `  ${e.nombre} — ${e.rol}`).join('\n') || '  Sin empleados'}
+  const bloqueEquipo = `
+━━ EQUIPO (${empleados.length} activos) ━━
+Roles: ${Object.entries(empleadosPorRol).map(([r,n]) => `${r}:${n}`).join(' | ')}
+${(empleados as any[]).map((e:any) => `  ${e.nombre} — ${e.rol}`).join('\n')}
 
-En turno AHORA (${turnosActivos.length}):
-${(turnosActivos as any[]).map((t:any) => `  ${t.empleado.nombre} (${t.empleado.rol}) — inicio: ${fechaCorta(new Date(t.inicio))}${t.pausado ? ' [EN PAUSA]' : ''}`).join('\n') || '  Nadie en turno'}
+En turno ahora (${turnosActivos.length}):
+${(turnosActivos as any[]).map((t:any) => `  ${t.empleado.nombre} (${t.empleado.rol})${t.pausado ? ' [PAUSA]' : ''}`).join('\n') || '  Nadie'}`
 
+  const bloqueClientes = `
 ━━ CLIENTES (${totalClientes} total) ━━
-Por ciudad (top 20):
-${(clientesPorCiudad as any[]).map((c:any) => `  ${c.ciudad || 'sin ciudad'}: ${c._count.id}`).join('\n') || '  Sin datos'}
+Por ciudad: ${(clientesPorCiudad as any[]).slice(0,10).map((c:any) => `${c.ciudad||'?'}:${c._count.id}`).join(', ')}
+Por lista: ${(clientesPorLista as any[]).map((l:any) => `${l.nombre}:${l._count.clientes}`).join(', ') || 'sin listas'}`
 
-Por lista:
-${(clientesPorLista as any[]).map((l:any) => `  ${l.nombre}: ${l._count.clientes}`).join('\n') || '  Sin listas'}
-
+  const bloqueActividad = `
 ━━ ACTIVIDAD HOY (${fechaHoyStr}) ━━
-Total visitas: ${visitasHoy.length} | Ventas: ${fmt(totalVentasHoy)} | Cobros: ${fmt(totalCobrosHoy)}
+Total: ${visitasHoy.length} visitas | Ventas: ${fmt(totalVentasHoy)} | Cobros: ${fmt(totalCobrosHoy)}
+${Object.entries(empHoy).map(([n,s]:any) =>
+  `  ${n}: ${s.visitas}v | ventas:${fmt(s.montoVentas)} | cobros:${fmt(s.montoCobros)}`).join('\n') || '  Sin actividad'}`
 
-Por empleado hoy:
-${Object.entries(empHoy).length > 0
-  ? Object.entries(empHoy).map(([n,s]:any) =>
-    `  ${n}: ${s.visitas} visitas | ${s.ventas} ventas (${fmt(s.montoVentas)}) | ${s.cobros} cobros (${fmt(s.montoCobros)}) | ${s.clientes.size} clientes`
-  ).join('\n')
-  : '  Sin actividad hoy'}
-
+  const bloqueMes = `
 ━━ ACTIVIDAD DEL MES ━━
 Total: Ventas ${fmt(totalVentasMes)} | Cobros ${fmt(totalCobrosMes)}
+${Object.entries(empMes).map(([n,s]:any) =>
+  `  ${n}: ${s.ventas} ventas (${fmt(s.montoVentas)}) | ${s.cobros} cobros (${fmt(s.montoCobros)})`).join('\n') || '  Sin actividad'}
 
-Por empleado este mes:
-${Object.entries(empMes).length > 0
-  ? Object.entries(empMes).map(([n,s]:any) =>
-    `  ${n}: ${s.ventas} ventas (${fmt(s.montoVentas)}) | ${s.cobros} cobros (${fmt(s.montoCobros)})`
-  ).join('\n')
-  : '  Sin actividad este mes'}
+Ventas últimos 3 meses (ERP):
+${(ventasPorMes as any[]).map((v:any) => `  ${v.mes}: ${fmt(Number(v._sum.totalVenta||0))}`).join('\n') || '  Sin datos'}`
 
+  const bloqueRutas = `
 ━━ RUTAS ━━
-Recientes:
-${(rutas as any[]).map((r:any) =>
-  `  ${r.nombre} | ${r.fecha ? fechaCorta(new Date(r.fecha)) : 'sin fecha'} | ${r._count.clientes} clientes | ${r._count.empleados} empleados | ${r.cerrada ? 'CERRADA' : 'ACTIVA'}`
-).join('\n') || '  Sin rutas'}
+Recientes: ${(rutas as any[]).map((r:any) => `${r.nombre}|${r._count.clientes}cli|${r.cerrada?'CERRADA':'ACTIVA'}`).join(' / ') || 'ninguna'}
+Fijas: ${(rutasFijas as any[]).map((r:any) => `${r.nombre}(${['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][r.diaSemana]})`).join(', ') || 'ninguna'}`
 
-Fijas:
-${(rutasFijas as any[]).map((r:any) =>
-  `  ${r.nombre} | ${['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'][r.diaSemana] || r.diaSemana} | ${r._count.clientes} clientes`
-).join('\n') || '  Sin rutas fijas'}
-
+  const bloqueCartera = `
 ━━ CARTERA ━━
-Total registros: ${(carteraResumen as any)._count?.id || 0} | Saldo total pendiente: ${fmt(Number((carteraResumen as any)._sum?.saldoPendiente || 0))}
+Total: ${(carteraResumen as any)._count?.id || 0} clientes | Saldo: ${fmt(Number((carteraResumen as any)._sum?.saldoPendiente || 0))}
+Por vendedor: ${(carteraPorEmpleado as any[]).map((e:any) => `${e.empleadoNombre||'?'}:${fmt(Number(e._sum.saldoPendiente||0))}`).join(' | ') || 'sin datos'}
+Top deudores: ${(topDeudores as any[]).map((d:any) => `${d.clienteNombre||'?'}:${fmt(Number(d.saldoPendiente||0))}`).join(' | ') || 'ninguno'}`
 
-Por vendedor (top 10):
-${(carteraPorEmpleado as any[]).map((e:any) =>
-  `  ${e.empleadoNombre || 'sin asignar'}: ${e._count.id} clientes | ${fmt(Number(e._sum.saldoPendiente || 0))}`
-).join('\n') || '  Sin cartera'}
+  const bloqueBodega = `
+━━ BODEGA HOY ━━
+Pendientes: ${ordenesStats['pendiente']||0} | Alistados: ${ordenesStats['alistado']||0} | Entregados: ${ordenesStats['entregado']||0}`
 
-━━ VENTAS ÚLTIMOS 3 MESES (ERP) ━━
-${(ventasPorMes as any[]).length > 0
-  ? (ventasPorMes as any[]).map((v:any) => `  ${v.mes}: ${fmt(Number(v._sum.totalVenta||0))} | ${v._sum.cantidadVisitas||0} visitas`).join('\n')
-  : '  Sin datos de ventas por mes'}
+  // Armar contexto solo con bloques relevantes
+  const bloques: string[] = [bloqueBase]
+  if (esEquipo || esGeneral)   bloques.push(bloqueEquipo)
+  if (esClientes || esGeneral) bloques.push(bloqueClientes)
+  if (esActividad || esGeneral) bloques.push(bloqueActividad)
+  if (esMes || esGeneral)      bloques.push(bloqueMes)
+  if (esRutas || esGeneral)    bloques.push(bloqueRutas)
+  if (esCartera || esGeneral)  bloques.push(bloqueCartera)
+  if (esBodega || esGeneral)   bloques.push(bloqueBodega)
 
-━━ TOP 5 CLIENTES CON MÁS DEUDA ━━
-${(topDeudores as any[]).length > 0
-  ? (topDeudores as any[]).map((d:any) => `  ${d.clienteNombre || 'sin nombre'}: ${fmt(Number(d.saldoPendiente||0))} (vendedor: ${d.empleadoNombre || 'N/A'})`).join('\n')
-  : '  Sin deudores'}
-
-━━ ÓRDENES BODEGA HOY ━━
-Pendientes: ${ordenesStats['pendiente'] || 0} | Alistados: ${ordenesStats['alistado'] || 0} | Entregados: ${ordenesStats['entregado'] || 0}
+  const systemPrompt = bloques.join('\n') + `
 
 ━━ INSTRUCCIONES ━━
-Responde SIEMPRE en JSON exacto:
-{ "respuesta": "mensaje al usuario (máximo 200 palabras)" }
-- USA los datos del contexto — son REALES y COMPLETOS de la BD
-- NUNCA inventes ni estimes — si el dato está arriba, úsalo con precisión
-- Fecha/hora SIEMPRE del contexto, NUNCA de tu entrenamiento
-- Tono profesional y amigable, responde exactamente lo que se pregunta
-- Máximo 2-3 líneas salvo que pidan listado o detalle extenso
-- Responde en español`
+Responde SIEMPRE en JSON exacto: { "respuesta": "texto" }
+- Usa SOLO los datos del contexto, nunca inventes
+- Fecha/hora del contexto, no de tu entrenamiento  
+- Español, tono profesional y directo
+- Máximo 150 palabras salvo que pidan listado`
 
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
