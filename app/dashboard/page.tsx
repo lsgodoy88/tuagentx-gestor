@@ -77,6 +77,7 @@ export default function DashboardPage() {
   const [guardando, setGuardando] = useState(false)
   const [bloqueadoTurno, setBloqueadoTurno] = useState(false)
   const [mostrarPausa, setMostrarPausa] = useState(false)
+  const [turnoExpandido, setTurnoExpandido] = useState(false)
   const [pausaMotivo, setPausaMotivo] = useState('Almuerzo')
   const [pausaMotivoCustom, setPausaMotivoCustom] = useState('')
   const [pausaDuracion, setPausaDuracion] = useState(60)
@@ -793,66 +794,95 @@ export default function DashboardPage() {
       {isEmpleado && (
         <div className="space-y-4">
           {turno?.pausado ? (
-            // TARJETA PAUSA
-            <div className="rounded-2xl p-4 border bg-amber-500/8 border-amber-500/20">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="relative inline-flex h-3 w-3 align-middle"><span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 live-ping" /><span className="relative inline-flex rounded-full h-3 w-3 bg-amber-400" /></span>
-                <span className="font-semibold text-amber-400">En pausa · {turno.pausaMotivo}</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <div className="bg-black/30 rounded-lg p-2"><p className="text-zinc-500 text-xs">Inicio pausa</p><p className="text-sm font-bold text-white">{turno.pausaInicio ? new Date(turno.pausaInicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"}) : "--"}</p></div>
-                <div className="bg-black/30 rounded-lg p-2"><p className="text-zinc-500 text-xs">Reanuda a las</p><p className="text-emerald-400 text-sm font-bold">{new Date(new Date(turno.pausaInicio).getTime() + turno.pausaDuracionMin*60000).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"})}</p></div>
-              </div>
-              <div className="bg-amber-500/6 border border-amber-500/15 rounded-xl p-2 flex items-center gap-2 mb-3">
-                <span className="text-amber-400 text-xs flex-1">Se reanuda automáticamente en</span>
-                <span className="text-amber-400 font-mono font-bold text-sm">{pausaCountdown}</span>
-              </div>
-              <div className="flex gap-2">
-                <button onClick={reanudarTurno} className="flex-1 bg-zinc-800 border border-emerald-500/30 text-emerald-400 text-sm font-semibold py-2 rounded-xl">▶️ Reanudar ahora</button>
-                <a href="/dashboard/turno" className="flex-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold py-2 rounded-xl flex items-center justify-center gap-1">📅 Historial</a>
-              </div>
+            // ── PAUSA — encogida/desplegada ──
+            <div className={`rounded-2xl border overflow-hidden ${turnoExpandido ? 'bg-amber-500/8 border-amber-500/20' : 'bg-zinc-900 border-zinc-800'}`}>
+              {/* Pill encogida */}
+              <button onClick={() => setTurnoExpandido(e => !e)}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left">
+                <span className="relative inline-flex h-2.5 w-2.5 flex-shrink-0">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 live-ping" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400" />
+                </span>
+                <span className="font-mono font-bold text-amber-400 text-lg flex-1 tabular-nums">{pausaCountdown}</span>
+                <span className="text-zinc-500 text-xs">⏸ {turno.pausaMotivo}</span>
+                <span className={`text-zinc-600 text-[10px] transition-transform duration-200 ${turnoExpandido ? 'rotate-180' : ''}`}>▼</span>
+              </button>
+              {/* Desplegado */}
+              {turnoExpandido && (
+                <div className="border-t border-amber-500/20 px-4 pb-4 pt-3 space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-black/30 rounded-lg p-2"><p className="text-zinc-500 text-xs">Inicio pausa</p><p className="text-sm font-bold text-white">{turno.pausaInicio ? new Date(turno.pausaInicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"}) : "--"}</p></div>
+                    <div className="bg-black/30 rounded-lg p-2"><p className="text-zinc-500 text-xs">Reanuda a las</p><p className="text-emerald-400 text-sm font-bold">{new Date(new Date(turno.pausaInicio).getTime() + turno.pausaDuracionMin*60000).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"})}</p></div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={reanudarTurno} className="flex-1 bg-zinc-800 border border-emerald-500/30 text-emerald-400 text-sm font-semibold py-2.5 rounded-xl">▶️ Reanudar</button>
+                    <a href="/dashboard/turno" className="flex-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1">📅 Historial</a>
+                  </div>
+                </div>
+              )}
             </div>
           ) : turno ? (
-            // TARJETA TURNO ACTIVO
-            <div className="rounded-2xl p-4 border bg-emerald-500/10 border-emerald-500/20">
-              <div className="flex items-center gap-2 mb-3">
-                <span className="relative inline-flex h-3 w-3 align-middle"><span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 live-ping" /><span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500" /></span>
-                <span className="font-semibold text-emerald-400">Turno activo</span>
-              </div>
-              <div className="grid grid-cols-2 gap-2 mb-3">
-                <div className="bg-black/30 rounded-lg p-2"><p className="text-zinc-500 text-xs">Hora inicio</p><p className="text-sm font-bold text-white">{new Date(turno.inicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"})}</p></div>
-                <div className="bg-black/30 rounded-lg p-2"><p className="text-zinc-500 text-xs">Contador</p><p className="text-emerald-400 font-mono font-bold">{tiempoTurno}</p></div>
-              </div>
-              <button onClick={cerrarTurno} disabled={bloqueadoTurno} className="w-full bg-red-600 text-white text-sm font-bold py-2 rounded-xl mb-2 disabled:opacity-50">Cerrar turno</button>
-              <div className="flex gap-2">
-                <button onClick={() => setMostrarPausa(m => !m)} className={"flex-1 text-sm font-semibold py-2 rounded-xl border " + (mostrarPausa ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-zinc-800 border-zinc-700 text-zinc-400")}>⏸️ Pausar</button>
-                <a href="/dashboard/turno" className="flex-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold py-2 rounded-xl flex items-center justify-center gap-1">📅 Historial</a>
-              </div>
-              {mostrarPausa && (
-                <div className="mt-3 bg-black/30 rounded-xl p-3 border border-zinc-700">
-                  <p className="text-zinc-400 text-xs font-bold mb-2">Motivo</p>
-                  <div className="flex gap-2 flex-wrap mb-3">
-                    {["Almuerzo","Permiso","Otro"].map(m => <button key={m} onClick={() => setPausaMotivo(m)} className={"px-3 py-1.5 rounded-full text-xs font-semibold border " + (pausaMotivo===m ? "bg-amber-500/15 border-amber-500/30 text-amber-400" : "bg-zinc-800 border-zinc-700 text-zinc-400")}>{m === "Almuerzo" ? "🍽️" : m === "Permiso" ? "📝" : "📦"} {m}</button>)}
+            // ── TURNO ACTIVO — encogida/desplegada ──
+            <div className={`rounded-2xl border overflow-hidden ${turnoExpandido ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-zinc-900 border-zinc-800'}`}>
+              {/* Pill encogida */}
+              <button onClick={() => setTurnoExpandido(e => !e)}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left">
+                <span className="relative inline-flex h-2.5 w-2.5 flex-shrink-0">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 live-ping" />
+                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                </span>
+                <span className="font-mono font-bold text-emerald-400 text-lg flex-1 tabular-nums">{tiempoTurno}</span>
+                <button onClick={e => { e.stopPropagation(); setMostrarPausa(m => !m); setTurnoExpandido(true) }}
+                  className="w-8 h-8 flex items-center justify-center bg-zinc-800 rounded-lg text-base flex-shrink-0">⏸</button>
+                <span className={`text-zinc-600 text-[10px] transition-transform duration-200 ${turnoExpandido ? 'rotate-180' : ''}`}>▼</span>
+              </button>
+              {/* Desplegado */}
+              {turnoExpandido && (
+                <div className="border-t border-emerald-500/20 px-4 pb-4 pt-3 space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="bg-black/30 rounded-lg p-2"><p className="text-zinc-500 text-xs">Hora inicio</p><p className="text-sm font-bold text-white">{new Date(turno.inicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"})}</p></div>
+                    <div className="bg-black/30 rounded-lg p-2"><p className="text-zinc-500 text-xs">Contador</p><p className="text-emerald-400 font-mono font-bold">{tiempoTurno}</p></div>
                   </div>
-                  {pausaMotivo === "Otro" && <input value={pausaMotivoCustom} onChange={e => setPausaMotivoCustom(e.target.value)} placeholder="¿Cuál es el motivo?" className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white mb-3 outline-none" />}
-                  <p className="text-zinc-400 text-xs font-bold mb-2">Tiempo estimado</p>
-                  <div className="flex gap-2 flex-wrap mb-3">
-                    {[{l:"30 min",v:30},{l:"1 hora",v:60},{l:"2 horas",v:120},{l:"Otro",v:0}].map(t => <button key={t.l} onClick={() => { if(t.v > 0){setPausaDuracion(t.v);setPausaDuracionCustom(false)}else{setPausaDuracionCustom(true)} }} className={"px-3 py-1.5 rounded-full text-xs font-semibold border " + ((!pausaDuracionCustom && pausaDuracion===t.v && t.v>0) || (pausaDuracionCustom && t.v===0) ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-400" : "bg-zinc-800 border-zinc-700 text-zinc-400")}>{t.l}</button>)}
+                  <button onClick={cerrarTurno} disabled={bloqueadoTurno} className="w-full bg-red-600 text-white text-sm font-bold py-2.5 rounded-xl disabled:opacity-50">Cerrar turno</button>
+                  <div className="flex gap-2">
+                    <button onClick={() => setMostrarPausa(m => !m)} className={"flex-1 text-sm font-semibold py-2.5 rounded-xl border " + (mostrarPausa ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-zinc-800 border-zinc-700 text-zinc-400")}>⏸️ Pausar</button>
+                    <a href="/dashboard/turno" className="flex-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1">📅 Historial</a>
                   </div>
-                  {pausaDuracionCustom && <input type="number" onChange={e => setPausaDuracion(Number(e.target.value))} placeholder="¿Cuántos minutos?" className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white mb-3 outline-none" />}
-                  <button onClick={pausarTurno} className="w-full bg-gradient-to-r from-amber-600 to-amber-500 text-white text-sm font-bold py-2 rounded-xl">⏸️ Confirmar pausa</button>
+                  {mostrarPausa && (
+                    <div className="bg-black/30 rounded-xl p-3 border border-zinc-700">
+                      <p className="text-zinc-400 text-xs font-bold mb-2">Motivo</p>
+                      <div className="flex gap-2 flex-wrap mb-3">
+                        {["Almuerzo","Permiso","Otro"].map(m => <button key={m} onClick={() => setPausaMotivo(m)} className={"px-3 py-1.5 rounded-full text-xs font-semibold border " + (pausaMotivo===m ? "bg-amber-500/15 border-amber-500/30 text-amber-400" : "bg-zinc-800 border-zinc-700 text-zinc-400")}>{m === "Almuerzo" ? "🍽️" : m === "Permiso" ? "📝" : "📦"} {m}</button>)}
+                      </div>
+                      {pausaMotivo === "Otro" && <input value={pausaMotivoCustom} onChange={e => setPausaMotivoCustom(e.target.value)} placeholder="¿Cuál es el motivo?" className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white mb-3 outline-none" />}
+                      <p className="text-zinc-400 text-xs font-bold mb-2">Tiempo estimado</p>
+                      <div className="flex gap-2 flex-wrap mb-3">
+                        {[{l:"30 min",v:30},{l:"1 hora",v:60},{l:"2 horas",v:120},{l:"Otro",v:0}].map(t => <button key={t.l} onClick={() => { if(t.v > 0){setPausaDuracion(t.v);setPausaDuracionCustom(false)}else{setPausaDuracionCustom(true)} }} className={"px-3 py-1.5 rounded-full text-xs font-semibold border " + ((!pausaDuracionCustom && pausaDuracion===t.v && t.v>0) || (pausaDuracionCustom && t.v===0) ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-400" : "bg-zinc-800 border-zinc-700 text-zinc-400")}>{t.l}</button>)}
+                      </div>
+                      {pausaDuracionCustom && <input type="number" onChange={e => setPausaDuracion(Number(e.target.value))} placeholder="¿Cuántos minutos?" className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white mb-3 outline-none" />}
+                      <button onClick={pausarTurno} className="w-full bg-gradient-to-r from-amber-600 to-amber-500 text-white text-sm font-bold py-2 rounded-xl">⏸️ Confirmar pausa</button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
           ) : (
-            // SIN TURNO
-            <div className="rounded-2xl p-4 border bg-zinc-900 border-zinc-800">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-3 h-3 rounded-full bg-zinc-600" />
-                <span className="font-semibold text-zinc-400">Sin turno activo</span>
-              </div>
-              <button onClick={iniciarTurno} disabled={bloqueadoTurno} className="w-full bg-emerald-600 text-white text-sm font-bold py-2 rounded-xl mb-2 disabled:opacity-50">Iniciar turno</button>
-              <a href="/dashboard/turno" className="flex items-center justify-center gap-1 w-full bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold py-2 rounded-xl">📅 Historial</a>
+            // ── SIN TURNO — encogida/desplegada ──
+            <div className={`rounded-2xl border overflow-hidden ${turnoExpandido ? 'bg-zinc-900 border-zinc-700' : 'bg-zinc-900 border-zinc-800'}`}>
+              {/* Pill encogida */}
+              <button onClick={() => setTurnoExpandido(e => !e)}
+                className="w-full flex items-center gap-3 px-4 py-3 text-left">
+                <span className="w-2.5 h-2.5 rounded-full bg-zinc-600 flex-shrink-0" />
+                <span className="text-zinc-500 text-sm flex-1">Sin turno activo</span>
+                <span className={`text-zinc-600 text-[10px] transition-transform duration-200 ${turnoExpandido ? 'rotate-180' : ''}`}>▼</span>
+              </button>
+              {/* Desplegado */}
+              {turnoExpandido && (
+                <div className="border-t border-zinc-800 px-4 pb-4 pt-3 space-y-2">
+                  <button onClick={iniciarTurno} disabled={bloqueadoTurno} className="w-full bg-emerald-600 text-white text-sm font-bold py-2.5 rounded-xl disabled:opacity-50">Iniciar turno</button>
+                  <a href="/dashboard/turno" className="flex items-center justify-center gap-1 w-full bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold py-2.5 rounded-xl">📅 Historial</a>
+                </div>
+              )}
             </div>
           )}
           {ruta && totalClientes > 0 && !rutaCompletada ? (
