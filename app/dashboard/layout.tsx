@@ -16,6 +16,7 @@ import { useEffect, useState, useRef } from 'react'
 import { GpsContext } from '@/lib/gps-context'
 import Link from 'next/link'
 import PermisosGuard from '@/components/PermisosGuard'
+import { NetworkBanner } from '@/components/NetworkBanner'
 
 
 function RouteCanvasMini() {
@@ -400,6 +401,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       )}
 
+      <NetworkBanner />
       {/* Boton flotante movil */}
       <div className={`fixed bottom-6 left-4 z-[990] md:hidden ${menuMovil ? "hidden" : ""}`}>
         <button onClick={() => setMenuMovil(true)}

@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useRef, useCallback } from 'react'
+import { saveCache, loadCache } from '@/lib/offlineCache'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { calcularEstado, estadoMasCritico } from '@/lib/cartera'
@@ -44,6 +45,8 @@ export default function CarteraPage() {
   const [pagos, setPagos] = useState<any[]>([])
   const [metas, setMetas] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [offline, setOffline] = useState(false)
+  const [cacheAgeCartera, setCacheAgeCartera] = useState<number|null>(null)
   const [loadingBusqueda, setLoadingBusqueda] = useState(false)
   const [buscar, setBuscar] = useState('')
   const [hayMas, setHayMas] = useState(false)
@@ -90,11 +93,32 @@ export default function CarteraPage() {
     if (!q && carteras.length === 0) setLoading(true); else setLoadingBusqueda(true)
     setPaginaActual(1)
     const url = q ? `/api/cartera?limit=15&q=${encodeURIComponent(q)}` : '/api/cartera?limit=15'
-    const [r1, r2, r3] = await Promise.all([
-      fetch(url).then(r => r.json()),
-      fetch('/api/cartera/pago?limit=500').then(r => r.json()).catch(() => ({ pagos: [] })),
-      fetch('/api/cartera/metas').then(r => r.json()).catch(() => ({ metas: [] })),
-    ])
+    let r1: any, r2: any, r3: any
+    try {
+      ;[r1, r2, r3] = await Promise.all([
+        fetch(url).then(r => r.json()),
+        fetch('/api/cartera/pago?limit=500').then(r => r.json()).catch(() => ({ pagos: [] })),
+        fetch('/api/cartera/metas').then(r => r.json()).catch(() => ({ metas: [] })),
+      ])
+      if (!q && r1.carteras) {
+        saveCache('cartera', { r1, r2, r3 })
+        setOffline(false)
+        setCacheAgeCartera(null)
+      }
+    } catch {
+      if (q) { setLoadingBusqueda(false); return }
+      const cached = loadCache<any>('cartera')
+      if (cached) {
+        const age = Math.floor((Date.now() - cached.savedAt) / 60_000)
+        ;({ r1, r2, r3 } = cached.data)
+        setOffline(true)
+        setCacheAgeCartera(age)
+      } else {
+        setLoading(false)
+        setOffline(true)
+        return
+      }
+    }
     setCarteras(r1.carteras || [])
     setHayMas((r1.pages ?? 1) > 1)
     setPagos(r2.pagos || [])
@@ -424,7 +448,14 @@ export default function CarteraPage() {
     <div className="space-y-6 max-w-7xl mx-auto">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-2xl font-bold text-white">💰 Cartera</h1>        </div>
+          <h1 className="text-2xl font-bold text-white">💰 Cartera</h1>
+        </div>
+        {offline && (
+          <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2 text-amber-400 text-xs font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
+            Sin conexión · datos guardados{cacheAgeCartera !== null ? ` hace ${cacheAgeCartera < 1 ? 'menos de 1 min' : cacheAgeCartera + ' min'}` : ''}
+          </div>
+        )}
         {(esAdmin || esVendedor) && (
           <div className="flex items-center gap-2">
             <button

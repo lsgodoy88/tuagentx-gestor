@@ -2,6 +2,7 @@
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { fetchApi, errorMsg } from '@/lib/fetchApi'
+import { saveCache, loadCache } from '@/lib/offlineCache'
 import { useSession } from 'next-auth/react'
 import { useEffect, useRef, useState } from 'react'
 import ModalVisita from '@/components/ModalVisita'
@@ -29,6 +30,8 @@ export default function MiRutaPage() {
   const user = session?.user as any
   const [ruta, setRuta] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [offline, setOffline] = useState(false)
+  const [cacheAge, setCacheAge] = useState<number|null>(null)
   const [clienteModal, setClienteModal] = useState<any>(null)
   const [visitasHoy, setVisitasHoy] = useState<any[]>([])
   const [turno, setTurno] = useState<any>(null)
@@ -84,13 +87,35 @@ export default function MiRutaPage() {
   useEffect(() => { loadData() }, [])
 
   async function loadData() {
-    const [rutaRes, visitasRes, turnoRes, historialRes, meRes] = await Promise.all([
-      fetch('/api/rutas/mi-ruta').then(r => r.json()),
-      fetch('/api/visitas/todas').then(r => r.json()),
-      fetch('/api/turnos').then(r => r.json()),
-      fetch('/api/rutas/historial').then(r => r.json()),
-      fetch('/api/me').then(r => r.json()),
-    ])
+    let rutaRes: any, visitasRes: any, turnoRes: any, historialRes: any, meRes: any
+    try {
+      ;[rutaRes, visitasRes, turnoRes, historialRes, meRes] = await Promise.all([
+        fetch('/api/rutas/mi-ruta').then(r => r.json()),
+        fetch('/api/visitas/todas').then(r => r.json()),
+        fetch('/api/turnos').then(r => r.json()),
+        fetch('/api/rutas/historial').then(r => r.json()),
+        fetch('/api/me').then(r => r.json()),
+      ])
+      // Guardar en caché solo si la respuesta es válida
+      if (rutaRes?.clientes) {
+        saveCache('mi-ruta', { rutaRes, visitasRes, turnoRes, historialRes, meRes })
+        setOffline(false)
+        setCacheAge(null)
+      }
+    } catch {
+      // Sin red — intentar caché
+      const cached = loadCache<any>('mi-ruta')
+      if (cached) {
+        const age = Math.floor((Date.now() - cached.savedAt) / 60_000)
+        ;({ rutaRes, visitasRes, turnoRes, historialRes, meRes } = cached.data)
+        setOffline(true)
+        setCacheAge(age)
+      } else {
+        setLoading(false)
+        setOffline(true)
+        return
+      }
+    }
     setRuta(rutaRes)
     const clientes = rutaRes?.clientes?.map((rc: any) => ({
       ...rc.cliente,
@@ -235,6 +260,12 @@ export default function MiRutaPage() {
     <>
       {/* ── MOBILE (sin cambios) ── */}
       <div className="lg:hidden max-w-2xl mx-auto space-y-6 pb-24">
+        {offline && (
+          <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2 text-amber-400 text-xs font-semibold">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
+            Sin conexión · mostrando datos guardados{cacheAge !== null ? ` hace ${cacheAge < 1 ? 'menos de 1 min' : cacheAge + ' min'}` : ''}
+          </div>
+        )}
         <div>
           <div className="flex items-center justify-between mb-1">
             <h1 className="text-2xl font-bold text-white">Mi ruta {ruta ? `— ${ruta.nombre}` : ""}</h1>
