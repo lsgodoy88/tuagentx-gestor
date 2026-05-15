@@ -886,31 +886,44 @@ export default function DashboardPage() {
             </div>
           )}
           {ruta && totalClientes > 0 && !rutaCompletada ? (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-5">
-              <div className="mb-3">
-                <div className="flex items-center justify-between">
-                  <p className="text-white font-bold text-lg truncate">{ruta.nombre}</p>
-                  {rutaCompletada && <span className="text-emerald-400 text-xs font-semibold bg-emerald-500/10 px-2 py-1 rounded-lg flex-shrink-0">✅ Completa</span>}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+              {/* Header */}
+              <div className="px-4 pt-4 pb-3">
+                {/* Fila 1: nombre ruta */}
+                <p className="text-zinc-400 text-xs font-semibold tracking-wide mb-1 truncate">{ruta.nombre}</p>
+                {/* Fila 2: contadores + barra */}
+                <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-2xl font-black text-white tabular-nums">{totalClientes}</span>
+                    <span className="text-zinc-500 text-xs leading-tight">total</span>
+                  </div>
+                  <div className="w-px h-6 bg-zinc-700" />
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-2xl font-black text-emerald-400 tabular-nums">{ejecutadosRuta}</span>
+                    <span className="text-zinc-500 text-xs leading-tight">listos</span>
+                  </div>
+                  <div className="w-px h-6 bg-zinc-700" />
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-2xl font-black text-zinc-400 tabular-nums">{totalClientes - ejecutadosRuta}</span>
+                    <span className="text-zinc-500 text-xs leading-tight">pendientes</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 mt-1">
-                  <span className="text-zinc-400 text-sm">🏪 {totalClientes}</span>
-                  <span className="text-emerald-400 text-sm">✅ {ejecutadosRuta}</span>
-                  <span className="text-zinc-500 text-sm">⏳ {totalClientes - ejecutadosRuta}</span>
-                </div>
-                <div className="w-full bg-zinc-700 rounded-full h-1.5 mt-2 overflow-hidden">
-                  <div className="bg-emerald-500 h-1.5 rounded-full transition-all" style={{width: totalClientes > 0 ? (ejecutadosRuta/totalClientes*100) + '%' : '0%'}} />
+                <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
+                  <div className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500"
+                    style={{width: totalClientes > 0 ? (ejecutadosRuta/totalClientes*100) + '%' : '0%'}} />
                 </div>
               </div>
-              <div className="flex gap-2">
+              {/* Botones */}
+              <div className="flex border-t border-zinc-800">
                 {user?.role === 'entregas' && turno && (
                   <button onClick={() => abrirModalVisita('entrega')}
-                    className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
-                    <span>📦</span><span>+ Entrega</span>
+                    className="flex-1 flex items-center justify-center py-3 text-emerald-400 hover:bg-zinc-800 transition-colors border-r border-zinc-800 text-xl">
+                    📦
                   </button>
                 )}
                 <button onClick={() => router.push('/dashboard/mapa-ruta')}
-                  className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white font-semibold py-2 rounded-xl text-sm transition-colors flex items-center justify-center gap-2">
-                  <span>🗺️</span><span>Mapa</span>
+                  className="flex-1 flex items-center justify-center py-3 text-zinc-400 hover:bg-zinc-800 transition-colors text-xl">
+                  🗺️
                 </button>
               </div>
             </div>
