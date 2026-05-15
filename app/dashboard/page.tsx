@@ -1185,6 +1185,7 @@ export default function DashboardPage() {
         key={clienteModal?.id || 'sin-cliente-ruta'}
         open={!!clienteModal}
         onClose={() => setClienteModal(null)}
+        facturaPreset={clienteModal?.numeroFactura || undefined}
         onRegistrado={() => {
           // Marcar orden como entregada localmente de inmediato
           if (clienteModal?.ordenDespachoId) {
