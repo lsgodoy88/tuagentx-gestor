@@ -1,3 +1,4 @@
+'use client'
 /**
  * useNetwork — testigo de red real (no navigator.onLine)
  *
@@ -6,7 +7,6 @@
  * online=false → sin respuesta
  * lastOnline   → timestamp del último ping exitoso
  */
-'use client'
 import { useEffect, useRef, useState } from 'react'
 
 const PING_INTERVAL = 15_000   // 15s
