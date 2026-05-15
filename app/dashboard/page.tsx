@@ -917,13 +917,15 @@ export default function DashboardPage() {
               <div className="flex border-t border-zinc-800">
                 {user?.role === 'entregas' && turno && (
                   <button onClick={() => abrirModalVisita('entrega')}
-                    className="flex-1 flex items-center justify-center py-3 text-emerald-400 hover:bg-zinc-800 transition-colors border-r border-zinc-800 text-xl">
-                    📦
+                    className="flex-1 flex items-center justify-center gap-2 py-3 text-emerald-400 hover:bg-zinc-800 transition-colors border-r border-zinc-800">
+                    <span className="text-lg">📦</span>
+                    <span className="text-sm font-semibold">Entrega</span>
                   </button>
                 )}
                 <button onClick={() => router.push('/dashboard/mapa-ruta')}
-                  className="flex-1 flex items-center justify-center py-3 text-zinc-400 hover:bg-zinc-800 transition-colors text-xl">
-                  🗺️
+                  className="flex-1 flex items-center justify-center gap-2 py-3 text-zinc-400 hover:bg-zinc-800 transition-colors">
+                  <span className="text-lg">🗺️</span>
+                  <span className="text-sm font-semibold">Mapa</span>
                 </button>
               </div>
             </div>
