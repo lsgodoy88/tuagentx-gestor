@@ -34,6 +34,6 @@ export default withSentryConfig(nextConfig, {
   org: "tuagentx",
   project: "javascript-nextjs",
   silent: true,
-  widenClientFileUpload: true,
+  widenClientFileUpload: false,
   sourcemaps: { disable: true },
 })

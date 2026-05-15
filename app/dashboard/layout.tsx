@@ -179,11 +179,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => {
     if (!user || user.role === 'superadmin') return
+    // Cachear en sessionStorage — no cambia durante la sesión
+    const cacheKey = 'txa_empresa_estado_' + (user.empresaId || user.id)
+    try {
+      const cached = sessionStorage.getItem(cacheKey)
+      if (cached) {
+        const d = JSON.parse(cached)
+        if (d.activa === false) setBloqueado(true)
+        if (typeof d.diasRestantes === 'number') setDiasRestantes(d.diasRestantes)
+        return // no hacer fetch si ya tenemos el estado
+      }
+    } catch {}
     fetch('/api/mi-empresa/estado')
       .then(r => r.json())
       .then(d => {
         if (d.activa === false) setBloqueado(true)
         if (typeof d.diasRestantes === 'number') setDiasRestantes(d.diasRestantes)
+        try { sessionStorage.setItem(cacheKey, JSON.stringify(d)) } catch {}
       })
       .catch(() => {})
   }, [user])

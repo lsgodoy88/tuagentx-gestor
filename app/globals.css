@@ -358,3 +358,37 @@ body {
   animation: sync-spin 0.9s linear infinite;
   transform-origin: center;
 }
+
+
+/* ═══════════════════════════════════════════════
+   RENDIMIENTO MÓVIL — reducir animaciones costosas
+   ═══════════════════════════════════════════════ */
+
+/* Respetar preferencia del sistema */
+@media (prefers-reduced-motion: reduce) {
+  .btn-shimmer::after,
+  .sync-icon-spinning,
+  .loading-border,
+  .animate-spin,
+  .animate-pulse,
+  .animate-bounce {
+    animation: none !important;
+  }
+  .live-ping {
+    animation: none !important;
+  }
+}
+
+/* En móvil desactivar las animaciones de fondo más pesadas (GPU-intensive) */
+@media (max-width: 768px) {
+  .glow-pulse,
+  .shimmer-wave,
+  .gradient-flow {
+    animation: none !important;
+  }
+  /* Simplificar backdrop-blur en móvil — muy costoso */
+  .backdrop-blur-sm {
+    backdrop-filter: none;
+    background-color: rgba(0, 0, 0, 0.75) !important;
+  }
+}
