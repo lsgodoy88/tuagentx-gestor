@@ -24,10 +24,11 @@ export async function GET() {
   finDia.setDate(finDia.getDate() + 1)
 
   // Todas las visitas del vendedor
+  const hace90dias = new Date(ahora)
+  hace90dias.setDate(hace90dias.getDate() - 90)
   const todasVisitas = await prisma.visita.findMany({
-    where: { empleadoId: user.id },
+    where: { empleadoId: user.id, createdAt: { gte: hace90dias } },
     orderBy: { fechaBogota: 'asc' },
-    take: 500
   })
 
   // Visitas de hoy

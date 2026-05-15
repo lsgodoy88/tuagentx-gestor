@@ -189,7 +189,7 @@ model Visita {
   @@index([createdAt], map: "idx_visita_fecha")
   @@index([fechaBogota], map: "idx_visita_fecha_bogota")
   @@index([fechaBogota], map: "idx_visita_fechabogota")
-  @@map("Visita")
+  @@map("Visita")  @@index([turnoId])
 }
 
 model Ruta {

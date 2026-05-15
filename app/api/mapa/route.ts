@@ -57,7 +57,7 @@ export async function GET(req: NextRequest) {
         lng: { not: null },
         ...(empleadoId ? { empleadoId } : {})
       },
-      include: { empleado: { select: { id: true, nombre: true, email: true, telefono: true, rol: true, activo: true, vendedorId: true, puedeCapturarGps: true, empresaId: true, createdAt: true } }, cliente: true },
+      include: { empleado: { select: { id: true, nombre: true, email: true, telefono: true, rol: true, activo: true, vendedorId: true, puedeCapturarGps: true, empresaId: true, createdAt: true } }, cliente: { select: { id: true, nombre: true, nombreComercial: true, direccion: true, lat: true, lng: true, telefono: true, ciudad: true } } },
       orderBy: { createdAt: 'asc' }
     })
     empleados = await prisma.empleado.findMany({ where: { empresaId, activo: true } })
