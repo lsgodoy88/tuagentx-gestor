@@ -36,6 +36,7 @@ export default function DashboardPage() {
   const [empresaDetalleSA, setEmpresaDetalleSA] = useState<string | null>(null)
   const [loadingStats, setLoadingStats] = useState(false)
   const [mostrarEstadisticas, setMostrarEstadisticas] = useState(false)
+  const [mostrarEstadisticasVendedor, setMostrarEstadisticasVendedor] = useState(false)
   const [modalVisita, setModalVisita] = useState<{open: boolean, tipo: string}>({open: false, tipo: 'visita'})
   const [clienteModal, setClienteModal] = useState<any>(null)
   const [ordenesEntregadas, setOrdenesEntregadas] = useState<Set<string>>(new Set())
@@ -134,20 +135,28 @@ export default function DashboardPage() {
         setTurno(t)
         setPuedeCapturarGps(me?.puedeCapturarGps === true)
       })
-      if (user.role === 'vendedor') {
+      // vendedor/stats se carga solo al presionar botón Estadísticas
+    } else {
+      fetch('/api/stats').then(r => r.json()).then(d => setStats(d)).catch(() => {})
+    if (isEmpresa || isSupervisor) fetch('/api/integracion/estado').then(r => r.json()).then(d => setSyncInfo(d)).catch(() => {})
+    // monitor se carga bajo demanda
+    if (isEmpresa || isSupervisor || isBodega) fetch('/api/bodega/contadores').then(r => r.json()).then(d => { setBodegaStats({ pendientes: d.pendientes ?? 0, alistados: d.alistados ?? 0, entregados: d.entregados ?? 0 }) }).catch(()=>{})
+    }
+  }, [user])
+  async function cargarStatsVendedor() {
+    setMostrarEstadisticasVendedor(prev => {
+      const next = !prev
+      if (next && !statsVendedor) {
         setLoadingStats(true)
         fetch('/api/vendedor/stats').then(r => r.json()).then(d => {
           setStatsVendedor(d)
           setLoadingStats(false)
         }).catch(() => setLoadingStats(false))
       }
-    } else {
-      fetch('/api/stats').then(r => r.json()).then(d => setStats(d)).catch(() => {})
-    if (isEmpresa || isSupervisor) fetch('/api/integracion/estado').then(r => r.json()).then(d => setSyncInfo(d)).catch(() => {})
-    if (isEmpresa || isSupervisor) fetch('/api/monitor').then(r => r.json()).then(d => { if (Array.isArray(d)) setMonitor(d) }).catch(() => {})
-    if (isEmpresa || isSupervisor || isBodega) fetch('/api/bodega/despachos').then(r => r.json()).then(d => { if (d.despachos) { const hoy = new Date().toDateString(); setBodegaStats({ pendientes: d.despachos.filter((o:any) => o.estado==='pendiente').length, alistados: d.despachos.filter((o:any) => o.estado==='alistado').length, entregados: d.despachos.filter((o:any) => ['en_entrega','entregado'].includes(o.estado) && new Date(o.entregadoEl||'').toDateString()===hoy).length }) } }).catch(()=>{})
-    }
-  }, [user])
+      return next
+    })
+  }
+
   async function cargarEstadisticas() {
     setMostrarEstadisticas(prev => !prev)
     if (!mostrarEstadisticas) {
@@ -986,8 +995,14 @@ export default function DashboardPage() {
           )}
           {user?.role === 'vendedor' && (
             <div className="space-y-4">
-              {loadingStats && <div className="text-zinc-400 text-center py-4 text-sm">Cargando estadísticas...</div>}
-              {!loadingStats && statsVendedor && (
+              <button
+                onClick={cargarStatsVendedor}
+                className={`w-full flex items-center justify-between bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 hover:border-zinc-700 rounded-2xl px-4 py-3 transition-colors ${loadingStats ? 'btn-shimmer' : ''}`}>
+                <span className="text-white font-semibold text-sm">📊 Estadísticas</span>
+                <span className="text-zinc-500 text-xs">{mostrarEstadisticasVendedor ? '▲ Ocultar' : '▼ Ver'}</span>
+              </button>
+              {mostrarEstadisticasVendedor && loadingStats && <div className="text-zinc-400 text-center py-4 text-sm">Cargando estadísticas...</div>}
+              {mostrarEstadisticasVendedor && !loadingStats && statsVendedor && (
                 <div className="space-y-4">
                   <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up">
                     <p className="text-white font-bold mb-3">Hoy</p>
