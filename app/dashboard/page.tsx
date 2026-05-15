@@ -8,6 +8,7 @@ import CarteraCard from '@/components/CarteraCard'
 import { useGpsEnDemanda } from '@/components/useGpsEnDemanda'
 import { GpsIndicator } from '@/components/GpsIndicator'
 import { estadoMasCritico } from '@/lib/cartera'
+import EntregaCard from '@/components/EntregaCard'
 import { useEffect, useState, useRef } from 'react'
 import { CountUp, LiveDot, SkeletonCard, LoadingBorder } from '@/components/FX'
 import { SyncIcon } from '@/components/SyncIcon'
@@ -131,7 +132,7 @@ export default function DashboardPage() {
         fetch('/api/me').then(r => r.json()),
       ]).then(([r, t, me]) => {
         setRuta(r)
-        setClientesOrdenados(r?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, rezago: rc.rezago, orden: rc.orden, ordenNumero: rc.ordenNumero || null, notas: rc.notas || null, ordenDespachoId: rc.ordenDespachoId || null })) || [])
+        setClientesOrdenados(r?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, rezago: rc.rezago, orden: rc.orden, notas: rc.notas || null, ordenDespachoId: rc.ordenDespachoId || null, numeroFactura: (rc as any).numeroFactura || null, empresaOrigen: (rc as any).empresaOrigen || null, alistadoPor: (rc as any).alistadoPor || null, asignadoEn: rc.asignadoEn || null, ordenCreadaEl: (rc as any).ordenCreadaEl || null })) || [])
         setTurno(t)
         setPuedeCapturarGps(me?.puedeCapturarGps === true)
       })
@@ -918,71 +919,31 @@ export default function DashboardPage() {
                   })
                   const esRezago = c.rezago === true
                   return (
-                    <div key={c.id} className={"py-3 px-4 " + (entregado ? "opacity-50" : esRezago ? "bg-orange-500/5 border-l-2 border-orange-500" : "")}>
-                      {/* Fila 1: número + nombre + botón */}
-                      <div className="flex items-center gap-3">
-                        {(entregado || esRezago) && (
-                          <div className={"w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 " + (entregado ? "bg-emerald-500/20 text-emerald-400" : "bg-orange-500/20 text-orange-400")}>
-                            {entregado ? "✓" : "!"}
-                          </div>
-                        )}
-                        <p className={"flex-1 min-w-0 text-sm font-bold truncate " + (entregado ? "text-zinc-500 line-through" : esRezago ? "text-orange-300" : "text-white")}>
-                          {c.nombre}
-                          {esRezago && !entregado && <span className="ml-1.5 text-orange-400 text-xs bg-orange-500/10 px-1.5 py-0.5 rounded font-semibold">Rezago</span>}
-                        </p>
-                        {!entregado && turno && (
-                          <button onClick={(e) => { e.stopPropagation()
-                            setClienteModal(c)
-                            const cLat = c.lat || c.latTmp
-                            const cLng = c.lng || c.lngTmp
-                            if (navigator.geolocation && cLat && cLng) {
-                              navigator.geolocation.getCurrentPosition(pos => {
-                                const R = 6371000
-                                const dLat = (cLat - pos.coords.latitude) * Math.PI / 180
-                                const dLng = (cLng - pos.coords.longitude) * Math.PI / 180
-                                const a = Math.sin(dLat/2)**2 + Math.cos(pos.coords.latitude*Math.PI/180)*Math.cos(cLat*Math.PI/180)*Math.sin(dLng/2)**2
-                                setDistanciaLejos(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) > 300)
-                              }, () => setDistanciaLejos(false), { timeout: 3000 })
-                            } else { setDistanciaLejos(false) }
-                          }}
-                            className={"text-white text-xs font-semibold px-3 py-1.5 rounded-lg flex-shrink-0 " + (esRezago ? "bg-orange-500 hover:bg-orange-400" : "bg-emerald-600 hover:bg-emerald-500")}>
-                            Entregar
-                          </button>
-                        )}
-                        {entregado && <span className="text-emerald-400 text-xs flex-shrink-0">✅ Listo</span>}
-                      </div>
-                      {/* Fila 2: dirección */}
-                      {c.direccion && (
-                        <p className="text-zinc-500 text-xs truncate mt-1 pl-11">
-                          📍 {c.direccion}
-                          {c.lat && c.lng && (
-                            <a href={`https://www.google.com/maps?q=${c.lat},${c.lng}`} target="_blank"
-                              className="ml-1.5 text-emerald-500 hover:text-emerald-400" onClick={e => e.stopPropagation()}>Maps</a>
-                          )}
-                        </p>
-                      )}
-                      {/* Fila bodega */}
-                      {c.ordenNumero && (
-                        <p className="text-zinc-400 text-xs mt-1 pl-11">
-                          📦 {c.notas || ('Bodega #' + c.ordenNumero)}
-                        </p>
-                      )}
-                      {/* Fila 3: badge empresa + teléfono */}
-                      {(c.supervisorEtiqueta || c.nombreComercial || c.telefono) && (
-                        <div className="flex items-center gap-2 mt-1 pl-11 flex-wrap">
-                          {(c.supervisorEtiqueta || c.nombreComercial) && (
-                            <span className="text-xs px-1.5 py-0.5 rounded font-semibold bg-zinc-700 text-zinc-300">
-                              {c.supervisorEtiqueta || c.nombreComercial}
-                            </span>
-                          )}
-                          {c.telefono && (
-                            <a href={"tel:" + c.telefono} className="text-blue-400 text-xs hover:text-blue-300" onClick={e => e.stopPropagation()}>
-                              📞 {c.telefono}
-                            </a>
-                          )}
-                        </div>
-                      )}
-                    </div>
+                    <EntregaCard
+                      key={c.id}
+                      cliente={c}
+                      numeroFactura={c.numeroFactura}
+                      empresaOrigen={c.empresaOrigen || c.supervisorEtiqueta}
+                      alistadoPor={c.alistadoPor}
+                      asignadoEn={c.asignadoEn || c.ordenCreadaEl}
+                      rezago={esRezago}
+                      entregado={entregado}
+                      turnoActivo={!!turno}
+                      onEntregar={() => {
+                        setClienteModal(c)
+                        const cLat = c.lat || c.latTmp
+                        const cLng = c.lng || c.lngTmp
+                        if (navigator.geolocation && cLat && cLng) {
+                          navigator.geolocation.getCurrentPosition(pos => {
+                            const R = 6371000
+                            const dLat = (cLat - pos.coords.latitude) * Math.PI / 180
+                            const dLng = (cLng - pos.coords.longitude) * Math.PI / 180
+                            const a = Math.sin(dLat/2)**2 + Math.cos(pos.coords.latitude*Math.PI/180)*Math.cos(cLat*Math.PI/180)*Math.sin(dLng/2)**2
+                            setDistanciaLejos(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) > 300)
+                          }, () => setDistanciaLejos(false), { timeout: 3000 })
+                        } else { setDistanciaLejos(false) }
+                      }}
+                    />
                   )
                 })}
               </div>
@@ -1162,7 +1123,7 @@ export default function DashboardPage() {
             fetch('/api/visitas/todas?fecha=' + hoy).then(r => r.json()),
           ]).then(([r, v]) => {
             setRuta(r)
-            setClientesOrdenados(r?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, rezago: rc.rezago, orden: rc.orden, ordenNumero: rc.ordenNumero || null, notas: rc.notas || null, ordenDespachoId: rc.ordenDespachoId || null })) || [])
+            setClientesOrdenados(r?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, rezago: rc.rezago, orden: rc.orden, notas: rc.notas || null, ordenDespachoId: rc.ordenDespachoId || null, numeroFactura: (rc as any).numeroFactura || null, empresaOrigen: (rc as any).empresaOrigen || null, alistadoPor: (rc as any).alistadoPor || null, asignadoEn: rc.asignadoEn || null, ordenCreadaEl: (rc as any).ordenCreadaEl || null })) || [])
             setVisitasRuta(Array.isArray(v?.visitas) ? v.visitas : Array.isArray(v) ? v : [])
           })
         }}
@@ -1187,7 +1148,7 @@ export default function DashboardPage() {
             fetch('/api/visitas/todas?fecha=' + hoy).then(r => r.json()),
           ]).then(([r, v]) => {
             setRuta(r)
-            setClientesOrdenados(r?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, rezago: rc.rezago, orden: rc.orden, ordenNumero: rc.ordenNumero || null, notas: rc.notas || null, ordenDespachoId: rc.ordenDespachoId || null })) || [])
+            setClientesOrdenados(r?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, rezago: rc.rezago, orden: rc.orden, notas: rc.notas || null, ordenDespachoId: rc.ordenDespachoId || null, numeroFactura: (rc as any).numeroFactura || null, empresaOrigen: (rc as any).empresaOrigen || null, alistadoPor: (rc as any).alistadoPor || null, asignadoEn: rc.asignadoEn || null, ordenCreadaEl: (rc as any).ordenCreadaEl || null })) || [])
             setVisitasRuta(Array.isArray(v?.visitas) ? v.visitas : Array.isArray(v) ? v : [])
           })
         }}
