@@ -298,6 +298,13 @@ export default function OrdenesPage() {
       const data = await res.json()
       if (data.orden) {
         setDespachos(prev => prev.map(d => d.id === id ? { ...d, ...data.orden } : d))
+        setDespachosPorTab(prev => {
+          const next = { ...prev }
+          for (const tab of Object.keys(next)) {
+            next[tab] = next[tab].map((d: any) => d.id === id ? { ...d, ...data.orden } : d)
+          }
+          return next
+        })
       }
       if (data.rutaAsignada && data.repartidorNombre) {
         setToastEnvio(`${data.repartidorNombre} ha recibido la orden`)
@@ -374,7 +381,16 @@ export default function OrdenesPage() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ordenId: camaraOrdenId, fotoBase64: foto }),
         }).then(r => r.json())
-        if (res.orden) setDespachos(prev => prev.map(d => d.id === camaraOrdenId ? { ...d, ...res.orden } : d))
+        if (res.orden) {
+          setDespachos(prev => prev.map(d => d.id === camaraOrdenId ? { ...d, ...res.orden } : d))
+          setDespachosPorTab(prev => {
+            const next = { ...prev }
+            for (const tab of Object.keys(next)) {
+              next[tab] = next[tab].map((d: any) => d.id === camaraOrdenId ? { ...d, ...res.orden } : d)
+            }
+            return next
+          })
+        }
       }
     } finally {
       setSaving(p => ({ ...p, [camaraOrdenId!]: false }))
@@ -836,7 +852,7 @@ export default function OrdenesPage() {
                   {d.estado === 'en_entrega' && (
                     <div className="px-4 pb-3 pt-1 border-t border-zinc-800/60 flex items-center gap-3 mt-1">
                       {btnFoto}
-                      <span className="text-zinc-400 text-xs">🚚 {d.repartidor?.nombre ?? '—'} · {formatHora(d.alistadoEl)}</span>
+                      <span className="text-zinc-400 text-xs">🚚 {formatHora(d.alistadoEl)}</span>
                     </div>
                   )}
 
