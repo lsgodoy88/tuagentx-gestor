@@ -495,7 +495,7 @@ export default function CarteraPage() {
               className={`flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-semibold px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50 ${sincronizando ? 'btn-shimmer' : ''}`}>
               <SyncIcon spinning={sincronizando} className="w-4 h-4 text-blue-400" /> {sincronizando ? 'Sincronizando...' : 'Sync'}
             </button>
-            {!syncInfo?.tieneIntegracion && (
+            {syncInfo !== null && !syncInfo.tieneIntegracion && (
               <button onClick={() => setModalImportar(true)}
                 className="inline-flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
                 📥 Importar
