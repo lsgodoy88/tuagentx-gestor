@@ -118,17 +118,43 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       }
     }
 
-    // Asignar a ruta activa del repartidor
-    if (estado === 'en_entrega' && repartidorId) {
-      const rutaEmpleado = await tx.rutaEmpleado.findFirst({
-        where: { empleadoId: repartidorId, ruta: { cerrada: false } },
-        include: { ruta: true },
+    // Asignar a ruta del repartidor — crear si no existe (lazy creation)
+    if (estado === 'en_entrega' && repartidorId && orden.clienteNit) {
+      const cliente = await tx.cliente.findFirst({
+        where: { nit: orden.clienteNit, empresaId },
       })
-      if (rutaEmpleado && orden.clienteNit) {
-        const cliente = await tx.cliente.findFirst({
-          where: { nit: orden.clienteNit, empresaId },
+      if (cliente) {
+        // Buscar ruta activa del día
+        let rutaEmpleado = await tx.rutaEmpleado.findFirst({
+          where: { empleadoId: repartidorId, ruta: { cerrada: false } },
+          select: { rutaId: true }
         })
-        if (cliente) {
+
+        // Si no existe, crear ruta del día para el repartidor
+        if (!rutaEmpleado) {
+          const repartidor = await tx.empleado.findUnique({
+            where: { id: repartidorId }, select: { nombre: true }
+          })
+          const hoy = new Date()
+          const dd = String(hoy.getDate()).padStart(2,'0')
+          const mm = String(hoy.getMonth()+1).padStart(2,'0')
+          const yyyy = hoy.getFullYear()
+          const rutaNueva = await tx.ruta.create({
+            data: {
+              nombre: `${repartidor?.nombre || 'Repartidor'}-${dd}-${mm}-${yyyy}`,
+              fecha: new Date(new Date().toISOString().split('T')[0] + 'T05:00:00.000Z'),
+              empresaId,
+              empleados: { create: [{ empleadoId: repartidorId }] }
+            }
+          })
+          rutaEmpleado = { rutaId: rutaNueva.id }
+        }
+
+        // Evitar duplicar si ya está en la ruta
+        const yaEnRuta = await tx.rutaCliente.findFirst({
+          where: { rutaId: rutaEmpleado.rutaId, clienteId: cliente.id }
+        })
+        if (!yaEnRuta) {
           await tx.rutaCliente.create({
             data: {
               rutaId: rutaEmpleado.rutaId,
