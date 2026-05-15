@@ -94,6 +94,9 @@ export default function OrdenesPage() {
   const [despachosPorTab, setDespachosPorTab] = useState<Record<string, any[]>>({ pendiente: [], alistado: [], despachado: [] })
   const [cargandoMasTab, setCargandoMasTab] = useState(false)
   const [controlFacturas, setControlFacturas] = useState<any[]>([])
+  const [controlNextCursor, setControlNextCursor] = useState<string|null>(null)
+  const [controlHayMas, setControlHayMas] = useState(false)
+  const [cargandoControlMas, setCargandoControlMas] = useState(false)
   const [toastEnvio, setToastEnvio] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [editTransporte, setEditTransporte] = useState<Record<string, { transportadora: string; guia: string }>>({})
@@ -194,7 +197,15 @@ export default function OrdenesPage() {
       setDespachosPorTab(p => ({ ...p, [tab]: reset ? (data.despachos || []) : [...(p[tab] || []), ...(data.despachos || [])] }))
       setCursores(p => ({ ...p, [tab]: data.nextCursor || null }))
       setHayMasPorTab(p => ({ ...p, [tab]: !!data.hayMas }))
-      if (tab === 'despachado' && data.controlFacturas) setControlFacturas(data.controlFacturas)
+      if (tab === 'despachado' && data.controlFacturas) {
+        if (reset) {
+          setControlFacturas(data.controlFacturas)
+        } else {
+          setControlFacturas(prev => [...prev, ...data.controlFacturas])
+        }
+        setControlNextCursor(data.controlNextCursor || null)
+        setControlHayMas(!!data.controlHayMas)
+      }
       setCiudadLocal(data.ciudadLocal || null)
       setBodegaPuedeEnviar(data.bodegaPuedeEnviar ?? false)
       setUltimaSync(data.ultimaSyncBodega || null)
@@ -210,6 +221,23 @@ export default function OrdenesPage() {
       cargarTab('alistado', origen, true),
       cargarTab('despachado', origen, true),
     ])
+  }
+
+  async function cargarMasControl() {
+    if (cargandoControlMas || !controlHayMas || !controlNextCursor) return
+    setCargandoControlMas(true)
+    try {
+      const params = new URLSearchParams()
+      if (origenId !== 'propia') params.set('origenId', origenId)
+      params.set('estado', 'despachado')
+      params.set('controlCursor', controlNextCursor)
+      const data = await fetch(`/api/bodega/despachos?${params}`).then(r => r.json())
+      if (data.controlFacturas) {
+        setControlFacturas(prev => [...prev, ...data.controlFacturas])
+        setControlNextCursor(data.controlNextCursor || null)
+        setControlHayMas(!!data.controlHayMas)
+      }
+    } finally { setCargandoControlMas(false) }
   }
 
   async function cargarMasTab() {
@@ -909,6 +937,12 @@ export default function OrdenesPage() {
       )}
 
       {/* Botón cargar más — tabs Pendientes y Alistados */}
+      {tabActivo === 'despachado' && controlHayMas && (
+        <button onClick={cargarMasControl} disabled={cargandoControlMas}
+          className="w-full bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-semibold py-3 rounded-2xl hover:text-white disabled:opacity-40 transition-colors">
+          {cargandoControlMas ? 'Cargando...' : 'Cargar más facturas'}
+        </button>
+      )}
       {hayMasPorTab[tabActivo] && (
         <button onClick={cargarMasTab} disabled={cargandoMasTab}
           className="w-full bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-semibold py-3 rounded-2xl hover:text-white disabled:opacity-40 transition-colors">

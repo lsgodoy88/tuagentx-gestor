@@ -20,8 +20,9 @@ export async function GET(req: NextRequest) {
   // Parámetros
   const origenId  = sp.get('origenId') ?? 'propia'
   const estado    = sp.get('estado') ?? 'pendiente'   // pendiente | alistado | despachado
-  const cursor    = sp.get('cursor')                   // último numeroFactura visto (int)
-  const q         = sp.get('q')?.trim() ?? ''
+  const cursor        = sp.get('cursor')             // cursor cards
+  const controlCursor = sp.get('controlCursor')       // cursor control consecutivos
+  const q             = sp.get('q')?.trim() ?? ''
 
   const esVinculada = origenId !== 'propia' && origenId !== ''
   const origenSQL   = esVinculada
@@ -103,7 +104,14 @@ export async function GET(req: NextRequest) {
 
   // Control de consecutivos — solo para tab despachado
   let controlFacturas: any[] = []
+  let controlHayMas = false
+  let controlNextCursorVal: string | null = null
   if (estado === 'despachado') {
+    const controlCursorFilter = controlCursor
+      ? `AND CAST("numeroFactura" AS INTEGER) < ${parseInt(controlCursor)}`
+      : ''
+    const CONTROL_LIMIT = 50
+
     const controlRows = await prisma.$queryRawUnsafe<any[]>(`
       SELECT
         "numeroFactura",
@@ -120,16 +128,26 @@ export async function GET(req: NextRequest) {
         AND ${origenSQL}
         AND "numeroFactura" ~ '^[0-9]+$'
         AND ("fechaOrden" >= $2::timestamp OR ("fechaOrden" IS NULL AND "createdAt" >= $2::timestamp))
+        ${controlCursorFilter}
       ORDER BY nf_int DESC
-      LIMIT 200
+      LIMIT ${CONTROL_LIMIT + 1}
     `, empresaId, desdeIso)
 
-    // Rango completo min-max y marcar huecos (no despachadas)
-    if (controlRows.length > 0) {
-      const max = controlRows[0].nf_int
-      const min = controlRows[controlRows.length - 1].nf_int
-      const mapaFacturas = new Map(controlRows.map(r => [r.nf_int, r]))
-      for (let n = max; n >= min; n--) {
+    controlHayMas = controlRows.length > CONTROL_LIMIT
+    const controlRowsSliced = controlHayMas ? controlRows.slice(0, CONTROL_LIMIT) : controlRows
+    if (controlHayMas && controlRowsSliced.length > 0) {
+      controlNextCursorVal = String(controlRowsSliced[controlRowsSliced.length - 1].nf_int)
+    }
+
+    // Rango max desde el primer resultado, min del último
+    // Rellenar huecos entre el max del batch y el min — completar el rango
+    if (controlRowsSliced.length > 0) {
+      const maxBatch = controlRowsSliced[0].nf_int
+      // Si hay cursor, el anterior batch terminó en controlCursor → el rango empieza en maxBatch
+      const rangeMax = controlCursor ? parseInt(controlCursor) - 1 : maxBatch
+      const rangeMin = controlRowsSliced[controlRowsSliced.length - 1].nf_int
+      const mapaFacturas = new Map(controlRowsSliced.map(r => [r.nf_int, r]))
+      for (let n = rangeMax; n >= rangeMin; n--) {
         const r = mapaFacturas.get(n)
         const despachada = r && ['en_entrega','entregado','en_transito'].includes(r.estado)
         controlFacturas.push({
@@ -152,5 +170,7 @@ export async function GET(req: NextRequest) {
     bodegaPuedeEnviar: meta[0]?.bodegaPuedeEnviar ?? false,
     ultimaSyncBodega:  meta[0]?.ultimaSyncBodega ?? null,
     controlFacturas,
+    controlNextCursor: controlNextCursorVal,
+    controlHayMas,
   })
 }
