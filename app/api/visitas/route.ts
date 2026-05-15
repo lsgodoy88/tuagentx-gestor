@@ -88,7 +88,7 @@ export async function POST(req: NextRequest) {
         firma: firmaUrl,
         ordenDespachoId: ordenDespachoId || null,
       },
-      include: { cliente: true }
+      select: { id: true, tipo: true, monto: true, nota: true, factura: true, firma: true, lat: true, lng: true, esLibre: true, createdAt: true, fechaBogota: true, clienteId: true, empleadoId: true, cliente: { select: { id: true, nombre: true, direccion: true, lat: true, lng: true } } }
     })
 
     // Marcar despacho entregado
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
             lte: new Date(fechaHoy + 'T05:00:00.000Z')
           }
         },
-        include: { clientes: true }
+        select: { id: true, clientes: { select: { clienteId: true } } }
       })
       if (rutaActiva) {
         const cliIds = rutaActiva.clientes.map((c: any) => c.clienteId)

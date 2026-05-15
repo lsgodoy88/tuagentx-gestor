@@ -15,8 +15,8 @@ export async function GET() {
   const rutas = await prisma.ruta.findMany({
     where: { empresaId },
     include: {
-      empleados: { include: { empleado: { select: { id: true, nombre: true, email: true, telefono: true, rol: true, activo: true, vendedorId: true, puedeCapturarGps: true, empresaId: true, createdAt: true } } } },
-      clientes: { include: { cliente: true }, orderBy: { orden: 'asc' } }
+      empleados: { include: { empleado: { select: { id: true, nombre: true, rol: true } } } },
+      clientes: { select: { id: true, clienteId: true, orden: true, rezago: true, supervisorEtiqueta: true, notas: true, cliente: { select: { id: true, nombre: true, direccion: true, ubicacionReal: true } } }, orderBy: { orden: 'asc' } }
     },
     orderBy: { createdAt: 'desc' }
   })
@@ -35,7 +35,7 @@ export async function GET() {
         clienteId: { in: allCliIds },
         fechaBogota: { gte: minDate, lte: maxDate }
       },
-      include: { empleado: { select: { id: true, nombre: true, email: true, telefono: true, rol: true, activo: true, vendedorId: true, puedeCapturarGps: true, empresaId: true, createdAt: true } } },
+      select: { id: true, tipo: true, monto: true, firma: true, lat: true, lng: true, createdAt: true, fechaBogota: true, clienteId: true, empleadoId: true, empleado: { select: { id: true, nombre: true, rol: true } } },
       orderBy: { createdAt: 'asc' },
       take: 2000
     })
@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
       Promise.all(empIdsRezago.map((empId: string) =>
         prisma.ruta.findFirst({
           where: { empresaId, empleados: { some: { empleadoId: empId } } },
-          include: { clientes: { include: { cliente: true }, orderBy: { orden: 'asc' } } },
+          include: { clientes: { select: { id: true, clienteId: true, orden: true, rezago: true } } },
           orderBy: { createdAt: 'desc' }
         })
       )),
@@ -140,8 +140,8 @@ export async function POST(req: NextRequest) {
       }
     },
     include: {
-      empleados: { include: { empleado: { select: { id: true, nombre: true, email: true, telefono: true, rol: true, activo: true, vendedorId: true, puedeCapturarGps: true, empresaId: true, createdAt: true } } } },
-      clientes: { include: { cliente: true }, orderBy: { orden: 'asc' } }
+      empleados: { include: { empleado: { select: { id: true, nombre: true, rol: true } } } },
+      clientes: { select: { id: true, clienteId: true, orden: true, rezago: true, supervisorEtiqueta: true, notas: true, cliente: { select: { id: true, nombre: true, direccion: true, ubicacionReal: true } } }, orderBy: { orden: 'asc' } }
     }
   })
   await audit('RUTA_CREADA', user.email, `Ruta: ${ruta.nombre}`, user.id, user.id)
@@ -197,8 +197,8 @@ export async function PATCH(req: NextRequest) {
       }
     },
     include: {
-      empleados: { include: { empleado: { select: { id: true, nombre: true, email: true, telefono: true, rol: true, activo: true, vendedorId: true, puedeCapturarGps: true, empresaId: true, createdAt: true } } } },
-      clientes: { include: { cliente: true }, orderBy: { orden: 'asc' } }
+      empleados: { include: { empleado: { select: { id: true, nombre: true, rol: true } } } },
+      clientes: { select: { id: true, clienteId: true, orden: true, rezago: true, supervisorEtiqueta: true, notas: true, cliente: { select: { id: true, nombre: true, direccion: true, ubicacionReal: true } } }, orderBy: { orden: 'asc' } }
     }
   })
 

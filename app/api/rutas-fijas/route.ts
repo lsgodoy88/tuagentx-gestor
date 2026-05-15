@@ -26,8 +26,8 @@ export async function GET() {
   const rutas = await prisma.rutaFija.findMany({
     where: whereRutas,
     include: {
-      empleados: { include: { empleado: { select: { id: true, nombre: true, email: true, telefono: true, rol: true, activo: true, vendedorId: true, puedeCapturarGps: true, empresaId: true, createdAt: true } } } },
-      clientes: { include: { cliente: true }, orderBy: { orden: 'asc' } }
+      empleados: { include: { empleado: { select: { id: true, nombre: true, rol: true } } } },
+      clientes: { select: { id: true, clienteId: true, orden: true, metaVenta: true, cliente: { select: { id: true, nombre: true, nombreComercial: true, lat: true, lng: true, latTmp: true, lngTmp: true, ubicacionReal: true, direccion: true } } }, orderBy: { orden: 'asc' } }
     },
     orderBy: { diaSemana: 'asc' }
   })
@@ -113,8 +113,8 @@ export async function POST(req: NextRequest) {
       }
     },
     include: {
-      empleados: { include: { empleado: { select: { id: true, nombre: true, email: true, telefono: true, rol: true, activo: true, vendedorId: true, puedeCapturarGps: true, empresaId: true, createdAt: true } } } },
-      clientes: { include: { cliente: true }, orderBy: { orden: 'asc' } }
+      empleados: { include: { empleado: { select: { id: true, nombre: true, rol: true } } } },
+      clientes: { select: { id: true, clienteId: true, orden: true, metaVenta: true, cliente: { select: { id: true, nombre: true, nombreComercial: true, lat: true, lng: true, latTmp: true, lngTmp: true, ubicacionReal: true, direccion: true } } }, orderBy: { orden: 'asc' } }
     }
   })
   return NextResponse.json({ ok: true, ruta })

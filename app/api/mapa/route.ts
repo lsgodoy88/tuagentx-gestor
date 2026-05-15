@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   if (rutaId) {
     const ruta = await prisma.ruta.findUnique({
       where: { id: rutaId },
-      include: { empleados: true, clientes: true }
+      select: { id: true, nombre: true, fecha: true, empleados: { select: { empleadoId: true } }, clientes: { select: { clienteId: true } } }
     })
     if (ruta) {
       rutaNombre = ruta.nombre
