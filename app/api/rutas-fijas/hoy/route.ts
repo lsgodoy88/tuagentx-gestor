@@ -18,7 +18,7 @@ export async function GET() {
     },
     include: {
       clientes: {
-        include: { cliente: true },
+        select: { id: true, clienteId: true, orden: true, metaVenta: true, cliente: { select: { id: true, nombre: true, nombreComercial: true, lat: true, lng: true, latTmp: true, lngTmp: true, ubicacionReal: true, direccion: true } } },
         orderBy: { orden: 'asc' }
       }
     }
@@ -36,7 +36,8 @@ export async function GET() {
       empleadoId: user.id,
       tipo: { in: ['entrada', 'salida'] },
       createdAt: { gte: inicioHoy, lte: finHoy }
-    }
+    },
+    select: { id: true, tipo: true, rutaFijaClienteId: true, createdAt: true }
   })
 
   return NextResponse.json({ rutaFija, llegadasHoy })

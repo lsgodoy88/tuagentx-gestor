@@ -50,7 +50,12 @@ export async function GET(req: NextRequest) {
   const ordenIds = idRows.map(r => r.id)
   const despachosRaw = ordenIds.length > 0 ? await (prisma as any).ordenDespacho.findMany({
     where: { id: { in: ordenIds } },
-    include: {
+    select: {
+      id: true, numeroOrden: true, numeroFactura: true, clienteNombre: true, clienteNit: true,
+      ciudad: true, direccion: true, telefono: true, estado: true, fechaOrden: true,
+      alistadoEl: true, entregadoEl: true, fotoAlistamiento: true, fotosAlistamiento: true,
+      firmaEntrega: true, fotoEntrega: true, repartidorId: true, transportadora: true,
+      guiaTransporte: true, vendedorApiId: true, clienteApiId: true, origenVinculadaId: true,
       alistadoPor: { select: { id: true, nombre: true } },
       repartidor: { select: { id: true, nombre: true } },
     },

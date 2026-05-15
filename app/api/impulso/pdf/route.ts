@@ -29,7 +29,7 @@ export async function GET(req: NextRequest) {
   const resultados = await Promise.all(impulsadoras.map(async (imp: any) => { try {
     const rutasFijas = await prisma.rutaFija.findMany({
       where: { empleados: { some: { empleadoId: imp.id } } },
-      include: { clientes: { include: { cliente: true }, orderBy: { orden: 'asc' } } }
+      include: { clientes: { select: { id: true, clienteId: true, orden: true, metaVenta: true, cliente: { select: { id: true, nombre: true, nombreComercial: true } } }, orderBy: { orden: 'asc' } } }
     })
 
     if (rutasFijas.length === 0) return null
