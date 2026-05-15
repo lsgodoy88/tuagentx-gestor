@@ -31,8 +31,8 @@ export async function POST(req: NextRequest) {
   const ahoraBogota = fechaBogota()
   const hoy = new Date()
   const fechaHoyStr = hoy.toLocaleString('sv-SE', { timeZone: 'America/Bogota' }).split(' ')[0]
-  const inicioDia = new Date(fechaHoyStr + 'T00:00:00')
-  const inicioMes = new Date(fechaHoyStr.slice(0, 7) + '-01T00:00:00')
+  const inicioDia = new Date(fechaHoyStr + 'T05:00:00.000Z') // 00:00 Bogotá = 05:00 UTC
+  const inicioMes = new Date(fechaHoyStr.slice(0, 7) + '-01T05:00:00.000Z') // 00:00 Bogotá
 
   // ── Queries paralelas con datos AGREGADOS ──────────────────────────────────
   const [
@@ -50,6 +50,8 @@ export async function POST(req: NextRequest) {
     turnosActivos,
     carteraResumen,
     carteraPorEmpleado,
+    ventasPorMes,
+    topDeudores,
     ordenesHoy,
   ] = await Promise.all([
 
@@ -131,9 +133,9 @@ export async function POST(req: NextRequest) {
       select: { nombre: true, diaSemana: true, _count: { select: { clientes: true, empleados: true } } }
     }).catch(() => []),
 
-    // Turnos activos ahora
+    // Turnos activos ahora (iniciados en las últimas 24h para evitar zombis)
     prisma.turno.findMany({
-      where: { empleado: { empresaId }, fin: null },
+      where: { empleado: { empresaId }, fin: null, inicio: { gte: new Date(Date.now() - 24*60*60*1000) } },
       select: { empleado: { select: { nombre: true, rol: true } }, inicio: true, pausado: true }
     }).catch(() => []),
 
@@ -141,17 +143,33 @@ export async function POST(req: NextRequest) {
     (prisma as any).carteraCache.aggregate({
       where: { empresaId },
       _count: { id: true },
-      _sum: { saldo: true },
-    }).catch(() => ({ _count: { id: 0 }, _sum: { saldo: 0 } })),
+      _sum: { saldoPendiente: true },
+    }).catch(() => ({ _count: { id: 0 }, _sum: { saldoPendiente: 0 } })),
 
     // Cartera por empleado top 10
     (prisma as any).carteraCache.groupBy({
       by: ['empleadoNombre'],
       where: { empresaId },
       _count: { id: true },
-      _sum: { saldo: true },
-      orderBy: { _sum: { saldo: 'desc' } },
+      _sum: { saldoPendiente: true },
+      orderBy: { _sum: { saldoPendiente: 'desc' } },
       take: 10,
+    }).catch(() => []),
+
+    // Ventas por mes últimos 3 meses (VentaMesCliente)
+    (prisma as any).ventaMesCliente.groupBy({
+      by: ['mes'],
+      where: { empresaId, mes: { gte: new Date(new Date().setMonth(new Date().getMonth() - 3)).toISOString().slice(0, 7) } },
+      _sum: { totalVenta: true, cantidadVisitas: true },
+      orderBy: { mes: 'desc' },
+    }).catch(() => []),
+
+    // Top 5 clientes con mayor deuda
+    (prisma as any).carteraCache.findMany({
+      where: { empresaId, saldoPendiente: { gt: 0 } },
+      select: { clienteNombre: true, saldoPendiente: true, empleadoNombre: true },
+      orderBy: { saldoPendiente: 'desc' },
+      take: 5,
     }).catch(() => []),
 
     // Órdenes bodega hoy
@@ -250,12 +268,22 @@ ${(rutasFijas as any[]).map((r:any) =>
 ).join('\n') || '  Sin rutas fijas'}
 
 ━━ CARTERA ━━
-Total registros: ${(carteraResumen as any)._count?.id || 0} | Saldo total pendiente: ${fmt(Number((carteraResumen as any)._sum?.saldo || 0))}
+Total registros: ${(carteraResumen as any)._count?.id || 0} | Saldo total pendiente: ${fmt(Number((carteraResumen as any)._sum?.saldoPendiente || 0))}
 
 Por vendedor (top 10):
 ${(carteraPorEmpleado as any[]).map((e:any) =>
-  `  ${e.empleadoNombre || 'sin asignar'}: ${e._count.id} clientes | ${fmt(Number(e._sum.saldo || 0))}`
+  `  ${e.empleadoNombre || 'sin asignar'}: ${e._count.id} clientes | ${fmt(Number(e._sum.saldoPendiente || 0))}`
 ).join('\n') || '  Sin cartera'}
+
+━━ VENTAS ÚLTIMOS 3 MESES (ERP) ━━
+${(ventasPorMes as any[]).length > 0
+  ? (ventasPorMes as any[]).map((v:any) => `  ${v.mes}: ${fmt(Number(v._sum.totalVenta||0))} | ${v._sum.cantidadVisitas||0} visitas`).join('\n')
+  : '  Sin datos de ventas por mes'}
+
+━━ TOP 5 CLIENTES CON MÁS DEUDA ━━
+${(topDeudores as any[]).length > 0
+  ? (topDeudores as any[]).map((d:any) => `  ${d.clienteNombre || 'sin nombre'}: ${fmt(Number(d.saldoPendiente||0))} (vendedor: ${d.empleadoNombre || 'N/A'})`).join('\n')
+  : '  Sin deudores'}
 
 ━━ ÓRDENES BODEGA HOY ━━
 Pendientes: ${ordenesStats['pendiente'] || 0} | Alistados: ${ordenesStats['alistado'] || 0} | Entregados: ${ordenesStats['entregado'] || 0}
@@ -283,7 +311,7 @@ Responde SIEMPRE en JSON exacto:
   try {
     const response = await anthropic.messages.create({
       model: 'claude-haiku-4-5',
-      max_tokens: 512,
+      max_tokens: 1024,
       system: systemPrompt,
       messages,
     })
