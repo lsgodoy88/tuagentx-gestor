@@ -209,7 +209,7 @@ model Ruta {
   empleados          RutaEmpleado[]
 
   @@index([empresaId], map: "idx_ruta_empresa")
-  @@map("Ruta")
+  @@map("Ruta")  @@index([empresaId, fecha, cerrada])
 }
 
 model RutaEmpleado {
@@ -219,7 +219,7 @@ model RutaEmpleado {
   empleado   Empleado @relation(fields: [empleadoId], references: [id])
   ruta       Ruta     @relation(fields: [rutaId], references: [id])
 
-  @@map("RutaEmpleado")
+  @@map("RutaEmpleado")  @@index([empleadoId])
 }
 
 model RutaCliente {
@@ -262,7 +262,7 @@ model RutaFijaEmpleado {
   empleado   Empleado @relation(fields: [empleadoId], references: [id])
   rutaFija   RutaFija @relation(fields: [rutaFijaId], references: [id])
 
-  @@map("RutaFijaEmpleado")
+  @@map("RutaFijaEmpleado")  @@index([empleadoId])
 }
 
 model RutaFijaCliente {
