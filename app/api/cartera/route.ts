@@ -154,7 +154,12 @@ export async function GET(req: NextRequest) {
     const where: any = { integracionId: integracion.id, saldoPendiente: { gt: 0 } }
     if (user.role === 'vendedor') {
       // En modo sync: filtrar por empleadoExternalId (apiId del empleado)
-      const miApiId = (user as any).apiId || null
+      // apiId viene en el JWT desde el login; fallback a BD para sesiones antiguas
+      let miApiId = (user as any).apiId || null
+      if (!miApiId) {
+        const emp = await (prisma as any).empleado.findUnique({ where: { id: user.id }, select: { apiId: true } })
+        miApiId = emp?.apiId || null
+      }
       if (miApiId) {
         const deudasEmpleado = await (prisma as any).syncDeuda.findMany({
           where: { integracionId: integracion.id, empleadoExternalId: miApiId, condition: true },
