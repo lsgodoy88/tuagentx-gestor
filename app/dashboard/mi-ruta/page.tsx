@@ -5,7 +5,7 @@ import { fetchApi, errorMsg } from '@/lib/fetchApi'
 import { saveCache, loadCache } from '@/lib/offlineCache'
 import { useSession } from 'next-auth/react'
 import { useEffect, useRef, useState } from 'react'
-import ModalVisita from '@/components/ModalVisita'
+const ModalVisita = dynamic(() => import('@/components/ModalVisita'), { ssr: false })
 import { CountUp, LiveDot } from '@/components/FX'
 
 const MapaRutaVivo = dynamic(() => import('../mapa-ruta/MapaRutaVivo'), { ssr: false })

@@ -1,10 +1,11 @@
 'use client'
+import dynamic from 'next/dynamic'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { DIAS } from '@/lib/constants'
 import { checkPermiso } from '@/lib/permisos'
-import TarjetaVisita from '@/components/TarjetaVisita'
+const TarjetaVisita = dynamic(() => import('@/components/TarjetaVisita'), { ssr: false })
 
 function hoySufijo() {
   const now = new Date(Date.now() - 5 * 60 * 60 * 1000)

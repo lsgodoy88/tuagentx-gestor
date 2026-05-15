@@ -1,7 +1,8 @@
 'use client'
 import ClienteCardRol from '@/components/ClienteCardRol'
-import ModalVisita from '@/components/ModalVisita'
+const ModalVisita = dynamic(() => import('@/components/ModalVisita'), { ssr: false })
 import { useEffect, useState, useRef } from 'react'
+import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import type ExcelJSType from 'exceljs'

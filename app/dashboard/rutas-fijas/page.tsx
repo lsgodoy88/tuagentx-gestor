@@ -1,7 +1,8 @@
 'use client'
+import dynamic from 'next/dynamic'
 import TabsNav from '@/components/TabsNav'
 import SelectorMes from '@/components/SelectorMes'
-import CumplimientoTabla from '@/components/CumplimientoTabla'
+const CumplimientoTabla = dynamic(() => import('@/components/CumplimientoTabla'), { ssr: false })
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
