@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { enviarPushEmpleados } from '@/lib/push'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -172,5 +173,30 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return ordenActualizada
   })
 
-  return NextResponse.json({ orden: updated })
+  // Enviar push a repartidor si se asignó a su ruta
+  let rutaAsignada = false
+  let repartidorNombre: string | null = null
+  if (estado === 'en_entrega' && repartidorId) {
+    try {
+      const rep = await prisma.empleado.findUnique({
+        where: { id: repartidorId },
+        select: { nombre: true }
+      })
+      repartidorNombre = rep?.nombre || null
+      rutaAsignada = true
+      // Push en background — no bloquear el response
+      setImmediate(() => {
+        const factura = updated.numeroFactura || updated.numeroOrden
+        const cliente = updated.clienteNombre || 'Cliente'
+        enviarPushEmpleados(
+          [repartidorId],
+          'Nueva entrega asignada',
+          `${cliente} · Fac. ${factura}`,
+          '/dashboard'
+        ).catch(() => {})
+      })
+    } catch {}
+  }
+
+  return NextResponse.json({ orden: updated, rutaAsignada, repartidorNombre })
 }

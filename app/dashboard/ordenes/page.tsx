@@ -88,6 +88,7 @@ export default function OrdenesPage() {
   const [syncing, setSyncing] = useState(false)
   const [msgSync, setMsgSync] = useState('')
   const [saving, setSaving] = useState<Record<string, boolean>>({})
+  const [toastEnvio, setToastEnvio] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [editTransporte, setEditTransporte] = useState<Record<string, { transportadora: string; guia: string }>>({})
   const [editRepartidor, setEditRepartidor] = useState<Record<string, string>>({})
@@ -241,6 +242,10 @@ export default function OrdenesPage() {
       const data = await res.json()
       if (data.orden) {
         setDespachos(prev => prev.map(d => d.id === id ? { ...d, ...data.orden } : d))
+      }
+      if (data.rutaAsignada && data.repartidorNombre) {
+        setToastEnvio(`${data.repartidorNombre} ha recibido la orden`)
+        setTimeout(() => setToastEnvio(null), 3500)
       }
     } finally {
       setSaving(p => ({ ...p, [id]: false }))
@@ -434,6 +439,7 @@ export default function OrdenesPage() {
   const sync_ = tiempoDesdeSync(ultimaSync)
 
   return (
+    <>
     <div className="max-w-7xl mx-auto space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -1017,5 +1023,12 @@ export default function OrdenesPage() {
         </div>
       )}
     </div>
+      {/* Toast confirmación envío a repartidor */}
+      {toastEnvio && (
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[9999] bg-emerald-600 text-white text-sm font-semibold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 fade-up">
+          <span>✓</span> {toastEnvio}
+        </div>
+      )}
+    </>
   )
 }
