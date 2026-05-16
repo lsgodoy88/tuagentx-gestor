@@ -688,12 +688,12 @@ export default function OrdenesPage() {
 
               return (
                 <div key={d.id}
-                  className={`bg-zinc-900 border border-zinc-800 border-l-4 ${border} rounded-2xl overflow-hidden ${modoSeleccion && d.estado === 'alistado' ? 'cursor-pointer' : ''} ${modoSeleccion && seleccionados.includes(d.id) ? 'ring-2 ring-blue-500' : ''}`}
-                  onContextMenu={d.estado === 'alistado' ? (e) => { e.preventDefault(); if (!modoSeleccion) { setModoSeleccion(true); setSeleccionados([d.id]) } } : undefined}
-                  onTouchStart={d.estado === 'alistado' ? () => { longPressTimer.current = setTimeout(() => { setModoSeleccion(true); setSeleccionados([d.id]) }, 600) } : undefined}
+                  className={`bg-zinc-900 border border-zinc-800 border-l-4 ${border} rounded-2xl overflow-hidden ${(() => { const coc = d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''; const elc = ciudadLocal ? coc === ciudadLocal.trim().toLowerCase() : true; return modoSeleccion && d.estado === 'alistado' && elc ? 'cursor-pointer' : modoSeleccion && d.estado === 'alistado' && !elc ? 'opacity-40 cursor-not-allowed' : '' })()} ${modoSeleccion && seleccionados.includes(d.id) ? 'ring-2 ring-blue-500' : ''}`}
+                  onContextMenu={d.estado === 'alistado' && (ciudadLocal ? (d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? '') === ciudadLocal.trim().toLowerCase() : true) ? (e) => { e.preventDefault(); if (!modoSeleccion) { setModoSeleccion(true); setSeleccionados([d.id]) } } : undefined}
+                  onTouchStart={d.estado === 'alistado' && (ciudadLocal ? (d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? '') === ciudadLocal.trim().toLowerCase() : true) ? () => { longPressTimer.current = setTimeout(() => { setModoSeleccion(true); setSeleccionados([d.id]) }, 600) } : undefined}
                   onTouchEnd={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null } }}
                   onTouchMove={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null } }}
-                  onClick={modoSeleccion && d.estado === 'alistado' ? () => setSeleccionados(prev => prev.includes(d.id) ? prev.filter(x => x !== d.id) : [...prev, d.id]) : undefined}>
+                  onClick={modoSeleccion && d.estado === 'alistado' && (ciudadLocal ? (d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? '') === ciudadLocal.trim().toLowerCase() : true) ? () => setSeleccionados(prev => prev.includes(d.id) ? prev.filter(x => x !== d.id) : [...prev, d.id]) : undefined}>
                   <div className="px-4 py-3 flex items-center gap-2">
                     <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-hidden">
                       <span className="text-white font-mono text-xs flex-shrink-0">#{d.numeroFactura || d.numeroOrden}</span>
