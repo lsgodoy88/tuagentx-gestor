@@ -561,12 +561,12 @@ export default function DashboardPage() {
             ))}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className={`bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 hover-lift fade-up stagger-5 ${loadingStats ? 'loading-border' : ''}`}>
+            <div className={`card-glass rounded-2xl p-4 hover-lift fade-up stagger-5 ${loadingStats ? 'loading-border' : ''}`}>
               <p className="text-blue-400 text-xs font-semibold mb-1">VENTAS 30 DÍAS</p>
               <p className="text-white text-2xl font-bold">$<CountUp end={stats.ventasMes || 0} /></p>
               <p className="text-zinc-500 text-xs mt-1">{stats.porTipo?.venta || 0} transacciones</p>
             </div>
-            <div className={`bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 hover-lift fade-up stagger-6 ${loadingStats ? 'loading-border-emerald' : ''}`}>
+            <div className={`card-glass rounded-2xl p-4 hover-lift fade-up stagger-6 ${loadingStats ? 'loading-border-emerald' : ''}`}>
               <p className="text-emerald-400 text-xs font-semibold mb-1">COBROS 30 DÍAS</p>
               <p className="text-white text-2xl font-bold">$<CountUp end={stats.cobrosMes || 0} /></p>
               <p className="text-zinc-500 text-xs mt-1">{stats.porTipo?.cobro || 0} transacciones</p>
