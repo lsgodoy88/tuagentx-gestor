@@ -660,7 +660,7 @@ export default function ClientesPage() {
         </div>
 
         {/* Panel lateral derecho — desktop only */}
-        <div className="hidden lg:block w-[320px] flex-shrink-0 bg-[#0f0f0f] border border-[#1a1a1a] rounded-2xl">
+        <div className="hidden lg:block w-[320px] flex-shrink-0 rounded-2xl overflow-hidden" style={{position:"sticky",top:"1rem",maxHeight:"calc(100vh - 120px)",overflowY:"auto",background:"rgba(10,10,24,0.72)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",border:"1px solid rgba(255,255,255,0.10)"}}>
           {clienteSeleccionado ? (() => {
             const cs = clienteSeleccionado
             const telLimpio = (cs.telefono ?? '').replace(/\D/g, '')

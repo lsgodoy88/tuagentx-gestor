@@ -494,3 +494,57 @@ body {
   from { opacity: 0; transform: translateX(-40px); }
   to   { opacity: 1; transform: translateX(0); }
 }
+
+/* ── 1. Botones elegantes — efecto hover suave ─────────────────────── */
+button, a[role="button"] {
+  transition: all 0.18s ease !important;
+}
+button:active:not(:disabled) {
+  transform: scale(0.97) !important;
+}
+.btn-elegant {
+  position: relative;
+  overflow: hidden;
+}
+.btn-elegant::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.08), transparent);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.btn-elegant:hover::after { opacity: 1; }
+
+/* ── 2. Tabs globales — estilo cartera con borde full width ────────── */
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  position: relative;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.tab-bar::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0; right: 0;
+  height: 1px;
+  background: rgba(255,255,255,0.08);
+}
+
+/* ── 3. Cards clientes — glass en vez de negro sólido ─────────────── */
+.bg-\[\#111\] {
+  background-color: rgba(18, 18, 28, 0.75) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+.bg-\[\#0f0f0f\] {
+  background-color: rgba(15, 15, 24, 0.72) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+}
+.bg-\[\#18181b\] {
+  background-color: rgba(24, 24, 30, 0.76) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
