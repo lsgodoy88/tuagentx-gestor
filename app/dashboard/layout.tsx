@@ -325,9 +325,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Drawer móvil — estilo B */}
       {menuMovil && (
         <div className="fixed inset-0 z-[2000] md:hidden">
-          <div className="absolute inset-0" style={{background:"rgba(4,6,20,0.88)"}} onClick={() => setMenuMovil(false)}>
+          <div className="absolute top-0 bottom-0 right-0" style={{left:"224px", background:"rgba(4,6,20,0.88)"}} onClick={() => setMenuMovil(false)}>
             {/* Mensajes de ánimo — salen del sidebar hacia la derecha */}
-            <div className="absolute overflow-hidden" style={{left:'224px', right:0, top:'18%'}} onClick={e => e.stopPropagation()}>
+            <div className="absolute overflow-hidden" style={{left:0, right:0, top:'18%'}} onClick={e => e.stopPropagation()}>
               <div key={fraseIdx} className="px-5 select-none pointer-events-none" style={{
                 animation: 'slideInFromLeft 0.5s cubic-bezier(0.22,1,0.36,1) forwards',
               }}>
