@@ -35,7 +35,11 @@ const LABEL: Record<string, string> = {
 function formatHora(iso: string | null | undefined) {
   if (!iso) return ''
   const d = new Date(iso)
-  return d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })
+  const h = d.getHours()
+  const m = d.getMinutes().toString().padStart(2, '0')
+  const ampm = h >= 12 ? 'pm' : 'am'
+  const h12 = h % 12 || 12
+  return `${h12}:${m}${ampm}`
 }
 
 function nombreCorto(n: string) {
@@ -916,8 +920,9 @@ export default function OrdenesPage() {
               const log = logMap.get(n)
               if (!log) {
                 return (
-                  <div key={n} className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-1.5">
-                    <span className="text-white font-mono text-xs">#{n}</span>
+                  <div key={n} className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl flex items-center px-3 py-2 gap-2">
+                    <span className="w-14 text-zinc-600 font-mono text-xs flex-shrink-0 text-right">#{n}</span>
+                    <div className="h-3 w-24 bg-zinc-800 rounded-full opacity-40" />
                   </div>
                 )
               }
@@ -925,27 +930,28 @@ export default function OrdenesPage() {
               const fotos2: string[] = (log.fotosAlistamiento as string[] | null) || (log.fotoAlistamiento ? [log.fotoAlistamiento] : [])
               const ciudad2 = log.ciudad?.split('/').pop()?.trim() || null
               return (
-                <div key={n} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-                  <div className="px-4 py-2.5 flex items-center gap-2">
-                    <span className="text-white font-mono text-xs flex-shrink-0">#{log.numeroFactura}</span>
-                    <span className="text-zinc-700 flex-shrink-0">·</span>
-                    <span className="text-white font-semibold text-sm truncate flex-1">{nombreCorto(log.clienteNombre)}</span>
-                    {ciudad2 && <span className="text-zinc-400 text-xs flex-shrink-0">{ciudad2}</span>}
+                <div key={n} className="bg-zinc-900 border border-zinc-800 rounded-2xl flex items-stretch px-3 py-2.5 gap-2">
+                  {/* Columna izquierda — # factura centrado verticalmente */}
+                  <div className="w-14 flex-shrink-0 flex items-center justify-end pr-2 border-r border-zinc-800">
+                    <span className="text-zinc-300 font-mono text-xs">#{log.numeroFactura}</span>
                   </div>
-                  <div className="px-4 pb-2 flex items-center gap-2">
-                    {/* 📷 ancho fijo — con/sin número no desplaza */}
-                    <button
-                      onClick={fotos2.length > 0 ? () => abrirGaleriaConUrls(fotos2, log.alistadoEl) : undefined}
-                      disabled={fotos2.length === 0}
-                      className="w-8 flex items-center gap-0.5 text-zinc-400 hover:text-white text-xs disabled:opacity-30 disabled:cursor-default flex-shrink-0">
-                      📷{fotos2.length > 1 ? <span className="text-[10px] font-semibold">{fotos2.length}</span> : null}
-                    </button>
-                    {/* Icono modo — ancho fijo */}
-                    <span className="w-5 text-base flex-shrink-0">{log.modo === 'personal' ? '🤝' : log.modo === 'transportadora' ? '📦' : '🚚'}</span>
-                    {/* Hora alistado — ancho fijo */}
-                    <span className="text-zinc-500 text-xs w-16 flex-shrink-0">{log.alistadoEl ? formatHora(log.alistadoEl) : '—'}</span>
-                    {/* Fecha despacho — resto del espacio */}
-                    <span className="text-zinc-400 text-xs">{formatFechaCorta(log.despachadoEl)}</span>
+                  {/* Columna derecha — L1 nombre/ciudad + L2 datos */}
+                  <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-white font-semibold text-sm truncate flex-1">{nombreCorto(log.clienteNombre)}</span>
+                      {ciudad2 && <span className="text-zinc-400 text-xs flex-shrink-0">{ciudad2}</span>}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={fotos2.length > 0 ? () => abrirGaleriaConUrls(fotos2, log.alistadoEl) : undefined}
+                        disabled={fotos2.length === 0}
+                        className="w-8 flex items-center gap-0.5 text-zinc-400 hover:text-white text-xs disabled:opacity-30 disabled:cursor-default flex-shrink-0">
+                        📷{fotos2.length > 1 ? <span className="text-[10px] font-semibold">{fotos2.length}</span> : null}
+                      </button>
+                      <span className="w-5 text-sm flex-shrink-0">{log.modo === 'personal' ? '🤝' : log.modo === 'transportadora' ? '📦' : '🚚'}</span>
+                      <span className="text-zinc-500 text-xs w-14 flex-shrink-0 whitespace-nowrap">{log.alistadoEl ? formatHora(log.alistadoEl) : '—'}</span>
+                      <span className="text-zinc-400 text-xs whitespace-nowrap">{formatFechaCorta(log.despachadoEl)}</span>
+                    </div>
                   </div>
                 </div>
               )
