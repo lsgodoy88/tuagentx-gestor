@@ -265,7 +265,7 @@ export default function TrazabilidadPage() {
         <div className="text-zinc-500 py-12 text-center">Sin resultados en el período</div>
       ) : (
         <div className="flex gap-4 max-w-6xl mx-auto items-start">
-          <div className="grid gap-2 flex-1 grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
+          <div className="grid gap-2 flex-1" style={{gridTemplateColumns:"repeat(2, minmax(0, 1fr))"}}>
           {(ordenesBusqueda !== null ? ordenesBusqueda : ordenes).map(orden => {
             const fotos: string[] = Array.isArray(orden.fotosAlistamiento) ? orden.fotosAlistamiento : []
             const firma = orden.visitas?.[0]?.firma || orden.firmaEntrega || null
