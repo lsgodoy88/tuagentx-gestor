@@ -130,7 +130,7 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{minHeight:'320px'}}>
-        <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden" style={{height:'clamp(320px, 75vw, 480px)'}}>
+        <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden" style={{height:'clamp(400px, 85vw, 560px)'}}>
           {loading ? (
             <div className="h-full p-4 space-y-3"><div className="shimmer h-full rounded-xl" /></div>
           ) : datos.visitas.length === 0 ? (
