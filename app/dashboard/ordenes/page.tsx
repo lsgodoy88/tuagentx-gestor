@@ -977,7 +977,11 @@ export default function OrdenesPage() {
           </button>
           <span className="text-white text-sm font-semibold flex-1">{seleccionados.length} selec.</span>
           {seleccionados.length > 0 && (
-            <button onClick={() => setModalEnviarMasivo(true)}
+            <button onClick={() => {
+                if (repartidores.length === 1) setAsignarTodasRepartidor(repartidores[0].id)
+                else if (repartidores.length > 1 && !asignarTodasRepartidor) setAsignarTodasRepartidor(repartidores[0].id)
+                setModalEnviarMasivo(true)
+              }}
               className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-sm font-bold shadow-lg">
               🚚 Enviar {seleccionados.length}
             </button>
