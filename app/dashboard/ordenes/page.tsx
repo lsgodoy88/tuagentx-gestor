@@ -897,7 +897,7 @@ export default function OrdenesPage() {
                   {d.estado === 'entregado' && (
                     <div className="px-4 pb-3 pt-1 border-t border-zinc-800/60 mt-1">
                       <div className="flex items-center gap-3">
-                        <span className="text-emerald-500 text-xs font-semibold">{d.firmaEntrega ? '🤝' : '✅'} {formatFechaCorta(d.entregadoEl)}</span>
+                        <span className="text-emerald-500 text-xs font-semibold">🤝 {formatFechaCorta(d.entregadoEl)}</span>
                         {tieneFotos && (
                           <button onClick={() => abrirGaleriaConUrls(fotos, d.entregadoEl)}
                             className="flex items-center gap-1 text-zinc-400 hover:text-white text-xs">
