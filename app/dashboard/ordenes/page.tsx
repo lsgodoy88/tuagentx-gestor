@@ -986,20 +986,23 @@ export default function OrdenesPage() {
       )}
       {/* Modal enviar masivo */}
       {modalEnviarMasivo && (
-        <div className="fixed inset-0 z-[990] bg-black/70 flex items-end">
-          <div className="w-full bg-zinc-900 border-t border-zinc-700 rounded-t-2xl p-5 space-y-3">
-            <p className="text-white font-semibold">Asignar repartidor — {seleccionados.length} orden{seleccionados.length > 1 ? 'es' : ''}</p>
+        <div className="fixed inset-0 z-[1100] bg-black/70 flex items-center justify-center px-4">
+          <div className="w-full max-w-sm bg-zinc-900 border border-zinc-700 rounded-2xl p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <p className="text-white font-semibold">Asignar repartidor</p>
+              <span className="text-zinc-400 text-sm">{seleccionados.length} orden{seleccionados.length > 1 ? 'es' : ''}</span>
+            </div>
             <select value={asignarTodasRepartidor} onChange={e => setAsignarTodasRepartidor(e.target.value)}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm">
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-3 text-white text-sm">
               <option value="">— Selecciona repartidor —</option>
               {repartidores.map((r: any) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
             </select>
             <div className="flex gap-2">
               <button onClick={() => setModalEnviarMasivo(false)}
-                className="flex-1 bg-zinc-800 text-white py-2.5 rounded-xl text-sm">Cancelar</button>
+                className="flex-1 bg-zinc-800 text-white py-3 rounded-xl text-sm">Cancelar</button>
               <button onClick={() => enviarMasivo(asignarTodasRepartidor)} disabled={asignandoTodas || !asignarTodasRepartidor}
-                className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold">
-                {asignandoTodas ? 'Enviando...' : 'Confirmar'}
+                className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white py-3 rounded-xl text-sm font-semibold">
+                {asignandoTodas ? 'Enviando...' : '🚚 Confirmar'}
               </button>
             </div>
           </div>
