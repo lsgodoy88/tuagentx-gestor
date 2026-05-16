@@ -325,21 +325,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Drawer móvil — estilo B */}
       {menuMovil && (
         <div className="fixed inset-0 z-[2000] md:hidden">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setMenuMovil(false)}>
-            {/* Saludo centrado solo en el área fuera del sidebar (left: 224px = w-56) */}
-            <div className="absolute" style={{left:'224px', right:0, top: ['10%','30%','55%','72%'][fraseIdx], transition:'top 0.8s ease'}} onClick={e => e.stopPropagation()}>
-              <div className="text-center px-4 select-none pointer-events-none" style={{opacity:0.9}}>
+          <div className="absolute inset-0 bg-black/80" onClick={() => setMenuMovil(false)}>
+            {/* Mensajes de ánimo — salen del sidebar hacia la derecha */}
+            <div className="absolute overflow-hidden" style={{left:'224px', right:0, top:'18%'}} onClick={e => e.stopPropagation()}>
+              <div key={fraseIdx} className="px-5 select-none pointer-events-none" style={{
+                animation: 'slideInFromLeft 0.5s cubic-bezier(0.22,1,0.36,1) forwards',
+              }}>
                 <div className="text-4xl mb-3">{(FRASES_ROL[user?.role as string] || FRASES_ROL.default)[fraseIdx].icon}</div>
-                <p className="text-blue-200 text-sm font-medium mb-2">
+                <p className="text-blue-300 text-sm font-medium mb-2">
                   Hola {(user?.name || '').split(' ')[0]},
                 </p>
                 {(FRASES_ROL[user?.role as string] || FRASES_ROL.default)[fraseIdx].lineas.map((l, i) => (
-                  <p key={i} className="text-white font-bold text-xl leading-tight">{l}</p>
+                  <p key={i} className="text-white font-bold text-2xl leading-tight">{l}</p>
                 ))}
               </div>
             </div>
           </div>
-          <div className="absolute left-0 top-0 bottom-0 w-56 border-r flex flex-col z-[2001] shadow-2xl" style={{background:"rgba(8,8,24,0.72)",backdropFilter:"blur(24px)",WebkitBackdropFilter:"blur(24px)",borderColor:"rgba(255,255,255,0.10)"}}>
+          <div className="absolute left-0 top-0 bottom-0 w-56 border-r flex flex-col z-[2001] shadow-2xl" style={{background:"rgba(6,6,20,0.92)",backdropFilter:"blur(28px)",WebkitBackdropFilter:"blur(28px)",borderColor:"rgba(255,255,255,0.08)"}}>
 
             {/* Header */}
             <div className="flex items-center justify-between px-4 h-14 border-b border-[#1c1c20]">

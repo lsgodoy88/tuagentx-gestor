@@ -489,3 +489,8 @@ body {
 .text-white\/40 { color: rgba(255,255,255,0.65) !important; }
 .text-white\/60 { color: rgba(255,255,255,0.85) !important; }
 .text-white\/70 { color: rgba(255,255,255,0.90) !important; }
+
+@keyframes slideInFromLeft {
+  from { opacity: 0; transform: translateX(-40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
