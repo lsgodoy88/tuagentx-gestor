@@ -468,7 +468,7 @@ export default function DashboardPage() {
     return (
       <div className="space-y-6 pb-20 max-w-5xl mx-auto">
         <div>
-          <h1 className="text-2xl font-bold text-white">Bienvenido, {user?.name}</h1>
+          <h1 className="text-2xl font-bold text-white">Bienvenido, {user?.name?.split(' ')[0]}</h1>
           <p className="text-zinc-400 text-sm mt-1">Superadmin</p>
         </div>
         <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl px-4 py-4 flex items-center justify-between">
@@ -537,8 +537,7 @@ export default function DashboardPage() {
     <div className="space-y-6 pb-20 md:pb-0 max-w-5xl mx-auto">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">Bienvenido, {user?.name}</h1>
-          <p className="text-zinc-400 text-sm mt-1 capitalize">{user?.role}</p>
+          <h1 className="text-2xl font-bold text-white">Bienvenido, {user?.name?.split(' ')[0]}</h1>
         </div>
 
       </div>
@@ -1025,6 +1024,69 @@ export default function DashboardPage() {
                   </div>
                 </div>
               )}
+                {statsVendedor.cumplimiento?.length > 0 && (
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+                    <p className="text-white font-bold mb-3">Impulsadoras hoy</p>
+                    <div className="space-y-3">
+                      {statsVendedor.cumplimiento.map((imp: any) => (
+                        <div key={imp.id} className={"rounded-xl p-3 border " + (imp.alerta ? "bg-red-500/10 border-red-500/20" : "bg-zinc-800 border-zinc-700")}>
+                          <div className="flex items-center justify-between mb-2">
+                            <div className="flex items-center gap-2">
+                              <div className={"w-2 h-2 rounded-full " + (imp.turnoActivo ? "bg-emerald-500 animate-pulse" : "bg-zinc-600")} />
+                              <p className="text-white text-sm font-medium">{imp.nombre}</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {imp.alerta && <span className="text-red-400 text-xs">Alerta</span>}
+                              {imp.pct !== null && (
+                                <span className={"text-xs font-bold " + (imp.pct >= 80 ? "text-emerald-400" : imp.pct >= 50 ? "text-yellow-400" : "text-red-400")}>{imp.pct}%</span>
+                              )}
+                            </div>
+                          </div>
+                          {imp.totalPuntos > 0 && (
+                            <div className="space-y-2">
+                              <div>
+                                <div className="w-full bg-zinc-700 rounded-full h-1.5 overflow-hidden">
+                                  <div className={"h-1.5 rounded-full transition-all " + (imp.pct >= 80 ? "bg-emerald-500" : imp.pct >= 50 ? "bg-yellow-500" : "bg-red-500")}
+                                    style={{ width: (imp.pct || 0) + '%' }} />
+                                </div>
+                                <p className="text-zinc-500 text-xs mt-1">{imp.visitados}/{imp.totalPuntos} puntos visitados</p>
+                              </div>
+                              {imp.puntoActual && (
+                                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+                                  <p className="text-zinc-400 text-xs">📍 Está en:</p>
+                                  <p className="text-emerald-400 text-sm font-medium">{imp.puntoActual.nombre}</p>
+                                  {imp.puntoActual.nombreComercial && <p className="text-zinc-500 text-xs">{imp.puntoActual.nombreComercial}</p>}
+                                </div>
+                              )}
+                              {!imp.puntoActual && imp.proximoPunto && (
+                                <div className="bg-zinc-700/50 border border-zinc-600 rounded-lg px-3 py-2">
+                                  <p className="text-zinc-400 text-xs">➡️ Va hacia:</p>
+                                  <p className="text-white text-sm font-medium">{imp.proximoPunto.nombre}</p>
+                                  {imp.proximoPunto.nombreComercial && <p className="text-zinc-500 text-xs">{imp.proximoPunto.nombreComercial}</p>}
+                                </div>
+                              )}
+                              {imp.alertasGps?.length > 0 && (
+                                <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 space-y-1">
+                                  <p className="text-red-400 text-xs font-semibold">⚠️ Alertas GPS hoy ({imp.alertasGps.length})</p>
+                                  {imp.alertasGps.slice(0,2).map((a: any, i: number) => (
+                                    <p key={i} className="text-red-300 text-xs">{a.detalle} — {new Date(a.hora).toLocaleTimeString('es-CO', {hour:'2-digit',minute:'2-digit'})}</p>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          )}
+                          {imp.totalPuntos === 0 && (
+                            <div>
+                              <p className="text-zinc-500 text-xs">Sin ruta asignada hoy</p>
+                              {imp.proximoDia && <p className="text-zinc-400 text-xs mt-1">📅 Próxima ruta: <span className="text-white">{imp.proximoDia}</span></p>}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
               {/* Estadísticas — históricos bajo demanda */}
               <button
                 onClick={cargarStatsVendedor}
@@ -1089,68 +1151,6 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
-                  {statsVendedor.cumplimiento?.length > 0 && (
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-                      <p className="text-white font-bold mb-3">Impulsadoras hoy</p>
-                      <div className="space-y-3">
-                        {statsVendedor.cumplimiento.map((imp: any) => (
-                          <div key={imp.id} className={"rounded-xl p-3 border " + (imp.alerta ? "bg-red-500/10 border-red-500/20" : "bg-zinc-800 border-zinc-700")}>
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <div className={"w-2 h-2 rounded-full " + (imp.turnoActivo ? "bg-emerald-500 animate-pulse" : "bg-zinc-600")} />
-                                <p className="text-white text-sm font-medium">{imp.nombre}</p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {imp.alerta && <span className="text-red-400 text-xs">Alerta</span>}
-                                {imp.pct !== null && (
-                                  <span className={"text-xs font-bold " + (imp.pct >= 80 ? "text-emerald-400" : imp.pct >= 50 ? "text-yellow-400" : "text-red-400")}>{imp.pct}%</span>
-                                )}
-                              </div>
-                            </div>
-                            {imp.totalPuntos > 0 && (
-                              <div className="space-y-2">
-                                <div>
-                                  <div className="w-full bg-zinc-700 rounded-full h-1.5 overflow-hidden">
-                                    <div className={"h-1.5 rounded-full transition-all " + (imp.pct >= 80 ? "bg-emerald-500" : imp.pct >= 50 ? "bg-yellow-500" : "bg-red-500")}
-                                      style={{ width: (imp.pct || 0) + '%' }} />
-                                  </div>
-                                  <p className="text-zinc-500 text-xs mt-1">{imp.visitados}/{imp.totalPuntos} puntos visitados</p>
-                                </div>
-                                {imp.puntoActual && (
-                                  <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
-                                    <p className="text-zinc-400 text-xs">📍 Está en:</p>
-                                    <p className="text-emerald-400 text-sm font-medium">{imp.puntoActual.nombre}</p>
-                                    {imp.puntoActual.nombreComercial && <p className="text-zinc-500 text-xs">{imp.puntoActual.nombreComercial}</p>}
-                                  </div>
-                                )}
-                                {!imp.puntoActual && imp.proximoPunto && (
-                                  <div className="bg-zinc-700/50 border border-zinc-600 rounded-lg px-3 py-2">
-                                    <p className="text-zinc-400 text-xs">➡️ Va hacia:</p>
-                                    <p className="text-white text-sm font-medium">{imp.proximoPunto.nombre}</p>
-                                    {imp.proximoPunto.nombreComercial && <p className="text-zinc-500 text-xs">{imp.proximoPunto.nombreComercial}</p>}
-                                  </div>
-                                )}
-                                {imp.alertasGps?.length > 0 && (
-                                  <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 space-y-1">
-                                    <p className="text-red-400 text-xs font-semibold">⚠️ Alertas GPS hoy ({imp.alertasGps.length})</p>
-                                    {imp.alertasGps.slice(0,2).map((a: any, i: number) => (
-                                      <p key={i} className="text-red-300 text-xs">{a.detalle} — {new Date(a.hora).toLocaleTimeString('es-CO', {hour:'2-digit',minute:'2-digit'})}</p>
-                                    ))}
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                            {imp.totalPuntos === 0 && (
-                              <div>
-                                <p className="text-zinc-500 text-xs">Sin ruta asignada hoy</p>
-                                {imp.proximoDia && <p className="text-zinc-400 text-xs mt-1">📅 Próxima ruta: <span className="text-white">{imp.proximoDia}</span></p>}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
                 </div>
               )}
             </div>

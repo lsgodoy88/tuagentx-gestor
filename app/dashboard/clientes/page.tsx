@@ -559,7 +559,7 @@ export default function ClientesPage() {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white">Clientes</h1>
-          <p className="text-zinc-400 text-sm mt-0.5">{total} registrados</p>
+
         </div>
         <div className="flex items-center gap-1.5 flex-shrink-0">
           {puedeEditar && <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={onFileChange} />}
