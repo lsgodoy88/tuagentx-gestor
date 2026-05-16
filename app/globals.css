@@ -532,22 +532,7 @@ button:active:not(:disabled) {
   background: rgba(255,255,255,0.08);
 }
 
-/* ── 3. Cards clientes — glass en vez de negro sólido ─────────────── */
-.bg-\[\#111\] {
-  background-color: rgba(18, 18, 28, 0.75) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-}
-.bg-\[\#0f0f0f\] {
-  background-color: rgba(15, 15, 24, 0.72) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-}
-.bg-\[\#18181b\] {
-  background-color: rgba(24, 24, 30, 0.76) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-}
+
 
 /* ── Tab activo — visible sobre glass ──────────────────────────────── */
 /* El contenedor de tabs pills: fondo semitransparente */
