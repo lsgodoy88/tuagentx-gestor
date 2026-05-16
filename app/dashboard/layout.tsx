@@ -324,7 +324,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }}>
       {/* Overlay oscuro para legibilidad */}
       <div className="fixed inset-0 pointer-events-none" style={{
-        background: 'linear-gradient(135deg, rgba(2,2,10,0.85) 0%, rgba(4,4,16,0.82) 100%)',
+        background: 'linear-gradient(135deg, rgba(2,2,10,0.93) 0%, rgba(4,4,16,0.91) 100%)',
         zIndex: -1,
       }} />
       {/* Drawer móvil — estilo B */}
