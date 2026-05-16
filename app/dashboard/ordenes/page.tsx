@@ -531,12 +531,13 @@ export default function OrdenesPage() {
     const despachosVisibles = useMemo(() => {
       const base = tabActivo === 'pendiente' ? pendientes : tabActivo === 'alistado' ? alistados : despachados
       return base.filter(d => {
+        if (tabActivo === 'alistado' && ciudadFiltro && d.ciudad !== ciudadFiltro) return false
         if (!busqueda) return true
         const q = busqueda.toLowerCase()
         return (d.clienteNombre || '').toLowerCase().includes(q) ||
                (d.numeroFactura || '').toLowerCase().includes(q)
       })
-    }, [tabActivo, pendientes, alistados, despachados, busqueda])
+    }, [tabActivo, pendientes, alistados, despachados, busqueda, ciudadFiltro])
 
   async function ejecutarBusqueda() {
     if (!busqueda.trim() || busqueda.length < 1) { setBusquedaRemota([]); return }
@@ -798,7 +799,7 @@ export default function OrdenesPage() {
                                   onChange={e => setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], guia: e.target.value } }))}
                                   placeholder="# Guía o código de barras"
                                   inputMode="text"
-                                  className="flex-1 bg-zinc-800 border border-orange-500/60 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-orange-500"
+                                  className="w-40 bg-zinc-800 border border-orange-500/60 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-orange-500"
                                 />
                                 <button
                                   title="Escanear código de barras"
@@ -810,6 +811,8 @@ export default function OrdenesPage() {
                                     input.onchange = async (ev: any) => {
                                       const file = ev.target.files?.[0]
                                       if (!file) return
+                                      setSaving(p => ({ ...p, [d.id + '_scan']: true }))
+                                      let detectado = false
                                       if ('BarcodeDetector' in window) {
                                         try {
                                           const bitmap = await createImageBitmap(file)
@@ -817,35 +820,28 @@ export default function OrdenesPage() {
                                           const codes = await detector.detect(bitmap)
                                           if (codes[0]?.rawValue) {
                                             setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], guia: codes[0].rawValue } }))
-                                            return
+                                            detectado = true
                                           }
                                         } catch {}
                                       }
-                                      // fallback: leer como texto
-                                      const reader = new FileReader()
-                                      reader.onload = () => {
-                                        const val = prompt('No se pudo leer el código. Ingresa manualmente:')
+                                      setSaving(p => ({ ...p, [d.id + '_scan']: false }))
+                                      if (!detectado) {
+                                        const val = prompt('No se pudo leer el código automáticamente. Ingresa manualmente:')
                                         if (val) setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], guia: val } }))
                                       }
-                                      reader.readAsDataURL(file)
                                     }
                                     input.click()
                                   }}
-                                  className="bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 text-white px-3 py-2 rounded-xl text-base flex-shrink-0">
-                                  ▣
+                                  className={`border text-white px-3 py-2 rounded-xl text-base flex-shrink-0 transition-colors ${saving[d.id + '_scan'] ? 'bg-orange-600 border-orange-500' : 'bg-zinc-700 hover:bg-zinc-600 border-zinc-600'}`}>
+                                  {saving[d.id + '_scan'] ? '⏳' : '▣'}
                                 </button>
                                 <button onClick={() => guardarTransporte(d.id)}
                                   disabled={isSaving || !editTransporte[d.id]?.guia}
-                                  className="bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors flex-shrink-0">
-                                  {isSaving ? '...' : '📦'}
+                                  className="bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold px-5 py-2.5 rounded-xl text-xl transition-colors flex-shrink-0">
+                                  {isSaving ? '⏳' : '📦'}
                                 </button>
                               </div>
-                              <input
-                                value={editTransporte[d.id]?.transportadora ?? ''}
-                                onChange={e => setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], transportadora: e.target.value } }))}
-                                placeholder="Transportadora (opcional)"
-                                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-orange-500"
-                              />
+
                             </div>
                           )}
 
