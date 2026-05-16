@@ -405,50 +405,50 @@ body {
 
 /* Cards principales */
 .bg-zinc-900 {
-  background-color: rgba(24, 24, 27, 0.65) !important;
+  background-color: rgba(24, 24, 27, 0.85) !important;
   backdrop-filter: blur(14px) !important;
   -webkit-backdrop-filter: blur(14px) !important;
 }
 
 /* Inputs, selects, elementos secundarios */
 .bg-zinc-800 {
-  background-color: rgba(39, 39, 42, 0.60) !important;
+  background-color: rgba(39, 39, 42, 0.80) !important;
   backdrop-filter: blur(10px) !important;
   -webkit-backdrop-filter: blur(10px) !important;
 }
 
 /* Elementos terciarios (botones, chips) */
 .bg-zinc-700 {
-  background-color: rgba(63, 63, 70, 0.65) !important;
+  background-color: rgba(63, 63, 70, 0.82) !important;
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
 }
 
 /* Fondos muy oscuros usados en sidebar / panels */
 .bg-\[\#18181b\] {
-  background-color: rgba(24, 24, 27, 0.70) !important;
+  background-color: rgba(24, 24, 27, 0.87) !important;
   backdrop-filter: blur(14px) !important;
   -webkit-backdrop-filter: blur(14px) !important;
 }
 .bg-\[\#27272a\] {
-  background-color: rgba(39, 39, 42, 0.65) !important;
+  background-color: rgba(39, 39, 42, 0.82) !important;
   backdrop-filter: blur(10px) !important;
   -webkit-backdrop-filter: blur(10px) !important;
 }
 .bg-zinc-950 {
-  background-color: rgba(9, 9, 11, 0.75) !important;
+  background-color: rgba(9, 9, 11, 0.88) !important;
   backdrop-filter: blur(18px) !important;
   -webkit-backdrop-filter: blur(18px) !important;
 }
 
 /* bg-[#080818] y bg-[#0d0d1a] — card-bg original */
 .bg-\[\#080818\] {
-  background-color: rgba(8, 8, 24, 0.70) !important;
+  background-color: rgba(8, 8, 24, 0.86) !important;
   backdrop-filter: blur(16px) !important;
   -webkit-backdrop-filter: blur(16px) !important;
 }
 .bg-\[\#0d0d1a\] {
-  background-color: rgba(13, 13, 26, 0.68) !important;
+  background-color: rgba(13, 13, 26, 0.84) !important;
   backdrop-filter: blur(16px) !important;
   -webkit-backdrop-filter: blur(16px) !important;
 }
