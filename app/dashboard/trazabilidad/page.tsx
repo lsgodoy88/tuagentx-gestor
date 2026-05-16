@@ -123,7 +123,7 @@ export default function TrazabilidadPage() {
     const params = new URLSearchParams()
     if (q) params.set('q', q)
     if (estado) params.set('estado', estado)
-    if (cursor) params.set('cursor', cursor)
+    params.set('cursor', cursor || '')  // fuerza cursor mode en la API
     const res = await fetch('/api/trazabilidad?' + params.toString()).then(r => r.json())
     const nuevas = res.ordenes || []
     setOrdenes(!cursor ? nuevas : prev => [...prev, ...nuevas])
@@ -265,7 +265,7 @@ export default function TrazabilidadPage() {
         <div className="text-zinc-500 py-12 text-center">Sin resultados en el período</div>
       ) : (
         <div className="flex gap-4 max-w-6xl mx-auto items-start">
-          <div className="grid gap-2 flex-1 grid-cols-1 md:grid-cols-2">
+          <div className="grid gap-2 flex-1 grid-cols-1 md:grid-cols-2 lg:grid-cols-2">
           {(ordenesBusqueda !== null ? ordenesBusqueda : ordenes).map(orden => {
             const fotos: string[] = Array.isArray(orden.fotosAlistamiento) ? orden.fotosAlistamiento : []
             const firma = orden.visitas?.[0]?.firma || orden.firmaEntrega || null
@@ -357,14 +357,6 @@ export default function TrazabilidadPage() {
             )
           })}
 
-          {hasMore && (
-            <div className="flex justify-center pt-2">
-              <button onClick={() => cargar(nextCursor)} disabled={loadingMore}
-                className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white text-sm px-6 py-2 rounded-xl">
-                {loadingMore ? 'Cargando...' : 'Cargar más'}
-              </button>
-            </div>
-          )}
           </div>
           {ordenSeleccionada && (() => {
             const orden = ordenSeleccionada
@@ -409,6 +401,16 @@ export default function TrazabilidadPage() {
               </div>
             )
           })()}
+        </div>
+      )}
+
+      {/* Botón cargar más — fuera del grid */}
+      {hasMore && (
+        <div className="flex justify-center pt-2">
+          <button onClick={() => cargar(nextCursor)} disabled={loadingMore}
+            className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white text-sm font-semibold px-8 py-2.5 rounded-xl border border-zinc-700">
+            {loadingMore ? 'Cargando...' : `Cargar más (${total} cargados)`}
+          </button>
         </div>
       )}
       </>)}
