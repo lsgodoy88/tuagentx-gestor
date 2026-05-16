@@ -837,8 +837,8 @@ export default function OrdenesPage() {
                                 </button>
                                 <button onClick={() => guardarTransporte(d.id)}
                                   disabled={isSaving || !editTransporte[d.id]?.guia}
-                                  className="bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold px-5 py-2.5 rounded-xl text-xl transition-colors flex-shrink-0">
-                                  {isSaving ? '⏳' : '📦'}
+                                  className="bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors flex-shrink-0">
+                                  {isSaving ? '...' : '📦 Enviar'}
                                 </button>
                               </div>
 
