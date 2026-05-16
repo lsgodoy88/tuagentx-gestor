@@ -1,4 +1,5 @@
 'use client'
+import FirmaCanvas from '@/components/FirmaCanvas'
 import { SyncIcon } from '@/components/SyncIcon'
 import { useSession } from 'next-auth/react'
 import { useState, useEffect, useRef, useMemo } from 'react'
@@ -817,68 +818,17 @@ export default function OrdenesPage() {
                           {/* Entrega personal con firma */}
                           {(() => { const cm2 = d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''; const eloc2 = ciudadLocal ? cm2 === ciudadLocal.trim().toLowerCase() : false; return (modoEnvio[d.id] ?? (eloc2 ? 'local' : 'transportadora')) === 'personal' })() && (
                             <div className="space-y-2">
-                              <p className="text-zinc-300 text-xs font-semibold">Firma del cliente o vendedor</p>
-                              <div className="relative bg-white rounded-xl overflow-hidden" style={{height: 120}}>
-                                <canvas
-                                  ref={el => { firmaCanvasRefs.current[d.id] = el }}
-                                  width={400} height={120}
-                                  className="w-full h-full touch-none cursor-crosshair"
-                                  style={{touchAction: 'none'}}
-                                  onPointerDown={e => {
-                                    const canvas = firmaCanvasRefs.current[d.id]
-                                    if (!canvas) return
-                                    setFirmaDibujando(p => ({...p, [d.id]: true}))
-                                    const rect = canvas.getBoundingClientRect()
-                                    const ctx = canvas.getContext('2d')!
-                                    ctx.strokeStyle = '#1a1a1a'
-                                    ctx.lineWidth = 2
-                                    ctx.lineCap = 'round'
-                                    ctx.beginPath()
-                                    ctx.moveTo((e.clientX - rect.left) * (canvas.width / rect.width), (e.clientY - rect.top) * (canvas.height / rect.height))
-                                    e.currentTarget.setPointerCapture(e.pointerId)
-                                  }}
-                                  onPointerMove={e => {
-                                    if (!firmaDibujando[d.id]) return
-                                    const canvas = firmaCanvasRefs.current[d.id]
-                                    if (!canvas) return
-                                    const rect = canvas.getBoundingClientRect()
-                                    const ctx = canvas.getContext('2d')!
-                                    ctx.lineTo((e.clientX - rect.left) * (canvas.width / rect.width), (e.clientY - rect.top) * (canvas.height / rect.height))
-                                    ctx.stroke()
-                                    setFirmaData(p => ({...p, [d.id]: canvas.toDataURL('image/png')}))
-                                  }}
-                                  onPointerUp={e => {
-                                    setFirmaDibujando(p => ({...p, [d.id]: false}))
-                                    const canvas = firmaCanvasRefs.current[d.id]
-                                    if (canvas) setFirmaData(p => ({...p, [d.id]: canvas.toDataURL('image/png')}))
-                                  }}
-                                  onPointerLeave={e => {
-                                    if (!firmaDibujando[d.id]) return
-                                    setFirmaDibujando(p => ({...p, [d.id]: false}))
-                                    const canvas = firmaCanvasRefs.current[d.id]
-                                    if (canvas) setFirmaData(p => ({...p, [d.id]: canvas.toDataURL('image/png')}))
-                                  }}
-                                />
-                                {!firmaData[d.id] && (
-                                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                                    <span className="text-zinc-400 text-xs">Firmar aquí</span>
-                                  </div>
-                                )}
-                              </div>
-                              <div className="flex gap-2">
-                                <button onClick={() => {
-                                  const canvas = firmaCanvasRefs.current[d.id]
-                                  if (canvas) { const ctx = canvas.getContext('2d')!; ctx.clearRect(0, 0, canvas.width, canvas.height) }
-                                  setFirmaData(p => { const n = {...p}; delete n[d.id]; return n })
-                                }} className="flex-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-xs py-2 rounded-xl font-semibold">
-                                  🗑 Limpiar
-                                </button>
-                                <button onClick={() => { const firma = firmaData[d.id]; if (firma) patchOrden(d.id, { estado: 'entregado', entregadoEl: new Date().toISOString(), firmaBase64: firma }) }}
-                                  disabled={isSaving || !firmaData[d.id]}
-                                  className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold py-2 rounded-xl text-xs">
-                                  {isSaving ? 'Guardando...' : '✅ Confirmar'}
-                                </button>
-                              </div>
+                              <FirmaCanvas
+                                firma={firmaData[d.id] || null}
+                                onFirma={async (dataUrl) => {
+                                  if (dataUrl) {
+                                    setFirmaData(p => ({...p, [d.id]: dataUrl}))
+                                    await patchOrden(d.id, { estado: 'entregado', entregadoEl: new Date().toISOString(), firmaBase64: dataUrl })
+                                  } else {
+                                    setFirmaData(p => { const n = {...p}; delete n[d.id]; return n })
+                                  }
+                                }}
+                              />
                             </div>
                           )}
                         </div>
