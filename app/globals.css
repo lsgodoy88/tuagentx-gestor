@@ -12,8 +12,8 @@
 :root {
   --background: #0a0a1a;
   --foreground: #e2e8f0;
-  --card-bg: #080818;
-  --card-bg-2: #0d0d1a;
+  --card-bg: rgba(8,8,28,0.72);
+  --card-bg-2: rgba(13,13,30,0.68);
   --border-blue: rgba(59, 130, 246, 0.45);
 }
 
@@ -33,12 +33,16 @@ body {
 /* Cards con borde azul suave */
 .card-dark {
   background: var(--card-bg);
-  border: 1px solid var(--border-blue);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.07);
   border-radius: 1rem;
 }
 .card-dark-2 {
   background: var(--card-bg-2);
-  border: 1px solid var(--border-blue);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.06);
   border-radius: 0.75rem;
 }
 

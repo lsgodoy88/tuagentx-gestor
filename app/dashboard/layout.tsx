@@ -316,7 +316,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const iconoActivo = navItems.find(item => pathname === item.href)?.icon || '⚡'
 
   return (
-    <div className="h-screen flex overflow-hidden" style={{background:"var(--background)"}}>
+    <div className="h-screen flex overflow-hidden" style={{
+      backgroundImage: "url('https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=1920&q=80')",
+      backgroundSize: 'cover',
+      backgroundPosition: 'center',
+      backgroundAttachment: 'fixed',
+    }}>
+      {/* Overlay oscuro para legibilidad */}
+      <div className="fixed inset-0 pointer-events-none" style={{
+        background: 'linear-gradient(135deg, rgba(6,6,20,0.92) 0%, rgba(8,8,26,0.88) 100%)',
+        zIndex: 0,
+      }} />
       {/* Drawer móvil — estilo B */}
       {menuMovil && (
         <div className="fixed inset-0 z-[2000] md:hidden">
