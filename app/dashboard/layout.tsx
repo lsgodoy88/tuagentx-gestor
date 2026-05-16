@@ -435,29 +435,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </button>
       </div>
       <aside
-        onMouseEnter={() => collapsed && setHovered(true)}
-        onMouseLeave={() => setHovered(false)}
-        className={`${collapsed && !hovered ? 'w-16' : 'w-64'} flex-col transition-all duration-200 h-full hidden md:flex flex-shrink-0`}
+        className="w-64 flex-col h-full hidden md:flex flex-shrink-0"
         style={{background:"rgba(8,10,30,0.25)",backdropFilter:"blur(24px)",WebkitBackdropFilter:"blur(24px)",borderRight:"1px solid rgba(255,255,255,0.10)"}}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-4 h-14 border-b border-[#1c1c20] flex-shrink-0">
-          {sidebarExpanded ? (
-            <>
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs" style={{background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', boxShadow: '0 0 12px #2563eb40'}}>🗺️</div>
-                <span className="text-white font-bold text-sm tracking-tight">Gestor</span>
-              </div>
-              <button onClick={() => { setCollapsed(true); setHovered(false) }}
-                className="text-zinc-700 hover:text-zinc-400 p-1 rounded-lg transition-colors">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M15 18l-6-6 6-6"/></svg>
-              </button>
-            </>
-          ) : (
-            <button onClick={() => setCollapsed(false)} className="mx-auto w-7 h-7 rounded-lg flex items-center justify-center text-xs" style={{background: 'linear-gradient(135deg, #2563eb, #1d4ed8)'}}>
-              🗺️
-            </button>
-          )}
+        <div className="flex items-center px-4 h-14 border-b border-[#1c1c20] flex-shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs" style={{background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', boxShadow: '0 0 12px #2563eb40'}}>🗺️</div>
+            <span className="text-white font-bold text-sm tracking-tight">Gestor</span>
+          </div>
         </div>
 
         {/* Nav con grupos */}

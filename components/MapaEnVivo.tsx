@@ -129,8 +129,8 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden" style={{ height: '500px' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{height:'calc(100vh - 220px)', minHeight:'500px'}}>
+        <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden h-full">
           {loading ? (
             <div className="h-full p-4 space-y-3"><div className="shimmer h-full rounded-xl" /></div>
           ) : datos.visitas.length === 0 ? (

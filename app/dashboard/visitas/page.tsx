@@ -137,7 +137,7 @@ export default function VisitasPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 pb-24 md:pb-0">
+    <div className="max-w-2xl md:max-w-none mx-auto space-y-6 pb-24 md:pb-0">
       <div>
         <h1 className="text-2xl font-bold text-white">{isEntregas ? 'Entregas' : 'Visitas'}</h1>
         <p className="text-zinc-400 text-sm mt-1">{visitasLibres.length} {isEntregas ? 'entregas' : 'visitas libres'} registradas hoy</p>
