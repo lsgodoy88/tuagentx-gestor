@@ -62,3 +62,13 @@ export async function firmaUrl(key: string): Promise<string> {
 
   return getSignedUrl(r2, command, { expiresIn: 30 }) // 5 minutos
 }
+
+/** URL firmada para cualquier archivo en R2 (5 minutos) */
+export async function archivoUrl(key: string): Promise<string> {
+  if (key.startsWith('data:')) return key
+  const command = new GetObjectCommand({
+    Bucket: process.env.R2_BUCKET!,
+    Key: key,
+  })
+  return getSignedUrl(r2, command, { expiresIn: 300 })
+}

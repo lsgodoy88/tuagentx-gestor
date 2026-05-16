@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
       AND o."empresaId" = l."empresaId"
       AND (o."origenVinculadaId" = l."origenVinculadaId" OR (o."origenVinculadaId" IS NULL AND l."origenVinculadaId" IS NULL))
     WHERE l."empresaId" = $1
-      AND ${origenId !== 'propia' ? `l."origenVinculadaId" = '${origenId.replace(/'/g,"''")}'` : 'l."origenVinculadaId" IS NULL'}
+      AND l.${origenFiltroSQL(origenId)}
       ${cursor ? `AND l."despachadoEl" < (SELECT "despachadoEl" FROM gestor."DespachoLog" WHERE id = '${cursor.replace(/'/g,"''")}' LIMIT 1)` : ''}
     ORDER BY l."despachadoEl" DESC
     LIMIT ${LIMIT + 1}

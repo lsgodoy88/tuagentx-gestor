@@ -25,10 +25,7 @@ export async function GET(req: NextRequest) {
   const controlCursor = sp.get('controlCursor')       // cursor control consecutivos
   const q             = sp.get('q')?.trim() ?? ''
 
-  const esVinculada = origenId !== 'propia' && origenId !== ''
-  const origenSQL   = esVinculada
-    ? `"origenVinculadaId" = '${origenId.replace(/'/g, "''")}'`
-    : `"origenVinculadaId" IS NULL`
+  const origenSQL = origenFiltroSQL(origenId)
 
   // Estados reales por tab
   const estadosFiltro: Record<string, string[]> = {

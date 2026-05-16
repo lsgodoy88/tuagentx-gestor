@@ -3,17 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN_BODEGA } from '@/lib/auth-helpers'
-import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3'
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
-
-const r2 = new S3Client({
-  region: 'auto',
-  endpoint: process.env.R2_ENDPOINT,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-})
+import { archivoUrl } from '@/lib/r2'
 
 const ROLES = ROLES_ADMIN_BODEGA
 
@@ -33,7 +23,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (!orden?.fotoAlistamiento) return NextResponse.json({ error: 'Sin foto' }, { status: 404 })
 
   const key = orden.fotoAlistamiento
-  const url = await getSignedUrl(r2, new GetObjectCommand({ Bucket: process.env.R2_BUCKET!, Key: key }), { expiresIn: 300 })
+  const url = await archivoUrl(key)
 
   return NextResponse.redirect(url)
 }

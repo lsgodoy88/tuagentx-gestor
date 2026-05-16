@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN_BODEGA } from '@/lib/auth-helpers'
+import { origenWhere } from '@/lib/bodega'
 
 const ROLES = ROLES_ADMIN_BODEGA
 
@@ -16,10 +17,7 @@ export async function GET(req: NextRequest) {
   const origenId = req.nextUrl.searchParams.get('origenId') ?? 'propia'
   if (!q || q.length < 1) return NextResponse.json({ despachos: [] })
 
-  const esVinculada = origenId !== 'propia' && origenId !== ''
-  const whereOrigen = esVinculada
-    ? { origenVinculadaId: origenId }
-    : { origenVinculadaId: null }
+  const whereOrigen = origenWhere(origenId)
 
   const despachos = await (prisma as any).ordenDespacho.findMany({
     where: {
