@@ -437,7 +437,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <aside
         onMouseEnter={() => collapsed && setHovered(true)}
         onMouseLeave={() => setHovered(false)}
-        className={`${collapsed && !hovered ? 'w-16' : 'w-64'} flex-col transition-all duration-200 h-full hidden md:flex flex-shrink-0" style={{background:"rgba(8,10,30,0.50)",backdropFilter:"blur(24px)",WebkitBackdropFilter:"blur(24px)",borderRight:"1px solid rgba(255,255,255,0.10)"}}`}>
+        className={`${collapsed && !hovered ? 'w-16' : 'w-64'} flex-col transition-all duration-200 h-full hidden md:flex flex-shrink-0`}
+        style={{background:"rgba(8,10,30,0.50)",backdropFilter:"blur(24px)",WebkitBackdropFilter:"blur(24px)",borderRight:"1px solid rgba(255,255,255,0.10)"}}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 h-14 border-b border-[#1c1c20] flex-shrink-0">
