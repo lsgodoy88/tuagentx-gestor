@@ -627,7 +627,7 @@ export default function OrdenesPage() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-10 text-center">
           {buscandoRemoto ? <p className="text-zinc-300 text-sm">Buscando...</p> : <p className="text-zinc-300 text-sm">Sin órdenes en el período configurado</p>}
         </div>
-      ) : (() => {
+      ) : tabActivo === 'despachado' ? null : (() => {
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
 
