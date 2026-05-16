@@ -578,10 +578,10 @@ export default function ClientesPage() {
           )}
         </div>
       </div>
-      <div className="flex gap-2 border-b border-zinc-800 pb-2">
-        <button onClick={() => setTab("clientes")} className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors ${tab === "clientes" ? "text-emerald-400 border-b-2 border-emerald-400" : "text-zinc-400 hover:text-white"}`}>👥 Clientes</button>
+      <div className="flex gap-1 tab-pills rounded-xl p-1">
+        <button onClick={() => setTab("clientes")} className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors ${tab === "clientes" ? "tab-active" : "text-white hover:text-white"}`}>👥 Clientes</button>
         {(rol === 'admin' || rol === 'supervisor') && (
-          <button onClick={() => setTab("listas")} className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors ${tab === "listas" ? "text-emerald-400 border-b-2 border-emerald-400" : "text-zinc-400 hover:text-white"}`}>📋 Listas</button>
+          <button onClick={() => setTab("listas")} className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition-colors ${tab === "listas" ? "tab-active" : "text-white hover:text-white"}`}>📋 Listas</button>
         )}
       </div>
 

@@ -206,13 +206,13 @@ export default function TrazabilidadPage() {
       {syncMsg && <p className="text-xs text-zinc-400 sm:hidden">{syncMsg}</p>}
 
       {/* Tabs principales */}
-      <div className="flex border-b border-zinc-800">
+      <div className="flex gap-1 tab-pills rounded-xl p-1">
         <button onClick={() => setTabPrincipal('despachos')}
-          className={`flex-1 py-3 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'despachos' ? 'text-emerald-400 border-b-2 border-emerald-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
+          className={`flex-1 py-3 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'despachos' ? 'tab-active' : 'text-white hover:text-white'}`}>
           📦 Despachos
         </button>
         <button onClick={() => setTabPrincipal('inventario')}
-          className={`flex-1 py-3 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'inventario' ? 'text-emerald-400 border-b-2 border-emerald-500' : 'text-zinc-500 hover:text-zinc-300'}`}>
+          className={`flex-1 py-3 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'inventario' ? 'tab-active' : 'text-white hover:text-white'}`}>
           🏭 Inventario
         </button>
       </div>
