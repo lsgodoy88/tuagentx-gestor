@@ -678,13 +678,14 @@ export default function OrdenesPage() {
               const fotoKey = d.fotoAlistamiento
               const fotos: string[] = (d.fotosAlistamiento as string[] | null) || (fotoKey ? [fotoKey] : [])
               const tieneFotos = fotos.length > 0
-              const btnFoto = tieneFotos ? (
+              const btnFoto = (
                 <button
-                  onClick={() => abrirGaleriaConUrls(fotos, d.alistadoEl)}
-                  className="flex items-center gap-1 text-zinc-400 hover:text-white text-xs">
-                  📷 {fotos.length > 1 ? fotos.length : ''}
+                  onClick={tieneFotos ? () => abrirGaleriaConUrls(fotos, d.alistadoEl) : undefined}
+                  disabled={!tieneFotos}
+                  className="w-8 flex items-center gap-0.5 text-zinc-400 hover:text-white text-xs disabled:opacity-30 disabled:cursor-default flex-shrink-0">
+                  📷{fotos.length > 1 ? <span className="text-[10px] font-semibold">{fotos.length}</span> : null}
                 </button>
-              ) : null
+              )
 
               return (
                 <div key={d.id}
@@ -852,17 +853,20 @@ export default function OrdenesPage() {
                   )}
 
                   {d.estado === 'en_entrega' && (
-                    <div className="px-4 pb-3 pt-1 border-t border-zinc-800/60 flex items-center gap-3 mt-1">
+                    <div className="px-4 pb-3 pt-1 border-t border-zinc-800/60 flex items-center gap-2 mt-1">
                       {btnFoto}
-                      <span className="text-zinc-400 text-xs">🚚 {formatHora(d.alistadoEl)}</span>
+                      <span className="w-5 text-base flex-shrink-0">🚚</span>
+                      <span className="text-zinc-400 text-xs w-16 flex-shrink-0">{formatHora(d.alistadoEl)}</span>
+                      <span className="text-zinc-500 text-xs">{formatFechaCorta(d.despachadoEl ?? d.alistadoEl)}</span>
                     </div>
                   )}
 
                   {d.estado === 'en_transito' && (
-                    <div className="px-4 pb-3 pt-1 border-t border-zinc-800/60 flex items-center gap-3 flex-wrap mt-1">
+                    <div className="px-4 pb-3 pt-1 border-t border-zinc-800/60 flex items-center gap-2 mt-1">
                       {btnFoto}
-                      <span className="text-zinc-400 text-xs">📦 {formatHora(d.alistadoEl)}</span>
-                      {d.guiaTransporte && <span className="text-zinc-500 font-mono text-xs">#{d.guiaTransporte}</span>}
+                      <span className="w-5 text-base flex-shrink-0">📦</span>
+                      <span className="text-zinc-400 text-xs w-16 flex-shrink-0">{formatHora(d.alistadoEl)}</span>
+                      <span className="text-zinc-500 text-xs truncate">{d.guiaTransporte ? '#' + d.guiaTransporte : formatFechaCorta(d.despachadoEl ?? d.alistadoEl)}</span>
                     </div>
                   )}
 
