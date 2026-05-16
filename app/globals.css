@@ -558,11 +558,12 @@ button:active:not(:disabled) {
 }
 
 
-/* ── card-glass — efecto login aplicado a cards ─────────────────── */
+/* ── card-glass — efecto vidrio humo v1778968645 ─────── */
 .card-glass {
-  background: rgba(10,10,20,0.45) !important;
+  background: rgba(8,8,18,0.52) !important;
   backdrop-filter: blur(24px) !important;
   -webkit-backdrop-filter: blur(24px) !important;
   border: 1px solid rgba(255,255,255,0.12) !important;
   box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08) !important;
 }
+
