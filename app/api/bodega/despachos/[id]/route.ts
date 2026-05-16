@@ -164,7 +164,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       INSERT INTO gestor."DespachoLog"
         (id, "empresaId", "origenVinculadaId", "numeroFactura", "clienteNombre", modo, "guiaTransporte", transportadora, "despachadoEl")
       VALUES
-        (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, NOW())
+        (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, (NOW() AT TIME ZONE 'UTC'))
       ON CONFLICT DO NOTHING
     `,
       empresaId,
