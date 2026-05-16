@@ -346,17 +346,17 @@ export default function RutasPage() {
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Tabs principales */}
-      <div className="flex gap-1 border-b border-zinc-800">
+      <div className="flex gap-1 tab-pills rounded-xl p-1">
         <button onClick={() => setTabPrincipal('mapa')}
-          className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors ${tabPrincipal === 'mapa' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-zinc-400 hover:text-white'}`}>
+          className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors ${tabPrincipal === 'mapa' ? 'tab-active' : 'text-white/50 hover:text-white/80'}`}>
           🗺️ Mapa
         </button>
         <button onClick={() => setTabPrincipal('ruta')}
-          className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors ${tabPrincipal === 'ruta' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-zinc-400 hover:text-white'}`}>
+          className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors ${tabPrincipal === 'ruta' ? 'tab-active' : 'text-white/50 hover:text-white/80'}`}>
           📍 Ruta
         </button>
         <button onClick={() => setTabPrincipal('historial')}
-          className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors ${tabPrincipal === 'historial' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-zinc-400 hover:text-white'}`}>
+          className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors ${tabPrincipal === 'historial' ? 'tab-active' : 'text-white/50 hover:text-white/80'}`}>
           📋 Historial
         </button>
       </div>

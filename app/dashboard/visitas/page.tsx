@@ -143,17 +143,17 @@ export default function VisitasPage() {
 
       </div>
 
-      <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
+      <div className="flex gap-1 tab-pills rounded-xl p-1">
         <button onClick={() => setTab('mapa')}
-          className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'mapa' ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-300")}>
+          className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'mapa' ? "tab-active" : "text-white/50 hover:text-white/80")}>
           🗺️ Mapa
         </button>
         <button onClick={() => setTab('nueva')}
-          className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'nueva' ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-300")}>
+          className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'nueva' ? "tab-active" : "text-white/50 hover:text-white/80")}>
           {isEntregas ? '📦 Nueva' : '📍 Nueva'}
         </button>
         <button onClick={() => setTab('historial')}
-          className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'historial' ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-300")}>
+          className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'historial' ? "tab-active" : "text-white/50 hover:text-white/80")}>
           Historial
         </button>
       </div>
