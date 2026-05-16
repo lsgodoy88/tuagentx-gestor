@@ -135,6 +135,7 @@ export default function DashboardPage() {
         setRuta(r)
         setClientesOrdenados(r?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, rezago: rc.rezago, orden: rc.orden, notas: rc.notas || null, ordenDespachoId: rc.ordenDespachoId || null, numeroFactura: (rc as any).numeroFactura || null, empresaOrigen: (rc as any).empresaOrigen || null, alistadoPor: (rc as any).alistadoPor || null, asignadoEn: rc.asignadoEn || null, ordenCreadaEl: (rc as any).ordenCreadaEl || null })) || [])
         setTurno(t)
+        if (!t) setTurnoExpandido(true)  // sin turno → card abierta
         setPuedeCapturarGps(me?.puedeCapturarGps === true)
       })
       // Cargar hoy inmediatamente al montar para mostrar contadores del día
