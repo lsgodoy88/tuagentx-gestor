@@ -921,7 +921,7 @@ export default function OrdenesPage() {
               if (!log) {
                 return (
                   <div key={n} className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl flex items-center px-3 py-2 gap-2">
-                    <span className="w-14 text-zinc-600 font-mono text-xs flex-shrink-0 text-right">#{n}</span>
+                    <span className="w-10 text-zinc-600 font-mono text-xs flex-shrink-0 text-right">#{n}</span>
                     <div className="h-3 w-24 bg-zinc-800 rounded-full opacity-40" />
                   </div>
                 )
@@ -932,7 +932,7 @@ export default function OrdenesPage() {
               return (
                 <div key={n} className="bg-zinc-900 border border-zinc-800 rounded-2xl flex items-stretch px-3 py-2.5 gap-2">
                   {/* Columna izquierda — # factura centrado verticalmente */}
-                  <div className="w-14 flex-shrink-0 flex items-center justify-end pr-2 border-r border-zinc-800">
+                  <div className="w-10 flex-shrink-0 flex items-center justify-end pr-2 border-r border-zinc-800">
                     <span className="text-zinc-300 font-mono text-xs">#{log.numeroFactura}</span>
                   </div>
                   {/* Columna derecha — L1 nombre/ciudad + L2 datos */}
