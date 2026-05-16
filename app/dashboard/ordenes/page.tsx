@@ -433,7 +433,7 @@ export default function OrdenesPage() {
       }
     } finally {
       setSaving(p => ({ ...p, [ordenId]: false }))
-      setFotosCapturadas([])
+      // NO limpiar fotosCapturadas aquí — las necesita el countdown para mostrarlas
     }
     // Fotos subidas — iniciar countdown para alistar automáticamente
     setCountdownSec(2)
@@ -447,6 +447,7 @@ export default function OrdenesPage() {
             setCamaraActiva(false)
             setCamaraOrdenId(null)
             setCountdownSec(null)
+            setFotosCapturadas([])
           })
           return null
         }
@@ -1034,37 +1035,27 @@ export default function OrdenesPage() {
         <div className="fixed inset-0 z-50 overflow-hidden touch-none">
 
           {countdownSec !== null ? (
-            /* ── Modo countdown: fotos como fondo fullscreen + overlay encima ── */
+            /* ── Modo countdown: fotos fullscreen + número encima ── */
             <div className="absolute inset-0 bg-black">
               {/* Mosaico fullscreen */}
               {fotosCapturadas.length === 1 ? (
                 <img src={fotosCapturadas[0]} className="w-full h-full object-cover" />
               ) : (
-                <div className={`w-full h-full grid gap-0.5 ${fotosCapturadas.length === 2 ? 'grid-cols-2' : fotosCapturadas.length === 3 ? 'grid-cols-2 grid-rows-2' : 'grid-cols-2 grid-rows-2'}`}>
+                <div className={`w-full h-full grid gap-0.5 ${fotosCapturadas.length === 2 ? 'grid-cols-2' : 'grid-cols-2 grid-rows-2'}`}>
                   {fotosCapturadas.map((f, i) => (
                     <img key={i} src={f}
                       className={`w-full h-full object-cover ${fotosCapturadas.length === 3 && i === 0 ? 'col-span-2' : ''}`} />
                   ))}
                 </div>
               )}
-              {/* Overlay oscuro semitransparente */}
-              <div className="absolute inset-0 bg-black/50" />
-              {/* Countdown centrado */}
-              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6">
-                <p className="text-white text-base font-semibold tracking-wide drop-shadow">Alistando en...</p>
-                <div className="relative w-24 h-24 flex items-center justify-center">
-                  <svg className="absolute inset-0 -rotate-90" viewBox="0 0 96 96">
-                    <circle cx="48" cy="48" r="42" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="6" />
-                    <circle cx="48" cy="48" r="42" fill="none" stroke="#10b981" strokeWidth="6"
-                      strokeDasharray={String(2 * Math.PI * 42)}
-                      strokeDashoffset={String(2 * Math.PI * 42 * (1 - (countdownSec / 2)))}
-                      style={{ transition: 'stroke-dashoffset 0.9s linear' }}
-                    />
-                  </svg>
-                  <span className="text-white text-4xl font-black tabular-nums drop-shadow-lg">{countdownSec}</span>
+              {/* Número encima, centrado en la mitad superior */}
+              <div className="absolute inset-x-0 top-0 h-1/2 flex flex-col items-center justify-center gap-2">
+                <div className="bg-black/60 backdrop-blur-sm rounded-3xl px-6 py-3 flex flex-col items-center gap-1">
+                  <span className="text-white/70 text-xs font-semibold tracking-widest uppercase">Alistando en</span>
+                  <span className="text-white text-7xl font-black tabular-nums leading-none">{countdownSec}</span>
                 </div>
                 <button onClick={cancelarCountdown}
-                  className="mt-2 px-10 py-3 rounded-2xl bg-black/60 border border-white/30 backdrop-blur-sm text-white text-sm font-semibold">
+                  className="mt-1 px-8 py-2.5 rounded-2xl bg-black/60 border border-white/30 backdrop-blur-sm text-white text-sm font-semibold">
                   ✕ Cancelar
                 </button>
               </div>
