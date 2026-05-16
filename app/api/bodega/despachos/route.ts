@@ -154,7 +154,8 @@ export async function GET(req: NextRequest) {
           numero: n,
           clienteNombre: r?.clienteNombre || null,
           entregadoEl:   despachada ? (r?.entregadoEl || r?.alistadoEl || null) : null,
-          confirmado:    despachada && !!(r?.repartidorId || r?.guiaTransporte || r?.transportadora),
+          confirmado:    despachada && !!(r?.repartidorId || r?.guiaTransporte || r?.transportadora || r?.firmaEntrega),
+          modo:          r?.firmaEntrega ? 'personal' : r?.guiaTransporte || r?.transportadora ? 'transportadora' : r?.repartidorId ? 'repartidor' : null,
           despachada,
           hueco: !r,  // número que no existe en BD
         })

@@ -316,6 +316,7 @@ export default function OrdenesPage() {
                 clienteNombre: ordenActualizada.clienteNombre || f.clienteNombre,
                 entregadoEl: ordenActualizada.entregadoEl || ordenActualizada.alistadoEl || null,
                 confirmado: !!(ordenActualizada.repartidorId || ordenActualizada.guiaTransporte || ordenActualizada.transportadora || ordenActualizada.firmaEntrega),
+                modo: ordenActualizada.firmaEntrega ? 'personal' : (ordenActualizada.guiaTransporte || ordenActualizada.transportadora) ? 'transportadora' : ordenActualizada.repartidorId ? 'repartidor' : null,
               } : f))
             }
           }
@@ -949,7 +950,7 @@ export default function OrdenesPage() {
                     )}
                     {horaOrden2 && <span className="text-zinc-300 text-xs">{horaOrden2}</span>}
                     {desp.repartidor && <span className="text-zinc-300 text-xs">· {desp.repartidor.nombre}</span>}
-                    {f.confirmado && <span className="text-sm">🚚</span>}
+                    {f.confirmado && <span className="text-sm">{f.modo === 'personal' ? '🤝' : f.modo === 'transportadora' ? '📦' : '🚚'}</span>}
                   </div>
                 </div>
               </div>
