@@ -942,15 +942,23 @@ export default function OrdenesPage() {
                       {ciudad2 && <span className="text-zinc-400 text-xs flex-shrink-0">{ciudad2}</span>}
                     </div>
                     <div className="flex items-center gap-2">
+                      {/* 📷 + cantidad */}
                       <button
                         onClick={fotos2.length > 0 ? () => abrirGaleriaConUrls(fotos2, log.alistadoEl) : undefined}
                         disabled={fotos2.length === 0}
-                        className="w-8 flex items-center gap-0.5 text-zinc-400 hover:text-white text-xs disabled:opacity-30 disabled:cursor-default flex-shrink-0">
-                        📷{fotos2.length > 1 ? <span className="text-[10px] font-semibold">{fotos2.length}</span> : null}
+                        className="w-7 flex-shrink-0 flex items-center gap-0.5 text-zinc-400 hover:text-white text-xs disabled:opacity-30 disabled:cursor-default">
+                        📷{fotos2.length > 1 ? <span className="text-[10px] font-bold leading-none">{fotos2.length}</span> : null}
                       </button>
-                      <span className="w-5 text-sm flex-shrink-0">{log.modo === 'personal' ? '🤝' : log.modo === 'transportadora' ? '📦' : '🚚'}</span>
-                      <span className="text-zinc-500 text-xs w-14 flex-shrink-0 whitespace-nowrap">{log.alistadoEl ? formatHora(log.alistadoEl) : '—'}</span>
-                      <span className="text-zinc-400 text-xs whitespace-nowrap">{formatFechaCorta(log.despachadoEl)}</span>
+                      {/* Fecha + hora alistado */}
+                      <span className="text-zinc-500 text-xs whitespace-nowrap flex-shrink-0">
+                        {log.alistadoEl ? formatFechaCorta(log.alistadoEl) : '—'}
+                      </span>
+                      {/* Icono modo despacho */}
+                      <span className="text-sm flex-shrink-0">{log.modo === 'personal' ? '🤝' : log.modo === 'transportadora' ? '📦' : '🚚'}</span>
+                      {/* Fecha + hora despacho */}
+                      <span className="text-zinc-400 text-xs whitespace-nowrap flex-shrink-0">
+                        {formatFechaCorta(log.despachadoEl)}
+                      </span>
                     </div>
                   </div>
                 </div>
