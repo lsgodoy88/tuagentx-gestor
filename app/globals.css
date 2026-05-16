@@ -473,3 +473,19 @@ body {
   -webkit-backdrop-filter: blur(20px) !important;
   border-top: 1px solid rgba(255,255,255,0.08) !important;
 }
+
+/* ── Textos grises → blancos ───────────────────────────────────────
+   Con el fondo oscuro del glass, los grises se pierden.
+   Se mantiene una jerarquía leve: zinc-600 levemente atenuado.
+   ------------------------------------------------------------------ */
+.text-zinc-200, .text-zinc-300, .text-zinc-400 { color: rgba(255,255,255,1) !important; }
+.text-zinc-500 { color: rgba(255,255,255,0.90) !important; }
+.text-zinc-600 { color: rgba(255,255,255,0.80) !important; }
+.text-zinc-700 { color: rgba(255,255,255,0.70) !important; }
+.text-slate-400, .text-slate-500 { color: rgba(255,255,255,0.90) !important; }
+.text-\[\#a1a1aa\] { color: rgba(255,255,255,0.90) !important; }
+.text-\[\#9ca3af\] { color: rgba(255,255,255,0.90) !important; }
+.text-\[\#e4e4e7\] { color: rgba(255,255,255,1) !important; }
+.text-white\/40 { color: rgba(255,255,255,0.65) !important; }
+.text-white\/60 { color: rgba(255,255,255,0.85) !important; }
+.text-white\/70 { color: rgba(255,255,255,0.90) !important; }
