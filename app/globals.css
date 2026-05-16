@@ -405,50 +405,58 @@ body {
 
 /* Cards principales */
 .bg-zinc-900 {
-  background-color: rgba(24, 24, 27, 0.85) !important;
+  background-color: rgba(15, 15, 20, 0.55) !important;
   backdrop-filter: blur(14px) !important;
   -webkit-backdrop-filter: blur(14px) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
 }
 
 /* Inputs, selects, elementos secundarios */
 .bg-zinc-800 {
-  background-color: rgba(39, 39, 42, 0.80) !important;
+  background-color: rgba(25, 25, 32, 0.50) !important;
   backdrop-filter: blur(10px) !important;
   -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
 }
 
 /* Elementos terciarios (botones, chips) */
 .bg-zinc-700 {
-  background-color: rgba(63, 63, 70, 0.82) !important;
+  background-color: rgba(40, 40, 50, 0.55) !important;
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(255,255,255,0.05) !important;
 }
 
 /* Fondos muy oscuros usados en sidebar / panels */
 .bg-\[\#18181b\] {
-  background-color: rgba(24, 24, 27, 0.87) !important;
+  background-color: rgba(15, 15, 20, 0.58) !important;
   backdrop-filter: blur(14px) !important;
   -webkit-backdrop-filter: blur(14px) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
 }
 .bg-\[\#27272a\] {
-  background-color: rgba(39, 39, 42, 0.82) !important;
+  background-color: rgba(25, 25, 32, 0.52) !important;
   backdrop-filter: blur(10px) !important;
   -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
 }
 .bg-zinc-950 {
-  background-color: rgba(9, 9, 11, 0.88) !important;
+  background-color: rgba(5, 5, 10, 0.62) !important;
   backdrop-filter: blur(18px) !important;
   -webkit-backdrop-filter: blur(18px) !important;
+  border: 1px solid rgba(255,255,255,0.09) !important;
 }
 
 /* bg-[#080818] y bg-[#0d0d1a] — card-bg original */
 .bg-\[\#080818\] {
-  background-color: rgba(8, 8, 24, 0.86) !important;
+  background-color: rgba(6, 6, 20, 0.55) !important;
   backdrop-filter: blur(16px) !important;
   -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
 }
 .bg-\[\#0d0d1a\] {
-  background-color: rgba(13, 13, 26, 0.84) !important;
+  background-color: rgba(10, 10, 22, 0.52) !important;
   backdrop-filter: blur(16px) !important;
   -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
 }
