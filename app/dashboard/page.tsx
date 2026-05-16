@@ -478,7 +478,7 @@ export default function DashboardPage() {
           </div>
           <p className="text-emerald-400 font-bold text-2xl">${totalMensual.toLocaleString('es-CO')}</p>
         </div>
-        <div className="card-glass rounded-2xl overflow-hidden">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
           <div className="px-4 py-3 border-b border-zinc-800">
             <p className="text-white font-semibold">Por empresa</p>
           </div>
@@ -550,7 +550,7 @@ export default function DashboardPage() {
               { label: 'Visitas hoy', value: stats.visitasHoy || 0, icon: '📍', sub: 'del día', numeric: true },
               { label: 'Ventas hoy', value: stats.ventasHoy || 0, icon: '💰', sub: 'en efectivo', numeric: true, money: true },
             ].map((s, i) => (
-              <div key={s.label} className={`card-glass rounded-2xl p-4 hover-lift fade-up stagger-${i+1} ${loadingStats ? 'loading-border' : ''}`}>
+              <div key={s.label} className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-${i+1} ${loadingStats ? 'loading-border' : ''}`}>
                 <div className="text-2xl mb-2">{s.icon}</div>
                 <div className="text-xl font-bold text-white truncate">
                   {s.money ? <>$<CountUp end={Number(s.value) || 0} /></> : <CountUp end={Number(s.value) || 0} />}
@@ -561,17 +561,17 @@ export default function DashboardPage() {
             ))}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className={`card-glass rounded-2xl p-4 hover-lift fade-up stagger-5 ${loadingStats ? 'loading-border' : ''}`}>
+            <div className={`bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 hover-lift fade-up stagger-5 ${loadingStats ? 'loading-border' : ''}`}>
               <p className="text-blue-400 text-xs font-semibold mb-1">VENTAS 30 DÍAS</p>
               <p className="text-white text-2xl font-bold">$<CountUp end={stats.ventasMes || 0} /></p>
               <p className="text-zinc-500 text-xs mt-1">{stats.porTipo?.venta || 0} transacciones</p>
             </div>
-            <div className={`card-glass rounded-2xl p-4 hover-lift fade-up stagger-6 ${loadingStats ? 'loading-border-emerald' : ''}`}>
+            <div className={`bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 hover-lift fade-up stagger-6 ${loadingStats ? 'loading-border-emerald' : ''}`}>
               <p className="text-emerald-400 text-xs font-semibold mb-1">COBROS 30 DÍAS</p>
               <p className="text-white text-2xl font-bold">$<CountUp end={stats.cobrosMes || 0} /></p>
               <p className="text-zinc-500 text-xs mt-1">{stats.porTipo?.cobro || 0} transacciones</p>
             </div>
-            <div className={`card-glass rounded-2xl p-4 hover-lift fade-up stagger-7 ${loadingStats ? 'loading-border' : ''}`}>
+            <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-7 ${loadingStats ? 'loading-border' : ''}`}>
               <p className="text-zinc-400 text-xs font-semibold mb-1">RUTAS ACTIVAS</p>
               <p className="text-white text-2xl font-bold flex items-center gap-2">
                 <CountUp end={stats.rutasActivas || 0} />
@@ -579,7 +579,7 @@ export default function DashboardPage() {
               </p>
               <p className="text-zinc-500 text-xs mt-1">sin cerrar</p>
             </div>
-            <div className={`card-glass rounded-2xl p-4 hover-lift fade-up stagger-8 ${loadingStats ? 'loading-border' : ''}`}>
+            <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-8 ${loadingStats ? 'loading-border' : ''}`}>
               <p className="text-zinc-400 text-xs font-semibold mb-1">EN TURNO</p>
               <p className="text-white text-2xl font-bold flex items-center gap-2">
                 <CountUp end={stats.enTurno || 0} />
@@ -600,7 +600,7 @@ export default function DashboardPage() {
           <div className="md:grid md:grid-cols-2 md:gap-6 space-y-6 md:space-y-0">
           <div className="space-y-6">
           {stats.visitasPorDia && stats.visitasPorDia.length > 0 && (
-            <div className="card-glass rounded-2xl p-4">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
               <p className="text-white font-semibold text-sm mb-4">Visitas últimos 7 días</p>
               <div className="space-y-2">
                 {(() => {
@@ -619,7 +619,7 @@ export default function DashboardPage() {
             </div>
           )}
           {stats.topEmpleados && stats.topEmpleados.length > 0 && (
-            <div className="card-glass rounded-2xl overflow-hidden">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Top vendedores - 30 dias</p>
               </div>
@@ -635,7 +635,7 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
-          <div className="card-glass rounded-2xl p-4 flex items-center justify-between">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center justify-between">
             <div>
               <p className="text-white font-semibold">Rutas activas</p>
               <p className="text-zinc-500 text-xs mt-0.5">Sin cerrar</p>
@@ -652,7 +652,7 @@ export default function DashboardPage() {
                 if (empleadosRol.length === 0) return null
                 const titulo = rol === 'vendedor' ? 'Vendedores' : rol === 'impulsadora' ? 'Impulsadoras' : 'Entregas'
                 return (
-                  <div key={rol} className="card-glass rounded-2xl overflow-hidden">
+                  <div key={rol} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                     <div className="px-4 py-3 border-b border-zinc-800">
                       <p className="text-white font-semibold text-sm">{titulo} en turno</p>
                     </div>
@@ -708,7 +708,7 @@ export default function DashboardPage() {
           )}
           {/* Tabla 7 dias x vendedor */}
           {stats.vendedores7 && stats.vendedores7.length > 0 && (
-            <div className="card-glass rounded-2xl overflow-hidden">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Visitas por vendedor - ultimos 7 dias</p>
               </div>
@@ -740,7 +740,7 @@ export default function DashboardPage() {
           )}
           {/* Tabla 7 meses x vendedor */}
           {stats.vendedores7m && stats.vendedores7m.length > 0 && (
-            <div className="card-glass rounded-2xl overflow-hidden">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Visitas por vendedor - ultimos 7 meses</p>
               </div>
@@ -776,7 +776,7 @@ export default function DashboardPage() {
         </div>
       )}
       {isBodega && (
-        <div className="card-glass rounded-2xl p-4 hover-lift">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-white font-semibold text-sm">📦 Órdenes bodega hoy</h3>
             <a href="/dashboard/ordenes" className="text-emerald-400 text-xs">Ver órdenes →</a>
@@ -885,7 +885,7 @@ export default function DashboardPage() {
             </div>
           )}
           {ruta && totalClientes > 0 && !rutaCompletada ? (
-            <div className="card-glass rounded-2xl overflow-hidden">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
               {/* Header */}
               <div className="px-4 pt-4 pb-3">
                 {/* Fila 1: nombre ruta */}
@@ -930,7 +930,7 @@ export default function DashboardPage() {
             </div>
           ) : null}
           {user?.role === 'vendedor' && turno && (
-              <div className="card-glass rounded-2xl p-4">
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
                 <p className="text-white font-bold mb-3">Visitas</p>
                 <div className="flex gap-2">
                   {[
@@ -949,7 +949,7 @@ export default function DashboardPage() {
               </div>
             )}
           {user?.role === 'entregas' && ruta && ruta.clientes?.length > 0 && (
-            <div className="card-glass rounded-2xl overflow-hidden">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
               <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
                 <p className="text-white font-bold">📦 Ruta de hoy</p>
                 <span className="text-zinc-400 text-xs">{ejecutadosRuta}/{totalClientes} entregas</span>
@@ -1002,7 +1002,7 @@ export default function DashboardPage() {
             <div className="space-y-4">
               {/* Hoy — siempre visible */}
               {statsVendedor && (
-                <div className="card-glass rounded-2xl p-4 fade-up">
+                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 fade-up">
                   <p className="text-white font-bold mb-3">Hoy</p>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="bg-zinc-800 rounded-xl p-3">
@@ -1025,7 +1025,7 @@ export default function DashboardPage() {
                 </div>
               )}
                 {statsVendedor && statsVendedor.cumplimiento?.length > 0 && (
-                  <div className="card-glass rounded-2xl p-4">
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
                     <p className="text-white font-bold mb-3">Impulsadoras hoy</p>
                     <div className="space-y-3">
                       {statsVendedor.cumplimiento.map((imp: any) => (
@@ -1097,7 +1097,7 @@ export default function DashboardPage() {
               {mostrarEstadisticasVendedor && loadingStats && <div className="text-zinc-400 text-center py-4 text-sm">Cargando...</div>}
               {mostrarEstadisticasVendedor && !loadingStats && statsVendedor && (
                 <div className="space-y-4">
-                  <div className="card-glass rounded-2xl p-4 hover-lift fade-up stagger-2">
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-2">
                     <p className="text-white font-bold mb-3">Últimos 6 días</p>
                     <div className="overflow-x-auto">
                       <div>
@@ -1124,7 +1124,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="card-glass rounded-2xl p-4">
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
                     <p className="text-white font-bold mb-3">Últimos 6 meses</p>
                     <div className="overflow-x-auto">
                       <div>
@@ -1214,7 +1214,7 @@ export default function DashboardPage() {
     {modalRecaudoRapido && (
       <div className="fixed inset-0 bg-black/70 flex items-start justify-center z-50 p-4 pt-16"
         onClick={e => { if (e.target === e.currentTarget) { setModalRecaudoRapido(false); setRrCliente(null); setRrSinDeuda(false) } }}>
-        <div className="card-glass rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
           <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-800">
             <h3 className="text-white font-bold text-lg">💵 Recaudo rápido</h3>
             <button onClick={() => { setModalRecaudoRapido(false); setRrCliente(null); setRrSinDeuda(false) }} className="text-zinc-500 hover:text-white text-xl">×</button>
@@ -1296,7 +1296,7 @@ export default function DashboardPage() {
         .reduce((acc: number, d: any) => acc + Math.max(0, Number(d.valorFactura ?? d.valor) - Number(d.abonos ?? 0)), 0) ?? 0
       return (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="card-glass rounded-2xl w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between px-6 pt-5">
               <h3 className="text-white font-bold text-lg">💳 Recaudar</h3>
               <button onClick={() => setRecaudandoCartera(null)} className="text-zinc-500 hover:text-white text-xl">×</button>

@@ -397,51 +397,163 @@ body {
   }
 }
 
+/* ── Glassmorphism global ──────────────────────────────────────────
+   Sobreescribe los fondos sólidos de Tailwind para que el fondo
+   de imagen del dashboard sea visible a través de las cards.
+   backdrop-filter actúa sobre la imagen fija del layout.
+   ------------------------------------------------------------------ */
 
-/* ── tab-pills + tab-active ──────────────────────────────────────── */
-.tab-pills {
-  background: rgba(8, 8, 18, 0.82);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 0.75rem;
-}
-.tab-pills button {
-  border-radius: 0.5rem;
-}
-.tab-active {
-  background: rgba(255,255,255,0.18);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  color: white;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-  border-radius: 0.5rem;
+/* Cards principales */
+.bg-zinc-900 {
+  background-color: rgba(10, 10, 18, 0.78) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
 }
 
-/* ── Textos grises → blancos ──────────────────────────────────────── */
+/* Inputs, selects, elementos secundarios */
+.bg-zinc-800 {
+  background-color: rgba(18, 18, 28, 0.74) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+}
+
+/* Elementos terciarios (botones, chips) */
+.bg-zinc-700 {
+  background-color: rgba(30, 30, 42, 0.76) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  border: 1px solid rgba(255,255,255,0.05) !important;
+}
+
+/* Fondos muy oscuros usados en sidebar / panels */
+.bg-\[\#18181b\] {
+  background-color: rgba(10, 10, 18, 0.80) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+}
+.bg-\[\#27272a\] {
+  background-color: rgba(18, 18, 28, 0.76) !important;
+  backdrop-filter: blur(10px) !important;
+  -webkit-backdrop-filter: blur(10px) !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+}
+.bg-zinc-950 {
+  background-color: rgba(4, 4, 10, 0.82) !important;
+  backdrop-filter: blur(18px) !important;
+  -webkit-backdrop-filter: blur(18px) !important;
+  border: 1px solid rgba(255,255,255,0.09) !important;
+}
+
+/* bg-[#080818] y bg-[#0d0d1a] — card-bg original */
+.bg-\[\#080818\] {
+  background-color: rgba(5, 5, 18, 0.78) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+}
+.bg-\[\#0d0d1a\] {
+  background-color: rgba(8, 8, 20, 0.76) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+/* Topbar y barra inferior — también glass */
+.border-\[\#1c1c20\] {
+  border-color: rgba(255,255,255,0.08) !important;
+}
+
+/* bg-zinc-950 barra inferior de acciones */
+.bg-zinc-950 {
+  background-color: rgba(6, 6, 12, 0.75) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  border-top: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+/* ── Textos grises → blancos ───────────────────────────────────────
+   Con el fondo oscuro del glass, los grises se pierden.
+   Se mantiene una jerarquía leve: zinc-600 levemente atenuado.
+   ------------------------------------------------------------------ */
 .text-zinc-200, .text-zinc-300, .text-zinc-400 { color: rgba(255,255,255,1) !important; }
 .text-zinc-500 { color: rgba(255,255,255,0.90) !important; }
 .text-zinc-600 { color: rgba(255,255,255,0.80) !important; }
+.text-zinc-700 { color: rgba(255,255,255,0.70) !important; }
+.text-slate-400, .text-slate-500 { color: rgba(255,255,255,0.90) !important; }
+.text-\[\#a1a1aa\] { color: rgba(255,255,255,0.90) !important; }
+.text-\[\#9ca3af\] { color: rgba(255,255,255,0.90) !important; }
+.text-\[\#e4e4e7\] { color: rgba(255,255,255,1) !important; }
 .text-white\/40 { color: rgba(255,255,255,0.65) !important; }
 .text-white\/60 { color: rgba(255,255,255,0.85) !important; }
 .text-white\/70 { color: rgba(255,255,255,0.90) !important; }
 
-/* ── Botones — transición elegante ───────────────────────────────── */
-button { transition: all 0.18s ease !important; }
-button:active:not(:disabled) { transform: scale(0.97) !important; }
-
-/* ── slideInFromLeft ──────────────────────────────────────────────── */
 @keyframes slideInFromLeft {
   from { opacity: 0; transform: translateX(-40px); }
   to   { opacity: 1; transform: translateX(0); }
 }
 
-/* ── card-glass — vidrio humo v3 ─────────────────────────────────── */
-.card-glass {
-  background: rgba(8,8,18,0.52) !important;
-  backdrop-filter: blur(24px) !important;
-  -webkit-backdrop-filter: blur(24px) !important;
-  border: 1px solid rgba(255,255,255,0.12) !important;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.08) !important;
-  border-radius: inherit;
+/* ── 1. Botones elegantes — efecto hover suave ─────────────────────── */
+button, a[role="button"] {
+  transition: all 0.18s ease !important;
 }
+button:active:not(:disabled) {
+  transform: scale(0.97) !important;
+}
+.btn-elegant {
+  position: relative;
+  overflow: hidden;
+}
+.btn-elegant::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(255,255,255,0.08), transparent);
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+.btn-elegant:hover::after { opacity: 1; }
+
+/* ── 2. Tabs globales — estilo cartera con borde full width ────────── */
+.tab-bar {
+  display: flex;
+  gap: 2px;
+  position: relative;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.tab-bar::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0; right: 0;
+  height: 1px;
+  background: rgba(255,255,255,0.08);
+}
+
+
+
+/* ── Tab activo — visible sobre glass ──────────────────────────────── */
+/* El contenedor de tabs pills: fondo semitransparente */
+.tab-pills {
+  background: rgba(8, 8, 18, 0.82) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 0.75rem !important;
+}
+.tab-pills button {
+  border-radius: 0.5rem !important;
+}
+
+/* Tab activo: blanco/15 con borde — se distingue siempre */
+.tab-active {
+  background: rgba(255,255,255,0.22) !important;
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  color: white !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3) !important;
+  border-radius: 0.5rem !important;
+}
+
