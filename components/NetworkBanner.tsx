@@ -22,14 +22,14 @@ export function NetworkBanner() {
       {/* Pin flotante */}
       <div className="relative w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg cursor-default"
         style={{
-          background: 'rgba(245,158,11,0.18)',
+          background: 'rgba(220,38,38,0.25)',
           backdropFilter: 'blur(12px)',
           WebkitBackdropFilter: 'blur(12px)',
-          border: '1px solid rgba(245,158,11,0.45)',
+          border: '1px solid rgba(239,68,68,0.55)',
         }}>
 
         {/* Icono señal perdida */}
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-amber-400">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" className="text-red-400">
           {/* Barras de señal atenuadas */}
           <rect x="2" y="18" width="3" height="3" rx="0.5" fill="currentColor" opacity="0.25"/>
           <rect x="7" y="14" width="3" height="7" rx="0.5" fill="currentColor" opacity="0.25"/>
@@ -42,15 +42,15 @@ export function NetworkBanner() {
 
         {/* Pulso animado */}
         <span className="absolute inset-0 rounded-2xl animate-ping"
-          style={{background:'rgba(245,158,11,0.15)', animationDuration:'2s'}} />
+          style={{background:'rgba(220,38,38,0.20)', animationDuration:'2s'}} />
       </div>
 
       {/* Tooltip — aparece al hover/focus */}
-      <div className="absolute top-12 right-0 whitespace-nowrap text-xs font-semibold text-amber-300 px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+      <div className="absolute top-12 right-0 whitespace-nowrap text-xs font-semibold text-red-300 px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
         style={{
           background: 'rgba(10,8,4,0.85)',
           backdropFilter: 'blur(8px)',
-          border: '1px solid rgba(245,158,11,0.3)',
+          border: '1px solid rgba(239,68,68,0.4)',
         }}>
         {label}
       </div>
