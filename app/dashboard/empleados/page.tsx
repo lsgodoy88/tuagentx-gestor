@@ -210,13 +210,13 @@ export default function EmpleadosPage() {
       </div>
 
       {/* Tabs principales */}
-      <div className="flex gap-1 border-b border-zinc-800">
+      <div className="flex gap-1 tab-pills rounded-xl p-1">
         <button onClick={() => setTabPrincipal('rutas')}
-          className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors ${tabPrincipal === 'rutas' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-zinc-400 hover:text-white'}`}>
+          className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors ${tabPrincipal === 'rutas' ? 'tab-active rounded-lg py-2.5 px-5' : 'text-white hover:text-white rounded-lg py-2.5 px-5'}`}>
           🛣️ Rutas
         </button>
         <button onClick={() => setTabPrincipal('equipo')}
-          className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors ${tabPrincipal === 'equipo' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-zinc-400 hover:text-white'}`}>
+          className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors ${tabPrincipal === 'equipo' ? 'tab-active rounded-lg py-2.5 px-5' : 'text-white hover:text-white rounded-lg py-2.5 px-5'}`}>
           👥 Equipo
         </button>
       </div>

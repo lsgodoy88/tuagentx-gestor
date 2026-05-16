@@ -280,13 +280,13 @@ export default function RecaudosPage() {
 
       {/* Tabs + botón fecha */}
       <div className="flex items-center gap-2">
-        <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
+        <div className="flex gap-1 tab-pills rounded-xl p-1">
           {TABS.map(t => (
             <button
               key={t.key}
               onClick={() => { setTab(t.key as any) }}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                tab === t.key ? 'bg-blue-600 text-white' : 'text-zinc-400 hover:text-white'
+                tab === t.key ? 'bg-blue-600 text-white' : 'text-white hover:text-white rounded-lg py-2.5 px-5'
               }`}>
               {t.label}
             </button>

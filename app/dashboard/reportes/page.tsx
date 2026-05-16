@@ -56,7 +56,7 @@ export default function ReportesPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 bg-zinc-900 border border-zinc-800 rounded-xl p-1">
+      <div className="flex gap-1 tab-pills rounded-xl p-1">
         <button onClick={() => setTab('dia')}
           className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'dia' ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-300")}>
           📊 Por día

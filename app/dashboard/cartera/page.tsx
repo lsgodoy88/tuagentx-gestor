@@ -506,11 +506,11 @@ export default function CarteraPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-zinc-800 overflow-x-auto">
+      <div className="flex gap-1 tab-pills rounded-xl p-1">
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id as any)}
             className={`px-4 py-2.5 text-sm font-semibold transition-colors rounded-t-lg ${
-              tab === t.id ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-zinc-400 hover:text-white'
+              tab === t.id ? 'tab-active rounded-lg py-2.5 px-5' : 'text-white hover:text-white rounded-lg py-2.5 px-5'
             }`}>{t.label}</button>
         ))}
       </div>
