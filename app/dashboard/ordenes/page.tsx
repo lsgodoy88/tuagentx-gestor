@@ -1031,39 +1031,49 @@ export default function OrdenesPage() {
 
       {/* Modal cámara fullscreen */}
       {camaraActiva && (
-        <div className="fixed inset-0 bg-black z-50 flex flex-col overflow-hidden touch-none">
-          {/* Video fullscreen */}
-          <video ref={videoRef} autoPlay playsInline className="flex-1 object-cover w-full" style={{ touchAction: 'pinch-zoom' }} />
-          {/* Barra inferior */}
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent pt-6 pb-8 px-4">
-            {countdownSec !== null ? (
-              <div className="flex flex-col items-center gap-3 py-2">
-                <p className="text-white text-sm font-semibold tracking-wide">Alistando en...</p>
-                {/* Mosaico de fotos */}
-                <div className={`grid gap-1.5 w-full max-w-xs ${fotosCapturadas.length === 1 ? 'grid-cols-1' : fotosCapturadas.length === 2 ? 'grid-cols-2' : fotosCapturadas.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+        <div className="fixed inset-0 z-50 overflow-hidden touch-none">
+
+          {countdownSec !== null ? (
+            /* ── Modo countdown: fotos como fondo fullscreen + overlay encima ── */
+            <div className="absolute inset-0 bg-black">
+              {/* Mosaico fullscreen */}
+              {fotosCapturadas.length === 1 ? (
+                <img src={fotosCapturadas[0]} className="w-full h-full object-cover" />
+              ) : (
+                <div className={`w-full h-full grid gap-0.5 ${fotosCapturadas.length === 2 ? 'grid-cols-2' : fotosCapturadas.length === 3 ? 'grid-cols-2 grid-rows-2' : 'grid-cols-2 grid-rows-2'}`}>
                   {fotosCapturadas.map((f, i) => (
-                    <img key={i} src={f} className="w-full aspect-square object-cover rounded-xl border-2 border-emerald-500/60" />
+                    <img key={i} src={f}
+                      className={`w-full h-full object-cover ${fotosCapturadas.length === 3 && i === 0 ? 'col-span-2' : ''}`} />
                   ))}
                 </div>
-                {/* Círculo countdown */}
-                <div className="relative w-20 h-20 flex items-center justify-center">
-                  <svg className="absolute inset-0 -rotate-90" viewBox="0 0 80 80">
-                    <circle cx="40" cy="40" r="36" fill="none" stroke="#27272a" strokeWidth="5" />
-                    <circle cx="40" cy="40" r="36" fill="none" stroke="#10b981" strokeWidth="5"
-                      strokeDasharray={String(2 * Math.PI * 36)}
-                      strokeDashoffset={String(2 * Math.PI * 36 * (1 - (countdownSec / 2)))}
+              )}
+              {/* Overlay oscuro semitransparente */}
+              <div className="absolute inset-0 bg-black/50" />
+              {/* Countdown centrado */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-6">
+                <p className="text-white text-base font-semibold tracking-wide drop-shadow">Alistando en...</p>
+                <div className="relative w-24 h-24 flex items-center justify-center">
+                  <svg className="absolute inset-0 -rotate-90" viewBox="0 0 96 96">
+                    <circle cx="48" cy="48" r="42" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="6" />
+                    <circle cx="48" cy="48" r="42" fill="none" stroke="#10b981" strokeWidth="6"
+                      strokeDasharray={String(2 * Math.PI * 42)}
+                      strokeDashoffset={String(2 * Math.PI * 42 * (1 - (countdownSec / 2)))}
                       style={{ transition: 'stroke-dashoffset 0.9s linear' }}
                     />
                   </svg>
-                  <span className="text-white text-3xl font-black tabular-nums">{countdownSec}</span>
+                  <span className="text-white text-4xl font-black tabular-nums drop-shadow-lg">{countdownSec}</span>
                 </div>
                 <button onClick={cancelarCountdown}
-                  className="px-8 py-2.5 rounded-2xl bg-zinc-800 border border-zinc-600 text-white text-sm font-semibold">
+                  className="mt-2 px-10 py-3 rounded-2xl bg-black/60 border border-white/30 backdrop-blur-sm text-white text-sm font-semibold">
                   ✕ Cancelar
                 </button>
               </div>
-            ) : (
-              <>
+            </div>
+          ) : (
+            /* ── Modo cámara normal ── */
+            <div className="absolute inset-0 bg-black flex flex-col">
+              <video ref={videoRef} autoPlay playsInline className="flex-1 object-cover w-full" style={{ touchAction: 'pinch-zoom' }} />
+              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent pt-6 pb-8 px-4">
                 {fotosCapturadas.length > 0 && (
                   <div className="flex gap-2 mb-4 overflow-x-auto">
                     {fotosCapturadas.map((f, i) => (
@@ -1100,9 +1110,9 @@ export default function OrdenesPage() {
                     <button onClick={() => aplicarZoom(zoomLevel + 0.5)} className="w-8 h-8 rounded-full bg-zinc-700 text-white text-lg flex items-center justify-center">+</button>
                   </div>
                 )}
-              </>
-            )}
-          </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
       {/* Modal Cropper */}
