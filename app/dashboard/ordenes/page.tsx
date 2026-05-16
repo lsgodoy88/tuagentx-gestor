@@ -305,7 +305,20 @@ export default function OrdenesPage() {
           const estadoNuevo = ordenActualizada.estado
           const esDespachada = ['en_entrega','en_transito','entregado'].includes(estadoNuevo)
           const esAlistada = estadoNuevo === 'alistado'
-          if (esDespachada) setTabActivo('despachado')
+          if (esDespachada) {
+            setTabActivo('despachado')
+            // Actualizar el control de consecutivos con la nueva orden despachada
+            const nf = ordenActualizada.numeroFactura ? parseInt(ordenActualizada.numeroFactura) : null
+            if (nf) {
+              setControlFacturas(prev => prev.map(f => f.numero === nf ? {
+                ...f,
+                despachada: true,
+                clienteNombre: ordenActualizada.clienteNombre || f.clienteNombre,
+                entregadoEl: ordenActualizada.entregadoEl || ordenActualizada.alistadoEl || null,
+                confirmado: !!(ordenActualizada.repartidorId || ordenActualizada.guiaTransporte || ordenActualizada.transportadora || ordenActualizada.firmaEntrega),
+              } : f))
+            }
+          }
           else if (esAlistada) setTabActivo('alistado')
           for (const tab of Object.keys(next) as Array<'pendiente'|'alistado'|'despachado'>) {
             if (esDespachada && tab !== 'despachado') {
