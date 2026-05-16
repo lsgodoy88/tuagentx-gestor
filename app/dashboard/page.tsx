@@ -1024,7 +1024,7 @@ export default function DashboardPage() {
                   </div>
                 </div>
               )}
-                {statsVendedor.cumplimiento?.length > 0 && (
+                {statsVendedor && statsVendedor.cumplimiento?.length > 0 && (
                   <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
                     <p className="text-white font-bold mb-3">Impulsadoras hoy</p>
                     <div className="space-y-3">
