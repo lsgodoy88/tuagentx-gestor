@@ -325,7 +325,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Drawer móvil — estilo B */}
       {menuMovil && (
         <div className="fixed inset-0 z-[2000] md:hidden">
-          <div className="absolute inset-0 bg-black/80" onClick={() => setMenuMovil(false)}>
+          <div className="absolute inset-0" style={{background:"rgba(4,6,20,0.88)"}} onClick={() => setMenuMovil(false)}>
             {/* Mensajes de ánimo — salen del sidebar hacia la derecha */}
             <div className="absolute overflow-hidden" style={{left:'224px', right:0, top:'18%'}} onClick={e => e.stopPropagation()}>
               <div key={fraseIdx} className="px-5 select-none pointer-events-none" style={{
@@ -341,7 +341,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
             </div>
           </div>
-          <div className="absolute left-0 top-0 bottom-0 w-56 border-r flex flex-col z-[2001] shadow-2xl" style={{background:"rgba(6,6,20,0.92)",backdropFilter:"blur(28px)",WebkitBackdropFilter:"blur(28px)",borderColor:"rgba(255,255,255,0.08)"}}>
+          <div className="absolute left-0 top-0 bottom-0 w-56 border-r flex flex-col z-[2001] shadow-2xl" style={{background:"rgba(8,10,30,0.55)",backdropFilter:"blur(28px)",WebkitBackdropFilter:"blur(28px)",borderColor:"rgba(255,255,255,0.12)"}}>
 
             {/* Header */}
             <div className="flex items-center justify-between px-4 h-14 border-b border-[#1c1c20]">
