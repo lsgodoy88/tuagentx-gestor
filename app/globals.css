@@ -537,7 +537,7 @@ button:active:not(:disabled) {
 /* ── Tab activo — visible sobre glass ──────────────────────────────── */
 /* El contenedor de tabs pills: fondo semitransparente */
 .tab-pills {
-  background: rgba(24, 24, 32, 0.60) !important;
+  background: rgba(8, 8, 18, 0.82) !important;
   backdrop-filter: blur(12px) !important;
   -webkit-backdrop-filter: blur(12px) !important;
   border: 1px solid rgba(255,255,255,0.08) !important;
@@ -545,7 +545,7 @@ button:active:not(:disabled) {
 
 /* Tab activo: blanco/15 con borde — se distingue siempre */
 .tab-active {
-  background: rgba(255,255,255,0.18) !important;
+  background: rgba(255,255,255,0.22) !important;
   backdrop-filter: blur(8px) !important;
   -webkit-backdrop-filter: blur(8px) !important;
   color: white !important;
