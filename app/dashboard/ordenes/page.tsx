@@ -703,9 +703,7 @@ export default function OrdenesPage() {
                         {d.alistadoEl && (
                           <span className="text-zinc-300 text-xs">Alistado {formatFechaCorta(d.alistadoEl)}</span>
                         )}
-                        {d.alistadoPor && d.alistadoPor.nombre && d.alistadoPor.nombre.toLowerCase() !== 'bodega' && (
-                          <span className="text-zinc-300 text-xs">· {d.alistadoPor.nombre}</span>
-                        )}
+                
                       </div>
 
                       {isExpanded && (
@@ -949,7 +947,7 @@ export default function OrdenesPage() {
                       </button>
                     )}
                     {horaOrden2 && <span className="text-zinc-300 text-xs">{horaOrden2}</span>}
-                    {desp.repartidor && <span className="text-zinc-300 text-xs">· {desp.repartidor.nombre}</span>}
+
                     {f.confirmado && <span className="text-sm">{f.modo === 'personal' ? '🤝' : f.modo === 'transportadora' ? '📦' : '🚚'}</span>}
                   </div>
                 </div>
