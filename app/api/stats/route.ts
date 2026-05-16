@@ -4,11 +4,21 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
 
+// Caché en memoria — TTL 5 min por empresaId
+const cache = new Map<string, { data: any; ts: number }>()
+const CACHE_TTL = 5 * 60 * 1000
+
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
   const empresaId = getEmpresaId(user)
+
+  // Servir desde caché si es reciente
+  const cached = cache.get(empresaId)
+  if (cached && Date.now() - cached.ts < CACHE_TTL) {
+    return NextResponse.json(cached.data)
+  }
 
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
   const hace7dias = new Date(Date.now() - 7 * 86400000)

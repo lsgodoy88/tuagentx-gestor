@@ -5,6 +5,10 @@ import { prisma } from '@/lib/prisma'
 import { nowBogota } from '@/lib/fechas'
 import { DIAS } from '@/lib/constants'
 
+// Caché en memoria — TTL 3 min por userId
+const cache = new Map<string, { data: any; ts: number }>()
+const CACHE_TTL = 3 * 60 * 1000
+
 function fechaBogotaHoy() {
   return nowBogota()
 }
@@ -12,6 +16,9 @@ function fechaBogotaHoy() {
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const cacheKey = (session.user as any)?.id
+  const cached = cacheKey && cache.get(cacheKey)
+  if (cached && Date.now() - cached.ts < CACHE_TTL) return NextResponse.json(cached.data)
   const user = session.user as any
   if (user.role !== 'vendedor') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
@@ -172,5 +179,7 @@ export async function GET() {
     }
   }))
 
-  return NextResponse.json({ hoy, dias, meses, cumplimiento })
+  const result = { hoy, dias, meses, cumplimiento }
+  if (cacheKey) cache.set(cacheKey, { data: result, ts: Date.now() })
+  return NextResponse.json(result)
 }
