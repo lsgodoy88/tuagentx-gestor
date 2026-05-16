@@ -30,5 +30,10 @@ export async function GET(req: NextRequest) {
   const data    = hayMas ? rows.slice(0, LIMIT) : rows
   const nextCursor = hayMas ? data[data.length - 1].id : null
 
-  return NextResponse.json({ data, nextCursor, hayMas })
+  // Serializar despachadoEl a string ISO para evitar problemas de tipo en cliente
+  const serialized = data.map((r: any) => ({
+    ...r,
+    despachadoEl: r.despachadoEl instanceof Date ? r.despachadoEl.toISOString() : String(r.despachadoEl)
+  }))
+  return NextResponse.json({ data: serialized, nextCursor, hayMas })
 }
