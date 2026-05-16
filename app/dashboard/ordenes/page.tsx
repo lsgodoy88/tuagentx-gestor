@@ -154,6 +154,19 @@ export default function OrdenesPage() {
 
   const esAdmin = user?.role === 'empresa' || user?.role === 'supervisor'
 
+  // Bloquear botón físico atrás del móvil cuando la cámara está abierta
+  useEffect(() => {
+    if (!camaraActiva) return
+    const bloquear = (e: PopStateEvent) => {
+      e.preventDefault()
+      // Re-push para mantener el estado actual
+      window.history.pushState(null, '', window.location.href)
+    }
+    window.history.pushState(null, '', window.location.href)
+    window.addEventListener('popstate', bloquear)
+    return () => window.removeEventListener('popstate', bloquear)
+  }, [camaraActiva])
+
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/login'); return }
     if (status !== 'authenticated') return
@@ -423,7 +436,7 @@ export default function OrdenesPage() {
       setFotosCapturadas([])
     }
     // Fotos subidas — iniciar countdown para alistar automáticamente
-    setCountdownSec(4)
+    setCountdownSec(2)
     countdownRef.current = setInterval(() => {
       setCountdownSec(prev => {
         if (prev === null || prev <= 1) {
@@ -1024,21 +1037,28 @@ export default function OrdenesPage() {
           {/* Barra inferior */}
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent pt-6 pb-8 px-4">
             {countdownSec !== null ? (
-              <div className="flex flex-col items-center gap-4 py-2">
+              <div className="flex flex-col items-center gap-3 py-2">
                 <p className="text-white text-sm font-semibold tracking-wide">Alistando en...</p>
-                <div className="relative w-24 h-24 flex items-center justify-center">
-                  <svg className="absolute inset-0 -rotate-90" viewBox="0 0 96 96">
-                    <circle cx="48" cy="48" r="44" fill="none" stroke="#27272a" strokeWidth="6" />
-                    <circle cx="48" cy="48" r="44" fill="none" stroke="#10b981" strokeWidth="6"
-                      strokeDasharray={String(2 * Math.PI * 44)}
-                      strokeDashoffset={String(2 * Math.PI * 44 * (1 - (countdownSec / 4)))}
+                {/* Mosaico de fotos */}
+                <div className={`grid gap-1.5 w-full max-w-xs ${fotosCapturadas.length === 1 ? 'grid-cols-1' : fotosCapturadas.length === 2 ? 'grid-cols-2' : fotosCapturadas.length === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                  {fotosCapturadas.map((f, i) => (
+                    <img key={i} src={f} className="w-full aspect-square object-cover rounded-xl border-2 border-emerald-500/60" />
+                  ))}
+                </div>
+                {/* Círculo countdown */}
+                <div className="relative w-20 h-20 flex items-center justify-center">
+                  <svg className="absolute inset-0 -rotate-90" viewBox="0 0 80 80">
+                    <circle cx="40" cy="40" r="36" fill="none" stroke="#27272a" strokeWidth="5" />
+                    <circle cx="40" cy="40" r="36" fill="none" stroke="#10b981" strokeWidth="5"
+                      strokeDasharray={String(2 * Math.PI * 36)}
+                      strokeDashoffset={String(2 * Math.PI * 36 * (1 - (countdownSec / 2)))}
                       style={{ transition: 'stroke-dashoffset 0.9s linear' }}
                     />
                   </svg>
-                  <span className="text-white text-4xl font-black tabular-nums">{countdownSec}</span>
+                  <span className="text-white text-3xl font-black tabular-nums">{countdownSec}</span>
                 </div>
                 <button onClick={cancelarCountdown}
-                  className="px-8 py-3 rounded-2xl bg-zinc-800 border border-zinc-600 text-white text-sm font-semibold">
+                  className="px-8 py-2.5 rounded-2xl bg-zinc-800 border border-zinc-600 text-white text-sm font-semibold">
                   ✕ Cancelar
                 </button>
               </div>
