@@ -941,7 +941,7 @@ export default function OrdenesPage() {
             const border2 = BORDER[desp2.estado] ?? BORDER.pendiente
             const isSaving2 = saving[desp2.id]
             const isExpanded2 = expanded[desp2.id]
-            const horaOrden2 = desp2.alistadoEl ? formatFechaCorta(desp2.alistadoEl) : desp2.fechaOrden ? formatFechaCorta(desp2.fechaOrden) : ''
+            const horaOrden2 = f.despachadoEl ? formatFechaCorta(f.despachadoEl) : desp2.alistadoEl ? formatFechaCorta(desp2.alistadoEl) : ''
             const fotoKey2 = desp2.fotoAlistamiento
             const fotos2: string[] = (desp2.fotosAlistamiento as string[] | null) || (fotoKey2 ? [fotoKey2] : [])
             const tieneFotos2 = fotos2.length > 0
