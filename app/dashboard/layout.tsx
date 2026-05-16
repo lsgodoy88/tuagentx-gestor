@@ -320,7 +320,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     {/* Capa de fondo fija — fuera de overflow-hidden para que backdrop-filter funcione */}
     <div aria-hidden="true" style={{
       position: 'fixed', inset: 0, zIndex: -1,
-      backgroundImage: "url('https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&q=80')",
+      backgroundImage: "url('/bg-city.jpg')",
       backgroundSize: 'cover', backgroundPosition: 'center',
     }} />
     <div aria-hidden="true" style={{

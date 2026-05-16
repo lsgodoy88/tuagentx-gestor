@@ -5,7 +5,6 @@ import { useEffect, useState, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import type ExcelJSType from 'exceljs'
 import { checkPermiso } from '@/lib/permisos'
 
 export default function ClientesPage() {
@@ -55,8 +54,13 @@ export default function ClientesPage() {
 
   useEffect(() => {
     loadClientes('', null)
-    fetch('/api/listas').then(r=>r.json()).then(d=>{ if(Array.isArray(d)) setListas(d) })
-    fetch('/api/empleados').then(r=>r.json()).then(d=>{ if(d.empleados) setVendedores(d.empleados.filter((e:any)=>e.rol==='vendedor'&&e.activo)) })
+    Promise.all([
+      fetch('/api/listas').then(r=>r.json()),
+      fetch('/api/empleados').then(r=>r.json()),
+    ]).then(([listas, emps]) => {
+      if(Array.isArray(listas)) setListas(listas)
+      if(emps?.empleados) setVendedores(emps.empleados.filter((e:any)=>e.rol==='vendedor'&&e.activo))
+    })
   }, [])
 
   async function loadClientes(q: string = '', cursor: string | null = null) {
@@ -121,9 +125,9 @@ export default function ClientesPage() {
       const ws = wb.worksheets[0]
       const rows: any[] = []
       const headers: string[] = []
-      ws.eachRow((row, rowNum) => {
+      ws.eachRow((row: any, rowNum: any) => {
         if (rowNum === 1) {
-          row.eachCell((cell, col) => { headers[col] = String(cell.value || '').trim().toLowerCase() })
+          row.eachCell((cell: any, col: any) => { headers[col] = String(cell.value || '').trim().toLowerCase() })
         } else {
           const obj: any = {}
           headers.forEach((h, col) => {
@@ -219,9 +223,9 @@ export default function ClientesPage() {
     const grayKeys = ['api', 'nit']
     const blueKeys = ['maps']
 
-    function setupHeaders(ws: ExcelJSType.Worksheet) {
+    function setupHeaders(ws: any) {
       ws.columns = sheetCols
-      ws.getRow(1).eachCell((cell, colNum) => {
+      ws.getRow(1).eachCell((cell: any, colNum: any) => {
         const key = ws.getColumn(colNum).key as string
         const argb = grayKeys.includes(key) ? 'FF3F3F46' : blueKeys.includes(key) ? 'FF1D4ED8' : 'FF16A34A'
         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb } }
@@ -229,7 +233,7 @@ export default function ClientesPage() {
       })
     }
 
-    function applyDV(ws: ExcelJSType.Worksheet) {
+    function applyDV(ws: any) {
       const cCol = ws.getColumn('ciudad').number
       const lCol = ws.getColumn('lista').number
       for (let r = 2; r <= 10000; r++) {
@@ -276,7 +280,7 @@ export default function ClientesPage() {
       { header: 'lista', key: 'lista', width: 15 },
     ]
     // Encabezado verde
-    ws.getRow(1).eachCell((cell, colNum) => {
+    ws.getRow(1).eachCell((cell: any, colNum: any) => {
       const obligatorias = ['nombre','celular','direccion','ciudad']
       const key = ws.getColumn(colNum).key as string
       cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: obligatorias.includes(key) ? 'FF16A34A' : 'FF71717A' } }
@@ -317,14 +321,14 @@ export default function ClientesPage() {
     await wb.xlsx.load(buffer)
     // Leer hojas Existentes y Nuevos; si no existen, usar la primera hoja
     const sheetNames = ['Existentes', 'Nuevos']
-    const sheetsToRead = sheetNames.map(n => wb.getWorksheet(n)).filter(Boolean) as ExcelJSType.Worksheet[]
+    const sheetsToRead = sheetNames.map(n => wb.getWorksheet(n)).filter(Boolean) as any[]
     if (sheetsToRead.length === 0) sheetsToRead.push(wb.worksheets[0])
     const rawRows: any[] = []
     sheetsToRead.forEach(ws => {
       const headers: string[] = []
-      ws.eachRow((row, rowNum) => {
+      ws.eachRow((row: any, rowNum: any) => {
         if (rowNum === 1) {
-          row.eachCell((cell, col) => { headers[col] = String(cell.value || '').trim().toLowerCase() })
+          row.eachCell((cell: any, col: any) => { headers[col] = String(cell.value || '').trim().toLowerCase() })
         } else {
           const obj: any = {}
           headers.forEach((h, col) => { if (h) obj[h] = row.getCell(col).value ?? '' })
