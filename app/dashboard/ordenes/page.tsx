@@ -1,4 +1,5 @@
 'use client'
+import ModalEscaner from '@/components/ModalEscaner'
 import FirmaCanvas from '@/components/FirmaCanvas'
 import { SyncIcon } from '@/components/SyncIcon'
 import { useSession } from 'next-auth/react'
@@ -144,6 +145,7 @@ export default function OrdenesPage() {
   const [asignandoTodas, setAsignandoTodas] = useState(false)
   const [modoEnvio, setModoEnvio] = useState<Record<string, 'local' | 'transportadora' | 'personal'>>({})
   const [firmaData, setFirmaData] = useState<Record<string, string>>({})
+  const [escanerOrdenId, setEscanerOrdenId] = useState<string | null>(null)
   const [firmaDibujando, setFirmaDibujando] = useState<Record<string, boolean>>({})
   const firmaCanvasRefs = useRef<Record<string, HTMLCanvasElement | null>>({})
 
@@ -803,37 +805,15 @@ export default function OrdenesPage() {
                                 />
                                 <button
                                   title="Escanear código de barras"
-                                  onClick={() => {
-                                    const input = document.createElement('input')
-                                    input.type = 'file'
-                                    input.accept = 'image/*'
-                                    input.capture = 'environment'
-                                    input.onchange = async (ev: any) => {
-                                      const file = ev.target.files?.[0]
-                                      if (!file) return
-                                      setSaving(p => ({ ...p, [d.id + '_scan']: true }))
-                                      let detectado = false
-                                      if ('BarcodeDetector' in window) {
-                                        try {
-                                          const bitmap = await createImageBitmap(file)
-                                          const detector = new (window as any).BarcodeDetector()
-                                          const codes = await detector.detect(bitmap)
-                                          if (codes[0]?.rawValue) {
-                                            setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], guia: codes[0].rawValue } }))
-                                            detectado = true
-                                          }
-                                        } catch {}
-                                      }
-                                      setSaving(p => ({ ...p, [d.id + '_scan']: false }))
-                                      if (!detectado) {
-                                        const val = prompt('No se pudo leer el código automáticamente. Ingresa manualmente:')
-                                        if (val) setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], guia: val } }))
-                                      }
-                                    }
-                                    input.click()
-                                  }}
-                                  className={`border text-white px-3 py-2 rounded-xl text-base flex-shrink-0 transition-colors ${saving[d.id + '_scan'] ? 'bg-orange-600 border-orange-500' : 'bg-zinc-700 hover:bg-zinc-600 border-zinc-600'}`}>
-                                  {saving[d.id + '_scan'] ? '⏳' : '▣'}
+                                  onClick={() => setEscanerOrdenId(d.id)}
+                                  className="bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 text-white px-3 py-2 rounded-xl flex-shrink-0 flex items-center justify-center">
+                                  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
+                                    <rect x="1" y="4" width="2" height="16"/><rect x="4" y="4" width="1" height="16"/>
+                                    <rect x="6" y="4" width="2" height="16"/><rect x="9" y="4" width="1" height="16"/>
+                                    <rect x="11" y="4" width="3" height="16"/><rect x="15" y="4" width="1" height="16"/>
+                                    <rect x="17" y="4" width="2" height="16"/><rect x="20" y="4" width="1" height="16"/>
+                                    <rect x="22" y="4" width="1" height="16"/>
+                                  </svg>
                                 </button>
                                 <button onClick={() => guardarTransporte(d.id)}
                                   disabled={isSaving || !editTransporte[d.id]?.guia}
@@ -1102,6 +1082,18 @@ export default function OrdenesPage() {
           )}
         </div>
       )}
+      {/* Modal Escaner de guia */}
+      {escanerOrdenId && (
+        <ModalEscaner
+          onDetect={(codigo) => {
+            const oid = escanerOrdenId
+            setEditTransporte(p => ({ ...p, [oid]: { ...p[oid], guia: codigo } }))
+            setEscanerOrdenId(null)
+          }}
+          onClose={() => setEscanerOrdenId(null)}
+        />
+      )}
+
       {/* Modal Cropper */}
       {cropSrc && (
         <div className="fixed inset-0 bg-black z-[1000] flex flex-col">
