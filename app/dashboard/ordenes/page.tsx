@@ -931,7 +931,7 @@ export default function OrdenesPage() {
                         📷{fotos2.length > 1 ? ' ' + fotos2.length : ''}
                       </button>
                     )}
-                    {log.alistadoEl && <span className="text-zinc-500 text-xs">{formatHora(log.alistadoEl)}</span>}
+                    {log.alistadoEl && <span className="text-zinc-500 text-xs">🗂️ {formatHora(log.alistadoEl)}</span>}
                     <span className="text-sm">{log.modo === 'personal' ? '🤝' : log.modo === 'transportadora' ? '📦' : '🚚'}</span>
                     <span className="text-zinc-400 text-xs">{formatFechaCorta(log.despachadoEl)}</span>
                   </div>
