@@ -154,6 +154,29 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return ordenActualizada
   })
 
+  // Insertar en DespachoLog — registro inmutable
+  const estadoFinal = updated.estado
+  if (['en_entrega','en_transito','entregado'].includes(estadoFinal)) {
+    const modo = updated.firmaEntrega ? 'personal'
+      : (updated.guiaTransporte || updated.transportadora) ? 'transportadora'
+      : 'repartidor'
+    prisma.$executeRawUnsafe(`
+      INSERT INTO gestor."DespachoLog"
+        (id, "empresaId", "origenVinculadaId", "numeroFactura", "clienteNombre", modo, "guiaTransporte", transportadora, "despachadoEl")
+      VALUES
+        (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, NOW())
+      ON CONFLICT DO NOTHING
+    `,
+      empresaId,
+      updated.origenVinculadaId ?? null,
+      updated.numeroFactura ?? updated.numeroOrden ?? '',
+      updated.clienteNombre ?? '',
+      modo,
+      updated.guiaTransporte ?? null,
+      updated.transportadora ?? null,
+    ).catch(() => {}) // fire and forget — no bloquear el response
+  }
+
   // Enviar push a repartidor si se asignó a su ruta
   let rutaAsignada = false
   let repartidorNombre: string | null = null

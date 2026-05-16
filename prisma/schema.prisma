@@ -2825,6 +2825,23 @@ model OrdenDespacho {
   @@map("OrdenDespacho")
 }
 
+model DespachoLog {
+  id                String   @id @default(cuid())
+  empresaId         String
+  origenVinculadaId String?
+  numeroFactura     String
+  clienteNombre     String?
+  modo              String
+  guiaTransporte    String?
+  transportadora    String?
+  despachadoEl      DateTime @default(now())
+  empresa           Empresa  @relation("DespachoLogEmpresa", fields: [empresaId], references: [id])
+
+  @@index([empresaId, despachadoEl(sort: Desc)])
+  @@index([empresaId, numeroFactura])
+  @@map("DespachoLog")
+}
+
 model SyncEmpleado {
   id            String      @id @default(cuid())
   integracionId String
