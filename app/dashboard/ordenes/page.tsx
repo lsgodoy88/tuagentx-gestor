@@ -845,8 +845,15 @@ export default function OrdenesPage() {
                                     const ctx = canvas.getContext('2d')!
                                     ctx.lineTo((e.clientX - rect.left) * (canvas.width / rect.width), (e.clientY - rect.top) * (canvas.height / rect.height))
                                     ctx.stroke()
+                                    setFirmaData(p => ({...p, [d.id]: canvas.toDataURL('image/png')}))
                                   }}
                                   onPointerUp={e => {
+                                    setFirmaDibujando(p => ({...p, [d.id]: false}))
+                                    const canvas = firmaCanvasRefs.current[d.id]
+                                    if (canvas) setFirmaData(p => ({...p, [d.id]: canvas.toDataURL('image/png')}))
+                                  }}
+                                  onPointerLeave={e => {
+                                    if (!firmaDibujando[d.id]) return
                                     setFirmaDibujando(p => ({...p, [d.id]: false}))
                                     const canvas = firmaCanvasRefs.current[d.id]
                                     if (canvas) setFirmaData(p => ({...p, [d.id]: canvas.toDataURL('image/png')}))
