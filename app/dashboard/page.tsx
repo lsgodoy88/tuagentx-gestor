@@ -148,10 +148,18 @@ export default function DashboardPage() {
       }
       // (el histórico se carga al presionar Estadísticas si no estaba cargado)
     } else {
-      fetch('/api/stats').then(r => r.json()).then(d => setStats(d)).catch(() => {})
-    if (isEmpresa || isSupervisor) fetch('/api/integracion/estado').then(r => r.json()).then(d => setSyncInfo(d)).catch(() => {})
-    // monitor se carga bajo demanda
-    if (isEmpresa || isSupervisor || isBodega) fetch('/api/bodega/contadores').then(r => r.json()).then(d => { setBodegaStats({ pendientes: d.pendientes ?? 0, alistados: d.alistados ?? 0, entregados: d.entregados ?? 0 }) }).catch(()=>{})
+      // Paralelo: stats + integracion + bodega en un solo round-trip
+      const adminFetches: Promise<any>[] = [
+        fetch('/api/stats').then(r => r.json()).catch(() => null),
+      ]
+      if (isEmpresa || isSupervisor) adminFetches.push(fetch('/api/integracion/estado').then(r => r.json()).catch(() => null))
+      if (isEmpresa || isSupervisor || isBodega) adminFetches.push(fetch('/api/bodega/contadores').then(r => r.json()).catch(() => null))
+
+      Promise.all(adminFetches).then(([stats, integracion, bodega]) => {
+        if (stats) setStats(stats)
+        if (integracion) setSyncInfo(integracion)
+        if (bodega) setBodegaStats({ pendientes: bodega.pendientes ?? 0, alistados: bodega.alistados ?? 0, entregados: bodega.entregados ?? 0 })
+      })
     }
   }, [user])
   async function cargarStatsVendedor() {
