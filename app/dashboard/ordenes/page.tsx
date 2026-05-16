@@ -866,7 +866,7 @@ export default function OrdenesPage() {
                                 }} className="flex-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-xs py-2 rounded-xl font-semibold">
                                   🗑 Limpiar
                                 </button>
-                                <button onClick={() => patchOrden(d.id, { estado: 'entregado', entregadoEl: new Date().toISOString(), firmaBase64: firmaData[d.id] })}
+                                <button onClick={() => { const firma = firmaData[d.id]; if (firma) patchOrden(d.id, { estado: 'entregado', entregadoEl: new Date().toISOString(), firmaBase64: firma }) }}
                                   disabled={isSaving || !firmaData[d.id]}
                                   className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold py-2 rounded-xl text-xs">
                                   {isSaving ? 'Guardando...' : '✅ Confirmar'}
