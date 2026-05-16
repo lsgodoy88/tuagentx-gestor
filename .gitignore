@@ -49,3 +49,5 @@ public/fotos/
 *.bak.*
 .backups-deprecated/
 lib/version.ts
+*.bak2
+*.bak3
