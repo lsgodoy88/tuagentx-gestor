@@ -317,16 +317,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <div className="h-screen flex overflow-hidden" style={{
-      backgroundImage: "url('https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&q=80')",
+      backgroundImage: "linear-gradient(rgba(2,2,10,0.93), rgba(4,4,16,0.93)), url('https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&q=80')",
       backgroundSize: 'cover',
       backgroundPosition: 'center',
       backgroundAttachment: 'fixed',
     }}>
-      {/* Overlay oscuro para legibilidad */}
-      <div className="fixed inset-0 pointer-events-none" style={{
-        background: 'linear-gradient(135deg, rgba(2,2,10,0.93) 0%, rgba(4,4,16,0.91) 100%)',
-        zIndex: -1,
-      }} />
       {/* Drawer móvil — estilo B */}
       {menuMovil && (
         <div className="fixed inset-0 z-[2000] md:hidden">
