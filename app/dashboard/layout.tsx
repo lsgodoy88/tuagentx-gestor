@@ -327,7 +327,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       position: 'fixed', inset: 0, zIndex: -1,
       background: 'rgba(2,2,10,0.68)',
     }} />
-    <div className="h-screen flex overflow-hidden" style={{background:'transparent'}}>
+    <div className="h-screen flex" style={{background:'transparent'}}>
       {/* Drawer móvil — estilo B */}
       {menuMovil && (
         <div className="fixed inset-0 z-[2000] md:hidden">
@@ -553,7 +553,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
       </aside>
-      <main className="flex-1 flex flex-col min-w-0 w-0 overflow-hidden">
+      <main className="flex-1 flex flex-col min-w-0 w-0">
         {bloqueado && (
           <div className="bg-red-900/80 border-b border-red-700 flex items-center justify-between px-4 h-10 flex-shrink-0 overflow-hidden">
             <span className="text-red-100 text-sm truncate">
