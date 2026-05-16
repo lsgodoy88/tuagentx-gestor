@@ -926,13 +926,6 @@ export default function OrdenesPage() {
                 </div>
               )
             }
-            // Buscar la card completa en los datos del tab
-            const d = despachados.find((o: any) => o.numeroFactura === String(f.numero))
-            if (!d) return (
-              <div key={f.numero} className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5">
-                <span className="text-white font-mono text-xs">#{f.numero}</span>
-              </div>
-            )
             // Card del control — buscar datos completos en despachados[]
             const desp2 = despachados.find((o: any) => o.numeroFactura === String(f.numeroFactura)) || {
               id: String(f.numeroFactura), numeroFactura: String(f.numeroFactura),
