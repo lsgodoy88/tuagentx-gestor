@@ -112,7 +112,7 @@ export default function TrazabilidadPage() {
 
   function toggleExpandido(id: string, orden?: any) {
     if (isDesktop) {
-      setOrdenSeleccionada((prev: any) => prev?.id === id ? null : (orden || null))
+      setOrdenSeleccionada(orden || null)
     } else {
       setExpandido(prev => ({ ...prev, [id]: !prev[id] }))
     }
@@ -130,7 +130,12 @@ export default function TrazabilidadPage() {
     setNextCursor(res.nextCursor ?? null)
     setHasMore(res.hasMore ?? false)
     setTotal(prev => !cursor ? nuevas.length : prev + nuevas.length)
-    if (!cursor) setLoading(false); else setLoadingMore(false)
+    if (!cursor) {
+      setLoading(false)
+      if (nuevas.length > 0) setOrdenSeleccionada(nuevas[0])
+    } else {
+      setLoadingMore(false)
+    }
   }
 
   useEffect(() => {
@@ -358,7 +363,7 @@ export default function TrazabilidadPage() {
           })}
 
           </div>
-          {ordenSeleccionada && (() => {
+          {(() => {
             const orden = ordenSeleccionada
             const fotos: string[] = Array.isArray(orden.fotosAlistamiento) ? orden.fotosAlistamiento : []
             const firma = orden.visitas?.[0]?.firma || orden.firmaEntrega || null
@@ -371,14 +376,12 @@ export default function TrazabilidadPage() {
               { icon: '🚚', label: 'Despachado', fecha: !['pendiente','alistado'].includes(orden.estado) ? orden.alistadoEl : null, quien: repartidorNombre, accion: null },
               { icon: '✅', label: 'Entregado',  fecha: entregadoEl, quien: entregadoPor, accion: firma && !esVendedor ? ()=>setFirmaModal(firma) : null },
             ]
+            if (!orden) return <div className="hidden lg:flex w-80 flex-shrink-0 bg-zinc-900 border border-zinc-800 rounded-2xl items-center justify-center" style={{height:'200px',position:'sticky',top:16}}><p className="text-zinc-500 text-sm">Cargando...</p></div>
             return (
               <div className="hidden lg:flex flex-col w-80 flex-shrink-0 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden" style={{maxHeight:'calc(100vh - 180px)', position:'sticky', top:16}}>
-                <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 flex-shrink-0">
-                  <div>
-                    <p className="text-white font-bold text-sm">#{orden.numeroFactura||orden.numeroOrden}</p>
-                    <p className="text-zinc-400 text-xs truncate max-w-[200px]">{orden.clienteNombre}</p>
-                  </div>
-                  <button onClick={()=>setOrdenSeleccionada(null)} className="text-zinc-500 hover:text-white w-7 h-7 flex items-center justify-center rounded-lg hover:bg-zinc-800">✕</button>
+                <div className="px-4 py-3 border-b border-zinc-800 flex-shrink-0">
+                  <p className="text-white font-bold text-sm">#{orden?.numeroFactura||orden?.numeroOrden}</p>
+                  <p className="text-zinc-400 text-xs truncate">{orden?.clienteNombre}</p>
                 </div>
                 <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
                   {etapas.map((etapa,i) => (
