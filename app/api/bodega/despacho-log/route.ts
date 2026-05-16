@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
   // Serializar despachadoEl a string ISO para evitar problemas de tipo en cliente
   const serialized = data.map((r: any) => ({
     ...r,
-    despachadoEl: r.despachadoEl instanceof Date ? r.despachadoEl.toISOString() : String(r.despachadoEl)
+    despachadoEl: r.despachadoEl instanceof Date ? r.despachadoEl.toISOString() : (String(r.despachadoEl).endsWith('Z') ? String(r.despachadoEl) : String(r.despachadoEl) + 'Z')
   }))
   return NextResponse.json({ data: serialized, nextCursor, hayMas })
 }

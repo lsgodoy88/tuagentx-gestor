@@ -95,8 +95,8 @@ export default function OrdenesPage() {
   const [despachosPorTab, setDespachosPorTab] = useState<Record<string, any[]>>({ pendiente: [], alistado: [], despachado: [] })
   const [cargandoMasTab, setCargandoMasTab] = useState(false)
   const [despachoLog, setDespachoLog] = useState<any[]>([])
-  const [logNextCursor, setLogNextCursor] = useState<string|null>(null)
   const [logHayMas, setLogHayMas] = useState(false)
+  const [logNextCursor, setLogNextCursor] = useState<string|null>(null)
   const [cargandoLogMas, setCargandoLogMas] = useState(false)
   const [toastEnvio, setToastEnvio] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
@@ -198,7 +198,6 @@ export default function OrdenesPage() {
       setDespachosPorTab(p => ({ ...p, [tab]: reset ? (data.despachos || []) : [...(p[tab] || []), ...(data.despachos || [])] }))
       setCursores(p => ({ ...p, [tab]: data.nextCursor || null }))
       setHayMasPorTab(p => ({ ...p, [tab]: !!data.hayMas }))
-
       setCiudadLocal(data.ciudadLocal || null)
       setBodegaPuedeEnviar(data.bodegaPuedeEnviar ?? false)
       setUltimaSync(data.ultimaSyncBodega || null)
@@ -214,7 +213,7 @@ export default function OrdenesPage() {
       cargarTab('alistado', origen, true),
       cargarTab('despachado', origen, true),
     ])
-    cargarDespachoLog(true) // Promise independiente — no bloquea
+    cargarDespachoLog(true)
   }
 
   async function cargarDespachoLog(reset = false) {
@@ -299,24 +298,20 @@ export default function OrdenesPage() {
           const esAlistada = estadoNuevo === 'alistado'
           if (esDespachada) {
             setTabActivo('despachado')
-            // Insertar en despachoLog local — dato inmutable, no depende del estado
             const modo = ordenActualizada.firmaEntrega ? 'personal'
               : (ordenActualizada.guiaTransporte || ordenActualizada.transportadora) ? 'transportadora'
               : 'repartidor'
             const entrada = {
-              id: ordenActualizada.id + '_log',
+              id: ordenActualizada.id + '_rt',
               numeroFactura: ordenActualizada.numeroFactura,
               clienteNombre: ordenActualizada.clienteNombre,
               modo,
               guiaTransporte: ordenActualizada.guiaTransporte || null,
-              transportadora: ordenActualizada.transportadora || null,
-              despachadoEl: ordenActualizada.entregadoEl || ordenActualizada.alistadoEl || new Date().toISOString(),
+              despachadoEl: new Date().toISOString(),
             }
             setDespachoLog(prev => {
-              const existe = prev.some(l => l.numeroFactura === entrada.numeroFactura)
-              return existe
-                ? prev.map(l => l.numeroFactura === entrada.numeroFactura ? entrada : l)
-                : [entrada, ...prev]
+              const existe = prev.some((l: any) => l.numeroFactura === entrada.numeroFactura)
+              return existe ? prev.map((l: any) => l.numeroFactura === entrada.numeroFactura ? entrada : l) : [entrada, ...prev]
             })
           }
           else if (esAlistada) setTabActivo('alistado')
@@ -892,94 +887,65 @@ export default function OrdenesPage() {
           </div>
         )
       })()}
-      {/* Control de consecutivos — solo en tab Despachados */}
+      {/* Control de consecutivos — DespachoLog */}
       {tabActivo === 'despachado' && (
         <div className="space-y-1">
-          {(() => {
-            // Rango de facturas del tab + log para construir el control
-            const todasFacs = [...despachados, ...despachoLog]
-            if (todasFacs.length === 0) return null
-            const nums = todasFacs
-              .map((x: any) => parseInt(x.numeroFactura))
-              .filter(n => !isNaN(n))
+          {despachoLog.length === 0 ? (
+            <p className="text-zinc-600 text-xs text-center py-4">Cargando...</p>
+          ) : (() => {
+            const logMap = new Map(despachoLog.map((l: any) => [parseInt(l.numeroFactura), l]))
+            const nums = Array.from(logMap.keys()).filter((n: number) => !isNaN(n))
             if (nums.length === 0) return null
             const max = Math.max(...nums)
             const min = Math.min(...nums)
-            const logMap = new Map(despachoLog.map((l: any) => [parseInt(l.numeroFactura), l]))
-            const despachadosMap = new Map(despachados.map((d: any) => [parseInt(d.numeroFactura), d]))
-            const filas = []
+            const filas: number[] = []
             for (let n = max; n >= min; n--) filas.push(n)
             return filas.map(n => {
               const log = logMap.get(n)
-              const desp = despachadosMap.get(n)
-              const f = log || (desp ? {
-                numeroFactura: String(n),
-                clienteNombre: desp.clienteNombre,
-                modo: desp.firmaEntrega ? 'personal' : (desp.guiaTransporte || desp.transportadora) ? 'transportadora' : desp.repartidorId ? 'repartidor' : null,
-                despachadoEl: desp.entregadoEl || desp.alistadoEl,
-                guiaTransporte: desp.guiaTransporte,
-              } : null)
-            if (!f) {
-              return (
-                <div key={n} className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-1.5">
-                  <span className="text-white font-mono text-xs">#{n}</span>
-                </div>
-              )
-            }
-            // Card del control — buscar datos completos en despachados[]
-            const desp2 = despachados.find((o: any) => o.numeroFactura === String(f.numeroFactura)) || {
-              id: String(f.numeroFactura), numeroFactura: String(f.numeroFactura),
-              clienteNombre: f.clienteNombre, estado: 'en_entrega',
-              ciudad: null, fechaOrden: null, createdAt: null,
-              fotoAlistamiento: null, fotosAlistamiento: null,
-              alistadoEl: f.despachadoEl, alistadoPor: null, repartidor: null,
-              entregadoEl: f.despachadoEl, repartidorId: null,
-              guiaTransporte: f.guiaTransporte || null, transportadora: null,
-            }
-            const ciudadRaw2 = desp2.ciudad || null
-            const ciudadNombre2 = ciudadRaw2 ? ciudadRaw2.split('/').pop()?.trim().replace(/\w/g, (x: string) => x.toUpperCase()) ?? ciudadRaw2 : null
-            const border2 = BORDER[desp2.estado] ?? BORDER.pendiente
-            const isSaving2 = saving[desp2.id]
-            const isExpanded2 = expanded[desp2.id]
-            const horaOrden2 = f.despachadoEl ? formatFechaCorta(f.despachadoEl) : desp2.alistadoEl ? formatFechaCorta(desp2.alistadoEl) : ''
-            const fotoKey2 = desp2.fotoAlistamiento
-            const fotos2: string[] = (desp2.fotosAlistamiento as string[] | null) || (fotoKey2 ? [fotoKey2] : [])
-            const tieneFotos2 = fotos2.length > 0
-            return (
-              <div key={f.numeroFactura} className={`bg-zinc-900 border border-zinc-800 border-l-4 ${border2} rounded-2xl overflow-hidden`}>
-                <div className="px-4 py-3 flex items-center gap-2">
-                  <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-hidden">
-                    <span className="text-white font-mono text-xs flex-shrink-0">#{desp2.numeroFactura}</span>
-                    <span className="text-zinc-700 flex-shrink-0">·</span>
-                    <span className="text-white font-semibold text-sm truncate flex-1">{nombreCorto(desp2.clienteNombre)}</span>
-                    {ciudadNombre2 && <span className="text-zinc-400 text-xs flex-shrink-0 ml-1">{ciudadNombre2}</span>}
+              if (!log) {
+                return (
+                  <div key={n} className="bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-1.5">
+                    <span className="text-white font-mono text-xs">#{n}</span>
                   </div>
-                </div>
-                <div className="px-4 pb-2 pt-0">
-                  <div className="flex items-center gap-2 flex-wrap" style={{paddingLeft: "calc(1rem + 2ch + 6px)"}}>
-                    {tieneFotos2 && (
-                      <button onClick={() => abrirGaleriaConUrls(fotos2, desp.alistadoEl)}
+                )
+              }
+              const desp2 = despachados.find((o: any) => o.numeroFactura === String(n))
+              const fotos2: string[] = (desp2?.fotosAlistamiento as string[] | null) || (desp2?.fotoAlistamiento ? [desp2.fotoAlistamiento] : [])
+              const ciudad2 = desp2?.ciudad?.split('/').pop()?.trim() || null
+              return (
+                <div key={n} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+                  <div className="px-4 py-2.5 flex items-center gap-2">
+                    <span className="text-white font-mono text-xs flex-shrink-0">#{log.numeroFactura}</span>
+                    <span className="text-zinc-700 flex-shrink-0">·</span>
+                    <span className="text-white font-semibold text-sm truncate flex-1">{nombreCorto(log.clienteNombre)}</span>
+                    {ciudad2 && <span className="text-zinc-400 text-xs flex-shrink-0">{ciudad2}</span>}
+                  </div>
+                  <div className="px-4 pb-2 flex items-center gap-2" style={{paddingLeft: 'calc(1rem + 2ch + 6px)'}}>
+                    {fotos2.length > 0 && (
+                      <button onClick={() => abrirGaleriaConUrls(fotos2, desp2?.alistadoEl)}
                         className="flex items-center gap-1 text-zinc-400 hover:text-white text-xs">
-                        🖼️ {fotos2.length > 1 ? fotos2.length : ''}
+                        {'📷'}{fotos2.length > 1 ? ' ' + fotos2.length : ''}
                       </button>
                     )}
-                    {horaOrden2 && <span className="text-zinc-300 text-xs">{horaOrden2}</span>}
-
-                    {f.modo && <span className="text-sm">{f.modo === 'personal' ? '🤝' : f.modo === 'transportadora' ? '📦' : '🚚'}</span>}
+                    <span className="text-sm">{log.modo === 'personal' ? '🤝' : log.modo === 'transportadora' ? '📦' : '🚚'}</span>
+                    <span className="text-zinc-400 text-xs">{formatFechaCorta(log.despachadoEl)}</span>
                   </div>
                 </div>
-              </div>
-            )
+              )
             })
           })()}
         </div>
       )}
-
-      {/* Botón cargar más — tabs Pendientes y Alistados */}
       {tabActivo === 'despachado' && logHayMas && (
         <button onClick={cargarMasDespacholog} disabled={cargandoLogMas}
           className="w-full bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-semibold py-3 rounded-2xl hover:text-white disabled:opacity-40 transition-colors">
           {cargandoLogMas ? 'Cargando...' : 'Cargar más facturas'}
+        </button>
+      )}
+      {tabActivo !== 'despachado' && hayMasPorTab[tabActivo] && (
+        <button onClick={cargarMasTab} disabled={cargandoMasTab}
+          className="w-full bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-semibold py-3 rounded-2xl hover:text-white disabled:opacity-40 transition-colors">
+          {cargandoMasTab ? 'Cargando...' : 'Cargar más'}
         </button>
       )}
       {hayMasPorTab[tabActivo] && (
