@@ -204,7 +204,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{background:"var(--background)"}}>
+      <div className="min-h-screen flex items-center justify-center" style={{background:"transparent"}}>
         <div className="text-zinc-200">Cargando...</div>
       </div>
     )
@@ -325,7 +325,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Overlay oscuro para legibilidad */}
       <div className="fixed inset-0 pointer-events-none" style={{
         background: 'linear-gradient(135deg, rgba(6,6,20,0.70) 0%, rgba(8,8,26,0.65) 100%)',
-        zIndex: 0,
+        zIndex: -1,
       }} />
       {/* Drawer móvil — estilo B */}
       {menuMovil && (
