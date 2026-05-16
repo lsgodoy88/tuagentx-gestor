@@ -795,18 +795,18 @@ export default function OrdenesPage() {
                           {/* Guía — una línea */}
                           {(() => { const cm = d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''; const eloc = ciudadLocal ? cm === ciudadLocal.trim().toLowerCase() : false; return (modoEnvio[d.id] ?? (eloc ? 'local' : 'transportadora')) === 'transportadora' })() && (
                             <div className="space-y-1.5">
-                              <div className="flex gap-2 items-center">
+                              <div className="flex gap-2">
                                 <input
                                   value={editTransporte[d.id]?.guia ?? ''}
                                   onChange={e => setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], guia: e.target.value } }))}
-                                  placeholder="# Guía o código de barras"
+                                  placeholder="# Guía o código"
                                   inputMode="text"
-                                  className="w-40 bg-zinc-800 border border-orange-500/60 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-orange-500"
+                                  className="flex-1 min-w-0 bg-zinc-800 border border-orange-500/60 rounded-xl px-3 py-2.5 text-white text-xs outline-none focus:border-orange-500"
                                 />
                                 <button
                                   title="Escanear código de barras"
                                   onClick={() => setEscanerOrdenId(d.id)}
-                                  className="bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 text-white px-3 py-2 rounded-xl flex-shrink-0 flex items-center justify-center">
+                                  className="bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 text-white px-3 py-2.5 rounded-xl flex items-center justify-center">
                                   <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
                                     <rect x="1" y="4" width="2" height="16"/><rect x="4" y="4" width="1" height="16"/>
                                     <rect x="6" y="4" width="2" height="16"/><rect x="9" y="4" width="1" height="16"/>
@@ -817,7 +817,7 @@ export default function OrdenesPage() {
                                 </button>
                                 <button onClick={() => guardarTransporte(d.id)}
                                   disabled={isSaving || !editTransporte[d.id]?.guia}
-                                  className="bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold px-4 py-2 rounded-xl text-xs transition-colors flex-shrink-0">
+                                  className="bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-colors">
                                   {isSaving ? '...' : '📦 Enviar'}
                                 </button>
                               </div>
