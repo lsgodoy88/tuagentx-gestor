@@ -628,10 +628,10 @@ export default function OrdenesPage() {
                 tabActivo === p.id ? p.activeC : 'hover:bg-zinc-800'
               }`}>
               <span className={`text-xl font-black leading-none tabular-nums ${
-                tabActivo === p.id ? 'text-white' : 'text-zinc-500'
+                tabActivo === p.id ? 'text-white' : 'text-white/55'
               }`}>{p.count}</span>
               <span className={`text-[8px] font-bold tracking-wider ${
-                tabActivo === p.id ? 'text-white/80' : 'text-zinc-600'
+                tabActivo === p.id ? 'text-white/80' : 'text-white/45'
               }`}>{p.label}</span>
             </button>
           ))}
@@ -920,9 +920,8 @@ export default function OrdenesPage() {
               const log = logMap.get(n)
               if (!log) {
                 return (
-                  <div key={n} className="bg-zinc-900/50 border border-zinc-800/50 rounded-xl flex items-center px-3 py-2 gap-2">
-                    <span className="w-10 text-zinc-600 font-mono text-xs flex-shrink-0 text-right">#{n}</span>
-                    <div className="h-3 w-24 bg-zinc-800 rounded-full opacity-40" />
+                  <div key={n} className="bg-zinc-900/40 border border-zinc-800/40 rounded-xl flex items-center px-3 py-2">
+                    <span className="w-10 text-white/40 font-mono text-xs flex-shrink-0 text-right">#{n}</span>
                   </div>
                 )
               }
@@ -933,7 +932,7 @@ export default function OrdenesPage() {
                 <div key={n} className="bg-zinc-900 border border-zinc-800 rounded-2xl flex items-stretch px-3 py-2.5 gap-2">
                   {/* Columna izquierda — # factura centrado verticalmente */}
                   <div className="w-10 flex-shrink-0 flex items-center justify-end pr-2 border-r border-zinc-800">
-                    <span className="text-zinc-300 font-mono text-xs">#{log.numeroFactura}</span>
+                    <span className="text-white font-mono text-xs">#{log.numeroFactura}</span>
                   </div>
                   {/* Columna derecha — L1 nombre/ciudad + L2 datos */}
                   <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
