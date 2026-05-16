@@ -627,7 +627,7 @@ export default function OrdenesPage() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-10 text-center">
           {buscandoRemoto ? <p className="text-zinc-300 text-sm">Buscando...</p> : <p className="text-zinc-300 text-sm">Sin órdenes en el período configurado</p>}
         </div>
-      ) : tabActivo === 'despachado' ? null : (() => {
+      ) : (() => {
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
 
@@ -893,11 +893,15 @@ export default function OrdenesPage() {
           {despachoLog.length === 0 ? (
             <p className="text-zinc-600 text-xs text-center py-4">Cargando...</p>
           ) : (() => {
+            const todasFacturas = [...despachoLog, ...pendientes, ...alistados, ...despachados]
+            const allNums = todasFacturas.map((x: any) => parseInt(x.numeroFactura)).filter((n: number) => !isNaN(n))
+            if (allNums.length === 0) return null
+            const rangeMax = Math.max(...allNums)
+            const rangeMin = Math.min(...allNums)
             const logMap = new Map(despachoLog.map((l: any) => [parseInt(l.numeroFactura), l]))
-            const nums = Array.from(logMap.keys()).filter((n: number) => !isNaN(n))
-            if (nums.length === 0) return null
-            const max = Math.max(...nums)
-            const min = Math.min(...nums)
+            // nums ya calculado arriba con todasFacturas
+            const max = rangeMax
+            const min = rangeMin
             const filas: number[] = []
             for (let n = max; n >= min; n--) filas.push(n)
             return filas.map(n => {
