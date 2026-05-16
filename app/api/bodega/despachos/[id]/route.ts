@@ -4,30 +4,9 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN_BODEGA } from '@/lib/auth-helpers'
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
+import { subirR2, registrarDespachoLog, esDespachado } from '@/lib/bodega'
 
 const ROLES = ROLES_ADMIN_BODEGA
-
-const r2 = new S3Client({
-  region: 'auto',
-  endpoint: process.env.R2_ENDPOINT,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY!,
-  },
-})
-
-async function subirR2(base64: string, key: string, contentType: string): Promise<string> {
-  const data = base64.replace(/^data:[^;]+;base64,/, '')
-  const buffer = Buffer.from(data, 'base64')
-  await r2.send(new PutObjectCommand({
-    Bucket: process.env.R2_BUCKET!,
-    Key: key,
-    Body: buffer,
-    ContentType: contentType,
-  }))
-  return key
-}
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
@@ -154,27 +133,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return ordenActualizada
   })
 
-  // Insertar en DespachoLog — registro inmutable
-  const estadoFinal = updated.estado
-  if (['en_entrega','en_transito','entregado'].includes(estadoFinal)) {
-    const modo = updated.firmaEntrega ? 'personal'
-      : (updated.guiaTransporte || updated.transportadora) ? 'transportadora'
-      : 'repartidor'
-    prisma.$executeRawUnsafe(`
-      INSERT INTO gestor."DespachoLog"
-        (id, "empresaId", "origenVinculadaId", "numeroFactura", "clienteNombre", modo, "guiaTransporte", transportadora, "despachadoEl")
-      VALUES
-        (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, (NOW() AT TIME ZONE 'UTC'))
-      ON CONFLICT DO NOTHING
-    `,
-      empresaId,
-      updated.origenVinculadaId ?? null,
-      updated.numeroFactura ?? updated.numeroOrden ?? '',
-      updated.clienteNombre ?? '',
-      modo,
-      updated.guiaTransporte ?? null,
-      updated.transportadora ?? null,
-    ).catch(() => {}) // fire and forget — no bloquear el response
+  // Registrar en DespachoLog — fire and forget
+  if (esDespachado(updated.estado)) {
+    registrarDespachoLog({ empresaId, ...updated })
   }
 
   // Enviar push a repartidor si se asignó a su ruta

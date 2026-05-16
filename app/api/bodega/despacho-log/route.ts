@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN_BODEGA } from '@/lib/auth-helpers'
+import { origenFiltroSQL } from '@/lib/bodega'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
