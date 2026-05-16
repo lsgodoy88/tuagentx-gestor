@@ -325,7 +325,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Drawer móvil — estilo B */}
       {menuMovil && (
         <div className="fixed inset-0 z-[2000] md:hidden">
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMenuMovil(false)}>
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={() => setMenuMovil(false)}>
             {/* Saludo centrado solo en el área fuera del sidebar (left: 224px = w-56) */}
             <div className="absolute" style={{left:'224px', right:0, top: ['10%','30%','55%','72%'][fraseIdx], transition:'top 0.8s ease'}} onClick={e => e.stopPropagation()}>
               <div className="text-center px-4 select-none pointer-events-none" style={{opacity:0.9}}>
@@ -339,7 +339,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
             </div>
           </div>
-          <div className="absolute left-0 top-0 bottom-0 w-56 border-r flex flex-col z-[2001] shadow-2xl" style={{background:"var(--card-bg)",borderColor:"var(--border-blue)"}}>
+          <div className="absolute left-0 top-0 bottom-0 w-56 border-r flex flex-col z-[2001] shadow-2xl" style={{background:"rgba(8,8,24,0.72)",backdropFilter:"blur(24px)",WebkitBackdropFilter:"blur(24px)",borderColor:"rgba(255,255,255,0.10)"}}>
 
             {/* Header */}
             <div className="flex items-center justify-between px-4 h-14 border-b border-[#1c1c20]">
