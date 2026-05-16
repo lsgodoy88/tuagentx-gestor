@@ -98,26 +98,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       },
     })
 
-    // Firma entrega → crear Visita dentro de la misma transacción
-    if (firmaBase64 && empleadoId) {
-      const cliente = await tx.cliente.findFirst({
-        where: { nit: orden.clienteNit, empresaId }
-      })
-      if (cliente) {
-        await tx.visita.create({
-          data: {
-            clienteId: cliente.id,
-            empleadoId,
-            empresaId,
-            estado: 'ejecutado',
-            fechaBogota: new Date().toISOString().split('T')[0],
-            firma: update.firmaEntrega as string,
-            ordenDespachoId: id,
-            notas: `Entrega personal bodega #${orden.numeroFactura || orden.numeroOrden}`,
-          }
-        })
-      }
-    }
+    // Firma entrega personal — solo guarda la firma en OrdenDespacho, sin Visita
 
     // Asignar a ruta del repartidor — crear si no existe (lazy creation)
     if (estado === 'en_entrega' && repartidorId && orden.clienteNit) {
