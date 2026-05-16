@@ -17,12 +17,17 @@ export async function GET(req: NextRequest) {
   const LIMIT = 50
 
   const rows = await prisma.$queryRawUnsafe<any[]>(`
-    SELECT id, "numeroFactura", "clienteNombre", modo, "guiaTransporte", transportadora, "despachadoEl"
-    FROM gestor."DespachoLog"
-    WHERE "empresaId" = $1
-      AND ${origenId !== 'propia' ? `"origenVinculadaId" = '${origenId.replace(/'/g,"''")}'` : '"origenVinculadaId" IS NULL'}
-      ${cursor ? `AND "despachadoEl" < (SELECT "despachadoEl" FROM gestor."DespachoLog" WHERE id = '${cursor.replace(/'/g,"''")}' LIMIT 1)` : ''}
-    ORDER BY "despachadoEl" DESC
+    SELECT l.id, l."numeroFactura", l."clienteNombre", l.modo, l."guiaTransporte", l.transportadora, l."despachadoEl",
+           o."alistadoEl", o.ciudad, o."fotosAlistamiento", o."fotoAlistamiento"
+    FROM gestor."DespachoLog" l
+    LEFT JOIN gestor."OrdenDespacho" o
+      ON o."numeroFactura" = l."numeroFactura"
+      AND o."empresaId" = l."empresaId"
+      AND (o."origenVinculadaId" = l."origenVinculadaId" OR (o."origenVinculadaId" IS NULL AND l."origenVinculadaId" IS NULL))
+    WHERE l."empresaId" = $1
+      AND ${origenId !== 'propia' ? `l."origenVinculadaId" = '${origenId.replace(/'/g,"''")}'` : 'l."origenVinculadaId" IS NULL'}
+      ${cursor ? `AND l."despachadoEl" < (SELECT "despachadoEl" FROM gestor."DespachoLog" WHERE id = '${cursor.replace(/'/g,"''")}' LIMIT 1)` : ''}
+    ORDER BY l."despachadoEl" DESC
     LIMIT ${LIMIT + 1}
   `, empresaId)
 
@@ -33,7 +38,11 @@ export async function GET(req: NextRequest) {
   // Serializar despachadoEl a string ISO para evitar problemas de tipo en cliente
   const serialized = data.map((r: any) => ({
     ...r,
-    despachadoEl: r.despachadoEl instanceof Date ? r.despachadoEl.toISOString() : (String(r.despachadoEl).endsWith('Z') ? String(r.despachadoEl) : String(r.despachadoEl) + 'Z')
+    despachadoEl: r.despachadoEl instanceof Date ? r.despachadoEl.toISOString() : (String(r.despachadoEl).endsWith('Z') ? String(r.despachadoEl) : String(r.despachadoEl) + 'Z'),
+    alistadoEl: r.alistadoEl instanceof Date ? r.alistadoEl.toISOString() : r.alistadoEl ? (String(r.alistadoEl).endsWith('Z') ? String(r.alistadoEl) : String(r.alistadoEl) + 'Z') : null,
+    ciudad: r.ciudad || null,
+    fotosAlistamiento: r.fotosAlistamiento || null,
+    fotoAlistamiento: r.fotoAlistamiento || null
   }))
   return NextResponse.json({ data: serialized, nextCursor, hayMas })
 }

@@ -913,9 +913,9 @@ export default function OrdenesPage() {
                   </div>
                 )
               }
-              const desp2 = despachados.find((o: any) => o.numeroFactura === String(n))
-              const fotos2: string[] = (desp2?.fotosAlistamiento as string[] | null) || (desp2?.fotoAlistamiento ? [desp2.fotoAlistamiento] : [])
-              const ciudad2 = desp2?.ciudad?.split('/').pop()?.trim() || null
+              // Usar datos del log directamente (tiene JOIN con OrdenDespacho)
+              const fotos2: string[] = (log.fotosAlistamiento as string[] | null) || (log.fotoAlistamiento ? [log.fotoAlistamiento] : [])
+              const ciudad2 = log.ciudad?.split('/').pop()?.trim() || null
               return (
                 <div key={n} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                   <div className="px-4 py-2.5 flex items-center gap-2">
@@ -924,13 +924,14 @@ export default function OrdenesPage() {
                     <span className="text-white font-semibold text-sm truncate flex-1">{nombreCorto(log.clienteNombre)}</span>
                     {ciudad2 && <span className="text-zinc-400 text-xs flex-shrink-0">{ciudad2}</span>}
                   </div>
-                  <div className="px-4 pb-2 flex items-center gap-2" style={{paddingLeft: 'calc(1rem + 2ch + 6px)'}}>
+                  <div className="px-4 pb-2 flex items-center gap-3" style={{paddingLeft: 'calc(1rem + 2ch + 6px)'}}>
                     {fotos2.length > 0 && (
-                      <button onClick={() => abrirGaleriaConUrls(fotos2, desp2?.alistadoEl)}
+                      <button onClick={() => abrirGaleriaConUrls(fotos2, log.alistadoEl)}
                         className="flex items-center gap-1 text-zinc-400 hover:text-white text-xs">
-                        {'📷'}{fotos2.length > 1 ? ' ' + fotos2.length : ''}
+                        📷{fotos2.length > 1 ? ' ' + fotos2.length : ''}
                       </button>
                     )}
+                    {log.alistadoEl && <span className="text-zinc-500 text-xs">{formatHora(log.alistadoEl)}</span>}
                     <span className="text-sm">{log.modo === 'personal' ? '🤝' : log.modo === 'transportadora' ? '📦' : '🚚'}</span>
                     <span className="text-zinc-400 text-xs">{formatFechaCorta(log.despachadoEl)}</span>
                   </div>
