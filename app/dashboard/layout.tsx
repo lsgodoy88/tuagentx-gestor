@@ -238,9 +238,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { href: '/dashboard/recaudos', label: 'Recaudos', icon: '💳' },
       ]
     }, {
-      label: 'Rutas',
+      label: 'Visitas',
       items: [
-        { href: '/dashboard/rutas', label: 'Rutas', icon: '🗺️' },
+        { href: '/dashboard/rutas', label: 'Visitas', icon: '📋' },
         { href: '/dashboard/rutas-fijas', label: 'Impulsos', icon: '⚡' },
 
         { href: '/dashboard/trazabilidad', label: 'Trazabilidad', icon: '📊' },

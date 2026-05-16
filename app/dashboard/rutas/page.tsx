@@ -1,5 +1,6 @@
 'use client'
 import dynamic from 'next/dynamic'
+const MapaEnVivo = dynamic(() => import('@/components/MapaEnVivo'), { ssr: false })
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
@@ -29,7 +30,7 @@ export default function RutasPage() {
   const puedeAsignar = !user || esEmpresa || checkPermiso(session, 'asignarRutas')
 
   // Tab principal
-  const [tabPrincipal, setTabPrincipal] = useState<'rutas' | 'visitas'>('rutas')
+  const [tabPrincipal, setTabPrincipal] = useState<'mapa' | 'ruta' | 'historial'>('mapa')
 
   // Estados visitas
   const [visitas, setVisitas] = useState<any[]>([])
@@ -59,7 +60,7 @@ export default function RutasPage() {
   }
 
   useEffect(() => {
-    if (tabPrincipal === 'visitas' && visitas.length === 0) {
+    if (tabPrincipal === 'historial' && visitas.length === 0) {
       fetch('/api/empleados').then(r => r.json()).then(d => setVisEmpleados(Array.isArray(d) ? d : d?.empleados || []))
       buscarVisitas()
     }
@@ -346,17 +347,23 @@ export default function RutasPage() {
     <div className="space-y-6 max-w-7xl mx-auto">
       {/* Tabs principales */}
       <div className="flex gap-1 border-b border-zinc-800">
-        <button onClick={() => setTabPrincipal('rutas')}
-          className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors ${tabPrincipal === 'rutas' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-zinc-400 hover:text-white'}`}>
-          🗺️ Rutas
+        <button onClick={() => setTabPrincipal('mapa')}
+          className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors ${tabPrincipal === 'mapa' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-zinc-400 hover:text-white'}`}>
+          🗺️ Mapa
         </button>
-        <button onClick={() => setTabPrincipal('visitas')}
-          className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors ${tabPrincipal === 'visitas' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-zinc-400 hover:text-white'}`}>
-          📋 Visitas
+        <button onClick={() => setTabPrincipal('ruta')}
+          className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors ${tabPrincipal === 'ruta' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-zinc-400 hover:text-white'}`}>
+          📍 Ruta
+        </button>
+        <button onClick={() => setTabPrincipal('historial')}
+          className={`px-5 py-2.5 text-sm font-semibold rounded-t-lg transition-colors ${tabPrincipal === 'historial' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-zinc-400 hover:text-white'}`}>
+          📋 Historial
         </button>
       </div>
 
-      {tabPrincipal === 'visitas' && (
+      {tabPrincipal === 'mapa' && <MapaEnVivo embebido />}
+
+      {tabPrincipal === 'historial' && (
         <div className="space-y-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-2">
             <div className="flex gap-2">
@@ -440,7 +447,7 @@ export default function RutasPage() {
         </div>
       )}
 
-      {tabPrincipal === 'rutas' && <>
+      {tabPrincipal === 'ruta' && <>
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-white">Rutas</h1>
         <div className="flex items-center gap-2">
