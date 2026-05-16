@@ -818,17 +818,22 @@ export default function OrdenesPage() {
                           {/* Entrega personal con firma */}
                           {(() => { const cm2 = d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''; const eloc2 = ciudadLocal ? cm2 === ciudadLocal.trim().toLowerCase() : false; return (modoEnvio[d.id] ?? (eloc2 ? 'local' : 'transportadora')) === 'personal' })() && (
                             <div className="space-y-2">
-                              <FirmaCanvas
-                                firma={firmaData[d.id] || null}
-                                onFirma={async (dataUrl) => {
-                                  if (dataUrl) {
-                                    setFirmaData(p => ({...p, [d.id]: dataUrl}))
-                                    await patchOrden(d.id, { estado: 'entregado', entregadoEl: new Date().toISOString(), firmaBase64: dataUrl })
-                                  } else {
-                                    setFirmaData(p => { const n = {...p}; delete n[d.id]; return n })
-                                  }
-                                }}
-                              />
+                              {(() => {
+                                const ordenId = d.id
+                                return (
+                                  <FirmaCanvas
+                                    firma={firmaData[ordenId] || null}
+                                    onFirma={async (dataUrl) => {
+                                      if (dataUrl) {
+                                        setFirmaData(p => ({...p, [ordenId]: dataUrl}))
+                                        await patchOrden(ordenId, { estado: 'entregado', entregadoEl: new Date().toISOString(), firmaBase64: dataUrl })
+                                      } else {
+                                        setFirmaData(p => { const n = {...p}; delete n[ordenId]; return n })
+                                      }
+                                    }}
+                                  />
+                                )
+                              })()}
                             </div>
                           )}
                         </div>
