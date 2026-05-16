@@ -291,30 +291,11 @@ export default function OrdenesPage() {
       if (data.orden) {
         const ordenActualizada = data.orden
         setDespachos(prev => prev.map(d => d.id === id ? { ...d, ...ordenActualizada } : d))
+        const estadoFinal = ordenActualizada.estado
+        const esDespachada = ['en_entrega','en_transito','entregado'].includes(estadoFinal)
+        const esAlistada = estadoFinal === 'alistado'
         setDespachosPorTab(prev => {
           const next = { ...prev }
-          const estadoNuevo = ordenActualizada.estado
-          const esDespachada = ['en_entrega','en_transito','entregado'].includes(estadoNuevo)
-          const esAlistada = estadoNuevo === 'alistado'
-          if (esDespachada) {
-            setTabActivo('despachado')
-            const modo = ordenActualizada.firmaEntrega ? 'personal'
-              : (ordenActualizada.guiaTransporte || ordenActualizada.transportadora) ? 'transportadora'
-              : 'repartidor'
-            const entrada = {
-              id: ordenActualizada.id + '_rt',
-              numeroFactura: ordenActualizada.numeroFactura,
-              clienteNombre: ordenActualizada.clienteNombre,
-              modo,
-              guiaTransporte: ordenActualizada.guiaTransporte || null,
-              despachadoEl: new Date().toISOString(),
-            }
-            setDespachoLog(prev => {
-              const existe = prev.some((l: any) => l.numeroFactura === entrada.numeroFactura)
-              return existe ? prev.map((l: any) => l.numeroFactura === entrada.numeroFactura ? entrada : l) : [entrada, ...prev]
-            })
-          }
-          else if (esAlistada) setTabActivo('alistado')
           for (const tab of Object.keys(next) as Array<'pendiente'|'alistado'|'despachado'>) {
             if (esDespachada && tab !== 'despachado') {
               next[tab] = next[tab].filter((d: any) => d.id !== id)
@@ -340,6 +321,12 @@ export default function OrdenesPage() {
           }
           return next
         })
+        // Promise chain: primero recargar log completo (JOIN), luego navegar
+        if (esDespachada) {
+          cargarDespachoLog(true).then(() => setTabActivo('despachado'))
+        } else if (esAlistada) {
+          setTabActivo('alistado')
+        }
       }
       if (data.rutaAsignada && data.repartidorNombre) {
         setToastEnvio(`${data.repartidorNombre} ha recibido la orden`)
