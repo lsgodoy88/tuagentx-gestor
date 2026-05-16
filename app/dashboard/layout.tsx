@@ -316,7 +316,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const iconoActivo = navItems.find(item => pathname === item.href)?.icon || '⚡'
 
   return (
-    <div className="h-screen flex overflow-hidden">
+    <>
+    {/* Capa de fondo fija — fuera de overflow-hidden para que backdrop-filter funcione */}
+    <div aria-hidden="true" style={{
+      position: 'fixed', inset: 0, zIndex: -1,
+      backgroundImage: "url('https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&q=80')",
+      backgroundSize: 'cover', backgroundPosition: 'center',
+    }} />
+    <div aria-hidden="true" style={{
+      position: 'fixed', inset: 0, zIndex: -1,
+      background: 'rgba(2,2,10,0.68)',
+    }} />
+    <div className="h-screen flex overflow-hidden" style={{background:'transparent'}}>
       {/* Drawer móvil — estilo B */}
       {menuMovil && (
         <div className="fixed inset-0 z-[2000] md:hidden">
@@ -588,5 +599,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
     {/* Overlay configuración inicial de equipo */}
         </div>
+    </>
   )
 }

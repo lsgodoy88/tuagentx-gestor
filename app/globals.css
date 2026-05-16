@@ -26,11 +26,6 @@
 
 body {
   background-color: var(--background);
-  background-image: linear-gradient(rgba(2,2,10,0.68), rgba(4,4,16,0.68)),
-    url('https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1920&q=80');
-  background-size: cover;
-  background-position: center;
-  background-attachment: fixed;
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
