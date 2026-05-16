@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-const PAGE_SIZE = 20
+const PAGE_SIZE = 30
 
 
 // Construye WHERE SQL parametrizado a partir del objeto where dinámico

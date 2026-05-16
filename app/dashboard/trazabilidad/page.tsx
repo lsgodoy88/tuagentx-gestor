@@ -79,6 +79,7 @@ export default function TrazabilidadPage() {
   const desde = ''
   const hasta = ''
 
+  const [isDesktop, setIsDesktop] = useState(false)
   const [expandido, setExpandido] = useState<Record<string, boolean>>({})
   const [ordenSeleccionada, setOrdenSeleccionada] = useState<any>(null)
   const [fotoModal, setFotoModal] = useState<string | null>(null)
@@ -110,7 +111,7 @@ export default function TrazabilidadPage() {
   const [firmaModal, setFirmaModal] = useState<string | null>(null)
 
   function toggleExpandido(id: string, orden?: any) {
-    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+    if (isDesktop) {
       setOrdenSeleccionada((prev: any) => prev?.id === id ? null : (orden || null))
     } else {
       setExpandido(prev => ({ ...prev, [id]: !prev[id] }))
@@ -122,7 +123,6 @@ export default function TrazabilidadPage() {
     const params = new URLSearchParams()
     if (q) params.set('q', q)
     if (estado) params.set('estado', estado)
-    if (diasHistorial > 0) params.set('dias', String(diasHistorial))
     if (cursor) params.set('cursor', cursor)
     const res = await fetch('/api/trazabilidad?' + params.toString()).then(r => r.json())
     const nuevas = res.ordenes || []
@@ -133,7 +133,14 @@ export default function TrazabilidadPage() {
     if (!cursor) setLoading(false); else setLoadingMore(false)
   }
 
-  useEffect(() => { cargar(null) }, [q, estado, diasHistorial])
+  useEffect(() => {
+    setIsDesktop(window.innerWidth >= 1024)
+    const handler = () => setIsDesktop(window.innerWidth >= 1024)
+    window.addEventListener('resize', handler)
+    return () => window.removeEventListener('resize', handler)
+  }, [])
+
+  useEffect(() => { cargar(null) }, [q, estado])
 
   async function buscar() {
     const texto = qInput.trim()
@@ -177,13 +184,6 @@ export default function TrazabilidadPage() {
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold text-white">Trazabilidad</h1>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <div className="flex items-center gap-1 bg-zinc-800 border border-zinc-700 rounded-xl px-1 py-1">
-            <button onClick={() => cambiarDias(-1)} disabled={diasHistorial <= 1}
-              className="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-white disabled:opacity-30 text-sm font-bold">−</button>
-            <span className="text-white text-xs font-semibold w-8 text-center">{diasHistorial}d</span>
-            <button onClick={() => cambiarDias(1)} disabled={diasHistorial >= 30}
-              className="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-white disabled:opacity-30 text-sm font-bold">+</button>
-          </div>
           {['empresa','supervisor','superadmin','bodega'].includes(user?.role) && (
             <>
               {syncMsg && <span className="text-xs text-zinc-400 hidden sm:block">{syncMsg}</span>}
@@ -265,7 +265,7 @@ export default function TrazabilidadPage() {
         <div className="text-zinc-500 py-12 text-center">Sin resultados en el período</div>
       ) : (
         <div className="flex gap-4 max-w-6xl mx-auto items-start">
-          <div className={`grid gap-2 flex-1 ${ordenSeleccionada ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
+          <div className="grid gap-2 flex-1 grid-cols-1 md:grid-cols-2">
           {(ordenesBusqueda !== null ? ordenesBusqueda : ordenes).map(orden => {
             const fotos: string[] = Array.isArray(orden.fotosAlistamiento) ? orden.fotosAlistamiento : []
             const firma = orden.visitas?.[0]?.firma || orden.firmaEntrega || null
