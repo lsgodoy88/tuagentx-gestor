@@ -124,6 +124,8 @@ export default function OrdenesPage() {
     }
   }
   const [camaraActiva, setCamaraActiva] = useState(false)
+  const [countdownSec, setCountdownSec] = useState<number | null>(null)
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [camaraOrdenId, setCamaraOrdenId] = useState<string | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [fotosCapturadas, setFotosCapturadas] = useState<string[]>([])
@@ -394,33 +396,62 @@ export default function OrdenesPage() {
 
   async function enviarFotos() {
     if (!fotosCapturadas.length || !camaraOrdenId) return
+    // Detener stream — la cámara ya no se necesita
     streamRef.current?.getTracks().forEach(t => t.stop())
-    setSaving(p => ({ ...p, [camaraOrdenId]: true }))
+    const ordenId = camaraOrdenId
+    setSaving(p => ({ ...p, [ordenId]: true }))
     try {
       for (const foto of fotosCapturadas) {
         const res = await fetch('/api/bodega/foto', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ordenId: camaraOrdenId, fotoBase64: foto }),
+          body: JSON.stringify({ ordenId, fotoBase64: foto }),
         }).then(r => r.json())
         if (res.orden) {
-          setDespachos(prev => prev.map(d => d.id === camaraOrdenId ? { ...d, ...res.orden } : d))
+          setDespachos(prev => prev.map(d => d.id === ordenId ? { ...d, ...res.orden } : d))
           setDespachosPorTab(prev => {
             const next = { ...prev }
             for (const tab of Object.keys(next)) {
-              next[tab] = next[tab].map((d: any) => d.id === camaraOrdenId ? { ...d, ...res.orden } : d)
+              next[tab] = next[tab].map((d: any) => d.id === ordenId ? { ...d, ...res.orden } : d)
             }
             return next
           })
         }
       }
     } finally {
-      setSaving(p => ({ ...p, [camaraOrdenId!]: false }))
-      setCamaraActiva(false)
-      setCamaraOrdenId(null)
-      setPreview(null)
+      setSaving(p => ({ ...p, [ordenId]: false }))
       setFotosCapturadas([])
     }
+    // Fotos subidas — iniciar countdown para alistar automáticamente
+    setCountdownSec(4)
+    countdownRef.current = setInterval(() => {
+      setCountdownSec(prev => {
+        if (prev === null || prev <= 1) {
+          clearInterval(countdownRef.current!)
+          countdownRef.current = null
+          // Alistar y cerrar
+          marcarAlistado(ordenId).then(() => {
+            setCamaraActiva(false)
+            setCamaraOrdenId(null)
+            setCountdownSec(null)
+          })
+          return null
+        }
+        return prev - 1
+      })
+    }, 1000)
+  }
+
+  function cancelarCountdown() {
+    if (countdownRef.current) {
+      clearInterval(countdownRef.current)
+      countdownRef.current = null
+    }
+    setCountdownSec(null)
+    setCamaraActiva(false)
+    setCamaraOrdenId(null)
+    setPreview(null)
+    setFotosCapturadas([])
   }
 
   function cerrarCamara() {
@@ -436,7 +467,7 @@ export default function OrdenesPage() {
   }
 
   async function marcarAlistado(id: string) {
-    await patchOrden(id, { estado: 'alistado' })
+    return patchOrden(id, { estado: 'alistado' })
   }
 
   async function asignarRepartidor(id: string) {
@@ -666,10 +697,6 @@ export default function OrdenesPage() {
                           📷 Foto
                         </button>
                       )}
-                      <button onClick={() => marcarAlistado(d.id)} disabled={isSaving || !tieneFotos}
-                        className="flex items-center gap-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors">
-                        {isSaving ? '⏳' : '✓ Listo'}
-                      </button>
                     </div>
                   )}
 
@@ -996,47 +1023,64 @@ export default function OrdenesPage() {
           <video ref={videoRef} autoPlay playsInline className="flex-1 object-cover w-full" style={{ touchAction: 'pinch-zoom' }} />
           {/* Barra inferior */}
           <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent pt-6 pb-8 px-4">
-            {/* Miniaturas */}
-            {fotosCapturadas.length > 0 && (
-              <div className="flex gap-2 mb-4 overflow-x-auto">
-                {fotosCapturadas.map((f, i) => (
-                  <div key={i} className="relative flex-shrink-0">
-                    <img src={f} className="w-14 h-14 object-cover rounded-xl border-2 border-white/60" />
-                    <button onClick={() => eliminarFotoCapturada(i)}
-                      className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center font-bold">✕</button>
-                  </div>
-                ))}
-              </div>
-            )}
-            {/* Controles principales */}
-            <div className="flex items-center justify-between">
-              {/* Cancelar */}
-              <button onClick={cerrarCamara}
-                className="w-16 h-16 rounded-2xl bg-zinc-800/80 border border-zinc-600 text-white text-xs flex flex-col items-center justify-center gap-1">
-                <span className="text-lg">✕</span>
-                <span>Cancelar</span>
-              </button>
-              {/* Disparador */}
-              <button onClick={capturarFoto}
-                className="w-20 h-20 rounded-full bg-white border-4 border-zinc-400 active:scale-95 transition-transform shadow-lg" />
-              {/* Enviar o placeholder */}
-              {fotosCapturadas.length > 0 ? (
-                <button onClick={enviarFotos}
-                  className="w-16 h-16 rounded-2xl bg-emerald-500 text-white text-xs flex flex-col items-center justify-center gap-1 font-bold">
-                  <span className="text-lg">✓</span>
-                  <span>{fotosCapturadas.length} foto{fotosCapturadas.length > 1 ? 's' : ''}</span>
+            {countdownSec !== null ? (
+              <div className="flex flex-col items-center gap-4 py-2">
+                <p className="text-white text-sm font-semibold tracking-wide">Alistando en...</p>
+                <div className="relative w-24 h-24 flex items-center justify-center">
+                  <svg className="absolute inset-0 -rotate-90" viewBox="0 0 96 96">
+                    <circle cx="48" cy="48" r="44" fill="none" stroke="#27272a" strokeWidth="6" />
+                    <circle cx="48" cy="48" r="44" fill="none" stroke="#10b981" strokeWidth="6"
+                      strokeDasharray={String(2 * Math.PI * 44)}
+                      strokeDashoffset={String(2 * Math.PI * 44 * (1 - (countdownSec / 4)))}
+                      style={{ transition: 'stroke-dashoffset 0.9s linear' }}
+                    />
+                  </svg>
+                  <span className="text-white text-4xl font-black tabular-nums">{countdownSec}</span>
+                </div>
+                <button onClick={cancelarCountdown}
+                  className="px-8 py-3 rounded-2xl bg-zinc-800 border border-zinc-600 text-white text-sm font-semibold">
+                  ✕ Cancelar
                 </button>
-              ) : (
-                <div className="w-16 h-16" />
-              )}
-            </div>
-            {/* Zoom centrado */}
-            {soportaZoom && (
-              <div className="flex items-center justify-center gap-3 mt-3">
-                <button onClick={() => aplicarZoom(zoomLevel - 0.5)} className="w-8 h-8 rounded-full bg-zinc-700 text-white text-lg flex items-center justify-center">−</button>
-                <span className="text-white text-xs w-10 text-center">{zoomLevel.toFixed(1)}x</span>
-                <button onClick={() => aplicarZoom(zoomLevel + 0.5)} className="w-8 h-8 rounded-full bg-zinc-700 text-white text-lg flex items-center justify-center">+</button>
               </div>
+            ) : (
+              <>
+                {fotosCapturadas.length > 0 && (
+                  <div className="flex gap-2 mb-4 overflow-x-auto">
+                    {fotosCapturadas.map((f, i) => (
+                      <div key={i} className="relative flex-shrink-0">
+                        <img src={f} className="w-14 h-14 object-cover rounded-xl border-2 border-white/60" />
+                        <button onClick={() => eliminarFotoCapturada(i)}
+                          className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center font-bold">✕</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="flex items-center justify-between">
+                  <button onClick={cerrarCamara}
+                    className="w-16 h-16 rounded-2xl bg-zinc-800/80 border border-zinc-600 text-white text-xs flex flex-col items-center justify-center gap-1">
+                    <span className="text-lg">✕</span>
+                    <span>Cancelar</span>
+                  </button>
+                  <button onClick={capturarFoto}
+                    className="w-20 h-20 rounded-full bg-white border-4 border-zinc-400 active:scale-95 transition-transform shadow-lg" />
+                  {fotosCapturadas.length > 0 ? (
+                    <button onClick={enviarFotos}
+                      className="w-16 h-16 rounded-2xl bg-emerald-500 text-white text-xs flex flex-col items-center justify-center gap-1 font-bold">
+                      <span className="text-lg">✓</span>
+                      <span>{fotosCapturadas.length} foto{fotosCapturadas.length > 1 ? 's' : ''}</span>
+                    </button>
+                  ) : (
+                    <div className="w-16 h-16" />
+                  )}
+                </div>
+                {soportaZoom && (
+                  <div className="flex items-center justify-center gap-3 mt-3">
+                    <button onClick={() => aplicarZoom(zoomLevel - 0.5)} className="w-8 h-8 rounded-full bg-zinc-700 text-white text-lg flex items-center justify-center">−</button>
+                    <span className="text-white text-xs w-10 text-center">{zoomLevel.toFixed(1)}x</span>
+                    <button onClick={() => aplicarZoom(zoomLevel + 0.5)} className="w-8 h-8 rounded-full bg-zinc-700 text-white text-lg flex items-center justify-center">+</button>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
