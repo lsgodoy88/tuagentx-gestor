@@ -80,6 +80,7 @@ export default function TrazabilidadPage() {
   const hasta = ''
 
   const [expandido, setExpandido] = useState<Record<string, boolean>>({})
+  const [ordenSeleccionada, setOrdenSeleccionada] = useState<any>(null)
   const [fotoModal, setFotoModal] = useState<string | null>(null)
   const [sincronizando, setSincronizando] = useState(false)
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
@@ -108,8 +109,12 @@ export default function TrazabilidadPage() {
   }
   const [firmaModal, setFirmaModal] = useState<string | null>(null)
 
-  function toggleExpandido(id: string) {
-    setExpandido(prev => ({ ...prev, [id]: !prev[id] }))
+  function toggleExpandido(id: string, orden?: any) {
+    if (typeof window !== 'undefined' && window.innerWidth >= 1024) {
+      setOrdenSeleccionada((prev: any) => prev?.id === id ? null : (orden || null))
+    } else {
+      setExpandido(prev => ({ ...prev, [id]: !prev[id] }))
+    }
   }
 
   async function cargar(cursor: string | null = null) {
@@ -259,7 +264,8 @@ export default function TrazabilidadPage() {
       ) : ordenes.length === 0 ? (
         <div className="text-zinc-500 py-12 text-center">Sin resultados en el período</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2 max-w-6xl mx-auto">
+        <div className="flex gap-4 max-w-6xl mx-auto items-start">
+          <div className={`grid gap-2 flex-1 ${ordenSeleccionada ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
           {(ordenesBusqueda !== null ? ordenesBusqueda : ordenes).map(orden => {
             const fotos: string[] = Array.isArray(orden.fotosAlistamiento) ? orden.fotosAlistamiento : []
             const firma = orden.visitas?.[0]?.firma || orden.firmaEntrega || null
@@ -310,10 +316,11 @@ export default function TrazabilidadPage() {
               },
             ]
 
+            const isSeleccionada = ordenSeleccionada?.id === orden.id
             return (
-              <div key={orden.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+              <div key={orden.id} className={`bg-zinc-900 rounded-2xl overflow-hidden transition-all ${isSeleccionada ? 'border border-blue-500/60' : 'border border-zinc-800'}`}>
                 {/* Header — siempre visible, clickeable */}
-                <div onClick={() => toggleExpandido(orden.id)} className="flex items-center gap-2 p-3 cursor-pointer hover:bg-zinc-800/50 transition-colors">
+                <div onClick={() => toggleExpandido(orden.id, orden)} className="flex items-center gap-2 p-3 cursor-pointer hover:bg-zinc-800/50 transition-colors">
                   <span className="text-zinc-400 font-mono text-xs flex-shrink-0">#{orden.numeroFactura || orden.numeroOrden}</span>
                   {orden.clienteNombre === 'Sin nombre' ? (
                     <span className="text-amber-400 text-xs font-semibold truncate flex-1">⚠️ ERROR DE DATOS</span>
@@ -358,6 +365,50 @@ export default function TrazabilidadPage() {
               </button>
             </div>
           )}
+          </div>
+          {ordenSeleccionada && (() => {
+            const orden = ordenSeleccionada
+            const fotos: string[] = Array.isArray(orden.fotosAlistamiento) ? orden.fotosAlistamiento : []
+            const firma = orden.visitas?.[0]?.firma || orden.firmaEntrega || null
+            const repartidorNombre = orden.repartidor?.nombre || null
+            const entregadoPor = orden.visitas?.[0]?.empleado?.nombre || null
+            const entregadoEl = orden.visitas?.[0]?.createdAt || orden.entregadoEl || null
+            const etapas = [
+              { icon: '📋', label: 'Orden',      fecha: orden.fechaOrden,  quien: null as string|null,  accion: null as (()=>void)|null },
+              { icon: '📦', label: 'Alistado',   fecha: orden.alistadoEl,  quien: orden.alistadoPor?.nombre||null, accion: fotos.length > 0 ? ()=>setFotoModal(fotos[0]) : null },
+              { icon: '🚚', label: 'Despachado', fecha: !['pendiente','alistado'].includes(orden.estado) ? orden.alistadoEl : null, quien: repartidorNombre, accion: null },
+              { icon: '✅', label: 'Entregado',  fecha: entregadoEl, quien: entregadoPor, accion: firma && !esVendedor ? ()=>setFirmaModal(firma) : null },
+            ]
+            return (
+              <div className="hidden lg:flex flex-col w-80 flex-shrink-0 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden" style={{maxHeight:'calc(100vh - 180px)', position:'sticky', top:16}}>
+                <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 flex-shrink-0">
+                  <div>
+                    <p className="text-white font-bold text-sm">#{orden.numeroFactura||orden.numeroOrden}</p>
+                    <p className="text-zinc-400 text-xs truncate max-w-[200px]">{orden.clienteNombre}</p>
+                  </div>
+                  <button onClick={()=>setOrdenSeleccionada(null)} className="text-zinc-500 hover:text-white w-7 h-7 flex items-center justify-center rounded-lg hover:bg-zinc-800">✕</button>
+                </div>
+                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
+                  {etapas.map((etapa,i) => (
+                    <div key={i} className="flex gap-3 items-start">
+                      <span className="text-xl flex-shrink-0 mt-0.5">{etapa.icon}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-white text-sm font-semibold">{etapa.label}</p>
+                        <p className="text-zinc-400 text-xs">{etapa.fecha ? fmtFecha(etapa.fecha) : '—'}</p>
+                        {etapa.quien && <p className="text-zinc-500 text-xs truncate">{etapa.quien}</p>}
+                        {etapa.accion && <button onClick={etapa.accion} className="mt-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-2 py-0.5 rounded-lg">{i===1?'🖼️ Fotos':'✍️ Firma'}</button>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="px-4 py-3 border-t border-zinc-800 flex-shrink-0 flex items-center gap-2">
+                  <span className="text-zinc-400 text-xs">{orden.ciudad}</span>
+                  <span className="text-base">{ICONO_ESTADO[orden.estado]||'⚪'}</span>
+                  <span className="text-zinc-400 text-xs capitalize">{orden.estado}</span>
+                </div>
+              </div>
+            )
+          })()}
         </div>
       )}
       </>)}

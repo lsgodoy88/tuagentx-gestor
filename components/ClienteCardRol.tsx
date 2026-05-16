@@ -219,8 +219,9 @@ export default function ClienteCardRol({ cliente: c, rol, onVisita, onEntregar, 
           }
         }}
         style={{
-          background: isSelected ? '#0d1f12' : '#111',
-          border: `1px solid ${isSelected ? '#22c55e' : (open ? '#52525b' : '#3f3f46')}`,
+          background: '#111',
+          border: `1px solid ${isSelected ? '#3b82f6' : (open ? '#52525b' : '#3f3f46')}`,
+          boxShadow: isSelected ? '0 0 0 1px #3b82f6' : 'none',
           borderRadius: 14,
           padding: '10px 12px',
           cursor: 'pointer',
