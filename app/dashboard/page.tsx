@@ -795,7 +795,7 @@ export default function DashboardPage() {
         <div className="space-y-4">
           {turno?.pausado ? (
             // ── PAUSA — encogida/desplegada ──
-            <div className={`rounded-2xl border overflow-hidden ${turnoExpandido ? 'bg-amber-500/8 border-amber-500/20' : 'bg-zinc-900 border-zinc-800'}`}>
+            <div className={`rounded-2xl border overflow-hidden ${turnoExpandido ? "border-amber-500/30" : "border-white/10"}`} style={{background: turnoExpandido ? "rgba(245,158,11,0.10)" : "rgba(15,15,22,0.60)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)"}}>
               {/* Pill encogida */}
               <button onClick={() => setTurnoExpandido(e => !e)}
                 className="w-full flex items-center gap-3 px-4 py-3 text-left">
@@ -811,8 +811,8 @@ export default function DashboardPage() {
               {turnoExpandido && (
                 <div className="border-t border-amber-500/20 px-4 pb-4 pt-3 space-y-3">
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-black/30 rounded-lg p-2"><p className="text-zinc-500 text-xs">Inicio pausa</p><p className="text-sm font-bold text-white">{turno.pausaInicio ? new Date(turno.pausaInicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"}) : "--"}</p></div>
-                    <div className="bg-black/30 rounded-lg p-2"><p className="text-zinc-500 text-xs">Reanuda a las</p><p className="text-emerald-400 text-sm font-bold">{new Date(new Date(turno.pausaInicio).getTime() + turno.pausaDuracionMin*60000).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"})}</p></div>
+                    <div className="rounded-lg p-2" style={{background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.08)'}}><p className="text-zinc-500 text-xs">Inicio pausa</p><p className="text-sm font-bold text-white">{turno.pausaInicio ? new Date(turno.pausaInicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"}) : "--"}</p></div>
+                    <div className="rounded-lg p-2" style={{background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.08)'}}><p className="text-zinc-500 text-xs">Reanuda a las</p><p className="text-emerald-400 text-sm font-bold">{new Date(new Date(turno.pausaInicio).getTime() + turno.pausaDuracionMin*60000).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"})}</p></div>
                   </div>
                   <div className="flex gap-2">
                     <button onClick={reanudarTurno} className="flex-1 bg-zinc-800 border border-emerald-500/30 text-emerald-400 text-sm font-semibold py-2.5 rounded-xl">▶️ Reanudar</button>
@@ -823,7 +823,7 @@ export default function DashboardPage() {
             </div>
           ) : turno ? (
             // ── TURNO ACTIVO — encogida/desplegada ──
-            <div className={`rounded-2xl border overflow-hidden ${turnoExpandido ? 'bg-emerald-500/10 border-emerald-500/20' : 'bg-zinc-900 border-zinc-800'}`}>
+            <div className={`rounded-2xl border overflow-hidden ${turnoExpandido ? "border-emerald-500/30" : "border-white/10"}`} style={{background: turnoExpandido ? "rgba(16,185,129,0.12)" : "rgba(15,15,22,0.60)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)"}}>
               {/* Pill encogida */}
               <button onClick={() => setTurnoExpandido(e => !e)}
                 className="w-full flex items-center gap-3 px-4 py-3 text-left">
@@ -840,8 +840,8 @@ export default function DashboardPage() {
               {turnoExpandido && (
                 <div className="border-t border-emerald-500/20 px-4 pb-4 pt-3 space-y-3">
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="bg-black/30 rounded-lg p-2"><p className="text-zinc-500 text-xs">Hora inicio</p><p className="text-sm font-bold text-white">{new Date(turno.inicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"})}</p></div>
-                    <div className="bg-black/30 rounded-lg p-2"><p className="text-zinc-500 text-xs">Contador</p><p className="text-emerald-400 font-mono font-bold">{tiempoTurno}</p></div>
+                    <div className="rounded-lg p-2" style={{background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.08)'}}><p className="text-zinc-500 text-xs">Hora inicio</p><p className="text-sm font-bold text-white">{new Date(turno.inicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"})}</p></div>
+                    <div className="rounded-lg p-2" style={{background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.08)'}}><p className="text-zinc-500 text-xs">Contador</p><p className="text-emerald-400 font-mono font-bold">{tiempoTurno}</p></div>
                   </div>
                   <button onClick={cerrarTurno} disabled={bloqueadoTurno} className="w-full bg-red-600 text-white text-sm font-bold py-2.5 rounded-xl disabled:opacity-50">Cerrar turno</button>
                   <div className="flex gap-2">
@@ -868,7 +868,7 @@ export default function DashboardPage() {
             </div>
           ) : (
             // ── SIN TURNO — encogida/desplegada ──
-            <div className={`rounded-2xl border overflow-hidden ${turnoExpandido ? 'bg-zinc-900 border-zinc-700' : 'bg-zinc-900 border-zinc-800'}`}>
+            <div className="rounded-2xl border border-white/10 overflow-hidden" style={{background:"rgba(15,15,22,0.60)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)"}}>
               {/* Pill encogida */}
               <button onClick={() => setTurnoExpandido(e => !e)}
                 className="w-full flex items-center gap-3 px-4 py-3 text-left">
