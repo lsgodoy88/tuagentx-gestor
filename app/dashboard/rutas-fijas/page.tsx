@@ -180,11 +180,11 @@ export default function RutasFijasPage() {
       resultados[user?.id] = { ...data, nombre: user?.name }
     } else {
       const impulsadoras = empleados.filter((e: any) => e.rol === 'impulsadora' && e.activo && (esAdmin || esSupervisor ? true : e.vendedorId === user?.id))
-      for (const imp of impulsadoras) {
-        const res = await fetch('/api/impulso?impulsadoraId=' + imp.id + '&fecha=' + fecha)
-        const data = await res.json()
+      // Paralelo — todas las impulsadoras en un solo round-trip
+      await Promise.all(impulsadoras.map(async (imp: any) => {
+        const data = await fetch('/api/impulso?impulsadoraId=' + imp.id + '&fecha=' + fecha).then(r => r.json())
         resultados[imp.id] = { ...data, nombre: imp.nombre }
-      }
+      }))
     }
     setCumplimiento(resultados)
     setLoadingCumplimiento(false)

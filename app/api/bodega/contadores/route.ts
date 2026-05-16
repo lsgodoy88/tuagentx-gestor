@@ -3,6 +3,9 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
+const cache = new Map<string, { data: any; ts: number }>()
+const CACHE_TTL = 2 * 60 * 1000  // 2 min
+
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
@@ -10,6 +13,8 @@ export async function GET() {
   if (!['empresa', 'supervisor', 'bodega'].includes(user.role)) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
   }
+  const cached = cache.get(user.empresaId)
+  if (cached && Date.now() - cached.ts < CACHE_TTL) return NextResponse.json(cached.data)
 
   const hoy = new Date()
   hoy.setHours(0, 0, 0, 0)
@@ -20,5 +25,7 @@ export async function GET() {
     prisma.ordenDespacho.count({ where: { empresaId: user.empresaId, estado: { in: ['en_entrega', 'entregado'] }, entregadoEl: { gte: hoy } } }),
   ])
 
-  return NextResponse.json({ pendientes, alistados, entregados })
+  const data = { pendientes, alistados, entregados }
+  cache.set(user.empresaId, { data, ts: Date.now() })
+  return NextResponse.json(data)
 }
