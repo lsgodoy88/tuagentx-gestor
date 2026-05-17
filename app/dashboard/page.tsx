@@ -551,7 +551,7 @@ export default function DashboardPage() {
       </div>
       {(isEmpresa || isSupervisor) && (
         <div className="space-y-6">
-          <div className="rounded-2xl p-3" style={{backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)" as any,overflow:"hidden",borderRadius:16}}>
+          <div className="rounded-2xl" style={{backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)" as any,overflow:"hidden",borderRadius:16}}>
           <div className="grid grid-cols-2 gap-3">
 
             <div className="rounded-2xl p-4 hover-lift fade-up stagger-1 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.05)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any}}>
