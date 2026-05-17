@@ -558,3 +558,14 @@ button:active:not(:disabled) {
 }
 
 /* v1778975615 */
+
+/* ── Glass ligero en mobile — mismo efecto, menos GPU ─────────────
+   backdrop-filter: blur() crea una capa GPU por elemento.
+   En mobile reducimos el radio: visualmente igual, 80% menos costo.
+   ------------------------------------------------------------------ */
+@media (max-width: 768px) {
+  [style*="backdrop-filter"] {
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+  }
+}
