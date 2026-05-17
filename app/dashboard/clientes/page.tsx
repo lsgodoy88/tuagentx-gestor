@@ -57,9 +57,11 @@ export default function ClientesPage() {
     Promise.all([
       fetch('/api/listas').then(r=>r.json()),
       fetch('/api/empleados').then(r=>r.json()),
-    ]).then(([listas, emps]) => {
+      fetch('/api/integracion/estado').then(r=>r.json()).catch(()=>null),
+    ]).then(([listas, emps, integracion]) => {
       if(Array.isArray(listas)) setListas(listas)
       if(emps?.empleados) setVendedores(emps.empleados.filter((e:any)=>e.rol==='vendedor'&&e.activo))
+      if(integracion?.tieneIntegracion) setTieneIntegracion(true)
     })
   }, [])
 
