@@ -553,66 +553,91 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-3">
 
-            {/* Card 1: Vendedores en turno / visitas hoy */}
+            {/* Card 1 — Vendedores / Visitas */}
             <div className="rounded-2xl p-4 hover-lift fade-up stagger-1" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
-              <div className="flex items-center gap-1.5 mb-3">
-                <span className="text-lg">&#x1F6CD;</span>
-                <span className="text-white/60 text-xs font-semibold uppercase tracking-wide">Vendedores</span>
+              <div className="flex items-center justify-center gap-1.5 mb-3">
+                <span className="text-sm">🛍️</span>
+                <span className="text-white/40 text-[9px] font-bold tracking-widest uppercase">Vendedores</span>
               </div>
-              <div className="flex items-end gap-1.5">
-                <span className="text-white text-3xl font-bold leading-none"><CountUp end={stats.vendedoresActivos || 0} /></span>
-                <span className="text-white/40 text-xl font-medium mb-0.5">/{stats.totalVendedores || 0}</span>
+              <div className="flex items-center justify-center gap-3">
+                <div className="flex-1 text-right">
+                  <div className="text-white text-xl font-bold leading-none">{stats.vendedoresActivos||0}</div>
+                  <div className="text-white/35 text-[9px] mt-1">en turno</div>
+                </div>
+                <div className="text-white/15 text-2xl font-thin flex-shrink-0">/</div>
+                <div className="flex-1 text-left">
+                  <div className="text-white/50 text-xl font-bold leading-none">{stats.totalVendedores||0}</div>
+                  <div className="text-white/25 text-[9px] mt-1">activos</div>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-white/10">
-                <span className="text-sm">&#x1F4CD;</span>
-                <span className="text-white/70 text-xs"><CountUp end={stats.visitasHoy || 0} /> visitas hoy</span>
+              <div className="border-t border-white/[0.07] mt-3 pt-2.5 text-center">
+                <span className="text-white/35 text-[9px]">📍 {stats.visitasHoy||0} visitas hoy</span>
               </div>
             </div>
 
-            {/* Card 2: Impulsos activos / total */}
+            {/* Card 2 — Impulsos */}
             <div className="rounded-2xl p-4 hover-lift fade-up stagger-2" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
-              <div className="flex items-center gap-1.5 mb-3">
-                <span className="text-lg">&#x26A1;</span>
-                <span className="text-white/60 text-xs font-semibold uppercase tracking-wide">Impulsos</span>
+              <div className="flex items-center justify-center gap-1.5 mb-3">
+                <span className="text-sm">⚡</span>
+                <span className="text-white/40 text-[9px] font-bold tracking-widest uppercase">Impulsos</span>
               </div>
-              <div className="flex items-end gap-1.5">
-                <span className="text-amber-400 text-3xl font-bold leading-none"><CountUp end={stats.impulsosActivos || 0} /></span>
-                <span className="text-white/40 text-xl font-medium mb-0.5">/{stats.totalImpulsos || 0}</span>
+              <div className="flex items-center justify-center gap-3">
+                <div className="flex-1 text-right">
+                  <div className="text-amber-400 text-xl font-bold leading-none">{stats.impulsosActivos||0}</div>
+                  <div className="text-white/35 text-[9px] mt-1">activas</div>
+                </div>
+                <div className="text-white/15 text-2xl font-thin flex-shrink-0">/</div>
+                <div className="flex-1 text-left">
+                  <div className="text-white/50 text-xl font-bold leading-none">{stats.totalImpulsos||0}</div>
+                  <div className="text-white/25 text-[9px] mt-1">alertas</div>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-white/10">
-                <span className="text-sm">&#x1F514;</span>
-                <span className="text-white/70 text-xs">rutas activas hoy</span>
+              <div className="border-t border-white/[0.07] mt-3 pt-2.5 text-center">
+                <span className="text-white/35 text-[9px]">🔔 rutas activas hoy</span>
               </div>
             </div>
 
-            {/* Card 3: Órdenes despachadas / facturadas */}
+            {/* Card 3 — Órdenes */}
             <div className="rounded-2xl p-4 hover-lift fade-up stagger-3" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
-              <div className="flex items-center gap-1.5 mb-3">
-                <span className="text-lg">&#x1F4E6;</span>
-                <span className="text-white/60 text-xs font-semibold uppercase tracking-wide">Órdenes</span>
+              <div className="flex items-center justify-center gap-1.5 mb-3">
+                <span className="text-sm">📦</span>
+                <span className="text-white/40 text-[9px] font-bold tracking-widest uppercase">Órdenes</span>
               </div>
-              <div className="flex items-end gap-1.5">
-                <span className="text-emerald-400 text-3xl font-bold leading-none"><CountUp end={stats.ordenesDespachadasHoy || 0} /></span>
-                <span className="text-white/40 text-xl font-medium mb-0.5">/{stats.ordenesFact || 0}</span>
+              <div className="flex items-center justify-center gap-3">
+                <div className="flex-1 text-right">
+                  <div className="text-emerald-400 text-xl font-bold leading-none">{stats.ordenesDespachadasHoy||0}</div>
+                  <div className="text-white/35 text-[9px] mt-1">despachadas</div>
+                </div>
+                <div className="text-white/15 text-2xl font-thin flex-shrink-0">/</div>
+                <div className="flex-1 text-left">
+                  <div className="text-white/50 text-xl font-bold leading-none">{stats.ordenesFact||0}</div>
+                  <div className="text-white/25 text-[9px] mt-1">facturadas</div>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-white/10">
-                <span className="text-sm">&#x1F9FE;</span>
-                <span className="text-white/70 text-xs">despachadas / facturadas</span>
+              <div className="border-t border-white/[0.07] mt-3 pt-2.5 text-center">
+                <span className="text-white/35 text-[9px]">🧾 hoy</span>
               </div>
             </div>
 
-            {/* Card 4: Recaudo hoy / meta mes */}
+            {/* Card 4 — Recaudos */}
             <div className="rounded-2xl p-4 hover-lift fade-up stagger-4" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
-              <div className="flex items-center gap-1.5 mb-3">
-                <span className="text-lg">&#x1F4B0;</span>
-                <span className="text-white/60 text-xs font-semibold uppercase tracking-wide">Recaudos</span>
+              <div className="flex items-center justify-center gap-1.5 mb-3">
+                <span className="text-sm">💰</span>
+                <span className="text-white/40 text-[9px] font-bold tracking-widest uppercase">Recaudos</span>
               </div>
-              <div className="flex items-end gap-1">
-                <span className="text-blue-400 text-2xl font-bold leading-none">${(stats.recaudoHoy||0).toLocaleString('es-CO')}</span>
+              <div className="flex items-center justify-center gap-3">
+                <div className="flex-1 text-right">
+                  <div className="text-blue-400 text-xl font-bold leading-none truncate">${(stats.recaudoHoy||0).toLocaleString('es-CO')}</div>
+                  <div className="text-white/35 text-[9px] mt-1">hoy</div>
+                </div>
+                <div className="text-white/15 text-2xl font-thin flex-shrink-0">/</div>
+                <div className="flex-1 text-left">
+                  <div className="text-white/50 text-xl font-bold leading-none truncate">${(stats.metaRecaudoMes||0).toLocaleString('es-CO')}</div>
+                  <div className="text-white/25 text-[9px] mt-1">meta mes</div>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-white/10">
-                <span className="text-sm">&#x1F3AF;</span>
-                <span className="text-white/70 text-xs">meta ${(stats.metaRecaudoMes||0).toLocaleString('es-CO')}</span>
+              <div className="border-t border-white/[0.07] mt-3 pt-2.5 text-center">
+                <span className="text-white/35 text-[9px]">🎯 meta del mes</span>
               </div>
             </div>
 
