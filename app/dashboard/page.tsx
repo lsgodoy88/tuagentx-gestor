@@ -561,17 +561,14 @@ export default function DashboardPage() {
               </div>
               <div className="flex items-center justify-center gap-2">
                 <div className="flex-1 text-right">
-                  <div className="text-white text-3xl font-bold leading-none">{stats.vendedoresActivos||0}</div>
+                  <div className="text-white text-2xl font-bold leading-none">{stats.vendedoresActivos||0}</div>
                   <div className="text-white text-xs mt-1">en turno</div>
                 </div>
-                <div className="text-white/40 text-3xl font-thin flex-shrink-0">/</div>
+                <div className="text-white/40 text-2xl font-thin flex-shrink-0">/</div>
                 <div className="flex-1 text-left">
-                  <div className="text-white text-3xl font-bold leading-none">{stats.totalVendedores||0}</div>
+                  <div className="text-white text-2xl font-bold leading-none">{stats.totalVendedores||0}</div>
                   <div className="text-white text-xs mt-1">activos</div>
                 </div>
-              </div>
-              <div className="border-t border-white/[0.07] mt-3 pt-2.5 text-center">
-                <span className="text-white text-xs">📍 {stats.visitasHoy||0} visitas hoy</span>
               </div>
             </div>
 
@@ -583,17 +580,14 @@ export default function DashboardPage() {
               </div>
               <div className="flex items-center justify-center gap-2">
                 <div className="flex-1 text-right">
-                  <div className="text-amber-400 text-3xl font-bold leading-none">{stats.impulsosActivos||0}</div>
+                  <div className="text-amber-400 text-2xl font-bold leading-none">{stats.impulsosActivos||0}</div>
                   <div className="text-white text-xs mt-1">activas</div>
                 </div>
-                <div className="text-white/40 text-3xl font-thin flex-shrink-0">/</div>
+                <div className="text-white/40 text-2xl font-thin flex-shrink-0">/</div>
                 <div className="flex-1 text-left">
-                  <div className="text-white text-3xl font-bold leading-none">{stats.totalImpulsos||0}</div>
+                  <div className="text-white text-2xl font-bold leading-none">{stats.totalImpulsos||0}</div>
                   <div className="text-white text-xs mt-1">total</div>
                 </div>
-              </div>
-              <div className="border-t border-white/[0.07] mt-3 pt-2.5 text-center">
-                <span className="text-white text-xs">🔔 rutas activas hoy</span>
               </div>
             </div>
 
@@ -605,17 +599,14 @@ export default function DashboardPage() {
               </div>
               <div className="flex items-center justify-center gap-2">
                 <div className="flex-1 text-right">
-                  <div className="text-emerald-400 text-3xl font-bold leading-none">{stats.ordenesDespachadasHoy||0}</div>
+                  <div className="text-emerald-400 text-2xl font-bold leading-none">{stats.ordenesDespachadasHoy||0}</div>
                   <div className="text-white text-xs mt-1">despacho</div>
                 </div>
-                <div className="text-white/40 text-3xl font-thin flex-shrink-0">/</div>
+                <div className="text-white/40 text-2xl font-thin flex-shrink-0">/</div>
                 <div className="flex-1 text-left">
-                  <div className="text-white text-3xl font-bold leading-none">{stats.ordenesFact||0}</div>
+                  <div className="text-white text-2xl font-bold leading-none">{stats.ordenesFact||0}</div>
                   <div className="text-white text-xs mt-1">facturas</div>
                 </div>
-              </div>
-              <div className="border-t border-white/[0.07] mt-3 pt-2.5 text-center">
-                <span className="text-white text-xs">🧾 del día</span>
               </div>
             </div>
 
@@ -630,14 +621,11 @@ export default function DashboardPage() {
                   <div className="text-blue-400 text-2xl font-bold leading-none truncate">${(stats.recaudoHoy||0).toLocaleString('es-CO')}</div>
                   <div className="text-white text-xs mt-1">hoy</div>
                 </div>
-                <div className="text-white/40 text-3xl font-thin flex-shrink-0">/</div>
+                <div className="text-white/40 text-2xl font-thin flex-shrink-0">/</div>
                 <div className="flex-1 text-left">
                   <div className="text-white text-2xl font-bold leading-none truncate">${(stats.recaudoMes||0).toLocaleString('es-CO')}</div>
                   <div className="text-white text-xs mt-1">mes</div>
                 </div>
-              </div>
-              <div className="border-t border-white/[0.07] mt-3 pt-2.5 text-center">
-                <span className="text-white text-xs">🎯 recaudado del mes</span>
               </div>
             </div>
 
