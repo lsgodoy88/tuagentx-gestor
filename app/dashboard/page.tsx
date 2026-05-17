@@ -471,7 +471,6 @@ export default function DashboardPage() {
     })
 ).length || 0
   const rutaCompletada = totalClientes > 0 && ejecutadosRuta >= totalClientes
-  const gS = {background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.20)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.15)"}
   if (user?.role === 'superadmin') {
     const totalMensual = resumenFinanciero?.resumenEmpresas?.reduce((a: number, e: any) => a + e.total, 0) || 0
     return (
@@ -487,7 +486,7 @@ export default function DashboardPage() {
           </div>
           <p className="text-emerald-400 font-bold text-2xl">${totalMensual.toLocaleString('es-CO')}</p>
         </div>
-        <div className="rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
           <div className="px-4 py-3 border-b border-zinc-800">
             <p className="text-white font-semibold">Por empresa</p>
           </div>
@@ -559,7 +558,7 @@ export default function DashboardPage() {
               { label: 'Visitas hoy', value: stats.visitasHoy || 0, icon: '📍', sub: 'del día', numeric: true },
               { label: 'Ventas hoy', value: stats.ventasHoy || 0, icon: '💰', sub: 'en efectivo', numeric: true, money: true },
             ].map((s, i) => (
-              <div key={s.label} className={`rounded-2xl p-4 hover-lift fade-up stagger-${i+1} ${loadingStats ? 'loading-border' : ''}`} style={gS}>
+              <div key={s.label} className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-${i+1} ${loadingStats ? 'loading-border' : ''}`}>
                 <div className="text-2xl mb-2">{s.icon}</div>
                 <div className="text-xl font-bold text-white truncate">
                   {s.money ? <>$<CountUp end={Number(s.value) || 0} /></> : <CountUp end={Number(s.value) || 0} />}
@@ -570,17 +569,17 @@ export default function DashboardPage() {
             ))}
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className={`rounded-2xl p-4 hover-lift fade-up stagger-5 ${loadingStats ? 'loading-border' : ''}`} style={gS}>
+            <div className={`bg-blue-500/10 border border-blue-500/20 rounded-2xl p-4 hover-lift fade-up stagger-5 ${loadingStats ? 'loading-border' : ''}`}>
               <p className="text-blue-400 text-xs font-semibold mb-1">VENTAS 30 DÍAS</p>
               <p className="text-white text-2xl font-bold">$<CountUp end={stats.ventasMes || 0} /></p>
               <p className="text-zinc-500 text-xs mt-1">{stats.porTipo?.venta || 0} transacciones</p>
             </div>
-            <div className={`rounded-2xl p-4 hover-lift fade-up stagger-6 ${loadingStats ? 'loading-border-emerald' : ''}`} style={gS}>
+            <div className={`bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-4 hover-lift fade-up stagger-6 ${loadingStats ? 'loading-border-emerald' : ''}`}>
               <p className="text-emerald-400 text-xs font-semibold mb-1">COBROS 30 DÍAS</p>
               <p className="text-white text-2xl font-bold">$<CountUp end={stats.cobrosMes || 0} /></p>
               <p className="text-zinc-500 text-xs mt-1">{stats.porTipo?.cobro || 0} transacciones</p>
             </div>
-            <div className={`rounded-2xl p-4 hover-lift fade-up stagger-7 ${loadingStats ? 'loading-border' : ''}`} style={gS}>
+            <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-7 ${loadingStats ? 'loading-border' : ''}`}>
               <p className="text-zinc-400 text-xs font-semibold mb-1">RUTAS ACTIVAS</p>
               <p className="text-white text-2xl font-bold flex items-center gap-2">
                 <CountUp end={stats.rutasActivas || 0} />
@@ -588,7 +587,7 @@ export default function DashboardPage() {
               </p>
               <p className="text-zinc-500 text-xs mt-1">sin cerrar</p>
             </div>
-            <div className={`rounded-2xl p-4 hover-lift fade-up stagger-8 ${loadingStats ? 'loading-border' : ''}`} style={gS}>
+            <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-8 ${loadingStats ? 'loading-border' : ''}`}>
               <p className="text-zinc-400 text-xs font-semibold mb-1">EN TURNO</p>
               <p className="text-white text-2xl font-bold flex items-center gap-2">
                 <CountUp end={stats.enTurno || 0} />
@@ -628,7 +627,7 @@ export default function DashboardPage() {
             </div>
           )}
           {stats.topEmpleados && stats.topEmpleados.length > 0 && (
-            <div className="rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Top vendedores - 30 dias</p>
               </div>
@@ -644,7 +643,7 @@ export default function DashboardPage() {
               ))}
             </div>
           )}
-          <div className="rounded-2xl p-4 flex items-center justify-between" style={gS}>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center justify-between">
             <div>
               <p className="text-white font-semibold">Rutas activas</p>
               <p className="text-zinc-500 text-xs mt-0.5">Sin cerrar</p>
@@ -661,7 +660,7 @@ export default function DashboardPage() {
                 if (empleadosRol.length === 0) return null
                 const titulo = rol === 'vendedor' ? 'Vendedores' : rol === 'impulsadora' ? 'Impulsadoras' : 'Entregas'
                 return (
-                  <div key={rol} className="rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800">
+                  <div key={rol} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
                     <div className="px-4 py-3 border-b border-zinc-800">
                       <p className="text-white font-semibold text-sm">{titulo} en turno</p>
                     </div>
@@ -717,7 +716,7 @@ export default function DashboardPage() {
           )}
           {/* Tabla 7 dias x vendedor */}
           {stats.vendedores7 && stats.vendedores7.length > 0 && (
-            <div className="rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Visitas por vendedor - ultimos 7 dias</p>
               </div>
@@ -749,7 +748,7 @@ export default function DashboardPage() {
           )}
           {/* Tabla 7 meses x vendedor */}
           {stats.vendedores7m && stats.vendedores7m.length > 0 && (
-            <div className="rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Visitas por vendedor - ultimos 7 meses</p>
               </div>
@@ -894,7 +893,7 @@ export default function DashboardPage() {
             </div>
           )}
           {ruta && totalClientes > 0 && !rutaCompletada ? (
-            <div className="rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800">
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
               {/* Header */}
               <div className="px-4 pt-4 pb-3">
                 {/* Fila 1: nombre ruta */}
@@ -958,7 +957,7 @@ export default function DashboardPage() {
               </div>
             )}
           {user?.role === 'entregas' && ruta && ruta.clientes?.length > 0 && (
-            <div className="rounded-2xl overflow-hidden" style={gS}>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
               <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
                 <p className="text-white font-bold">📦 Ruta de hoy</p>
                 <span className="text-zinc-400 text-xs">{ejecutadosRuta}/{totalClientes} entregas</span>
