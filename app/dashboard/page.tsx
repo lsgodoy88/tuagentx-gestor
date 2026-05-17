@@ -553,79 +553,75 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-3">
 
-            {/* Card 1 — Vendedores */}
             <div className="rounded-2xl p-4 hover-lift fade-up stagger-1" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-3">
                 <span className="text-sm">🛍️</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Vendedores</span>
               </div>
-              <div className="flex items-center justify-center gap-2">
-                <div className="flex-1 text-right">
-                  <div className="text-white text-2xl font-bold leading-none">{stats.vendedoresActivos||0}</div>
-                  <div className="text-white text-xs mt-1">en turno</div>
-                </div>
-                <div className="text-white/40 text-2xl font-thin flex-shrink-0">/</div>
-                <div className="flex-1 text-left">
-                  <div className="text-white text-2xl font-bold leading-none">{stats.totalVendedores||0}</div>
-                  <div className="text-white text-xs mt-1">activos</div>
-                </div>
+              {/* Fila de valores + slash */}
+              <div className="flex items-baseline justify-center gap-1.5">
+                <span className="text-white text-2xl font-bold">{stats.vendedoresActivos||0}</span>
+                <span className="text-white/40 text-xl font-light">/</span>
+                <span className="text-white text-2xl font-bold">{stats.totalVendedores||0}</span>
+              </div>
+              {/* Labels debajo */}
+              <div className="flex justify-center gap-4 mt-1">
+                <span className="text-white text-xs">en turno</span>
+                <span className="text-white text-xs">activos</span>
               </div>
             </div>
 
-            {/* Card 2 — Impulsos */}
             <div className="rounded-2xl p-4 hover-lift fade-up stagger-2" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-3">
                 <span className="text-sm">⚡</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Impulsos</span>
               </div>
-              <div className="flex items-center justify-center gap-2">
-                <div className="flex-1 text-right">
-                  <div className="text-amber-400 text-2xl font-bold leading-none">{stats.impulsosActivos||0}</div>
-                  <div className="text-white text-xs mt-1">activas</div>
-                </div>
-                <div className="text-white/40 text-2xl font-thin flex-shrink-0">/</div>
-                <div className="flex-1 text-left">
-                  <div className="text-white text-2xl font-bold leading-none">{stats.totalImpulsos||0}</div>
-                  <div className="text-white text-xs mt-1">total</div>
-                </div>
+              {/* Fila de valores + slash */}
+              <div className="flex items-baseline justify-center gap-1.5">
+                <span className="text-amber-400 text-2xl font-bold">{stats.impulsosActivos||0}</span>
+                <span className="text-white/40 text-xl font-light">/</span>
+                <span className="text-white text-2xl font-bold">{stats.totalImpulsos||0}</span>
+              </div>
+              {/* Labels debajo */}
+              <div className="flex justify-center gap-4 mt-1">
+                <span className="text-white text-xs">activas</span>
+                <span className="text-white text-xs">total</span>
               </div>
             </div>
 
-            {/* Card 3 — Órdenes */}
             <div className="rounded-2xl p-4 hover-lift fade-up stagger-3" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-3">
                 <span className="text-sm">📦</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Órdenes hoy</span>
               </div>
-              <div className="flex items-center justify-center gap-2">
-                <div className="flex-1 text-right">
-                  <div className="text-emerald-400 text-2xl font-bold leading-none">{stats.ordenesDespachadasHoy||0}</div>
-                  <div className="text-white text-xs mt-1">despacho</div>
-                </div>
-                <div className="text-white/40 text-2xl font-thin flex-shrink-0">/</div>
-                <div className="flex-1 text-left">
-                  <div className="text-white text-2xl font-bold leading-none">{stats.ordenesFact||0}</div>
-                  <div className="text-white text-xs mt-1">facturas</div>
-                </div>
+              {/* Fila de valores + slash */}
+              <div className="flex items-baseline justify-center gap-1.5">
+                <span className="text-emerald-400 text-2xl font-bold">{stats.ordenesDespachadasHoy||0}</span>
+                <span className="text-white/40 text-xl font-light">/</span>
+                <span className="text-white text-2xl font-bold">{stats.ordenesFact||0}</span>
+              </div>
+              {/* Labels debajo */}
+              <div className="flex justify-center gap-4 mt-1">
+                <span className="text-white text-xs">despacho</span>
+                <span className="text-white text-xs">facturas</span>
               </div>
             </div>
 
-            {/* Card 4 — Recaudos hoy / mes */}
             <div className="rounded-2xl p-4 hover-lift fade-up stagger-4" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-3">
                 <span className="text-sm">💰</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Recaudado</span>
               </div>
-              <div className="flex items-center justify-center gap-2">
-                <div className="flex-1 text-right">
-                  <div className="text-blue-400 text-2xl font-bold leading-none truncate">${(stats.recaudoHoy||0).toLocaleString('es-CO')}</div>
-                  <div className="text-white text-xs mt-1">hoy</div>
-                </div>
-                <div className="text-white/40 text-2xl font-thin flex-shrink-0">/</div>
-                <div className="flex-1 text-left">
-                  <div className="text-white text-2xl font-bold leading-none truncate">${(stats.recaudoMes||0).toLocaleString('es-CO')}</div>
-                  <div className="text-white text-xs mt-1">mes</div>
-                </div>
+              {/* Fila de valores + slash */}
+              <div className="flex items-baseline justify-center gap-1.5">
+                <span className="text-blue-400 text-2xl font-bold">${(stats.recaudoHoy||0).toLocaleString('es-CO')}</span>
+                <span className="text-white/40 text-xl font-light">/</span>
+                <span className="text-white text-2xl font-bold">${(stats.recaudoMes||0).toLocaleString('es-CO')}</span>
+              </div>
+              {/* Labels debajo */}
+              <div className="flex justify-center gap-4 mt-1">
+                <span className="text-white text-xs">hoy</span>
+                <span className="text-white text-xs">mes</span>
               </div>
             </div>
 
