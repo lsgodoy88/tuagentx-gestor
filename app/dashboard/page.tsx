@@ -558,7 +558,7 @@ export default function DashboardPage() {
               { label: 'Visitas hoy', value: stats.visitasHoy || 0, icon: '📍', sub: 'del día', numeric: true },
               { label: 'Ventas hoy', value: stats.ventasHoy || 0, icon: '💰', sub: 'en efectivo', numeric: true, money: true },
             ].map((s, i) => (
-              <div key={s.label} className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-${i+1} ${loadingStats ? 'loading-border' : ''}`}>
+              <div key={s.label} className={`rounded-2xl p-4 hover-lift fade-up stagger-${i+1} ${loadingStats ? 'loading-border' : ''}`} style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
                 <div className="text-2xl mb-2">{s.icon}</div>
                 <div className="text-xl font-bold text-white truncate">
                   {s.money ? <>$<CountUp end={Number(s.value) || 0} /></> : <CountUp end={Number(s.value) || 0} />}
@@ -1010,22 +1010,22 @@ export default function DashboardPage() {
             <div className="space-y-4">
               {/* Hoy — siempre visible */}
               {statsVendedor && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 fade-up">
+                <div className="rounded-2xl p-4 fade-up" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
                   <p className="text-white font-bold mb-3">Hoy</p>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-zinc-800 rounded-xl p-3">
+                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
                       <p className="text-zinc-400 text-xs">Visitas</p>
                       <p className="text-white text-2xl font-bold"><CountUp end={statsVendedor.hoy.total || 0} /></p>
                     </div>
-                    <div className="bg-zinc-800 rounded-xl p-3">
+                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
                       <p className="text-zinc-400 text-xs">Ventas</p>
                       <p className="text-white text-2xl font-bold"><CountUp end={statsVendedor.hoy.ventas || 0} /></p>
                     </div>
-                    <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3">
+                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
                       <p className="text-zinc-400 text-xs">$ Ventas</p>
                       <p className="text-emerald-400 font-bold">$<CountUp end={statsVendedor.hoy.montoVentas || 0} /></p>
                     </div>
-                    <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3">
+                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
                       <p className="text-zinc-400 text-xs">Recaudo</p>
                       <p className="text-blue-400 font-bold">$<CountUp end={statsVendedor.hoy.montoCobros || 0} /></p>
                     </div>
