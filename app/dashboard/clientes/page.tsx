@@ -576,7 +576,7 @@ export default function ClientesPage() {
               📥 Importar / Exportar
             </button>
           )}
-          {puedeEditar && (
+          {puedeEditar && !tieneIntegracion && (
             <button onClick={() => setModal(true)}
               className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-3 py-1.5 rounded-lg text-xs whitespace-nowrap">
               + Nuevo
