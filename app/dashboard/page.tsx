@@ -553,72 +553,64 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-3">
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-1" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
-              <div className="flex items-center justify-center gap-1.5 mb-3">
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-1 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
+              <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">🛍️</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Vendedores</span>
               </div>
-              {/* Fila de valores + slash */}
               <div className="flex items-baseline justify-center gap-1.5">
                 <span className="text-white text-2xl font-bold">{stats.vendedoresActivos||0}</span>
                 <span className="text-white/40 text-xl font-light">/</span>
                 <span className="text-white text-2xl font-bold">{stats.totalVendedores||0}</span>
               </div>
-              {/* Labels debajo */}
               <div className="flex justify-center gap-4 mt-1">
                 <span className="text-white text-xs">en turno</span>
                 <span className="text-white text-xs">activos</span>
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-2" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
-              <div className="flex items-center justify-center gap-1.5 mb-3">
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-2 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
+              <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">⚡</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Impulsos</span>
               </div>
-              {/* Fila de valores + slash */}
               <div className="flex items-baseline justify-center gap-1.5">
                 <span className="text-amber-400 text-2xl font-bold">{stats.impulsosActivos||0}</span>
                 <span className="text-white/40 text-xl font-light">/</span>
                 <span className="text-white text-2xl font-bold">{stats.totalImpulsos||0}</span>
               </div>
-              {/* Labels debajo */}
               <div className="flex justify-center gap-4 mt-1">
                 <span className="text-white text-xs">activas</span>
                 <span className="text-white text-xs">total</span>
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-3" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
-              <div className="flex items-center justify-center gap-1.5 mb-3">
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-3 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
+              <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">📦</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Órdenes hoy</span>
               </div>
-              {/* Fila de valores + slash */}
               <div className="flex items-baseline justify-center gap-1.5">
                 <span className="text-emerald-400 text-2xl font-bold">{stats.ordenesDespachadasHoy||0}</span>
                 <span className="text-white/40 text-xl font-light">/</span>
                 <span className="text-white text-2xl font-bold">{stats.ordenesFact||0}</span>
               </div>
-              {/* Labels debajo */}
               <div className="flex justify-center gap-4 mt-1">
                 <span className="text-white text-xs">despacho</span>
                 <span className="text-white text-xs">facturas</span>
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-4" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
-              <div className="flex items-center justify-center gap-1.5 mb-3">
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-4 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
+              <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">💰</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Recaudado</span>
               </div>
-              {/* Fila de valores + slash */}
               <div className="flex items-baseline justify-center gap-1.5">
                 <span className="text-blue-400 text-2xl font-bold">${(stats.recaudoHoy||0).toLocaleString('es-CO')}</span>
                 <span className="text-white/40 text-xl font-light">/</span>
                 <span className="text-white text-2xl font-bold">${(stats.recaudoMes||0).toLocaleString('es-CO')}</span>
               </div>
-              {/* Labels debajo */}
               <div className="flex justify-center gap-4 mt-1">
                 <span className="text-white text-xs">hoy</span>
                 <span className="text-white text-xs">mes</span>
