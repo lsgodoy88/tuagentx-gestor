@@ -347,7 +347,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
             </div>
           </div>
-          <div className="absolute left-0 top-0 bottom-0 w-56 border-r flex flex-col z-[2001] shadow-2xl" style={{background:"rgba(8,10,30,0.55)",backdropFilter:"blur(28px)",WebkitBackdropFilter:"blur(28px)",borderColor:"rgba(255,255,255,0.12)"}}>
+          <div className="absolute left-0 top-0 bottom-0 w-56 border-r flex flex-col z-[2001] shadow-2xl" style={{background:"#0a0a1e",borderColor:"rgba(255,255,255,0.08)"}}>
 
             {/* Header */}
             <div className="flex items-center justify-between px-4 h-14 border-b border-[#1c1c20]">
@@ -436,7 +436,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
       <aside
         className="w-64 flex-col h-full hidden md:flex flex-shrink-0"
-        style={{background:"rgba(8,10,30,0.25)",backdropFilter:"blur(24px)",WebkitBackdropFilter:"blur(24px)",borderRight:"1px solid rgba(255,255,255,0.10)"}}>
+        style={{background:"#0a0a1e",borderRight:"1px solid rgba(255,255,255,0.08)"}}>
 
         {/* Header */}
         <div className="flex items-center px-4 h-14 border-b border-[#1c1c20] flex-shrink-0">
