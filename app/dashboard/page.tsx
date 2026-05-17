@@ -487,7 +487,7 @@ export default function DashboardPage() {
           </div>
           <p className="text-emerald-400 font-bold text-2xl">${totalMensual.toLocaleString('es-CO')}</p>
         </div>
-        <div className="rounded-2xl overflow-hidden" style={gS}>
+        <div className="rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800">
           <div className="px-4 py-3 border-b border-zinc-800">
             <p className="text-white font-semibold">Por empresa</p>
           </div>
@@ -628,7 +628,7 @@ export default function DashboardPage() {
             </div>
           )}
           {stats.topEmpleados && stats.topEmpleados.length > 0 && (
-            <div className="rounded-2xl overflow-hidden" style={gS}>
+            <div className="rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800">
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Top vendedores - 30 dias</p>
               </div>
@@ -661,7 +661,7 @@ export default function DashboardPage() {
                 if (empleadosRol.length === 0) return null
                 const titulo = rol === 'vendedor' ? 'Vendedores' : rol === 'impulsadora' ? 'Impulsadoras' : 'Entregas'
                 return (
-                  <div key={rol} className="rounded-2xl overflow-hidden" style={gS}>
+                  <div key={rol} className="rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800">
                     <div className="px-4 py-3 border-b border-zinc-800">
                       <p className="text-white font-semibold text-sm">{titulo} en turno</p>
                     </div>
@@ -717,7 +717,7 @@ export default function DashboardPage() {
           )}
           {/* Tabla 7 dias x vendedor */}
           {stats.vendedores7 && stats.vendedores7.length > 0 && (
-            <div className="rounded-2xl overflow-hidden" style={gS}>
+            <div className="rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800">
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Visitas por vendedor - ultimos 7 dias</p>
               </div>
@@ -749,7 +749,7 @@ export default function DashboardPage() {
           )}
           {/* Tabla 7 meses x vendedor */}
           {stats.vendedores7m && stats.vendedores7m.length > 0 && (
-            <div className="rounded-2xl overflow-hidden" style={gS}>
+            <div className="rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800">
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Visitas por vendedor - ultimos 7 meses</p>
               </div>
@@ -894,7 +894,7 @@ export default function DashboardPage() {
             </div>
           )}
           {ruta && totalClientes > 0 && !rutaCompletada ? (
-            <div className="rounded-2xl overflow-hidden" style={gS}>
+            <div className="rounded-2xl overflow-hidden bg-zinc-900 border border-zinc-800">
               {/* Header */}
               <div className="px-4 pt-4 pb-3">
                 {/* Fila 1: nombre ruta */}
