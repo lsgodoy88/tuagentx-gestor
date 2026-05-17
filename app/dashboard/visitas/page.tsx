@@ -140,7 +140,6 @@ export default function VisitasPage() {
     <div className="max-w-2xl md:max-w-none mx-auto space-y-6 pb-24 md:pb-0">
       <div>
         <h1 className="text-2xl font-bold text-white">{isEntregas ? 'Entregas' : 'Visitas'}</h1>
-
       </div>
 
       <div className="flex gap-1 tab-pills rounded-xl p-1">
