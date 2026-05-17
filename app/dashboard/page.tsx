@@ -554,7 +554,7 @@ export default function DashboardPage() {
           <div className="rounded-2xl p-3" style={{backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)" as any,overflow:"hidden",borderRadius:16}}>
           <div className="grid grid-cols-2 gap-3">
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-1 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.05)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-1 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.05)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">🛍️</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Vendedores</span>
@@ -570,7 +570,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-2 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.05)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-2 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.05)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">⚡</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Impulsos</span>
@@ -586,7 +586,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-3 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.05)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-3 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.05)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">📦</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Órdenes hoy</span>
@@ -602,7 +602,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-4 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.05)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-4 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.05)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">💰</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Recaudado</span>
@@ -1034,22 +1034,22 @@ export default function DashboardPage() {
             <div className="space-y-4">
               {/* Hoy — siempre visible */}
               {statsVendedor && (
-                <div className="rounded-2xl p-4 fade-up" style={{background:"rgba(255,255,255,0.05)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
+                <div className="rounded-2xl p-4 fade-up" style={{background:"rgba(255,255,255,0.05)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any}}>
                   <p className="text-white font-bold mb-3">Hoy</p>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.05)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
+                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.05)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any}}>
                       <p className="text-zinc-400 text-xs">Visitas</p>
                       <p className="text-white text-2xl font-bold"><CountUp end={statsVendedor.hoy.total || 0} /></p>
                     </div>
-                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.05)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
+                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.05)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any}}>
                       <p className="text-zinc-400 text-xs">Ventas</p>
                       <p className="text-white text-2xl font-bold"><CountUp end={statsVendedor.hoy.ventas || 0} /></p>
                     </div>
-                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.05)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
+                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.05)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any}}>
                       <p className="text-zinc-400 text-xs">$ Ventas</p>
                       <p className="text-emerald-400 font-bold">$<CountUp end={statsVendedor.hoy.montoVentas || 0} /></p>
                     </div>
-                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.05)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
+                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.05)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any}}>
                       <p className="text-zinc-400 text-xs">Recaudo</p>
                       <p className="text-blue-400 font-bold">$<CountUp end={statsVendedor.hoy.montoCobros || 0} /></p>
                     </div>
