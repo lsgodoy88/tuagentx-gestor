@@ -551,50 +551,71 @@ export default function DashboardPage() {
       </div>
       {(isEmpresa || isSupervisor) && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              { label: 'Empleados', value: stats.empleados, icon: '👥', sub: (stats.enTurno || 0) + ' en turno', numeric: true },
-              { label: 'Clientes', value: stats.clientes, icon: '🏪', sub: 'registrados', numeric: true },
-              { label: 'Visitas hoy', value: stats.visitasHoy || 0, icon: '📍', sub: 'del día', numeric: true },
-              { label: 'Ventas hoy', value: stats.ventasHoy || 0, icon: '💰', sub: 'en efectivo', numeric: true, money: true },
-            ].map((s, i) => (
-              <div key={s.label} className={`rounded-2xl p-4 hover-lift fade-up stagger-${i+1} ${loadingStats ? 'loading-border' : ''}`} style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
-                <div className="text-2xl mb-2">{s.icon}</div>
-                <div className="text-xl font-bold text-white truncate">
-                  {s.money ? <>$<CountUp end={Number(s.value) || 0} /></> : <CountUp end={Number(s.value) || 0} />}
-                </div>
-                <div className="text-zinc-400 text-xs mt-0.5">{s.label}</div>
-                <div className="text-zinc-600 text-xs">{s.sub}</div>
+          <div className="grid grid-cols-2 gap-3">
+
+            {/* Card 1: Vendedores en turno / visitas hoy */}
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-1" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
+              <div className="flex items-center gap-1.5 mb-3">
+                <span className="text-lg">&#x1F6CD;</span>
+                <span className="text-white/60 text-xs font-semibold uppercase tracking-wide">Vendedores</span>
               </div>
-            ))}
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <div className={`rounded-2xl p-4 hover-lift fade-up stagger-5 ${loadingStats ? 'loading-border' : ''}`} style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
-              <p className="text-blue-400 text-xs font-semibold mb-1">VENTAS 30 DÍAS</p>
-              <p className="text-white text-2xl font-bold">$<CountUp end={stats.ventasMes || 0} /></p>
-              <p className="text-zinc-500 text-xs mt-1">{stats.porTipo?.venta || 0} transacciones</p>
+              <div className="flex items-end gap-1.5">
+                <span className="text-white text-3xl font-bold leading-none"><CountUp end={stats.vendedoresActivos || 0} /></span>
+                <span className="text-white/40 text-xl font-medium mb-0.5">/{stats.totalVendedores || 0}</span>
+              </div>
+              <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-white/10">
+                <span className="text-sm">&#x1F4CD;</span>
+                <span className="text-white/70 text-xs"><CountUp end={stats.visitasHoy || 0} /> visitas hoy</span>
+              </div>
             </div>
-            <div className={`rounded-2xl p-4 hover-lift fade-up stagger-6 ${loadingStats ? 'loading-border-emerald' : ''}`} style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
-              <p className="text-emerald-400 text-xs font-semibold mb-1">COBROS 30 DÍAS</p>
-              <p className="text-white text-2xl font-bold">$<CountUp end={stats.cobrosMes || 0} /></p>
-              <p className="text-zinc-500 text-xs mt-1">{stats.porTipo?.cobro || 0} transacciones</p>
+
+            {/* Card 2: Impulsos activos / total */}
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-2" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
+              <div className="flex items-center gap-1.5 mb-3">
+                <span className="text-lg">&#x26A1;</span>
+                <span className="text-white/60 text-xs font-semibold uppercase tracking-wide">Impulsos</span>
+              </div>
+              <div className="flex items-end gap-1.5">
+                <span className="text-amber-400 text-3xl font-bold leading-none"><CountUp end={stats.impulsosActivos || 0} /></span>
+                <span className="text-white/40 text-xl font-medium mb-0.5">/{stats.totalImpulsos || 0}</span>
+              </div>
+              <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-white/10">
+                <span className="text-sm">&#x1F514;</span>
+                <span className="text-white/70 text-xs">rutas activas hoy</span>
+              </div>
             </div>
-            <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-7 ${loadingStats ? 'loading-border' : ''}`}>
-              <p className="text-zinc-400 text-xs font-semibold mb-1">RUTAS ACTIVAS</p>
-              <p className="text-white text-2xl font-bold flex items-center gap-2">
-                <CountUp end={stats.rutasActivas || 0} />
-                {(stats.rutasActivas || 0) > 0 && <LiveDot color="emerald" />}
-              </p>
-              <p className="text-zinc-500 text-xs mt-1">sin cerrar</p>
+
+            {/* Card 3: Órdenes despachadas / facturadas */}
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-3" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
+              <div className="flex items-center gap-1.5 mb-3">
+                <span className="text-lg">&#x1F4E6;</span>
+                <span className="text-white/60 text-xs font-semibold uppercase tracking-wide">Órdenes</span>
+              </div>
+              <div className="flex items-end gap-1.5">
+                <span className="text-emerald-400 text-3xl font-bold leading-none"><CountUp end={stats.ordenesDespachadasHoy || 0} /></span>
+                <span className="text-white/40 text-xl font-medium mb-0.5">/{stats.ordenesFact || 0}</span>
+              </div>
+              <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-white/10">
+                <span className="text-sm">&#x1F9FE;</span>
+                <span className="text-white/70 text-xs">despachadas / facturadas</span>
+              </div>
             </div>
-            <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-8 ${loadingStats ? 'loading-border' : ''}`}>
-              <p className="text-zinc-400 text-xs font-semibold mb-1">EN TURNO</p>
-              <p className="text-white text-2xl font-bold flex items-center gap-2">
-                <CountUp end={stats.enTurno || 0} />
-                {(stats.enTurno || 0) > 0 && <LiveDot color="blue" />}
-              </p>
-              <p className="text-zinc-500 text-xs mt-1">empleados activos</p>
+
+            {/* Card 4: Recaudo hoy / meta mes */}
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-4" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
+              <div className="flex items-center gap-1.5 mb-3">
+                <span className="text-lg">&#x1F4B0;</span>
+                <span className="text-white/60 text-xs font-semibold uppercase tracking-wide">Recaudos</span>
+              </div>
+              <div className="flex items-end gap-1">
+                <span className="text-blue-400 text-2xl font-bold leading-none">${(stats.recaudoHoy||0).toLocaleString('es-CO')}</span>
+              </div>
+              <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-white/10">
+                <span className="text-sm">&#x1F3AF;</span>
+                <span className="text-white/70 text-xs">meta ${(stats.metaRecaudoMes||0).toLocaleString('es-CO')}</span>
+              </div>
             </div>
+
           </div>
           {/* Botón Estadísticas */}
           <button

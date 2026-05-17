@@ -25,7 +25,14 @@ export async function GET() {
   const hace30dias = new Date(Date.now() - 30 * 86400000)
   const hace7meses = new Date(); hace7meses.setMonth(hace7meses.getMonth() - 6); hace7meses.setDate(1); hace7meses.setHours(0,0,0,0)
 
-  const [empleados, clientes, enTurno, visitas30dias, visitas7meses, rutasActivas] = await Promise.all([
+  const mesActual = hoy.getMonth() + 1
+  const anioActual = hoy.getFullYear()
+
+  const [empleados, clientes, enTurno, visitas30dias, visitas7meses, rutasActivas,
+         vendedoresActivos, totalVendedores,
+         ordenesDespachadasHoy, ordenesFact,
+         impulsosActivos, totalImpulsos,
+         recaudoHoy, metaRecaudoMes] = await Promise.all([
     prisma.empleado.count({ where: { empresaId, activo: true } }),
     prisma.cliente.count({ where: { empresaId } }),
     prisma.turno.count({ where: { empleado: { empresaId }, activo: true } }),
@@ -42,6 +49,18 @@ export async function GET() {
       take: 1000
     }),
     prisma.ruta.findMany({ where: { empresaId, cerrada: false }, select: { id: true } }),
+    // Card 1: Vendedores en turno hoy / total vendedores activos
+    prisma.turno.count({ where: { empleado: { empresaId, rol: 'vendedor' }, activo: true } }),
+    prisma.empleado.count({ where: { empresaId, rol: 'vendedor', activo: true } }),
+    // Card 3: Órdenes despachadas hoy / facturadas hoy
+    (prisma as any).ordenDespacho.count({ where: { empresaId, estado: { in: ['en_entrega','entregado'] }, entregadoEl: { gte: hoy } } }),
+    (prisma as any).ordenDespacho.count({ where: { empresaId, createdAt: { gte: hoy } } }),
+    // Card 2: Impulsadoras con ruta hoy / total impulsadoras activas
+    (prisma as any).ruta.count({ where: { empresaId, cerrada: false, empleados: { some: { empleado: { rol: 'impulsadora' } } } } }),
+    prisma.empleado.count({ where: { empresaId, rol: 'impulsadora', activo: true } }),
+    // Card 4: Recaudo hoy / meta mes (suma MetaRecaudo de todos los vendedores)
+    prisma.visita.aggregate({ where: { empleado: { empresaId }, tipo: 'cobro', fechaBogota: { gte: hoy } }, _sum: { monto: true } }),
+    (prisma as any).metaRecaudo.aggregate({ where: { empresaId, mes: mesActual, anio: anioActual }, _sum: { metaPesos: true } }),
   ])
 
   const visitasHoy = visitas30dias.filter((v: any) => new Date(v.fechaBogota) >= hoy).length
@@ -106,12 +125,22 @@ export async function GET() {
     return row
   })
 
-  return NextResponse.json({
+  const stats = {
     empleados, clientes, enTurno, visitasHoy, ventasHoy,
     ventasMes: ventasTotal, cobrosMes: cobrosTotal, porTipo,
     topEmpleados, rutasActivas: rutasActivas.length,
     visitasPorDia: Object.entries(visitasPorDia).map(([dia, cantidad]) => ({ dia, cantidad })),
     tabla7dias, vendedores7,
     tabla7meses, vendedores7m,
-  })
+    // Nuevas métricas
+    vendedoresActivos, totalVendedores,
+    visitasHoyTotal: visitasHoy,
+    ordenesDespachadasHoy, ordenesFact,
+    impulsosActivos, totalImpulsos,
+    recaudoHoy: Number(recaudoHoy._sum.monto || 0),
+    metaRecaudoMes: Number(metaRecaudoMes._sum.metaPesos || 0),
+  }
+  cache.set(empresaId, { data: stats, ts: Date.now() })
+  return NextResponse.json(stats)
 }
+
