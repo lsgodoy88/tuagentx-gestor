@@ -486,7 +486,7 @@ export default function DashboardPage() {
           </div>
           <p className="text-emerald-400 font-bold text-2xl">${totalMensual.toLocaleString('es-CO')}</p>
         </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+        <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.12)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)" as any,border:"1px solid rgba(255,255,255,0.22)",boxShadow:"0 8px 32px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.18)"}}>
           <div className="px-4 py-3 border-b border-zinc-800">
             <p className="text-white font-semibold">Por empresa</p>
           </div>
@@ -630,7 +630,7 @@ export default function DashboardPage() {
           <div className="md:grid md:grid-cols-2 md:gap-6 space-y-6 md:space-y-0">
           <div className="space-y-6">
           {stats.visitasPorDia && stats.visitasPorDia.length > 0 && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+            <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.12)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)" as any,border:"1px solid rgba(255,255,255,0.22)",boxShadow:"0 8px 32px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.18)"}}>
               <p className="text-white font-semibold text-sm mb-4">Visitas últimos 7 días</p>
               <div className="space-y-2">
                 {(() => {
@@ -649,7 +649,7 @@ export default function DashboardPage() {
             </div>
           )}
           {stats.topEmpleados && stats.topEmpleados.length > 0 && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.12)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)" as any,border:"1px solid rgba(255,255,255,0.22)",boxShadow:"0 8px 32px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.18)"}}>
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Top vendedores - 30 dias</p>
               </div>
@@ -682,7 +682,7 @@ export default function DashboardPage() {
                 if (empleadosRol.length === 0) return null
                 const titulo = rol === 'vendedor' ? 'Vendedores' : rol === 'impulsadora' ? 'Impulsadoras' : 'Entregas'
                 return (
-                  <div key={rol} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+                  <div key={rol} className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.12)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)" as any,border:"1px solid rgba(255,255,255,0.22)",boxShadow:"0 8px 32px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.18)"}}>
                     <div className="px-4 py-3 border-b border-zinc-800">
                       <p className="text-white font-semibold text-sm">{titulo} en turno</p>
                     </div>
@@ -738,7 +738,7 @@ export default function DashboardPage() {
           )}
           {/* Tabla 7 dias x vendedor */}
           {stats.vendedores7 && stats.vendedores7.length > 0 && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.12)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)" as any,border:"1px solid rgba(255,255,255,0.22)",boxShadow:"0 8px 32px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.18)"}}>
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Visitas por vendedor - ultimos 7 dias</p>
               </div>
@@ -770,7 +770,7 @@ export default function DashboardPage() {
           )}
           {/* Tabla 7 meses x vendedor */}
           {stats.vendedores7m && stats.vendedores7m.length > 0 && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.12)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)" as any,border:"1px solid rgba(255,255,255,0.22)",boxShadow:"0 8px 32px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.18)"}}>
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Visitas por vendedor - ultimos 7 meses</p>
               </div>
@@ -915,7 +915,7 @@ export default function DashboardPage() {
             </div>
           )}
           {ruta && totalClientes > 0 && !rutaCompletada ? (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.12)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)" as any,border:"1px solid rgba(255,255,255,0.22)",boxShadow:"0 8px 32px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.18)"}}>
               {/* Header */}
               <div className="px-4 pt-4 pb-3">
                 {/* Fila 1: nombre ruta */}
@@ -960,7 +960,7 @@ export default function DashboardPage() {
             </div>
           ) : null}
           {user?.role === 'vendedor' && turno && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+              <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.12)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)" as any,border:"1px solid rgba(255,255,255,0.22)",boxShadow:"0 8px 32px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.18)"}}>
                 <p className="text-white font-bold mb-3">Visitas</p>
                 <div className="flex gap-2">
                   {[
@@ -979,7 +979,7 @@ export default function DashboardPage() {
               </div>
             )}
           {user?.role === 'entregas' && ruta && ruta.clientes?.length > 0 && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.12)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)" as any,border:"1px solid rgba(255,255,255,0.22)",boxShadow:"0 8px 32px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.18)"}}>
               <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
                 <p className="text-white font-bold">📦 Ruta de hoy</p>
                 <span className="text-zinc-400 text-xs">{ejecutadosRuta}/{totalClientes} entregas</span>
@@ -1055,7 +1055,7 @@ export default function DashboardPage() {
                 </div>
               )}
                 {statsVendedor && statsVendedor.cumplimiento?.length > 0 && (
-                  <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+                  <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.12)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)" as any,border:"1px solid rgba(255,255,255,0.22)",boxShadow:"0 8px 32px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.18)"}}>
                     <p className="text-white font-bold mb-3">Impulsadoras hoy</p>
                     <div className="space-y-3">
                       {statsVendedor.cumplimiento.map((imp: any) => (
@@ -1154,7 +1154,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+                  <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.12)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)" as any,border:"1px solid rgba(255,255,255,0.22)",boxShadow:"0 8px 32px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.18)"}}>
                     <p className="text-white font-bold mb-3">Últimos 6 meses</p>
                     <div className="overflow-x-auto">
                       <div>
