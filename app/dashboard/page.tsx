@@ -627,7 +627,7 @@ export default function DashboardPage() {
           </button>
 
           {mostrarEstadisticas ? (
-          <div className="md:grid md:grid-cols-2 md:gap-6 space-y-6 md:space-y-0">
+          <div className="md:grid md:grid-cols-2 md:gap-6 space-y-6 md:space-y-0 rounded-2xl p-3" style={{backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)" as any}}>
           <div className="space-y-6">
           {stats.visitasPorDia && stats.visitasPorDia.length > 0 && (
             <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"0 4px 16px rgba(0,0,0,0.20)"}}>
