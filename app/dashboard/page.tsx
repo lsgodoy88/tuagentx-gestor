@@ -553,25 +553,25 @@ export default function DashboardPage() {
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-3">
 
-            {/* Card 1 — Vendedores / Visitas */}
+            {/* Card 1 — Vendedores */}
             <div className="rounded-2xl p-4 hover-lift fade-up stagger-1" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-3">
                 <span className="text-sm">🛍️</span>
                 <span className="text-white/40 text-[9px] font-bold tracking-widest uppercase">Vendedores</span>
               </div>
-              <div className="flex items-center justify-center gap-3">
+              <div className="flex items-center justify-center gap-2">
                 <div className="flex-1 text-right">
-                  <div className="text-white text-xl font-bold leading-none">{stats.vendedoresActivos||0}</div>
-                  <div className="text-white/35 text-[9px] mt-1">en turno</div>
+                  <div className="text-white text-3xl font-bold leading-none">{stats.vendedoresActivos||0}</div>
+                  <div className="text-white/35 text-[10px] mt-1">en turno</div>
                 </div>
-                <div className="text-white/15 text-2xl font-thin flex-shrink-0">/</div>
+                <div className="text-white/15 text-3xl font-thin flex-shrink-0">/</div>
                 <div className="flex-1 text-left">
-                  <div className="text-white/50 text-xl font-bold leading-none">{stats.totalVendedores||0}</div>
-                  <div className="text-white/25 text-[9px] mt-1">activos</div>
+                  <div className="text-white/50 text-3xl font-bold leading-none">{stats.totalVendedores||0}</div>
+                  <div className="text-white/25 text-[10px] mt-1">activos</div>
                 </div>
               </div>
               <div className="border-t border-white/[0.07] mt-3 pt-2.5 text-center">
-                <span className="text-white/35 text-[9px]">📍 {stats.visitasHoy||0} visitas hoy</span>
+                <span className="text-white/35 text-[10px]">📍 {stats.visitasHoy||0} visitas hoy</span>
               </div>
             </div>
 
@@ -581,19 +581,19 @@ export default function DashboardPage() {
                 <span className="text-sm">⚡</span>
                 <span className="text-white/40 text-[9px] font-bold tracking-widest uppercase">Impulsos</span>
               </div>
-              <div className="flex items-center justify-center gap-3">
+              <div className="flex items-center justify-center gap-2">
                 <div className="flex-1 text-right">
-                  <div className="text-amber-400 text-xl font-bold leading-none">{stats.impulsosActivos||0}</div>
-                  <div className="text-white/35 text-[9px] mt-1">activas</div>
+                  <div className="text-amber-400 text-3xl font-bold leading-none">{stats.impulsosActivos||0}</div>
+                  <div className="text-white/35 text-[10px] mt-1">activas</div>
                 </div>
-                <div className="text-white/15 text-2xl font-thin flex-shrink-0">/</div>
+                <div className="text-white/15 text-3xl font-thin flex-shrink-0">/</div>
                 <div className="flex-1 text-left">
-                  <div className="text-white/50 text-xl font-bold leading-none">{stats.totalImpulsos||0}</div>
-                  <div className="text-white/25 text-[9px] mt-1">alertas</div>
+                  <div className="text-white/50 text-3xl font-bold leading-none">{stats.totalImpulsos||0}</div>
+                  <div className="text-white/25 text-[10px] mt-1">total</div>
                 </div>
               </div>
               <div className="border-t border-white/[0.07] mt-3 pt-2.5 text-center">
-                <span className="text-white/35 text-[9px]">🔔 rutas activas hoy</span>
+                <span className="text-white/35 text-[10px]">🔔 rutas activas hoy</span>
               </div>
             </div>
 
@@ -601,43 +601,43 @@ export default function DashboardPage() {
             <div className="rounded-2xl p-4 hover-lift fade-up stagger-3" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-3">
                 <span className="text-sm">📦</span>
-                <span className="text-white/40 text-[9px] font-bold tracking-widest uppercase">Órdenes</span>
+                <span className="text-white/40 text-[9px] font-bold tracking-widest uppercase">Órdenes hoy</span>
               </div>
-              <div className="flex items-center justify-center gap-3">
+              <div className="flex items-center justify-center gap-2">
                 <div className="flex-1 text-right">
-                  <div className="text-emerald-400 text-xl font-bold leading-none">{stats.ordenesDespachadasHoy||0}</div>
-                  <div className="text-white/35 text-[9px] mt-1">despachadas</div>
+                  <div className="text-emerald-400 text-3xl font-bold leading-none">{stats.ordenesDespachadasHoy||0}</div>
+                  <div className="text-white/35 text-[10px] mt-1">despacho</div>
                 </div>
-                <div className="text-white/15 text-2xl font-thin flex-shrink-0">/</div>
+                <div className="text-white/15 text-3xl font-thin flex-shrink-0">/</div>
                 <div className="flex-1 text-left">
-                  <div className="text-white/50 text-xl font-bold leading-none">{stats.ordenesFact||0}</div>
-                  <div className="text-white/25 text-[9px] mt-1">facturadas</div>
+                  <div className="text-white/50 text-3xl font-bold leading-none">{stats.ordenesFact||0}</div>
+                  <div className="text-white/25 text-[10px] mt-1">facturas</div>
                 </div>
               </div>
               <div className="border-t border-white/[0.07] mt-3 pt-2.5 text-center">
-                <span className="text-white/35 text-[9px]">🧾 hoy</span>
+                <span className="text-white/35 text-[10px]">🧾 del día</span>
               </div>
             </div>
 
-            {/* Card 4 — Recaudos */}
+            {/* Card 4 — Recaudos hoy / mes */}
             <div className="rounded-2xl p-4 hover-lift fade-up stagger-4" style={{background:"rgba(255,255,255,0.10)",backdropFilter:"blur(10px)",WebkitBackdropFilter:"blur(10px)" as any,border:"1px solid rgba(255,255,255,0.18)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.12)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-3">
                 <span className="text-sm">💰</span>
-                <span className="text-white/40 text-[9px] font-bold tracking-widest uppercase">Recaudos</span>
+                <span className="text-white/40 text-[9px] font-bold tracking-widest uppercase">Recaudado</span>
               </div>
-              <div className="flex items-center justify-center gap-3">
+              <div className="flex items-center justify-center gap-2">
                 <div className="flex-1 text-right">
-                  <div className="text-blue-400 text-xl font-bold leading-none truncate">${(stats.recaudoHoy||0).toLocaleString('es-CO')}</div>
-                  <div className="text-white/35 text-[9px] mt-1">hoy</div>
+                  <div className="text-blue-400 text-lg font-bold leading-none truncate">${(stats.recaudoHoy||0).toLocaleString('es-CO')}</div>
+                  <div className="text-white/35 text-[10px] mt-1">hoy</div>
                 </div>
-                <div className="text-white/15 text-2xl font-thin flex-shrink-0">/</div>
+                <div className="text-white/15 text-3xl font-thin flex-shrink-0">/</div>
                 <div className="flex-1 text-left">
-                  <div className="text-white/50 text-xl font-bold leading-none truncate">${(stats.metaRecaudoMes||0).toLocaleString('es-CO')}</div>
-                  <div className="text-white/25 text-[9px] mt-1">meta mes</div>
+                  <div className="text-white/50 text-lg font-bold leading-none truncate">${(stats.recaudoMes||0).toLocaleString('es-CO')}</div>
+                  <div className="text-white/25 text-[10px] mt-1">mes</div>
                 </div>
               </div>
               <div className="border-t border-white/[0.07] mt-3 pt-2.5 text-center">
-                <span className="text-white/35 text-[9px]">🎯 meta del mes</span>
+                <span className="text-white/35 text-[10px]">🎯 recaudado del mes</span>
               </div>
             </div>
 

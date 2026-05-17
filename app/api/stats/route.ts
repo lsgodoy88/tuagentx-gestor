@@ -32,7 +32,7 @@ export async function GET() {
          vendedoresActivos, totalVendedores,
          ordenesDespachadasHoy, ordenesFact,
          impulsosActivos, totalImpulsos,
-         recaudoHoy, metaRecaudoMes] = await Promise.all([
+         recaudoHoy, recaudoMesAgg] = await Promise.all([
     prisma.empleado.count({ where: { empresaId, activo: true } }),
     prisma.cliente.count({ where: { empresaId } }),
     prisma.turno.count({ where: { empleado: { empresaId }, activo: true } }),
@@ -58,9 +58,9 @@ export async function GET() {
     // Card 2: Impulsadoras con ruta hoy / total impulsadoras activas
     (prisma as any).ruta.count({ where: { empresaId, cerrada: false, empleados: { some: { empleado: { rol: 'impulsadora' } } } } }),
     prisma.empleado.count({ where: { empresaId, rol: 'impulsadora', activo: true } }),
-    // Card 4: Recaudo hoy / meta mes (suma MetaRecaudo de todos los vendedores)
+    // Card 4: Recaudo hoy / recaudado mes
     prisma.visita.aggregate({ where: { empleado: { empresaId }, tipo: 'cobro', fechaBogota: { gte: hoy } }, _sum: { monto: true } }),
-    (prisma as any).metaRecaudo.aggregate({ where: { empresaId, mes: mesActual, anio: anioActual }, _sum: { metaPesos: true } }),
+    prisma.visita.aggregate({ where: { empleado: { empresaId }, tipo: 'cobro', fechaBogota: { gte: new Date(hoy.getFullYear(), hoy.getMonth(), 1) } }, _sum: { monto: true } }),
   ])
 
   const visitasHoy = visitas30dias.filter((v: any) => new Date(v.fechaBogota) >= hoy).length
@@ -138,7 +138,7 @@ export async function GET() {
     ordenesDespachadasHoy, ordenesFact,
     impulsosActivos, totalImpulsos,
     recaudoHoy: Number(recaudoHoy._sum.monto || 0),
-    metaRecaudoMes: Number(metaRecaudoMes._sum.metaPesos || 0),
+    recaudoMes: Number(recaudoMesAgg._sum.monto || 0),
   }
   cache.set(empresaId, { data: stats, ts: Date.now() })
   return NextResponse.json(stats)
