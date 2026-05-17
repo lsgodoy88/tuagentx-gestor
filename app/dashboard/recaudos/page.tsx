@@ -285,8 +285,8 @@ export default function RecaudosPage() {
             <button
               key={t.key}
               onClick={() => { setTab(t.key as any) }}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                tab === t.key ? 'bg-blue-600 text-white' : 'text-white hover:text-white rounded-lg py-2.5 px-5'
+              className={`flex-1 py-3 text-sm font-semibold transition-colors ${
+                tab === t.key ? 'tab-active' : 'text-white hover:text-white'
               }`}>
               {t.label}
             </button>
