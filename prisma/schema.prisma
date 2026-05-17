@@ -219,7 +219,8 @@ model RutaEmpleado {
   empleado   Empleado @relation(fields: [empleadoId], references: [id])
   ruta       Ruta     @relation(fields: [rutaId], references: [id])
 
-  @@map("RutaEmpleado")  @@index([empleadoId])
+  @@map("RutaEmpleado")  @@unique([endpoint])
+  @@index([empleadoId])
 }
 
 model RutaCliente {
@@ -262,7 +263,8 @@ model RutaFijaEmpleado {
   empleado   Empleado @relation(fields: [empleadoId], references: [id])
   rutaFija   RutaFija @relation(fields: [rutaFijaId], references: [id])
 
-  @@map("RutaFijaEmpleado")  @@index([empleadoId])
+  @@map("RutaFijaEmpleado")  @@unique([endpoint])
+  @@index([empleadoId])
 }
 
 model RutaFijaCliente {
@@ -447,6 +449,7 @@ model PushSuscripcion {
   auth       String
   createdAt  DateTime @default(now())
 
+  @@unique([endpoint])
   @@index([empleadoId])
 }
 
