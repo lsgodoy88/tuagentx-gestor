@@ -454,12 +454,12 @@ export default function RecaudosPage() {
             </select>
           </div>
         )}
-        {/* Calendario */}
-        <div style={{position:'relative',flexShrink:0}}>
-          <div style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'8px 14px',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',height:'100%',boxSizing:'border-box'}}>
+        {/* Calendario — label wrappea el input, click en toda el área lo activa */}
+        <label style={{position:'relative',flexShrink:0,cursor:'pointer',display:'block'}}>
+          <div style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'8px 14px',display:'flex',alignItems:'center',justifyContent:'center',gap:6,pointerEvents:'none',userSelect:'none'}}>
             <span style={{fontSize:18,lineHeight:1}}>📅</span>
             {fecha && (
-              <span style={{fontSize:10,fontWeight:700,color:'white',marginLeft:6}}>{fmtFechaBtn(fecha)}</span>
+              <span style={{fontSize:10,fontWeight:700,color:'white'}}>{fmtFechaBtn(fecha)}</span>
             )}
           </div>
           <input
@@ -467,7 +467,7 @@ export default function RecaudosPage() {
             type="date"
             value={fecha}
             onChange={e => setFecha(e.target.value)}
-            style={{position:'absolute',inset:0,opacity:0,width:'100%',height:'100%',cursor:'pointer',zIndex:2}}
+            style={{position:'absolute',inset:0,opacity:0,width:'100%',height:'100%',cursor:'pointer',zIndex:1}}
           />
           {fecha && (
             <button
@@ -476,7 +476,7 @@ export default function RecaudosPage() {
               ✕
             </button>
           )}
-        </div>
+        </label>
         {/* Validar */}
         <button
           onClick={() => haySeleccion ? validarSeleccionados() : validarTodos()}
