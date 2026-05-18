@@ -202,13 +202,6 @@ export default function EmpleadosPage() {
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Activos</h1>
-          <p className="text-zinc-400 text-sm mt-1">Rutas y equipo</p>
-        </div>
-      </div>
-
       {/* Tabs principales */}
       <div className="flex gap-1 tab-pills rounded-xl p-1">
         <button onClick={() => setTabPrincipal('rutas')}
