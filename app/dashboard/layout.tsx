@@ -327,6 +327,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       position:'fixed', inset:0, zIndex:-1,
       background:'rgba(2,2,10,0.55)',
     }} />
+    {/* Suelo — cubre cualquier área más allá del viewport */}
+    <div aria-hidden="true" style={{
+      position:'fixed', inset:0, zIndex:-2,
+      background:'#02020a',
+    }} />
     {/* Círculos de color estáticos — profundidad para el glass */}
 
 
@@ -543,7 +548,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
       </aside>
-      <main className="flex-1 flex flex-col min-w-0 w-0 min-h-screen">
+      <main className="flex-1 flex flex-col min-w-0 w-0">
         {bloqueado && (
           <div className="bg-red-900/80 border-b border-red-700 flex items-center justify-between px-4 h-10 flex-shrink-0 overflow-hidden">
             <span className="text-red-100 text-sm truncate">
