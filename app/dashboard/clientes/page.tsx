@@ -19,7 +19,7 @@ export default function ClientesPage() {
     userRole === 'entregador' ? 'entregador' : 'vendedor'
   const [clientes, setClientes] = useState<any[]>([])
   const [modal, setModal] = useState(false)
-  const [tieneIntegracion, setTieneIntegracion] = useState(false)
+  const [tieneIntegracion, setTieneIntegracion] = useState<boolean | null>(null)
   const [modalImport, setModalImport] = useState(false)
   const [buscar, setBuscar] = useState('')
   const [nextCursor, setNextCursor] = useState<string|null>(null)
@@ -569,13 +569,13 @@ export default function ClientesPage() {
         {(rol === 'admin' || rol === 'supervisor') && (
           <button onClick={() => setTab("listas")} className={`flex-1 py-3 text-sm font-semibold transition-colors text-center ${tab === 'listas' ? 'tab-active' : 'text-white hover:text-white'}`}>📋 Listas</button>
         )}
-        {puedeEditar && !tieneIntegracion && (
+        {puedeEditar && tieneIntegracion === false && (
           <button onClick={() => { setPreviewRows([]); setImportResultImpExp(null); setModalImpExp(true) }}
             className="flex-shrink-0 px-3 py-2 rounded-lg text-xs font-semibold text-white/70 hover:text-white transition-colors">
             📥
           </button>
         )}
-        {puedeEditar && !tieneIntegracion && (
+        {puedeEditar && tieneIntegracion === false && (
           <button onClick={() => setModal(true)}
             className="flex-shrink-0 px-3 py-2 rounded-lg text-xs font-semibold bg-emerald-600/80 hover:bg-emerald-500 text-white transition-colors">
             + Nuevo
