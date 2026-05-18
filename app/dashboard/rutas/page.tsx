@@ -348,15 +348,15 @@ export default function RutasPage() {
       {/* Tabs principales */}
       <div className="flex gap-1 tab-pills rounded-xl p-1">
         <button onClick={() => setTabPrincipal('mapa')}
-          className={`flex-1 py-3 text-sm font-semibold tab-active`}>
+          className={`flex-1 py-3 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'mapa' ? 'tab-active' : 'text-white hover:text-white'}`}>
           🗺️ Mapa
         </button>
         <button onClick={() => setTabPrincipal('ruta')}
-          className={`flex-1 py-3 text-sm font-semibold tab-active`}>
+          className={`flex-1 py-3 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'ruta' ? 'tab-active' : 'text-white hover:text-white'}`}>
           📍 Ruta
         </button>
         <button onClick={() => setTabPrincipal('historial')}
-          className={`flex-1 py-3 text-sm font-semibold tab-active`}>
+          className={`flex-1 py-3 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'historial' ? 'tab-active' : 'text-white hover:text-white'}`}>
           📋 Historial
         </button>
       </div>

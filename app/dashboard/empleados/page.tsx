@@ -205,11 +205,11 @@ export default function EmpleadosPage() {
       {/* Tabs principales */}
       <div className="flex gap-1 tab-pills rounded-xl p-1">
         <button onClick={() => setTabPrincipal('rutas')}
-          className={`flex-1 py-3 text-sm font-semibold tab-active`}>
+          className={`flex-1 py-3 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'rutas' ? 'tab-active' : 'text-white hover:text-white'}`}>
           🛣️ Rutas
         </button>
         <button onClick={() => setTabPrincipal('equipo')}
-          className={`flex-1 py-3 text-sm font-semibold tab-active`}>
+          className={`flex-1 py-3 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'equipo' ? 'tab-active' : 'text-white hover:text-white'}`}>
           👥 Equipo
         </button>
       </div>
