@@ -177,6 +177,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return () => clearInterval(t)
   }, [menuMovil])
 
+  // Bloquear scroll del body cuando el drawer móvil está abierto
+  useEffect(() => {
+    if (menuMovil) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [menuMovil])
+
   useEffect(() => {
     if (!user || user.role === 'superadmin') return
     // Cachear en sessionStorage — no cambia durante la sesión
@@ -336,7 +346,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div className="min-h-screen flex" style={{background:'transparent'}}>
       {/* Drawer móvil — estilo B */}
       {menuMovil && (
-        <div className="fixed inset-0 z-[2000] md:hidden">
+        <div className="fixed inset-0 z-[2000] md:hidden" style={{overflow:"hidden"}}>
           <div className="absolute top-0 bottom-0 right-0" style={{left:"224px", background:"rgba(4,6,20,0.88)"}} onClick={() => setMenuMovil(false)}>
             {/* Mensajes de ánimo — salen del sidebar hacia la derecha */}
             <div className="absolute overflow-hidden" style={{left:0, right:0, top:'18%'}} onClick={e => e.stopPropagation()}>
