@@ -17,6 +17,7 @@ interface DataTableProps<T = any> {
   rowKey: (row: T) => string
   selected?: Set<string>
   onToggle?: (id: string) => void
+  onSelectAll?: (ids: string[]) => void
   subRows?: (row: T) => any[]   // devuelve array de sub-filas o []
   loading?: boolean
   storageKey?: string           // clave localStorage para anchos
@@ -53,7 +54,7 @@ const CHECKBOX_W = 32  // px fijo para la columna de checkbox
 
 // ── Componente ───────────────────────────────────────────────────
 export default function DataTable<T>({
-  columns, rows, rowKey, selected, onToggle, subRows,
+  columns, rows, rowKey, selected, onToggle, onSelectAll, subRows,
   loading, storageKey, onRowClick,
 }: DataTableProps<T>) {
 
@@ -130,15 +131,27 @@ export default function DataTable<T>({
         {/* Header */}
         <thead>
           <tr>
-            {/* Checkbox header */}
+            {/* Checkbox header — selecciona/deselecciona todos */}
             <th style={{ ...TH, width: CHECKBOX_W, padding: '7px 0' }}>
-              <div style={{ display: 'flex', justifyContent: 'center' }}>
-                <div style={{
-                  width: 13, height: 13, borderRadius: 3,
-                  border: '2px solid rgba(255,255,255,0.25)',
-                  cursor: 'pointer',
-                }} />
-              </div>
+              {onSelectAll && (() => {
+                const allIds = rows.map(r => rowKey(r))
+                const allSelected = allIds.length > 0 && allIds.every(id => selected?.has(id))
+                const someSelected = !allSelected && allIds.some(id => selected?.has(id))
+                return (
+                  <div style={{ display: 'flex', justifyContent: 'center' }}
+                    onClick={() => onSelectAll(allSelected ? [] : allIds)}>
+                    <div style={{
+                      width: 13, height: 13, borderRadius: 3, cursor: 'pointer',
+                      border: allSelected ? '2px solid #3b82f6' : someSelected ? '2px solid #3b82f6' : '2px solid rgba(255,255,255,0.30)',
+                      background: allSelected ? '#3b82f6' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      {allSelected && <span style={{ color: 'white', fontSize: 7, fontWeight: 900 }}>✓</span>}
+                      {someSelected && <span style={{ color: '#3b82f6', fontSize: 9, fontWeight: 900 }}>—</span>}
+                    </div>
+                  </div>
+                )
+              })()}
             </th>
             {columns.map((col, i) => (
               <th key={col.key} style={{ ...TH, width: widths[i] }}>

@@ -261,6 +261,8 @@ export default function RecaudosPage() {
   const [validadoSel,         setValidadoSel]         = useState(false)
   const [isDesktop,           setIsDesktop]           = useState(false)
   const [reciboPopup,         setReciboPopup]         = useState<string | null>(null)
+  const [validaciones,        setValidaciones]        = useState<Record<string,{valido:boolean,motivo:string,saldoUptres:number|null}>>({})
+  const [validando,           setValidando]           = useState(false)
   const fechaInputRef = useRef<HTMLInputElement>(null)
 
   const isAdmin = user?.role === 'empresa' || user?.role === 'supervisor'
@@ -346,8 +348,37 @@ export default function RecaudosPage() {
     }
   }
 
-  async function validarTodos()        { setValidadoTodos(false); await fetchPagos(null); setValidadoTodos(true) }
-  async function validarSeleccionados(){ setValidadoSel(false);   await fetchPagos(null); setValidadoSel(true)   }
+  async function validarPagos(ids: string[]) {
+    setValidando(true)
+    try {
+      const res  = await fetch('/api/recaudos/validar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pagoIds: ids }),
+      })
+      const data = await res.json()
+      const map: Record<string,{valido:boolean,motivo:string,saldoUptres:number|null}> = {}
+      for (const r of data.resultados ?? []) map[r.pagoId] = r
+      setValidaciones(prev => ({ ...prev, ...map }))
+      const todosValidos = (data.resultados ?? []).every((r:any) => r.valido)
+      return todosValidos
+    } finally {
+      setValidando(false)
+    }
+  }
+
+  async function validarTodos() {
+    setValidadoTodos(false)
+    const ids = pagos.filter(p => p.envioEstado === 'pendiente').map(p => p.id)
+    const ok = await validarPagos(ids)
+    if (ok) setValidadoTodos(true)
+  }
+
+  async function validarSeleccionados() {
+    setValidadoSel(false)
+    const ok = await validarPagos([...seleccionados])
+    if (ok) setValidadoSel(true)
+  }
 
   async function enviarTodos() {
     const pendientes = pagos.filter(p => p.envioEstado === 'pendiente')
@@ -395,42 +426,55 @@ export default function RecaudosPage() {
         ))}
       </div>
 
-      {/* Sub-fila: vendedor + fecha + montos */}
-      <div className="flex gap-1 tab-pills rounded-xl p-1">
-        {isAdmin && (
-          <select value={vendedorId} onChange={e => setVendedorId(e.target.value)}
-            className="flex-1 bg-transparent border-none rounded-lg px-2 py-1.5 text-xs text-white outline-none cursor-pointer">
-            <option value="">Vendedor</option>
-            {vendedores.map(v => (
-              <option key={v.id} value={v.id}>{v.nombre.split(' ')[0]}</option>
-            ))}
-          </select>
+      {/* Filtros + montos + validar — botones independientes */}
+      <div className="flex flex-wrap items-center gap-2">
+        {resumen.efectivo > 0 && (
+          <span className="tab-btn px-3 py-1.5 rounded-xl text-xs font-semibold text-emerald-400 whitespace-nowrap">
+            💵 {fmtMonto(resumen.efectivo)}
+          </span>
         )}
-        <div className="relative flex-1">
+        {resumen.transferencia > 0 && (
+          <span className="tab-btn px-3 py-1.5 rounded-xl text-xs font-semibold text-blue-400 whitespace-nowrap">
+            📲 {fmtMonto(resumen.transferencia)}
+          </span>
+        )}
+        {resumen.efectivo === 0 && resumen.transferencia === 0 && (
+          <span className="tab-btn px-3 py-1.5 rounded-xl text-xs font-semibold text-white/50">$0</span>
+        )}
+        {isAdmin && (
+          <div className="tab-btn rounded-xl" style={{padding:0,overflow:'hidden'}}>
+            <select value={vendedorId} onChange={e => setVendedorId(e.target.value)}
+              className="bg-transparent border-none px-3 py-1.5 text-xs text-white outline-none cursor-pointer">
+              <option value="">Vendedor</option>
+              {vendedores.map(v => (
+                <option key={v.id} value={v.id}>{v.nombre.split(' ')[0]}</option>
+              ))}
+            </select>
+          </div>
+        )}
+        <div className="relative">
           <button
             onClick={() => fechaInputRef.current?.showPicker?.() ?? fechaInputRef.current?.click()}
-            className="w-full py-1.5 rounded-lg text-xs font-semibold text-white transition-colors text-center">
-            {fecha ? `📅 ${fmtFechaBtn(fecha)}` : '📅 Fecha'}
+            className="tab-btn px-3 py-1.5 rounded-xl text-sm transition-colors"
+            title={fecha ? fmtFechaBtn(fecha) : 'Filtrar por fecha'}>
+            {fecha ? `📅 ${fmtFechaBtn(fecha)}` : '📅'}
           </button>
+          {fecha && (
+            <button onClick={() => setFecha('')}
+              className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-zinc-700 text-white text-[9px] flex items-center justify-center hover:bg-zinc-600">
+              ✕
+            </button>
+          )}
           <input ref={fechaInputRef} type="date" value={fecha}
             onChange={e => { if (e.target.value) setFecha(e.target.value) }}
             className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
         </div>
-        <div className="flex flex-1 items-center gap-1.5">
-          {resumen.efectivo > 0 && (
-            <span className="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold text-emerald-400 whitespace-nowrap">
-              💵 {fmtMonto(resumen.efectivo)}
-            </span>
-          )}
-          {resumen.transferencia > 0 && (
-            <span className="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold text-blue-400 whitespace-nowrap">
-              📲 {fmtMonto(resumen.transferencia)}
-            </span>
-          )}
-          {resumen.efectivo === 0 && resumen.transferencia === 0 && (
-            <span className="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white/50">$0</span>
-          )}
-        </div>
+        <button
+          onClick={() => haySeleccion ? validarSeleccionados() : validarTodos()}
+          disabled={validando}
+          className="tab-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap">
+          {validando ? '⏳ Validando...' : `🔍 Validar${haySeleccion ? ` (${seleccionados.size})` : ''}`}
+        </button>
       </div>
 
       {/* ── DESKTOP: DataTable ─────────────────────────────────── */}
@@ -442,6 +486,7 @@ export default function RecaudosPage() {
             rowKey={p => p.id}
             selected={seleccionados}
             onToggle={toggleSeleccion}
+            onSelectAll={ids => setSeleccionados(ids.length ? new Set(ids) : new Set())}
             loading={loading}
             storageKey="recaudos"
             subRows={p => {
@@ -581,44 +626,29 @@ export default function RecaudosPage() {
         </div>
       )}
 
-      {/* Botón flotante validar/enviar */}
-      <div className="fixed bottom-6 right-4 md:right-6 z-40 flex items-center gap-2">
-        {haySeleccion && (
-          <button onClick={() => { setSeleccionados(new Set()); setValidadoSel(false) }}
-            className="tab-btn flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold">
-            {seleccionados.size} sel. <span className="text-white/60 ml-0.5">✕</span>
+      {/* Botón flotante — solo Enviar, aparece tras validación exitosa */}
+      {(validadoTodos || validadoSel) && (
+        <div className="fixed bottom-6 right-4 md:right-6 z-40 flex items-center gap-2">
+          {haySeleccion && (
+            <button onClick={() => { setSeleccionados(new Set()); setValidadoSel(false) }}
+              className="tab-btn flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold">
+              {seleccionados.size} sel. <span className="text-white/60 ml-0.5">✕</span>
+            </button>
+          )}
+          <button
+            onClick={async () => {
+              if (haySeleccion) { await enviarSeleccionados(); setValidadoSel(false) }
+              else              { await enviarTodos();         setValidadoTodos(false) }
+            }}
+            disabled={enviandoTodos || enviandoSeleccionados}
+            style={{border:'1px solid rgba(96,165,250,0.5)',background:'rgba(37,99,235,0.35)',backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',borderRadius:'0.75rem',color:'white',boxShadow:'0 4px 16px rgba(37,99,235,0.4)',display:'flex',alignItems:'center',gap:'6px',padding:'10px 20px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
+            {enviandoTodos || enviandoSeleccionados
+              ? '⏳ Enviando...'
+              : haySeleccion ? `📤 Enviar (${seleccionados.size})` : '📤 Enviar todos'}
           </button>
-        )}
-        {haySeleccion ? (
-          validadoSel ? (
-            <button onClick={async () => { await enviarSeleccionados(); setValidadoSel(false) }}
-              disabled={enviandoSeleccionados}
-              style={{ border:'1px solid rgba(255,255,255,0.30)',background:'rgba(255,255,255,0.18)',backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',borderRadius:'0.5rem',color:'white',boxShadow:'0 2px 8px rgba(0,0,0,0.35)',display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',fontSize:'12px',fontWeight:700,cursor:'pointer' }}>
-              {enviandoSeleccionados ? '⏳...' : '📤 Enviar sel.'}
-            </button>
-          ) : (
-            <button onClick={validarSeleccionados}
-              style={{ border:'1px solid rgba(255,255,255,0.18)',background:'rgba(255,255,255,0.06)',borderRadius:'0.5rem',color:'rgba(255,255,255,0.80)',transition:'all 0.18s',display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',fontSize:'12px',fontWeight:700,cursor:'pointer' }}>
-              🔍 Validar sel.
-            </button>
-          )
-        ) : (
-          validadoTodos ? (
-            <button onClick={async () => { await enviarTodos(); setValidadoTodos(false) }}
-              disabled={enviandoTodos}
-              style={{ border:'1px solid rgba(255,255,255,0.30)',background:'rgba(255,255,255,0.18)',backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',borderRadius:'0.5rem',color:'white',boxShadow:'0 2px 8px rgba(0,0,0,0.35)',display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',fontSize:'12px',fontWeight:700,cursor:'pointer' }}>
-              {enviandoTodos ? '⏳...' : '📤 Enviar todos'}
-            </button>
-          ) : (
-            <button onClick={validarTodos}
-              style={{ border:'1px solid rgba(255,255,255,0.18)',background:'rgba(255,255,255,0.06)',borderRadius:'0.5rem',color:'rgba(255,255,255,0.80)',transition:'all 0.18s',display:'flex',alignItems:'center',gap:'6px',padding:'8px 16px',fontSize:'12px',fontWeight:700,cursor:'pointer' }}>
-              🔍 Validar todos
-            </button>
-          )
-        )}
-      </div>
+        </div>
+      )}
 
-      {/* Popup recibo */}
       {reciboPopup && (
         <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
           onClick={() => setReciboPopup(null)}>
