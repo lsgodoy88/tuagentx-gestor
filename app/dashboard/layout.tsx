@@ -318,20 +318,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <>
     {/* Capa de fondo fija */}
-    <div aria-hidden="true" style={{
-      position:'fixed', inset:0, zIndex:-1,
-      backgroundImage:"url('/bg-city.webp')",
-      backgroundSize:'cover', backgroundPosition:'center',
-    }} />
-    <div aria-hidden="true" style={{
-      position:'fixed', inset:0, zIndex:-1,
-      background:'rgba(2,2,10,0.55)',
-    }} />
-    {/* Suelo — cubre cualquier área más allá del viewport */}
-    <div aria-hidden="true" style={{
-      position:'fixed', inset:0, zIndex:-2,
-      background:'#02020a',
-    }} />
+    {/* Fondo manejado via body en globals.css — evita scaling en mobile */}
     {/* Círculos de color estáticos — profundidad para el glass */}
 
 
