@@ -74,7 +74,7 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onWhatsA
     <div
       onClick={() => setOpen(o => !o)}
       style={{
-        background: '#111',
+        background: 'rgba(8,8,28,0.88)',
         border: `1px solid ${open ? '#52525b' : '#3f3f46'}`,
         borderRadius: 14,
         padding: '10px 12px',

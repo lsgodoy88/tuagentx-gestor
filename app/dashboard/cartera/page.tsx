@@ -616,7 +616,7 @@ export default function CarteraPage() {
               <select
                 value={mesSel}
                 onChange={e => setMesSel(Number(e.target.value))}
-                style={{ background: '#18181b', border: '1px solid #27272a', borderRadius: '12px', padding: '10px 14px' }}
+                style={{ background: 'rgba(8,8,28,0.88)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '12px', padding: '10px 14px' }}
                 className="text-white text-sm outline-none focus:border-emerald-500 flex-1"
               >
                 {['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].map((nombre, i) => (
@@ -626,7 +626,7 @@ export default function CarteraPage() {
               <select
                 value={anioSel}
                 onChange={e => setAnioSel(Number(e.target.value))}
-                style={{ background: '#18181b', border: '1px solid #27272a', borderRadius: '12px', padding: '10px 14px' }}
+                style={{ background: 'rgba(8,8,28,0.88)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '12px', padding: '10px 14px' }}
                 className="text-white text-sm outline-none focus:border-emerald-500"
               >
                 {[2024, 2025, 2026].map(a => (
@@ -635,7 +635,7 @@ export default function CarteraPage() {
               </select>
               <button
                 onClick={() => { setMesAnalisis(mesSel); setAnioAnalisis(anioSel) }}
-                style={{ background: '#18181b', border: '1px solid #27272a', borderRadius: '12px', padding: '10px 14px' }}
+                style={{ background: 'rgba(8,8,28,0.88)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '12px', padding: '10px 14px' }}
                 className="text-white text-lg hover:border-emerald-500 transition-colors"
                 title="Aplicar filtro"
               >
