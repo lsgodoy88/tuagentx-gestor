@@ -343,7 +343,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     {/* Círculos de color estáticos — profundidad para el glass */}
 
 
-    <div className="min-h-screen flex" style={{background:'transparent'}}>
+    <div className="flex min-h-screen" style={{background:'transparent',alignItems:'stretch'}}>
       {/* Drawer móvil — estilo B */}
       {menuMovil && (
         <div className="fixed inset-0 z-[2000] md:hidden" style={{overflow:"hidden"}}>
@@ -436,7 +436,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </button>
       </div>
       <aside
-        className="w-64 flex-col h-full hidden md:flex flex-shrink-0"
+        className="w-64 flex-col hidden md:flex flex-shrink-0 sticky top-0 h-screen overflow-y-auto"
         style={{background:"#0a0a1e",borderRight:"1px solid rgba(255,255,255,0.08)"}}>
 
         {/* Header */}
