@@ -347,22 +347,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Drawer móvil — estilo B */}
       {menuMovil && (
         <div className="fixed inset-0 z-[2000] md:hidden" style={{overflow:"hidden"}}>
-          <div className="absolute top-0 bottom-0 right-0" style={{left:"224px", background:"rgba(4,6,20,0.88)"}} onClick={() => setMenuMovil(false)}>
-            {/* Mensajes de ánimo — salen del sidebar hacia la derecha */}
-            <div className="absolute overflow-hidden" style={{left:0, right:0, top:'18%'}} onClick={e => e.stopPropagation()}>
-              <div key={fraseIdx} className="px-5 select-none pointer-events-none" style={{
-                animation: 'slideInFromLeft 0.5s cubic-bezier(0.22,1,0.36,1) forwards',
-              }}>
-                <div className="text-4xl mb-3">{(FRASES_ROL[user?.role as string] || FRASES_ROL.default)[fraseIdx].icon}</div>
-                <p className="text-blue-300 text-sm font-medium mb-2">
-                  Hola {(user?.name || '').split(' ')[0]},
-                </p>
-                {(FRASES_ROL[user?.role as string] || FRASES_ROL.default)[fraseIdx].lineas.map((l, i) => (
-                  <p key={i} className="text-white font-bold text-2xl leading-tight">{l}</p>
-                ))}
-              </div>
-            </div>
-          </div>
+          <div className="absolute top-0 bottom-0 right-0" style={{left:"224px", backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)", background:"rgba(2,2,10,0.60)"}} onClick={() => setMenuMovil(false)} />
           <div className="absolute left-0 top-0 bottom-0 w-56 border-r flex flex-col z-[2001] shadow-2xl" style={{background:"#0a0a1e",borderColor:"rgba(255,255,255,0.08)"}}>
 
             {/* Header */}
