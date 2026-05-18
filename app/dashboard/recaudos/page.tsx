@@ -427,7 +427,7 @@ export default function RecaudosPage() {
         {/* Dropdown vendedor */}
         {isAdmin && (
           <select value={vendedorId} onChange={e => setVendedorId(e.target.value)}
-            className="flex-shrink-0 bg-transparent border-none rounded-lg px-2 py-1.5 text-xs text-white/70 outline-none cursor-pointer max-w-[100px]">
+            className="flex-1 bg-transparent border-none rounded-lg px-2 py-1.5 text-xs text-white/70 outline-none cursor-pointer min-w-0">
             <option value="">Vendedor</option>
             {vendedores.map(v => (
               <option key={v.id} value={v.id}>{v.nombre.split(' ')[0]}</option>
@@ -435,7 +435,7 @@ export default function RecaudosPage() {
           </select>
         )}
         {/* Fecha */}
-        <div className="relative flex-shrink-0">
+        <div className="relative flex-1 min-w-0">
           <button onClick={() => fechaInputRef.current?.showPicker?.() ?? fechaInputRef.current?.click()}
             className="px-2 py-1.5 rounded-lg text-xs font-semibold text-white/70 hover:text-white transition-colors">
             {fecha ? `📅 ${fmtFechaBtn(fecha)}` : '📅 Fecha'}
@@ -638,7 +638,7 @@ export default function RecaudosPage() {
           validadoSel ? (
             <button onClick={async () => { await enviarSeleccionados(); setValidadoSel(false) }}
               disabled={enviandoSeleccionados}
-              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-lg shadow-blue-600/30">
+              className="tab-btn flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-blue-400" style={{borderColor:"rgba(96,165,250,0.5)",background:"rgba(37,99,235,0.18)"}}>
               {enviandoSeleccionados ? '⏳...' : '📤 Enviar sel.'}
             </button>
           ) : (
@@ -651,7 +651,7 @@ export default function RecaudosPage() {
           validadoTodos ? (
             <button onClick={async () => { await enviarTodos(); setValidadoTodos(false) }}
               disabled={enviandoTodos}
-              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-lg shadow-blue-600/30">
+              className="tab-btn flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-blue-400" style={{borderColor:"rgba(96,165,250,0.5)",background:"rgba(37,99,235,0.18)"}}>
               {enviandoTodos ? '⏳...' : '📤 Enviar todos'}
             </button>
           ) : (
