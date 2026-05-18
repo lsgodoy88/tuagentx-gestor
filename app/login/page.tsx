@@ -131,7 +131,7 @@ export default function LoginPage() {
 
             <button
               type="submit"
-              disabled={loading || sessionLoading}
+              disabled={loading}
               className={`w-full bg-blue-600/90 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold rounded-xl py-3 transition-all mt-2 shadow-lg shadow-blue-600/30 ${loading ? 'btn-shimmer' : ''}`}
               style={{ backdropFilter: 'blur(8px)' }}
             >
