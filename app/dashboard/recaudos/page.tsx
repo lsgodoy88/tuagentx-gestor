@@ -195,17 +195,13 @@ function FilaDesktop({ pago, seleccionado, onToggle, tieneVariacion, voucherUrl,
         <span style={{color:"rgba(255,255,255,0.55)",fontSize:11,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
           {pago.Empleado.nombre.split(" ")[0]}
         </span>
-        {/* Recibo: ícono recibo (link) + thumbnail voucher si tiene */}
+        {/* Recibo: 🖨️ abre recibo + thumbnail voucher si tiene */}
         <div style={{display:"flex",alignItems:"center",gap:4}}>
-          {pago.reciboToken ? (
-            <a href={"/recaudo/recibo?token=" + pago.reciboToken} target="_blank" rel="noreferrer"
-              onClick={e=>e.stopPropagation()}
-              style={{flexShrink:0,lineHeight:1,textDecoration:"none",fontSize:14}}>
-              🧾
-            </a>
-          ) : (
-            <span style={{color:"rgba(255,255,255,0.20)",fontSize:13,flexShrink:0}}>🧾</span>
-          )}
+          <button onClick={e=>{e.stopPropagation();abrirRecibo(pago.id)}}
+            style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",lineHeight:1,fontSize:14,padding:0}}
+            title="Ver recibo">
+            🖨️
+          </button>
           {tieneVoucher && voucherUrl && (
             <div onClick={e=>{e.stopPropagation();onLightbox?.(voucherUrl)}}
               style={{width:20,height:20,borderRadius:3,overflow:"hidden",flexShrink:0,cursor:"pointer",border:"1px solid rgba(255,255,255,0.15)"}}>
@@ -244,6 +240,19 @@ function FilaDesktop({ pago, seleccionado, onToggle, tieneVariacion, voucherUrl,
   )
 }
 
+
+async function abrirRecibo(pagoId: string) {
+  const res = await fetch('/api/cartera/recibo-token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ pagoId })
+  })
+  const data = await res.json()
+  if (data.reciboToken) {
+    const fmt = data.anchoPapel === '58mm' ? '&fmt=58mm' : ''
+    window.open('/recaudo/recibo?token=' + data.reciboToken + fmt, '_blank')
+  }
+}
 
 export default function RecaudosPage() {
   const { data: session, status } = useSession()
