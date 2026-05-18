@@ -191,7 +191,7 @@ function FilaDesktop({ pago, seleccionado, onToggle, tieneVariacion, voucherUrl,
             style={{width:13,height:13,borderRadius:3,border:seleccionado?"2px solid #3b82f6":"2px solid #52525b",background:seleccionado?"#3b82f6":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,cursor:"pointer"}}>
             {seleccionado && <span style={{color:"white",fontSize:7,fontWeight:900}}>✓</span>}
           </div>
-          <span style={{fontSize:12,fontWeight:700,color:"white"}}>
+          <span style={{fontSize:12,fontWeight:700,color:"white",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
             {(pago.vendedorNombre || pago.Empleado.nombre).split(' ').map((n:string)=>n[0]||'').join('').toUpperCase().slice(0,3)}
           </span>
         </div>
@@ -212,7 +212,7 @@ function FilaDesktop({ pago, seleccionado, onToggle, tieneVariacion, voucherUrl,
           </span>
         </div>
         {/* 3. Factura */}
-        <span style={{fontSize:12,fontWeight:700,color:"white",fontFamily:"monospace"}}>
+        <span style={{fontSize:12,fontWeight:700,color:"white",fontFamily:"monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
           {pago.numeroFactura || (pago as any).Cartera?.DetalleCartera?.[0]?.numeroFactura || "—"}
         </span>
         {/* 4. Cliente */}
@@ -220,11 +220,11 @@ function FilaDesktop({ pago, seleccionado, onToggle, tieneVariacion, voucherUrl,
           {pago.Cartera?.Cliente?.nombre || (pago as any).cliente?.nombre || (pago as any).clienteNombre || "—"}
         </span>
         {/* 5. Saldo anterior */}
-        <span style={{fontSize:12,fontWeight:700,color:"#fde68a",textAlign:"right",display:"block"}}>
+        <span style={{fontSize:12,fontWeight:700,color:"#fde68a",textAlign:"right",display:"block",whiteSpace:"nowrap"}}>
           {pago.saldoAnterior ? fmtMonto(pago.saldoAnterior) : "—"}
         </span>
         {/* 6. Método */}
-        <span style={{fontSize:12,fontWeight:700,color:"white"}}>{fmtMetodo(isMulti ? lineas[0].metodoPago : pago.metodopago)}</span>
+        <span style={{fontSize:12,fontWeight:700,color:"white",whiteSpace:"nowrap"}}>{fmtMetodo(isMulti ? lineas[0].metodoPago : pago.metodopago)}</span>
         {/* 7. Valor */}
         <span style={{fontSize:12,fontWeight:700,color:"#93c5fd",textAlign:"right",display:"block"}}>{fmtMonto(montoPrincipal)}</span>
         {/* 8. Descuento */}
@@ -477,7 +477,7 @@ export default function RecaudosPage() {
         {isDesktop && (
           <div style={{display:"grid",gridTemplateColumns:GRID_COLS,gap:"8px",padding:"0 12px 6px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)",marginBottom:4,alignItems:"center"}}>
             <div/>
-            {(["Vendedor","Recibo","Factura","Cliente","Saldo","Método","Valor","Desc.","Total"] as string[]).map((l,i)=>(
+            {(["Vend.","Recibo","Factura","Cliente","Saldo","Método","Valor","Desc.","Total"] as string[]).map((l,i)=>(
               <div key={i} style={{color:"rgba(255,255,255,0.35)",fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase" as const,textAlign:([4,6,7,8].includes(i)?"right":"left") as any}}>{l}</div>
             ))}
           </div>
