@@ -245,7 +245,7 @@ export default function RecaudosPage() {
       {/* Header: título + selector vendedor */}
 
 
-      {/* Tabs principales + fecha */}
+      {/* Tabs principales */}
       <div className="flex gap-1 tab-pills rounded-xl p-1">
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key as any)}
@@ -253,38 +253,44 @@ export default function RecaudosPage() {
             {t.label}
           </button>
         ))}
+      </div>
+
+      {/* Sub-fila: dropdown vendedor + fecha + método + contador */}
+      <div className="flex items-center gap-2 tab-pills rounded-xl p-1">
+        {/* Dropdown vendedor */}
+        {isAdmin && (
+          <select value={vendedorId} onChange={e => setVendedorId(e.target.value)}
+            className="flex-shrink-0 bg-transparent border-none rounded-lg px-2 py-1.5 text-xs text-white/70 outline-none cursor-pointer max-w-[100px]">
+            <option value="">Vendedor</option>
+            {vendedores.map(v => (
+              <option key={v.id} value={v.id}>{v.nombre.split(' ')[0]}</option>
+            ))}
+          </select>
+        )}
+        {/* Fecha */}
         <div className="relative flex-shrink-0">
           <button onClick={() => fechaInputRef.current?.showPicker?.() ?? fechaInputRef.current?.click()}
-            className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-semibold text-white/70 hover:text-white transition-colors">
-            {fecha ? `📅 ${fmtFechaBtn(fecha)}` : '📅'}
+            className="px-2 py-1.5 rounded-lg text-xs font-semibold text-white/70 hover:text-white transition-colors">
+            {fecha ? `📅 ${fmtFechaBtn(fecha)}` : '📅 Fecha'}
           </button>
           <input ref={fechaInputRef} type="date" value={fecha}
             onChange={e => { if (e.target.value) setFecha(e.target.value) }}
             className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
         </div>
-      </div>
-
-      {/* Sub-filtros + contador integrado */}
-      <div className="flex items-center gap-2">
-        <div className="flex flex-1 gap-1 tab-pills rounded-xl p-1">
-          {/* Sub-tab: todos los métodos */}
-          <button onClick={() => setVendedorId('')}
-            className={`flex-1 py-2 text-xs font-semibold transition-colors text-center ${vendedorId === '' ? 'tab-active' : 'text-white hover:text-white'}`}>
-            Todos
+        {/* Método de pago */}
+        <div className="flex flex-1 gap-1">
+          <button className="flex-1 py-1.5 text-xs font-semibold transition-colors text-center tab-active rounded-lg">
+            💵 Ef.
           </button>
-          {/* Sub-tab: por vendedor */}
-          {isAdmin && vendedores.map(v => (
-            <button key={v.id} onClick={() => setVendedorId(v.id)}
-              className={`flex-1 py-2 text-xs font-semibold transition-colors text-center truncate ${vendedorId === v.id ? 'tab-active' : 'text-white hover:text-white'}`}>
-              {v.nombre.split(' ')[0]}
-            </button>
-          ))}
+          <button className="flex-1 py-1.5 text-xs font-semibold transition-colors text-center text-white hover:text-white rounded-lg">
+            📲 Tr.
+          </button>
         </div>
-        {/* Contador de dinero junto a los filtros */}
-        <div className="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold">
-          {resumen.efectivo > 0 && <span className="text-emerald-400">💵 {fmtMonto(resumen.efectivo)}</span>}
-          {resumen.transferencia > 0 && <span className="text-blue-400">📲 {fmtMonto(resumen.transferencia)}</span>}
-          {resumen.efectivo === 0 && resumen.transferencia === 0 && <span className="text-white/30 text-xs">$0</span>}
+        {/* Contador */}
+        <div className="flex-shrink-0 text-xs font-semibold">
+          {resumen.efectivo > 0 && <span className="text-emerald-400">{fmtMonto(resumen.efectivo)}</span>}
+          {resumen.transferencia > 0 && <span className="text-blue-400"> {fmtMonto(resumen.transferencia)}</span>}
+          {resumen.efectivo === 0 && resumen.transferencia === 0 && <span className="text-white/30">$0</span>}
         </div>
       </div>
 
