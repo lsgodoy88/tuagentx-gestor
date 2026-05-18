@@ -34,7 +34,7 @@ const TH: React.CSSProperties = {
   textAlign: 'center',
   userSelect: 'none',
   position: 'relative',
-  borderBottom: '1px solid rgba(255,255,255,0.10)',
+  borderBottom: 'none',
   whiteSpace: 'nowrap',
   overflow: 'hidden',
 }
@@ -129,7 +129,7 @@ export default function DataTable<T>({
         </colgroup>
 
         {/* Header */}
-        <thead>
+        <thead style={{background:"rgba(15,15,22,0.60)",borderBottom:"1px solid rgba(59,130,246,0.40)"}}>
           <tr>
             {/* Checkbox header — selecciona/deselecciona todos */}
             <th style={{ ...TH, width: CHECKBOX_W, padding: '7px 0' }}>
