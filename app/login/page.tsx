@@ -16,19 +16,28 @@ export default function LoginPage() {
     if (status === 'authenticated') router.replace('/dashboard')
   }, [status, router])
 
-  if (status === 'authenticated') return null
-  const sessionLoading = status === 'loading'
+  if (status === 'loading' || status === 'authenticated') return null
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
     setLoading(true)
-    const res = await signIn('credentials', { email: usuario, password, redirect: false })
-    if (res?.error) {
-      setError('Usuario o contraseña incorrectos')
+    try {
+      const res = await signIn('credentials', { email: usuario, password, redirect: false })
+      if (!res) {
+        setError('Error de conexión. Intenta de nuevo.')
+        setLoading(false)
+        return
+      }
+      if (res.error) {
+        setError('Usuario o contraseña incorrectos')
+        setLoading(false)
+      } else {
+        router.push('/dashboard')
+      }
+    } catch (err) {
+      setError('Error de conexión. Intenta de nuevo.')
       setLoading(false)
-    } else {
-      router.push('/dashboard')
     }
   }
 
