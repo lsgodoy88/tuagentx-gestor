@@ -245,61 +245,46 @@ export default function RecaudosPage() {
       {/* Header: título + selector vendedor */}
 
 
-      {/* Resumen centrado */}
-      <div className="flex items-center justify-center gap-3 text-sm font-semibold">
-        {resumen.efectivo > 0 && (
-          <span className="text-emerald-400">💵 {fmtMonto(resumen.efectivo)}</span>
-        )}
-        {resumen.efectivo > 0 && resumen.transferencia > 0 && (
-          <span className="text-zinc-600">·</span>
-        )}
-        {resumen.transferencia > 0 && (
-          <span className="text-blue-400">📲 {fmtMonto(resumen.transferencia)}</span>
-        )}
-        {resumen.efectivo === 0 && resumen.transferencia === 0 && (
-          <span className="text-zinc-600 text-xs">Sin montos</span>
-        )}
-        {haySeleccion && (
-          <span className="text-zinc-500 text-xs font-normal">({seleccionados.size} sel.)</span>
-        )}
-      </div>
-
-      {/* Tabs + filtros en misma fila */}
-      <div className="flex items-center gap-2">
-        <div className="flex flex-1 gap-1 tab-pills rounded-xl p-1">
-          {TABS.map(t => (
-            <button
-              key={t.key}
-              onClick={() => { setTab(t.key as any) }}
-              className={`flex-1 py-3 text-sm font-semibold transition-colors ${
-                tab === t.key ? 'tab-active' : 'text-white hover:text-white'
-              }`}>
-              {t.label}
-            </button>
-          ))}
-          <select
-            value={vendedorId}
-            onChange={e => { setVendedorId(e.target.value) }}
-            className="flex-shrink-0 bg-transparent border-none rounded-lg px-2 py-2 text-xs text-white/70 outline-none cursor-pointer">
-            <option value="">Todos</option>
-            {vendedores.map(v => (
-              <option key={v.id} value={v.id}>{v.nombre}</option>
-            ))}
-          </select>
-        </div>
-        <div className="relative">
-          <button
-            onClick={() => fechaInputRef.current?.showPicker?.() ?? fechaInputRef.current?.click()}
-            className="flex items-center gap-1 bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-sm font-semibold text-zinc-300 hover:text-white transition-colors whitespace-nowrap">
+      {/* Tabs principales + fecha */}
+      <div className="flex gap-1 tab-pills rounded-xl p-1">
+        {TABS.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key as any)}
+            className={`flex-1 py-3 text-sm font-semibold transition-colors text-center ${tab === t.key ? 'tab-active' : 'text-white hover:text-white'}`}>
+            {t.label}
+          </button>
+        ))}
+        <div className="relative flex-shrink-0">
+          <button onClick={() => fechaInputRef.current?.showPicker?.() ?? fechaInputRef.current?.click()}
+            className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-semibold text-white/70 hover:text-white transition-colors">
             {fecha ? `📅 ${fmtFechaBtn(fecha)}` : '📅'}
           </button>
-          <input
-            ref={fechaInputRef}
-            type="date"
-            value={fecha}
-            onChange={e => { if (e.target.value) { setFecha(e.target.value) } }}
-            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-          />
+          <input ref={fechaInputRef} type="date" value={fecha}
+            onChange={e => { if (e.target.value) setFecha(e.target.value) }}
+            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
+        </div>
+      </div>
+
+      {/* Sub-filtros + contador integrado */}
+      <div className="flex items-center gap-2">
+        <div className="flex flex-1 gap-1 tab-pills rounded-xl p-1">
+          {/* Sub-tab: todos los métodos */}
+          <button onClick={() => setVendedorId('')}
+            className={`flex-1 py-2 text-xs font-semibold transition-colors text-center ${vendedorId === '' ? 'tab-active' : 'text-white hover:text-white'}`}>
+            Todos
+          </button>
+          {/* Sub-tab: por vendedor */}
+          {isAdmin && vendedores.map(v => (
+            <button key={v.id} onClick={() => setVendedorId(v.id)}
+              className={`flex-1 py-2 text-xs font-semibold transition-colors text-center truncate ${vendedorId === v.id ? 'tab-active' : 'text-white hover:text-white'}`}>
+              {v.nombre.split(' ')[0]}
+            </button>
+          ))}
+        </div>
+        {/* Contador de dinero junto a los filtros */}
+        <div className="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold">
+          {resumen.efectivo > 0 && <span className="text-emerald-400">💵 {fmtMonto(resumen.efectivo)}</span>}
+          {resumen.transferencia > 0 && <span className="text-blue-400">📲 {fmtMonto(resumen.transferencia)}</span>}
+          {resumen.efectivo === 0 && resumen.transferencia === 0 && <span className="text-white/30 text-xs">$0</span>}
         </div>
       </div>
 
