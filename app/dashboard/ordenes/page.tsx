@@ -629,7 +629,7 @@ export default function OrdenesPage() {
             </button>
           ))}
           <button onClick={sync} disabled={syncing}
-            className={`flex-shrink-0 flex flex-col items-center gap-0.5 py-2 px-3 rounded-xl text-white/60 hover:text-white transition-colors disabled:opacity-40 ${syncing ? 'btn-shimmer' : ''}`}>
+            className={`tab-btn flex-shrink-0 flex flex-col items-center gap-0.5 py-2 px-3 text-white/60 disabled:opacity-40 ${syncing ? 'btn-shimmer' : ''}`}>
             <SyncIcon spinning={syncing} className="w-4 h-4 text-blue-400" />
             <span className="text-[8px] font-bold tracking-wider">{syncing ? '...' : 'SYNC'}</span>
           </button>

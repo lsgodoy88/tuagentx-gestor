@@ -557,3 +557,16 @@ button:active:not(:disabled) {
   border-radius: 0.5rem !important;
 }
 
+/* Botón de acción dentro de tab-pills — se distingue de las tabs */
+.tab-btn {
+  border: 1px solid rgba(255,255,255,0.18) !important;
+  background: rgba(255,255,255,0.06) !important;
+  border-radius: 0.5rem !important;
+  color: rgba(255,255,255,0.80) !important;
+  transition: all 0.18s !important;
+}
+.tab-btn:hover {
+  border-color: rgba(255,255,255,0.30) !important;
+  background: rgba(255,255,255,0.12) !important;
+  color: white !important;
+}

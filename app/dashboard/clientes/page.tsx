@@ -571,13 +571,13 @@ export default function ClientesPage() {
         )}
         {puedeEditar && tieneIntegracion === false && (
           <button onClick={() => { setPreviewRows([]); setImportResultImpExp(null); setModalImpExp(true) }}
-            className="flex-shrink-0 px-3 py-2 rounded-lg text-xs font-semibold text-white/70 hover:text-white transition-colors">
+            className="tab-btn flex-shrink-0 px-3 py-2 text-xs font-semibold">
             📥
           </button>
         )}
         {puedeEditar && tieneIntegracion === false && (
           <button onClick={() => setModal(true)}
-            className="flex-shrink-0 px-3 py-2 rounded-lg text-xs font-semibold bg-emerald-600/80 hover:bg-emerald-500 text-white transition-colors">
+            className="tab-btn flex-shrink-0 px-3 py-2 text-xs font-semibold bg-emerald-600/80 hover:bg-emerald-500 text-white">
             + Nuevo
           </button>
         )}

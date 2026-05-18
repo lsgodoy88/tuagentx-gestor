@@ -198,7 +198,7 @@ export default function TrazabilidadPage() {
         </button>
         {['empresa','supervisor','superadmin','bodega'].includes(user?.role) && (
           <button onClick={sincronizar} disabled={sincronizando}
-            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white/70 hover:text-white transition-colors disabled:opacity-50 ${sincronizando ? 'btn-shimmer' : ''}`}>
+            className={`tab-btn flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-semibold disabled:opacity-50 ${sincronizando ? 'btn-shimmer' : ''}`}>
             <SyncIcon spinning={sincronizando} className="w-3.5 h-3.5 text-blue-400" />
             {sincronizando ? '...' : 'Sync'}
           </button>
