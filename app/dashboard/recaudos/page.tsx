@@ -426,53 +426,62 @@ export default function RecaudosPage() {
         ))}
       </div>
 
-      {/* Filtros + montos + validar — botones independientes */}
-      <div className="flex flex-wrap items-center gap-2">
-        {resumen.efectivo > 0 && (
-          <span className="tab-btn px-3 py-1.5 rounded-xl text-xs font-semibold text-emerald-400 whitespace-nowrap">
-            💵 {fmtMonto(resumen.efectivo)}
+      {/* Filtros — una línea, ancho completo */}
+      <div style={{display:'flex',gap:8,width:'100%',alignItems:'stretch'}}>
+        {/* 25% — Efectivo */}
+        <div style={{flex:'0 0 25%',background:'rgba(8,8,28,0.88)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:'0.75rem',display:'flex',alignItems:'center',justifyContent:'center',padding:'8px 12px',minWidth:0}}>
+          <span style={{fontSize:12,fontWeight:700,color:'#34d399',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+            {resumen.efectivo > 0 ? `💵 ${fmtMonto(resumen.efectivo)}` : '💵 $0'}
           </span>
-        )}
-        {resumen.transferencia > 0 && (
-          <span className="tab-btn px-3 py-1.5 rounded-xl text-xs font-semibold text-blue-400 whitespace-nowrap">
-            📲 {fmtMonto(resumen.transferencia)}
+        </div>
+        {/* 25% — Transferencias */}
+        <div style={{flex:'0 0 25%',background:'rgba(8,8,28,0.88)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:'0.75rem',display:'flex',alignItems:'center',justifyContent:'center',padding:'8px 12px',minWidth:0}}>
+          <span style={{fontSize:12,fontWeight:700,color:'#60a5fa',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+            {resumen.transferencia > 0 ? `📲 ${fmtMonto(resumen.transferencia)}` : '📲 $0'}
           </span>
-        )}
-        {resumen.efectivo === 0 && resumen.transferencia === 0 && (
-          <span className="tab-btn px-3 py-1.5 rounded-xl text-xs font-semibold text-white/50">$0</span>
-        )}
+        </div>
+        {/* Vendedor — flex restante */}
         {isAdmin && (
-          <div className="tab-btn rounded-xl" style={{padding:0,overflow:'hidden'}}>
-            <select value={vendedorId} onChange={e => setVendedorId(e.target.value)}
-              className="bg-transparent border-none px-3 py-1.5 text-xs text-white outline-none cursor-pointer">
+          <div style={{flex:1,background:'rgba(8,8,28,0.88)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:'0.75rem',minWidth:0,overflow:'hidden'}}>
+            <select
+              value={vendedorId}
+              onChange={e => setVendedorId(e.target.value)}
+              style={{width:'100%',height:'100%',background:'transparent',border:'none',padding:'8px 12px',fontSize:12,fontWeight:600,color:'white',outline:'none',cursor:'pointer'}}>
               <option value="">Vendedor</option>
               {vendedores.map(v => (
-                <option key={v.id} value={v.id}>{v.nombre.split(' ')[0]}</option>
+                <option key={v.id} value={v.id} style={{background:'#0f0f1a'}}>{v.nombre.split(' ')[0]}</option>
               ))}
             </select>
           </div>
         )}
-        <div className="relative">
-          <button
-            onClick={() => fechaInputRef.current?.showPicker?.() ?? fechaInputRef.current?.click()}
-            className="tab-btn px-3 py-1.5 rounded-xl text-sm transition-colors"
-            title={fecha ? fmtFechaBtn(fecha) : 'Filtrar por fecha'}>
-            {fecha ? `📅 ${fmtFechaBtn(fecha)}` : '📅'}
-          </button>
+        {/* Calendario */}
+        <div style={{position:'relative',flexShrink:0}}>
+          <div style={{background:'rgba(8,8,28,0.88)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:'0.75rem',padding:'8px 14px',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',height:'100%',boxSizing:'border-box'}}>
+            <span style={{fontSize:18,lineHeight:1}}>📅</span>
+            {fecha && (
+              <span style={{fontSize:10,fontWeight:700,color:'white',marginLeft:6}}>{fmtFechaBtn(fecha)}</span>
+            )}
+          </div>
+          <input
+            ref={fechaInputRef}
+            type="date"
+            value={fecha}
+            onChange={e => setFecha(e.target.value)}
+            style={{position:'absolute',inset:0,opacity:0,width:'100%',height:'100%',cursor:'pointer',zIndex:2}}
+          />
           {fecha && (
-            <button onClick={() => setFecha('')}
-              className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-zinc-700 text-white text-[9px] flex items-center justify-center hover:bg-zinc-600">
+            <button
+              onClick={e => { e.stopPropagation(); setFecha('') }}
+              style={{position:'absolute',top:-4,right:-4,width:16,height:16,borderRadius:'50%',background:'#52525b',border:'none',color:'white',fontSize:9,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',zIndex:3}}>
               ✕
             </button>
           )}
-          <input ref={fechaInputRef} type="date" value={fecha}
-            onChange={e => { if (e.target.value) setFecha(e.target.value) }}
-            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
         </div>
+        {/* Validar */}
         <button
           onClick={() => haySeleccion ? validarSeleccionados() : validarTodos()}
           disabled={validando}
-          className="tab-btn px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap">
+          style={{flexShrink:0,background:'rgba(8,8,28,0.88)',border:'1px solid rgba(255,255,255,0.18)',borderRadius:'0.75rem',padding:'8px 16px',fontSize:12,fontWeight:700,color:validando?'rgba(255,255,255,0.4)':'white',cursor:validando?'not-allowed':'pointer',whiteSpace:'nowrap'}}>
           {validando ? '⏳ Validando...' : `🔍 Validar${haySeleccion ? ` (${seleccionados.size})` : ''}`}
         </button>
       </div>
