@@ -437,7 +437,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
       <aside
         className="w-64 flex-col hidden md:flex flex-shrink-0 fixed top-0 left-0 h-screen overflow-y-auto z-10"
-        style={{background:"rgba(8,10,30,0.75)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",borderRight:"1px solid rgba(255,255,255,0.12)"}}>
+        style={{background:"rgba(8,10,30,0.45)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",borderRight:"1px solid rgba(255,255,255,0.15)"}}>
 
         {/* Header */}
         <div className="flex items-center px-4 h-14 border-b border-[#1c1c20] flex-shrink-0">
