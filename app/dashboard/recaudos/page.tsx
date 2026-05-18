@@ -141,9 +141,9 @@ function FilaDesktopLinea({ linea, borde, isFirst, isLast, estado, envioFecha, t
       alignItems:"center",
     }}>
       <div/><span/><span/><span/><span/>
-      <span style={{fontSize:11,color:"rgba(255,255,255,0.60)"}}>{fmtMetodo(linea.metodoPago)}</span>
-      <span style={{color:"#93c5fd",fontSize:12,fontWeight:600,textAlign:"right",display:"block"}}>{fmtMonto(linea.monto)}</span>
-      <span style={{color:desc>0?"#fdba74":"rgba(255,255,255,0.25)",fontSize:11,textAlign:"right",display:"block"}}>
+      <span style={{fontSize:12,fontWeight:700,color:"white"}}>{fmtMetodo(linea.metodoPago)}</span>
+      <span style={{color:"#93c5fd",fontSize:12,fontWeight:700,textAlign:"right",display:"block"}}>{fmtMonto(linea.monto)}</span>
+      <span style={{color:desc>0?"#fdba74":"rgba(255,255,255,0.25)",fontSize:12,fontWeight:700,textAlign:"right",display:"block"}}>
         {desc>0 ? `-${fmtMonto(desc)}` : '—'}
       </span>
       <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:1}}>
@@ -475,7 +475,7 @@ export default function RecaudosPage() {
       ) : (
         <>
         {isDesktop && (
-          <div style={{display:"grid",gridTemplateColumns:"0.7fr 1.2fr 0.8fr 2fr 1fr 0.9fr 1fr 0.8fr 1fr",gap:"8px",padding:"0 12px 6px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)",marginBottom:4,alignItems:"center"}}>
+          <div style={{display:"grid",gridTemplateColumns:GRID_COLS,gap:"8px",padding:"0 12px 6px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)",marginBottom:4,alignItems:"center"}}>
             <div/>
             {(["Cliente","Vendedor","Recibo","Factura","Método","Valor","Desc.","Total"] as string[]).map((l,i)=>(
               <div key={i} style={{color:"rgba(255,255,255,0.35)",fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase" as const,textAlign:([4,6,7,8].includes(i)?"right":"left") as any}}>{l}</div>
