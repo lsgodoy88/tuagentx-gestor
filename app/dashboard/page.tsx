@@ -486,7 +486,7 @@ export default function DashboardPage() {
           </div>
           <p className="text-emerald-400 font-bold text-2xl">${totalMensual.toLocaleString('es-CO')}</p>
         </div>
-        <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"0 4px 16px rgba(0,0,0,0.20)"}}>
+        <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
           <div className="px-4 py-3 border-b border-zinc-800">
             <p className="text-white font-semibold">Por empresa</p>
           </div>
@@ -554,7 +554,7 @@ export default function DashboardPage() {
           <div className="rounded-2xl" style={{backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)" as any,overflow:"hidden",borderRadius:16}}>
           <div className="grid grid-cols-2 gap-3">
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-1 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"0 4px 16px rgba(0,0,0,0.20)"}}>
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-1 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">🛍️</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Vendedores</span>
@@ -570,7 +570,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-2 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"0 4px 16px rgba(0,0,0,0.20)"}}>
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-2 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">⚡</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Impulsos</span>
@@ -586,7 +586,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-3 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"0 4px 16px rgba(0,0,0,0.20)"}}>
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-3 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">📦</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Órdenes hoy</span>
@@ -602,7 +602,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-4 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"0 4px 16px rgba(0,0,0,0.20)"}}>
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-4 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">💰</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Recaudado</span>
@@ -632,7 +632,7 @@ export default function DashboardPage() {
           <div className="md:grid md:grid-cols-2 md:gap-6 space-y-6 md:space-y-0 rounded-2xl" style={{backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)" as any,overflow:"hidden",borderRadius:16}}>
           <div className="space-y-6">
           {stats.visitasPorDia && stats.visitasPorDia.length > 0 && (
-            <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"0 4px 16px rgba(0,0,0,0.20)"}}>
+            <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <p className="text-white font-semibold text-sm mb-4">Visitas últimos 7 días</p>
               <div className="space-y-2">
                 {(() => {
@@ -651,7 +651,7 @@ export default function DashboardPage() {
             </div>
           )}
           {stats.topEmpleados && stats.topEmpleados.length > 0 && (
-            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"0 4px 16px rgba(0,0,0,0.20)"}}>
+            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Top vendedores - 30 dias</p>
               </div>
@@ -684,7 +684,7 @@ export default function DashboardPage() {
                 if (empleadosRol.length === 0) return null
                 const titulo = rol === 'vendedor' ? 'Vendedores' : rol === 'impulsadora' ? 'Impulsadoras' : 'Entregas'
                 return (
-                  <div key={rol} className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"0 4px 16px rgba(0,0,0,0.20)"}}>
+                  <div key={rol} className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
                     <div className="px-4 py-3 border-b border-zinc-800">
                       <p className="text-white font-semibold text-sm">{titulo} en turno</p>
                     </div>
@@ -740,7 +740,7 @@ export default function DashboardPage() {
           )}
           {/* Tabla 7 dias x vendedor */}
           {stats.vendedores7 && stats.vendedores7.length > 0 && (
-            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"0 4px 16px rgba(0,0,0,0.20)"}}>
+            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Visitas por vendedor - ultimos 7 dias</p>
               </div>
@@ -772,7 +772,7 @@ export default function DashboardPage() {
           )}
           {/* Tabla 7 meses x vendedor */}
           {stats.vendedores7m && stats.vendedores7m.length > 0 && (
-            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"0 4px 16px rgba(0,0,0,0.20)"}}>
+            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Visitas por vendedor - ultimos 7 meses</p>
               </div>
@@ -917,7 +917,7 @@ export default function DashboardPage() {
             </div>
           )}
           {ruta && totalClientes > 0 && !rutaCompletada ? (
-            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"0 4px 16px rgba(0,0,0,0.20)"}}>
+            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               {/* Header */}
               <div className="px-4 pt-4 pb-3">
                 {/* Fila 1: nombre ruta */}
@@ -962,7 +962,7 @@ export default function DashboardPage() {
             </div>
           ) : null}
           {user?.role === 'vendedor' && turno && (
-              <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"0 4px 16px rgba(0,0,0,0.20)"}}>
+              <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
                 <p className="text-white font-bold mb-3">Visitas</p>
                 <div className="flex gap-2">
                   {[
@@ -981,7 +981,7 @@ export default function DashboardPage() {
               </div>
             )}
           {user?.role === 'entregas' && ruta && ruta.clientes?.length > 0 && (
-            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"0 4px 16px rgba(0,0,0,0.20)"}}>
+            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
                 <p className="text-white font-bold">📦 Ruta de hoy</p>
                 <span className="text-zinc-400 text-xs">{ejecutadosRuta}/{totalClientes} entregas</span>
@@ -1034,22 +1034,22 @@ export default function DashboardPage() {
             <div className="space-y-4">
               {/* Hoy — siempre visible */}
               {statsVendedor && (
-                <div className="rounded-2xl p-4 fade-up" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"0 4px 16px rgba(0,0,0,0.20)"}}>
+                <div className="rounded-2xl p-4 fade-up" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
                   <p className="text-white font-bold mb-3">Hoy</p>
                   <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"0 4px 16px rgba(0,0,0,0.20)"}}>
+                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
                       <p className="text-zinc-400 text-xs">Visitas</p>
                       <p className="text-white text-2xl font-bold"><CountUp end={statsVendedor.hoy.total || 0} /></p>
                     </div>
-                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"0 4px 16px rgba(0,0,0,0.20)"}}>
+                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
                       <p className="text-zinc-400 text-xs">Ventas</p>
                       <p className="text-white text-2xl font-bold"><CountUp end={statsVendedor.hoy.ventas || 0} /></p>
                     </div>
-                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"0 4px 16px rgba(0,0,0,0.20)"}}>
+                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
                       <p className="text-zinc-400 text-xs">$ Ventas</p>
                       <p className="text-emerald-400 font-bold">$<CountUp end={statsVendedor.hoy.montoVentas || 0} /></p>
                     </div>
-                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"0 4px 16px rgba(0,0,0,0.20)"}}>
+                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
                       <p className="text-zinc-400 text-xs">Recaudo</p>
                       <p className="text-blue-400 font-bold">$<CountUp end={statsVendedor.hoy.montoCobros || 0} /></p>
                     </div>
@@ -1057,7 +1057,7 @@ export default function DashboardPage() {
                 </div>
               )}
                 {statsVendedor && statsVendedor.cumplimiento?.length > 0 && (
-                  <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"0 4px 16px rgba(0,0,0,0.20)"}}>
+                  <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
                     <p className="text-white font-bold mb-3">Impulsadoras hoy</p>
                     <div className="space-y-3">
                       {statsVendedor.cumplimiento.map((imp: any) => (
@@ -1156,7 +1156,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.15)",boxShadow:"0 4px 16px rgba(0,0,0,0.20)"}}>
+                  <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.18)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
                     <p className="text-white font-bold mb-3">Últimos 6 meses</p>
                     <div className="overflow-x-auto">
                       <div>
