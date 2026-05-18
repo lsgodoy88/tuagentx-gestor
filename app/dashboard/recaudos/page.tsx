@@ -429,20 +429,20 @@ export default function RecaudosPage() {
       {/* Filtros — una línea, ancho completo */}
       <div style={{display:'flex',gap:8,width:'100%',alignItems:'stretch'}}>
         {/* 25% — Efectivo */}
-        <div style={{flex:'0 0 25%',background:'rgba(8,8,28,0.72)',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',display:'flex',alignItems:'center',justifyContent:'center',padding:'8px 12px',minWidth:0}}>
+        <div style={{flex:'0 0 25%',background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',display:'flex',alignItems:'center',justifyContent:'center',padding:'8px 12px',minWidth:0}}>
           <span style={{fontSize:12,fontWeight:700,color:'#34d399',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
             {resumen.efectivo > 0 ? `💵 ${fmtMonto(resumen.efectivo)}` : '💵 $0'}
           </span>
         </div>
         {/* 25% — Transferencias */}
-        <div style={{flex:'0 0 25%',background:'rgba(8,8,28,0.72)',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',display:'flex',alignItems:'center',justifyContent:'center',padding:'8px 12px',minWidth:0}}>
+        <div style={{flex:'0 0 25%',background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',display:'flex',alignItems:'center',justifyContent:'center',padding:'8px 12px',minWidth:0}}>
           <span style={{fontSize:12,fontWeight:700,color:'#60a5fa',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
             {resumen.transferencia > 0 ? `📲 ${fmtMonto(resumen.transferencia)}` : '📲 $0'}
           </span>
         </div>
         {/* Vendedor — flex restante */}
         {isAdmin && (
-          <div style={{flex:1,background:'rgba(8,8,28,0.72)',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',minWidth:0,overflow:'hidden'}}>
+          <div style={{flex:1,background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',minWidth:0,overflow:'hidden'}}>
             <select
               value={vendedorId}
               onChange={e => setVendedorId(e.target.value)}
@@ -456,7 +456,7 @@ export default function RecaudosPage() {
         )}
         {/* Calendario */}
         <div style={{position:'relative',flexShrink:0}}>
-          <div style={{background:'rgba(8,8,28,0.72)',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'8px 14px',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',height:'100%',boxSizing:'border-box'}}>
+          <div style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'8px 14px',display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',height:'100%',boxSizing:'border-box'}}>
             <span style={{fontSize:18,lineHeight:1}}>📅</span>
             {fecha && (
               <span style={{fontSize:10,fontWeight:700,color:'white',marginLeft:6}}>{fmtFechaBtn(fecha)}</span>
@@ -481,7 +481,7 @@ export default function RecaudosPage() {
         <button
           onClick={() => haySeleccion ? validarSeleccionados() : validarTodos()}
           disabled={validando}
-          style={{flexShrink:0,background:'rgba(8,8,28,0.72)',backdropFilter:'blur(12px)',WebkitBackdropFilter:'blur(12px)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'8px 16px',fontSize:12,fontWeight:700,color:validando?'rgba(255,255,255,0.4)':'white',cursor:validando?'not-allowed':'pointer',whiteSpace:'nowrap'}}>
+          style={{flexShrink:0,background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'8px 16px',fontSize:12,fontWeight:700,color:validando?'rgba(255,255,255,0.4)':'white',cursor:validando?'not-allowed':'pointer',whiteSpace:'nowrap'}}>
           {validando ? '⏳ Validando...' : `🔍 Validar${haySeleccion ? ` (${seleccionados.size})` : ''}`}
         </button>
       </div>
