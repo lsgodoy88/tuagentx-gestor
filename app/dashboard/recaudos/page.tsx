@@ -243,21 +243,7 @@ export default function RecaudosPage() {
     <div className="space-y-4 pb-28 max-w-7xl mx-auto">
 
       {/* Header: título + selector vendedor */}
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold text-white">💳 Recaudos</h1>
-          
-        </div>
-        <select
-          value={vendedorId}
-          onChange={e => { setVendedorId(e.target.value) }}
-          className="bg-[#18181b] border border-[#27272a] rounded-[8px] px-[10px] py-[6px] text-[13px] text-gray-300 outline-none max-w-[130px]">
-          <option value="">Vendedores</option>
-          {vendedores.map(v => (
-            <option key={v.id} value={v.id}>{v.nombre}</option>
-          ))}
-        </select>
-      </div>
+
 
       {/* Resumen centrado */}
       <div className="flex items-center justify-center gap-3 text-sm font-semibold">
@@ -278,9 +264,9 @@ export default function RecaudosPage() {
         )}
       </div>
 
-      {/* Tabs + botón fecha */}
+      {/* Tabs + filtros en misma fila */}
       <div className="flex items-center gap-2">
-        <div className="flex gap-1 tab-pills rounded-xl p-1">
+        <div className="flex flex-1 gap-1 tab-pills rounded-xl p-1">
           {TABS.map(t => (
             <button
               key={t.key}
@@ -291,6 +277,15 @@ export default function RecaudosPage() {
               {t.label}
             </button>
           ))}
+          <select
+            value={vendedorId}
+            onChange={e => { setVendedorId(e.target.value) }}
+            className="flex-shrink-0 bg-transparent border-none rounded-lg px-2 py-2 text-xs text-white/70 outline-none cursor-pointer">
+            <option value="">Todos</option>
+            {vendedores.map(v => (
+              <option key={v.id} value={v.id}>{v.nombre}</option>
+            ))}
+          </select>
         </div>
         <div className="relative">
           <button

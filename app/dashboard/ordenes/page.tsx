@@ -577,14 +577,7 @@ export default function OrdenesPage() {
     <>
     <div className="max-w-7xl mx-auto space-y-4">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-white">Órdenes</h1>
-        <button onClick={sync} disabled={syncing}
-          className={`flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-300 border border-zinc-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors ${syncing ? 'btn-shimmer' : ''}`}>
-          <SyncIcon spinning={syncing} className="w-3.5 h-3.5 text-blue-400" />
-          {syncing ? '...' : 'Sync'}
-        </button>
-      </div>
+
 
       {/* Selector empresa origen + buscador */}
       <div className="flex gap-2">
@@ -635,6 +628,11 @@ export default function OrdenesPage() {
               }`}>{p.label}</span>
             </button>
           ))}
+          <button onClick={sync} disabled={syncing}
+            className={`flex-shrink-0 flex flex-col items-center gap-0.5 py-2 px-3 rounded-xl text-white/60 hover:text-white transition-colors disabled:opacity-40 ${syncing ? 'btn-shimmer' : ''}`}>
+            <SyncIcon spinning={syncing} className="w-4 h-4 text-blue-400" />
+            <span className="text-[8px] font-bold tracking-wider">{syncing ? '...' : 'SYNC'}</span>
+          </button>
         </div>
 
         {/* Sync line */}

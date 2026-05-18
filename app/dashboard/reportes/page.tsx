@@ -48,13 +48,6 @@ export default function ReportesPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Reportes</h1>
-          <p className="text-zinc-400 text-sm mt-1">Actividad del equipo en campo</p>
-        </div>
-      </div>
-
       {/* Tabs */}
       <div className="flex gap-1 tab-pills rounded-xl p-1">
         <button onClick={() => setTab('dia')}

@@ -477,40 +477,32 @@ export default function CarteraPage() {
   return (
     <>
     <div className="space-y-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-white">💰 Cartera</h1>
+      {/* Offline banner */}
+      {offline && (
+        <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2 text-amber-400 text-xs font-semibold">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
+          Sin conexión · datos guardados{cacheAgeCartera !== null ? ` hace ${cacheAgeCartera < 1 ? 'menos de 1 min' : cacheAgeCartera + ' min'}` : ''}
         </div>
-        {offline && (
-          <div className="flex items-center gap-2 bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2 text-amber-400 text-xs font-semibold">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
-            Sin conexión · datos guardados{cacheAgeCartera !== null ? ` hace ${cacheAgeCartera < 1 ? 'menos de 1 min' : cacheAgeCartera + ' min'}` : ''}
-          </div>
-        )}
-        {(esAdmin || esVendedor) && (
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => esAdmin ? setModalSync(true) : sincronizar()}
-              disabled={sincronizando}
-              className={`flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-300 font-semibold px-4 py-2 rounded-xl text-sm transition-colors disabled:opacity-50 ${sincronizando ? 'btn-shimmer' : ''}`}>
-              <SyncIcon spinning={sincronizando} className="w-4 h-4 text-blue-400" /> {sincronizando ? 'Sincronizando...' : 'Sync'}
-            </button>
-            {syncInfo !== null && !syncInfo.tieneIntegracion && (
-              <button onClick={() => setModalImportar(true)}
-                className="inline-flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold px-4 py-2 rounded-lg transition-colors">
-                📥 Importar
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+      )}
 
-      {/* Tabs */}
+      {/* Tabs + botones en misma fila */}
       <div className="flex gap-1 tab-pills rounded-xl p-1">
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id as any)}
-            className={`flex-1 py-3 text-sm font-semibold tab-active`}>{t.label}</button>
+            className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === t.id ? 'tab-active' : 'text-white hover:text-white'}`}>{t.label}</button>
         ))}
+        {(esAdmin || esVendedor) && (
+          <button onClick={() => esAdmin ? setModalSync(true) : sincronizar()} disabled={sincronizando}
+            className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold text-white/70 hover:text-white transition-colors disabled:opacity-50 ${sincronizando ? 'btn-shimmer' : ''}`}>
+            <SyncIcon spinning={sincronizando} className="w-3.5 h-3.5 text-blue-400" /> {sincronizando ? '...' : 'Sync'}
+          </button>
+        )}
+        {syncInfo !== null && !syncInfo.tieneIntegracion && (
+          <button onClick={() => setModalImportar(true)}
+            className="flex-shrink-0 px-3 py-2 rounded-lg text-xs font-semibold text-white/70 hover:text-white transition-colors">
+            📥
+          </button>
+        )}
       </div>
 
       {tab === 'cartera' && (() => {
