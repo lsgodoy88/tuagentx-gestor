@@ -12,9 +12,9 @@
 :root {
   --background: #0a0a1a;
   --foreground: #e2e8f0;
-  --card-bg: rgba(8,8,28,0.72);
-  --card-bg-2: rgba(13,13,30,0.68);
-  --border-blue: rgba(59, 130, 246, 0.45);
+  --card-bg: rgba(15,20,50,0.85);
+  --card-bg-2: rgba(18,25,55,0.82);
+  --border-blue: rgba(59, 130, 246, 0.35);
 }
 
 @theme inline {
