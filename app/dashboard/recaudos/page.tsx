@@ -296,7 +296,7 @@ function FilaDesktop({ pago, seleccionado, onToggle, tieneVariacion, voucherUrl,
       <div style={ROW_STYLE(true, !isMulti)}>
         {buildColumns({...baseCtx, isMulti, linea: isMulti ? lineas[0] : undefined})
           .map(col => (
-            <div key={col.key} style={{minWidth:0,overflow:'hidden'}}>
+            <div key={col.key} style={{minWidth:0,overflow:'hidden',textAlign:'center'}}>
               {col.render({...baseCtx, isMulti, linea: isMulti ? lineas[0] : undefined})}
             </div>
           ))}
@@ -308,7 +308,7 @@ function FilaDesktop({ pago, seleccionado, onToggle, tieneVariacion, voucherUrl,
         return (
           <div key={li} style={{...ROW_STYLE(false, isLast), background:"rgba(8,8,28,0.88)"}}>
             {buildColumns(lineaCtx).map(col => (
-              <div key={col.key} style={{minWidth:0,overflow:'hidden'}}>
+              <div key={col.key} style={{minWidth:0,overflow:'hidden',textAlign:'center'}}>
                 {(col.renderLinea ?? col.render)(lineaCtx)}
               </div>
             ))}
