@@ -329,23 +329,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }} />
     {/* Círculos de color estáticos — profundidad para el glass */}
 
-    {/* Círculos de color estáticos — dan profundidad al backdrop-filter de las cards */}
-    <div aria-hidden="true" style={{position:'fixed',zIndex:-1,
-      width:400,height:400,borderRadius:'50%',
-      background:'rgba(99,102,241,0.28)',
-      top:-120, left:-100, filter:'blur(80px)',pointerEvents:'none'}} />
-    <div aria-hidden="true" style={{position:'fixed',zIndex:-1,
-      width:350,height:350,borderRadius:'50%',
-      background:'rgba(236,72,153,0.22)',
-      top:'30%', right:-100, filter:'blur(80px)',pointerEvents:'none'}} />
-    <div aria-hidden="true" style={{position:'fixed',zIndex:-1,
-      width:300,height:300,borderRadius:'50%',
-      background:'rgba(16,185,129,0.18)',
-      bottom:80, left:60, filter:'blur(80px)',pointerEvents:'none'}} />
-    <div aria-hidden="true" style={{position:'fixed',zIndex:-1,
-      width:320,height:320,borderRadius:'50%',
-      background:'rgba(245,158,11,0.15)',
-      bottom:-80, right:80, filter:'blur(80px)',pointerEvents:'none'}} />
+
     <div className="h-screen flex" style={{background:'transparent'}}>
       {/* Drawer móvil — estilo B */}
       {menuMovil && (
