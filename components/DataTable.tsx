@@ -35,6 +35,7 @@ const TH: React.CSSProperties = {
   userSelect: 'none',
   position: 'relative',
   borderBottom: 'none',
+  borderRight: '1px solid rgba(59,130,246,0.20)',
   whiteSpace: 'nowrap',
   overflow: 'hidden',
 }
