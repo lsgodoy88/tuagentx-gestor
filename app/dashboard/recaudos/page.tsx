@@ -131,6 +131,9 @@ export default function RecaudosPage() {
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const [seleccionados, setSeleccionados] = useState<Set<string>>(new Set())
   const [enviandoSeleccionados, setEnviandoSeleccionados] = useState(false)
+  const [validadoTodos, setValidadoTodos] = useState(false)
+  const [validadoSel, setValidadoSel] = useState(false)
+  const [isDesktop, setIsDesktop] = useState(false)
   const fechaInputRef = useRef<HTMLInputElement>(null)
 
   const isAdmin = user?.role === 'empresa' || user?.role === 'supervisor'
@@ -181,7 +184,14 @@ export default function RecaudosPage() {
     if (!cursor) setLoading(false); else setLoadingMore(false)
   }, [tab, vendedorId, fecha, isAdmin])
 
-  useEffect(() => { fetchPagos(null) }, [fetchPagos])
+  useEffect(() => { fetchPagos(null); setValidadoTodos(false); setValidadoSel(false) }, [fetchPagos])
+
+  useEffect(() => {
+    const check = () => setIsDesktop(window.innerWidth >= 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   async function enviarPago(pagoId: string) {
     setEnviando(prev => new Set(prev).add(pagoId))
@@ -202,6 +212,18 @@ export default function RecaudosPage() {
     } finally {
       setEnviando(prev => { const s = new Set(prev); s.delete(pagoId); return s })
     }
+  }
+
+  async function validarTodos() {
+    setValidadoTodos(false)
+    await fetchPagos(null)
+    setValidadoTodos(true)
+  }
+
+  async function validarSeleccionados() {
+    setValidadoSel(false)
+    await fetchPagos(null)
+    setValidadoSel(true)
   }
 
   async function enviarTodos() {
@@ -277,20 +299,21 @@ export default function RecaudosPage() {
             onChange={e => { if (e.target.value) setFecha(e.target.value) }}
             className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
         </div>
-        {/* Método de pago */}
-        <div className="flex flex-1 gap-1">
-          <button className="flex-1 py-1.5 text-xs font-semibold transition-colors text-center tab-active rounded-lg">
-            💵 Ef.
-          </button>
-          <button className="flex-1 py-1.5 text-xs font-semibold transition-colors text-center text-white hover:text-white rounded-lg">
-            📲 Tr.
-          </button>
-        </div>
-        {/* Contador */}
-        <div className="flex-shrink-0 text-xs font-semibold">
-          {resumen.efectivo > 0 && <span className="text-emerald-400">{fmtMonto(resumen.efectivo)}</span>}
-          {resumen.transferencia > 0 && <span className="text-blue-400"> {fmtMonto(resumen.transferencia)}</span>}
-          {resumen.efectivo === 0 && resumen.transferencia === 0 && <span className="text-white/30">$0</span>}
+        {/* Montos como badges */}
+        <div className="flex flex-1 items-center gap-1.5">
+          {resumen.efectivo > 0 && (
+            <span className="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold text-emerald-400 whitespace-nowrap">
+              💵 {fmtMonto(resumen.efectivo)}
+            </span>
+          )}
+          {resumen.transferencia > 0 && (
+            <span className="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold text-blue-400 whitespace-nowrap">
+              📲 {fmtMonto(resumen.transferencia)}
+            </span>
+          )}
+          {resumen.efectivo === 0 && resumen.transferencia === 0 && (
+            <span className="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white/30">$0</span>
+          )}
         </div>
       </div>
 
@@ -306,14 +329,14 @@ export default function RecaudosPage() {
           <p className="text-zinc-500 text-sm">No hay recaudos en esta vista</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className={isDesktop ? "grid grid-cols-2 gap-2" : "space-y-2"}>
           {pagos.map(pago => {
             const enEnvio = enviando.has(pago.id)
             const yaEnviado = pago.envioEstado === 'enviado' || pago.envioEstado === 'recibido'
             const tieneVariacion = pago.envioEstado === 'variacion'
             const tieneVoucher = !!pago.voucherDatosIA
             const voucherData = tieneVoucher ? (pago.voucherDatosIA as any) : null
-            const abierto = abiertos.includes(pago.id)
+            const abierto = isDesktop || abiertos.includes(pago.id)
             const seleccionado = seleccionados.has(pago.id)
 
             return (
@@ -321,7 +344,7 @@ export default function RecaudosPage() {
                 {/* Fila contraída */}
                 <div
                   onClick={() => toggleAbierto(pago.id, pago.voucherKey)}
-                  className={`bg-[#111] border ${tieneVariacion ? 'border-red-500/40' : seleccionado ? 'border-blue-500/60' : 'border-zinc-800'} ${abierto ? 'rounded-t-[10px]' : 'rounded-[10px]'} px-[11px] py-[9px] flex items-center gap-2 cursor-pointer select-none`}>
+                  className={`border ${tieneVariacion ? 'border-red-500/40' : seleccionado ? 'border-blue-500/60' : 'border-zinc-800'} ${abierto ? 'rounded-t-[10px]' : 'rounded-[10px]'} px-[11px] py-[9px] flex items-center gap-2 cursor-pointer select-none`} style={{background:'rgba(8,8,28,0.88)'}}>
 
                   {/* Checkbox */}
                   <div
@@ -448,41 +471,45 @@ export default function RecaudosPage() {
         </div>
       )}
 
-      {/* Barra fija siempre visible */}
-      <div className="fixed bottom-0 left-20 right-0 md:left-64 z-40 flex items-center gap-2 px-4 py-3 bg-[#0a0a0a] border-t border-[#1a1a1a] shadow-2xl">
+      {/* Botón flotante inferior derecha */}
+      <div className="fixed bottom-6 right-4 md:right-6 z-40 flex items-center gap-2">
+        {haySeleccion && (
+          <button
+            onClick={() => { setSeleccionados(new Set()); setValidadoSel(false) }}
+            className="tab-btn flex items-center gap-1 px-3 py-2.5 rounded-xl text-xs font-bold text-white/70">
+            {seleccionados.size} sel. <span className="text-white/40 ml-0.5">✕</span>
+          </button>
+        )}
         {haySeleccion ? (
-          <>
+          validadoSel ? (
             <button
-              onClick={() => setSeleccionados(new Set())}
-              className="flex items-center gap-1 bg-[#18181b] border border-[#27272a] text-zinc-300 text-xs font-bold px-3 py-2 rounded-[8px] flex-shrink-0 whitespace-nowrap">
-              {seleccionados.size} sel. <span className="text-zinc-500">✕</span>
-            </button>
-            <button
-              onClick={() => fetchPagos(null)}
-              className="flex-1 bg-[#18181b] border border-[#27272a] text-[#9ca3af] text-xs font-bold py-2 rounded-[8px]">
-              Validar
-            </button>
-            <button
-              onClick={enviarSeleccionados}
+              onClick={async () => { await enviarSeleccionados(); setValidadoSel(false) }}
               disabled={enviandoSeleccionados}
-              className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold py-2 rounded-[8px]">
-              {enviandoSeleccionados ? 'Enviando...' : 'Enviar'}
+              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg shadow-blue-600/30 transition-all">
+              {enviandoSeleccionados ? '⏳ Enviando...' : '📤 Enviar sel.'}
             </button>
-          </>
+          ) : (
+            <button
+              onClick={validarSeleccionados}
+              className="tab-btn flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white/80">
+              🔍 Validar sel.
+            </button>
+          )
         ) : (
-          <>
+          validadoTodos ? (
             <button
-              onClick={() => fetchPagos(null)}
-              className="flex-1 bg-[#18181b] border border-[#27272a] text-[#9ca3af] text-xs font-bold py-2 rounded-[8px]">
-              Validar todos
-            </button>
-            <button
-              onClick={enviarTodos}
+              onClick={async () => { await enviarTodos(); setValidadoTodos(false) }}
               disabled={enviandoTodos}
-              className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold py-2 rounded-[8px]">
-              {enviandoTodos ? 'Enviando...' : 'Enviar todos'}
+              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg shadow-blue-600/30 transition-all">
+              {enviandoTodos ? '⏳ Enviando...' : '📤 Enviar todos'}
             </button>
-          </>
+          ) : (
+            <button
+              onClick={validarTodos}
+              className="tab-btn flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white/80">
+              🔍 Validar todos
+            </button>
+          )
         )}
       </div>
 
