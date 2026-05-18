@@ -14,6 +14,8 @@ type Pago = {
   reciboUrl: string | null
   reciboToken: string | null
   voucherKey: string | null
+  saldoAnterior: number | string | null
+  vendedorNombre: string | null
   voucherDatosIA: any
   createdAt: string
   envioEstado: string
@@ -22,7 +24,6 @@ type Pago = {
   envioVariacion: any
   numeroRecibo: string | null
   numeroFactura: number | null
-  vendedorNombre: string | null
   Cartera: {
     Cliente: {
       id: string
@@ -115,7 +116,7 @@ function calcResumen(lista: Pago[]) {
 }
 
 
-const GRID_COLS = "20px 2.2fr 1.2fr 0.9fr 0.75fr 0.8fr 1.1fr 1fr 1.1fr"
+const GRID_COLS = "0.7fr 1.2fr 0.8fr 2fr 1fr 0.9fr 1fr 0.8fr 1fr"
 
 function fmtMetodo(m: string | null) {
   if (!m) return '—'
@@ -184,47 +185,55 @@ function FilaDesktop({ pago, seleccionado, onToggle, tieneVariacion, voucherUrl,
         borderRadius: isMulti ? "10px 10px 0 0" : 10,
         alignItems:"center",
       }}>
-        {/* Checkbox — única forma de seleccionar */}
-        <div onClick={e=>{e.stopPropagation();onToggle()}}
-          style={{width:14,height:14,borderRadius:4,border:seleccionado?"2px solid #3b82f6":"2px solid #52525b",background:seleccionado?"#3b82f6":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,cursor:"pointer"}}>
-          {seleccionado && <span style={{color:"white",fontSize:8,fontWeight:900}}>✓</span>}
+        {/* 1. Vendedor: iniciales + checkbox */}
+        <div style={{display:"flex",alignItems:"center",gap:5}}>
+          <div onClick={e=>{e.stopPropagation();onToggle()}}
+            style={{width:13,height:13,borderRadius:3,border:seleccionado?"2px solid #3b82f6":"2px solid #52525b",background:seleccionado?"#3b82f6":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,cursor:"pointer"}}>
+            {seleccionado && <span style={{color:"white",fontSize:7,fontWeight:900}}>✓</span>}
+          </div>
+          <span style={{fontSize:12,fontWeight:700,color:"white"}}>
+            {(pago.vendedorNombre || pago.Empleado.nombre).split(' ').map((n:string)=>n[0]||'').join('').toUpperCase().slice(0,3)}
+          </span>
         </div>
-        <span style={{color:"white",fontSize:12,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-          {pago.Cartera?.Cliente?.nombre || (pago as any).cliente?.nombre || (pago as any).clienteNombre || "—"}
-        </span>
-        <span style={{color:"rgba(255,255,255,0.55)",fontSize:11,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-          {pago.Empleado.nombre.split(" ")[0]}
-        </span>
-        {/* Recibo: 🖨️ abre recibo + thumbnail voucher si tiene */}
+        {/* 2. Recibo + ícono */}
         <div style={{display:"flex",alignItems:"center",gap:4}}>
           <button onClick={e=>{e.stopPropagation();if(onReciboPopup)abrirRecibo(pago.id, onReciboPopup)}}
-            style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",lineHeight:1,fontSize:14,padding:0}}
-            title="Ver recibo">
-            🖨️
-          </button>
+            style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",lineHeight:1,fontSize:13,padding:0}}
+            title="Ver recibo">🖨️</button>
           {tieneVoucher && voucherUrl && (
             <div onClick={e=>{e.stopPropagation();onLightbox?.(voucherUrl)}}
-              style={{width:20,height:20,borderRadius:3,overflow:"hidden",flexShrink:0,cursor:"pointer",border:"1px solid rgba(255,255,255,0.15)"}}>
+              style={{width:18,height:18,borderRadius:3,overflow:"hidden",flexShrink:0,cursor:"pointer",border:"1px solid rgba(255,255,255,0.15)"}}>
               <img src={voucherUrl} alt="v" style={{width:"100%",height:"100%",objectFit:"cover"}}
                 onError={e=>{(e.target as HTMLImageElement).style.display="none"}} />
             </div>
           )}
-          <span style={{color:"rgba(255,255,255,0.50)",fontSize:11,fontFamily:"monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+          <span style={{fontSize:12,fontWeight:700,color:"white",fontFamily:"monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
             {pago.numeroRecibo || "—"}
           </span>
         </div>
-        <span style={{color:"rgba(255,255,255,0.50)",fontSize:11,fontFamily:"monospace"}}>
+        {/* 3. Factura */}
+        <span style={{fontSize:12,fontWeight:700,color:"white",fontFamily:"monospace"}}>
           {pago.numeroFactura || (pago as any).Cartera?.DetalleCartera?.[0]?.numeroFactura || "—"}
         </span>
-        <span style={{fontSize:11,color:"rgba(255,255,255,0.60)"}}>
-          {fmtMetodo(isMulti ? lineas[0].metodoPago : pago.metodopago)}
+        {/* 4. Cliente */}
+        <span style={{fontSize:12,fontWeight:700,color:"white",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+          {pago.Cartera?.Cliente?.nombre || (pago as any).cliente?.nombre || (pago as any).clienteNombre || "—"}
         </span>
-        <span style={{color:"#93c5fd",fontSize:12,fontWeight:600,textAlign:"right",display:"block"}}>{fmtMonto(montoPrincipal)}</span>
-        <span style={{color:descPrincipal>0?"#fdba74":"rgba(255,255,255,0.25)",fontSize:11,textAlign:"right",display:"block"}}>
+        {/* 5. Saldo anterior */}
+        <span style={{fontSize:12,fontWeight:700,color:"#fde68a",textAlign:"right",display:"block"}}>
+          {pago.saldoAnterior ? fmtMonto(pago.saldoAnterior) : "—"}
+        </span>
+        {/* 6. Método */}
+        <span style={{fontSize:12,fontWeight:700,color:"white"}}>{fmtMetodo(isMulti ? lineas[0].metodoPago : pago.metodopago)}</span>
+        {/* 7. Valor */}
+        <span style={{fontSize:12,fontWeight:700,color:"#93c5fd",textAlign:"right",display:"block"}}>{fmtMonto(montoPrincipal)}</span>
+        {/* 8. Descuento */}
+        <span style={{fontSize:12,fontWeight:700,color:descPrincipal>0?"#fdba74":"rgba(255,255,255,0.25)",textAlign:"right",display:"block"}}>
           {descPrincipal>0 ? `-${fmtMonto(descPrincipal)}` : "—"}
         </span>
+        {/* 9. Total */}
         <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:1}}>
-          <span style={{color:"#86efac",fontSize:12,fontWeight:700}}>{fmtMonto(totalPrincipal)}</span>
+          <span style={{fontSize:12,fontWeight:700,color:"#86efac"}}>{fmtMonto(totalPrincipal)}</span>
           {!isMulti && tieneVariacion && <span style={{color:"#f87171",fontSize:9}}>⚑</span>}
           {!isMulti && pago.envioEstado==="enviado" && <span style={{color:"#60a5fa",fontSize:9}}>✔ {fmtHora(pago.envioFecha)}</span>}
           {!isMulti && pago.envioEstado==="recibido" && <span style={{color:"#4ade80",fontSize:9}}>✔✔</span>}
@@ -466,10 +475,10 @@ export default function RecaudosPage() {
       ) : (
         <>
         {isDesktop && (
-          <div style={{display:"grid",gridTemplateColumns:"20px 2.2fr 1.2fr 0.9fr 0.75fr 0.8fr 1.1fr 1fr 1.1fr",gap:"8px",padding:"0 12px 6px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)",marginBottom:4,alignItems:"center"}}>
+          <div style={{display:"grid",gridTemplateColumns:"0.7fr 1.2fr 0.8fr 2fr 1fr 0.9fr 1fr 0.8fr 1fr",gap:"8px",padding:"0 12px 6px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)",marginBottom:4,alignItems:"center"}}>
             <div/>
             {(["Cliente","Vendedor","Recibo","Factura","Método","Valor","Desc.","Total"] as string[]).map((l,i)=>(
-              <div key={i} style={{color:"rgba(255,255,255,0.35)",fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase" as const,textAlign:(i>=5?"right":"left") as any}}>{l}</div>
+              <div key={i} style={{color:"rgba(255,255,255,0.35)",fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase" as const,textAlign:([4,6,7,8].includes(i)?"right":"left") as any}}>{l}</div>
             ))}
           </div>
         )}
