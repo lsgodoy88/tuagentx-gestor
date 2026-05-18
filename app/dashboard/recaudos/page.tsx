@@ -278,7 +278,7 @@ export default function RecaudosPage() {
       </div>
 
       {/* Sub-fila: dropdown vendedor + fecha + método + contador */}
-      <div className="flex items-center gap-2 tab-pills rounded-xl p-1">
+      <div className="flex gap-1 tab-pills rounded-xl p-1">
         {/* Dropdown vendedor */}
         {isAdmin && (
           <select value={vendedorId} onChange={e => setVendedorId(e.target.value)}
@@ -299,21 +299,10 @@ export default function RecaudosPage() {
             onChange={e => { if (e.target.value) setFecha(e.target.value) }}
             className="absolute inset-0 opacity-0 w-full h-full cursor-pointer" />
         </div>
-        {/* Montos como badges */}
         <div className="flex flex-1 items-center gap-1.5">
-          {resumen.efectivo > 0 && (
-            <span className="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold text-emerald-400 whitespace-nowrap">
-              💵 {fmtMonto(resumen.efectivo)}
-            </span>
-          )}
-          {resumen.transferencia > 0 && (
-            <span className="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold text-blue-400 whitespace-nowrap">
-              📲 {fmtMonto(resumen.transferencia)}
-            </span>
-          )}
-          {resumen.efectivo === 0 && resumen.transferencia === 0 && (
-            <span className="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white/30">$0</span>
-          )}
+          {resumen.efectivo > 0 && <span className="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold text-emerald-400 whitespace-nowrap">💵 {fmtMonto(resumen.efectivo)}</span>}
+          {resumen.transferencia > 0 && <span className="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold text-blue-400 whitespace-nowrap">📲 {fmtMonto(resumen.transferencia)}</span>}
+          {resumen.efectivo === 0 && resumen.transferencia === 0 && <span className="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white/30">$0</span>}
         </div>
       </div>
 
@@ -329,7 +318,16 @@ export default function RecaudosPage() {
           <p className="text-zinc-500 text-sm">No hay recaudos en esta vista</p>
         </div>
       ) : (
-        <div className={isDesktop ? "grid grid-cols-2 gap-2" : "space-y-2"}>
+        <>
+        {isDesktop && (
+          <div style={{display:"grid",gridTemplateColumns:"20px 2fr 1.5fr 1fr 1fr 1fr 0.9fr 1fr 72px",gap:"8px",padding:"0 12px 6px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)",marginBottom:4,alignItems:"center"}}>
+            <div/>
+            {(["Cliente","Vendedor","Fecha","Método","Valor","Desc.","Total",""] as string[]).map((l,i)=>(
+              <div key={i} style={{color:"rgba(255,255,255,0.35)",fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase" as const,textAlign:(i>=4&&i<=6?"right":"left") as any}}>{l}</div>
+            ))}
+          </div>
+        )}
+        <div className={isDesktop ? "flex flex-col gap-1" : "space-y-2"}>
           {pagos.map(pago => {
             const enEnvio = enviando.has(pago.id)
             const yaEnviado = pago.envioEstado === 'enviado' || pago.envioEstado === 'recibido'
@@ -339,12 +337,50 @@ export default function RecaudosPage() {
             const abierto = isDesktop || abiertos.includes(pago.id)
             const seleccionado = seleccionados.has(pago.id)
 
-            return (
+            return isDesktop ? (
+              /* ── DESKTOP: fila grid ── */
+              <div key={pago.id} style={{
+                display:"grid", gridTemplateColumns:"20px 2fr 1.5fr 1fr 1fr 1fr 0.9fr 1fr 72px",
+                gap:"8px", padding:"9px 12px",
+                background: seleccionado ? "rgba(30,58,138,0.55)" : "rgba(8,8,28,0.88)",
+                border:`1px solid ${tieneVariacion ? "rgba(239,68,68,0.4)" : seleccionado ? "#3b82f6" : "#3f3f46"}`,
+                borderRadius:10, alignItems:"center", cursor:"pointer",
+              }}
+              onClick={() => toggleSeleccion(pago.id)}>
+                <div onClick={e=>{e.stopPropagation();toggleSeleccion(pago.id)}}
+                  style={{width:14,height:14,borderRadius:4,border:seleccionado?"2px solid #3b82f6":"2px solid #52525b",background:seleccionado?"#3b82f6":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  {seleccionado && <span style={{color:"white",fontSize:8,fontWeight:900}}>✓</span>}
+                </div>
+                <span style={{color:"white",fontSize:12,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                  {pago.Cartera?.Cliente?.nombre || '—'}
+                </span>
+                <span style={{color:"rgba(255,255,255,0.55)",fontSize:11,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                  {pago.Empleado.nombre.split(' ')[0]}
+                </span>
+                <span style={{color:"rgba(255,255,255,0.50)",fontSize:11}}>{fmtFecha(pago.createdAt)}</span>
+                <span style={{fontSize:11,color:"rgba(255,255,255,0.60)"}}>
+                  {pago.metodopago === 'efectivo' ? '💵 Efectivo' : '📲 Transfer.'}
+                </span>
+                <span style={{color:"#93c5fd",fontSize:12,fontWeight:600,textAlign:"right"}}>{fmtMonto(pago.monto)}</span>
+                <span style={{color:Number(pago.descuento||0)>0?"#fdba74":"rgba(255,255,255,0.25)",fontSize:11,textAlign:"right"}}>
+                  {Number(pago.descuento||0)>0 ? `-${fmtMonto(pago.descuento!)}` : '—'}
+                </span>
+                <span style={{color:"#86efac",fontSize:12,fontWeight:700,textAlign:"right"}}>
+                  {fmtMonto(Number(pago.monto)-Number(pago.descuento||0))}
+                </span>
+                <div style={{display:"flex",justifyContent:"flex-end"}} onClick={e=>e.stopPropagation()}>
+                  {tieneVariacion && <button onClick={()=>setDetalleVariacion(pago.id)} className="text-red-400 border border-red-500/50 px-2 py-1 rounded-lg text-xs font-bold">⚑</button>}
+                  {!yaEnviado && !tieneVariacion && <button onClick={()=>enviarPago(pago.id)} disabled={enEnvio} className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg">{enEnvio?'...':'Enviar'}</button>}
+                  {pago.envioEstado==='enviado' && <span className="text-blue-400 text-xs font-semibold">✔ {fmtHora(pago.envioFecha)}</span>}
+                  {pago.envioEstado==='recibido' && <span className="text-emerald-400 text-xs font-semibold">✔✔</span>}
+                </div>
+              </div>
+            ) : (
               <div key={pago.id}>
-                {/* Fila contraída */}
+                {/* Fila contraída — MOBILE */}
                 <div
                   onClick={() => toggleAbierto(pago.id, pago.voucherKey)}
-                  className={`border ${tieneVariacion ? 'border-red-500/40' : seleccionado ? 'border-blue-500/60' : 'border-zinc-800'} ${abierto ? 'rounded-t-[10px]' : 'rounded-[10px]'} px-[11px] py-[9px] flex items-center gap-2 cursor-pointer select-none`} style={{background:'rgba(8,8,28,0.88)'}}>
+                  style={{background:'rgba(8,8,28,0.88)'}} className={`border ${tieneVariacion ? 'border-red-500/40' : seleccionado ? 'border-blue-500/60' : 'border-zinc-800'} ${abierto ? 'rounded-t-[10px]' : 'rounded-[10px]'} px-[11px] py-[9px] flex items-center gap-2 cursor-pointer select-none`}>
 
                   {/* Checkbox */}
                   <div
@@ -460,6 +496,7 @@ export default function RecaudosPage() {
             )
           })}
         </div>
+        </>
       )}
 
       {hasMore && (
@@ -471,42 +508,37 @@ export default function RecaudosPage() {
         </div>
       )}
 
-      {/* Botón flotante inferior derecha */}
+      {/* Botón flotante */}
       <div className="fixed bottom-6 right-4 md:right-6 z-40 flex items-center gap-2">
         {haySeleccion && (
-          <button
-            onClick={() => { setSeleccionados(new Set()); setValidadoSel(false) }}
-            className="tab-btn flex items-center gap-1 px-3 py-2.5 rounded-xl text-xs font-bold text-white/70">
+          <button onClick={() => { setSeleccionados(new Set()); setValidadoSel(false) }}
+            className="tab-btn flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold">
             {seleccionados.size} sel. <span className="text-white/40 ml-0.5">✕</span>
           </button>
         )}
         {haySeleccion ? (
           validadoSel ? (
-            <button
-              onClick={async () => { await enviarSeleccionados(); setValidadoSel(false) }}
+            <button onClick={async () => { await enviarSeleccionados(); setValidadoSel(false) }}
               disabled={enviandoSeleccionados}
-              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg shadow-blue-600/30 transition-all">
-              {enviandoSeleccionados ? '⏳ Enviando...' : '📤 Enviar sel.'}
+              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-lg shadow-blue-600/30">
+              {enviandoSeleccionados ? '⏳...' : '📤 Enviar sel.'}
             </button>
           ) : (
-            <button
-              onClick={validarSeleccionados}
-              className="tab-btn flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white/80">
+            <button onClick={validarSeleccionados}
+              className="tab-btn flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold">
               🔍 Validar sel.
             </button>
           )
         ) : (
           validadoTodos ? (
-            <button
-              onClick={async () => { await enviarTodos(); setValidadoTodos(false) }}
+            <button onClick={async () => { await enviarTodos(); setValidadoTodos(false) }}
               disabled={enviandoTodos}
-              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold px-4 py-2.5 rounded-xl shadow-lg shadow-blue-600/30 transition-all">
-              {enviandoTodos ? '⏳ Enviando...' : '📤 Enviar todos'}
+              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-lg shadow-blue-600/30">
+              {enviandoTodos ? '⏳...' : '📤 Enviar todos'}
             </button>
           ) : (
-            <button
-              onClick={validarTodos}
-              className="tab-btn flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-xs font-bold text-white/80">
+            <button onClick={validarTodos}
+              className="tab-btn flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold">
               🔍 Validar todos
             </button>
           )
