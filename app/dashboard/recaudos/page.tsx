@@ -326,7 +326,7 @@ export default function RecaudosPage() {
           <div style={{display:"grid",gridTemplateColumns:"20px 2.2fr 1.2fr 0.9fr 0.75fr 0.8fr 1.1fr 1fr 1.1fr",gap:"8px",padding:"0 12px 6px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)",marginBottom:4,alignItems:"center"}}>
             <div/>
             {(["Cliente","Vendedor","Recibo","Factura","Método","Valor","Desc.","Total"] as string[]).map((l,i)=>(
-              <div key={i} style={{color:"rgba(255,255,255,0.35)",fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase" as const,textAlign:(i>=5?"right":"left") as any}}>{l}</div>
+              <div key={i} style={{color:"rgba(255,255,255,0.35)",fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase" as const,textAlign:(i>=4&&i<=6?"right":"left") as any}}>{l}</div>
             ))}
           </div>
         )}
@@ -341,86 +341,45 @@ export default function RecaudosPage() {
             const seleccionado = seleccionados.has(pago.id)
 
             return isDesktop ? (
-              /* ── DESKTOP: fila grid + sub-filas mixto ── */
-              (() => {
-                const lineas: any[] = Array.isArray((pago as any).lineasPago) && (pago as any).lineasPago.length > 1
-                  ? (pago as any).lineasPago
-                  : null
-                const borde = `1px solid ${tieneVariacion ? "rgba(239,68,68,0.4)" : seleccionado ? "#3b82f6" : "#3f3f46"}`
-                const bg = seleccionado ? "rgba(30,58,138,0.55)" : "rgba(8,8,28,0.88)"
-                const fmtMetodo = (m: string) => m === 'efectivo' ? '💵 Efectivo' : m === 'transferencia' ? '📲 Transf.' : m === 'mixto' ? '💵+📲' : m
-
-                const rowStyle = (isFirst: boolean, isLast: boolean) => ({
-                  display:"grid", gridTemplateColumns:"${GRID}",
-                  gap:"8px", padding:"8px 12px",
-                  background: bg,
-                  border: borde,
-                  borderTop: isFirst ? borde : "none",
-                  borderRadius: isFirst && isLast ? 10 : isFirst ? "10px 10px 0 0" : isLast ? "0 0 10px 10px" : 0,
-                  alignItems:"center", cursor:"pointer",
-                })
-
-                return (
-                  <div key={pago.id} onClick={() => toggleSeleccion(pago.id)}>
-                    {/* Fila principal */}
-                    <div style={rowStyle(true, !lineas)}>
-                      <div onClick={e=>{e.stopPropagation();toggleSeleccion(pago.id)}}
-                        style={{width:14,height:14,borderRadius:4,border:seleccionado?"2px solid #3b82f6":"2px solid #52525b",background:seleccionado?"#3b82f6":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                        {seleccionado && <span style={{color:"white",fontSize:8,fontWeight:900}}>✓</span>}
-                      </div>
-                      <span style={{color:"white",fontSize:12,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                        {pago.Cartera?.Cliente?.nombre || (pago as any).cliente?.nombre || (pago as any).clienteNombre || '—'}
-                      </span>
-                      <span style={{color:"rgba(255,255,255,0.55)",fontSize:11,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                        {pago.Empleado.nombre.split(' ')[0]}
-                      </span>
-                      <span style={{color:"rgba(255,255,255,0.50)",fontSize:11,fontFamily:"monospace"}}>
-                        {pago.numeroRecibo || '—'}
-                      </span>
-                      <span style={{color:"rgba(255,255,255,0.50)",fontSize:11,fontFamily:"monospace"}}>
-                        {pago.numeroFactura || (pago as any).Cartera?.DetalleCartera?.[0]?.numeroFactura || '—'}
-                      </span>
-                      <span style={{fontSize:11,color:"rgba(255,255,255,0.60)"}}>
-                        {fmtMetodo(lineas ? lineas[0].metodoPago : pago.metodopago || 'efectivo')}
-                      </span>
-                      <span style={{color:"#93c5fd",fontSize:12,fontWeight:600,textAlign:"right",display:"block"}}>
-                        {fmtMonto(lineas ? lineas[0].monto : pago.monto)}
-                      </span>
-                      <span style={{color:Number(lineas ? lineas[0].descuento : pago.descuento||0)>0?"#fdba74":"rgba(255,255,255,0.25)",fontSize:11,textAlign:"right",display:"block"}}>
-                        {Number(lineas ? lineas[0].descuento : pago.descuento||0)>0 ? `-${fmtMonto(lineas ? lineas[0].descuento : pago.descuento)}` : '—'}
-                      </span>
-                      <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:1}}>
-                        <span style={{color:"#86efac",fontSize:12,fontWeight:700}}>
-                          {fmtMonto(lineas ? Number(lineas[0].monto)-Number(lineas[0].descuento||0) : Number(pago.monto)-Number(pago.descuento||0))}
-                        </span>
-                        {!lineas && tieneVariacion && <span style={{color:"#f87171",fontSize:9}}>⚑</span>}
-                        {!lineas && pago.envioEstado==='enviado' && <span style={{color:"#60a5fa",fontSize:9}}>✔ {fmtHora(pago.envioFecha)}</span>}
-                        {!lineas && pago.envioEstado==='recibido' && <span style={{color:"#4ade80",fontSize:9}}>✔✔</span>}
-                      </div>
-                    </div>
-                    {/* Sub-filas para pagos mixtos */}
-                    {lineas && lineas.slice(1).map((linea: any, li: number) => {
-                      const isLast = li === lineas.length - 2
-                      return (
-                        <div key={li} style={rowStyle(false, isLast)}>
-                          <div/><span/><span/><span/><span/>
-                          <span style={{fontSize:11,color:"rgba(255,255,255,0.60)"}}>{fmtMetodo(linea.metodoPago)}</span>
-                          <span style={{color:"#93c5fd",fontSize:12,fontWeight:600,textAlign:"right",display:"block"}}>{fmtMonto(linea.monto)}</span>
-                          <span style={{color:Number(linea.descuento||0)>0?"#fdba74":"rgba(255,255,255,0.25)",fontSize:11,textAlign:"right",display:"block"}}>
-                            {Number(linea.descuento||0)>0 ? `-${fmtMonto(linea.descuento)}` : '—'}
-                          </span>
-                          <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:1}}>
-                            <span style={{color:"#86efac",fontSize:12,fontWeight:700}}>{fmtMonto(Number(linea.monto)-Number(linea.descuento||0))}</span>
-                            {isLast && tieneVariacion && <span style={{color:"#f87171",fontSize:9}}>⚑</span>}
-                            {isLast && pago.envioEstado==='enviado' && <span style={{color:"#60a5fa",fontSize:9}}>✔ {fmtHora(pago.envioFecha)}</span>}
-                            {isLast && pago.envioEstado==='recibido' && <span style={{color:"#4ade80",fontSize:9}}>✔✔</span>}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )
-              })()
+              /* ── DESKTOP: fila grid ── */
+              <div key={pago.id} style={{
+                display:"grid", gridTemplateColumns:"20px 2.2fr 1.2fr 0.9fr 0.75fr 0.8fr 1.1fr 1fr 1.1fr",
+                gap:"8px", padding:"9px 12px",
+                background: seleccionado ? "rgba(30,58,138,0.55)" : "rgba(8,8,28,0.88)",
+                border:`1px solid ${tieneVariacion ? "rgba(239,68,68,0.4)" : seleccionado ? "#3b82f6" : "#3f3f46"}`,
+                borderRadius:10, alignItems:"center", cursor:"pointer",
+              }}
+              onClick={() => toggleSeleccion(pago.id)}>
+                <div onClick={e=>{e.stopPropagation();toggleSeleccion(pago.id)}}
+                  style={{width:14,height:14,borderRadius:4,border:seleccionado?"2px solid #3b82f6":"2px solid #52525b",background:seleccionado?"#3b82f6":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+                  {seleccionado && <span style={{color:"white",fontSize:8,fontWeight:900}}>✓</span>}
+                </div>
+                <span style={{color:"white",fontSize:12,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                  {pago.Cartera?.Cliente?.nombre || (pago as any).cliente?.nombre || (pago as any).clienteNombre || '—'}
+                </span>
+                <span style={{color:"rgba(255,255,255,0.55)",fontSize:11,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+                  {pago.Empleado.nombre.split(' ')[0]}
+                </span>
+                <span style={{color:"rgba(255,255,255,0.50)",fontSize:11,fontFamily:"monospace"}}>
+                  {pago.numeroRecibo || '—'}
+                </span>
+                <span style={{color:"rgba(255,255,255,0.50)",fontSize:11,fontFamily:"monospace"}}>
+                  {pago.numeroFactura || (pago as any).Cartera?.DetalleCartera?.[0]?.numeroFactura || '—'}
+                </span>
+                <span style={{fontSize:11,color:"rgba(255,255,255,0.60)"}}>
+                  {pago.metodopago === 'efectivo' ? '💵 Ef.' : '📲 Tr.'}
+                </span>
+                <span style={{color:"#93c5fd",fontSize:12,fontWeight:600,textAlign:"right"}}>{fmtMonto(pago.monto)}</span>
+                <span style={{color:Number(pago.descuento||0)>0?"#fdba74":"rgba(255,255,255,0.25)",fontSize:11,textAlign:"right"}}>
+                  {Number(pago.descuento||0)>0 ? `-${fmtMonto(pago.descuento!)}` : '—'}
+                </span>
+                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:1}}>
+                  <span style={{color:"#86efac",fontSize:12,fontWeight:700}}>{fmtMonto(Number(pago.monto)-Number(pago.descuento||0))}</span>
+                  {tieneVariacion && <span style={{color:"#f87171",fontSize:9}}>⚑</span>}
+                  {pago.envioEstado==='enviado' && <span style={{color:"#60a5fa",fontSize:9}}>✔ {fmtHora(pago.envioFecha)}</span>}
+                  {pago.envioEstado==='recibido' && <span style={{color:"#4ade80",fontSize:9}}>✔✔</span>}
+                </div>
+              </div>
             ) : (
               <div key={pago.id}>
                 {/* Fila contraída — MOBILE */}
