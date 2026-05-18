@@ -436,7 +436,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </button>
       </div>
       <aside
-        className="w-64 flex-col hidden md:flex flex-shrink-0 fixed top-0 left-0 h-screen overflow-y-auto z-10"
+        className="w-56 flex-col hidden md:flex flex-shrink-0 fixed top-0 left-0 h-screen overflow-y-auto z-10"
         style={{background:"rgba(8,10,30,0.45)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",borderRight:"1px solid rgba(255,255,255,0.15)"}}>
 
         {/* Header */}
@@ -541,7 +541,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
       </aside>
-      <main className="flex-1 flex flex-col min-w-0 md:ml-64">
+      <main className="flex-1 flex flex-col min-w-0 md:ml-56">
         {bloqueado && (
           <div className="bg-red-900/80 border-b border-red-700 flex items-center justify-between px-4 h-10 flex-shrink-0 overflow-hidden">
             <span className="text-red-100 text-sm truncate">
