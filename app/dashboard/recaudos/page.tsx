@@ -454,29 +454,52 @@ export default function RecaudosPage() {
             </select>
           </div>
         )}
-        {/* Calendario — label wrappea el input, click en toda el área lo activa */}
-        <label style={{position:'relative',flexShrink:0,cursor:'pointer',display:'block'}}>
-          <div style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'8px 14px',display:'flex',alignItems:'center',justifyContent:'center',gap:6,pointerEvents:'none',userSelect:'none'}}>
-            <span style={{fontSize:18,lineHeight:1}}>📅</span>
-            {fecha && (
-              <span style={{fontSize:10,fontWeight:700,color:'white'}}>{fmtFechaBtn(fecha)}</span>
-            )}
-          </div>
+        {/* Calendario — input con apariencia de botón */}
+        <div style={{position:'relative',flexShrink:0}}>
           <input
             ref={fechaInputRef}
             type="date"
             value={fecha}
             onChange={e => setFecha(e.target.value)}
-            style={{position:'absolute',inset:0,opacity:0,width:'100%',height:'100%',cursor:'pointer',zIndex:1}}
+            style={{
+              position:'relative',
+              background:'rgba(15,15,22,0.60)',
+              border:'1px solid rgba(59,130,246,0.40)',
+              borderRadius:'0.75rem',
+              padding:'8px 14px',
+              color:'transparent',
+              colorScheme:'dark',
+              cursor:'pointer',
+              fontSize:12,
+              fontWeight:700,
+              outline:'none',
+              width:56,
+              height:40,
+              boxSizing:'border-box',
+              zIndex:1,
+            }}
           />
+          <span style={{
+            position:'absolute',
+            inset:0,
+            display:'flex',
+            alignItems:'center',
+            justifyContent:'center',
+            gap:4,
+            pointerEvents:'none',
+            fontSize:18,
+            lineHeight:1,
+          }}>
+            📅{fecha && <span style={{fontSize:10,fontWeight:700,color:'white'}}>{fmtFechaBtn(fecha)}</span>}
+          </span>
           {fecha && (
             <button
-              onClick={e => { e.stopPropagation(); setFecha('') }}
-              style={{position:'absolute',top:-4,right:-4,width:16,height:16,borderRadius:'50%',background:'#52525b',border:'none',color:'white',fontSize:9,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',zIndex:3}}>
+              onClick={() => setFecha('')}
+              style={{position:'absolute',top:-4,right:-4,width:16,height:16,borderRadius:'50%',background:'#52525b',border:'none',color:'white',fontSize:9,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',zIndex:2}}>
               ✕
             </button>
           )}
-        </label>
+        </div>
         {/* Validar */}
         <button
           onClick={() => haySeleccion ? validarSeleccionados() : validarTodos()}
