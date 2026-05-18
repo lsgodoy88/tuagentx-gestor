@@ -343,7 +343,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     {/* Círculos de color estáticos — profundidad para el glass */}
 
 
-    <div className="flex min-h-screen" style={{background:'transparent',alignItems:'stretch'}}>
+    <div className="flex" style={{background:'transparent'}}>
       {/* Drawer móvil — estilo B */}
       {menuMovil && (
         <div className="fixed inset-0 z-[2000] md:hidden" style={{overflow:"hidden"}}>
@@ -436,7 +436,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </button>
       </div>
       <aside
-        className="w-64 flex-col hidden md:flex flex-shrink-0 sticky top-0 h-screen overflow-y-auto"
+        className="w-64 flex-col hidden md:flex flex-shrink-0 fixed top-0 left-0 h-screen overflow-y-auto z-10"
         style={{background:"#0a0a1e",borderRight:"1px solid rgba(255,255,255,0.08)"}}>
 
         {/* Header */}
@@ -541,7 +541,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
       </aside>
-      <main className="flex-1 flex flex-col min-w-0 w-0">
+      <main className="flex-1 flex flex-col min-w-0 w-0 md:ml-64">
         {bloqueado && (
           <div className="bg-red-900/80 border-b border-red-700 flex items-center justify-between px-4 h-10 flex-shrink-0 overflow-hidden">
             <span className="text-red-100 text-sm truncate">
