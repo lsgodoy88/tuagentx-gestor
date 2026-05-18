@@ -470,13 +470,14 @@ export default function RecaudosPage() {
               color:'transparent',
               colorScheme:'dark',
               cursor:'pointer',
-              fontSize:12,
-              fontWeight:700,
+              fontSize:1,
               outline:'none',
               width:56,
               height:40,
               boxSizing:'border-box',
               zIndex:1,
+              appearance:'none',
+              WebkitAppearance:'none',
             }}
           />
           <span style={{

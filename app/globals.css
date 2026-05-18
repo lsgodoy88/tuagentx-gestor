@@ -570,3 +570,14 @@ button:active:not(:disabled) {
   background: rgba(255,255,255,0.12) !important;
   color: white !important;
 }
+
+/* Ocultar ícono nativo del input date */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
+}
+input[type="date"]::-webkit-inner-spin-button,
+input[type="date"]::-webkit-clear-button { display: none; }
+input[type="date"] { appearance: none; -webkit-appearance: none; }
