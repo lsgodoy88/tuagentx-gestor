@@ -264,6 +264,7 @@ export default function RecaudosPage() {
   const [validaciones,        setValidaciones]        = useState<Record<string,{valido:boolean,motivo:string,saldoUptres:number|null}>>({})
   const [validando,           setValidando]           = useState(false)
   const fechaInputRef = useRef<HTMLInputElement>(null)
+  const [fechaOpen, setFechaOpen] = useState(false)
 
   const isAdmin = user?.role === 'empresa' || user?.role === 'supervisor'
 
@@ -454,51 +455,33 @@ export default function RecaudosPage() {
             </select>
           </div>
         )}
-        {/* Calendario — input con apariencia de botón */}
+        {/* Calendario — botón limpio + popover */}
         <div style={{position:'relative',flexShrink:0}}>
-          <input
-            ref={fechaInputRef}
-            type="date"
-            value={fecha}
-            onChange={e => setFecha(e.target.value)}
-            style={{
-              position:'relative',
-              background:'rgba(15,15,22,0.60)',
-              border:'1px solid rgba(59,130,246,0.40)',
-              borderRadius:'0.75rem',
-              padding:'8px 14px',
-              color:'transparent',
-              colorScheme:'dark',
-              cursor:'pointer',
-              fontSize:1,
-              outline:'none',
-              width:56,
-              height:40,
-              boxSizing:'border-box',
-              zIndex:1,
-              appearance:'none',
-              WebkitAppearance:'none',
-            }}
-          />
-          <span style={{
-            position:'absolute',
-            inset:0,
-            display:'flex',
-            alignItems:'center',
-            justifyContent:'center',
-            gap:4,
-            pointerEvents:'none',
-            fontSize:18,
-            lineHeight:1,
-          }}>
-            📅{fecha && <span style={{fontSize:10,fontWeight:700,color:'white'}}>{fmtFechaBtn(fecha)}</span>}
-          </span>
-          {fecha && (
-            <button
-              onClick={() => setFecha('')}
-              style={{position:'absolute',top:-4,right:-4,width:16,height:16,borderRadius:'50%',background:'#52525b',border:'none',color:'white',fontSize:9,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',zIndex:2}}>
-              ✕
-            </button>
+          <button
+            onClick={() => setFechaOpen(o => !o)}
+            style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'8px 14px',cursor:'pointer',display:'flex',alignItems:'center',gap:6,height:40,boxSizing:'border-box',outline:'none'}}>
+            <span style={{fontSize:18,lineHeight:1,pointerEvents:'none'}}>📅</span>
+            {fecha && <span style={{fontSize:10,fontWeight:700,color:'white',pointerEvents:'none'}}>{fmtFechaBtn(fecha)}</span>}
+          </button>
+          {fechaOpen && (
+            <div style={{position:'absolute',top:'calc(100% + 6px)',left:0,zIndex:50,background:'#111827',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'10px 12px',boxShadow:'0 8px 32px rgba(0,0,0,0.7)',minWidth:200}}>
+              <p style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.50)',letterSpacing:1.5,textTransform:'uppercase',marginBottom:8}}>Filtrar por fecha</p>
+              <input
+                ref={fechaInputRef}
+                type="date"
+                value={fecha}
+                autoFocus
+                onChange={e => { setFecha(e.target.value); setFechaOpen(false) }}
+                onBlur={() => setTimeout(() => setFechaOpen(false), 150)}
+                style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:8,color:'white',colorScheme:'dark',outline:'none',fontSize:13,cursor:'pointer',padding:'6px 10px',width:'100%',boxSizing:'border-box'}}
+              />
+              {fecha && (
+                <button onClick={() => { setFecha(''); setFechaOpen(false) }}
+                  style={{display:'block',width:'100%',marginTop:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:8,color:'rgba(255,255,255,0.70)',fontSize:11,padding:'5px 8px',cursor:'pointer'}}>
+                  ✕ Limpiar fecha
+                </button>
+              )}
+            </div>
           )}
         </div>
         {/* Validar */}
