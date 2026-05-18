@@ -325,7 +325,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }} />
     <div aria-hidden="true" style={{
       position:'fixed', inset:0, zIndex:-1,
-      background:'rgba(2,2,10,0.70)',
+      background:'rgba(2,2,10,0.55)',
     }} />
     {/* Círculos de color estáticos — profundidad para el glass */}
     <div aria-hidden="true" style={{position:'fixed',zIndex:-1,width:400,height:400,borderRadius:'50%',background:'rgba(99,102,241,0.28)',top:-120,left:-100,filter:'blur(80px)',pointerEvents:'none'}} />
