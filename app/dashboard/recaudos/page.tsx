@@ -436,7 +436,7 @@ export default function RecaudosPage() {
           <div style={{display:"grid",gridTemplateColumns:"20px 2.2fr 1.2fr 0.9fr 0.75fr 0.8fr 1.1fr 1fr 1.1fr",gap:"8px",padding:"0 12px 6px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)",marginBottom:4,alignItems:"center"}}>
             <div/>
             {(["Cliente","Vendedor","Recibo","Factura","Método","Valor","Desc.","Total"] as string[]).map((l,i)=>(
-              <div key={i} style={{color:"rgba(255,255,255,0.35)",fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase" as const,textAlign:(i>=4&&i<=6?"right":"left") as any}}>{l}</div>
+              <div key={i} style={{color:"rgba(255,255,255,0.35)",fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase" as const,textAlign:(i>=5?"right":"left") as any}}>{l}</div>
             ))}
           </div>
         )}
