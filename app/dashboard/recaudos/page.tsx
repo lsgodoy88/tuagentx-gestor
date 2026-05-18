@@ -77,7 +77,7 @@ function MetodoPagoChip({ metodo }: { metodo: string | null }) {
     transferencia: { label: 'Transferencia', cls: 'bg-blue-500/10 text-blue-400 border-blue-500/20' },
     descuento: { label: 'Descuento', cls: 'bg-orange-500/10 text-orange-400 border-orange-500/20' },
   }
-  const cfg = map[metodo] ?? { label: metodo, cls: 'bg-zinc-700 text-zinc-300 border-zinc-600' }
+  const cfg = map[metodo] ?? { label: metodo, cls: 'bg-zinc-700 text-white border-zinc-600' }
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-semibold border ${cfg.cls}`}>
       {cfg.label}
@@ -155,9 +155,9 @@ function FilaDesktopLinea({ linea, borde, isFirst, isLast, estado, envioFecha, t
   )
 }
 
-function FilaDesktop({ pago, seleccionado, onToggle, tieneVariacion, voucherUrl, onLoadVoucher, onLightbox }: {
+function FilaDesktop({ pago, seleccionado, onToggle, tieneVariacion, voucherUrl, onLoadVoucher, onLightbox, onReciboPopup }: {
   pago: Pago; seleccionado: boolean; onToggle: () => void; tieneVariacion: boolean
-  voucherUrl?: string; onLoadVoucher?: () => void; onLightbox?: (url: string) => void
+  voucherUrl?: string; onLoadVoucher?: () => void; onLightbox?: (url: string) => void; onReciboPopup?: (url: string | null) => void
 }) {
   const lineas: any[] = Array.isArray((pago as any).lineasPago) && (pago as any).lineasPago.length > 1
     ? (pago as any).lineasPago : []
@@ -197,7 +197,7 @@ function FilaDesktop({ pago, seleccionado, onToggle, tieneVariacion, voucherUrl,
         </span>
         {/* Recibo: 🖨️ abre recibo + thumbnail voucher si tiene */}
         <div style={{display:"flex",alignItems:"center",gap:4}}>
-          <button onClick={e=>{e.stopPropagation();abrirRecibo(pago.id)}}
+          <button onClick={e=>{e.stopPropagation();if(onReciboPopup)abrirRecibo(pago.id, onReciboPopup)}}
             style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",lineHeight:1,fontSize:14,padding:0}}
             title="Ver recibo">
             🖨️
@@ -241,7 +241,7 @@ function FilaDesktop({ pago, seleccionado, onToggle, tieneVariacion, voucherUrl,
 }
 
 
-async function abrirRecibo(pagoId: string) {
+async function abrirRecibo(pagoId: string, setReciboPopup: (url: string | null) => void) {
   const res = await fetch('/api/cartera/recibo-token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -250,7 +250,7 @@ async function abrirRecibo(pagoId: string) {
   const data = await res.json()
   if (data.reciboToken) {
     const fmt = data.anchoPapel === '58mm' ? '&fmt=58mm' : ''
-    window.open('/recaudo/recibo?token=' + data.reciboToken + fmt, '_blank')
+    setReciboPopup('/recaudo/recibo?token=' + data.reciboToken + fmt)
   }
 }
 
@@ -279,6 +279,7 @@ export default function RecaudosPage() {
   const [validadoTodos, setValidadoTodos] = useState(false)
   const [validadoSel, setValidadoSel] = useState(false)
   const [isDesktop, setIsDesktop] = useState(false)
+  const [reciboPopup, setReciboPopup] = useState<string | null>(null)
   const fechaInputRef = useRef<HTMLInputElement>(null)
 
   const isAdmin = user?.role === 'empresa' || user?.role === 'supervisor'
@@ -399,7 +400,7 @@ export default function RecaudosPage() {
   if (status === 'loading') {
     return (
       <div className="flex items-center justify-center h-40">
-        <div className="text-zinc-400 text-sm animate-pulse">Cargando...</div>
+        <div className="text-white/70 text-sm animate-pulse">Cargando...</div>
       </div>
     )
   }
@@ -427,7 +428,7 @@ export default function RecaudosPage() {
         {/* Dropdown vendedor */}
         {isAdmin && (
           <select value={vendedorId} onChange={e => setVendedorId(e.target.value)}
-            className="flex-1 bg-transparent border-none rounded-lg px-2 py-1.5 text-xs text-white/70 outline-none cursor-pointer min-w-0">
+            className="flex-1 bg-transparent border-none rounded-lg px-2 py-1.5 text-xs text-white outline-none cursor-pointer">
             <option value="">Vendedor</option>
             {vendedores.map(v => (
               <option key={v.id} value={v.id}>{v.nombre.split(' ')[0]}</option>
@@ -435,9 +436,9 @@ export default function RecaudosPage() {
           </select>
         )}
         {/* Fecha */}
-        <div className="relative flex-1 min-w-0">
+        <div className="relative flex-1">
           <button onClick={() => fechaInputRef.current?.showPicker?.() ?? fechaInputRef.current?.click()}
-            className="px-2 py-1.5 rounded-lg text-xs font-semibold text-white/70 hover:text-white transition-colors">
+            className="w-full py-1.5 rounded-lg text-xs font-semibold text-white transition-colors text-center">
             {fecha ? `📅 ${fmtFechaBtn(fecha)}` : '📅 Fecha'}
           </button>
           <input ref={fechaInputRef} type="date" value={fecha}
@@ -447,7 +448,7 @@ export default function RecaudosPage() {
         <div className="flex flex-1 items-center gap-1.5">
           {resumen.efectivo > 0 && <span className="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold text-emerald-400 whitespace-nowrap">💵 {fmtMonto(resumen.efectivo)}</span>}
           {resumen.transferencia > 0 && <span className="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold text-blue-400 whitespace-nowrap">📲 {fmtMonto(resumen.transferencia)}</span>}
-          {resumen.efectivo === 0 && resumen.transferencia === 0 && <span className="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white/30">$0</span>}
+          {resumen.efectivo === 0 && resumen.transferencia === 0 && <span className="tab-btn px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white/50">$0</span>}
         </div>
       </div>
 
@@ -460,7 +461,7 @@ export default function RecaudosPage() {
         </div>
       ) : pagos.length === 0 ? (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-10 text-center">
-          <p className="text-zinc-500 text-sm">No hay recaudos en esta vista</p>
+          <p className="text-white/60 text-sm">No hay recaudos en esta vista</p>
         </div>
       ) : (
         <>
@@ -492,6 +493,7 @@ export default function RecaudosPage() {
                 voucherUrl={voucherUrls[pago.id]}
                 onLoadVoucher={() => pago.voucherKey && cargarVoucherUrl(pago.id, pago.voucherKey)}
                 onLightbox={(url) => setLightboxUrl(url)}
+                onReciboPopup={(url) => setReciboPopup(url)}
               />
             ) : (
               <div key={pago.id}>
@@ -516,7 +518,7 @@ export default function RecaudosPage() {
                     <p className="text-white font-semibold text-sm truncate leading-tight">
                       {pago.Cartera?.Cliente?.nombre || (pago as any).cliente?.nombre || ((pago as any).carteraId ? 'Cliente' : '(Pago sync)')}
                     </p>
-                    <p className="text-zinc-500 text-xs truncate leading-tight mt-0.5">
+                    <p className="text-white/60 text-xs truncate leading-tight mt-0.5">
                       {pago.Empleado.nombre}
                     </p>
                   </div>
@@ -558,7 +560,7 @@ export default function RecaudosPage() {
                       </span>
                     )}
                     {pago.envioEstado === 'enviando' && (
-                      <span className="text-zinc-400 text-xs animate-pulse">Enviando...</span>
+                      <span className="text-white/70 text-xs animate-pulse">Enviando...</span>
                     )}
                   </div>
                 </div>
@@ -571,7 +573,7 @@ export default function RecaudosPage() {
 
                     {/* Fecha + método chip */}
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="bg-zinc-800 text-zinc-300 text-xs px-2 py-0.5 rounded-lg">
+                      <span className="bg-zinc-800 text-white text-xs px-2 py-0.5 rounded-lg">
                         {fmtFecha(pago.createdAt)} {fmtHora(pago.createdAt)}
                       </span>
                       <MetodoPagoChip metodo={pago.metodopago} />
@@ -589,16 +591,16 @@ export default function RecaudosPage() {
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
-                        {voucherData?.banco && <p className="text-zinc-300 text-[11px] font-bold truncate">{voucherData.banco}</p>}
-                        {voucherData?.referencia && <p className="text-zinc-500 text-[10px] font-mono truncate">{voucherData.referencia}</p>}
-                        {!voucherData && <p className="text-zinc-400 text-[11px]">{pago.metodopago === 'efectivo' ? 'Efectivo' : 'Sin comprobante'}</p>}
+                        {voucherData?.banco && <p className="text-white text-[11px] font-bold truncate">{voucherData.banco}</p>}
+                        {voucherData?.referencia && <p className="text-white/60 text-[10px] font-mono truncate">{voucherData.referencia}</p>}
+                        {!voucherData && <p className="text-white/70 text-[11px]">{pago.metodopago === 'efectivo' ? 'Efectivo' : 'Sin comprobante'}</p>}
                       </div>
                       <span className="text-[#34d399] text-[12px] font-bold flex-shrink-0">{fmtMonto(pago.monto)}</span>
                       {pago.descuento && Number(pago.descuento) > 0 && (
                         <><span className="text-[#3f3f46] text-[11px]">·</span><span className="text-[#f87171] text-[10px] flex-shrink-0">-{fmtMonto(pago.descuento)}</span></>
                       )}
                     </div>
-                    {pago.notas && <p className="text-zinc-500 text-xs mt-1">{pago.notas}</p>}
+                    {pago.notas && <p className="text-white/60 text-xs mt-1">{pago.notas}</p>}
 
                     {/* Panel variación */}
                     {tieneVariacion && (
@@ -620,7 +622,7 @@ export default function RecaudosPage() {
       {hasMore && (
         <div className="flex justify-center pt-2">
           <button onClick={() => fetchPagos(nextCursor)} disabled={loadingMore}
-            className="px-6 py-2 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-300 text-sm disabled:opacity-40 hover:text-white transition-colors">
+            className="px-6 py-2 rounded-xl bg-zinc-800 border border-zinc-700 text-white text-sm disabled:opacity-40 hover:text-white transition-colors">
             {loadingMore ? 'Cargando...' : 'Cargar más'}
           </button>
         </div>
@@ -631,14 +633,14 @@ export default function RecaudosPage() {
         {haySeleccion && (
           <button onClick={() => { setSeleccionados(new Set()); setValidadoSel(false) }}
             className="tab-btn flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold">
-            {seleccionados.size} sel. <span className="text-white/40 ml-0.5">✕</span>
+            {seleccionados.size} sel. <span className="text-white/60 ml-0.5">✕</span>
           </button>
         )}
         {haySeleccion ? (
           validadoSel ? (
             <button onClick={async () => { await enviarSeleccionados(); setValidadoSel(false) }}
               disabled={enviandoSeleccionados}
-              className="tab-btn flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-blue-400" style={{borderColor:"rgba(96,165,250,0.5)",background:"rgba(37,99,235,0.18)"}}>
+              style={{border:"1px solid rgba(96,165,250,0.45)",background:"rgba(37,99,235,0.22)",borderRadius:"0.75rem",padding:"8px 16px",color:"#93c5fd",fontSize:"12px",fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:"6px"}}>
               {enviandoSeleccionados ? '⏳...' : '📤 Enviar sel.'}
             </button>
           ) : (
@@ -651,7 +653,7 @@ export default function RecaudosPage() {
           validadoTodos ? (
             <button onClick={async () => { await enviarTodos(); setValidadoTodos(false) }}
               disabled={enviandoTodos}
-              className="tab-btn flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-blue-400" style={{borderColor:"rgba(96,165,250,0.5)",background:"rgba(37,99,235,0.18)"}}>
+              style={{border:"1px solid rgba(96,165,250,0.45)",background:"rgba(37,99,235,0.22)",borderRadius:"0.75rem",padding:"8px 16px",color:"#93c5fd",fontSize:"12px",fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:"6px"}}>
               {enviandoTodos ? '⏳...' : '📤 Enviar todos'}
             </button>
           ) : (
@@ -662,6 +664,21 @@ export default function RecaudosPage() {
           )
         )}
       </div>
+
+      {/* Popup recibo */}
+      {reciboPopup && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+          onClick={() => setReciboPopup(null)}>
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden w-full max-w-sm md:max-w-lg"
+            style={{maxHeight:'90vh'}} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+              <span className="text-white text-sm font-semibold">🖨️ Recibo de caja</span>
+              <button onClick={() => setReciboPopup(null)} className="text-white/60 hover:text-white text-lg">✕</button>
+            </div>
+            <iframe src={reciboPopup} className="w-full" style={{height:'70vh',border:'none'}} />
+          </div>
+        </div>
+      )}
 
       {/* Lightbox voucher */}
       {lightboxUrl && (
@@ -680,16 +697,16 @@ export default function RecaudosPage() {
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-sm w-full space-y-4" onClick={e => e.stopPropagation()}>
               <div className="flex items-center justify-between">
                 <h3 className="text-white font-bold">⚠ Detalle de variación</h3>
-                <button onClick={() => setDetalleVariacion(null)} className="text-zinc-500 hover:text-white">✕</button>
+                <button onClick={() => setDetalleVariacion(null)} className="text-white/60 hover:text-white">✕</button>
               </div>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-zinc-400">Monto enviado</span>
+                  <span className="text-white/70">Monto enviado</span>
                   <span className="text-white font-mono">{fmtMonto(pago.monto)}</span>
                 </div>
                 {v?.montoRecibido !== undefined && (
                   <div className="flex justify-between">
-                    <span className="text-zinc-400">Monto recibido</span>
+                    <span className="text-white/70">Monto recibido</span>
                     <span className="text-white font-mono">{fmtMonto(v.montoRecibido)}</span>
                   </div>
                 )}
@@ -700,7 +717,7 @@ export default function RecaudosPage() {
                   </div>
                 )}
                 {v?.detalle && (
-                  <p className="text-zinc-400 text-xs">{v.detalle}</p>
+                  <p className="text-white/70 text-xs">{v.detalle}</p>
                 )}
               </div>
             </div>
