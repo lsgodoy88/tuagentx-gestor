@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
     ? await prisma.syncDeuda.findMany({
         where: {
           numeroFactura: { in: facturas },
-          Integracion: { empresaId },
+          integracion: { empresaId },
           condition: true,
         },
         select: {
