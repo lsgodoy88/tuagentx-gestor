@@ -523,7 +523,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </button>
 
             {menuUsuario && (
-              <div className={`absolute ${sidebarExpanded ? 'bottom-full left-0 right-0' : 'bottom-0 left-full ml-2 w-48'} mb-1 bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden shadow-2xl`}>
+              <div className={`absolute ${sidebarExpanded ? 'bottom-full left-0 right-0' : 'bottom-0 left-full ml-2 w-48'} mb-1 rounded-xl overflow-hidden shadow-2xl`} style={{background:"#0d0d14",border:"1px solid rgba(255,255,255,0.12)"}}>
                 <div className="px-4 py-2.5 border-b border-[#27272a]">
                   <p className="text-white text-xs font-semibold truncate">{user?.name}</p>
                   <p className="text-zinc-400 text-[10px] capitalize">{user?.role}</p>
