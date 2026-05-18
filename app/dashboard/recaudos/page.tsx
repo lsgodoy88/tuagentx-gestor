@@ -1,4 +1,4 @@
-'use client'
+'use client' // build 1779089786
 import { useSession } from 'next-auth/react'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
@@ -373,14 +373,11 @@ export default function RecaudosPage() {
                 <span style={{color:Number(pago.descuento||0)>0?"#fdba74":"rgba(255,255,255,0.25)",fontSize:11,textAlign:"right"}}>
                   {Number(pago.descuento||0)>0 ? `-${fmtMonto(pago.descuento!)}` : '—'}
                 </span>
-                <span style={{color:"#86efac",fontSize:12,fontWeight:700,textAlign:"right"}}>
-                  {fmtMonto(Number(pago.monto)-Number(pago.descuento||0))}
-                </span>
-                <div style={{display:"flex",justifyContent:"flex-end"}}>
-                  {tieneVariacion && <span className="text-red-400 text-xs font-bold">⚑</span>}
-
-                  {pago.envioEstado==='enviado' && <span className="text-blue-400 text-xs font-semibold">✔ {fmtHora(pago.envioFecha)}</span>}
-                  {pago.envioEstado==='recibido' && <span className="text-emerald-400 text-xs font-semibold">✔✔</span>}
+                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:1}}>
+                  <span style={{color:"#86efac",fontSize:12,fontWeight:700}}>{fmtMonto(Number(pago.monto)-Number(pago.descuento||0))}</span>
+                  {tieneVariacion && <span style={{color:"#f87171",fontSize:9}}>⚑</span>}
+                  {pago.envioEstado==='enviado' && <span style={{color:"#60a5fa",fontSize:9}}>✔ {fmtHora(pago.envioFecha)}</span>}
+                  {pago.envioEstado==='recibido' && <span style={{color:"#4ade80",fontSize:9}}>✔✔</span>}
                 </div>
               </div>
             ) : (
