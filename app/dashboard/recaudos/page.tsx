@@ -323,7 +323,7 @@ export default function RecaudosPage() {
       ) : (
         <>
         {isDesktop && (
-          <div style={{display:"grid",gridTemplateColumns:"20px 2fr 1.2fr 0.8fr 0.8fr 1fr 1fr 0.8fr 1fr",gap:"8px",padding:"0 12px 6px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)",marginBottom:4,alignItems:"center"}}>
+          <div style={{display:"grid",gridTemplateColumns:"20px 2.2fr 1.2fr 0.9fr 0.75fr 0.8fr 1.1fr 1fr 1.1fr",gap:"8px",padding:"0 12px 6px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)",marginBottom:4,alignItems:"center"}}>
             <div/>
             {(["Cliente","Vendedor","Recibo","Factura","Método","Valor","Desc.","Total"] as string[]).map((l,i)=>(
               <div key={i} style={{color:"rgba(255,255,255,0.35)",fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase" as const,textAlign:(i>=4&&i<=6?"right":"left") as any}}>{l}</div>
@@ -343,7 +343,7 @@ export default function RecaudosPage() {
             return isDesktop ? (
               /* ── DESKTOP: fila grid ── */
               <div key={pago.id} style={{
-                display:"grid", gridTemplateColumns:"20px 2fr 1.2fr 0.8fr 0.8fr 1fr 1fr 0.8fr 1fr",
+                display:"grid", gridTemplateColumns:"20px 2.2fr 1.2fr 0.9fr 0.75fr 0.8fr 1.1fr 1fr 1.1fr",
                 gap:"8px", padding:"9px 12px",
                 background: seleccionado ? "rgba(30,58,138,0.55)" : "rgba(8,8,28,0.88)",
                 border:`1px solid ${tieneVariacion ? "rgba(239,68,68,0.4)" : seleccionado ? "#3b82f6" : "#3f3f46"}`,
