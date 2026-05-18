@@ -116,7 +116,29 @@ function calcResumen(lista: Pago[]) {
 }
 
 
-const GRID_COLS = "0.7fr 1.2fr 0.8fr 2fr 1fr 0.9fr 1fr 0.8fr 1fr"
+// ── Columnas dinámicas ──────────────────────────────────────────
+// Una sola fuente de verdad: header + filas + sub-filas iteran este array
+type ColCtx = {
+  pago: Pago
+  linea?: { metodoPago: string; monto: number; descuento?: number }
+  seleccionado?: boolean
+  onToggle?: () => void
+  onReciboPopup?: (url: string | null) => void
+  onLightbox?: (url: string) => void
+  voucherUrl?: string
+  isMulti?: boolean
+  isLast?: boolean
+  tieneVariacion?: boolean
+}
+
+type ColDef = {
+  key: string
+  label: string
+  fr: string
+  align: 'left' | 'right'
+  render: (ctx: ColCtx) => React.ReactNode
+  renderLinea?: (ctx: ColCtx) => React.ReactNode
+}
 
 function fmtMetodo(m: string | null) {
   if (!m) return '—'
@@ -126,35 +148,122 @@ function fmtMetodo(m: string | null) {
   return m
 }
 
-function FilaDesktopLinea({ linea, borde, isFirst, isLast, estado, envioFecha, tieneVariacion }:
-  { linea: { metodoPago: string; monto: number; descuento?: number }; borde: string; isFirst: boolean; isLast: boolean; estado?: string; envioFecha?: string | null; tieneVariacion?: boolean }) {
-  const desc = Number(linea.descuento || 0)
-  const total = Number(linea.monto) - desc
-  return (
-    <div style={{
-      display:"grid", gridTemplateColumns: GRID_COLS,
-      gap:"8px", padding:"7px 12px",
-      background: "rgba(8,8,28,0.88)", overflow:"hidden", minWidth:0,
-      border: borde,
-      borderTop: isFirst ? borde : "none",
-      borderRadius: isFirst && isLast ? 10 : isFirst ? "10px 10px 0 0" : isLast ? "0 0 10px 10px" : 0,
-      alignItems:"center",
-    }}>
-      <div/><span/><span/><span/><span/>
-      <span style={{fontSize:12,fontWeight:700,color:"white"}}>{fmtMetodo(linea.metodoPago)}</span>
-      <span style={{color:"#93c5fd",fontSize:12,fontWeight:700,textAlign:"right",display:"block"}}>{fmtMonto(linea.monto)}</span>
-      <span style={{color:desc>0?"#fdba74":"rgba(255,255,255,0.25)",fontSize:12,fontWeight:700,textAlign:"right",display:"block"}}>
-        {desc>0 ? `-${fmtMonto(desc)}` : '—'}
-      </span>
-      <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:1}}>
-        <span style={{color:"#86efac",fontSize:12,fontWeight:700}}>{fmtMonto(total)}</span>
-        {isLast && tieneVariacion && <span style={{color:"#f87171",fontSize:9}}>⚑</span>}
-        {isLast && estado==='enviado' && <span style={{color:"#60a5fa",fontSize:9}}>✔ {fmtHora(envioFecha||null)}</span>}
-        {isLast && estado==='recibido' && <span style={{color:"#4ade80",fontSize:9}}>✔✔</span>}
-      </div>
-    </div>
-  )
+const CELL: React.CSSProperties = {
+  fontSize: 12, fontWeight: 700, color: 'white',
+  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+  minWidth: 0,
 }
+
+function buildColumns(ctx: ColCtx): ColDef[] {
+  const { pago, linea, seleccionado, onToggle, onReciboPopup, onLightbox, voucherUrl, isMulti, isLast, tieneVariacion } = ctx
+  return [
+    {
+      key: 'vendedor', label: 'Vend.', fr: '0.7fr', align: 'left',
+      render: () => (
+        <div style={{display:'flex',alignItems:'center',gap:5,minWidth:0}}>
+          <div onClick={e=>{e.stopPropagation();onToggle?.()}}
+            style={{width:13,height:13,borderRadius:3,flexShrink:0,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',
+              border:seleccionado?'2px solid #3b82f6':'2px solid #52525b',
+              background:seleccionado?'#3b82f6':'transparent'}}>
+            {seleccionado && <span style={{color:'white',fontSize:7,fontWeight:900}}>✓</span>}
+          </div>
+          <span style={{...CELL}}>
+            {(pago.vendedorNombre||pago.Empleado.nombre).split(' ').map((n:string)=>n[0]||'').join('').toUpperCase().slice(0,3)}
+          </span>
+        </div>
+      ),
+      renderLinea: () => <div/>,
+    },
+    {
+      key: 'recibo', label: 'Recibo', fr: '1.2fr', align: 'left',
+      render: () => (
+        <div style={{display:'flex',alignItems:'center',gap:4,minWidth:0}}>
+          <button onClick={e=>{e.stopPropagation();if(onReciboPopup)abrirRecibo(pago.id,onReciboPopup)}}
+            style={{flexShrink:0,background:'none',border:'none',cursor:'pointer',fontSize:13,padding:0,lineHeight:1}}
+            title="Ver recibo">🖨️</button>
+          {pago.voucherKey && voucherUrl && (
+            <div onClick={e=>{e.stopPropagation();onLightbox?.(voucherUrl)}}
+              style={{width:18,height:18,borderRadius:3,overflow:'hidden',flexShrink:0,cursor:'pointer',border:'1px solid rgba(255,255,255,0.15)'}}>
+              <img src={voucherUrl} alt="v" style={{width:'100%',height:'100%',objectFit:'cover'}}
+                onError={e=>{(e.target as HTMLImageElement).style.display='none'}}/>
+            </div>
+          )}
+          <span style={{...CELL,fontFamily:'monospace'}}>{pago.numeroRecibo||'—'}</span>
+        </div>
+      ),
+      renderLinea: () => <span/>,
+    },
+    {
+      key: 'factura', label: 'Factura', fr: '0.8fr', align: 'left',
+      render: () => <span style={{...CELL,fontFamily:'monospace'}}>{pago.numeroFactura||(pago as any).Cartera?.DetalleCartera?.[0]?.numeroFactura||'—'}</span>,
+      renderLinea: () => <span/>,
+    },
+    {
+      key: 'cliente', label: 'Cliente', fr: '2fr', align: 'left',
+      render: () => <span style={{...CELL}}>{pago.Cartera?.Cliente?.nombre||(pago as any).cliente?.nombre||(pago as any).clienteNombre||'—'}</span>,
+      renderLinea: () => <span/>,
+    },
+    {
+      key: 'saldo', label: 'Saldo', fr: '1fr', align: 'right',
+      render: () => <span style={{...CELL,color:'#fde68a',textAlign:'right',display:'block'}}>{pago.saldoAnterior?fmtMonto(pago.saldoAnterior):'—'}</span>,
+      renderLinea: () => <span/>,
+    },
+    {
+      key: 'metodo', label: 'Método', fr: '0.9fr', align: 'left',
+      render: () => <span style={{...CELL}}>{fmtMetodo(isMulti?(linea as any)?.metodoPago??null:pago.metodopago)}</span>,
+      renderLinea: (ctx) => <span style={{...CELL}}>{fmtMetodo(ctx.linea?.metodoPago||null)}</span>,
+    },
+    {
+      key: 'valor', label: 'Valor', fr: '1fr', align: 'right',
+      render: () => {
+        const v = isMulti?Number(linea?.monto||0):Number(pago.monto)
+        return <span style={{...CELL,color:'#93c5fd',textAlign:'right',display:'block'}}>{fmtMonto(v)}</span>
+      },
+      renderLinea: (ctx) => <span style={{...CELL,color:'#93c5fd',textAlign:'right',display:'block'}}>{fmtMonto(ctx.linea?.monto||0)}</span>,
+    },
+    {
+      key: 'descuento', label: 'Desc.', fr: '0.8fr', align: 'right',
+      render: () => {
+        const d = isMulti?Number(linea?.descuento||0):Number(pago.descuento||0)
+        return <span style={{...CELL,color:d>0?'#fdba74':'rgba(255,255,255,0.25)',textAlign:'right',display:'block'}}>{d>0?`-${fmtMonto(d)}`:'—'}</span>
+      },
+      renderLinea: (ctx) => {
+        const d = Number(ctx.linea?.descuento||0)
+        return <span style={{...CELL,color:d>0?'#fdba74':'rgba(255,255,255,0.25)',textAlign:'right',display:'block'}}>{d>0?`-${fmtMonto(d)}`:'—'}</span>
+      },
+    },
+    {
+      key: 'total', label: 'Total', fr: '1fr', align: 'right',
+      render: () => {
+        const d = isMulti?Number(linea?.descuento||0):Number(pago.descuento||0)
+        const v = isMulti?Number(linea?.monto||0):Number(pago.monto)
+        return (
+          <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:1}}>
+            <span style={{...CELL,color:'#86efac',textAlign:'right'}}>{fmtMonto(v-d)}</span>
+            {!isMulti && tieneVariacion && <span style={{color:'#f87171',fontSize:9}}>⚑</span>}
+            {!isMulti && pago.envioEstado==='enviado' && <span style={{color:'#60a5fa',fontSize:9}}>✔ {fmtHora(pago.envioFecha)}</span>}
+            {!isMulti && pago.envioEstado==='recibido' && <span style={{color:'#4ade80',fontSize:9}}>✔✔</span>}
+          </div>
+        )
+      },
+      renderLinea: (ctx) => {
+        const d = Number(ctx.linea?.descuento||0)
+        const v = Number(ctx.linea?.monto||0)
+        return (
+          <div style={{display:'flex',flexDirection:'column',alignItems:'flex-end',gap:1}}>
+            <span style={{...CELL,color:'#86efac',textAlign:'right'}}>{fmtMonto(v-d)}</span>
+            {ctx.isLast && ctx.tieneVariacion && <span style={{color:'#f87171',fontSize:9}}>⚑</span>}
+            {ctx.isLast && ctx.pago?.envioEstado==='enviado' && <span style={{color:'#60a5fa',fontSize:9}}>✔ {fmtHora(ctx.pago?.envioFecha)}</span>}
+            {ctx.isLast && ctx.pago?.envioEstado==='recibido' && <span style={{color:'#4ade80',fontSize:9}}>✔✔</span>}
+          </div>
+        )
+      },
+    },
+  ]
+}
+
+// Grid derivado de las columnas — única fuente de verdad
+const GRID_COLS = buildColumns({pago:null as any}).map(c=>c.fr).join(' ')
 
 function FilaDesktop({ pago, seleccionado, onToggle, tieneVariacion, voucherUrl, onLoadVoucher, onLightbox, onReciboPopup }: {
   pago: Pago; seleccionado: boolean; onToggle: () => void; tieneVariacion: boolean
@@ -162,89 +271,50 @@ function FilaDesktop({ pago, seleccionado, onToggle, tieneVariacion, voucherUrl,
 }) {
   const lineas: any[] = Array.isArray((pago as any).lineasPago) && (pago as any).lineasPago.length > 1
     ? (pago as any).lineasPago : []
+  const isMulti = lineas.length > 0
   const borde = `1px solid ${tieneVariacion ? "rgba(239,68,68,0.4)" : seleccionado ? "#3b82f6" : "#3f3f46"}`
   const bg = seleccionado ? "rgba(30,58,138,0.55)" : "rgba(8,8,28,0.88)"
-  const isMulti = lineas.length > 0
-  const descPrincipal = isMulti ? Number(lineas[0].descuento||0) : Number(pago.descuento||0)
-  const montoPrincipal = isMulti ? Number(lineas[0].monto) : Number(pago.monto)
-  const totalPrincipal = montoPrincipal - descPrincipal
-  const tieneVoucher = !!pago.voucherKey
 
-  // Cargar voucher al montar si tiene voucherKey
   React.useEffect(() => {
-    if (tieneVoucher && !voucherUrl && onLoadVoucher) onLoadVoucher()
+    if (pago.voucherKey && !voucherUrl && onLoadVoucher) onLoadVoucher()
   }, [pago.id])
 
+  const ROW_STYLE = (isFirst: boolean, isLast: boolean): React.CSSProperties => ({
+    display:'grid', gridTemplateColumns: GRID_COLS,
+    gap:'8px', padding:'9px 12px',
+    background: bg, border: borde,
+    borderTop: isFirst ? borde : 'none',
+    borderRadius: isFirst && isLast ? 10 : isFirst ? '10px 10px 0 0' : isLast ? '0 0 10px 10px' : 0,
+    alignItems:'center', overflow:'hidden', minWidth:0,
+  })
+
+  const baseCtx: ColCtx = { pago, seleccionado, onToggle, onReciboPopup, onLightbox, voucherUrl, tieneVariacion }
+
   return (
-    <div style={{cursor:"default"}}>
-      {/* Fila principal */}
-      <div style={{
-        display:"grid", gridTemplateColumns: GRID_COLS,
-        gap:"8px", padding:"9px 12px",
-        background: bg, border: borde,
-        borderRadius: isMulti ? "10px 10px 0 0" : 10,
-        alignItems:"center", overflow:"hidden", minWidth:0,
-      }}>
-        {/* 1. Vendedor: iniciales + checkbox */}
-        <div style={{display:"flex",alignItems:"center",gap:5}}>
-          <div onClick={e=>{e.stopPropagation();onToggle()}}
-            style={{width:13,height:13,borderRadius:3,border:seleccionado?"2px solid #3b82f6":"2px solid #52525b",background:seleccionado?"#3b82f6":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,cursor:"pointer"}}>
-            {seleccionado && <span style={{color:"white",fontSize:7,fontWeight:900}}>✓</span>}
-          </div>
-          <span style={{fontSize:12,fontWeight:700,color:"white",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-            {(pago.vendedorNombre || pago.Empleado.nombre).split(' ').map((n:string)=>n[0]||'').join('').toUpperCase().slice(0,3)}
-          </span>
-        </div>
-        {/* 2. Recibo + ícono */}
-        <div style={{display:"flex",alignItems:"center",gap:4}}>
-          <button onClick={e=>{e.stopPropagation();if(onReciboPopup)abrirRecibo(pago.id, onReciboPopup)}}
-            style={{flexShrink:0,background:"none",border:"none",cursor:"pointer",lineHeight:1,fontSize:13,padding:0}}
-            title="Ver recibo">🖨️</button>
-          {tieneVoucher && voucherUrl && (
-            <div onClick={e=>{e.stopPropagation();onLightbox?.(voucherUrl)}}
-              style={{width:18,height:18,borderRadius:3,overflow:"hidden",flexShrink:0,cursor:"pointer",border:"1px solid rgba(255,255,255,0.15)"}}>
-              <img src={voucherUrl} alt="v" style={{width:"100%",height:"100%",objectFit:"cover"}}
-                onError={e=>{(e.target as HTMLImageElement).style.display="none"}} />
+    <div style={{cursor:'default'}}>
+      {/* Fila principal — itera COLUMNS */}
+      <div style={ROW_STYLE(true, !isMulti)}>
+        {buildColumns({...baseCtx, isMulti, linea: isMulti ? lineas[0] : undefined})
+          .map(col => (
+            <div key={col.key} style={{minWidth:0,overflow:'hidden'}}>
+              {col.render({...baseCtx, isMulti, linea: isMulti ? lineas[0] : undefined})}
             </div>
-          )}
-          <span style={{fontSize:12,fontWeight:700,color:"white",fontFamily:"monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-            {pago.numeroRecibo || "—"}
-          </span>
-        </div>
-        {/* 3. Factura */}
-        <span style={{fontSize:12,fontWeight:700,color:"white",fontFamily:"monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-          {pago.numeroFactura || (pago as any).Cartera?.DetalleCartera?.[0]?.numeroFactura || "—"}
-        </span>
-        {/* 4. Cliente */}
-        <span style={{fontSize:12,fontWeight:700,color:"white",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-          {pago.Cartera?.Cliente?.nombre || (pago as any).cliente?.nombre || (pago as any).clienteNombre || "—"}
-        </span>
-        {/* 5. Saldo anterior */}
-        <span style={{fontSize:12,fontWeight:700,color:"#fde68a",textAlign:"right",display:"block",whiteSpace:"nowrap"}}>
-          {pago.saldoAnterior ? fmtMonto(pago.saldoAnterior) : "—"}
-        </span>
-        {/* 6. Método */}
-        <span style={{fontSize:12,fontWeight:700,color:"white",whiteSpace:"nowrap"}}>{fmtMetodo(isMulti ? lineas[0].metodoPago : pago.metodopago)}</span>
-        {/* 7. Valor */}
-        <span style={{fontSize:12,fontWeight:700,color:"#93c5fd",textAlign:"right",display:"block"}}>{fmtMonto(montoPrincipal)}</span>
-        {/* 8. Descuento */}
-        <span style={{fontSize:12,fontWeight:700,color:descPrincipal>0?"#fdba74":"rgba(255,255,255,0.25)",textAlign:"right",display:"block"}}>
-          {descPrincipal>0 ? `-${fmtMonto(descPrincipal)}` : "—"}
-        </span>
-        {/* 9. Total */}
-        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:1}}>
-          <span style={{fontSize:12,fontWeight:700,color:"#86efac"}}>{fmtMonto(totalPrincipal)}</span>
-          {!isMulti && tieneVariacion && <span style={{color:"#f87171",fontSize:9}}>⚑</span>}
-          {!isMulti && pago.envioEstado==="enviado" && <span style={{color:"#60a5fa",fontSize:9}}>✔ {fmtHora(pago.envioFecha)}</span>}
-          {!isMulti && pago.envioEstado==="recibido" && <span style={{color:"#4ade80",fontSize:9}}>✔✔</span>}
-        </div>
+          ))}
       </div>
-      {/* Sub-filas mixto */}
-      {lineas.slice(1).map((linea: any, li: number) => (
-        <FilaDesktopLinea key={li} linea={linea} borde={borde} isFirst={false}
-          isLast={li === lineas.length - 2} estado={pago.envioEstado}
-          envioFecha={pago.envioFecha} tieneVariacion={tieneVariacion} />
-      ))}
+      {/* Sub-filas mixto — mismas columnas, renderLinea */}
+      {lineas.slice(1).map((linea: any, li: number) => {
+        const isLast = li === lineas.length - 2
+        const lineaCtx: ColCtx = { ...baseCtx, linea, isMulti: true, isLast, tieneVariacion }
+        return (
+          <div key={li} style={{...ROW_STYLE(false, isLast), background:"rgba(8,8,28,0.88)"}}>
+            {buildColumns(lineaCtx).map(col => (
+              <div key={col.key} style={{minWidth:0,overflow:'hidden'}}>
+                {(col.renderLinea ?? col.render)(lineaCtx)}
+              </div>
+            ))}
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -476,9 +546,14 @@ export default function RecaudosPage() {
         <>
         {isDesktop && (
           <div style={{display:"grid",gridTemplateColumns:GRID_COLS,gap:"8px",padding:"0 12px 6px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)",marginBottom:4,alignItems:"center"}}>
-            <div/>
-            {(["Vend.","Recibo","Factura","Cliente","Saldo","Método","Valor","Desc.","Total"] as string[]).map((l,i)=>(
-              <div key={i} style={{color:"rgba(255,255,255,0.35)",fontSize:11,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase" as const,textAlign:([4,6,7,8].includes(i)?"right":"left") as any}}>{l}</div>
+            {buildColumns({pago:null as any}).map(col => (
+              <div key={col.key} style={{
+                color:"rgba(255,255,255,0.35)",fontSize:11,fontWeight:700,
+                letterSpacing:1.5,textTransform:"uppercase" as const,
+                textAlign:col.align,overflow:"hidden",whiteSpace:"nowrap",minWidth:0,
+              }}>
+                {col.label}
+              </div>
             ))}
           </div>
         )}
