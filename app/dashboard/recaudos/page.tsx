@@ -12,6 +12,7 @@ type Pago = {
   metodopago: string | null
   notas: string | null
   reciboUrl: string | null
+  reciboToken: string | null
   voucherKey: string | null
   voucherDatosIA: any
   createdAt: string
@@ -194,17 +195,24 @@ function FilaDesktop({ pago, seleccionado, onToggle, tieneVariacion, voucherUrl,
         <span style={{color:"rgba(255,255,255,0.55)",fontSize:11,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
           {pago.Empleado.nombre.split(" ")[0]}
         </span>
-        {/* Recibo: thumbnail si tiene voucher, número si no */}
+        {/* Recibo: ícono recibo (link) + thumbnail voucher si tiene */}
         <div style={{display:"flex",alignItems:"center",gap:4}}>
-          {tieneVoucher && voucherUrl ? (
-            <div onClick={()=>onLightbox?.(voucherUrl)}
-              style={{width:22,height:22,borderRadius:4,overflow:"hidden",flexShrink:0,cursor:"pointer",border:"1px solid rgba(255,255,255,0.15)"}}>
+          {pago.reciboToken ? (
+            <a href={"/recaudo/recibo?token=" + pago.reciboToken} target="_blank" rel="noreferrer"
+              onClick={e=>e.stopPropagation()}
+              style={{flexShrink:0,lineHeight:1,textDecoration:"none",fontSize:14}}>
+              🧾
+            </a>
+          ) : (
+            <span style={{color:"rgba(255,255,255,0.20)",fontSize:13,flexShrink:0}}>🧾</span>
+          )}
+          {tieneVoucher && voucherUrl && (
+            <div onClick={e=>{e.stopPropagation();onLightbox?.(voucherUrl)}}
+              style={{width:20,height:20,borderRadius:3,overflow:"hidden",flexShrink:0,cursor:"pointer",border:"1px solid rgba(255,255,255,0.15)"}}>
               <img src={voucherUrl} alt="v" style={{width:"100%",height:"100%",objectFit:"cover"}}
                 onError={e=>{(e.target as HTMLImageElement).style.display="none"}} />
             </div>
-          ) : tieneVoucher ? (
-            <span style={{color:"rgba(255,255,255,0.30)",fontSize:9}}>⏳</span>
-          ) : null}
+          )}
           <span style={{color:"rgba(255,255,255,0.50)",fontSize:11,fontFamily:"monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
             {pago.numeroRecibo || "—"}
           </span>
