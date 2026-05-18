@@ -134,7 +134,7 @@ function FilaDesktopLinea({ linea, borde, isFirst, isLast, estado, envioFecha, t
     <div style={{
       display:"grid", gridTemplateColumns: GRID_COLS,
       gap:"8px", padding:"7px 12px",
-      background: "rgba(8,8,28,0.88)",
+      background: "rgba(8,8,28,0.88)", overflow:"hidden", minWidth:0,
       border: borde,
       borderTop: isFirst ? borde : "none",
       borderRadius: isFirst && isLast ? 10 : isFirst ? "10px 10px 0 0" : isLast ? "0 0 10px 10px" : 0,
@@ -183,7 +183,7 @@ function FilaDesktop({ pago, seleccionado, onToggle, tieneVariacion, voucherUrl,
         gap:"8px", padding:"9px 12px",
         background: bg, border: borde,
         borderRadius: isMulti ? "10px 10px 0 0" : 10,
-        alignItems:"center",
+        alignItems:"center", overflow:"hidden", minWidth:0,
       }}>
         {/* 1. Vendedor: iniciales + checkbox */}
         <div style={{display:"flex",alignItems:"center",gap:5}}>
