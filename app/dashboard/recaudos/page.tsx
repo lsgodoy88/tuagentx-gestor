@@ -151,7 +151,7 @@ function fmtMetodo(m: string | null) {
 const CELL: React.CSSProperties = {
   fontSize: 12, fontWeight: 700, color: 'white',
   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-  minWidth: 0,
+  minWidth: 0, textAlign: 'center', display: 'block',
 }
 
 function buildColumns(ctx: ColCtx): ColDef[] {
@@ -548,9 +548,9 @@ export default function RecaudosPage() {
           <div style={{display:"grid",gridTemplateColumns:GRID_COLS,gap:"8px",padding:"0 12px 6px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)",marginBottom:4,alignItems:"center"}}>
             {buildColumns({pago:null as any}).map(col => (
               <div key={col.key} style={{
-                color:"rgba(255,255,255,0.35)",fontSize:11,fontWeight:700,
+                color:"white",fontSize:11,fontWeight:700,
                 letterSpacing:1.5,textTransform:"uppercase" as const,
-                textAlign:col.align,overflow:"hidden",whiteSpace:"nowrap",minWidth:0,
+                textAlign:"center",overflow:"hidden",whiteSpace:"nowrap",minWidth:0,
               }}>
                 {col.label}
               </div>
