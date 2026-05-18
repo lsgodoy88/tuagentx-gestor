@@ -458,31 +458,22 @@ export default function RecaudosPage() {
         {/* Calendario — botón limpio + popover */}
         <div style={{position:'relative',flexShrink:0}}>
           <button
-            onClick={() => setFechaOpen(o => !o)}
-            style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'8px 14px',cursor:'pointer',display:'flex',alignItems:'center',gap:6,height:40,boxSizing:'border-box',outline:'none'}}>
-            <span style={{fontSize:18,lineHeight:1,pointerEvents:'none'}}>📅</span>
-            {fecha && <span style={{fontSize:10,fontWeight:700,color:'white',pointerEvents:'none'}}>{fmtFechaBtn(fecha)}</span>}
+            onClick={() => {
+              if (fecha) { setFecha(''); return }
+              try { fechaInputRef.current?.showPicker?.() } catch {}
+              fechaInputRef.current?.click()
+            }}
+            style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'8px 14px',cursor:'pointer',display:'flex',alignItems:'center',gap:6,height:40,boxSizing:'border-box',outline:'none',position:'relative'}}>
+            <span style={{fontSize:18,lineHeight:1}}>📅</span>
+            {fecha && <span style={{fontSize:10,fontWeight:700,color:'white'}}>{fmtFechaBtn(fecha)} ✕</span>}
           </button>
-          {fechaOpen && (
-            <div style={{position:'absolute',top:'calc(100% + 6px)',left:0,zIndex:50,background:'#111827',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'10px 12px',boxShadow:'0 8px 32px rgba(0,0,0,0.7)',minWidth:200}}>
-              <p style={{fontSize:10,fontWeight:700,color:'rgba(255,255,255,0.50)',letterSpacing:1.5,textTransform:'uppercase',marginBottom:8}}>Filtrar por fecha</p>
-              <input
-                ref={fechaInputRef}
-                type="date"
-                value={fecha}
-                autoFocus
-                onChange={e => { setFecha(e.target.value); setFechaOpen(false) }}
-                onBlur={() => setTimeout(() => setFechaOpen(false), 150)}
-                style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.15)',borderRadius:8,color:'white',colorScheme:'dark',outline:'none',fontSize:13,cursor:'pointer',padding:'6px 10px',width:'100%',boxSizing:'border-box'}}
-              />
-              {fecha && (
-                <button onClick={() => { setFecha(''); setFechaOpen(false) }}
-                  style={{display:'block',width:'100%',marginTop:8,background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:8,color:'rgba(255,255,255,0.70)',fontSize:11,padding:'5px 8px',cursor:'pointer'}}>
-                  ✕ Limpiar fecha
-                </button>
-              )}
-            </div>
-          )}
+          <input
+            ref={fechaInputRef}
+            type="date"
+            value={fecha}
+            onChange={e => setFecha(e.target.value)}
+            style={{position:'absolute',opacity:0,pointerEvents:'none',width:0,height:0}}
+          />
         </div>
         {/* Validar */}
         <button
