@@ -18,6 +18,9 @@ type Pago = {
   envioFecha: string | null
   envioRef: string | null
   envioVariacion: any
+  numeroRecibo: string | null
+  numeroFactura: number | null
+  vendedorNombre: string | null
   Cartera: {
     Cliente: {
       id: string
@@ -320,9 +323,9 @@ export default function RecaudosPage() {
       ) : (
         <>
         {isDesktop && (
-          <div style={{display:"grid",gridTemplateColumns:"20px 2fr 1.5fr 1fr 1fr 1fr 0.9fr 1fr 72px",gap:"8px",padding:"0 12px 6px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)",marginBottom:4,alignItems:"center"}}>
+          <div style={{display:"grid",gridTemplateColumns:"20px 2fr 1.2fr 0.8fr 0.8fr 1fr 1fr 0.8fr 1fr",gap:"8px",padding:"0 12px 6px 12px",borderBottom:"1px solid rgba(255,255,255,0.07)",marginBottom:4,alignItems:"center"}}>
             <div/>
-            {(["Cliente","Vendedor","Fecha","Método","Valor","Desc.","Total",""] as string[]).map((l,i)=>(
+            {(["Cliente","Vendedor","Recibo","Factura","Método","Valor","Desc.","Total"] as string[]).map((l,i)=>(
               <div key={i} style={{color:"rgba(255,255,255,0.35)",fontSize:9,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase" as const,textAlign:(i>=4&&i<=6?"right":"left") as any}}>{l}</div>
             ))}
           </div>
@@ -340,7 +343,7 @@ export default function RecaudosPage() {
             return isDesktop ? (
               /* ── DESKTOP: fila grid ── */
               <div key={pago.id} style={{
-                display:"grid", gridTemplateColumns:"20px 2fr 1.5fr 1fr 1fr 1fr 0.9fr 1fr 72px",
+                display:"grid", gridTemplateColumns:"20px 2fr 1.2fr 0.8fr 0.8fr 1fr 1fr 0.8fr 1fr",
                 gap:"8px", padding:"9px 12px",
                 background: seleccionado ? "rgba(30,58,138,0.55)" : "rgba(8,8,28,0.88)",
                 border:`1px solid ${tieneVariacion ? "rgba(239,68,68,0.4)" : seleccionado ? "#3b82f6" : "#3f3f46"}`,
@@ -357,9 +360,14 @@ export default function RecaudosPage() {
                 <span style={{color:"rgba(255,255,255,0.55)",fontSize:11,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                   {pago.Empleado.nombre.split(' ')[0]}
                 </span>
-                <span style={{color:"rgba(255,255,255,0.50)",fontSize:11}}>{fmtFecha(pago.createdAt)}</span>
+                <span style={{color:"rgba(255,255,255,0.50)",fontSize:11,fontFamily:"monospace"}}>
+                  {pago.numeroRecibo || '—'}
+                </span>
+                <span style={{color:"rgba(255,255,255,0.50)",fontSize:11,fontFamily:"monospace"}}>
+                  {pago.numeroFactura || (pago as any).Cartera?.DetalleCartera?.[0]?.numeroFactura || '—'}
+                </span>
                 <span style={{fontSize:11,color:"rgba(255,255,255,0.60)"}}>
-                  {pago.metodopago === 'efectivo' ? '💵 Efectivo' : '📲 Transfer.'}
+                  {pago.metodopago === 'efectivo' ? '💵 Ef.' : '📲 Tr.'}
                 </span>
                 <span style={{color:"#93c5fd",fontSize:12,fontWeight:600,textAlign:"right"}}>{fmtMonto(pago.monto)}</span>
                 <span style={{color:Number(pago.descuento||0)>0?"#fdba74":"rgba(255,255,255,0.25)",fontSize:11,textAlign:"right"}}>
@@ -370,7 +378,7 @@ export default function RecaudosPage() {
                 </span>
                 <div style={{display:"flex",justifyContent:"flex-end"}}>
                   {tieneVariacion && <span className="text-red-400 text-xs font-bold">⚑</span>}
-                  {!yaEnviado && !tieneVariacion && <span className="text-zinc-500 text-xs">Pendiente</span>}
+
                   {pago.envioEstado==='enviado' && <span className="text-blue-400 text-xs font-semibold">✔ {fmtHora(pago.envioFecha)}</span>}
                   {pago.envioEstado==='recibido' && <span className="text-emerald-400 text-xs font-semibold">✔✔</span>}
                 </div>

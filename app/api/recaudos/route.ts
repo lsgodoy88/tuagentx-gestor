@@ -42,7 +42,12 @@ export async function GET(req: NextRequest) {
   }
 
   const include = {
-    Cartera: { include: { Cliente: { select: { id: true, nombre: true, nit: true, telefono: true } } } },
+    Cartera: {
+      include: {
+        Cliente: { select: { id: true, nombre: true, nit: true, telefono: true } },
+        DetalleCartera: { select: { numeroFactura: true }, orderBy: { createdAt: 'desc' as const }, take: 1 },
+      }
+    },
     Empleado: { select: { id: true, nombre: true, rol: true } },
   }
 
