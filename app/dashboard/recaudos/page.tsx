@@ -352,7 +352,7 @@ export default function RecaudosPage() {
                   {seleccionado && <span style={{color:"white",fontSize:8,fontWeight:900}}>✓</span>}
                 </div>
                 <span style={{color:"white",fontSize:12,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                  {pago.Cartera?.Cliente?.nombre || '—'}
+                  {pago.Cartera?.Cliente?.nombre || (pago as any).cliente?.nombre || (pago as any).clienteNombre || '—'}
                 </span>
                 <span style={{color:"rgba(255,255,255,0.55)",fontSize:11,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
                   {pago.Empleado.nombre.split(' ')[0]}
@@ -368,9 +368,9 @@ export default function RecaudosPage() {
                 <span style={{color:"#86efac",fontSize:12,fontWeight:700,textAlign:"right"}}>
                   {fmtMonto(Number(pago.monto)-Number(pago.descuento||0))}
                 </span>
-                <div style={{display:"flex",justifyContent:"flex-end"}} onClick={e=>e.stopPropagation()}>
-                  {tieneVariacion && <button onClick={()=>setDetalleVariacion(pago.id)} className="text-red-400 border border-red-500/50 px-2 py-1 rounded-lg text-xs font-bold">⚑</button>}
-                  {!yaEnviado && !tieneVariacion && <button onClick={()=>enviarPago(pago.id)} disabled={enEnvio} className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg">{enEnvio?'...':'Enviar'}</button>}
+                <div style={{display:"flex",justifyContent:"flex-end"}}>
+                  {tieneVariacion && <span className="text-red-400 text-xs font-bold">⚑</span>}
+                  {!yaEnviado && !tieneVariacion && <span className="text-zinc-500 text-xs">Pendiente</span>}
                   {pago.envioEstado==='enviado' && <span className="text-blue-400 text-xs font-semibold">✔ {fmtHora(pago.envioFecha)}</span>}
                   {pago.envioEstado==='recibido' && <span className="text-emerald-400 text-xs font-semibold">✔✔</span>}
                 </div>
