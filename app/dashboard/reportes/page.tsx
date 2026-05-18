@@ -51,15 +51,15 @@ export default function ReportesPage() {
       {/* Tabs */}
       <div className="flex gap-1 tab-pills rounded-xl p-1">
         <button onClick={() => setTab('dia')}
-          className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'dia' ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-300")}>
+          className={`flex-1 py-3 text-sm font-semibold transition-colors text-center ${tab === 'dia' ? 'tab-active' : 'text-white hover:text-white'}`}>
           📊 Por día
         </button>
         <button onClick={() => setTab('ranking')}
-          className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'ranking' ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-300")}>
+          className={`flex-1 py-3 text-sm font-semibold transition-colors text-center ${tab === 'ranking' ? 'tab-active' : 'text-white hover:text-white'}`}>
           🏆 Ranking
         </button>
         <button onClick={() => setTab('recaudos')}
-          className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'recaudos' ? "bg-zinc-700 text-white" : "text-zinc-500 hover:text-zinc-300")}>
+          className={`flex-1 py-3 text-sm font-semibold transition-colors text-center ${tab === 'recaudos' ? 'tab-active' : 'text-white hover:text-white'}`}>
           💰 Recaudos
         </button>
       </div>
