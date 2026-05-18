@@ -330,7 +330,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     {/* Círculos de color estáticos — profundidad para el glass */}
 
 
-    <div className="h-screen flex" style={{background:'transparent'}}>
+    <div className="min-h-screen flex" style={{background:'transparent'}}>
       {/* Drawer móvil — estilo B */}
       {menuMovil && (
         <div className="fixed inset-0 z-[2000] md:hidden">
@@ -579,7 +579,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )
         })()}
 
-        <div className={`flex-1 overflow-x-auto overflow-y-auto p-4 md:p-6 pb-20 md:pb-6${bloqueado ? ' pointer-events-none opacity-50' : ''}`}>
+        <div className={`flex-1 overflow-x-hidden p-4 md:p-6 pb-20 md:pb-6${bloqueado ? ' pointer-events-none opacity-50' : ''}`}>
           <div className="max-w-screen-xl mx-auto w-full space-y-6">
             <PermisosGuard role={user?.role}><GpsContext.Provider value={{ setSincronizandoGps }}>{children}</GpsContext.Provider></PermisosGuard>
           </div>
