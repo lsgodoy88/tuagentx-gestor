@@ -489,7 +489,7 @@ export default function CarteraPage() {
       <div className="flex gap-1 tab-pills rounded-xl p-1">
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id as any)}
-            className={`flex-1 py-3 text-sm font-semibold transition-colors ${tab === t.id ? 'tab-active' : 'text-white hover:text-white'}`}>{t.label}</button>
+            className={`flex-1 py-2 text-sm font-semibold transition-colors ${tab === t.id ? 'tab-active' : 'text-white hover:text-white'}`}>{t.label}</button>
         ))}
         {(esAdmin || esVendedor) && (
           <button onClick={() => esAdmin ? setModalSync(true) : sincronizar()} disabled={sincronizando}

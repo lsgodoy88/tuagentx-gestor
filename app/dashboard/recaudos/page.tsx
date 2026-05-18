@@ -249,7 +249,7 @@ export default function RecaudosPage() {
       <div className="flex gap-1 tab-pills rounded-xl p-1">
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key as any)}
-            className={`flex-1 py-3 text-sm font-semibold transition-colors text-center ${tab === t.key ? 'tab-active' : 'text-white hover:text-white'}`}>
+            className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tab === t.key ? 'tab-active' : 'text-white hover:text-white'}`}>
             {t.label}
           </button>
         ))}

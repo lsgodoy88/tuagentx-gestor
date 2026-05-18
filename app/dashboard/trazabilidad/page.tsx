@@ -189,11 +189,11 @@ export default function TrazabilidadPage() {
       {/* Tabs + Sync en misma fila */}
       <div className="flex gap-1 tab-pills rounded-xl p-1">
         <button onClick={() => setTabPrincipal('despachos')}
-          className={`flex-1 py-3 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'despachos' ? 'tab-active' : 'text-white hover:text-white'}`}>
+          className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'despachos' ? 'tab-active' : 'text-white hover:text-white'}`}>
           📦 Despachos
         </button>
         <button onClick={() => setTabPrincipal('inventario')}
-          className={`flex-1 py-3 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'inventario' ? 'tab-active' : 'text-white hover:text-white'}`}>
+          className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'inventario' ? 'tab-active' : 'text-white hover:text-white'}`}>
           🏭 Inventario
         </button>
         {['empresa','supervisor','superadmin','bodega'].includes(user?.role) && (

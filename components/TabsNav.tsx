@@ -30,7 +30,7 @@ export default function TabsNav({ tabs, active, onChange, className = '' }: Prop
           key={tab.id}
           onClick={() => onChange(tab.id)}
           className={
-            'flex-1 py-3 text-sm font-semibold transition-colors ' +
+            'flex-1 py-2 text-sm font-semibold transition-colors ' +
             (active === tab.id ? 'tab-active' : 'text-white hover:text-white')
           }
         >
