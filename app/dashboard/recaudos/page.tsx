@@ -112,6 +112,116 @@ function calcResumen(lista: Pago[]) {
   return { efectivo, transferencia }
 }
 
+
+const GRID_COLS = "20px 2.2fr 1.2fr 0.9fr 0.75fr 0.8fr 1.1fr 1fr 1.1fr"
+
+function fmtMetodo(m: string | null) {
+  if (!m) return '—'
+  if (m === 'efectivo') return '💵 Efectivo'
+  if (m === 'transferencia') return '📲 Transf.'
+  if (m === 'mixto') return '💵+📲'
+  return m
+}
+
+function FilaDesktopLinea({ linea, borde, isFirst, isLast, estado, envioFecha, tieneVariacion }:
+  { linea: { metodoPago: string; monto: number; descuento?: number }; borde: string; isFirst: boolean; isLast: boolean; estado?: string; envioFecha?: string | null; tieneVariacion?: boolean }) {
+  const desc = Number(linea.descuento || 0)
+  const total = Number(linea.monto) - desc
+  return (
+    <div style={{
+      display:"grid", gridTemplateColumns: GRID_COLS,
+      gap:"8px", padding:"7px 12px",
+      background: "rgba(8,8,28,0.88)",
+      border: borde,
+      borderTop: isFirst ? borde : "none",
+      borderRadius: isFirst && isLast ? 10 : isFirst ? "10px 10px 0 0" : isLast ? "0 0 10px 10px" : 0,
+      alignItems:"center",
+    }}>
+      <div/><span/><span/><span/><span/>
+      <span style={{fontSize:11,color:"rgba(255,255,255,0.60)"}}>{fmtMetodo(linea.metodoPago)}</span>
+      <span style={{color:"#93c5fd",fontSize:12,fontWeight:600,textAlign:"right",display:"block"}}>{fmtMonto(linea.monto)}</span>
+      <span style={{color:desc>0?"#fdba74":"rgba(255,255,255,0.25)",fontSize:11,textAlign:"right",display:"block"}}>
+        {desc>0 ? `-${fmtMonto(desc)}` : '—'}
+      </span>
+      <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:1}}>
+        <span style={{color:"#86efac",fontSize:12,fontWeight:700}}>{fmtMonto(total)}</span>
+        {isLast && tieneVariacion && <span style={{color:"#f87171",fontSize:9}}>⚑</span>}
+        {isLast && estado==='enviado' && <span style={{color:"#60a5fa",fontSize:9}}>✔ {fmtHora(envioFecha||null)}</span>}
+        {isLast && estado==='recibido' && <span style={{color:"#4ade80",fontSize:9}}>✔✔</span>}
+      </div>
+    </div>
+  )
+}
+
+function FilaDesktop({ pago, seleccionado, onToggle, tieneVariacion }: {
+  pago: Pago; seleccionado: boolean; onToggle: () => void; tieneVariacion: boolean
+}) {
+  const lineas: any[] = Array.isArray((pago as any).lineasPago) && (pago as any).lineasPago.length > 1
+    ? (pago as any).lineasPago : []
+  const borde = `1px solid ${tieneVariacion ? "rgba(239,68,68,0.4)" : seleccionado ? "#3b82f6" : "#3f3f46"}`
+  const bg = seleccionado ? "rgba(30,58,138,0.55)" : "rgba(8,8,28,0.88)"
+  const isMulti = lineas.length > 0
+  const descPrincipal = isMulti ? Number(lineas[0].descuento||0) : Number(pago.descuento||0)
+  const montoPrincipal = isMulti ? Number(lineas[0].monto) : Number(pago.monto)
+  const totalPrincipal = montoPrincipal - descPrincipal
+
+  return (
+    <div onClick={onToggle} style={{cursor:"pointer"}}>
+      {/* Fila principal */}
+      <div style={{
+        display:"grid", gridTemplateColumns: GRID_COLS,
+        gap:"8px", padding:"9px 12px",
+        background: bg, border: borde,
+        borderRadius: isMulti ? "10px 10px 0 0" : 10,
+        alignItems:"center",
+      }}>
+        <div onClick={e=>{e.stopPropagation();onToggle()}}
+          style={{width:14,height:14,borderRadius:4,border:seleccionado?"2px solid #3b82f6":"2px solid #52525b",background:seleccionado?"#3b82f6":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+          {seleccionado && <span style={{color:"white",fontSize:8,fontWeight:900}}>✓</span>}
+        </div>
+        <span style={{color:"white",fontSize:12,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+          {pago.Cartera?.Cliente?.nombre || (pago as any).cliente?.nombre || (pago as any).clienteNombre || '—'}
+        </span>
+        <span style={{color:"rgba(255,255,255,0.55)",fontSize:11,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+          {pago.Empleado.nombre.split(' ')[0]}
+        </span>
+        <span style={{color:"rgba(255,255,255,0.50)",fontSize:11,fontFamily:"monospace"}}>
+          {pago.numeroRecibo || '—'}
+        </span>
+        <span style={{color:"rgba(255,255,255,0.50)",fontSize:11,fontFamily:"monospace"}}>
+          {pago.numeroFactura || (pago as any).Cartera?.DetalleCartera?.[0]?.numeroFactura || '—'}
+        </span>
+        <span style={{fontSize:11,color:"rgba(255,255,255,0.60)"}}>
+          {fmtMetodo(isMulti ? lineas[0].metodoPago : pago.metodopago)}
+        </span>
+        <span style={{color:"#93c5fd",fontSize:12,fontWeight:600,textAlign:"right",display:"block"}}>{fmtMonto(montoPrincipal)}</span>
+        <span style={{color:descPrincipal>0?"#fdba74":"rgba(255,255,255,0.25)",fontSize:11,textAlign:"right",display:"block"}}>
+          {descPrincipal>0 ? `-${fmtMonto(descPrincipal)}` : '—'}
+        </span>
+        <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:1}}>
+          <span style={{color:"#86efac",fontSize:12,fontWeight:700}}>{fmtMonto(totalPrincipal)}</span>
+          {!isMulti && tieneVariacion && <span style={{color:"#f87171",fontSize:9}}>⚑</span>}
+          {!isMulti && pago.envioEstado==='enviado' && <span style={{color:"#60a5fa",fontSize:9}}>✔ {fmtHora(pago.envioFecha)}</span>}
+          {!isMulti && pago.envioEstado==='recibido' && <span style={{color:"#4ade80",fontSize:9}}>✔✔</span>}
+        </div>
+      </div>
+      {/* Sub-filas para pagos mixtos */}
+      {lineas.slice(1).map((linea: any, li: number) => (
+        <FilaDesktopLinea
+          key={li}
+          linea={linea}
+          borde={borde}
+          isFirst={false}
+          isLast={li === lineas.length - 2}
+          estado={pago.envioEstado}
+          envioFecha={pago.envioFecha}
+          tieneVariacion={tieneVariacion}
+        />
+      ))}
+    </div>
+  )
+}
+
 export default function RecaudosPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -341,45 +451,13 @@ export default function RecaudosPage() {
             const seleccionado = seleccionados.has(pago.id)
 
             return isDesktop ? (
-              /* ── DESKTOP: fila grid ── */
-              <div key={pago.id} style={{
-                display:"grid", gridTemplateColumns:"20px 2.2fr 1.2fr 0.9fr 0.75fr 0.8fr 1.1fr 1fr 1.1fr",
-                gap:"8px", padding:"9px 12px",
-                background: seleccionado ? "rgba(30,58,138,0.55)" : "rgba(8,8,28,0.88)",
-                border:`1px solid ${tieneVariacion ? "rgba(239,68,68,0.4)" : seleccionado ? "#3b82f6" : "#3f3f46"}`,
-                borderRadius:10, alignItems:"center", cursor:"pointer",
-              }}
-              onClick={() => toggleSeleccion(pago.id)}>
-                <div onClick={e=>{e.stopPropagation();toggleSeleccion(pago.id)}}
-                  style={{width:14,height:14,borderRadius:4,border:seleccionado?"2px solid #3b82f6":"2px solid #52525b",background:seleccionado?"#3b82f6":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
-                  {seleccionado && <span style={{color:"white",fontSize:8,fontWeight:900}}>✓</span>}
-                </div>
-                <span style={{color:"white",fontSize:12,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                  {pago.Cartera?.Cliente?.nombre || (pago as any).cliente?.nombre || (pago as any).clienteNombre || '—'}
-                </span>
-                <span style={{color:"rgba(255,255,255,0.55)",fontSize:11,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-                  {pago.Empleado.nombre.split(' ')[0]}
-                </span>
-                <span style={{color:"rgba(255,255,255,0.50)",fontSize:11,fontFamily:"monospace"}}>
-                  {pago.numeroRecibo || '—'}
-                </span>
-                <span style={{color:"rgba(255,255,255,0.50)",fontSize:11,fontFamily:"monospace"}}>
-                  {pago.numeroFactura || (pago as any).Cartera?.DetalleCartera?.[0]?.numeroFactura || '—'}
-                </span>
-                <span style={{fontSize:11,color:"rgba(255,255,255,0.60)"}}>
-                  {pago.metodopago === 'efectivo' ? '💵 Ef.' : '📲 Tr.'}
-                </span>
-                <span style={{color:"#93c5fd",fontSize:12,fontWeight:600,textAlign:"right"}}>{fmtMonto(pago.monto)}</span>
-                <span style={{color:Number(pago.descuento||0)>0?"#fdba74":"rgba(255,255,255,0.25)",fontSize:11,textAlign:"right"}}>
-                  {Number(pago.descuento||0)>0 ? `-${fmtMonto(pago.descuento!)}` : '—'}
-                </span>
-                <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:1}}>
-                  <span style={{color:"#86efac",fontSize:12,fontWeight:700}}>{fmtMonto(Number(pago.monto)-Number(pago.descuento||0))}</span>
-                  {tieneVariacion && <span style={{color:"#f87171",fontSize:9}}>⚑</span>}
-                  {pago.envioEstado==='enviado' && <span style={{color:"#60a5fa",fontSize:9}}>✔ {fmtHora(pago.envioFecha)}</span>}
-                  {pago.envioEstado==='recibido' && <span style={{color:"#4ade80",fontSize:9}}>✔✔</span>}
-                </div>
-              </div>
+              <FilaDesktop
+                key={pago.id}
+                pago={pago}
+                seleccionado={seleccionado}
+                onToggle={() => toggleSeleccion(pago.id)}
+                tieneVariacion={tieneVariacion}
+              />
             ) : (
               <div key={pago.id}>
                 {/* Fila contraída — MOBILE */}
