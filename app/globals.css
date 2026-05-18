@@ -545,8 +545,6 @@ button:active:not(:disabled) {
 }
 .tab-pills button {
   border-radius: 0.5rem !important;
-  background: transparent !important;
-  color: rgba(255,255,255,0.60) !important;
 }
 
 /* Tab activo: blanco/15 con borde — se distingue siempre */
