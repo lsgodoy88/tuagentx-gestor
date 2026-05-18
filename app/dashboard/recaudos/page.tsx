@@ -1,4 +1,5 @@
 'use client'
+import React from 'react'
 import { useSession } from 'next-auth/react'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
@@ -153,8 +154,9 @@ function FilaDesktopLinea({ linea, borde, isFirst, isLast, estado, envioFecha, t
   )
 }
 
-function FilaDesktop({ pago, seleccionado, onToggle, tieneVariacion }: {
+function FilaDesktop({ pago, seleccionado, onToggle, tieneVariacion, voucherUrl, onLoadVoucher, onLightbox }: {
   pago: Pago; seleccionado: boolean; onToggle: () => void; tieneVariacion: boolean
+  voucherUrl?: string; onLoadVoucher?: () => void; onLightbox?: (url: string) => void
 }) {
   const lineas: any[] = Array.isArray((pago as any).lineasPago) && (pago as any).lineasPago.length > 1
     ? (pago as any).lineasPago : []
@@ -164,9 +166,15 @@ function FilaDesktop({ pago, seleccionado, onToggle, tieneVariacion }: {
   const descPrincipal = isMulti ? Number(lineas[0].descuento||0) : Number(pago.descuento||0)
   const montoPrincipal = isMulti ? Number(lineas[0].monto) : Number(pago.monto)
   const totalPrincipal = montoPrincipal - descPrincipal
+  const tieneVoucher = !!pago.voucherKey
+
+  // Cargar voucher al montar si tiene voucherKey
+  React.useEffect(() => {
+    if (tieneVoucher && !voucherUrl && onLoadVoucher) onLoadVoucher()
+  }, [pago.id])
 
   return (
-    <div onClick={onToggle} style={{cursor:"pointer"}}>
+    <div style={{cursor:"default"}}>
       {/* Fila principal */}
       <div style={{
         display:"grid", gridTemplateColumns: GRID_COLS,
@@ -175,52 +183,59 @@ function FilaDesktop({ pago, seleccionado, onToggle, tieneVariacion }: {
         borderRadius: isMulti ? "10px 10px 0 0" : 10,
         alignItems:"center",
       }}>
+        {/* Checkbox — única forma de seleccionar */}
         <div onClick={e=>{e.stopPropagation();onToggle()}}
-          style={{width:14,height:14,borderRadius:4,border:seleccionado?"2px solid #3b82f6":"2px solid #52525b",background:seleccionado?"#3b82f6":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>
+          style={{width:14,height:14,borderRadius:4,border:seleccionado?"2px solid #3b82f6":"2px solid #52525b",background:seleccionado?"#3b82f6":"transparent",display:"flex",alignItems:"center",justifyContent:"center",flexShrink:0,cursor:"pointer"}}>
           {seleccionado && <span style={{color:"white",fontSize:8,fontWeight:900}}>✓</span>}
         </div>
         <span style={{color:"white",fontSize:12,fontWeight:700,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-          {pago.Cartera?.Cliente?.nombre || (pago as any).cliente?.nombre || (pago as any).clienteNombre || '—'}
+          {pago.Cartera?.Cliente?.nombre || (pago as any).cliente?.nombre || (pago as any).clienteNombre || "—"}
         </span>
         <span style={{color:"rgba(255,255,255,0.55)",fontSize:11,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-          {pago.Empleado.nombre.split(' ')[0]}
+          {pago.Empleado.nombre.split(" ")[0]}
         </span>
+        {/* Recibo: thumbnail si tiene voucher, número si no */}
+        <div style={{display:"flex",alignItems:"center",gap:4}}>
+          {tieneVoucher && voucherUrl ? (
+            <div onClick={()=>onLightbox?.(voucherUrl)}
+              style={{width:22,height:22,borderRadius:4,overflow:"hidden",flexShrink:0,cursor:"pointer",border:"1px solid rgba(255,255,255,0.15)"}}>
+              <img src={voucherUrl} alt="v" style={{width:"100%",height:"100%",objectFit:"cover"}}
+                onError={e=>{(e.target as HTMLImageElement).style.display="none"}} />
+            </div>
+          ) : tieneVoucher ? (
+            <span style={{color:"rgba(255,255,255,0.30)",fontSize:9}}>⏳</span>
+          ) : null}
+          <span style={{color:"rgba(255,255,255,0.50)",fontSize:11,fontFamily:"monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+            {pago.numeroRecibo || "—"}
+          </span>
+        </div>
         <span style={{color:"rgba(255,255,255,0.50)",fontSize:11,fontFamily:"monospace"}}>
-          {pago.numeroRecibo || '—'}
-        </span>
-        <span style={{color:"rgba(255,255,255,0.50)",fontSize:11,fontFamily:"monospace"}}>
-          {pago.numeroFactura || (pago as any).Cartera?.DetalleCartera?.[0]?.numeroFactura || '—'}
+          {pago.numeroFactura || (pago as any).Cartera?.DetalleCartera?.[0]?.numeroFactura || "—"}
         </span>
         <span style={{fontSize:11,color:"rgba(255,255,255,0.60)"}}>
           {fmtMetodo(isMulti ? lineas[0].metodoPago : pago.metodopago)}
         </span>
         <span style={{color:"#93c5fd",fontSize:12,fontWeight:600,textAlign:"right",display:"block"}}>{fmtMonto(montoPrincipal)}</span>
         <span style={{color:descPrincipal>0?"#fdba74":"rgba(255,255,255,0.25)",fontSize:11,textAlign:"right",display:"block"}}>
-          {descPrincipal>0 ? `-${fmtMonto(descPrincipal)}` : '—'}
+          {descPrincipal>0 ? `-${fmtMonto(descPrincipal)}` : "—"}
         </span>
         <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:1}}>
           <span style={{color:"#86efac",fontSize:12,fontWeight:700}}>{fmtMonto(totalPrincipal)}</span>
           {!isMulti && tieneVariacion && <span style={{color:"#f87171",fontSize:9}}>⚑</span>}
-          {!isMulti && pago.envioEstado==='enviado' && <span style={{color:"#60a5fa",fontSize:9}}>✔ {fmtHora(pago.envioFecha)}</span>}
-          {!isMulti && pago.envioEstado==='recibido' && <span style={{color:"#4ade80",fontSize:9}}>✔✔</span>}
+          {!isMulti && pago.envioEstado==="enviado" && <span style={{color:"#60a5fa",fontSize:9}}>✔ {fmtHora(pago.envioFecha)}</span>}
+          {!isMulti && pago.envioEstado==="recibido" && <span style={{color:"#4ade80",fontSize:9}}>✔✔</span>}
         </div>
       </div>
-      {/* Sub-filas para pagos mixtos */}
+      {/* Sub-filas mixto */}
       {lineas.slice(1).map((linea: any, li: number) => (
-        <FilaDesktopLinea
-          key={li}
-          linea={linea}
-          borde={borde}
-          isFirst={false}
-          isLast={li === lineas.length - 2}
-          estado={pago.envioEstado}
-          envioFecha={pago.envioFecha}
-          tieneVariacion={tieneVariacion}
-        />
+        <FilaDesktopLinea key={li} linea={linea} borde={borde} isFirst={false}
+          isLast={li === lineas.length - 2} estado={pago.envioEstado}
+          envioFecha={pago.envioFecha} tieneVariacion={tieneVariacion} />
       ))}
     </div>
   )
 }
+
 
 export default function RecaudosPage() {
   const { data: session, status } = useSession()
@@ -457,6 +472,9 @@ export default function RecaudosPage() {
                 seleccionado={seleccionado}
                 onToggle={() => toggleSeleccion(pago.id)}
                 tieneVariacion={tieneVariacion}
+                voucherUrl={voucherUrls[pago.id]}
+                onLoadVoucher={() => pago.voucherKey && cargarVoucherUrl(pago.id, pago.voucherKey)}
+                onLightbox={(url) => setLightboxUrl(url)}
               />
             ) : (
               <div key={pago.id}>
