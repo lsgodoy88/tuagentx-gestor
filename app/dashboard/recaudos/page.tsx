@@ -550,7 +550,7 @@ export default function RecaudosPage() {
               <div key={col.key} style={{
                 color:"rgba(255,255,255,0.35)",fontSize:11,fontWeight:700,
                 letterSpacing:1.5,textTransform:"uppercase" as const,
-                textAlign:col.align,overflow:"hidden",whiteSpace:"nowrap",minWidth:0,
+                textAlign:"center",overflow:"hidden",whiteSpace:"nowrap",minWidth:0,
               }}>
                 {col.label}
               </div>
