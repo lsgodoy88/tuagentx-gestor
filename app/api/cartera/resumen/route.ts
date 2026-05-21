@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { nowBogota, fechaHoyBogota, haceNDiasBogota, haceNMesesBogota, inicioDiaBogota, finDiaBogota, inicioMesBogota, inicioMesAnteriorBogota, mesBogota, anioBogota, mesAnteriorBogota, anioMesAnteriorBogota, esDelMesBogota, fmtFechaHora, fmtFechaMedia, fmtHora } from '@/lib/fechas'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -74,7 +75,7 @@ export async function GET() {
   }
 
   // ── Pagos del mes actual y anterior ────────────────────────────
-  const ahora = new Date(Date.now() - 5*60*60*1000)
+  const ahora = nowBogota()
   const anio  = ahora.getFullYear()
   const mes   = ahora.getMonth() + 1
 

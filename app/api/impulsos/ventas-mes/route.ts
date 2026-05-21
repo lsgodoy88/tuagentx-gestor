@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
   if (clienteIds.length === 0) return NextResponse.json({ ventas: [] })
 
   // 3 meses rolling
-  const ahora = new Date()
+  const ahora = new Date(Date.now() - 5*60*60*1000)
   const meses: string[] = []
   for (let i = 0; i < 3; i++) {
     const d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1)

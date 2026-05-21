@@ -27,7 +27,7 @@ async function syncEmpresa(empresaIdConIntegracion: string, origenVinculadaId: s
 
   // SIEMPRE traer 30 días desde UpTres; la vista filtra localmente
   const dias = 30
-  const desde = new Date()
+  const desde = new Date(Date.now() - 5*60*60*1000)
   desde.setDate(desde.getDate() - dias)
 
   const ordenes = await adapter.fetchVentas(desde)

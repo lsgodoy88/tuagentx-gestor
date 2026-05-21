@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { nowBogota, fechaHoyBogota, haceNDiasBogota, haceNMesesBogota, inicioDiaBogota, finDiaBogota, inicioMesBogota, inicioMesAnteriorBogota, mesBogota, anioBogota, mesAnteriorBogota, anioMesAnteriorBogota, esDelMesBogota, fmtFechaHora, fmtFechaMedia, fmtHora } from '@/lib/fechas'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -80,7 +81,7 @@ export async function GET(req: NextRequest) {
   let desdeFn: Date | null = null
   let hastaFn: Date | null = null
   if (dias > 0) {
-    const ahora = new Date()
+    const ahora = nowBogota()
     hastaFn = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 23, 59, 59)
     desdeFn = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() - dias + 1, 0, 0, 0)
   } else {

@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
     select: { diasHistorialBodega: true }
   })
   const dias = empresaRow?.diasHistorialBodega ?? 30
-  const desde = new Date()
+  const desde = new Date(Date.now() - 5*60*60*1000)
   desde.setDate(desde.getDate() - dias)
 
   const ordenes = await adapter.fetchVentas(desde)

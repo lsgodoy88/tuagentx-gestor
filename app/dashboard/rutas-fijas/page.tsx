@@ -588,7 +588,7 @@ export default function RutasFijasPage() {
                                   {expandedCliente === rc.id && (() => {
                                     const cliMeses = ventasMes[rc.clienteId]
                                     if (!cliMeses || Object.keys(cliMeses).length === 0) return null
-                                    const ahora = new Date()
+                                    const ahora = new Date(Date.now() - 5*60*60*1000)
                                     const meses3 = [0,1,2].map(i => {
                                       const d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1)
                                       return d.toISOString().slice(0,7)
@@ -926,7 +926,7 @@ export default function RutasFijasPage() {
                     {(() => {
                       const cliMeses = ventasMes[rc.clienteId]
                       if (!cliMeses || Object.keys(cliMeses).length === 0) return null
-                      const ahora = new Date()
+                      const ahora = new Date(Date.now() - 5*60*60*1000)
                       const meses3 = [0,1,2].map(i => {
                         const d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1)
                         return d.toISOString().slice(0,7)

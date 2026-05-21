@@ -104,7 +104,7 @@ export default function DashboardPage() {
     if (!turno) return
     const interval = setInterval(() => {
       const inicio = new Date(turno.inicio)
-      const ahora = new Date()
+      const ahora = new Date(Date.now() - 5*60*60*1000)
       const diff = Math.floor((ahora.getTime() - inicio.getTime()) / 1000)
       const h = Math.floor(diff / 3600)
       const m = Math.floor((diff % 3600) / 60)

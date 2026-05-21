@@ -314,7 +314,7 @@ export default function ConfiguracionPage() {
     const dataSync = await resSync.json()
     if (dataSync.ok) {
       setSyncInicial(true)
-      setUltimaSync(new Date().toLocaleString('es-CO'))
+      setUltimaSync(new Date(Date.now() - 5*60*60*1000).toLocaleString('es-CO', {timeZone:'America/Bogota'}))
       setSyncResultado({ clientes: dataSync.clientesActualizados ?? 0, deudas: dataSync.deudasInsertadas ?? 0 })
       setFaseConexion('listo')
     } else {
@@ -350,7 +350,7 @@ export default function ConfiguracionPage() {
     const res = await fetch('/api/integracion/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: 'inicial' }) })
     const data = await res.json()
     setSincronizando(false)
-    if (data.ok) { setMsgSync(`✅ ${data.clientes ?? data.clientesActualizados ?? 0} clientes · ${data.empleados ?? data.empleadosSincronizados ?? 0} empleados · ${data.deudas ?? data.deudasInsertadas ?? 0} deudas`); setSyncInicial(true); setUltimaSync(new Date().toLocaleString('es-CO')); setSyncResultado({ clientes: data.clientes ?? data.clientesActualizados ?? 0, empleados: data.empleados ?? data.empleadosSincronizados ?? 0, deudas: data.deudas ?? data.deudasInsertadas ?? 0 }) }
+    if (data.ok) { setMsgSync(`✅ ${data.clientes ?? data.clientesActualizados ?? 0} clientes · ${data.empleados ?? data.empleadosSincronizados ?? 0} empleados · ${data.deudas ?? data.deudasInsertadas ?? 0} deudas`); setSyncInicial(true); setUltimaSync(new Date(Date.now() - 5*60*60*1000).toLocaleString('es-CO', {timeZone:'America/Bogota'})); setSyncResultado({ clientes: data.clientes ?? data.clientesActualizados ?? 0, empleados: data.empleados ?? data.empleadosSincronizados ?? 0, deudas: data.deudas ?? data.deudasInsertadas ?? 0 }) }
     else setMsgSync(data.error || 'Error en sincronización')
     // éxito permanente
   }
@@ -362,7 +362,7 @@ export default function ConfiguracionPage() {
     setSincronizando(false)
     if (data.ok) {
       setMsgSync(`✅  Delta: ${data.clientes ?? data.clientesActualizados ?? 0} clientes · ${data.empleados ?? data.empleadosSincronizados ?? 0} empleados · ${data.deudas ?? data.deudasInsertadas ?? 0} deudas`)
-      setUltimaSync(new Date().toLocaleString('es-CO'))
+      setUltimaSync(new Date(Date.now() - 5*60*60*1000).toLocaleString('es-CO', {timeZone:'America/Bogota'}))
       setSyncResultado({ clientes: data.clientesActualizados ?? 0, empleados: data.empleadosSincronizados ?? 0, deudas: data.deudasInsertadas ?? 0 })
     } else {
       setMsgSync(data.error || 'Error en sync delta')

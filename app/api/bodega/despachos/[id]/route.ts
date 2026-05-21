@@ -96,7 +96,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           const repartidor = await tx.empleado.findUnique({
             where: { id: repartidorId }, select: { nombre: true }
           })
-          const hoy = new Date()
+          const hoy = new Date(Date.now() - 5*60*60*1000)
           const dd = String(hoy.getDate()).padStart(2,'0')
           const mm = String(hoy.getMonth()+1).padStart(2,'0')
           const yyyy = hoy.getFullYear()

@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
+import { nowBogota, fechaHoyBogota, haceNDiasBogota, haceNMesesBogota, inicioDiaBogota, finDiaBogota, inicioMesBogota, inicioMesAnteriorBogota, mesBogota, anioBogota, mesAnteriorBogota, anioMesAnteriorBogota, esDelMesBogota, fmtFechaHora, fmtFechaMedia, fmtHora } from '@/lib/fechas'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { nowBogota } from '@/lib/fechas'
 import { DIAS } from '@/lib/constants'
 
 // Caché en memoria — TTL 5 min por userId
@@ -26,7 +26,7 @@ export async function GET() {
   const finDia       = new Date(hoyStr + 'T05:00:00.000Z')
   finDia.setDate(finDia.getDate() + 1)
 
-  const ayerStr      = new Date(Date.now() - 5*60*60*1000 - 86400000).toISOString().split('T')[0]
+  const ayerStr      = haceNDiasBogota(1).toISOString().split('T')[0]
   const inicioAyer   = new Date(ayerStr + 'T05:00:00.000Z')
   const finAyer      = new Date(ayerStr + 'T05:00:00.000Z')
   finAyer.setDate(finAyer.getDate() + 1)
@@ -144,7 +144,7 @@ export async function GET() {
   // ── Historial últimos 6 días ──────────────────────────────────────
   const dias = []
   for (let i = 5; i >= 0; i--) {
-    const d = new Date(Date.now() - 5*60*60*1000 - i * 86400000)
+    const d = haceNDiasBogota(i)
     const dStr = d.toISOString().split('T')[0]
     const vDia = todasVisitas.filter(v => {
       const fv = v.fechaBogota

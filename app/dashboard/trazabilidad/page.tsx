@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { fechaHoyBogota, haceNDiasBogota } from '@/lib/fechas'
 import DataTable, { ColDef } from '@/components/DataTable'
 import { useSession } from 'next-auth/react'
 import { SyncIcon } from '@/components/SyncIcon'
@@ -13,9 +14,9 @@ function fmtFecha(d: string | null | undefined) {
   })
 }
 
-function hoy() { return new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0] }
+function hoy() { return fechaHoyBogota() }
 function hace7() {
-  const d = new Date(); d.setDate(d.getDate() - 7)
+  const d = haceNDiasBogota(7)
   return new Date(d.getTime() - 5*60*60*1000).toISOString().split('T')[0]
 }
 

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { nowBogota, fechaHoyBogota, haceNDiasBogota, haceNMesesBogota, inicioDiaBogota, finDiaBogota, inicioMesBogota, inicioMesAnteriorBogota, mesBogota, anioBogota, mesAnteriorBogota, anioMesAnteriorBogota, esDelMesBogota, fmtFechaHora, fmtFechaMedia, fmtHora } from '@/lib/fechas'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -16,7 +17,7 @@ export async function GET() {
   const cached = cache.get(user.empresaId)
   if (cached && Date.now() - cached.ts < CACHE_TTL) return NextResponse.json(cached.data)
 
-  const hoy = new Date(Date.now() - 5*60*60*1000)
+  const hoy = nowBogota()
   hoy.setHours(0, 0, 0, 0)
 
   const [pendientes, alistados, entregados] = await Promise.all([

@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { nowBogota, fechaHoyBogota, haceNDiasBogota, haceNMesesBogota, inicioDiaBogota, finDiaBogota, inicioMesBogota, inicioMesAnteriorBogota, mesBogota, anioBogota, mesAnteriorBogota, anioMesAnteriorBogota, esDelMesBogota, fmtFechaHora, fmtFechaMedia, fmtHora } from '@/lib/fechas'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -20,10 +21,10 @@ export async function GET() {
     return NextResponse.json(cached.data)
   }
 
-  const hoy = new Date(Date.now() - 5*60*60*1000); hoy.setHours(0, 0, 0, 0)
+  const hoy = inicioDiaBogota()
   const hace7dias = new Date(Date.now() - 7 * 86400000)
   const hace30dias = new Date(Date.now() - 30 * 86400000)
-  const hace7meses = new Date(); hace7meses.setMonth(hace7meses.getMonth() - 6); hace7meses.setDate(1); hace7meses.setHours(0,0,0,0)
+  const hace7meses = haceNMesesBogota(6)
 
   const mesActual = hoy.getMonth() + 1
   const anioActual = hoy.getFullYear()
@@ -111,7 +112,7 @@ export async function GET() {
   const vendedores7m = [...new Set(visitas7meses.map((v: any) => v.empleado?.nombre).filter(Boolean))] as string[]
   const meses7: string[] = []
   for (let i = 6; i >= 0; i--) {
-    const d = new Date()
+    const d = nowBogota()
     d.setMonth(d.getMonth() - i)
     meses7.push(d.toLocaleDateString('es-CO', { month: 'short', year: '2-digit' }))
   }

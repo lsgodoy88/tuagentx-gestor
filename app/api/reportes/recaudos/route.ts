@@ -110,7 +110,7 @@ export async function GET(req: NextRequest) {
   detalles.forEach((d: any) => { detMap[d.carteraId] = d })
 
   // Renovar tokens expirados — admin puede ver recibos viejos
-  const ahora = new Date()
+  const ahora = new Date(Date.now() - 5*60*60*1000)
   const expirados = pagos.filter((p: any) =>
     p.reciboToken && p.tokenExpira && new Date(p.tokenExpira) < ahora
   )

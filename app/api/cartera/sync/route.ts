@@ -52,7 +52,7 @@ async function poblarCarteraCache(integracionId: string, empresaId: string) {
     porCliente[d.clienteApiId].push(d)
   }
 
-  const ahora = new Date()
+  const ahora = new Date(Date.now() - 5*60*60*1000)
   for (const [apiId, deudasCliente] of Object.entries(porCliente)) {
     const cliente = clienteMap[apiId]
     if (!cliente) continue

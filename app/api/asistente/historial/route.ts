@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   const user = session.user as any
   const empresaId = getEmpresaId(user)
 
-  const hace5dias = new Date()
+  const hace5dias = new Date(Date.now() - 5*60*60*1000)
   hace5dias.setDate(hace5dias.getDate() - 5)
 
   const msgs = await prisma.asistenteChat.findMany({

@@ -6,7 +6,7 @@ import { getEmpresaId } from '@/lib/auth-helpers'
 import Anthropic from '@anthropic-ai/sdk'
 
 function fechaBogota() {
-  return new Date().toLocaleString('es-CO', {
+  return new Date(Date.now() - 5*60*60*1000).toLocaleString('es-CO', {
     timeZone: 'America/Bogota',
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
     hour: '2-digit', minute: '2-digit'
@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
 
   // Fecha actual Bogotá
   const ahoraBogota = fechaBogota()
-  const hoy = new Date()
+  const hoy = new Date(Date.now() - 5*60*60*1000)
   const fechaHoyStr = hoy.toLocaleString('sv-SE', { timeZone: 'America/Bogota' }).split(' ')[0]
   const inicioDia = new Date(fechaHoyStr + 'T05:00:00.000Z') // 00:00 Bogotá = 05:00 UTC
   const inicioMes = new Date(fechaHoyStr.slice(0, 7) + '-01T05:00:00.000Z') // 00:00 Bogotá
@@ -317,7 +317,7 @@ Responde SIEMPRE en JSON exacto: { "respuesta": "texto" }
 
       // Guardar historial (5 días de retención)
       try {
-        const hace5dias = new Date()
+        const hace5dias = new Date(Date.now() - 5*60*60*1000)
         hace5dias.setDate(hace5dias.getDate() - 5)
         await prisma.asistenteChat.deleteMany({ where: { empresaId, creadoEn: { lt: hace5dias } } })
         await prisma.asistenteChat.createMany({

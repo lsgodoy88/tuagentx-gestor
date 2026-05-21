@@ -1,5 +1,6 @@
 'use client'
 import DataTable, { ColDef } from '@/components/DataTable'
+import { mesBogota, anioBogota, esDelMesBogota } from '@/lib/fechas'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { saveCache, loadCache } from '@/lib/offlineCache'
 import { useSession } from 'next-auth/react'
@@ -42,10 +43,10 @@ export default function CarteraPage() {
     (searchParamsCartera.get('tab') as any) || 'clientes'
   )
   const [isDesktopPagos, setIsDesktopPagos] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : false)
-  const [mesAnalisis, setMesAnalisis] = useState(new Date(Date.now()-5*60*60*1000).getUTCMonth() + 1)
-  const [anioAnalisis, setAnioAnalisis] = useState(new Date(Date.now()-5*60*60*1000).getUTCFullYear())
-  const [mesSel, setMesSel] = useState(new Date(Date.now()-5*60*60*1000).getUTCMonth() + 1)
-  const [anioSel, setAnioSel] = useState(new Date(Date.now()-5*60*60*1000).getUTCFullYear())
+  const [mesAnalisis, setMesAnalisis] = useState(mesBogota())
+  const [anioAnalisis, setAnioAnalisis] = useState(anioBogota())
+  const [mesSel, setMesSel] = useState(mesBogota())
+  const [anioSel, setAnioSel] = useState(anioBogota())
   const [metaForm, setMetaForm] = useState({ empleadoId: '', carteraBase: '', metaPct: '' })
   const [guardandoMeta, setGuardandoMeta] = useState(false)
   const [vendedores, setVendedores] = useState<any[]>([])
@@ -428,7 +429,7 @@ export default function CarteraPage() {
         // Pagos del mes seleccionado
         const pagosMes = pagos.filter((p: any) => {
           const f = new Date(p.createdAt)
-          return new Date(f.getTime()-5*60*60*1000).getUTCMonth() + 1 === mes && new Date(f.getTime()-5*60*60*1000).getUTCFullYear() === anio
+          return esDelMesBogota(f, mes, anio)
         })
 
         // Pagos mes anterior
@@ -436,7 +437,7 @@ export default function CarteraPage() {
         const anioAnterior = mes === 1 ? anio - 1 : anio
         const pagosAnt = pagos.filter((p: any) => {
           const f = new Date(p.createdAt)
-          return new Date(f.getTime()-5*60*60*1000).getUTCMonth() + 1 === mesAnterior && new Date(f.getTime()-5*60*60*1000).getUTCFullYear() === anioAnterior
+          return esDelMesBogota(f, mesAnterior, anioAnterior)
         })
 
         const totalRecaudadoMes = pagosMes.reduce((s: number, p: any) => s + Number(p.monto), 0)
@@ -479,7 +480,7 @@ export default function CarteraPage() {
           const mr = m <= 0 ? m + 12 : m
           const nombre = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][mr - 1]
           const total = pagos
-            .filter((p: any) => { const f = new Date(new Date(p.createdAt).getTime()-5*60*60*1000); return f.getUTCMonth()+1===mr && f.getUTCFullYear()===a })
+            .filter((p: any) => { return esDelMesBogota(p.createdAt, mr, a) })
             .reduce((s: number, p: any) => s + Number(p.monto) + Number(p.descuento||0), 0)
           return { nombre, total, mes: mr, anio: a }
         })
@@ -678,7 +679,7 @@ export default function CarteraPage() {
                       const mr = mv <= 0 ? mv + 12 : mv
                       const nombre = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][mr - 1]
                       const total = pagos
-                        .filter((p: any) => { const f = new Date(new Date(p.createdAt).getTime()-5*60*60*1000); return p.empleado?.id === v.id && f.getUTCMonth()+1===mr && f.getUTCFullYear()===av })
+                        .filter((p: any) => { return p.empleado?.id === v.id && esDelMesBogota(p.createdAt, mr, av) })
                         .reduce((s: number, p: any) => s + Number(p.monto) + Number(p.descuento||0), 0)
                       return { nombre, total }
                     })

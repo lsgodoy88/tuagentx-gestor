@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
   if (modo === "hoy") {
     whereBase.inicio = { gte: inicioDia, lte: finDia }
   } else {
-    const hace30 = new Date()
+    const hace30 = new Date(Date.now() - 5*60*60*1000)
     hace30.setDate(hace30.getDate() - 30)
     whereBase.inicio = { gte: hace30 }
     whereBase.fin = { not: null }

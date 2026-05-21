@@ -1,5 +1,6 @@
 'use client'
 import ModalEscaner from '@/components/ModalEscaner'
+import { nowBogota } from '@/lib/fechas'
 import FirmaCanvas from '@/components/FirmaCanvas'
 import { SyncIcon } from '@/components/SyncIcon'
 import { useSession } from 'next-auth/react'
@@ -63,7 +64,7 @@ function formatFechaCorta(iso: string | null | undefined) {
 function isHoy(iso: string | null | undefined) {
   if (!iso) return false
   const d = new Date(iso)
-  const hoy = new Date()
+  const hoy = nowBogota()
   return d.getFullYear() === hoy.getFullYear() && d.getMonth() === hoy.getMonth() && d.getDate() === hoy.getDate()
 }
 
