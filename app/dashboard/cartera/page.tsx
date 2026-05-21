@@ -42,10 +42,10 @@ export default function CarteraPage() {
     (searchParamsCartera.get('tab') as any) || 'clientes'
   )
   const [isDesktopPagos, setIsDesktopPagos] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : false)
-  const [mesAnalisis, setMesAnalisis] = useState(new Date().getMonth() + 1)
-  const [anioAnalisis, setAnioAnalisis] = useState(new Date().getFullYear())
-  const [mesSel, setMesSel] = useState(new Date().getMonth() + 1)
-  const [anioSel, setAnioSel] = useState(new Date().getFullYear())
+  const [mesAnalisis, setMesAnalisis] = useState(new Date(Date.now()-5*60*60*1000).getUTCMonth() + 1)
+  const [anioAnalisis, setAnioAnalisis] = useState(new Date(Date.now()-5*60*60*1000).getUTCFullYear())
+  const [mesSel, setMesSel] = useState(new Date(Date.now()-5*60*60*1000).getUTCMonth() + 1)
+  const [anioSel, setAnioSel] = useState(new Date(Date.now()-5*60*60*1000).getUTCFullYear())
   const [metaForm, setMetaForm] = useState({ empleadoId: '', carteraBase: '', metaPct: '' })
   const [guardandoMeta, setGuardandoMeta] = useState(false)
   const [vendedores, setVendedores] = useState<any[]>([])
@@ -283,7 +283,7 @@ export default function CarteraPage() {
 
     deudas.forEach((d: any) => {
       mensaje += `\n📋 Fact. ${d.numeroFactura || d.numeroOrden || ''} → $${Number(d.saldo ?? d.saldoPendiente ?? 0).toLocaleString('es-CO')}`
-      if (d.fechaVencimiento) mensaje += ` _(vence ${new Date(d.fechaVencimiento).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: '2-digit' })})_`
+      if (d.fechaVencimiento) mensaje += ` _(vence ${new Date(d.fechaVencimiento).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: '2-digit', timeZone: 'America/Bogota' })})_`
     })
 
     mensaje += `\n\n💰 *Total pendiente: $${total.toLocaleString('es-CO')}*`
@@ -428,7 +428,7 @@ export default function CarteraPage() {
         // Pagos del mes seleccionado
         const pagosMes = pagos.filter((p: any) => {
           const f = new Date(p.createdAt)
-          return f.getMonth() + 1 === mes && f.getFullYear() === anio
+          return new Date(f.getTime()-5*60*60*1000).getUTCMonth() + 1 === mes && new Date(f.getTime()-5*60*60*1000).getUTCFullYear() === anio
         })
 
         // Pagos mes anterior
@@ -436,7 +436,7 @@ export default function CarteraPage() {
         const anioAnterior = mes === 1 ? anio - 1 : anio
         const pagosAnt = pagos.filter((p: any) => {
           const f = new Date(p.createdAt)
-          return f.getMonth() + 1 === mesAnterior && f.getFullYear() === anioAnterior
+          return new Date(f.getTime()-5*60*60*1000).getUTCMonth() + 1 === mesAnterior && new Date(f.getTime()-5*60*60*1000).getUTCFullYear() === anioAnterior
         })
 
         const totalRecaudadoMes = pagosMes.reduce((s: number, p: any) => s + Number(p.monto), 0)
@@ -479,7 +479,7 @@ export default function CarteraPage() {
           const mr = m <= 0 ? m + 12 : m
           const nombre = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][mr - 1]
           const total = pagos
-            .filter((p: any) => { const f = new Date(p.createdAt); return f.getMonth()+1===mr && f.getFullYear()===a })
+            .filter((p: any) => { const f = new Date(new Date(p.createdAt).getTime()-5*60*60*1000); return f.getUTCMonth()+1===mr && f.getUTCFullYear()===a })
             .reduce((s: number, p: any) => s + Number(p.monto) + Number(p.descuento||0), 0)
           return { nombre, total, mes: mr, anio: a }
         })
@@ -678,7 +678,7 @@ export default function CarteraPage() {
                       const mr = mv <= 0 ? mv + 12 : mv
                       const nombre = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'][mr - 1]
                       const total = pagos
-                        .filter((p: any) => { const f = new Date(p.createdAt); return p.empleado?.id === v.id && f.getMonth()+1===mr && f.getFullYear()===av })
+                        .filter((p: any) => { const f = new Date(new Date(p.createdAt).getTime()-5*60*60*1000); return p.empleado?.id === v.id && f.getUTCMonth()+1===mr && f.getUTCFullYear()===av })
                         .reduce((s: number, p: any) => s + Number(p.monto) + Number(p.descuento||0), 0)
                       return { nombre, total }
                     })
@@ -920,7 +920,7 @@ export default function CarteraPage() {
                             <div className="flex-1 min-w-0">
                               {d.numeroFactura && <p className="text-white text-xs font-medium">Fact. {d.numeroFactura}</p>}
                               {d.concepto && <p className="text-zinc-400 text-xs truncate">{d.concepto}</p>}
-                              {d.fechaVencimiento && <p className="text-zinc-500 text-xs">Vence: {new Date(d.fechaVencimiento).toLocaleDateString('es-CO')}</p>}
+                              {d.fechaVencimiento && <p className="text-zinc-500 text-xs">Vence: {new Date(d.fechaVencimiento).toLocaleDateString('es-CO', {timeZone:'America/Bogota'})}</p>}
                             </div>
                             <div className="text-right flex-shrink-0">
                               <p className="text-white text-sm font-semibold">{fmt(saldo)}</p>
@@ -1142,7 +1142,7 @@ export default function CarteraPage() {
               <span className="text-zinc-400">Última sync rápida</span>
               <span className="text-zinc-300 text-xs">
                 {syncInfo?.ultimaSync
-                  ? new Date(syncInfo.ultimaSync).toLocaleString('es-CO', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})
+                  ? new Date(syncInfo.ultimaSync).toLocaleString('es-CO', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'})
                   : '—'}
               </span>
             </div>
@@ -1150,7 +1150,7 @@ export default function CarteraPage() {
               <span className="text-zinc-400">Última sync completa</span>
               <span className="text-zinc-300 text-xs">
                 {syncInfo?.ultimaSyncCompleta
-                  ? new Date(syncInfo.ultimaSyncCompleta).toLocaleString('es-CO', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})
+                  ? new Date(syncInfo.ultimaSyncCompleta).toLocaleString('es-CO', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'})
                   : '—'}
               </span>
             </div>
@@ -1176,7 +1176,7 @@ export default function CarteraPage() {
                           h.estado === 'error' ? 'text-red-500' : 'text-amber-500'
                         }>●</span>
                         <span className="text-zinc-300">
-                          {new Date(h.inicio).toLocaleString('es-CO', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit'})}
+                          {new Date(h.inicio).toLocaleString('es-CO', {day:'2-digit', month:'short', hour:'2-digit', minute:'2-digit', timeZone:'America/Bogota'})}
                         </span>
                         <span className="text-zinc-600">·</span>
                         <span className="text-zinc-500">{h.disparadoPor === 'cron' ? '⏰ auto' : '👤 manual'}</span>

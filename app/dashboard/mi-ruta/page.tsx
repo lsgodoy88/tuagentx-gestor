@@ -138,7 +138,7 @@ export default function MiRutaPage() {
       const ejecutadaFn = (clienteId: string) =>
         visitas.some((v: any) => {
           if (v.clienteId !== clienteId) return false
-          const fv = v.fechaBogota ? v.fechaBogota.split('T')[0] : new Date(v.createdAt).toLocaleDateString('en-CA')
+          const fv = v.fechaBogota ? v.fechaBogota.split('T')[0] : new Date(new Date(v.createdAt).getTime() - 5*60*60*1000).toISOString().split('T')[0]
           return fv === fechaRuta
         })
       const actual = paradaSeleccionadaRef.current
@@ -173,7 +173,7 @@ export default function MiRutaPage() {
     const fechaRuta = ruta?.fecha ? new Date(new Date(ruta.fecha).getTime() - 5*60*60*1000).toISOString().split('T')[0] : fechaFiltro
     return visitasHoy.filter(v => {
       if (v.clienteId !== clienteId) return false
-      const fechaVisita = v.fechaBogota ? v.fechaBogota.split('T')[0] : new Date(v.createdAt).toLocaleDateString('en-CA')
+      const fechaVisita = v.fechaBogota ? v.fechaBogota.split('T')[0] : new Date(new Date(v.createdAt).getTime() - 5*60*60*1000).toISOString().split('T')[0]
       return fechaVisita === fechaRuta
     })
   }
@@ -368,7 +368,7 @@ export default function MiRutaPage() {
                     {r.clientes.map((rc: any, i: number) => {
                       const visitasRuta = visitasHoy.filter(v => {
                         if (v.clienteId !== rc.cliente.id) return false
-                        const fechaVisita = v.fechaBogota ? v.fechaBogota.split('T')[0] : new Date(v.createdAt).toLocaleDateString('en-CA')
+                        const fechaVisita = v.fechaBogota ? v.fechaBogota.split('T')[0] : new Date(new Date(v.createdAt).getTime() - 5*60*60*1000).toISOString().split('T')[0]
                         const fechaRuta = r.fecha ? new Date(new Date(r.fecha).getTime() - 5*60*60*1000).toISOString().split('T')[0] : ''
                         return fechaVisita === fechaRuta
                       })

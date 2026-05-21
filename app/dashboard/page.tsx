@@ -1422,7 +1422,7 @@ export default function DashboardPage() {
                             <div className="flex-1 min-w-0">
                               {d.numeroFactura && <p className="text-white text-xs font-medium">Fact. {d.numeroFactura}</p>}
                               {d.concepto && <p className="text-zinc-400 text-xs truncate">{d.concepto}</p>}
-                              {d.fechaVencimiento && <p className="text-zinc-500 text-xs">Vence: {new Date(d.fechaVencimiento).toLocaleDateString('es-CO')}</p>}
+                              {d.fechaVencimiento && <p className="text-zinc-500 text-xs">Vence: {new Date(d.fechaVencimiento).toLocaleDateString('es-CO', {timeZone:'America/Bogota'})}</p>}
                             </div>
                             <div className="text-right flex-shrink-0">
                               <p className="text-white text-sm font-semibold">{fmt(saldo)}</p>
@@ -1602,7 +1602,7 @@ export default function DashboardPage() {
               <div className="text-zinc-400 text-xs mb-1">Última sincronización</div>
               <div className="text-white font-semibold">
                 {syncInfo.ultimaSync
-                  ? new Date(syncInfo.ultimaSync).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })
+                  ? new Date(syncInfo.ultimaSync).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Bogota' })
                   : 'Nunca'}
               </div>
             </div>
@@ -1612,7 +1612,7 @@ export default function DashboardPage() {
                 <div className="space-y-1.5">
                   {syncInfo.historial.slice(0, 5).map((h: any) => (
                     <div key={h.id} className="text-xs flex justify-between">
-                      <span className="text-zinc-300">{new Date(h.inicio).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                      <span className="text-zinc-300">{new Date(h.inicio).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Bogota' })}</span>
                       <span className="text-zinc-500">
                         {h.clientesActualizados} cli · {h.deudasSincronizadas} deu
                       </span>

@@ -212,7 +212,7 @@ export default function RutasFijasPage() {
       const res = await fetch('/api/visitas/todas')
       const visitas = await res.json()
       const filtradas = (Array.isArray(visitas) ? visitas : []).filter((v: any) => {
-        const fv = v.fechaBogota ? v.fechaBogota.split('T')[0] : new Date(v.createdAt).toLocaleDateString('en-CA')
+        const fv = v.fechaBogota ? v.fechaBogota.split('T')[0] : new Date(new Date(v.createdAt).getTime() - 5*60*60*1000).toISOString().split('T')[0]
         return fv === fechaHistorial && (v.tipo === 'entrada' || v.tipo === 'salida')
       })
       setHistorialData({ visitas: filtradas, impulsadoras: [{ id: user?.id, nombre: user?.name || 'Yo' }] })

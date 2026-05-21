@@ -15,8 +15,8 @@ export async function GET(req: NextRequest) {
     const user = session.user as any
     const empresaId = getEmpresaId(user)
 
-    const ahora = new Date()
-    const inicioRanking = new Date()
+    const ahora = new Date(Date.now() - 5*60*60*1000)
+    const inicioRanking = new Date(Date.now() - 5*60*60*1000)
     if (periodo === 'semana') {
       inicioRanking.setDate(ahora.getDate() - 7)
     } else {
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
   const user = session.user as any
   const empresaId = getEmpresaId(user)
 
-  const fecha = searchParams.get('fecha') || new Date().toISOString().split('T')[0]
+  const fecha = searchParams.get('fecha') || new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]
   const empleadoId = searchParams.get('empleadoId') || null
 
   const inicio = new Date(fecha)

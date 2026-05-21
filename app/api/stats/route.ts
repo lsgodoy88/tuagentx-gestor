@@ -20,7 +20,7 @@ export async function GET() {
     return NextResponse.json(cached.data)
   }
 
-  const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
+  const hoy = new Date(Date.now() - 5*60*60*1000); hoy.setHours(0, 0, 0, 0)
   const hace7dias = new Date(Date.now() - 7 * 86400000)
   const hace30dias = new Date(Date.now() - 30 * 86400000)
   const hace7meses = new Date(); hace7meses.setMonth(hace7meses.getMonth() - 6); hace7meses.setDate(1); hace7meses.setHours(0,0,0,0)

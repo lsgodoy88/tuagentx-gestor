@@ -12,7 +12,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
 
-  const hoy = new Date()
+  const hoy = new Date(Date.now() - 5*60*60*1000)
   hoy.setHours(0, 0, 0, 0)
 
   const visitas = await prisma.visita.findMany({

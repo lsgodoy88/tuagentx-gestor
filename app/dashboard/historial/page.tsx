@@ -18,7 +18,7 @@ export default function HistorialPage() {
   }
 
   const visitasFecha = visitas.filter(v => {
-    const fv = v.fechaBogota ? v.fechaBogota.split('T')[0] : new Date(v.createdAt).toLocaleDateString('en-CA')
+    const fv = v.fechaBogota ? v.fechaBogota.split('T')[0] : new Date(new Date(v.createdAt).getTime() - 5*60*60*1000).toISOString().split('T')[0]
     return fv === fecha && (v.tipo === 'entrada' || v.tipo === 'salida')
   })
 

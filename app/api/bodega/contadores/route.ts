@@ -16,7 +16,7 @@ export async function GET() {
   const cached = cache.get(user.empresaId)
   if (cached && Date.now() - cached.ts < CACHE_TTL) return NextResponse.json(cached.data)
 
-  const hoy = new Date()
+  const hoy = new Date(Date.now() - 5*60*60*1000)
   hoy.setHours(0, 0, 0, 0)
 
   const [pendientes, alistados, entregados] = await Promise.all([

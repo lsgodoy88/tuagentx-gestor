@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const empresaId = getEmpresaId(user)
 
   const { searchParams } = new URL(req.url)
-  const fecha = searchParams.get('fecha') || new Date().toISOString().split('T')[0]
+  const fecha = searchParams.get('fecha') || new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]
   const rutaId = searchParams.get('rutaId') || null
 
   const isPrivileged = user.role === 'empresa' || user.role === 'supervisor' || user.role === 'admin'

@@ -13,10 +13,10 @@ function fmtFecha(d: string | null | undefined) {
   })
 }
 
-function hoy() { return new Date().toISOString().split('T')[0] }
+function hoy() { return new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0] }
 function hace7() {
   const d = new Date(); d.setDate(d.getDate() - 7)
-  return d.toISOString().split('T')[0]
+  return new Date(d.getTime() - 5*60*60*1000).toISOString().split('T')[0]
 }
 
 const ESTADOS = [

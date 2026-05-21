@@ -57,7 +57,7 @@ export default function TurnoPage() {
       const ejecutados = rutaRes.clientes.filter((rc: any) =>
         visitas.some((v: any) => {
           if (v.clienteId !== rc.cliente.id) return false
-          const fv = v.fechaBogota ? v.fechaBogota.split('T')[0] : new Date(v.createdAt).toLocaleDateString('en-CA')
+          const fv = v.fechaBogota ? v.fechaBogota.split('T')[0] : new Date(new Date(v.createdAt).getTime() - 5*60*60*1000).toISOString().split('T')[0]
           return fv === fechaRuta
         })
       ).length

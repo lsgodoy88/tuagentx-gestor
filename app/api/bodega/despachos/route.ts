@@ -36,7 +36,7 @@ export async function GET(req: NextRequest) {
   const estados = estadosFiltro[estado] ?? ['pendiente']
 
   // Ventana de 30 días fija
-  const desde = new Date()
+  const desde = new Date(Date.now() - 5*60*60*1000)
   desde.setDate(desde.getDate() - DIAS)
   const desdeIso = desde.toISOString()
 

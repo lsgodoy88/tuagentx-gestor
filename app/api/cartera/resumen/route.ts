@@ -74,7 +74,7 @@ export async function GET() {
   }
 
   // ── Pagos del mes actual y anterior ────────────────────────────
-  const ahora = new Date()
+  const ahora = new Date(Date.now() - 5*60*60*1000)
   const anio  = ahora.getFullYear()
   const mes   = ahora.getMonth() + 1
 
