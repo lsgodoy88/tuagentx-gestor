@@ -45,6 +45,7 @@ model Empresa {
   rutas               Ruta[]
   rutasFijas          RutaFija[]
   metasRecaudo        MetaRecaudo[]
+  metasVenta          MetaVenta[]
   subEmpresas         SubEmpresa[]
   integraciones       Integracion[]
   CarteraCache        CarteraCache[]
@@ -85,6 +86,7 @@ model Empleado {
   rutasFijas          RutaFijaEmpleado[]
   vendedoresAsignados SupervisorVendedor[] @relation("SupervisorVendedores")
   metasRecaudo        MetaRecaudo[]
+  metasVenta          MetaVenta[]
   supervisorAsignado  SupervisorVendedor[] @relation("VendedorSupervisor")
   turnos              Turno[]
   visitas             Visita[]
@@ -2618,6 +2620,22 @@ model MetaRecaudo {
 
   @@unique([empleadoId, mes, anio])
   @@map("MetaRecaudo")
+}
+
+model MetaVenta {
+  id         String   @id @default(cuid())
+  empleadoId String
+  empresaId  String
+  mes        Int
+  anio       Int
+  metaPesos  Decimal  @db.Decimal(14, 2)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  empleado   Empleado @relation(fields: [empleadoId], references: [id])
+  empresa    Empresa  @relation(fields: [empresaId], references: [id])
+
+  @@unique([empleadoId, mes, anio])
+  @@map("MetaVenta")
 }
 
 model SubEmpresa {

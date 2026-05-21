@@ -73,7 +73,21 @@ export default function EmpleadosPage() {
   const [apiIdSeleccionado, setApiIdSeleccionado] = useState('')
 
   // Tab principal
-  const [tabPrincipal, setTabPrincipal] = useState<'rutas' | 'equipo'>('rutas')
+  const [tabPrincipal, setTabPrincipal] = useState<'rutas' | 'equipo' | 'metas'>('rutas')
+  // Metas
+  const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
+  const fmtMeta = (v: string) => {
+    const n = parseInt(v.replace(/[^0-9]/g,''), 10)
+    if (!n || isNaN(n)) return v
+    return Math.round(n).toLocaleString('es-CO')
+  }
+  const parseMeta = (v: string) => v.replace(/[^0-9]/g,'')
+  const [metasEmpleadoId, setMetasEmpleadoId] = useState('')
+  const [metasAnio, setMetasAnio] = useState(new Date().getFullYear())
+  const [metasData, setMetasData] = useState<{recaudo: any[], venta: any[]}>({ recaudo: [], venta: [] })
+  const [metasEdit, setMetasEdit] = useState<Record<string, {recaudo: string, venta: string}>>({})
+  const [metasCargando, setMetasCargando] = useState(false)
+  const [metasGuardando, setMetasGuardando] = useState(false)
   // Tab rutas
   const [subTabRutas, setSubTabRutas] = useState<'hoy' | 'historial'>('hoy')
   const [turnosHoy, setTurnosHoy] = useState<any[]>([])
@@ -200,6 +214,36 @@ export default function EmpleadosPage() {
     return slugify(n) + '@' + slugify(empresaNombre)
   }
 
+  async function cargarMetas(empId: string, anio: number) {
+    if (!empId) return
+    setMetasCargando(true)
+    const d = await fetch(`/api/metas?empleadoId=${empId}&anio=${anio}`).then(r => r.json()).catch(() => ({ recaudo: [], venta: [] }))
+    setMetasData(d)
+    const edit: Record<string, {recaudo: string, venta: string}> = {}
+    for (let m = 1; m <= 12; m++) {
+      const r = d.recaudo.find((x: any) => x.mes === m)
+      const v = d.venta.find((x: any) => x.mes === m)
+      edit[m] = { recaudo: r ? Math.round(Number(r.metaPesos)).toLocaleString('es-CO') : '', venta: v ? Math.round(Number(v.metaPesos)).toLocaleString('es-CO') : '' }
+    }
+    setMetasEdit(edit)
+    setMetasCargando(false)
+  }
+
+  async function guardarMetas() {
+    if (!metasEmpleadoId) return
+    setMetasGuardando(true)
+    const recaudo = []
+    const venta = []
+    for (let m = 1; m <= 12; m++) {
+      const r = metasEdit[m]?.recaudo
+      const v = metasEdit[m]?.venta
+      recaudo.push({ mes: m, metaPesos: r ? parseInt(r.replace(/[^0-9]/g, ''), 10) || null : null })
+      venta.push({ mes: m, metaPesos: v ? parseInt(v.replace(/[^0-9]/g, ''), 10) || null : null })
+    }
+    await fetch('/api/metas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ empleadoId: metasEmpleadoId, anio: metasAnio, recaudo, venta }) })
+    setMetasGuardando(false)
+  }
+
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Tabs principales */}
@@ -211,6 +255,10 @@ export default function EmpleadosPage() {
         <button onClick={() => setTabPrincipal('equipo')}
           className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'equipo' ? 'tab-active' : 'text-white hover:text-white'}`}>
           👥 Equipo
+        </button>
+        <button onClick={() => setTabPrincipal('metas')}
+          className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'metas' ? 'tab-active' : 'text-white hover:text-white'}`}>
+          🎯 Metas
         </button>
       </div>
 
@@ -778,6 +826,101 @@ export default function EmpleadosPage() {
       )}
         </div>
       )}
+
+      {/* Tab Metas */}
+      {tabPrincipal === 'metas' && (
+        <div className="space-y-4">
+          {/* Selectores */}
+          <div className="flex gap-3 flex-wrap">
+            <select
+              value={metasEmpleadoId}
+              onChange={e => { setMetasEmpleadoId(e.target.value); cargarMetas(e.target.value, metasAnio) }}
+              className="flex-1 min-w-[180px] rounded-xl px-3 py-2 text-sm text-white outline-none"
+              style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.35)'}}>
+              <option value="">— Seleccionar vendedor —</option>
+              {empleados.filter((e: any) => e.rol === 'vendedor' && e.activo).map((e: any) => (
+                <option key={e.id} value={e.id}>{e.nombre}</option>
+              ))}
+            </select>
+            <select
+              value={metasAnio}
+              onChange={e => { const a = parseInt(e.target.value); setMetasAnio(a); cargarMetas(metasEmpleadoId, a) }}
+              className="rounded-xl px-3 py-2 text-sm text-white outline-none"
+              style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.35)'}}>
+              {[metasAnio - 1, metasAnio, metasAnio + 1].map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+          </div>
+
+          {/* Tabla 12 meses */}
+          {metasEmpleadoId && (
+            <div className="rounded-2xl overflow-hidden" style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.25)'}}>
+              {/* Header */}
+              <div className="grid grid-cols-3 gap-0 px-4 py-3 border-b" style={{borderColor:'rgba(59,130,246,0.20)'}}>
+                <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Mes</p>
+                <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Meta Recaudo</p>
+                <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Meta Venta</p>
+              </div>
+              {metasCargando ? (
+                <div className="p-6 text-center text-zinc-500 text-sm">Cargando...</div>
+              ) : (
+                Array.from({length: 12}, (_, i) => i + 1).map(mes => {
+                  const esMesActual = mes === new Date().getMonth() + 1 && metasAnio === new Date().getFullYear()
+                  return (
+                    <div key={mes} className={`grid grid-cols-3 gap-0 px-4 py-2.5 border-b transition-colors ${esMesActual ? 'bg-blue-500/5' : ''}`}
+                      style={{borderColor:'rgba(59,130,246,0.10)'}}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-white text-sm font-semibold">{MESES[mes-1]}</span>
+                        {esMesActual && <span className="text-[9px] text-blue-400 font-bold uppercase tracking-wider">actual</span>}
+                      </div>
+                      <div className="pr-3">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={metasEdit[mes]?.recaudo || ''}
+                          onChange={e => setMetasEdit(p => ({...p, [mes]: {...p[mes], recaudo: parseMeta(e.target.value)}}))}
+                          onBlur={e => { if (e.target.value) setMetasEdit(p => ({...p, [mes]: {...p[mes], recaudo: fmtMeta(e.target.value)}})) }}
+                          placeholder="Sin meta"
+                          className="w-full rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-zinc-600 outline-none transition-colors focus:border-blue-500/60"
+                          style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}
+                        />
+                      </div>
+                      <div className="pr-1">
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={metasEdit[mes]?.venta || ''}
+                          onChange={e => setMetasEdit(p => ({...p, [mes]: {...p[mes], venta: parseMeta(e.target.value)}}))}
+                          onBlur={e => { if (e.target.value) setMetasEdit(p => ({...p, [mes]: {...p[mes], venta: fmtMeta(e.target.value)}})) }}
+                          placeholder="Sin meta"
+                          className="w-full rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-zinc-600 outline-none transition-colors focus:border-blue-500/60"
+                          style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}
+                        />
+                      </div>
+                    </div>
+                  )
+                })
+              )}
+              {/* Guardar */}
+              <div className="px-4 py-3">
+                <button
+                  onClick={guardarMetas}
+                  disabled={metasGuardando}
+                  className="w-full py-2.5 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-50"
+                  style={{background:'rgba(59,130,246,0.20)',border:'1px solid rgba(59,130,246,0.40)'}}>
+                  {metasGuardando ? 'Guardando...' : '💾 Guardar metas'}
+                </button>
+              </div>
+            </div>
+          )}
+          {!metasEmpleadoId && (
+            <div className="rounded-2xl p-8 text-center text-zinc-500 text-sm"
+              style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.25)'}}>
+              Selecciona un vendedor para ver y editar sus metas
+            </div>
+          )}
+        </div>
+      )}
+
     </div>
   )
 }

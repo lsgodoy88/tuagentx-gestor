@@ -212,6 +212,11 @@ export default function DashboardPage() {
   async function sincronizarVentas() {
     setSincVentas(true)
     try {
+      const r = await fetch('/api/vendedor/sync-ventas', { method: 'POST' }).then(r => r.json())
+      if (r.throttled) {
+        // No hay nuevas órdenes que bajar — igual refresca stats
+      }
+      // Refrescar stats siempre (invalida cache 5min)
       const d = await fetch('/api/vendedor/stats?bust=' + Date.now()).then(r => r.json())
       setStatsVendedor(d)
     } catch {}

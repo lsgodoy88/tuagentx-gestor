@@ -35,22 +35,26 @@ export async function GET() {
   const mesMes       = ahora.getMonth() + 1
   const inicioMes    = new Date(`${anioMes}-${String(mesMes).padStart(2,'0')}-01T05:00:00.000Z`)
 
-  // ── Queries paralelas ─────────────────────────────────────────────
+  // ── Fase 1: obtener apiId del empleado ────────────────────────────
+  const empleadoData = await (prisma as any).empleado.findUnique({
+    where: { id: user.id },
+    select: { apiId: true },
+  })
+  const miApiId: string | null = empleadoData?.apiId || null
+
+  // ── Fase 2: queries paralelas ─────────────────────────────────────
   const hace90dias = new Date(ahora)
   hace90dias.setDate(hace90dias.getDate() - 90)
-
-  // apiId del empleado para filtrar OrdenDespacho.vendedorApiId
-  const miApiId: string | null = (user as any).apiId || null
 
   const [
     todasVisitas,
     visitasAyer,
-    empleadoData,
     ordenesHoy,
     ordenesMes,
     impulsadoras,
     pagosRecaudoMes,
     metaRecaudo,
+    metaVentaRow,
   ] = await Promise.all([
     // Visitas últimos 90 días
     prisma.visita.findMany({
@@ -60,11 +64,6 @@ export async function GET() {
     // Visitas de ayer
     prisma.visita.findMany({
       where: { empleadoId: user.id, fechaBogota: { gte: inicioAyer, lt: finAyer } },
-    }),
-    // Empleado — metaVenta + apiId (cast any por schema con errores preexistentes)
-    (prisma as any).empleado.findUnique({
-      where: { id: user.id },
-      select: { metaVenta: true, apiId: true },
     }),
     // Órdenes hoy (todas — desp+fact)
     miApiId
@@ -87,15 +86,16 @@ export async function GET() {
     }),
     // Recaudo + descuentos del mes
     (prisma as any).pagoCartera.aggregate({
-      where: {
-        empleadoId: user.id,
-        createdAt: { gte: inicioMes },
-      },
+      where: { empleadoId: user.id, createdAt: { gte: inicioMes } },
       _sum: { monto: true, descuento: true },
       _count: { id: true },
     }),
     // Meta de recaudo del mes
     (prisma as any).metaRecaudo.findFirst({
+      where: { empleadoId: user.id, mes: mesMes, anio: anioMes },
+    }),
+    // Meta de venta del mes
+    (prisma as any).metaVenta.findFirst({
       where: { empleadoId: user.id, mes: mesMes, anio: anioMes },
     }),
   ])
@@ -130,7 +130,7 @@ export async function GET() {
     factHoy,
     ventasMes:    Number((ordenesMes as any)._count.id       || 0),
     montoMes:     Number((ordenesMes as any)._sum.totalOrden  || 0),
-    metaVentaMes: Number((empleadoData as any)?.metaVenta     || 0),
+    metaVentaMes: Number((metaVentaRow as any)?.metaPesos     || 0),
   }
 
   // ── Recaudo ───────────────────────────────────────────────────────
