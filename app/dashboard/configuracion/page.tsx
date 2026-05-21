@@ -63,8 +63,8 @@ export default function ConfiguracionPage() {
   const [msgRecibosEmp, setMsgRecibosEmp] = useState('')
 
   // Modo integración
-  const [modoSel, setModoSel] = useState<'manual'|'erp'|'api'>('manual')
-  const [modoActivo, setModoActivo] = useState<'manual'|'erp'|'api'>('manual')
+  const [modoSel, setModoSel] = useState<'erp'|'api'>('erp')
+  const [modoActivo, setModoActivo] = useState<'erp'|'api'>('erp')
 
   // API UpTres
   const [erpConectado, setErpConectado] = useState(false)
@@ -270,13 +270,6 @@ export default function ConfiguracionPage() {
     return email.slice(0, 10) + '...' + email.slice(at)
   }
 
-  async function activarManual() {
-    if (erpConectado) await fetch('/api/integracion/conectar', { method: 'DELETE' })
-    if (intUrl) await fetch('/api/recibos/config/empresa', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urlApi: null, tokenApi: null }) })
-    setErpConectado(false); setErpNombre(''); setUptresApiKey(''); setUptresApiSecret('')
-    setIntUrl(''); setIntToken(''); setResultValidacion(null); setEndpointsDetectados(null)
-    setModoActivo('manual'); setModoSel('manual')
-  }
 
   async function validarUpTres() {
     if (!uptresApiKey || !uptresApiSecret) return
@@ -349,7 +342,7 @@ export default function ConfiguracionPage() {
   async function desconectarERP() {
     await fetch('/api/integracion/conectar', { method: 'DELETE' })
     setErpConectado(false); setErpNombre(''); setUptresApiKey(''); setUptresApiSecret(''); setUltimaSync('')
-    setModoActivo('manual'); setModoSel('manual')
+    setModoActivo('erp'); setModoSel('erp')
   }
 
   async function ejecutarSyncInicial() {
@@ -406,7 +399,7 @@ export default function ConfiguracionPage() {
   async function desconectarApi() {
     await fetch('/api/recibos/config/empresa', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ urlApi: null, tokenApi: null }) })
     setIntUrl(''); setIntToken(''); setResultValidacion(null); setEndpointsDetectados(null); setMapeoIA(null)
-    setPasoApi(1); setModoActivo('manual'); setModoSel('manual')
+    setPasoApi(1); setModoActivo('erp'); setModoSel('erp')
   }
 
   async function guardarCfgPersonal() {
@@ -468,7 +461,7 @@ export default function ConfiguracionPage() {
     setVinculadas(prev => prev.filter(v => v.id !== id))
   }
 
-  const inputClass = 'w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500'
+  const inputClass = 'w-full modal-inner-card rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500'
   const inputReadonlyClass = 'w-full bg-zinc-800/50 border border-zinc-700/50 rounded-xl px-4 py-2.5 text-zinc-400 text-sm'
   const labelClass = 'text-zinc-400 text-xs font-semibold block mb-1.5'
   const anchoBtns: { v: string; l: string }[] = [{ v: '80mm', l: '🖨️ 80mm' }, { v: '58mm', l: '🖨️ 58mm' }]
@@ -516,7 +509,7 @@ export default function ConfiguracionPage() {
       {user?.role === 'empresa' && (
         <>
           <Seccion titulo="Mi empresa" icono="🏢" isOpen={seccionAbierta === 'empresa'} onToggle={() => toggleSeccion('empresa')}>
-            <div className="bg-zinc-800 rounded-xl px-4 py-3 space-y-0.5">
+            <div className="rounded-xl px-4 py-3 space-y-0.5" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
               <p className="text-zinc-400 text-xs">Cuenta</p>
               <p className="text-white text-sm font-mono">{user?.email}</p>
             </div>
@@ -663,29 +656,6 @@ export default function ConfiguracionPage() {
           <Seccion titulo="Modo de integración" icono="⚙️" isOpen={seccionAbierta === 'integracion'} onToggle={() => toggleSeccion('integracion')}>
             <p className="text-zinc-500 text-xs">Define cómo se sincronizan clientes, cartera y recaudos.</p>
 
-            {/* ── Card Manual ── */}
-            <div className={`rounded-2xl border cursor-pointer transition-colors ${modoSel === 'manual' ? 'border-emerald-500/60 bg-emerald-500/5' : 'border-zinc-700 bg-zinc-800/40'}`}
-              onClick={() => setModoSel('manual')}>
-              <div className="flex items-center justify-between px-4 py-3">
-                <div className="flex items-center gap-3">
-                  <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 transition-colors ${modoSel === 'manual' ? 'border-emerald-500 bg-emerald-500' : 'border-zinc-500'}`} />
-                  <div>
-                    <p className="text-white text-sm font-medium">📋 Manual</p>
-                    <p className="text-zinc-500 text-xs">Importación Excel habilitada</p>
-                  </div>
-                </div>
-                {modoActivo === 'manual' && <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full font-semibold">Activo</span>}
-              </div>
-              {modoSel === 'manual' && modoActivo !== 'manual' && (
-                <div className="px-4 pb-4 pt-1 border-t border-zinc-700">
-                  <p className="text-zinc-400 text-xs mb-3">Los datos se gestionan manualmente via Excel. Se desconectará la integración actual.</p>
-                  <button onClick={e => { e.stopPropagation(); activarManual() }}
-                    className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-xl text-sm">
-                    Activar modo manual
-                  </button>
-                </div>
-              )}
-            </div>
 
             {/* ── Card API UpTres ── */}
             <div className={`rounded-2xl border transition-colors ${modoSel === 'erp' ? 'border-violet-500/60 bg-violet-500/5' : 'border-zinc-700 bg-zinc-800/40'}`}>
@@ -759,7 +729,7 @@ export default function ConfiguracionPage() {
                           </button>
                         </div>
                       ) : (
-                        <div className="bg-zinc-800 rounded-xl px-4 py-3">
+                        <div className="rounded-xl px-4 py-3" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                           <p className="text-zinc-400 text-xs">✅ Sync inicial completada</p>
                           <p className="text-zinc-500 text-xs mt-0.5">Delta diario 3am Bogotá</p>
                           {msgSync && <p className="text-sm text-emerald-400 mt-1">{msgSync}</p>}
@@ -825,7 +795,7 @@ export default function ConfiguracionPage() {
                         <p className="text-zinc-400 text-xs mt-0.5 font-mono truncate">{intUrl}</p>
                       </div>
                       {resultValidacion && (
-                        <div className="space-y-1.5 bg-zinc-800 rounded-xl p-3">
+                        <div className="space-y-1.5  rounded-xl p-3" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                           {Object.entries(resultValidacion).map(([ep, r]: any) => (
                             <div key={ep} className="flex items-center gap-2 text-xs">
                               <span>{r.ok ? '✅' : r.error === 'timeout' ? '⏱️' : '❌'}</span>
@@ -865,7 +835,7 @@ export default function ConfiguracionPage() {
                       <div>
                         <label className={labelClass}>Documentación de la API <span className="text-zinc-600">(opcional — para análisis IA)</span></label>
                         <textarea value={docApi} onChange={e => setDocApi(e.target.value)} rows={4} placeholder="Pega aquí la documentación, Swagger o ejemplos de endpoints…"
-                          className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-sky-500 resize-none" />
+                          className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-sky-500 resize-none" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
                       </div>
                       <div className="flex gap-2 flex-wrap">
                         {docApi.trim() && (
@@ -888,7 +858,7 @@ export default function ConfiguracionPage() {
                         <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-xs flex items-center justify-center font-bold flex-shrink-0">2</span>
                         <p className="text-zinc-300 text-xs font-semibold">Endpoints detectados — edita si es necesario</p>
                       </div>
-                      <div className="bg-zinc-800 rounded-xl p-3 space-y-2">
+                      <div className="rounded-xl p-3 space-y-2" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                         {(['clientes','cartera','empleados','recaudos'] as const).map(ep => (
                           <div key={ep} className="flex items-center gap-2">
                             <span className="text-zinc-500 text-xs w-20 flex-shrink-0">{ep}</span>
@@ -936,7 +906,7 @@ export default function ConfiguracionPage() {
                             <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-xs flex items-center justify-center font-bold flex-shrink-0">3</span>
                             <p className="text-zinc-300 text-xs font-semibold">Resultado de validación</p>
                           </div>
-                          <div className="bg-zinc-800 rounded-xl p-3 space-y-2">
+                          <div className="rounded-xl p-3 space-y-2" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                             {eps.map(([ep, r]: any) => (
                               <div key={ep} className="flex items-center gap-2 text-xs">
                                 <span className="w-4">{r.ok ? '✅' : r.error === 'timeout' ? '⏱️' : '❌'}</span>
@@ -999,7 +969,7 @@ export default function ConfiguracionPage() {
             ) : (
               <div className="space-y-2">
                 {vinculadas.map(v => (
-                  <div key={v.id} className="bg-zinc-800 rounded-xl px-4 py-3 flex items-center gap-3">
+                  <div key={v.id} className="rounded-xl px-4 py-3 flex items-center gap-3" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                     <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: v.color }} />
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm font-medium">{v.nombre === 'Pendiente' ? '⏳ Esperando conexión' : v.nombre}</p>
@@ -1012,7 +982,7 @@ export default function ConfiguracionPage() {
                   </div>
                 ))}
                 {conectadas.map(v => (
-                  <div key={v.id} className="bg-zinc-800 rounded-xl px-4 py-3 flex items-center gap-3">
+                  <div key={v.id} className="rounded-xl px-4 py-3 flex items-center gap-3" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                     <span className="w-3 h-3 rounded-full flex-shrink-0 bg-emerald-500" />
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm font-medium">✅ {v.nombreEmpresaPrincipal}</p>
@@ -1076,7 +1046,7 @@ export default function ConfiguracionPage() {
       {esSoloEmpleado && (
         <>
           <Seccion titulo="Mi perfil" icono="👤" isOpen={seccionAbierta === 'perfil'} onToggle={() => toggleSeccion('perfil')}>
-            <div className="bg-zinc-800 rounded-xl px-4 py-3 space-y-0.5">
+            <div className="rounded-xl px-4 py-3 space-y-0.5" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
               <p className="text-zinc-400 text-xs">Email</p>
               <p className="text-white text-sm font-mono">{user?.email}</p>
               <p className="text-zinc-500 text-xs capitalize">{user?.role}</p>
@@ -1114,7 +1084,7 @@ export default function ConfiguracionPage() {
                 </div>
               </div>
             )}
-            <div className="bg-zinc-800 rounded-xl px-4 py-3 flex items-center justify-between">
+            <div className="rounded-xl px-4 py-3 flex items-center justify-between" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
               <div>
                 <p className="text-zinc-400 text-xs">Consecutivo actual</p>
                 <p className="text-white font-mono text-lg font-bold">{String(cfgConsecutivo).padStart(3, '0')}</p>
@@ -1137,7 +1107,7 @@ export default function ConfiguracionPage() {
 
       {/* Modal validación API UpTres */}
       {modalValidacion && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-sm space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-white font-bold text-base">🔌 API UpTres</h3>
@@ -1199,7 +1169,7 @@ export default function ConfiguracionPage() {
 
       {/* Modal nueva vinculada */}
       {modalVinculada && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => { if (!tokenGenerado) setModalVinculada(false) }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95" onClick={() => { if (!tokenGenerado) setModalVinculada(false) }}>
           <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 w-full max-w-sm space-y-4 mx-4" onClick={e => e.stopPropagation()}>
             {!tokenGenerado ? (
               <>
@@ -1227,7 +1197,7 @@ export default function ConfiguracionPage() {
               <>
                 <h3 className="text-white font-semibold">✅ Token generado</h3>
                 <p className="text-zinc-400 text-xs">Comparte este token con la empresa. Solo se muestra una vez.</p>
-                <div className="bg-zinc-800 rounded-xl px-4 py-3 flex items-center gap-2">
+                <div className="rounded-xl px-4 py-3 flex items-center gap-2" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                   <p className="text-white font-mono text-xs flex-1 break-all">{tokenGenerado}</p>
                   <button onClick={() => navigator.clipboard.writeText(tokenGenerado)}
                     className="text-violet-400 hover:text-violet-300 flex-shrink-0 text-xs font-semibold">Copiar</button>
@@ -1244,7 +1214,7 @@ export default function ConfiguracionPage() {
       )}
       {/* Modal ingresar token vinculación */}
       {modalConectarToken && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={() => { setModalConectarToken(false); setTokenLookup(null); setTokenMsg('') }}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/95" onClick={() => { setModalConectarToken(false); setTokenLookup(null); setTokenMsg('') }}>
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 w-full max-w-sm space-y-4 mx-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-white font-semibold">🔗 Conectar con empresa</h3>
             <p className="text-zinc-400 text-xs">Ingresa el token que te compartió la empresa para vincularse.</p>
@@ -1252,7 +1222,7 @@ export default function ConfiguracionPage() {
               value={tokenInput}
               onChange={e => { setTokenInput(e.target.value); setTokenLookup(null); setTokenMsg('') }}
               placeholder="Pega el token aquí..."
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-violet-500 font-mono"
+              className="w-full  rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-violet-500 font-mono" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}
             />
             {tokenLookup && (
               <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-3">

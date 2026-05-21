@@ -148,6 +148,7 @@ export async function POST(req: NextRequest) {
       direccion,
       telefono,
       fechaOrden: orden.fCreado ? new Date(orden.fCreado as string) : new Date(),
+      totalOrden: orden.vTotal ? parseFloat(orden.vTotal) : null,
       empresaId: empresaBodegaId,
       origen: origenVinculadaId ? 'vinculada' : 'propia',
       origenId,

@@ -20,3 +20,31 @@ export function esAdmin(user: any): boolean {
 export function tieneRol(user: any, roles: readonly string[]): boolean {
   return roles.includes(user?.role)
 }
+
+/**
+ * vendedorScope — filtro infalible para endpoints con datos por vendedor.
+ *
+ * REGLA:
+ *   - Vendedor → solo ve sus propios registros (user.id desde JWT, nunca del query param)
+ *   - Admin/Supervisor → puede filtrar por vendedorId del query param, o ver todos
+ *
+ * Uso en route.ts:
+ *   const { permitido, empleadoIdForzado } = vendedorScope(user)
+ *   if (!permitido) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+ *   if (empleadoIdForzado) where.empleadoId = empleadoIdForzado
+ *   else if (vendedorIdParam) where.empleadoId = vendedorIdParam
+ *
+ * @param user        session.user (token JWT)
+ * @param rolesExtra  roles adicionales permitidos además de admin (ej: ['bodega'])
+ */
+export function vendedorScope(
+  user: any,
+  rolesExtra: string[] = []
+): { permitido: boolean; empleadoIdForzado: string | null; isVendedor: boolean } {
+  const isVendedor = user?.role === 'vendedor'
+  const rolesPermitidos = [...ROLES_ADMIN, ...rolesExtra]
+  const permitido = rolesPermitidos.includes(user?.role) || isVendedor
+  // user.id es el id del Empleado en JWT (ver auth.ts callback jwt → token.userId)
+  const empleadoIdForzado = isVendedor ? (user.id as string) : null
+  return { permitido, empleadoIdForzado, isVendedor }
+}

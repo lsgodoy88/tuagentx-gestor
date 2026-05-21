@@ -49,7 +49,7 @@ function fmtHora(iso: string | null) {
 }
 function fmtFecha(iso: string | null) {
   if (!iso) return ''
-  return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' })
+  return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit' , timeZone: 'America/Bogota'})
 }
 function fmtFechaBtn(dateStr: string) {
   if (!dateStr) return ''
@@ -234,6 +234,8 @@ function getColumns(ctx: {
   ]
 }
 
+const PAGE_SIZE = 50
+
 // ── Página ────────────────────────────────────────────────────────
 export default function RecaudosPage() {
   const { data: session, status } = useSession()
@@ -247,6 +249,7 @@ export default function RecaudosPage() {
   const [hasMore,             setHasMore]             = useState(false)
   const [loading,             setLoading]             = useState(false)
   const [loadingMore,         setLoadingMore]         = useState(false)
+  const [page,                setPage]                = useState(0)
   const [vendedorId,          setVendedorId]          = useState('')
   const [vendedores,          setVendedores]          = useState<Vendedor[]>([])
   const [enviando,            setEnviando]            = useState<Set<string>>(new Set())
@@ -259,7 +262,7 @@ export default function RecaudosPage() {
   const [enviandoSeleccionados, setEnviandoSeleccionados] = useState(false)
   const [validadoTodos,       setValidadoTodos]       = useState(false)
   const [validadoSel,         setValidadoSel]         = useState(false)
-  const [isDesktop,           setIsDesktop]           = useState(false)
+  const [isDesktop,           setIsDesktop]           = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : false)
   const [reciboPopup,         setReciboPopup]         = useState<string | null>(null)
   const [validaciones,        setValidaciones]        = useState<Record<string,{valido:boolean,motivo:string,saldoUptres:number|null}>>({})
   const [validando,           setValidando]           = useState(false)
@@ -304,7 +307,7 @@ export default function RecaudosPage() {
 
   const fetchPagos = useCallback(async (cursor: string | null = null) => {
     if (!isAdmin) return
-    if (!cursor) { setLoading(true); setSeleccionados(new Set()) } else setLoadingMore(true)
+    if (!cursor) { setLoading(true); setSeleccionados(new Set()); setPage(0) } else setLoadingMore(true)
     const params = new URLSearchParams()
     if (vendedorId) params.set('vendedorId', vendedorId)
     if (tab !== 'todos') params.set('estado', tab)
@@ -403,6 +406,9 @@ export default function RecaudosPage() {
   const pagosSeleccionados = pagos.filter(p => seleccionados.has(p.id))
   const resumen            = haySeleccion ? calcResumen(pagosSeleccionados) : calcResumen(pagos)
 
+  const pagedPagos  = pagos.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
+  const totalPages  = Math.max(1, Math.ceil(pagos.length / PAGE_SIZE))
+
   if (status === 'loading') {
     return (
       <div className="flex items-center justify-center h-40">
@@ -475,13 +481,13 @@ export default function RecaudosPage() {
             style={{position:'absolute',opacity:0,pointerEvents:'none',width:0,height:0}}
           />
         </div>
-        {/* Validar */}
-        <button
+        {/* Validar — solo en tab pendiente */}
+        {tab === 'pendiente' && <button
           onClick={() => haySeleccion ? validarSeleccionados() : validarTodos()}
           disabled={validando}
           style={{flexShrink:0,background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'8px 16px',fontSize:12,fontWeight:700,color:validando?'rgba(255,255,255,0.4)':'white',cursor:validando?'not-allowed':'pointer',whiteSpace:'nowrap'}}>
           {validando ? '⏳ Validando...' : `🔍 Validar${haySeleccion ? ` (${seleccionados.size})` : ''}`}
-        </button>
+        </button>}
       </div>
 
       {/* ── DESKTOP: DataTable ─────────────────────────────────── */}
@@ -489,7 +495,7 @@ export default function RecaudosPage() {
         <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
           <DataTable
             columns={cols}
-            rows={pagos}
+            rows={pagedPagos}
             rowKey={p => p.id}
             selected={seleccionados}
             onToggle={toggleSeleccion}
@@ -543,9 +549,9 @@ export default function RecaudosPage() {
                       {/* Nombre + vendedor */}
                       <div className="flex-1 min-w-0">
                         <p className="text-white font-semibold text-sm truncate leading-tight">
-                          {pago.Cartera?.Cliente?.nombre || (pago as any).cliente?.nombre || ((pago as any).carteraId ? 'Cliente' : '(Pago sync)')}
+                          {pago.Cartera?.Cliente?.nombre || (pago as any).cliente?.nombre || (pago as any).clienteNombre || (pago.numeroFactura ? `Fact. ${pago.numeroFactura}` : '—')}
                         </p>
-                        <p className="text-white text-xs truncate leading-tight mt-0.5">{pago.Empleado.nombre}</p>
+                        <p className="text-zinc-400 text-xs truncate leading-tight mt-0.5">{pago.Empleado?.nombre || (pago as any).vendedorNombre || ''}</p>
                       </div>
                       {/* Iconos método */}
                       <div className="flex items-center gap-0.5 flex-shrink-0 text-base leading-none">
@@ -623,18 +629,33 @@ export default function RecaudosPage() {
         </>
       )}
 
-      {/* Cargar más */}
-      {hasMore && (
-        <div className="flex justify-center pt-2">
-          <button onClick={() => fetchPagos(nextCursor)} disabled={loadingMore}
-            className="px-6 py-2 rounded-xl bg-zinc-800 border border-zinc-700 text-white text-sm disabled:opacity-40 hover:text-white transition-colors">
-            {loadingMore ? 'Cargando...' : 'Cargar más'}
+      {/* Paginación */}
+      {pagos.length > 0 && (
+        <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,paddingTop:8}}>
+          <button
+            onClick={() => setPage(p => p - 1)}
+            disabled={page === 0}
+            style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'6px 14px',fontSize:12,fontWeight:700,color:page===0?'rgba(255,255,255,0.25)':'white',cursor:page===0?'not-allowed':'pointer'}}>
+            ← Anterior
+          </button>
+          <span style={{fontSize:12,color:'rgba(255,255,255,0.6)',minWidth:90,textAlign:'center'}}>
+            Pág {page + 1} / {totalPages}{hasMore ? '+' : ''}
+          </span>
+          <button
+            onClick={async () => {
+              const nextPage = page + 1
+              if (nextPage >= totalPages && hasMore) await fetchPagos(nextCursor)
+              setPage(nextPage)
+            }}
+            disabled={(page >= totalPages - 1 && !hasMore) || loadingMore}
+            style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'6px 14px',fontSize:12,fontWeight:700,color:(page>=totalPages-1&&!hasMore)?'rgba(255,255,255,0.25)':'white',cursor:(page>=totalPages-1&&!hasMore)?'not-allowed':'pointer'}}>
+            {loadingMore ? '...' : 'Siguiente →'}
           </button>
         </div>
       )}
 
       {/* Botón flotante — solo Enviar, aparece tras validación exitosa */}
-      {(validadoTodos || validadoSel) && (
+      {tab === 'pendiente' && (validadoTodos || validadoSel) && (
         <div className="fixed bottom-6 right-4 md:right-6 z-40 flex items-center gap-2">
           {haySeleccion && (
             <button onClick={() => { setSeleccionados(new Set()); setValidadoSel(false) }}
@@ -657,7 +678,7 @@ export default function RecaudosPage() {
       )}
 
       {reciboPopup && (
-        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+        <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4"
           onClick={() => setReciboPopup(null)}>
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden w-full max-w-sm md:max-w-lg"
             style={{ maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
@@ -686,7 +707,7 @@ export default function RecaudosPage() {
         if (!pago) return null
         const v = pago.envioVariacion as any
         return (
-          <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4"
+          <div className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center p-4"
             onClick={() => setDetalleVariacion(null)}>
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 max-w-sm w-full space-y-4"
               onClick={e => e.stopPropagation()}>

@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url)
   const q = searchParams.get('q') || ''
+  const listaFilter = searchParams.get('listaId') || ''
   const cursor = searchParams.get('cursor') || null       // cursor-based
   const page = parseInt(searchParams.get('page') || '1') // legacy offset
   const limit = parseInt(searchParams.get('limit') || '10')
@@ -23,6 +24,10 @@ export async function GET(req: NextRequest) {
   const where: any = { empresaId }
 
   // Si es vendedor, filtrar solo sus clientes
+  if (listaFilter && user.role === 'empresa') {
+    where.listaId = listaFilter
+  }
+
   if (user.role === 'vendedor') {
     const listasAsignadas = await prisma.empleadoLista.findMany({ where: { empleadoId: user.id }, select: { listaId: true } })
     const listaIds = listasAsignadas.map((l: any) => l.listaId)
@@ -69,6 +74,14 @@ export async function GET(req: NextRequest) {
     maps: true,
     lat: true,
     lng: true,
+    lista: {
+      select: {
+        vendedores: {
+          take: 1,
+          select: { empleado: { select: { nombre: true } } }
+        }
+      }
+    },
   }
 
   if (useCursor) {

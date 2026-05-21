@@ -13,10 +13,16 @@ import { useEffect, useState, useRef } from 'react'
 import { CountUp, LiveDot, SkeletonCard, LoadingBorder } from '@/components/FX'
 import { SyncIcon } from '@/components/SyncIcon'
 import { useRouter } from 'next/navigation'
+import { CardKPI, CardKPIGroup, CardDark, CardSub, CardCountAdmin } from '@/components/ui/cards'
 
 type LineaPago = { id: string; metodoPago: 'efectivo' | 'transferencia'; monto: string; descuento: string; voucherKey: string | null; voucherDatosIA: any; cargandoVoucher: boolean }
 function crearLinea(): LineaPago { return { id: crypto.randomUUID(), metodoPago: 'efectivo', monto: '', descuento: '', voucherKey: null, voucherDatosIA: null, cargandoVoucher: false } }
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
+const fmtShort = (n: number): string => {
+  if (n >= 1_000_000) return '$' + (n / 1_000_000).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' mill'
+  if (n >= 1_000)     return '$' + (n / 1_000).toLocaleString('es-CO',     { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' K'
+  return '$' + Math.round(n).toLocaleString('es-CO')
+}
 const RR_LIMIT = 10
 
 export default function DashboardPage() {
@@ -36,6 +42,7 @@ export default function DashboardPage() {
   const [sincronizando, setSincronizando] = useState(false)
   const [empresaDetalleSA, setEmpresaDetalleSA] = useState<string | null>(null)
   const [loadingStats, setLoadingStats] = useState(false)
+  const [sincVentas, setSincVentas] = useState(false)
   const [mostrarEstadisticas, setMostrarEstadisticas] = useState(false)
   const [mostrarEstadisticasVendedor, setMostrarEstadisticasVendedor] = useState(false)
   const [modalVisita, setModalVisita] = useState<{open: boolean, tipo: string}>({open: false, tipo: 'visita'})
@@ -89,6 +96,7 @@ export default function DashboardPage() {
   const isEmpleado = ['vendedor', 'impulsadora', 'entregas'].includes(user?.role)
   const isImpulsadora = user?.role === 'impulsadora'
   const [bodegaStats, setBodegaStats] = useState<any>(null)
+  const [resumenCartera, setResumenCartera] = useState<any>(null)
   const isEmpresa = user?.role === 'empresa'
   const isSupervisor = user?.role === 'supervisor'
   const isBodega = user?.role === 'bodega'
@@ -141,8 +149,12 @@ export default function DashboardPage() {
       // Cargar hoy inmediatamente al montar para mostrar contadores del día
       if (user.role === 'vendedor') {
         setLoadingStats(true)
-        fetch('/api/vendedor/stats').then(r => r.json()).then(d => {
-          setStatsVendedor(d)
+        Promise.all([
+          fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null),
+          fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null),
+        ]).then(([stats, cartera]) => {
+          if (stats) setStatsVendedor(stats)
+          if (cartera) setResumenCartera(cartera)
           setLoadingStats(false)
         }).catch(() => setLoadingStats(false))
       }
@@ -154,11 +166,13 @@ export default function DashboardPage() {
       ]
       if (isEmpresa || isSupervisor) adminFetches.push(fetch('/api/integracion/estado').then(r => r.json()).catch(() => null))
       if (isEmpresa || isSupervisor || isBodega) adminFetches.push(fetch('/api/bodega/contadores').then(r => r.json()).catch(() => null))
+      adminFetches.push(fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null))
 
-      Promise.all(adminFetches).then(([stats, integracion, bodega]) => {
+      Promise.all(adminFetches).then(([stats, integracion, bodega, cartera]) => {
         if (stats) setStats(stats)
         if (integracion) setSyncInfo(integracion)
         if (bodega) setBodegaStats({ pendientes: bodega.pendientes ?? 0, alistados: bodega.alistados ?? 0, entregados: bodega.entregados ?? 0 })
+        if (cartera) setResumenCartera(cartera)
       })
     }
   }, [user])
@@ -193,6 +207,15 @@ export default function DashboardPage() {
       fetch('/api/stats').then(r => r.json()).then(d => setStats(d)).catch(() => {})
     } catch {}
     setSincronizando(false)
+  }
+
+  async function sincronizarVentas() {
+    setSincVentas(true)
+    try {
+      const d = await fetch('/api/vendedor/stats?bust=' + Date.now()).then(r => r.json())
+      setStatsVendedor(d)
+    } catch {}
+    setSincVentas(false)
   }
 
   async function iniciarTurno() {
@@ -399,7 +422,6 @@ export default function DashboardPage() {
 
     setGuardandoPago(true)
     let ultimoToken: string | null = null
-    const esSync = detalleData._modo === 'sync'
     const lineasValidas = lineasPago
       .filter(l => Number(l.monto || 0) > 0)
       .map(l => ({
@@ -412,44 +434,22 @@ export default function DashboardPage() {
     const montoTotal = lineasValidas.reduce((s, l) => s + l.monto, 0)
     const descuentoTotal = lineasValidas.reduce((s, l) => s + l.descuento, 0)
 
-    if (esSync) {
-      const res = await fetch('/api/cartera/pago-sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          clienteApiId: detalleData.cliente?.apiId || detalleData.clienteApiId || detalleData.apiId,
-          syncDeudaIds: facturasSeleccionadas,
-          monto: montoTotal,
-          descuento: descuentoTotal,
-          metodoPago: lineasValidas.length === 1 ? lineasValidas[0].metodoPago : 'mixto',
-          notas: notasPago || undefined,
-          lineasPago: lineasValidas,
-          ...(gpsCoords ? { lat: gpsCoords.lat, lng: gpsCoords.lng, gpsAccuracy: gpsRecaudo.pos?.accuracy ?? null } : {}),
-        })
+    const res = await fetch('/api/cartera/pago-sync', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clienteApiId: detalleData.cliente?.apiId || detalleData.clienteApiId || detalleData.apiId,
+        syncDeudaIds: facturasSeleccionadas,
+        monto: montoTotal,
+        descuento: descuentoTotal,
+        metodoPago: lineasValidas.length === 1 ? lineasValidas[0].metodoPago : 'mixto',
+        notas: notasPago || undefined,
+        lineasPago: lineasValidas,
+        ...(gpsCoords ? { lat: gpsCoords.lat, lng: gpsCoords.lng, gpsAccuracy: gpsRecaudo.pos?.accuracy ?? null } : {}),
       })
-      const d = await res.json()
-      if (d.pago?.reciboToken) ultimoToken = d.pago.reciboToken
-    } else {
-      for (const linea of lineasValidas) {
-        const res = await fetch('/api/cartera/pago', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            carteraId: detalleData.id,
-            monto: linea.monto,
-            descuento: linea.descuento,
-            tipo: 'abono',
-            metodoPago: linea.metodoPago,
-            notas: notasPago || undefined,
-            detalleIds: facturasSeleccionadas,
-            ...(linea.voucherKey ? { voucherKey: linea.voucherKey, voucherDatosIA: linea.voucherDatosIA } : {}),
-            ...(gpsCoords ? { lat: gpsCoords.lat, lng: gpsCoords.lng, gpsAccuracy: gpsRecaudo.pos?.accuracy ?? null } : {}),
-          })
-        })
-        const d = await res.json()
-        if (d.pago?.reciboToken) ultimoToken = d.pago.reciboToken
-      }
-    }
+    })
+    const d = await res.json()
+    if (d.pago?.reciboToken) ultimoToken = d.pago.reciboToken
     setGuardandoPago(false)
     if (ultimoToken) window.open('/recaudo/recibo?token=' + ultimoToken, '_blank')
     setRecaudandoCartera(null)
@@ -486,7 +486,7 @@ export default function DashboardPage() {
           </div>
           <p className="text-emerald-400 font-bold text-2xl">${totalMensual.toLocaleString('es-CO')}</p>
         </div>
-        <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+        <div className="rounded-2xl overflow-hidden" style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)"}}>
           <div className="px-4 py-3 border-b border-zinc-800">
             <p className="text-white font-semibold">Por empresa</p>
           </div>
@@ -554,7 +554,7 @@ export default function DashboardPage() {
           <div className="rounded-2xl" style={{backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)" as any,overflow:"hidden",borderRadius:16}}>
           <div className="grid grid-cols-2 gap-3">
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-1 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-1 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">🛍️</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Vendedores</span>
@@ -570,7 +570,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-2 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-2 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">⚡</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Impulsos</span>
@@ -586,7 +586,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-3 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-3 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">📦</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Órdenes hoy</span>
@@ -602,7 +602,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-4 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-4 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">💰</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Recaudado</span>
@@ -620,6 +620,7 @@ export default function DashboardPage() {
 
           </div>
           </div>
+
           {/* Botón Estadísticas */}
           <button
             onClick={cargarEstadisticas}
@@ -632,7 +633,7 @@ export default function DashboardPage() {
           <div className="md:grid md:grid-cols-2 md:gap-6 space-y-6 md:space-y-0" style={{backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)" as any}}>
           <div className="space-y-6">
           {stats.visitasPorDia && stats.visitasPorDia.length > 0 && (
-            <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
               <p className="text-white font-semibold text-sm mb-4">Visitas últimos 7 días</p>
               <div className="space-y-2">
                 {(() => {
@@ -651,7 +652,7 @@ export default function DashboardPage() {
             </div>
           )}
           {stats.topEmpleados && stats.topEmpleados.length > 0 && (
-            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)"}}>
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Top vendedores - 30 dias</p>
               </div>
@@ -684,7 +685,7 @@ export default function DashboardPage() {
                 if (empleadosRol.length === 0) return null
                 const titulo = rol === 'vendedor' ? 'Vendedores' : rol === 'impulsadora' ? 'Impulsadoras' : 'Entregas'
                 return (
-                  <div key={rol} className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+                  <div key={rol} className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
                     <div className="px-4 py-3 border-b border-zinc-800">
                       <p className="text-white font-semibold text-sm">{titulo} en turno</p>
                     </div>
@@ -740,7 +741,7 @@ export default function DashboardPage() {
           )}
           {/* Tabla 7 dias x vendedor */}
           {stats.vendedores7 && stats.vendedores7.length > 0 && (
-            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)"}}>
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Visitas por vendedor - ultimos 7 dias</p>
               </div>
@@ -772,7 +773,7 @@ export default function DashboardPage() {
           )}
           {/* Tabla 7 meses x vendedor */}
           {stats.vendedores7m && stats.vendedores7m.length > 0 && (
-            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)"}}>
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Visitas por vendedor - ultimos 7 meses</p>
               </div>
@@ -826,7 +827,7 @@ export default function DashboardPage() {
         <div className="space-y-4">
           {turno?.pausado ? (
             // ── PAUSA — encogida/desplegada ──
-            <div className={`rounded-2xl border overflow-hidden ${turnoExpandido ? "border-amber-500/30" : "border-white/10"}`} style={{background: turnoExpandido ? "rgba(245,158,11,0.10)" : "rgba(15,15,22,0.60)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)"}}>
+            <div style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.30)",borderRadius:16,overflow:"hidden"}}>
               {/* Pill encogida */}
               <button onClick={() => setTurnoExpandido(e => !e)}
                 className="w-full flex items-center gap-3 px-4 py-3 text-left">
@@ -842,8 +843,8 @@ export default function DashboardPage() {
               {turnoExpandido && (
                 <div className="border-t border-amber-500/20 px-4 pb-4 pt-3 space-y-3">
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-lg p-2" style={{background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.08)'}}><p className="text-zinc-500 text-xs">Inicio pausa</p><p className="text-sm font-bold text-white">{turno.pausaInicio ? new Date(turno.pausaInicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"}) : "--"}</p></div>
-                    <div className="rounded-lg p-2" style={{background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.08)'}}><p className="text-zinc-500 text-xs">Reanuda a las</p><p className="text-emerald-400 text-sm font-bold">{new Date(new Date(turno.pausaInicio).getTime() + turno.pausaDuracionMin*60000).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"})}</p></div>
+                    <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Inicio pausa</p><p className="text-sm font-bold text-white">{turno.pausaInicio ? new Date(turno.pausaInicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"}) : "--"}</p></div>
+                    <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Reanuda a las</p><p className="text-emerald-400 text-sm font-bold">{new Date(new Date(turno.pausaInicio).getTime() + turno.pausaDuracionMin*60000).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"})}</p></div>
                   </div>
                   <div className="flex gap-2">
                     <button onClick={reanudarTurno} className="flex-1 bg-zinc-800 border border-emerald-500/30 text-emerald-400 text-sm font-semibold py-2.5 rounded-xl">▶️ Reanudar</button>
@@ -854,7 +855,7 @@ export default function DashboardPage() {
             </div>
           ) : turno ? (
             // ── TURNO ACTIVO — encogida/desplegada ──
-            <div className={`rounded-2xl border overflow-hidden ${turnoExpandido ? "border-emerald-500/30" : "border-white/10"}`} style={{background: turnoExpandido ? "rgba(16,185,129,0.12)" : "rgba(15,15,22,0.60)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)"}}>
+            <div style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.30)",borderRadius:16,overflow:"hidden"}}>
               {/* Pill encogida */}
               <button onClick={() => setTurnoExpandido(e => !e)}
                 className="w-full flex items-center gap-3 px-4 py-3 text-left">
@@ -871,8 +872,8 @@ export default function DashboardPage() {
               {turnoExpandido && (
                 <div className="border-t border-emerald-500/20 px-4 pb-4 pt-3 space-y-3">
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-lg p-2" style={{background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.08)'}}><p className="text-zinc-500 text-xs">Hora inicio</p><p className="text-sm font-bold text-white">{new Date(turno.inicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"})}</p></div>
-                    <div className="rounded-lg p-2" style={{background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.08)'}}><p className="text-zinc-500 text-xs">Contador</p><p className="text-emerald-400 font-mono font-bold">{tiempoTurno}</p></div>
+                    <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Hora inicio</p><p className="text-sm font-bold text-white">{new Date(turno.inicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"})}</p></div>
+                    <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Contador</p><p className="text-emerald-400 font-mono font-bold">{tiempoTurno}</p></div>
                   </div>
                   <button onClick={cerrarTurno} disabled={bloqueadoTurno} className="w-full bg-red-600 text-white text-sm font-bold py-2.5 rounded-xl disabled:opacity-50">Cerrar turno</button>
                   <div className="flex gap-2">
@@ -899,7 +900,7 @@ export default function DashboardPage() {
             </div>
           ) : (
             // ── SIN TURNO — encogida/desplegada ──
-            <div className="rounded-2xl border border-white/10 overflow-hidden" style={{background:"rgba(15,15,22,0.60)", backdropFilter:"blur(16px)", WebkitBackdropFilter:"blur(16px)"}}>
+            <div style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.30)",borderRadius:16,overflow:"hidden"}}>
               {/* Pill encogida */}
               <button onClick={() => setTurnoExpandido(e => !e)}
                 className="w-full flex items-center gap-3 px-4 py-3 text-left">
@@ -917,7 +918,7 @@ export default function DashboardPage() {
             </div>
           )}
           {ruta && totalClientes > 0 && !rutaCompletada ? (
-            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)"}}>
               {/* Header */}
               <div className="px-4 pt-4 pb-3">
                 {/* Fila 1: nombre ruta */}
@@ -962,17 +963,18 @@ export default function DashboardPage() {
             </div>
           ) : null}
           {user?.role === 'vendedor' && turno && (
-              <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+              <div className="rounded-2xl p-4" style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)"}}>
                 <p className="text-white font-bold mb-3">Visitas</p>
                 <div className="flex gap-2">
                   {[
-                    { tipo: 'visita', label: 'Visita', icon: '👁️', color: 'bg-zinc-700 hover:bg-zinc-600' },
-                    { tipo: 'venta', label: 'Venta', icon: '💰', color: 'bg-emerald-600 hover:bg-emerald-500' },
-                    { tipo: 'cobro', label: 'Recaudo', icon: '💵', color: 'bg-blue-600 hover:bg-blue-500' },
-                    { tipo: 'entrega', label: 'Entrega', icon: '📦', color: 'bg-orange-600 hover:bg-orange-500' },
+                    { tipo: 'visita', label: 'Visita', icon: '👁️' },
+                    { tipo: 'venta', label: 'Venta', icon: '💰' },
+                    { tipo: 'cobro', label: 'Recaudo', icon: '💵' },
+                    { tipo: 'entrega', label: 'Entrega', icon: '📦' },
                   ].map(b => (
                     <button key={b.tipo} onClick={() => b.tipo === 'cobro' ? abrirModalRecaudoRapido() : abrirModalVisita(b.tipo)}
-                      className={`flex-1 ${b.color} text-white font-semibold py-3 rounded-xl text-sm transition-colors flex flex-col items-center gap-1`}>
+                      className="flex-1 text-white font-semibold py-3 rounded-xl text-sm transition-colors flex flex-col items-center gap-1"
+                      style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.35)'}}>
                       <span className="text-lg">{b.icon}</span>
                       <span>{b.label}</span>
                     </button>
@@ -981,7 +983,7 @@ export default function DashboardPage() {
               </div>
             )}
           {user?.role === 'entregas' && ruta && ruta.clientes?.length > 0 && (
-            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)"}}>
               <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
                 <p className="text-white font-bold">📦 Ruta de hoy</p>
                 <span className="text-zinc-400 text-xs">{ejecutadosRuta}/{totalClientes} entregas</span>
@@ -1032,36 +1034,93 @@ export default function DashboardPage() {
           )}
           {user?.role === 'vendedor' && (
             <div className="space-y-4">
+              {/* Accesos directos */}
+              <div className="flex gap-2">
+                <button onClick={() => router.push('/dashboard/clientes')}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-white transition-colors hover:opacity-80"
+                  style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.35)'}}>
+                  👥 Clientes
+                </button>
+                <button onClick={() => router.push('/dashboard/cartera?tab=pagos')}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-white transition-colors hover:opacity-80"
+                  style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.35)'}}>
+                  💳 Pagos
+                </button>
+                <button onClick={() => router.push('/dashboard/trazabilidad')}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-white transition-colors hover:opacity-80"
+                  style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.35)'}}>
+                  🔍 Trazabilidad
+                </button>
+              </div>
               {/* Hoy — siempre visible */}
               {statsVendedor && (
-                <div className="rounded-2xl p-4 fade-up" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
-                  <p className="text-white font-bold mb-3">Hoy</p>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
-                      <p className="text-zinc-400 text-xs">Visitas</p>
-                      <p className="text-white text-2xl font-bold"><CountUp end={statsVendedor.hoy.total || 0} /></p>
-                    </div>
-                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
-                      <p className="text-zinc-400 text-xs">Ventas</p>
-                      <p className="text-white text-2xl font-bold"><CountUp end={statsVendedor.hoy.ventas || 0} /></p>
-                    </div>
-                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
-                      <p className="text-zinc-400 text-xs">$ Ventas</p>
-                      <p className="text-emerald-400 font-bold">$<CountUp end={statsVendedor.hoy.montoVentas || 0} /></p>
-                    </div>
-                    <div className="rounded-xl p-3" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
-                      <p className="text-zinc-400 text-xs">Recaudo</p>
-                      <p className="text-blue-400 font-bold">$<CountUp end={statsVendedor.hoy.montoCobros || 0} /></p>
-                    </div>
+                <div className="space-y-3">
+                  {/* Visitas + Órdenes — 2 columnas sin moneda */}
+                  <CardKPIGroup cols={2}>
+                    <CardCountAdmin
+                      stagger={1}
+                      icon="👁️"
+                      label="Visitas"
+                      primary={<CountUp end={statsVendedor.hoy.total || 0} />}
+                      secondary={<CountUp end={statsVendedor.hoy.ayer || 0} />}
+                      primaryLabel="hoy"
+                      secondaryLabel="ayer"
+                      primaryColor="text-white"
+                    />
+                    <CardCountAdmin
+                      stagger={2}
+                      icon="📦"
+                      label="Órdenes"
+                      primary={<CountUp end={statsVendedor.ordenes?.despHoy || 0} />}
+                      secondary={<CountUp end={statsVendedor.ordenes?.factHoy || 0} />}
+                      primaryLabel="desp hoy"
+                      secondaryLabel="fact hoy"
+                      primaryColor="text-amber-400"
+                    />
+                  </CardKPIGroup>
+                  {/* Ventas — ancho completo */}
+                  <div className="relative" style={{backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',borderRadius:16,overflow:'hidden'}}>
+                    <button
+                      onClick={sincronizarVentas}
+                      disabled={sincVentas}
+                      className="absolute top-3 right-3 z-10 p-1 rounded-lg transition-colors hover:bg-white/10 disabled:opacity-40"
+                      title="Actualizar desde UpTres">
+                      <SyncIcon spinning={sincVentas} className="w-3.5 h-3.5 text-zinc-400" />
+                    </button>
+                    <CardCountAdmin
+                      stagger={3}
+                      icon="💼"
+                      label="Ventas"
+                      primary={`$${Math.round(statsVendedor.ordenes?.montoMes || 0).toLocaleString('es-CO')}`}
+                      secondary={statsVendedor.ordenes?.metaVentaMes > 0 ? `$${Math.round(statsVendedor.ordenes.metaVentaMes).toLocaleString('es-CO')}` : '—'}
+                      primaryLabel="mes"
+                      secondaryLabel="meta"
+                      primaryColor="text-emerald-400"
+                    />
+                  </div>
+                  {/* Recaudo — ancho completo */}
+                  <div style={{backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',borderRadius:16,overflow:'hidden'}}>
+                    <CardCountAdmin
+                      stagger={4}
+                      icon="💰"
+                      label="Recaudo"
+                      primary={`$${Math.round((statsVendedor.recaudo?.mes || 0) + (statsVendedor.recaudo?.descuentosMes || 0)).toLocaleString('es-CO')}`}
+                      secondary={statsVendedor.recaudo?.meta > 0 ? `$${Math.round(statsVendedor.recaudo.meta).toLocaleString('es-CO')}` : '—'}
+                      primaryLabel="rec+desc"
+                      secondaryLabel="meta"
+                      primaryColor="text-blue-400"
+                    />
                   </div>
                 </div>
               )}
+
+
                 {statsVendedor && statsVendedor.cumplimiento?.length > 0 && (
-                  <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+                  <CardDark className="p-4">
                     <p className="text-white font-bold mb-3">Impulsadoras hoy</p>
                     <div className="space-y-3">
                       {statsVendedor.cumplimiento.map((imp: any) => (
-                        <div key={imp.id} className={"rounded-xl p-3 border " + (imp.alerta ? "bg-red-500/10 border-red-500/20" : "bg-zinc-800 border-zinc-700")}>
+                        <CardSub key={imp.id} alerta={imp.alerta} className="p-3">
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                               <div className={"w-2 h-2 rounded-full " + (imp.turnoActivo ? "bg-emerald-500 animate-pulse" : "bg-zinc-600")} />
@@ -1077,28 +1136,28 @@ export default function DashboardPage() {
                           {imp.totalPuntos > 0 && (
                             <div className="space-y-2">
                               <div>
-                                <div className="w-full bg-zinc-700 rounded-full h-1.5 overflow-hidden">
+                                <div className="w-full rounded-full h-1.5 overflow-hidden" style={{background:"rgba(59,130,246,0.15)"}}>
                                   <div className={"h-1.5 rounded-full transition-all " + (imp.pct >= 80 ? "bg-emerald-500" : imp.pct >= 50 ? "bg-yellow-500" : "bg-red-500")}
                                     style={{ width: (imp.pct || 0) + '%' }} />
                                 </div>
                                 <p className="text-zinc-500 text-xs mt-1">{imp.visitados}/{imp.totalPuntos} puntos visitados</p>
                               </div>
                               {imp.puntoActual && (
-                                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-lg px-3 py-2">
+                                <div style={{background:"rgba(15,15,22,0.60)",border:"1px solid rgba(59,130,246,0.25)",borderRadius:8,padding:"8px 12px"}}>
                                   <p className="text-zinc-400 text-xs">📍 Está en:</p>
                                   <p className="text-emerald-400 text-sm font-medium">{imp.puntoActual.nombre}</p>
                                   {imp.puntoActual.nombreComercial && <p className="text-zinc-500 text-xs">{imp.puntoActual.nombreComercial}</p>}
                                 </div>
                               )}
                               {!imp.puntoActual && imp.proximoPunto && (
-                                <div className="bg-zinc-700/50 border border-zinc-600 rounded-lg px-3 py-2">
+                                <div style={{background:"rgba(15,15,22,0.60)",border:"1px solid rgba(59,130,246,0.20)",borderRadius:8,padding:"8px 12px"}}>
                                   <p className="text-zinc-400 text-xs">➡️ Va hacia:</p>
                                   <p className="text-white text-sm font-medium">{imp.proximoPunto.nombre}</p>
                                   {imp.proximoPunto.nombreComercial && <p className="text-zinc-500 text-xs">{imp.proximoPunto.nombreComercial}</p>}
                                 </div>
                               )}
                               {imp.alertasGps?.length > 0 && (
-                                <div className="bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2 space-y-1">
+                                <div style={{background:"rgba(127,29,29,0.30)",border:"1px solid rgba(239,68,68,0.30)",borderRadius:8,padding:"8px 12px"}}>
                                   <p className="text-red-400 text-xs font-semibold">⚠️ Alertas GPS hoy ({imp.alertasGps.length})</p>
                                   {imp.alertasGps.slice(0,2).map((a: any, i: number) => (
                                     <p key={i} className="text-red-300 text-xs">{a.detalle} — {new Date(a.hora).toLocaleTimeString('es-CO', {hour:'2-digit',minute:'2-digit'})}</p>
@@ -1113,10 +1172,10 @@ export default function DashboardPage() {
                               {imp.proximoDia && <p className="text-zinc-400 text-xs mt-1">📅 Próxima ruta: <span className="text-white">{imp.proximoDia}</span></p>}
                             </div>
                           )}
-                        </div>
+                        </CardSub>
                       ))}
                     </div>
-                  </div>
+                  </CardDark>
                 )}
 
               {/* Estadísticas — históricos bajo demanda */}
@@ -1156,7 +1215,7 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
-                  <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+                  <div className="rounded-2xl p-4" style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)"}}>
                     <p className="text-white font-bold mb-3">Últimos 6 meses</p>
                     <div className="overflow-x-auto">
                       <div>

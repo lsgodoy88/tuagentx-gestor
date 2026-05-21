@@ -1,0 +1,12 @@
+{
+  "name": "Gestor TuAgentX",
+  "short_name": "Gestor",
+  "description": "Gestión de fuerza de trabajo en campo",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#08081c",
+  "theme_color": "#08081c",
+  "icons": [
+    { "src": "/favicon.ico", "sizes": "256x256", "type": "image/x-icon" }
+  ]
+}

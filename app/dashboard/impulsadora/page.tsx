@@ -95,7 +95,7 @@ export default function ImpulsoDashboard() {
     <div className="max-w-2xl mx-auto space-y-6 pb-24 md:pb-0">
       <div>
         <h1 className="text-2xl font-bold text-white">Hola, {user?.name}</h1>
-        <p className="text-zinc-400 text-sm">{DIAS[new Date().getDay()]} - {new Date().toLocaleDateString('es-CO', {day:'numeric', month:'long'})}</p>
+        <p className="text-zinc-400 text-sm">{DIAS[new Date().getDay()]} - {new Date().toLocaleDateString('es-CO', {day:'numeric', month:'long', timeZone: 'America/Bogota'})}</p>
       </div>
 
       {!rutaHoy ? (

@@ -16,11 +16,12 @@ interface Props {
   onChange: (val: string) => void
   placeholder?: string
   className?: string
+  style?: React.CSSProperties
   readOnly?: boolean
   prefix?: string
 }
 
-export default function InputMoneda({ value, onChange, placeholder = '0', className = '', readOnly = false, prefix = '$' }: Props) {
+export default function InputMoneda({ value, onChange, placeholder = '0', className = '', style, readOnly = false, prefix = '$' }: Props) {
   const [display, setDisplay] = useState('')
 
   useEffect(() => {

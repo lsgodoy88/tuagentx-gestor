@@ -93,7 +93,7 @@ export default function VisitasPage() {
           </span>
           <div className="flex-1 min-w-0">
             <p className="text-white text-sm font-medium truncate">{v.cliente?.nombre}</p>
-            <p className="text-zinc-500 text-xs capitalize">{v.tipo} — {new Date(v.createdAt).toLocaleDateString('es-CO', {day:'numeric', month:'short'})}</p>
+            <p className="text-zinc-500 text-xs capitalize">{v.tipo} — {new Date(v.createdAt).toLocaleDateString('es-CO', {day:'numeric', month:'short', timeZone: 'America/Bogota'})}</p>
           </div>
           <div className="flex gap-1 flex-shrink-0">
             <button onClick={() => setDetalleCliente(expandido ? null : v.id)}
@@ -119,7 +119,7 @@ export default function VisitasPage() {
             {v.firma && (
               <button onClick={async () => {
                 setFirmaUrlGenerada(null)
-                setFirmaVer({ cliente: v.cliente?.nombre, factura: v.factura, fecha: new Date(v.createdAt).toLocaleDateString('es-CO', {day:'numeric', month:'long', year:'numeric'}) })
+                setFirmaVer({ cliente: v.cliente?.nombre, factura: v.factura, fecha: new Date(v.createdAt).toLocaleDateString('es-CO', {day:'numeric', month:'long', year:'numeric', timeZone: 'America/Bogota'}) })
                 const d = await fetchApi('/api/firma', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ firma: v.firma }) })
                 if (d?.url) setFirmaUrlGenerada(d.url)
               }} className="text-blue-400 text-xs bg-blue-500/10 px-2 py-1 rounded-lg border border-blue-500/20">
@@ -138,19 +138,53 @@ export default function VisitasPage() {
 
   return (
     <div className="max-w-2xl md:max-w-none mx-auto space-y-6 pb-24 md:pb-0">
-      <div className="flex gap-1 tab-pills rounded-xl p-1">
-        <button onClick={() => setTab('mapa')}
-          className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'mapa' ? "tab-active" : "text-white hover:text-white")}>
-          🗺️ Mapa
-        </button>
-        <button onClick={() => setTab('nueva')}
-          className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'nueva' ? "tab-active" : "text-white hover:text-white")}>
-          {isEntregas ? '📦 Nueva' : '📍 Nueva'}
-        </button>
-        <button onClick={() => setTab('historial')}
-          className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'historial' ? "tab-active" : "text-white hover:text-white")}>
-          Historial
-        </button>
+      <div className="flex gap-2 items-center">
+        {/* Tabs */}
+        <div className="flex gap-1 tab-pills rounded-xl p-1 flex-1">
+          <button onClick={() => setTab('mapa')}
+            className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'mapa' ? "tab-active" : "text-white hover:text-white")}>
+            🗺️ Mapa
+          </button>
+          <button onClick={() => setTab('nueva')}
+            className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'nueva' ? "tab-active" : "text-white hover:text-white")}>
+            {isEntregas ? '📦 Nueva' : '📍 Nueva'}
+          </button>
+          <button onClick={() => setTab('historial')}
+            className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'historial' ? "tab-active" : "text-white hover:text-white")}>
+            Historial
+          </button>
+        </div>
+        {/* Controles historial — solo desktop cuando tab historial */}
+        {tab === 'historial' && (
+          <div className="hidden md:flex gap-2 items-center flex-shrink-0">
+            <input value={buscarHistorial} onChange={e => {
+              const q = e.target.value
+              setBuscarHistorial(q)
+              setFechaHistorial('')
+              clearTimeout(debounceRef.current)
+              debounceRef.current = setTimeout(() => loadHistorial(q, '', null), 500)
+            }}
+              placeholder="Buscar cliente..."
+              style={{ background:'rgba(8,8,28,0.82)', border:'1px solid rgba(59,130,246,0.30)', borderRadius:10, padding:'7px 14px', color:'white', fontSize:12, outline:'none', width:160 }} />
+            <div className="relative flex-shrink-0">
+              <input type="date" value={fechaHistorial} onChange={e => {
+                const f = e.target.value
+                setFechaHistorial(f)
+                setBuscarHistorial('')
+                clearTimeout(debounceRef.current)
+                loadHistorial('', f, null)
+              }} className="absolute inset-0 opacity-0 cursor-pointer w-full" />
+              <div style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 12px', borderRadius:10, fontSize:12, fontWeight:600, border:'1px solid', cursor:'pointer',
+                background: fechaHistorial ? 'rgba(8,8,28,0.90)' : 'rgba(8,8,28,0.60)',
+                borderColor: fechaHistorial ? 'rgba(59,130,246,0.60)' : 'rgba(59,130,246,0.30)',
+                color: fechaHistorial ? 'white' : 'rgba(255,255,255,0.5)',
+              }}>
+                📅 {fechaHistorial ? new Date(fechaHistorial + 'T12:00:00Z').toLocaleDateString('es-CO', {day:'numeric', month:'short', timeZone: 'America/Bogota'}) : 'Fecha'}
+                {fechaHistorial && <button onClick={e => { e.stopPropagation(); setFechaHistorial(''); loadHistorial('', '', null) }} style={{ background:'none', border:'none', color:'rgba(255,255,255,0.7)', cursor:'pointer', fontSize:14, lineHeight:1, padding:0, marginLeft:2 }}>×</button>}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {tab === 'mapa' && <MapaEnVivo embebido />}
@@ -205,7 +239,8 @@ export default function VisitasPage() {
 
       {tab === 'historial' && (
         <div className="space-y-4">
-          <div className="flex gap-2">
+          {/* Filtros mobile — en desktop van junto a los tabs */}
+          <div className="flex gap-2 md:hidden">
             <input value={buscarHistorial} onChange={e => {
               const q = e.target.value
               setBuscarHistorial(q)
@@ -214,8 +249,8 @@ export default function VisitasPage() {
               debounceRef.current = setTimeout(() => loadHistorial(q, '', null), 500)
             }}
               placeholder="Buscar cliente..."
-              className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
-            <div className="relative">
+              style={{ flex:1, background:'rgba(8,8,28,0.82)', border:'1px solid rgba(59,130,246,0.30)', borderRadius:10, padding:'10px 14px', color:'white', fontSize:13, outline:'none' }} />
+            <div className="relative flex-shrink-0">
               <input type="date" value={fechaHistorial} onChange={e => {
                 const f = e.target.value
                 setFechaHistorial(f)
@@ -224,9 +259,13 @@ export default function VisitasPage() {
                 loadHistorial('', f, null)
               }}
                 className="absolute inset-0 opacity-0 cursor-pointer w-full" />
-              <div className={"flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-sm font-medium border transition-colors " + (fechaHistorial ? "bg-emerald-600 border-emerald-500 text-white" : "bg-zinc-800 border-zinc-700 text-zinc-400")}>
-                📅 {fechaHistorial ? new Date(fechaHistorial + 'T12:00:00Z').toLocaleDateString('es-CO', {day:'numeric', month:'short'}) : 'Fecha'}
-                {fechaHistorial && <button onClick={e => { e.stopPropagation(); setFechaHistorial(''); loadHistorial('', '', null) }} className="ml-1 text-white/70 hover:text-white">×</button>}
+              <div style={{ display:'flex', alignItems:'center', gap:6, padding:'10px 12px', borderRadius:10, fontSize:13, fontWeight:600, border:'1px solid', cursor:'pointer',
+                background: fechaHistorial ? 'rgba(8,8,28,0.90)' : 'rgba(8,8,28,0.60)',
+                borderColor: fechaHistorial ? 'rgba(59,130,246,0.60)' : 'rgba(59,130,246,0.30)',
+                color: fechaHistorial ? 'white' : 'rgba(255,255,255,0.5)',
+              }}>
+                📅 {fechaHistorial ? new Date(fechaHistorial + 'T12:00:00Z').toLocaleDateString('es-CO', {day:'numeric', month:'short', timeZone: 'America/Bogota'}) : 'Fecha'}
+                {fechaHistorial && <button onClick={e => { e.stopPropagation(); setFechaHistorial(''); loadHistorial('', '', null) }} style={{ background:'none', border:'none', color:'rgba(255,255,255,0.7)', cursor:'pointer', fontSize:14, lineHeight:1, padding:0, marginLeft:2 }}>×</button>}
               </div>
             </div>
           </div>

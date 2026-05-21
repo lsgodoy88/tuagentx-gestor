@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import DataTable, { ColDef } from '@/components/DataTable'
 import { useSession } from 'next-auth/react'
 import { SyncIcon } from '@/components/SyncIcon'
 
@@ -8,6 +9,7 @@ function fmtFecha(d: string | null | undefined) {
   return new Date(d).toLocaleString('es-CO', {
     day: '2-digit', month: '2-digit', year: '2-digit',
     hour: '2-digit', minute: '2-digit',
+    timeZone: 'America/Bogota',
   })
 }
 
@@ -54,6 +56,88 @@ const BADGE_ESTADO: Record<string, string> = {
   entregado: 'bg-emerald-500/15 text-emerald-400',
 }
 
+const PAGE_SIZE_TRAZ = 20
+
+function getOrdenColumns(ctx: {
+  setFotoModal: (url: string | null) => void
+  setFirmaModal: (url: string | null) => void
+  esVendedor: boolean
+}): ColDef<any>[] {
+  return [
+    {
+      key: 'factura', label: 'Factura', width: 58, minWidth: 44,
+      render: (o: any) => (
+        <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>
+          #{o.numeroFactura || o.numeroOrden}
+        </span>
+      ),
+    },
+    {
+      key: 'cliente', label: 'Cliente', width: 200, minWidth: 100,
+      render: (o: any) => (
+        o.clienteNombre === 'Sin nombre'
+          ? <span style={{ color: '#f59e0b', fontWeight: 700 }}>⚠️ ERROR DE DATOS</span>
+          : <span style={{ textAlign: 'left', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis' }}>{o.clienteNombre}</span>
+      ),
+    },
+    {
+      key: 'ciudad', label: 'Ciudad', width: 95, minWidth: 60,
+      render: (o: any) => <span style={{ color: 'rgba(255,255,255,0.6)' }}>{o.ciudad || '—'}</span>,
+    },
+    {
+      key: 'estado', label: 'EST', width: 32, minWidth: 26,
+      render: (o: any) => (
+        <span style={{ fontSize: 13, lineHeight: 1 }} title={LABEL_ESTADO[o.estado] || o.estado}>
+          {ICONO_ESTADO[o.estado] || '⚪'}
+        </span>
+      ),
+    },
+    {
+      key: 'fecha', label: 'Facturado', width: 122, minWidth: 80,
+      render: (o: any) => <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>{o.fechaOrden ? fmtFecha(o.fechaOrden) : '—'}</span>,
+    },
+    {
+      key: 'alistado', label: 'Alistado', width: 130, minWidth: 80,
+      render: (o: any) => {
+        const fotos: string[] = Array.isArray(o.fotosAlistamiento) ? o.fotosAlistamiento : []
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>{o.alistadoEl ? fmtFecha(o.alistadoEl) : '—'}</span>
+            {fotos.length > 0 && (
+              <button onClick={e => { e.stopPropagation(); ctx.setFotoModal(fotos[0]) }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 0, lineHeight: 1 }} title="Fotos">🖼️</button>
+            )}
+          </div>
+        )
+      },
+    },
+    {
+      key: 'entrega', label: 'Entrega', width: 130, minWidth: 80,
+      render: (o: any) => {
+        const entregadoEl = o.visitas?.[0]?.createdAt || o.entregadoEl || null
+        const firma = o.visitas?.[0]?.firma || o.firmaEntrega || null
+        return (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ fontSize: 11, color: entregadoEl ? '#34d399' : 'rgba(255,255,255,0.3)', whiteSpace: 'nowrap' }}>{entregadoEl ? fmtFecha(entregadoEl) : '—'}</span>
+            {firma && !ctx.esVendedor && (
+              <button onClick={e => {
+                e.stopPropagation()
+                if (firma.startsWith('http') || firma.startsWith('data:') || firma.startsWith('/api/')) {
+                  ctx.setFirmaModal(firma)
+                } else {
+                  fetch('/api/firma', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ firma }) })
+                    .then(r => r.json()).then(d => ctx.setFirmaModal(d.url || firma)).catch(() => ctx.setFirmaModal(firma))
+                }
+              }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 0, lineHeight: 1 }} title="Firma">✍️</button>
+            )}
+          </div>
+        )
+      },
+    }
+  ]
+}
+
 export default function TrazabilidadPage() {
   const { data: session } = useSession()
   const user = session?.user as any
@@ -80,11 +164,13 @@ export default function TrazabilidadPage() {
   const hasta = ''
 
   const [isDesktop, setIsDesktop] = useState(false)
+  const [page, setPage] = useState(0)
   const [expandido, setExpandido] = useState<Record<string, boolean>>({})
   const [ordenSeleccionada, setOrdenSeleccionada] = useState<any>(null)
   const [fotoModal, setFotoModal] = useState<string | null>(null)
   const [sincronizando, setSincronizando] = useState(false)
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
+  const [guiaOpen, setGuiaOpen] = useState(false)
 
   function cambiarDias(delta: number) {
     const nuevo = Math.min(30, Math.max(1, diasHistorial + delta))
@@ -119,7 +205,7 @@ export default function TrazabilidadPage() {
   }
 
   async function cargar(cursor: string | null = null) {
-    if (!cursor) setLoading(true); else setLoadingMore(true)
+    if (!cursor) { setLoading(true); setPage(0) } else setLoadingMore(true)
     const params = new URLSearchParams()
     if (q) params.set('q', q)
     if (estado) params.set('estado', estado)
@@ -180,6 +266,10 @@ export default function TrazabilidadPage() {
   }
   function limpiar() { setQ(''); setQInput(''); setEstado(''); setDiasHistorial(7); setOrdenesBusqueda(null); setFuenteBusqueda(null) }
 
+  const sourceOrdenes = ordenesBusqueda !== null ? ordenesBusqueda : ordenes
+  const pagedOrdenes     = sourceOrdenes.slice(page * PAGE_SIZE_TRAZ, (page + 1) * PAGE_SIZE_TRAZ)
+  const totalPagesTraz   = Math.max(1, Math.ceil(sourceOrdenes.length / PAGE_SIZE_TRAZ))
+
   if (!['empresa', 'supervisor', 'superadmin', 'vendedor', 'bodega', 'entregas'].includes(user?.role)) {
     return <div className="p-8 text-zinc-400">Sin acceso</div>
   }
@@ -203,6 +293,39 @@ export default function TrazabilidadPage() {
             {sincronizando ? '...' : 'Sync'}
           </button>
         )}
+        {/* Guía de estados */}
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <button onClick={() => setGuiaOpen(v => !v)}
+            className="tab-btn flex-shrink-0 px-3 py-2 text-xs font-semibold"
+            title="Guía de estados">
+            ❓
+          </button>
+          {guiaOpen && (
+            <div
+              onClick={() => setGuiaOpen(false)}
+              style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+          )}
+          {guiaOpen && (
+            <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 50, background: 'rgba(15,15,22,0.97)', border: '1px solid rgba(59,130,246,0.35)', borderRadius: 12, padding: '12px 16px', minWidth: 210, boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Estados</p>
+              {[
+                { icon: '🟡', label: 'Pendiente',   desc: 'Orden registrada, sin alistar' },
+                { icon: '🟢', label: 'Alistado',    desc: 'Listo en bodega'              },
+                { icon: '🚚', label: 'Despachado',  desc: 'Salió de bodega'              },
+                { icon: '🚛', label: 'En tránsito', desc: 'En ruta al cliente'           },
+                { icon: '✅', label: 'Entregado',   desc: 'Recibido por cliente'         },
+              ].map(e => (
+                <div key={e.label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <span style={{ fontSize: 16, flexShrink: 0 }}>{e.icon}</span>
+                  <div>
+                    <p style={{ fontSize: 12, fontWeight: 700, color: 'white', lineHeight: 1.2 }}>{e.label}</p>
+                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', lineHeight: 1.2 }}>{e.desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {tabPrincipal === 'inventario' && (
@@ -223,10 +346,10 @@ export default function TrazabilidadPage() {
             onChange={e => setQInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && buscar()}
             placeholder="# orden o cliente..."
-            className="flex-1 min-w-0 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm outline-none"
+            className="flex-1 min-w-0  rounded-xl px-3 py-2 text-white text-sm outline-none" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}
           />
           <select value={estado} onChange={e => setEstado(e.target.value)}
-            className="bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm outline-none">
+            className="rounded-xl px-3 py-2 text-white text-sm outline-none" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
             {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
           </select>
           <button onClick={buscar}
@@ -258,8 +381,22 @@ export default function TrazabilidadPage() {
         <div className="text-zinc-500 py-12 text-center">Sin resultados en el período</div>
       ) : (
         <div className="flex gap-4 max-w-6xl mx-auto items-start">
-          <div className="grid gap-2 flex-1 grid-cols-1 md:grid-cols-2">
-          {(ordenesBusqueda !== null ? ordenesBusqueda : ordenes).map(orden => {
+          {isDesktop ? (
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
+                <DataTable
+                  columns={getOrdenColumns({ setFotoModal, setFirmaModal, esVendedor })}
+                  rows={pagedOrdenes}
+                  rowKey={(o: any) => o.id}
+                  onRowClick={(o: any) => setOrdenSeleccionada(o)}
+                  loading={loading}
+                  storageKey="trazabilidad-v2"
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="grid gap-2 flex-1 grid-cols-1">
+            {(ordenesBusqueda !== null ? ordenesBusqueda : ordenes).map(orden => {
             const fotos: string[] = Array.isArray(orden.fotosAlistamiento) ? orden.fotosAlistamiento : []
             const firma = orden.visitas?.[0]?.firma || orden.firmaEntrega || null
             const repartidorNombre = orden.repartidor?.nombre || null
@@ -350,65 +487,50 @@ export default function TrazabilidadPage() {
             )
           })}
 
-          </div>
-          {(() => {
-            const orden = ordenSeleccionada
-            const fotos: string[] = Array.isArray(orden.fotosAlistamiento) ? orden.fotosAlistamiento : []
-            const firma = orden.visitas?.[0]?.firma || orden.firmaEntrega || null
-            const repartidorNombre = orden.repartidor?.nombre || null
-            const entregadoPor = orden.visitas?.[0]?.empleado?.nombre || null
-            const entregadoEl = orden.visitas?.[0]?.createdAt || orden.entregadoEl || null
-            const etapas = [
-              { icon: '📋', label: 'Orden',      fecha: orden.fechaOrden,  quien: null as string|null,  accion: null as (()=>void)|null },
-              { icon: '📦', label: 'Alistado',   fecha: orden.alistadoEl,  quien: orden.alistadoPor?.nombre||null, accion: fotos.length > 0 ? ()=>setFotoModal(fotos[0]) : null },
-              { icon: '🚚', label: 'Despachado', fecha: !['pendiente','alistado'].includes(orden.estado) ? orden.alistadoEl : null, quien: repartidorNombre, accion: null },
-              { icon: '✅', label: 'Entregado',  fecha: entregadoEl, quien: entregadoPor, accion: firma && !esVendedor ? ()=>setFirmaModal(firma) : null },
-            ]
-            if (!orden) return <div className="hidden lg:flex w-80 flex-shrink-0 bg-zinc-900 border border-zinc-800 rounded-2xl items-center justify-center" style={{height:'200px',position:'sticky',top:16}}><p className="text-zinc-500 text-sm">Cargando...</p></div>
-            return (
-              <div className="hidden lg:flex flex-col w-80 flex-shrink-0 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden" style={{maxHeight:'calc(100vh - 180px)', position:'sticky', top:16}}>
-                <div className="px-4 py-3 border-b border-zinc-800 flex-shrink-0">
-                  <p className="text-white font-bold text-sm">#{orden?.numeroFactura||orden?.numeroOrden}</p>
-                  <p className="text-zinc-400 text-xs truncate">{orden?.clienteNombre}</p>
-                </div>
-                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-                  {etapas.map((etapa,i) => (
-                    <div key={i} className="flex gap-3 items-start">
-                      <span className="text-xl flex-shrink-0 mt-0.5">{etapa.icon}</span>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-white text-sm font-semibold">{etapa.label}</p>
-                        <p className="text-zinc-400 text-xs">{etapa.fecha ? fmtFecha(etapa.fecha) : '—'}</p>
-                        {etapa.quien && <p className="text-zinc-500 text-xs truncate">{etapa.quien}</p>}
-                        {etapa.accion && <button onClick={etapa.accion} className="mt-1 text-xs bg-zinc-800 hover:bg-zinc-700 text-white px-2 py-0.5 rounded-lg">{i===1?'🖼️ Fotos':'✍️ Firma'}</button>}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="px-4 py-3 border-t border-zinc-800 flex-shrink-0 flex items-center gap-2">
-                  <span className="text-zinc-400 text-xs">{orden.ciudad}</span>
-                  <span className="text-base">{ICONO_ESTADO[orden.estado]||'⚪'}</span>
-                  <span className="text-zinc-400 text-xs capitalize">{orden.estado}</span>
-                </div>
-              </div>
-            )
-          })()}
+            </div>
+          )}
         </div>
       )}
 
-      {/* Botón cargar más — fuera del grid */}
-      {hasMore && (
-        <div className="flex justify-center pt-2">
-          <button onClick={() => cargar(nextCursor)} disabled={loadingMore}
-            className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white text-sm font-semibold px-8 py-2.5 rounded-xl border border-zinc-700">
-            {loadingMore ? 'Cargando...' : `Cargar más (${total} cargados)`}
-          </button>
-        </div>
+      {/* Paginación / Cargar más */}
+      {isDesktop ? (
+        sourceOrdenes.length > 0 && (
+          <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,paddingTop:8}}>
+            <button onClick={() => setPage(p => p - 1)} disabled={page === 0}
+              style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'6px 16px',fontSize:12,fontWeight:700,color:page===0?'rgba(255,255,255,0.25)':'white',cursor:page===0?'not-allowed':'pointer'}}>
+              ← Anterior
+            </button>
+            <span style={{fontSize:12,color:'rgba(255,255,255,0.6)',minWidth:90,textAlign:'center'}}>
+              Pág {page + 1} / {totalPagesTraz}{hasMore ? '+' : ''}
+            </span>
+            <button
+              onClick={async () => {
+                const nextPage = page + 1
+                if (nextPage >= totalPagesTraz && hasMore) await cargar(nextCursor)
+                setPage(nextPage)
+              }}
+              disabled={(page >= totalPagesTraz - 1 && !hasMore) || loadingMore}
+              style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'6px 16px',fontSize:12,fontWeight:700,color:(page>=totalPagesTraz-1&&!hasMore)?'rgba(255,255,255,0.25)':'white',cursor:(page>=totalPagesTraz-1&&!hasMore)?'not-allowed':'pointer'}}>
+              {loadingMore ? '...' : 'Siguiente →'}
+            </button>
+            <span style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginLeft:4}}>{sourceOrdenes.length} órdenes</span>
+          </div>
+        )
+      ) : (
+        hasMore && (
+          <div className="flex justify-center pt-2">
+            <button onClick={() => cargar(nextCursor)} disabled={loadingMore}
+              className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white text-sm font-semibold px-8 py-2.5 rounded-xl border border-zinc-700">
+              {loadingMore ? 'Cargando...' : `Cargar más (${total} cargados)`}
+            </button>
+          </div>
+        )
       )}
       </>)}
 
       {/* Modal foto */}
       {fotoModal && (
-        <div className="fixed inset-0 bg-black/80 z-[1000] flex items-center justify-center p-4"
+        <div className="fixed inset-0 bg-black/95 z-[1000] flex items-center justify-center p-4"
           onClick={() => setFotoModal(null)}>
           <div className="relative max-w-2xl w-full" onClick={e => e.stopPropagation()}>
             <button onClick={() => setFotoModal(null)}
@@ -422,7 +544,7 @@ export default function TrazabilidadPage() {
 
       {/* Modal firma */}
       {firmaModal && (
-        <div className="fixed inset-0 bg-black/80 z-[1000] flex items-center justify-center p-4"
+        <div className="fixed inset-0 bg-black/95 z-[1000] flex items-center justify-center p-4"
           onClick={() => setFirmaModal(null)}>
           <div className="relative max-w-sm w-full bg-white rounded-2xl p-4" onClick={e => e.stopPropagation()}>
             <button onClick={() => setFirmaModal(null)}

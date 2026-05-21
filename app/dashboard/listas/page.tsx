@@ -124,7 +124,7 @@ export default function ListasPage() {
 
       {/* Modal crear */}
       {modalCrear && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-sm p-6 space-y-4">
             <h3 className="text-white font-bold text-lg">Nueva lista</h3>
             <div>
@@ -135,7 +135,7 @@ export default function ListasPage() {
                 onKeyDown={e => e.key === 'Enter' && crear()}
                 placeholder="Ej: Zona Norte"
                 autoFocus
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500"
+                className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}
               />
             </div>
             <div className="flex gap-2 pt-1">
@@ -152,7 +152,7 @@ export default function ListasPage() {
 
       {/* Modal editar */}
       {modalEditar && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-sm p-6 space-y-4">
             <h3 className="text-white font-bold text-lg">Editar lista</h3>
             <div>
@@ -160,13 +160,13 @@ export default function ListasPage() {
               <input
                 value={nombre}
                 onChange={e => setNombre(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500"
+                className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}
               />
             </div>
             {empleados.length > 0 && (
               <div>
                 <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Vendedores asignados</label>
-                <div className="space-y-1 max-h-48 overflow-y-auto bg-zinc-800 border border-zinc-700 rounded-xl p-2">
+                <div className="space-y-1 max-h-48 overflow-y-auto  rounded-xl p-2" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                   {empleados.map((emp: any) => (
                     <label key={emp.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-700 cursor-pointer">
                       <input

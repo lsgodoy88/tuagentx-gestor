@@ -51,6 +51,7 @@ model Empresa {
   vinculadas          EmpresaVinculada[]
   ordenesDespacho     OrdenDespacho[]
   ventasMes           VentaMesCliente[]
+  despachoLogs        DespachoLog[]       @relation("DespachoLogEmpresa")
 }
 
 model Empleado {
@@ -71,6 +72,7 @@ model Empleado {
   uptresEmail         String?
   uptresPassword      String?
   apiId               String?
+  metaVenta           Float?
   subEmpresaId        String?
   configRecibos       Json?                @default("{\"prefijo\": null, \"anchoPapel\": null, \"consecutivoMes\": null, \"consecutivoActual\": 0, \"usarConfigEmpresa\": true}")
   Cartera             Cartera[]
@@ -189,7 +191,8 @@ model Visita {
   @@index([createdAt], map: "idx_visita_fecha")
   @@index([fechaBogota], map: "idx_visita_fecha_bogota")
   @@index([fechaBogota], map: "idx_visita_fechabogota")
-  @@map("Visita")  @@index([turnoId])
+  @@map("Visita")
+  @@index([turnoId])
 }
 
 model Ruta {
@@ -209,7 +212,8 @@ model Ruta {
   empleados          RutaEmpleado[]
 
   @@index([empresaId], map: "idx_ruta_empresa")
-  @@map("Ruta")  @@index([empresaId, fecha, cerrada])
+  @@map("Ruta")
+  @@index([empresaId, fecha, cerrada])
 }
 
 model RutaEmpleado {
@@ -219,7 +223,7 @@ model RutaEmpleado {
   empleado   Empleado @relation(fields: [empleadoId], references: [id])
   ruta       Ruta     @relation(fields: [rutaId], references: [id])
 
-  @@map("RutaEmpleado")  @@unique([endpoint])
+  @@map("RutaEmpleado")
   @@index([empleadoId])
 }
 
@@ -263,7 +267,7 @@ model RutaFijaEmpleado {
   empleado   Empleado @relation(fields: [empleadoId], references: [id])
   rutaFija   RutaFija @relation(fields: [rutaFijaId], references: [id])
 
-  @@map("RutaFijaEmpleado")  @@unique([endpoint])
+  @@map("RutaFijaEmpleado")
   @@index([empleadoId])
 }
 
@@ -423,7 +427,8 @@ model PagoCartera {
   Aplicaciones   PagoCarteraDeuda[]
 
   @@index([empleadoId])
-  @@index([syncDeudaId])  @@index([empleadoId, createdAt(sort: Desc)])
+  @@index([syncDeudaId])
+  @@index([empleadoId, createdAt(sort: Desc)])
 }
 
 model PagoCarteraDeuda {
@@ -2811,6 +2816,7 @@ model OrdenDespacho {
   transportadora    String?
   guiaTransporte    String?
   fechaOrden        DateTime?
+  totalOrden        Decimal?          @db.Decimal(14, 2)
   origenVinculadaId String?
   createdAt         DateTime          @default(now())
   empresaVinculada  EmpresaVinculada? @relation(fields: [origenVinculadaId], references: [id])

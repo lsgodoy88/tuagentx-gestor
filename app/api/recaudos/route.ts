@@ -2,16 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getEmpresaId, ROLES_ADMIN } from '@/lib/auth-helpers'
+import { getEmpresaId, ROLES_ADMIN, vendedorScope } from '@/lib/auth-helpers'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
 
-  if (!ROLES_ADMIN.includes(user.role)) {
-    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
-  }
+  const { permitido, empleadoIdForzado } = vendedorScope(user)
+  if (!permitido) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const empresaId = getEmpresaId(user)
   const { searchParams } = new URL(req.url)
@@ -31,7 +30,8 @@ export async function GET(req: NextRequest) {
     ],
   }
 
-  if (vendedorId) where.empleadoId = vendedorId
+  if (empleadoIdForzado) where.empleadoId = empleadoIdForzado
+  else if (vendedorId) where.empleadoId = vendedorId
   if (estado && estado !== 'todos') where.envioEstado = estado
   if (fecha) {
     // Colombia = UTC-5: midnight Colombia = 05:00 UTC

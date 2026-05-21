@@ -178,14 +178,15 @@ export async function GET(req: NextRequest) {
       ]
     }
 
-    const [caches, total] = await Promise.all([
+    const [caches, total, agg] = await Promise.all([
       (prisma as any).carteraCache.findMany({
         where,
         skip,
         take: limit,
         orderBy: { nombre: 'asc' }
       }),
-      (prisma as any).carteraCache.count({ where })
+      (prisma as any).carteraCache.count({ where }),
+      (prisma as any).carteraCache.aggregate({ where, _sum: { saldoPendiente: true, saldoTotal: true } })
     ])
 
     // Normalizar al formato que espera la UI
@@ -229,6 +230,8 @@ export async function GET(req: NextRequest) {
       total,
       page,
       pages: Math.ceil(total / limit),
+      totalSaldoPendiente: Number(agg._sum.saldoPendiente || 0),
+      totalSaldoTotal: Number(agg._sum.saldoTotal || 0),
       _modo: 'sync',
       _integracion: { id: integracion.id, nombre: integracion.nombre }
     })

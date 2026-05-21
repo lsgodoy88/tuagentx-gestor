@@ -581,3 +581,47 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 input[type="date"]::-webkit-inner-spin-button,
 input[type="date"]::-webkit-clear-button { display: none; }
 input[type="date"] { appearance: none; -webkit-appearance: none; }
+
+@layer utilities {
+  .modal-inner-card {
+    background: rgba(30, 32, 48, 0.98);
+    border: 1px solid rgba(59, 130, 246, 0.20);
+  }
+  .modal-input {
+    background: rgba(8, 8, 28, 0.90);
+    border: 1px solid rgba(59, 130, 246, 0.25);
+    color: white;
+  }
+  .modal-input:focus {
+    border-color: rgba(59, 130, 246, 0.60);
+    outline: none;
+  }
+}
+
+/* ── Cards KPI vendedor — glass en desktop, sólido en móvil ── */
+.kpi-card {
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.30);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.25);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+@media (max-width: 768px) {
+  .kpi-card {
+    background: rgba(20, 24, 48, 0.95) !important;
+    border: 1px solid rgba(59,130,246,0.35) !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+
+/* ── KPI glass más visible en móvil ── */
+@media (max-width: 768px) {
+  [data-kpi] {
+    background: rgba(255,255,255,0.13) !important;
+    border: 1px solid rgba(255,255,255,0.25) !important;
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+  }
+}

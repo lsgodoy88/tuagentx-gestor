@@ -220,11 +220,11 @@ export default function EmpleadosPage() {
           {/* Subtabs */}
           <div className="flex gap-2">
             <button onClick={() => { setSubTabRutas('hoy'); cargarTurnos('hoy') }}
-              className={`px-4 py-2 text-xs font-semibold rounded-xl border transition-colors ${subTabRutas === 'hoy' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white'}`}>
+              className={`px-4 py-2 text-xs font-semibold rounded-xl border transition-colors ${subTabRutas === 'hoy' ? 'bg-[rgba(8,8,28,0.90)] border-[rgba(59,130,246,0.60)] text-white' : 'bg-[rgba(8,8,28,0.60)] border-[rgba(59,130,246,0.20)] text-zinc-400 hover:text-white'}`}>
               📅 Hoy
             </button>
             <button onClick={() => setSubTabRutas('historial')}
-              className={`px-4 py-2 text-xs font-semibold rounded-xl border transition-colors ${subTabRutas === 'historial' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white'}`}>
+              className={`px-4 py-2 text-xs font-semibold rounded-xl border transition-colors ${subTabRutas === 'historial' ? 'bg-[rgba(8,8,28,0.90)] border-[rgba(59,130,246,0.60)] text-white' : 'bg-[rgba(8,8,28,0.60)] border-[rgba(59,130,246,0.20)] text-zinc-400 hover:text-white'}`}>
               📋 Historial
             </button>
           </div>
@@ -234,7 +234,7 @@ export default function EmpleadosPage() {
             <div className="flex gap-2 flex-wrap">
               {['', 'vendedor', 'entregas', 'supervisor', 'impulsadora', 'bodega'].map(r => (
                 <button key={r} onClick={() => setFiltroRol(r)}
-                  className={`px-3 py-1.5 text-xs rounded-xl border font-semibold transition-colors ${filtroRol === r ? 'bg-zinc-600 border-zinc-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white'}`}>
+                  className={`px-3 py-1.5 text-xs rounded-xl border font-semibold transition-colors ${filtroRol === r ? 'bg-[rgba(8,8,28,0.90)] border-[rgba(59,130,246,0.50)] text-white' : 'bg-[rgba(8,8,28,0.60)] border-[rgba(59,130,246,0.20)] text-zinc-400 hover:text-white'}`}>
                   {r === '' ? 'Todos' : ROL_ICON[r] + ' ' + r}
                 </button>
               ))}
@@ -249,12 +249,12 @@ export default function EmpleadosPage() {
               {subTabRutas === 'hoy' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {turnosHoy.length === 0 ? (
-                    <div className="col-span-full bg-zinc-900 border border-zinc-800 rounded-2xl p-10 text-center">
+                    <div style={{ background:"rgba(8,8,28,0.82)", border:"1px solid rgba(59,130,246,0.20)", borderRadius:16, padding:40, textAlign:"center" }}>
                       <p className="text-3xl mb-2">😴</p>
                       <p className="text-zinc-400">Sin turnos activos hoy</p>
                     </div>
                   ) : turnosHoy.map((t: any) => (
-                    <div key={t.id} className={`bg-zinc-900 border rounded-2xl p-4 space-y-3 ${t.activo ? 'border-emerald-800/50' : 'border-zinc-800'}`}>
+                    <div key={t.id} style={{ background:"rgba(8,8,28,0.82)", border:`1px solid ${t.activo ? "rgba(59,130,246,0.40)" : "rgba(59,130,246,0.15)"}`, borderRadius:16, padding:16 }} className={`space-y-3`}>
                       {/* Header */}
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
@@ -317,11 +317,11 @@ export default function EmpleadosPage() {
               {subTabRutas === 'historial' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {turnosHistorial.length === 0 ? (
-                    <div className="col-span-full bg-zinc-900 border border-zinc-800 rounded-2xl p-10 text-center">
+                    <div style={{ background:"rgba(8,8,28,0.82)", border:"1px solid rgba(59,130,246,0.20)", borderRadius:16, padding:40, textAlign:"center" }}>
                       <p className="text-zinc-400">Sin historial en los últimos 30 días</p>
                     </div>
                   ) : turnosHistorial.map((t: any) => (
-                    <div key={t.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+                    <div key={t.id} style={{ background:"rgba(8,8,28,0.82)", border:"1px solid rgba(59,130,246,0.20)", borderRadius:16, padding:16 }}>
                       {/* Header */}
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
@@ -374,7 +374,7 @@ export default function EmpleadosPage() {
                     <div className="col-span-full">
                       <button onClick={() => cargarTurnos('historial', filtroRol, paginaHist + 1)}
                         disabled={loadingTurnos}
-                        className="w-full bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 text-sm font-semibold py-3 rounded-xl border border-zinc-700">
+                        style={{ background:"rgba(8,8,28,0.82)", border:"1px solid rgba(59,130,246,0.30)", borderRadius:12, padding:"10px 0", color:"rgba(255,255,255,0.7)", fontSize:13, fontWeight:600, width:"100%", cursor:"pointer" }}>
                         {loadingTurnos ? 'Cargando...' : `Cargar más (${turnosHistorial.length} de ${totalHist})`}
                       </button>
                     </div>
@@ -437,7 +437,7 @@ export default function EmpleadosPage() {
                             <button disabled className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 text-zinc-600 cursor-not-allowed">
                               Configurar
                             </button>
-                            <div className="absolute bottom-full right-0 mb-1 hidden group-hover:block w-48 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-xs text-zinc-300 shadow-xl pointer-events-none z-10">
+                            <div className="absolute bottom-full right-0 mb-1 hidden group-hover:block w-48  rounded-xl px-3 py-2 text-xs text-zinc-300 shadow-xl pointer-events-none z-10" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                               Primero crea un supervisor
                             </div>
                           </div>
@@ -483,7 +483,7 @@ export default function EmpleadosPage() {
                 if (!precio) return null
                 const cant = cantidades[rc.id] ?? 0
                 return (
-                  <div key={rc.id} className="flex items-center justify-between bg-zinc-800 rounded-xl px-4 py-3">
+                  <div key={rc.id} className="flex items-center justify-between  rounded-xl px-4 py-3" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <span>{rc.icon}</span>
                       <div>
@@ -530,14 +530,14 @@ export default function EmpleadosPage() {
       })()}
 
       {modal && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             {resultado ? (
               <>
                 <div className="text-center space-y-3">
                   <div className="text-4xl">✅</div>
                   <p className="text-white font-semibold">Empleado creado</p>
-                  <div className="bg-zinc-800 rounded-xl p-4 text-left space-y-2">
+                  <div className="rounded-xl p-4 text-left space-y-2" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                     <p className="text-zinc-400 text-xs">Email:</p>
                     <p className="text-emerald-400 font-mono text-sm">{resultado.email}</p>
                     <p className="text-zinc-400 text-xs mt-2">Contraseña:</p>
@@ -558,11 +558,11 @@ export default function EmpleadosPage() {
                     <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Email de acceso</label>
                     <input value={emailEdit} onChange={e => setEmailEdit(e.target.value)}
                       placeholder="correo@empresa"
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
+                      className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
                   </div>
                 )}
                 {nombre && !editando && (
-                  <div className="bg-zinc-800 rounded-xl p-3">
+                  <div className="rounded-xl p-3" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                     <p className="text-zinc-400 text-xs mb-1">Usuario:</p>
                     <p className="text-emerald-400 font-mono text-sm">{getSlug(nombre)}</p>
                   </div>
@@ -571,7 +571,7 @@ export default function EmpleadosPage() {
                   <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Nombre</label>
                   <input value={nombre} onChange={e => { setNombre(e.target.value); if (!editando) setPassword(generarPasswordDefault(e.target.value, telefono)) }}
                     placeholder="Nombre del empleado"
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
+                    className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
                 </div>
                 <div>
                   <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Teléfono</label>
@@ -584,7 +584,7 @@ export default function EmpleadosPage() {
                   <div>
                     <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Vendedor responsable</label>
                     <select value={vendedorId} onChange={e => setVendedorId(e.target.value)}
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500">
+                      className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                       <option value="">Sin asignar</option>
                       {empleados.filter(e => e.rol === 'vendedor' && e.activo).map((v: any) => (
                         <option key={v.id} value={v.id}>{v.nombre}</option>
@@ -600,7 +600,7 @@ export default function EmpleadosPage() {
                       const emp = syncEmpleados.find((s: any) => s.externalId === e.target.value)
                       if (emp && !nombre) setNombre(emp.nombre)
                     }}
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500">
+                      className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                       <option value="">— Sin enlazar —</option>
                       {syncEmpleados.map((s: any) => (
                         <option key={s.externalId} value={s.externalId}>{s.nombre}</option>
@@ -611,7 +611,7 @@ export default function EmpleadosPage() {
                 {(slotRol === 'vendedor' || editando?.rol === 'vendedor') && listas.length > 0 && (
                   <div>
                     <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Listas asignadas</label>
-                    <div className="space-y-1 max-h-36 overflow-y-auto bg-zinc-800 border border-zinc-700 rounded-xl p-2">
+                    <div className="space-y-1 max-h-36 overflow-y-auto  rounded-xl p-2" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                       {listas.map((l: any) => (
                         <label key={l.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-700 cursor-pointer">
                           <input
@@ -631,13 +631,13 @@ export default function EmpleadosPage() {
                     <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Etiqueta / Marca</label>
                     <input value={etiqueta} onChange={e => setEtiqueta(e.target.value)}
                       placeholder="Ej: Carmel, Chanel, Nike..."
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-violet-500" />
+                      className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-violet-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
                   </div>
                 )}
                 {(slotRol === 'supervisor' || editando?.rol === 'supervisor') && empleados.filter(e => e.rol === 'vendedor' && e.activo).length > 0 && (
                   <div>
                     <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Vendedores asignados</label>
-                    <div className="space-y-1 max-h-36 overflow-y-auto bg-zinc-800 border border-zinc-700 rounded-xl p-2">
+                    <div className="space-y-1 max-h-36 overflow-y-auto  rounded-xl p-2" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                       {empleados.filter(e => e.rol === 'vendedor' && e.activo).map((v: any) => (
                         <label key={v.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-700 cursor-pointer">
                           <input
@@ -655,7 +655,7 @@ export default function EmpleadosPage() {
                 {(slotRol === 'supervisor' || editando?.rol === 'supervisor') && (
                   <div>
                     <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Permisos</label>
-                    <div className="space-y-2 bg-zinc-800 border border-zinc-700 rounded-xl p-3">
+                    <div className="space-y-2  rounded-xl p-3" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                       {PERMISOS_CONFIG.map(p => (
                         <div key={p.key} className="flex items-center justify-between">
                           <span className="text-white text-sm">{p.label}</span>
@@ -681,7 +681,7 @@ export default function EmpleadosPage() {
                   </div>
                 )}
                 {(slotRol === 'vendedor' || slotRol === 'entregas' || editando?.rol === 'vendedor' || editando?.rol === 'entregas') && (
-                  <div className="flex items-center justify-between bg-zinc-800 rounded-xl px-4 py-3">
+                  <div className="flex items-center justify-between  rounded-xl px-4 py-3" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                     <div>
                       <p className="text-white text-sm font-medium">Puede capturar GPS de clientes</p>
                       <p className="text-zinc-500 text-xs">Al visitar cliente sin GPS, puede guardar su ubicación</p>
@@ -712,10 +712,10 @@ export default function EmpleadosPage() {
                           setCiudadesSugeridas(resultados.slice(0, 8))
                         }}
                         placeholder="Buscar ciudad... ej: Tolima/Ibagué"
-                        className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-blue-500"
+                        className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-blue-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}
                       />
                       {ciudadesSugeridas.length > 0 && (
-                        <div className="absolute z-10 w-full mt-1 bg-zinc-800 border border-zinc-700 rounded-xl overflow-hidden shadow-xl">
+                        <div className="absolute z-10 w-full mt-1  rounded-xl overflow-hidden shadow-xl" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                           {ciudadesSugeridas.map(c => (
                             <button key={c} type="button" onClick={() => {
                               if (!ciudadesAsignadas.includes(c)) setCiudadesAsignadas(prev => [...prev, c])
@@ -745,7 +745,7 @@ export default function EmpleadosPage() {
                   <div className="relative">
                     <input type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password"
                       placeholder={editando ? 'Dejar vacío para no cambiar' : 'Contraseña de acceso'}
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 pr-10 text-white text-sm outline-none focus:border-emerald-500" />
+                      className="w-full  rounded-xl px-4 py-2.5 pr-10 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
                     <button type="button" onClick={() => setShowPassword(p => !p)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white">
                       {showPassword ? (

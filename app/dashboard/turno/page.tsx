@@ -148,7 +148,7 @@ export default function TurnoPage() {
               className="absolute inset-0 opacity-0 cursor-pointer w-full" />
             <div className={"flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors " + (fechaTurno ? "bg-emerald-600 border-emerald-500 text-white" : "bg-zinc-800 border-zinc-700 text-zinc-400")}>
               <span>📅</span>
-              {fechaTurno ? new Date(fechaTurno + 'T12:00:00Z').toLocaleDateString('es-CO', {day:'numeric', month:'short'}) : 'Filtrar fecha'}
+              {fechaTurno ? new Date(fechaTurno + 'T12:00:00Z').toLocaleDateString('es-CO', {day:'numeric', month:'short', timeZone: 'America/Bogota'}) : 'Filtrar fecha'}
               {fechaTurno && <button onClick={e => { e.stopPropagation(); setFechaTurno('') }} className="ml-1 text-white/70 hover:text-white">×</button>}
             </div>
           </div>
@@ -174,7 +174,7 @@ export default function TurnoPage() {
                 <tbody className="space-y-1">
                   {filtrados.map((t) => (
                     <tr key={t.id} className="border-b border-zinc-800">
-                      <td className="text-zinc-400 py-2 pr-2">{new Date(t.fecha + 'T12:00:00Z').toLocaleDateString('es-CO', {day:'numeric', month:'short'})}</td>
+                      <td className="text-zinc-400 py-2 pr-2">{new Date(t.fecha + 'T12:00:00Z').toLocaleDateString('es-CO', {day:'numeric', month:'short', timeZone: 'America/Bogota'})}</td>
                       <td className="text-white text-center py-2">
                         {t.gpsInicio
                           ? <a href={"https://www.google.com/maps?q=" + t.latInicio + "," + t.lngInicio} target="_blank" className="text-emerald-400 underline">{t.inicio}</a>

@@ -48,7 +48,7 @@ const TD: React.CSSProperties = {
   overflow: 'hidden',
   whiteSpace: 'nowrap',
   textOverflow: 'ellipsis',
-  borderBottom: '1px solid rgba(255,255,255,0.04)',
+  borderBottom: '1px solid rgba(59,130,246,0.15)',
 }
 
 const CHECKBOX_W = 32  // px fijo para la columna de checkbox
@@ -111,11 +111,12 @@ export default function DataTable<T>({
   }, [widths, columns])
 
   // ── Total width ────────────────────────────────────────────────
-  const totalW = CHECKBOX_W + widths.reduce((a, b) => a + b, 0)
+  const showCheckbox = selected !== undefined
+  const totalW = (showCheckbox ? CHECKBOX_W : 0) + widths.reduce((a, b) => a + b, 0)
 
   // ── Render ─────────────────────────────────────────────────────
   return (
-    <div style={{ width: '100%', overflowX: 'auto' }}>
+    <div style={{ width: '100%', overflowX: 'auto', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 12, overflow: 'hidden' }}>
       <table style={{
         tableLayout: 'fixed',
         width: totalW,
@@ -125,7 +126,7 @@ export default function DataTable<T>({
       }}>
         {/* Anchos */}
         <colgroup>
-          <col style={{ width: CHECKBOX_W }} />
+          {showCheckbox && <col style={{ width: CHECKBOX_W }} />}
           {widths.map((w, i) => <col key={i} style={{ width: w }} />)}
         </colgroup>
 
@@ -133,7 +134,7 @@ export default function DataTable<T>({
         <thead style={{background:"rgba(15,15,22,0.60)",borderBottom:"1px solid rgba(59,130,246,0.40)"}}>
           <tr>
             {/* Checkbox header — selecciona/deselecciona todos */}
-            <th style={{ ...TH, width: CHECKBOX_W, padding: '7px 0' }}>
+            {showCheckbox && <th style={{ ...TH, width: CHECKBOX_W, padding: '7px 0' }}>
               {onSelectAll && (() => {
                 const allIds = rows.map(r => rowKey(r))
                 const allSelected = allIds.length > 0 && allIds.every(id => selected?.has(id))
@@ -153,7 +154,7 @@ export default function DataTable<T>({
                   </div>
                 )
               })()}
-            </th>
+            </th>}
             {columns.map((col, i) => (
               <th key={col.key} style={{ ...TH, width: widths[i] }}>
                 {col.label}
@@ -166,7 +167,7 @@ export default function DataTable<T>({
                     background: 'transparent',
                     transition: 'background 0.15s',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.20)')}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.08)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 />
               </th>
@@ -179,12 +180,12 @@ export default function DataTable<T>({
           {loading ? (
             Array.from({ length: 5 }).map((_, i) => (
               <tr key={i}>
-                <td style={{ ...TD }} />
+                {showCheckbox && <td style={{ ...TD }} />}
                 {columns.map(col => (
                   <td key={col.key} style={{ ...TD }}>
                     <div style={{
                       height: 14, borderRadius: 4,
-                      background: 'rgba(255,255,255,0.06)',
+                      background: 'rgba(59,130,246,0.06)',
                       animation: 'pulse 1.5s infinite',
                     }} />
                   </td>
@@ -193,7 +194,7 @@ export default function DataTable<T>({
             ))
           ) : rows.length === 0 ? (
             <tr>
-              <td colSpan={columns.length + 1} style={{ ...TD, color: 'rgba(255,255,255,0.30)', padding: '32px' }}>
+              <td colSpan={columns.length + (showCheckbox ? 1 : 0)} style={{ ...TD, color: 'rgba(255,255,255,0.30)', padding: '32px' }}>
                 Sin registros
               </td>
             </tr>
@@ -204,7 +205,7 @@ export default function DataTable<T>({
             const isMulti = subs.length > 0
 
             const ROW_BG = sel ? 'rgba(30,58,138,0.55)' : 'rgba(8,8,28,0.88)'
-            const ROW_BORDER = `1px solid ${sel ? '#3b82f6' : 'rgba(255,255,255,0.06)'}`
+            const ROW_BORDER = `1px solid ${sel ? '#3b82f6' : 'rgba(59,130,246,0.20)'}`
 
             return (
               <React.Fragment key={id}>
@@ -214,7 +215,7 @@ export default function DataTable<T>({
                   style={{ background: ROW_BG, cursor: onRowClick ? 'pointer' : 'default' }}
                 >
                   {/* Checkbox */}
-                  <td style={{ ...TD, borderLeft: ROW_BORDER, borderTop: ROW_BORDER, borderBottom: isMulti ? 'none' : ROW_BORDER, borderRight: 'none' }}>
+                  {showCheckbox && <td style={{ ...TD, borderLeft: ROW_BORDER, borderTop: ROW_BORDER, borderBottom: isMulti ? 'none' : ROW_BORDER, borderRight: 'none' }}>
                     <div
                       onClick={e => { e.stopPropagation(); onToggle?.(id) }}
                       style={{
@@ -226,7 +227,7 @@ export default function DataTable<T>({
                       }}>
                       {sel && <span style={{ color: 'white', fontSize: 7, fontWeight: 900 }}>✓</span>}
                     </div>
-                  </td>
+                  </td>}
                   {columns.map((col, ci) => {
                     const isLast = ci === columns.length - 1
                     return (
@@ -248,7 +249,7 @@ export default function DataTable<T>({
                   const isLastSub = si === subs.length - 1
                   return (
                     <tr key={`${id}-sub-${si}`} style={{ background: 'rgba(8,8,28,0.88)' }}>
-                      <td style={{ ...TD, borderLeft: ROW_BORDER, borderBottom: isLastSub ? ROW_BORDER : 'none', borderTop: 'none', borderRight: 'none' }} />
+                      {showCheckbox && <td style={{ ...TD, borderLeft: ROW_BORDER, borderBottom: isLastSub ? ROW_BORDER : 'none', borderTop: 'none', borderRight: 'none' }} />}
                       {columns.map((col, ci) => {
                         const isLast = ci === columns.length - 1
                         return (

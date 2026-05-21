@@ -209,7 +209,7 @@ export default function ModalVisita({
   console.log('[ModalVisita render]', { clienteInicial, cliente, condicion: !clienteInicial && !cliente })
 
   return (
-    <div className="fixed inset-0 bg-black/70 flex items-start justify-center z-[1000] pt-4 px-4 pb-4">
+    <div className="fixed inset-0 bg-black/95 flex items-start justify-center z-[1000] pt-4 px-4 pb-4">
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md p-6 pb-6 space-y-4 max-h-[88vh] overflow-y-auto">
 
         {/* Header */}
@@ -225,7 +225,7 @@ export default function ModalVisita({
               value={buscar}
               onChange={e => { setBuscar(e.target.value); setPageCli(1); loadClientes(e.target.value, 1) }}
               placeholder="Buscar cliente..."
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500"
+              className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}
             />
             <div className="space-y-2">
               {loadingCli && <p className="text-zinc-500 text-xs text-center py-2">Cargando...</p>}
@@ -299,7 +299,7 @@ export default function ModalVisita({
                 <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Monto ($)</label>
                 <input type="number" value={monto} onChange={e => setMonto(e.target.value)}
                   placeholder="Ej: 44000"
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
+                  className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
               </div>
             )}
 
@@ -308,14 +308,14 @@ export default function ModalVisita({
               <div>
                 <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Número de factura</label>
                 {facturaPreset ? (
-                  <div className="bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 flex items-center gap-2">
+                  <div className="rounded-xl px-4 py-2.5 flex items-center gap-2" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                     <span className="text-lg">📦</span>
                     <span className="text-white text-sm font-semibold">Factura: #{facturaPreset}</span>
                   </div>
                 ) : (
                   <input value={factura} onChange={e => setFactura(e.target.value)}
                     placeholder="Ej: FAC-001234"
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
+                    className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
                 )}
               </div>
             )}
@@ -327,7 +327,7 @@ export default function ModalVisita({
               </label>
               <textarea value={nota} onChange={e => setNota(e.target.value)}
                 rows={2} placeholder="Observaciones..."
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500 resize-none" />
+                className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500 resize-none" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
             </div>
 
             {/* Firma */}
@@ -357,7 +357,7 @@ export default function ModalVisita({
                   )}
                   {/* Checkbox solo para vendedor autorizado */}
                   {puedeCapturarGps && (
-                    <div className="flex items-center gap-3 bg-zinc-800 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-3  rounded-xl px-4 py-3" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                       <input type="checkbox" id="capturarGpsModal" checked={capturarGps}
                         onChange={e => setCapturarGps(e.target.checked)}
                         className="w-4 h-4 accent-emerald-500" />

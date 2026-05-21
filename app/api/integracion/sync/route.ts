@@ -40,10 +40,27 @@ async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor
   const nits = clientesExt.map((c: any) => (c.doc as string)?.trim()).filter(Boolean)
   const existentesCli = await (prisma as any).cliente.findMany({
     where: { nit: { in: nits }, empresaId },
-    select: { id: true, nit: true, apiId: true, ciudad: true, departamento: true, direccion: true, telefono: true, email: true, nombre: true }
+    select: { id: true, nit: true, apiId: true, ciudad: true, departamento: true, direccion: true, telefono: true, email: true, nombre: true, listaId: true }
   })
   const mapaExistentes: Record<string, any> = {}
   existentesCli.forEach((e: any) => { mapaExistentes[e.nit] = e })
+
+  // Log diagnóstico — ver si UpTres devuelve employeeId
+  const sinEmployeeId = clientesExt.filter((c: any) => !c.employeeId).length
+  const conEmployeeId = clientesExt.filter((c: any) => c.employeeId).length
+  log(`employeeId: ${conEmployeeId} con, ${sinEmployeeId} sin`)
+
+  // Mapa apiId-empleado → listaId local (para asignar lista al cliente)
+  const empleadosLocales = await (prisma as any).empleado.findMany({
+    where: { empresaId },
+    select: { apiId: true, listasAsignadas: { select: { listaId: true }, take: 1 } }
+  })
+  const mapaEmpleadoLista: Record<string, string> = {}
+  for (const emp of empleadosLocales) {
+    if (emp.apiId && emp.listasAsignadas?.[0]?.listaId) {
+      mapaEmpleadoLista[emp.apiId] = emp.listasAsignadas[0].listaId
+    }
+  }
 
   let skipped = 0
   for (const c of clientesExt) {
@@ -53,15 +70,19 @@ async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor
     const nombre = `${(c as any).name || ''} ${(c as any).lastName || ''}`.trim() || 'Sin nombre'
     const ex = mapaExistentes[doc]
     if (ex) {
-      // Solo actualizar direccion y telefono — el resto se congela
+      // Solo actualizar direccion, telefono y listaId (si está vacío)
       const cambio: any = {}
       const dir = (c as any).dir || undefined
       const tel = (c as any).nCel || undefined
+      const empId = (c as any).employeeId || null
       if (dir && dir !== (ex.direccion || undefined)) cambio.direccion = dir
       if (tel && tel !== (ex.telefono || undefined)) cambio.telefono = tel
+      // Si no tiene lista asignada localmente, buscar por employeeId de UpTres
+      if (!ex.listaId && empId && mapaEmpleadoLista[empId]) cambio.listaId = mapaEmpleadoLista[empId]
       if (Object.keys(cambio).length === 0) { skipped++; continue }
       toUpdateCli.push({ id: ex.id, data: cambio })
     } else {
+      const empId = (c as any).employeeId || null
       toCreateCli.push({
         nombre, nit: doc, empresaId,
         apiId: uid,
@@ -70,6 +91,7 @@ async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor
         direccion: (c as any).dir || undefined,
         telefono: (c as any).nCel || undefined,
         email: (c as any).email || undefined,
+        listaId: (empId && mapaEmpleadoLista[empId]) ? mapaEmpleadoLista[empId] : undefined,
       })
     }
   }

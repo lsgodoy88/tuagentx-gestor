@@ -1,8 +1,9 @@
 'use client'
+import DataTable, { ColDef } from '@/components/DataTable'
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { saveCache, loadCache } from '@/lib/offlineCache'
 import { useSession } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { calcularEstado, estadoMasCritico } from '@/lib/cartera'
 import { CountUp, LiveDot, LoadingBorder } from '@/components/FX'
 import { SyncIcon } from '@/components/SyncIcon'
@@ -10,6 +11,11 @@ import InputMoneda from '@/components/InputMoneda'
 import CarteraCard from '@/components/CarteraCard'
 
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
+const fmtShort = (n: number): string => {
+  if (n >= 1_000_000) return '$' + (n / 1_000_000).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' mill'
+  if (n >= 1_000)     return '$' + (n / 1_000).toLocaleString('es-CO',     { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' K'
+  return '$' + Math.round(n).toLocaleString('es-CO')
+}
 
 type LineaPago = { id: string; metodoPago: 'efectivo' | 'transferencia'; monto: string; descuento: string; voucherKey: string | null; voucherDatosIA: any; cargandoVoucher: boolean }
 function crearLinea(): LineaPago { return { id: crypto.randomUUID(), metodoPago: 'efectivo', monto: '', descuento: '', voucherKey: null, voucherDatosIA: null, cargandoVoucher: false } }
@@ -31,8 +37,11 @@ export default function CarteraPage() {
   const user = session?.user as any
   const esAdmin = user?.role === 'empresa' || user?.role === 'supervisor'
   const esVendedor = user?.role === 'vendedor'
-  const [tab, setTab] = useState<'cartera' | 'clientes' | 'pagos'>('cartera')
-  const [modalImportar, setModalImportar] = useState(false)
+  const searchParamsCartera = useSearchParams()
+  const [tab, setTab] = useState<'cartera' | 'clientes' | 'pagos'>(
+    (searchParamsCartera.get('tab') as any) || 'clientes'
+  )
+  const [isDesktopPagos, setIsDesktopPagos] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : false)
   const [mesAnalisis, setMesAnalisis] = useState(new Date().getMonth() + 1)
   const [anioAnalisis, setAnioAnalisis] = useState(new Date().getFullYear())
   const [mesSel, setMesSel] = useState(new Date().getMonth() + 1)
@@ -51,6 +60,7 @@ export default function CarteraPage() {
   const [buscar, setBuscar] = useState('')
   const [hayMas, setHayMas] = useState(false)
   const [paginaActual, setPaginaActual] = useState(1)
+  const [totalReal, setTotalReal] = useState<{saldoPendiente:number, saldoTotal:number, clientes:number} | null>(null)
   const [cargandoMas, setCargandoMas] = useState(false)
   const [sincronizando, setSincronizando] = useState(false)
   type SyncLogItem = { id: string; inicio: string; fin: string|null; duracionMs: number; clientesActualizados: number; empleadosSincronizados: number; deudasSincronizadas: number; zombis: number; pagosConfrontados: number; disparadoPor: string; estado: string; errores: any }
@@ -59,13 +69,6 @@ export default function CarteraPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Importar
-  const [archivo, setArchivo] = useState<File | null>(null)
-  const [preview, setPreview] = useState<any[]>([])
-  const [previewErr, setPreviewErr] = useState<string[]>([])
-  const [importando, setImportando] = useState(false)
-  const [importResult, setImportResult] = useState<any>(null)
-  const [dragging, setDragging] = useState(false)
-  const fileRef = useRef<HTMLInputElement>(null)
 
   // Recaudar modal
   const [recaudandoCartera, setRecaudandoCartera] = useState<any>(null)
@@ -108,13 +111,14 @@ export default function CarteraPage() {
         // Fetch en segundo plano para actualizar
         Promise.all([
           fetch(url).then(r => r.json()),
-          fetch('/api/cartera/pago?limit=500').then(r => r.json()).catch(() => ({ pagos: [] })),
+          fetch('/api/recaudos?limit=500').then(r => r.json()).catch(() => ({ pagos: [] })),
           fetch('/api/cartera/metas').then(r => r.json()).catch(() => ({ metas: [] })),
         ]).then(([nr1, nr2, nr3]) => {
           if (nr1.carteras) {
             saveCache('cartera', { r1: nr1, r2: nr2, r3: nr3 })
             setCarteras(nr1.carteras || [])
             setHayMas((nr1.pages ?? 1) > 1)
+            if (nr1.totalSaldoPendiente !== undefined) setTotalReal({ saldoPendiente: nr1.totalSaldoPendiente, saldoTotal: nr1.totalSaldoTotal, clientes: nr1.total || 0 })
             setPagos(nr2.pagos || [])
             setMetas(nr3.metas || [])
             setOffline(false)
@@ -136,7 +140,7 @@ export default function CarteraPage() {
     try {
       ;[r1, r2, r3] = await Promise.all([
         fetch(url).then(r => r.json()),
-        fetch('/api/cartera/pago?limit=500').then(r => r.json()).catch(() => ({ pagos: [] })),
+        fetch('/api/recaudos?limit=500').then(r => r.json()).catch(() => ({ pagos: [] })),
         fetch('/api/cartera/metas').then(r => r.json()).catch(() => ({ metas: [] })),
       ])
       if (!q && r1.carteras) {
@@ -152,6 +156,7 @@ export default function CarteraPage() {
     }
     setCarteras(r1.carteras || [])
     setHayMas((r1.pages ?? 1) > 1)
+    if (r1.totalSaldoPendiente !== undefined) setTotalReal({ saldoPendiente: r1.totalSaldoPendiente, saldoTotal: r1.totalSaldoTotal, clientes: r1.total || 0 })
     setPagos(r2.pagos || [])
     setMetas(r3.metas || [])
     setLoading(false); setLoadingBusqueda(false)
@@ -210,73 +215,12 @@ export default function CarteraPage() {
     return acc
   }, {} as Record<string, number>)
 
-  const totalPendiente = carteras.reduce((s, c) => s + Number(c.saldoPendiente), 0)
+  const totalPendiente = totalReal ? totalReal.saldoPendiente : carteras.reduce((s, c) => s + Number(c.saldoPendiente), 0)
 
   const filtradas = carteras
 
   // --- Importar ---
-  async function onFile(file: File) {
-    setArchivo(file)
-    setImportResult(null)
-    setPreview([])
-    setPreviewErr([])
-    const nombre = file.name.toLowerCase()
-    if (nombre.endsWith('.csv')) {
-      const text = await file.text()
-      const lines = text.trim().split('\n')
-      if (lines.length < 2) { setPreviewErr(['Archivo vacío']); return }
-      const headers = lines[0].split(',').map(h => h.trim())
-      const rows = lines.slice(1, 6).map(l => {
-        const cols = l.split(',').map(s => s.trim())
-        const obj: any = {}
-        headers.forEach((h, i) => { obj[h] = cols[i] || '' })
-        return obj
-      })
-      setPreview(rows)
-    } else {
-      // xlsx preview usando ExcelJS en cliente
-      try {
-        const { default: ExcelJS } = await import('exceljs')
-        const buf = await file.arrayBuffer()
-        const wb = new ExcelJS.Workbook()
-        await wb.xlsx.load(buf)
-        const ws = wb.worksheets[0]
-        const headers: string[] = []
-        const rows: any[] = []
-        ws.eachRow((row, rowNum) => {
-          if (rowNum === 1) {
-            row.eachCell((cell, col) => { headers[col] = String(cell.value ?? '').trim() })
-          } else if (rowNum <= 6) {
-            const obj: any = {}
-            headers.forEach((h, col) => {
-              if (h) {
-                const v = row.getCell(col).value
-                obj[h] = v instanceof Date ? v.toISOString().split('T')[0] : String(v ?? '')
-              }
-            })
-            if (Object.values(obj).some(v => v !== '')) rows.push(obj)
-          }
-        })
-        setPreview(rows)
-      } catch { setPreviewErr(['Error leyendo xlsx']) }
-    }
-  }
 
-  async function importarArchivo() {
-    if (!archivo) return
-    setImportando(true)
-    const fd = new FormData()
-    fd.append('file', archivo)
-    const res = await fetch('/api/cartera/importar', { method: 'POST', body: fd })
-    const data = await res.json()
-    setImportResult(data)
-    setImportando(false)
-    if ((data.importados ?? 0) > 0) {
-      setArchivo(null)
-      setPreview([])
-      cargarDatos()
-    }
-  }
 
   // --- Recaudar ---
   async function abrirRecaudar(cartera: any) {
@@ -289,7 +233,6 @@ export default function CarteraPage() {
     const res = await fetch(`/api/cartera/${cartera.clienteId}`)
     const data = await res.json()
     setLoadingDetalle(false)
-    // Normalizar modo sync y manual a misma estructura
     const detalleCartera = data.cartera
     if (detalleCartera && data._modo === 'sync') {
       // Convertir deudas sync a formato DetalleCartera
@@ -387,42 +330,21 @@ export default function CarteraPage() {
     let ultimoId: string | null = null
     let ultimoToken: string | null = null
     let ultimoAnchoPapel: string = '80mm'
-    // Detectar modo sync — DetalleCartera tiene _sync: true
-    const esModoSync = (detalleData?.DetalleCartera || []).some((d: any) => d._sync)
     for (const linea of lineasPago) {
-      let res: Response
-      if (esModoSync) {
-        // Modo sync — pago directo sobre SyncDeuda
-        res = await fetch('/api/cartera/pago-sync', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            syncDeudaIds: facturasSeleccionadas,
-            clienteApiId: detalleData.clienteApiId,
-            integracionId: detalleData.integracionId,
-            monto: Number(linea.monto || 0),
-            descuento: Number(linea.descuento || 0),
-            metodoPago: linea.metodoPago,
-            notas: notasPago || undefined,
-            ...(linea.voucherKey ? { voucherKey: linea.voucherKey, voucherDatosIA: linea.voucherDatosIA } : {}),
-          })
+      const res = await fetch('/api/cartera/pago-sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          syncDeudaIds: facturasSeleccionadas,
+          clienteApiId: detalleData.clienteApiId,
+          integracionId: detalleData.integracionId,
+          monto: Number(linea.monto || 0),
+          descuento: Number(linea.descuento || 0),
+          metodoPago: linea.metodoPago,
+          notas: notasPago || undefined,
+          ...(linea.voucherKey ? { voucherKey: linea.voucherKey, voucherDatosIA: linea.voucherDatosIA } : {}),
         })
-      } else {
-        res = await fetch('/api/cartera/pago', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            carteraId: detalleData.id,
-            monto: Number(linea.monto || 0),
-            descuento: Number(linea.descuento || 0),
-            tipo: 'abono',
-            metodoPago: linea.metodoPago,
-            notas: notasPago || undefined,
-            detalleIds: facturasSeleccionadas,
-            ...(linea.voucherKey ? { voucherKey: linea.voucherKey, voucherDatosIA: linea.voucherDatosIA } : {}),
-          })
-        })
-      }
+      })
       const data = await res.json()
       if (data.pago) { ultimoId = data.pago.id; ultimoToken = data.pago.reciboToken || null; if (data.anchoPapel) ultimoAnchoPapel = data.anchoPapel }
     }
@@ -453,9 +375,9 @@ export default function CarteraPage() {
   )
 
   const tabs = [
-    { id: 'cartera', label: '📈 Cartera' },
     { id: 'clientes', label: '📋 Clientes' },
     { id: 'pagos', label: '💳 Pagos' },
+    { id: 'cartera', label: '📈 Cartera' },
   ] as const
 
 
@@ -494,13 +416,7 @@ export default function CarteraPage() {
         {(esAdmin || esVendedor) && (
           <button onClick={() => esAdmin ? setModalSync(true) : sincronizar()} disabled={sincronizando}
             className={`tab-btn flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-semibold disabled:opacity-50 ${sincronizando ? 'btn-shimmer' : ''}`}>
-            <SyncIcon spinning={sincronizando} className="w-3.5 h-3.5 text-blue-400" /> {sincronizando ? '...' : 'Sync'}
-          </button>
-        )}
-        {syncInfo !== null && !syncInfo.tieneIntegracion && (
-          <button onClick={() => setModalImportar(true)}
-            className="tab-btn flex-shrink-0 px-3 py-2 text-xs font-semibold">
-            📥
+            <SyncIcon spinning={sincronizando} className="w-3.5 h-3.5 text-blue-400" /><span className="hidden md:inline">{sincronizando ? '...' : 'Sync'}</span>
           </button>
         )}
       </div>
@@ -529,10 +445,12 @@ export default function CarteraPage() {
         const totalAnt = pagosAnt.reduce((s: number, p: any) => s + Number(p.monto) + Number(p.descuento || 0), 0)
         const variacion = totalAnt > 0 ? Math.round(((totalMes - totalAnt) / totalAnt) * 100) : 0
 
-        const totalCartera = carteras.reduce((s: number, c: any) => {
-          return s + (c.DetalleCartera || []).reduce((a: number, d: any) => a + Number(d.valorFactura ?? d.valor ?? 0), 0)
-        }, 0)
-        const totalPend = carteras.reduce((s: number, c: any) => s + Number(c.saldoPendiente), 0)
+        const totalCartera = totalReal ? totalReal.saldoTotal
+          : carteras.reduce((s: number, c: any) => {
+            return s + (c.DetalleCartera || []).reduce((a: number, d: any) => a + Number(d.valorFactura ?? d.valor ?? 0), 0)
+          }, 0)
+        const totalPend = totalReal ? totalReal.saldoPendiente
+          : carteras.reduce((s: number, c: any) => s + Number(c.saldoPendiente), 0)
 
         // Meta del mes (vendedor: su meta, admin/sup: suma)
         const miMeta = user?.role === 'vendedor'
@@ -682,32 +600,35 @@ export default function CarteraPage() {
               </div>
             )}
 
+
             {/* KPIs */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-1 ${loadingBusqueda ? 'loading-border' : ''}`}>
-                <p className="text-zinc-500 text-xs mb-1 uppercase tracking-wide">Cartera total</p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className={`rounded-2xl p-4 hover-lift fade-up stagger-1 ${loadingBusqueda ? 'loading-border' : ''}`} style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)"}}>
+                <p className="text-zinc-500 text-xs mb-1 uppercase tracking-wide font-bold">Cartera total</p>
                 <p className="text-white font-bold text-lg">$<CountUp end={Math.round(totalCartera)} /></p>
-                <p className="text-zinc-600 text-xs mt-1"><CountUp end={carteras.length} /> clientes</p>
+                <p className="text-zinc-600 text-xs mt-1"><CountUp end={totalReal ? totalReal.clientes : carteras.length} /> clientes</p>
               </div>
-              <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-2 ${loadingBusqueda ? 'loading-border-red' : ''}`}>
-                <p className="text-zinc-500 text-xs mb-1 uppercase tracking-wide">Pendiente</p>
+              <div className={`rounded-2xl p-4 hover-lift fade-up stagger-2 ${loadingBusqueda ? 'loading-border-red' : ''}`} style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)"}}>
+                <p className="text-zinc-500 text-xs mb-1 uppercase tracking-wide font-bold">Pendiente</p>
                 <p className="text-red-400 font-bold text-lg flex items-center gap-2">$<CountUp end={Math.round(totalPend)} />{totalPend > 0 && <LiveDot color="red" />}</p>
                 <p className="text-zinc-600 text-xs mt-1">{totalCartera > 0 ? Math.round((totalPend/totalCartera)*100) : 0}% sin cobrar</p>
               </div>
-              <div className={`bg-emerald-950/40 border border-emerald-800/30 rounded-2xl p-4 hover-lift fade-up stagger-3 ${loadingBusqueda ? 'loading-border-emerald' : ''}`}>
-                <p className="text-zinc-500 text-xs mb-1 uppercase tracking-wide">Recaudado</p>
+              <div className={`rounded-2xl p-4 hover-lift fade-up stagger-3 ${loadingBusqueda ? 'loading-border-emerald' : ''}`} style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)"}}>
+                <p className="text-zinc-500 text-xs mb-1 uppercase tracking-wide font-bold">Recaudado</p>
                 <p className="text-emerald-400 font-bold text-lg">$<CountUp end={Math.round(totalMes)} /></p>
                 <p className="text-zinc-600 text-xs mt-1">{pagosMes.length} pagos · {variacion >= 0 ? '+' : ''}{variacion}% vs ant.</p>
               </div>
-              <div className={`bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-4 ${loadingBusqueda ? 'loading-border-amber' : ''}`}>
-                <p className="text-zinc-500 text-xs mb-1 uppercase tracking-wide">Descuentos</p>
+              <div className={`rounded-2xl p-4 hover-lift fade-up stagger-4 ${loadingBusqueda ? 'loading-border-amber' : ''}`} style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)"}}>
+                <p className="text-zinc-500 text-xs mb-1 uppercase tracking-wide font-bold">Descuentos</p>
                 <p className="text-orange-400 font-bold text-lg">$<CountUp end={Math.round(totalDescMes)} /></p>
                 <p className="text-zinc-600 text-xs mt-1">aplicados este mes</p>
               </div>
             </div>
 
+            {/* Estadísticas — grid 3 col desktop */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Estado de cartera con barras */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+            <div style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)",borderRadius:16,padding:16}}>
               <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-3">Estado de cartera</p>
               <div className="space-y-2.5">
                 {([
@@ -726,7 +647,7 @@ export default function CarteraPage() {
                         <span className="text-xs text-zinc-300">{label}</span>
                         <span className="text-xs font-bold text-white">{fmt(monto)} <span className="text-zinc-600">({pct}%)</span></span>
                       </div>
-                      <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="h-1.5 rounded-full overflow-hidden" style={{background:"rgba(59,130,246,0.15)"}}>
                         <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
                       </div>
                     </div>
@@ -735,36 +656,9 @@ export default function CarteraPage() {
               </div>
             </div>
 
-            {/* Tendencia 4 meses */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-              <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-3">Tendencia recaudo</p>
-              <div className="space-y-3">
-                {meses4.map((m, i) => {
-                  const pct = Math.round((m.total / maxTend) * 100)
-                  const esActual = i === 0
-                  const ant = i < meses4.length - 1 ? meses4[i + 1].total : 0
-                  const vari = ant > 0 ? Math.round(((m.total - ant) / ant) * 100) : 0
-                  return (
-                    <div key={i} className="flex items-center gap-2">
-                      <span className={`text-xs w-7 flex-shrink-0 ${esActual ? 'text-emerald-400 font-bold' : 'text-zinc-500'}`}>{m.nombre}</span>
-                      <div className="flex-1 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: esActual ? 'linear-gradient(90deg,#059669,#34d399)' : '#27272a' }} />
-                      </div>
-                      <span className={`text-xs font-bold flex-shrink-0 ${esActual ? 'text-emerald-400' : 'text-zinc-400'}`}>{fmt(m.total)}</span>
-                      {i < meses4.length - 1 && m.total > 0 && (
-                        <span className={`text-xs flex-shrink-0 ${vari >= 0 ? 'text-emerald-500' : 'text-red-400'}`}>
-                          {vari >= 0 ? '↑' : '↓'}{Math.abs(vari)}%
-                        </span>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
             {/* Vista por vendedor — solo admin/supervisor */}
             {esAdmin && vendedoresMes.length > 0 && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+              <div className="md:col-span-2" style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)",borderRadius:16,padding:16}}>
                 <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-3">👥 Por vendedor</p>
                 <div className="space-y-5">
                   {vendedoresMes.sort((a: any, b: any) => b.monto - a.monto).map((v: any) => {
@@ -804,7 +698,7 @@ export default function CarteraPage() {
                           <span>{v.count} pagos</span>
                         </div>
                         {metaV > 0 && (
-                          <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden mb-2">
+                          <div className="h-1.5 rounded-full overflow-hidden mb-2" style={{background:"rgba(59,130,246,0.15)"}}>
                             <div className="h-full rounded-full" style={{ width: `${pctV}%`, background: colorV }} />
                           </div>
                         )}
@@ -815,7 +709,7 @@ export default function CarteraPage() {
                             return (
                               <div key={vi} className="flex items-center gap-2">
                                 <span className={`text-xs w-7 flex-shrink-0 ${esEste ? 'text-emerald-400 font-bold' : 'text-zinc-600'}`}>{vm.nombre}</span>
-                                <div className="flex-1 h-1 bg-zinc-800 rounded-full overflow-hidden">
+                                <div className="flex-1 h-1 rounded-full overflow-hidden" style={{background:"rgba(59,130,246,0.10)"}}>
                                   <div className="h-full rounded-full" style={{ width: `${pctBar}%`, background: esEste ? colorV : '#3f3f46' }} />
                                 </div>
                                 <span className={`text-xs flex-shrink-0 ${esEste ? 'text-zinc-300' : 'text-zinc-600'}`}>{fmt(vm.total)}</span>
@@ -829,6 +723,7 @@ export default function CarteraPage() {
                 </div>
               </div>
             )}
+            </div>{/* fin grid estadísticas */}
 
             {/* Asignar meta — solo admin/supervisor */}
             {esAdmin && (
@@ -927,129 +822,58 @@ export default function CarteraPage() {
           )}
         </div>
       )}
-      {/* IMPORTAR */}
-      {/* Modal Importar */}
-      {modalImportar && esAdmin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" onClick={e => { if (e.target === e.currentTarget) setModalImportar(false) }}>
-          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between p-5 border-b border-zinc-800">
-              <h2 className="text-white font-semibold text-base">📥 Importar carteras</h2>
-              <button onClick={() => setModalImportar(false)} className="text-zinc-400 hover:text-white text-xl leading-none">✕</button>
-            </div>
-            <div className="p-5 space-y-4">
-              <div className="flex justify-end">
-                <a href="/api/cartera/plantilla" download
-                  className="inline-flex items-center gap-2 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-medium px-4 py-2 rounded-xl transition-colors">
-                  ⬇️ Descargar plantilla .xlsx
-                </a>
-              </div>
-
-              <div className="bg-zinc-800/50 border border-zinc-700 rounded-2xl p-4 text-sm text-zinc-400 space-y-1">
-                <p className="font-semibold text-zinc-300">Columnas del archivo:</p>
-                <p><code className="text-emerald-400">nit · nombre_cliente · celular · vendedor_email · numero_factura · concepto · valor_factura · abonos · fecha_vencimiento</code></p>
-                <p className="text-xs">El vendedor_email debe coincidir con el email de un empleado activo.</p>
-              </div>
-
-              <div
-                onDragOver={e => { e.preventDefault(); setDragging(true) }}
-                onDragLeave={() => setDragging(false)}
-                onDrop={e => { e.preventDefault(); setDragging(false); const f = e.dataTransfer.files[0]; if (f) onFile(f) }}
-                onClick={() => fileRef.current?.click()}
-                className={`border-2 border-dashed rounded-2xl p-10 text-center cursor-pointer transition-colors ${
-                  dragging ? 'border-emerald-500 bg-emerald-500/5' : 'border-zinc-700 hover:border-zinc-600'
-                }`}>
-                <p className="text-4xl mb-2">📂</p>
-                <p className="text-zinc-300 font-medium">{archivo ? archivo.name : 'Arrastra un .xlsx o .csv aquí'}</p>
-                <p className="text-zinc-500 text-sm mt-1">o haz clic para seleccionar</p>
-                <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" className="hidden"
-                  onChange={e => { const f = e.target.files?.[0]; if (f) onFile(f) }} />
-              </div>
-
-              {previewErr.length > 0 && (
-                <div className="bg-amber-950/40 border border-amber-700 rounded-2xl p-4">
-                  {previewErr.map((e, i) => <p key={i} className="text-amber-400 text-sm">{e}</p>)}
-                </div>
-              )}
-
-              {preview.length > 0 && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
-                  <p className="text-white font-semibold text-sm">Vista previa (primeras {preview.length} filas)</p>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs">
-                      <thead>
-                        <tr className="border-b border-zinc-700">
-                          {Object.keys(preview[0] || {}).map(k => (
-                            <th key={k} className="text-left text-zinc-400 pb-2 pr-3 whitespace-nowrap">{k}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-zinc-800">
-                        {preview.map((r, i) => (
-                          <tr key={i}>
-                            {Object.values(r).map((v: any, j) => (
-                              <td key={j} className="py-1.5 pr-3 text-zinc-300 whitespace-nowrap">{String(v)}</td>
-                            ))}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                  <button onClick={importarArchivo} disabled={importando}
-                    className={`w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold py-3 rounded-2xl text-sm ${(importando) ? 'btn-shimmer' : ''}`}>
-                    {importando ? 'Importando...' : 'Importar archivo'}
-                  </button>
-                </div>
-              )}
-
-              {importResult && (
-                <div className={`border rounded-2xl p-4 ${(importResult.importados ?? 0) > 0 ? 'bg-emerald-950/40 border-emerald-700' : 'bg-red-950/40 border-red-700'}`}>
-                  <p className="font-semibold text-white">✅ {importResult.importados} facturas importadas</p>
-                  {importResult.errores?.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      {importResult.errores.slice(0, 5).map((e: any, i: number) => (
-                        <p key={i} className="text-red-400 text-xs">• {e.nit}: {e.error}</p>
-                      ))}
-                      {importResult.errores.length > 5 && (
-                        <p className="text-red-400 text-xs">... y {importResult.errores.length - 5} más</p>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* PAGOS */}
       {tab === 'pagos' && (
-        <div className="space-y-3">
+        <div>
           {pagos.length === 0 ? (
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-10 text-center">
               <p className="text-3xl mb-2">💳</p>
               <p className="text-zinc-400">Sin pagos registrados</p>
             </div>
+          ) : isDesktopPagos ? (
+            /* Desktop — DataTable */
+            <div style={{borderRadius:12,overflow:'hidden',border:'1px solid rgba(59,130,246,0.25)'}}>
+              <DataTable
+                columns={[
+                  { key:'fecha', label:'Fecha', width:110, render:(p:any) => <span style={{color:'rgba(255,255,255,0.60)',fontSize:11}}>{new Date(p.createdAt).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'America/Bogota'})}</span> },
+                  { key:'cliente', label:'Cliente', width:200, render:(p:any) => <span>{p.cartera?.cliente?.nombre || p.cliente?.nombre || p.clienteNombre || '—'}</span> },
+                  { key:'factura', label:'Factura', width:90, render:(p:any) => <span style={{fontFamily:'monospace'}}>{p.numeroFactura ? `#${p.numeroFactura}` : '—'}</span> },
+                  { key:'vendedor', label:'Vendedor', width:140, render:(p:any) => <span style={{color:'rgba(255,255,255,0.60)'}}>{p.empleado?.nombre || p.vendedorNombre || p.Empleado?.nombre || '—'}</span> },
+                  { key:'metodo', label:'Método', width:120, render:(p:any) => <span>{p.metodoPago || p.metodopago || '—'}</span> },
+                  { key:'monto', label:'Monto', width:110, render:(p:any) => <span style={{color:'#34d399',fontWeight:700}}>{fmt(Number(p.monto))}</span> },
+                  { key:'descuento', label:'Desc.', width:90, render:(p:any) => <span style={{color:Number(p.descuento)>0?'#fdba74':'rgba(255,255,255,0.25)'}}>{Number(p.descuento)>0?`-${fmt(Number(p.descuento))}`:'—'}</span> },
+                  { key:'tipo', label:'Tipo', width:80, render:(p:any) => <span style={{color:'rgba(255,255,255,0.50)',fontSize:11}}>{p.tipo==='total'?'Total':'Abono'}</span> },
+                  { key:'recibo', label:'', width:40, render:(p:any) => <button onClick={()=>abrirRecibo(p.id)} style={{background:'none',border:'none',cursor:'pointer',fontSize:15,lineHeight:1}} title="Ver recibo">🖨️</button> },
+                ]}
+                rows={pagos}
+                rowKey={(p:any) => p.id}
+                storageKey="cartera-pagos"
+              />
+            </div>
           ) : (
-            pagos.map((p: any) => (
-              <div key={p.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3 flex items-center gap-4">
-                <div className="flex-1 min-w-0">
-                  <p className="text-white text-sm font-medium">{p.cartera?.cliente?.nombre}</p>
-                  <p className="text-zinc-500 text-xs">
-                    {new Date(p.createdAt).toLocaleDateString('es-CO')} · {p.metodoPago} · {p.empleado?.nombre}
-                  </p>
-                  {p.notas && <p className="text-zinc-400 text-xs mt-0.5 truncate">{p.notas}</p>}
+            /* Mobile — cards */
+            <div className="space-y-3">
+              {pagos.map((p: any) => (
+                <div key={p.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3 flex items-center gap-4">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium">{p.cartera?.cliente?.nombre || p.cliente?.nombre || p.clienteNombre || '—'}</p>
+                    <p className="text-zinc-500 text-xs">
+                      {new Date(p.createdAt).toLocaleDateString('es-CO', {day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'America/Bogota'})} · {p.metodoPago || p.metodopago} · {p.empleado?.nombre || p.vendedorNombre || p.Empleado?.nombre}
+                    </p>
+                    {p.notas && <p className="text-zinc-400 text-xs mt-0.5 truncate">{p.notas}</p>}
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-emerald-400 font-bold">{fmt(Number(p.monto))}</p>
+                    {Number(p.descuento) > 0 && <p className="text-zinc-500 text-xs">Desc: {fmt(Number(p.descuento))}</p>}
+                    <span className="text-xs text-zinc-500">{p.tipo === 'total' ? 'Total' : 'Abono'}</span>
+                  </div>
+                  <button onClick={() => abrirRecibo(p.id)}
+                    className="text-zinc-500 hover:text-emerald-400 text-lg flex-shrink-0 transition-colors" title="Ver recibo">
+                    🖨️
+                  </button>
                 </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-emerald-400 font-bold">{fmt(Number(p.monto))}</p>
-                  {Number(p.descuento) > 0 && <p className="text-zinc-500 text-xs">Desc: {fmt(Number(p.descuento))}</p>}
-                  <span className="text-xs text-zinc-500">{p.tipo === 'total' ? 'Total' : 'Abono'}</span>
-                </div>
-                <button onClick={() => abrirRecibo(p.id)}
-                  className="text-zinc-500 hover:text-emerald-400 text-lg flex-shrink-0 transition-colors" title="Ver recibo">
-                  🖨️
-                </button>
-              </div>
-            ))
+              ))}
+            </div>
           )}
         </div>
       )}

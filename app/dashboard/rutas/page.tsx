@@ -369,7 +369,7 @@ export default function RutasPage() {
             <div className="flex gap-2">
               <input value={visClienteFiltro} onChange={e => setVisClienteFiltro(e.target.value)}
                 placeholder="Buscar cliente..." onKeyDown={e => e.key === 'Enter' && buscarVisitas()}
-                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-emerald-500" />
+                className="flex-1  rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
               <button onClick={() => buscarVisitas()} disabled={visLoading}
                 className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-xl text-sm flex-shrink-0">
                 {visLoading ? '...' : '🔍'}
@@ -377,7 +377,7 @@ export default function RutasPage() {
             </div>
             <div className="flex gap-2">
               <select value={visEmpleadoFiltro} onChange={e => setVisEmpleadoFiltro(e.target.value)}
-                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm outline-none">
+                className="flex-1  rounded-xl px-3 py-2 text-white text-sm outline-none" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                 <option value="">Todos los empleados</option>
                 {visEmpleados.filter((e: any) => e.activo).map((e: any) => (
                   <option key={e.id} value={e.id}>{e.nombre}</option>
@@ -388,7 +388,7 @@ export default function RutasPage() {
                   className="absolute inset-0 opacity-0 cursor-pointer w-full" />
                 <div className={"flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border " + (visFechaFiltro ? "bg-emerald-600 border-emerald-500 text-white" : "bg-zinc-800 border-zinc-700 text-zinc-400")}>
                   <span>📅</span>
-                  {visFechaFiltro ? new Date(visFechaFiltro + 'T12:00:00Z').toLocaleDateString('es-CO', {day:'numeric', month:'short'}) : ''}
+                  {visFechaFiltro ? new Date(visFechaFiltro + 'T12:00:00Z').toLocaleDateString('es-CO', {day:'numeric', month:'short', timeZone: 'America/Bogota'}) : ''}
                   {visFechaFiltro && <button onClick={e => { e.stopPropagation(); setVisFechaFiltro('') }} className="ml-1 text-white/70 hover:text-white">✕</button>}
                 </div>
               </div>
@@ -404,7 +404,7 @@ export default function RutasPage() {
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="text-white text-sm font-medium truncate">{v.cliente?.nombre}</p>
-                    <p className="text-zinc-500 text-xs capitalize">{v.tipo} · {v.empleado?.nombre} · {new Date(v.createdAt).toLocaleDateString('es-CO', {day:'numeric', month:'short', year:'numeric'})}</p>
+                    <p className="text-zinc-500 text-xs capitalize">{v.tipo} · {v.empleado?.nombre} · {new Date(v.createdAt).toLocaleDateString('es-CO', {day:'numeric', month:'short', year:'numeric', timeZone: 'America/Bogota'})}</p>
                   </div>
                   <div className="flex gap-1 flex-shrink-0">
                     <button onClick={() => setVisDetalle(visDetalle === v.id ? null : v.id)}
@@ -617,7 +617,7 @@ export default function RutasPage() {
       }
       {/* Modal nueva/editar ruta (solo no-supervisor) */}
       {modal && (
-        <div className="fixed inset-0 bg-black/70 flex items-start justify-center z-50 pt-4 px-4 pb-4" >
+        <div className="fixed inset-0 bg-black/95 flex items-start justify-center z-50 pt-4 px-4 pb-4" >
           <div ref={modalRef} className="bg-zinc-900 border border-zinc-800 rounded-t-2xl md:rounded-2xl w-full max-w-md overflow-hidden max-h-[90vh] overflow-y-auto pb-6">
             <div className="px-6 pt-6 pb-4 border-b border-zinc-800">
               <div className="flex items-center justify-between mb-3">
@@ -637,7 +637,7 @@ export default function RutasPage() {
                   <div>
                     <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Fecha de la ruta</label>
                     <input type="date" value={fecha} onChange={e => { setFecha(e.target.value); if (empSeleccionado) setNombre(nombreAuto(empSeleccionado, e.target.value)) }}
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
+                      className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
                   </div>
                   <div className="space-y-2 overflow-y-auto flex-1">
                     {empleados.filter(e => e.activo && ['vendedor','entregas'].includes(e.rol)).map((e: any) => (
@@ -668,7 +668,7 @@ export default function RutasPage() {
                   <input value={buscarCli}
                     onChange={e => { setBuscarCli(e.target.value); setPageCli(1); loadClientes(e.target.value, 1) }}
                     placeholder="Buscar cliente..."
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
+                    className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
                   <p className="text-zinc-500 text-xs">{cliSeleccionados.length} seleccionados</p>
                   <div ref={cliListRef} className="space-y-2 overflow-y-auto max-h-48">
                     {clientesFiltrados.map((c: any) => {
@@ -725,7 +725,7 @@ export default function RutasPage() {
 
       {/* Modal agregar clientes (supervisor) */}
       {modalAgregar && (
-        <div className="fixed inset-0 bg-black/70 flex items-start justify-center z-50 pt-4 px-4 pb-4">
+        <div className="fixed inset-0 bg-black/95 flex items-start justify-center z-50 pt-4 px-4 pb-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto pb-24 md:pb-6">
             <div className="px-6 pt-6 pb-4 border-b border-zinc-800 flex items-center justify-between">
               <div>
@@ -753,7 +753,7 @@ export default function RutasPage() {
                   <input value={buscarSup}
                     onChange={e => { setBuscarSup(e.target.value); setPageSup(1); loadClientesSup(e.target.value, 1) }}
                     placeholder="Buscar cliente..."
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
+                    className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
                   <p className="text-zinc-500 text-xs">{selSup.length} seleccionados</p>
                   <div className="space-y-2">
                     {clientesSup.map((c: any) => {
@@ -839,12 +839,12 @@ export default function RutasPage() {
 
       {/* Modal editar ruta */}
       {modalEditar && editando && (
-        <div className="fixed inset-0 bg-black/70 flex items-start justify-center z-50 pt-4 px-4 pb-4">
+        <div className="fixed inset-0 bg-black/95 flex items-start justify-center z-50 pt-4 px-4 pb-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto pb-24 md:pb-6">
             <div className="px-6 pt-6 pb-4 border-b border-zinc-800 space-y-3">
               <div className="flex items-center gap-2">
                 <input value={nombre} onChange={e => setNombre(e.target.value)}
-                  className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm font-semibold outline-none focus:border-emerald-500" />
+                  className="flex-1  rounded-xl px-3 py-2 text-white text-sm font-semibold outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
                 <button onClick={guardarEdicion} disabled={loading}
                   className={`bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold text-sm px-4 py-2 rounded-xl whitespace-nowrap ${(loading) ? 'btn-shimmer' : ''}`}>
                   {loading ? '...' : 'Guardar'}
@@ -852,7 +852,7 @@ export default function RutasPage() {
                 <button onClick={cerrarModalEditar} className="text-zinc-400 hover:text-white text-xl">×</button>
               </div>
               <input type="date" value={fecha} onChange={e => setFecha(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-emerald-500" />
+                className="w-full  rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
             </div>
             <div className="flex border-b border-zinc-800">
               <button onClick={() => setTabEditar('empleados')}
@@ -894,7 +894,7 @@ export default function RutasPage() {
                   <input value={buscarSup}
                     onChange={e => { setBuscarSup(e.target.value); setPageSup(1); loadClientesSup(e.target.value, 1) }}
                     placeholder="Buscar cliente..."
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
+                    className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
                   <p className="text-zinc-500 text-xs">{selSup.length} seleccionados</p>
                   <div className="space-y-2">
                     {clientesSup.map((c: any) => {
@@ -974,7 +974,7 @@ export default function RutasPage() {
 
       {/* Modal simple — agregar cliente a ruta vinculada */}
       {modalSimpleRuta && (
-        <div className="fixed inset-0 bg-black/70 flex items-start justify-center z-50 pt-4 px-4 pb-4">
+        <div className="fixed inset-0 bg-black/95 flex items-start justify-center z-50 pt-4 px-4 pb-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-sm max-h-[80vh] overflow-y-auto pb-6">
             <div className="px-6 pt-6 pb-4 border-b border-zinc-800 flex items-center justify-between">
               <div>
@@ -987,7 +987,7 @@ export default function RutasPage() {
               <input value={buscarSup}
                 onChange={e => { setBuscarSup(e.target.value); setPageSup(1); loadClientesSup(e.target.value, 1) }}
                 placeholder="Buscar cliente..."
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
+                className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
               <p className="text-zinc-500 text-xs">{selSup.length} seleccionados</p>
               <div className="space-y-2">
                 {clientesSup.map((c: any) => {

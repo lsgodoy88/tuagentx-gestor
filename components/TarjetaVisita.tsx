@@ -32,7 +32,7 @@ export default function TarjetaVisita({ visita: v, mostrarEmpleado = false, most
   const [cargandoFirma, setCargandoFirma] = useState(false)
 
   const hora = new Date(v.createdAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
-  const fecha = new Date(v.fechaBogota || v.createdAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' })
+  const fecha = new Date(v.fechaBogota || v.createdAt).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' , timeZone: 'America/Bogota'})
 
   async function verFirma() {
     if (firmaUrl) { setFirmaUrl(null); return }

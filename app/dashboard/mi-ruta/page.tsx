@@ -319,7 +319,7 @@ export default function MiRutaPage() {
               <div className="space-y-3">
                 <input value={buscar} onChange={e => setBuscar(e.target.value)}
                   placeholder="Buscar cliente por nombre..."
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
+                  className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
 
                 {clientesOrdenados.filter((c: any) => visitasCliente(c.id).length === 0 && (buscar === '' || c.nombre.toLowerCase().includes(buscar.toLowerCase()))).length > 0 && (
                   <div className="space-y-2">
@@ -687,7 +687,7 @@ export default function MiRutaPage() {
                     </button>
                   </div>
                   {showTipoDropdown && (
-                    <div className="absolute bottom-full left-0 right-0 mb-1 bg-zinc-800 border border-zinc-700 rounded-xl overflow-hidden shadow-xl z-10">
+                    <div className="absolute bottom-full left-0 right-0 mb-1  rounded-xl overflow-hidden shadow-xl z-10" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
                       {TIPOS.map(t => (
                         <button
                           key={t.id}

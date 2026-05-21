@@ -51,7 +51,7 @@ export default function VisitasAdminPage() {
         <div className="flex gap-2">
           <input value={clienteFiltro} onChange={e => setClienteFiltro(e.target.value)}
             placeholder="Buscar cliente..." onKeyDown={e => e.key === 'Enter' && buscar()}
-            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-emerald-500" />
+            className="flex-1  rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
           <button onClick={() => buscar()} disabled={loading}
             className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors flex-shrink-0">
             {loading ? '...' : 'Buscar'}
@@ -59,7 +59,7 @@ export default function VisitasAdminPage() {
         </div>
         <div className="flex gap-2">
           <select value={empleadoFiltro} onChange={e => setEmpleadoFiltro(e.target.value)}
-            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm outline-none">
+            className="flex-1  rounded-xl px-3 py-2 text-white text-sm outline-none" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
             <option value="">Todos los empleados</option>
             {empleados.filter((e: any) => e.activo).map((e: any) => (
               <option key={e.id} value={e.id}>{e.nombre}</option>
@@ -70,7 +70,7 @@ export default function VisitasAdminPage() {
               className="absolute inset-0 opacity-0 cursor-pointer w-full" />
             <div className={"flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border " + (fechaFiltro ? "bg-emerald-600 border-emerald-500 text-white" : "bg-zinc-800 border-zinc-700 text-zinc-400")}>
               <span>📅</span>
-              {fechaFiltro ? new Date(fechaFiltro + 'T12:00:00Z').toLocaleDateString('es-CO', {day:'numeric', month:'short'}) : ''}
+              {fechaFiltro ? new Date(fechaFiltro + 'T12:00:00Z').toLocaleDateString('es-CO', {day:'numeric', month:'short', timeZone: 'America/Bogota'}) : ''}
               {fechaFiltro && <button onClick={e => { e.stopPropagation(); setFechaFiltro('') }} className="ml-1 text-white/70 hover:text-white">✕</button>}
             </div>
           </div>
@@ -86,7 +86,7 @@ export default function VisitasAdminPage() {
               </span>
               <div className="flex-1 min-w-0">
                 <p className="text-white text-sm font-medium truncate">{v.cliente?.nombre}</p>
-                <p className="text-zinc-500 text-xs capitalize">{v.tipo} · {v.empleado?.nombre} · {new Date(v.createdAt).toLocaleDateString('es-CO', {day:'numeric', month:'short', year:'numeric'})}</p>
+                <p className="text-zinc-500 text-xs capitalize">{v.tipo} · {v.empleado?.nombre} · {new Date(v.createdAt).toLocaleDateString('es-CO', {day:'numeric', month:'short', year:'numeric', timeZone: 'America/Bogota'})}</p>
               </div>
               <div className="flex gap-1 flex-shrink-0">
                 <button onClick={() => setDetalle(detalle === v.id ? null : v.id)}
