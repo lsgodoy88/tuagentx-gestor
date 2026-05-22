@@ -1108,8 +1108,8 @@ export default function DashboardPage() {
                       stagger={3}
                       icon="💼"
                       label="Ventas"
-                      primary={`$${Math.round(statsVendedor.ordenes?.montoMes || 0).toLocaleString('es-CO')}`}
-                      secondary={statsVendedor.ordenes?.metaVentaMes > 0 ? `$${Math.round(statsVendedor.ordenes.metaVentaMes).toLocaleString('es-CO')}` : '—'}
+                      primary={<CountUp end={Math.round(statsVendedor.ordenes?.montoMes || 0)} prefix="$" />}
+                      secondary={statsVendedor.ordenes?.metaVentaMes > 0 ? <CountUp end={Math.round(statsVendedor.ordenes.metaVentaMes)} prefix="$" /> : '—'}
                       primaryLabel="mes"
                       secondaryLabel="meta"
                       primaryColor="text-emerald-400"
@@ -1121,7 +1121,7 @@ export default function DashboardPage() {
                       stagger={4}
                       icon="💰"
                       label="Recaudo"
-                      primary={`$${Math.round((statsVendedor.recaudo?.mes || 0) + (statsVendedor.recaudo?.descuentosMes || 0)).toLocaleString('es-CO')}`}
+                      primary={<CountUp end={Math.round((statsVendedor.recaudo?.mes || 0) + (statsVendedor.recaudo?.descuentosMes || 0))} prefix="$" />}
                       secondary={statsVendedor.recaudo?.meta > 0 ? `$${Math.round(statsVendedor.recaudo.meta).toLocaleString('es-CO')}` : '—'}
                       primaryLabel="rec+desc"
                       secondaryLabel="meta"
