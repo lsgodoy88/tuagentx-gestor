@@ -31,6 +31,7 @@ export async function GET() {
   const anioMes      = ahora.getFullYear()
   const mesMes       = ahora.getMonth() + 1
   const inicioMes    = new Date(`${anioMes}-${String(mesMes).padStart(2,'0')}-01T05:00:00.000Z`)
+  const finMes       = new Date(inicioMes); finMes.setMonth(finMes.getMonth() + 1)
 
   // ── Fase 1: obtener apiId del empleado ────────────────────────────
   const empleadoData = await (prisma as any).empleado.findUnique({
@@ -74,7 +75,7 @@ export async function GET() {
       ? (prisma as any).ordenDespacho.aggregate({
           where: {
             vendedorApiId: miApiId,
-            fechaOrden: { gte: inicioMes },
+            fechaOrden: { gte: inicioMes, lt: finMes },
             isFacturada: true,
           },
           _count: { id: true },

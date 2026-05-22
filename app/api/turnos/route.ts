@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { nowBogota } from '@/lib/fechas'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
       // Cerrar cualquier turno activo previo
       await tx.turno.updateMany({
         where: { empleadoId: user.id, activo: true },
-        data: { activo: false, fin: new Date() }
+        data: { activo: false, fin: nowBogota() }
       })
       return tx.turno.create({
         data: {
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest) {
   if (accion === 'cerrar') {
     await prisma.turno.updateMany({
       where: { empleadoId: user.id, activo: true },
-      data: { activo: false, fin: new Date(), latFin: lat || null, lngFin: lng || null }
+      data: { activo: false, fin: nowBogota(), latFin: lat || null, lngFin: lng || null }
     })
     await audit('TURNO_CERRADO', user.email, `Turno cerrado`, user.id, user.empresaId)
     return NextResponse.json({ ok: true })
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
   if (accion === 'pausar') {
     await prisma.turno.updateMany({
       where: { empleadoId: user.id, activo: true },
-      data: { pausado: true, pausaInicio: new Date(), pausaMotivo: motivo || null, pausaDuracionMin: duracionMin || null }
+      data: { pausado: true, pausaInicio: nowBogota(), pausaMotivo: motivo || null, pausaDuracionMin: duracionMin || null }
     })
     return NextResponse.json({ ok: true })
   }

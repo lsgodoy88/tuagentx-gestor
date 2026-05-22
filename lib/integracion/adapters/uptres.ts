@@ -282,7 +282,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
 
   async fetchVentas(desde?: Date, customerId?: string): Promise<VentaExterna[]> {
     const baseParams: Record<string, string> = {
-      fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,items,createdAt,updatedAt,cityId,address,phone',
+      fields: 'id,orderNumber,invoiceNumber,isInvoiced,customerId,employeeId,total,items,createdAt,updatedAt,cityId,address,phone',
       expand: 'customer,items',
       includeTotal: 'false',
     }
@@ -297,11 +297,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       this.fetchAllSinCondition('ordenes', { ...baseParams, condition: 'true' }),
       this.fetchAllSinCondition('ordenes', { ...baseParams, condition: 'false' }),
     ])
-    if (activas.length > 0) {
-      const s = activas[0]
-      console.log(`[fetchVentas] KEYS: ${Object.keys(s).join(',')}`)
-      console.log(`[fetchVentas] RAW: ${JSON.stringify(s).substring(0,500)}`)
-    }
+
 
     // Deduplicar por id
     const mapaOrdenes = new Map<string, any>()

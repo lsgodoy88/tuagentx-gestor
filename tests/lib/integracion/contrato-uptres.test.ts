@@ -101,7 +101,7 @@ describe('CONTRATO fetchVentas → /ordenes', () => {
     expect(fields).toContain('phone')
   })
 
-  it('fields NO incluye campos que no se mapean (isInvoiced, isDelivered, isShipped)', async () => {
+  it('fields incluye isInvoiced para determinar isFacturada, NO incluye isDelivered/isShipped', async () => {
     let capturedUrl = ''
     global.fetch = mockFetch((url) => {
       if (url.includes('/auth/api')) return { ok: true, token: 'tok' }
@@ -113,7 +113,7 @@ describe('CONTRATO fetchVentas → /ordenes', () => {
     await a.fetchVentas()
     const params = new URLSearchParams(capturedUrl.split('?')[1])
     const fields = params.get('fields')?.split(',') ?? []
-    expect(fields).not.toContain('isInvoiced')
+    expect(fields).toContain('isInvoiced')     // necesario para isFacturada en bodega sync
     expect(fields).not.toContain('isDelivered')
     expect(fields).not.toContain('isShipped')
   })
