@@ -550,7 +550,53 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 pb-20 md:pb-0 max-w-5xl mx-auto">
-      {!(user?.role === 'vendedor' && turno) && (
+      {/* Saludo + pill turno — siempre visible para vendedor */}
+      {user?.role === 'vendedor' && (
+        <div className="flex items-center justify-between gap-3 min-h-[40px]">
+          <h1
+            className="font-bold text-white overflow-hidden whitespace-nowrap transition-all duration-500 ease-in-out"
+            style={{
+              fontSize: turno ? '1rem' : '1.5rem',
+              opacity: turno ? 0.7 : 1,
+            }}>
+            {turno ? `Hola, ${user?.name?.split(' ')[0]}` : `Bienvenido, ${user?.name?.split(' ')[0]}`}
+          </h1>
+
+          {turno && !turno.pausado && (
+            <button
+              onClick={() => setTurnoExpandido(e => !e)}
+              className="flex items-center gap-2 px-3 py-2 rounded-2xl fade-up flex-shrink-0"
+              style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.30)'}}>
+              <span className="relative inline-flex h-2 w-2 flex-shrink-0">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 live-ping" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              <span className="font-mono font-bold text-emerald-400 text-base tabular-nums">{tiempoTurno}</span>
+              <button onClick={e => { e.stopPropagation(); setMostrarPausa(m => !m); setTurnoExpandido(true) }}
+                className="w-7 h-7 flex items-center justify-center bg-zinc-800 rounded-lg text-sm">⏸</button>
+              <span className={`text-zinc-500 text-[10px] transition-transform duration-200 ${turnoExpandido ? 'rotate-180' : ''}`}>▼</span>
+            </button>
+          )}
+
+          {turno?.pausado && (
+            <button
+              onClick={() => setTurnoExpandido(e => !e)}
+              className="flex items-center gap-2 px-3 py-2 rounded-2xl fade-up flex-shrink-0"
+              style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(245,158,11,0.40)'}}>
+              <span className="relative inline-flex h-2 w-2 flex-shrink-0">
+                <span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 live-ping" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400" />
+              </span>
+              <span className="font-mono font-bold text-amber-400 text-base tabular-nums">{pausaCountdown}</span>
+              <span className="text-zinc-500 text-xs">⏸</span>
+              <span className={`text-zinc-500 text-[10px] transition-transform duration-200 ${turnoExpandido ? 'rotate-180' : ''}`}>▼</span>
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Saludo admin/supervisor */}
+      {!(user?.role === 'vendedor') && (
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">Bienvenido, {user?.name?.split(' ')[0]}</h1>
