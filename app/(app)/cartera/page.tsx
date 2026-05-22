@@ -9,7 +9,9 @@ import { calcularEstado, estadoMasCritico } from '@/lib/cartera'
 import { CountUp, LiveDot, LoadingBorder } from '@/components/FX'
 import { SyncIcon } from '@/components/SyncIcon'
 import InputMoneda from '@/components/InputMoneda'
+import SelectorMes from '@/components/SelectorMes'
 import CarteraCard from '@/components/CarteraCard'
+import { ROLES_ADMIN } from '@/lib/auth-helpers'
 
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
 const fmtShort = (n: number): string => {
@@ -39,7 +41,7 @@ export default function CarteraPage() {
   const esAdmin = user?.role === 'empresa' || user?.role === 'supervisor'
   const esVendedor = user?.role === 'vendedor'
   const searchParamsCartera = useSearchParams()
-  const [tab, setTab] = useState<'cartera' | 'clientes' | 'pagos'>(
+  const [tab, setTab] = useState<'cartera' | 'clientes' | 'pagos' | 'comisiones'>(
     (searchParamsCartera.get('tab') as any) || 'clientes'
   )
   const [isDesktopPagos, setIsDesktopPagos] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : false)
@@ -50,6 +52,16 @@ export default function CarteraPage() {
   const [metaForm, setMetaForm] = useState({ empleadoId: '', carteraBase: '', metaPct: '' })
   const [guardandoMeta, setGuardandoMeta] = useState(false)
   const [vendedores, setVendedores] = useState<any[]>([])
+  const [vendedorPagoId, setVendedorPagoId] = useState('')
+  const [mesPagos, setMesPagos] = useState(mesBogota())
+  const [anioPagos, setAnioPagos] = useState(anioBogota())
+  const [comisiones, setComisiones] = useState<any[]>([])
+  const [comisionCalculo, setComisionCalculo] = useState<any>(null)
+  const [loadingComisiones, setLoadingComisiones] = useState(false)
+  const [nombreComision, setNombreComision] = useState('')
+  const [guardandoComision, setGuardandoComision] = useState(false)
+  const [mesComision, setMesComision] = useState(mesBogota())
+  const [anioComision, setAnioComision] = useState(anioBogota())
 
   const [carteras, setCarteras] = useState<any[]>([])
   const [pagos, setPagos] = useState<any[]>([])
@@ -112,7 +124,7 @@ export default function CarteraPage() {
         // Fetch en segundo plano para actualizar
         Promise.all([
           fetch(url).then(r => r.json()),
-          fetch('/api/recaudos?limit=500').then(r => r.json()).catch(() => ({ pagos: [] })),
+          fetch(`/api/recaudos?limit=500&mes=${mesPagos}&anio=${anioPagos}${vendedorPagoId ? '&vendedorId='+vendedorPagoId : ''}`).then(r => r.json()).catch(() => ({ pagos: [] })),
           fetch('/api/cartera/metas').then(r => r.json()).catch(() => ({ metas: [] })),
         ]).then(([nr1, nr2, nr3]) => {
           if (nr1.carteras) {
@@ -375,10 +387,13 @@ export default function CarteraPage() {
     </div>
   )
 
+  const isAdmin = ROLES_ADMIN.includes(user?.role)
+
   const tabs = [
     { id: 'clientes', label: '📋 Clientes' },
     { id: 'pagos', label: '💳 Pagos' },
     { id: 'cartera', label: '📈 Cartera' },
+    ...(isAdmin ? [{ id: 'comisiones', label: '💼 Comisiones' }] : []),
   ] as const
 
 
@@ -826,60 +841,233 @@ export default function CarteraPage() {
         </div>
       </div>)}
       {/* PAGOS */}
-      {tab === 'pagos' && (<div key='tab-pagos' className='fade-up'>
-        <div>
-          {pagos.length === 0 ? (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-10 text-center">
-              <p className="text-3xl mb-2">💳</p>
-              <p className="text-zinc-400">Sin pagos registrados</p>
-            </div>
-          ) : isDesktopPagos ? (
-            /* Desktop — DataTable */
-            <div style={{borderRadius:12,overflow:'hidden',border:'1px solid rgba(59,130,246,0.25)'}}>
-              <DataTable
-                columns={[
-                  { key:'fecha', label:'Fecha', width:110, render:(p:any) => <span style={{color:'rgba(255,255,255,0.60)',fontSize:11}}>{new Date(p.createdAt).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'America/Bogota'})}</span> },
-                  { key:'cliente', label:'Cliente', width:200, render:(p:any) => <span>{p.cartera?.cliente?.nombre || p.cliente?.nombre || p.clienteNombre || '—'}</span> },
-                  { key:'factura', label:'Factura', width:90, render:(p:any) => <span style={{fontFamily:'monospace'}}>{p.numeroFactura ? `#${p.numeroFactura}` : '—'}</span> },
-                  { key:'vendedor', label:'Vendedor', width:140, render:(p:any) => <span style={{color:'rgba(255,255,255,0.60)'}}>{p.empleado?.nombre || p.vendedorNombre || p.Empleado?.nombre || '—'}</span> },
-                  { key:'metodo', label:'Método', width:120, render:(p:any) => <span>{p.metodoPago || p.metodopago || '—'}</span> },
-                  { key:'monto', label:'Monto', width:110, render:(p:any) => <span style={{color:'#34d399',fontWeight:700}}>{fmt(Number(p.monto))}</span> },
-                  { key:'descuento', label:'Desc.', width:90, render:(p:any) => <span style={{color:Number(p.descuento)>0?'#fdba74':'rgba(255,255,255,0.25)'}}>{Number(p.descuento)>0?`-${fmt(Number(p.descuento))}`:'—'}</span> },
-                  { key:'tipo', label:'Tipo', width:80, render:(p:any) => <span style={{color:'rgba(255,255,255,0.50)',fontSize:11}}>{p.tipo==='total'?'Total':'Abono'}</span> },
-                  { key:'recibo', label:'', width:40, render:(p:any) => <button onClick={()=>abrirRecibo(p.id)} style={{background:'none',border:'none',cursor:'pointer',fontSize:15,lineHeight:1}} title="Ver recibo">🖨️</button> },
-                ]}
-                rows={pagos}
-                rowKey={(p:any) => p.id}
-                storageKey="cartera-pagos"
-              />
-            </div>
-          ) : (
-            /* Mobile — cards */
-            <div className="space-y-3">
-              {pagos.map((p: any) => (
-                <div key={p.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3 flex items-center gap-4">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-medium">{p.cartera?.cliente?.nombre || p.cliente?.nombre || p.clienteNombre || '—'}</p>
-                    <p className="text-zinc-500 text-xs">
-                      {new Date(p.createdAt).toLocaleDateString('es-CO', {day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'America/Bogota'})} · {p.metodoPago || p.metodopago} · {p.empleado?.nombre || p.vendedorNombre || p.Empleado?.nombre}
-                    </p>
-                    {p.notas && <p className="text-zinc-400 text-xs mt-0.5 truncate">{p.notas}</p>}
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-emerald-400 font-bold">{fmt(Number(p.monto))}</p>
-                    {Number(p.descuento) > 0 && <p className="text-zinc-500 text-xs">Desc: {fmt(Number(p.descuento))}</p>}
-                    <span className="text-xs text-zinc-500">{p.tipo === 'total' ? 'Total' : 'Abono'}</span>
-                  </div>
-                  <button onClick={() => abrirRecibo(p.id)}
-                    className="text-zinc-500 hover:text-emerald-400 text-lg flex-shrink-0 transition-colors" title="Ver recibo">
-                    🖨️
-                  </button>
-                </div>
+      {tab === 'pagos' && (<div key='tab-pagos' className='fade-up space-y-3'>
+
+        {/* Filtros: mes + vendedor (admin) */}
+        <div className="flex flex-wrap items-center gap-2">
+          <SelectorMes
+            value={`${anioPagos}-${String(mesPagos).padStart(2,'0')}`}
+            onChange={v => { const [a,m] = v.split('-'); setAnioPagos(Number(a)); setMesPagos(Number(m)) }}
+          />
+          {isAdmin && (
+            <select
+              value={vendedorPagoId}
+              onChange={e => setVendedorPagoId(e.target.value)}
+              className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-blue-500">
+              <option value="">Todos los vendedores</option>
+              {vendedores.map((v: any) => (
+                <option key={v.id} value={v.id}>{v.nombre}</option>
               ))}
-            </div>
+            </select>
           )}
         </div>
+
+        {/* Tabla scroll horizontal — funciona en móvil y desktop */}
+        {pagos.length === 0 ? (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-10 text-center">
+            <p className="text-3xl mb-2">💳</p>
+            <p className="text-zinc-400">Sin pagos en este período</p>
+          </div>
+        ) : (() => {
+          // Pre-calcular totales
+          let totEfectivo = 0, totTransf = 0, totDesc = 0
+          const rows = pagos.map((p: any) => {
+            const lineas: any[] = Array.isArray(p.lineasPago) ? p.lineasPago : []
+            const efectivo  = lineas.filter(l => l.metodoPago === 'efectivo').reduce((s, l) => s + Number(l.monto || 0), 0) || ((!p.lineasPago && (p.metodoPago || p.metodopago) === 'efectivo') ? Number(p.monto) : 0)
+            const transf    = lineas.filter(l => l.metodoPago !== 'efectivo' && l.metodoPago).reduce((s, l) => s + Number(l.monto || 0), 0) || ((!p.lineasPago && (p.metodoPago || p.metodopago) !== 'efectivo') ? Number(p.monto) : 0)
+            const desc      = Number(p.descuento || 0)
+            const saldoAnt  = Number(p.saldoAnterior || 0)
+            const nuevoSaldo = saldoAnt > 0 ? saldoAnt - Number(p.monto) - desc : null
+            totEfectivo += efectivo; totTransf += transf; totDesc += desc
+            return { ...p, _efectivo: efectivo, _transf: transf, _desc: desc, _nuevoSaldo: nuevoSaldo }
+          })
+          return (
+            <div className="rounded-2xl overflow-hidden" style={{border:'1px solid rgba(59,130,246,0.25)'}}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs min-w-[700px]">
+                  <thead>
+                    <tr style={{background:'rgba(8,8,28,0.95)',borderBottom:'1px solid rgba(59,130,246,0.2)'}}>
+                      <th className="px-3 py-2.5 text-left text-zinc-400 font-semibold whitespace-nowrap">Fecha</th>
+                      <th className="px-3 py-2.5 text-left text-zinc-400 font-semibold whitespace-nowrap">#Recibo</th>
+                      <th className="px-3 py-2.5 text-left text-zinc-400 font-semibold whitespace-nowrap">Factura</th>
+                      <th className="px-3 py-2.5 text-left text-zinc-400 font-semibold whitespace-nowrap">Cliente</th>
+                      <th className="px-3 py-2.5 text-right text-zinc-400 font-semibold whitespace-nowrap">Efectivo</th>
+                      <th className="px-3 py-2.5 text-right text-zinc-400 font-semibold whitespace-nowrap">Transf.</th>
+                      <th className="px-3 py-2.5 text-right text-zinc-400 font-semibold whitespace-nowrap">Descuento</th>
+                      <th className="px-3 py-2.5 text-right text-zinc-400 font-semibold whitespace-nowrap">Nuevo Saldo</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((p: any, i: number) => (
+                      <tr key={p.id}
+                        style={{background: i%2===0 ? 'rgba(8,8,28,0.70)' : 'rgba(15,15,35,0.50)', borderBottom:'1px solid rgba(59,130,246,0.08)'}}>
+                        <td className="px-3 py-2 text-zinc-400 whitespace-nowrap">
+                          {new Date(p.createdAt).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'America/Bogota'})}
+                        </td>
+                        <td className="px-3 py-2 whitespace-nowrap">
+                          <button onClick={() => abrirRecibo(p.id)}
+                            className="flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors font-mono">
+                            🖨️ {p.numeroRecibo || '—'}
+                          </button>
+                        </td>
+                        <td className="px-3 py-2 text-zinc-300 font-mono whitespace-nowrap">
+                          {p.numeroFactura ? `#${p.numeroFactura}` : '—'}
+                        </td>
+                        <td className="px-3 py-2 text-white max-w-[160px] truncate">
+                          {p.clienteNombre || p.cartera?.cliente?.nombre || p.Cartera?.Cliente?.nombre || '—'}
+                        </td>
+                        <td className="px-3 py-2 text-right text-emerald-400 font-semibold whitespace-nowrap">
+                          {p._efectivo > 0 ? fmt(p._efectivo) : '—'}
+                        </td>
+                        <td className="px-3 py-2 text-right text-blue-400 font-semibold whitespace-nowrap">
+                          {p._transf > 0 ? fmt(p._transf) : '—'}
+                        </td>
+                        <td className="px-3 py-2 text-right text-amber-400 whitespace-nowrap">
+                          {p._desc > 0 ? fmt(p._desc) : '—'}
+                        </td>
+                        <td className="px-3 py-2 text-right text-zinc-300 whitespace-nowrap">
+                          {p._nuevoSaldo !== null ? fmt(p._nuevoSaldo) : '—'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  {/* Totales */}
+                  <tfoot>
+                    <tr style={{background:'rgba(8,8,28,0.95)',borderTop:'1px solid rgba(59,130,246,0.3)'}}>
+                      <td colSpan={4} className="px-3 py-2.5 text-zinc-400 font-bold text-xs">{rows.length} pagos</td>
+                      <td className="px-3 py-2.5 text-right text-emerald-400 font-bold whitespace-nowrap">{fmt(totEfectivo)}</td>
+                      <td className="px-3 py-2.5 text-right text-blue-400 font-bold whitespace-nowrap">{fmt(totTransf)}</td>
+                      <td className="px-3 py-2.5 text-right text-amber-400 font-bold whitespace-nowrap">{totDesc > 0 ? fmt(totDesc) : '—'}</td>
+                      <td className="px-3 py-2.5 text-right text-zinc-400 font-bold">—</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+          )
+        })()}
       </div>)}
+
+      {tab === 'comisiones' && isAdmin && (<div key='tab-comisiones' className='fade-up space-y-4'>
+
+        {/* Selector mes + botón cargar */}
+        <div className="flex flex-wrap items-center gap-2">
+          <SelectorMes
+            value={`${anioComision}-${String(mesComision).padStart(2,'0')}`}
+            onChange={v => { const [a,m] = v.split('-'); setAnioComision(Number(a)); setMesComision(Number(m)) }}
+          />
+          <button
+            onClick={async () => {
+              setLoadingComisiones(true)
+              const r = await fetch(`/api/comisiones?mes=${mesComision}&anio=${anioComision}`).then(r => r.json()).catch(() => ({}))
+              setComisiones(r.vendedores || [])
+              setComisionCalculo(r.calculo || null)
+              if (!nombreComision) {
+                const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
+                setNombreComision(`Comision${MESES[mesComision-1]}${anioComision}`)
+              }
+              setLoadingComisiones(false)
+            }}
+            className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors">
+            Cargar
+          </button>
+        </div>
+
+        {comisiones.length > 0 && (
+          <>
+            {/* Tabla de vendedores con % */}
+            <div className="rounded-2xl overflow-hidden" style={{border:'1px solid rgba(59,130,246,0.25)'}}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-xs min-w-[600px]">
+                  <thead>
+                    <tr style={{background:'rgba(8,8,28,0.95)',borderBottom:'1px solid rgba(59,130,246,0.2)'}}>
+                      <th className="px-3 py-2.5 text-left text-zinc-400 font-semibold">Vendedor</th>
+                      <th className="px-3 py-2.5 text-right text-zinc-400 font-semibold">Recaudado</th>
+                      <th className="px-3 py-2.5 text-right text-zinc-400 font-semibold">Pagos</th>
+                      <th className="px-3 py-2.5 text-center text-zinc-400 font-semibold w-24">% Comisión</th>
+                      <th className="px-3 py-2.5 text-left text-zinc-400 font-semibold">Fórmula</th>
+                      <th className="px-3 py-2.5 text-right text-zinc-400 font-semibold">Comisión</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {comisiones.map((v: any, i: number) => (
+                      <tr key={v.id} style={{background: i%2===0 ? 'rgba(8,8,28,0.70)' : 'rgba(15,15,35,0.50)', borderBottom:'1px solid rgba(59,130,246,0.08)'}}>
+                        <td className="px-3 py-2 text-white font-medium">{v.nombre}</td>
+                        <td className="px-3 py-2 text-right text-emerald-400 font-semibold">{fmt(v.recaudado)}</td>
+                        <td className="px-3 py-2 text-right text-zinc-400">{v.pagosCount}</td>
+                        <td className="px-3 py-2 text-center">
+                          <input
+                            type="number" min="0" max="100" step="0.5"
+                            value={v.porcentaje}
+                            onChange={e => setComisiones(prev => prev.map(x => x.id === v.id ? { ...x, porcentaje: parseFloat(e.target.value)||0, comision: Math.round(x.recaudado * (parseFloat(e.target.value)||0) / 100) } : x))}
+                            className="w-16 bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-white text-center text-xs outline-none focus:border-blue-500"
+                          />
+                          <span className="text-zinc-500 ml-1">%</span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <input
+                            type="text"
+                            value={v.formula || ''}
+                            onChange={e => setComisiones(prev => prev.map(x => x.id === v.id ? { ...x, formula: e.target.value } : x))}
+                            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-zinc-300 text-xs outline-none focus:border-blue-500 font-mono"
+                            placeholder="recaudado * porcentaje / 100"
+                          />
+                        </td>
+                        <td className="px-3 py-2 text-right text-amber-400 font-bold">{fmt(v.comision)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{background:'rgba(8,8,28,0.95)',borderTop:'1px solid rgba(59,130,246,0.3)'}}>
+                      <td className="px-3 py-2.5 text-zinc-400 font-bold">Total</td>
+                      <td className="px-3 py-2.5 text-right text-emerald-400 font-bold">{fmt(comisiones.reduce((s,v)=>s+v.recaudado,0))}</td>
+                      <td className="px-3 py-2.5 text-right text-zinc-400">{comisiones.reduce((s,v)=>s+v.pagosCount,0)}</td>
+                      <td colSpan={2}></td>
+                      <td className="px-3 py-2.5 text-right text-amber-400 font-bold">{fmt(comisiones.reduce((s,v)=>s+v.comision,0))}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </div>
+
+            {/* Guardar */}
+            <div className="flex items-center gap-3 flex-wrap">
+              <input
+                type="text"
+                value={nombreComision}
+                onChange={e => setNombreComision(e.target.value)}
+                placeholder="Ej: ComisionMayo2026"
+                className="flex-1 min-w-[180px] bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-blue-500"
+              />
+              <button
+                disabled={guardandoComision}
+                onClick={async () => {
+                  setGuardandoComision(true)
+                  await fetch('/api/comisiones', { method: 'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({ accion: 'guardar_config', vendedores: comisiones })
+                  })
+                  const r = await fetch('/api/comisiones', { method: 'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({ accion: 'calcular', mes: mesComision, anio: anioComision, nombre: nombreComision, vendedores: comisiones, formula: 'recaudado * porcentaje / 100' })
+                  }).then(r => r.json())
+                  setComisionCalculo(r.calculo)
+                  setGuardandoComision(false)
+                }}
+                className={`bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold text-sm px-5 py-2.5 rounded-xl transition-colors ${guardandoComision ? 'btn-shimmer' : ''}`}>
+                {guardandoComision ? 'Guardando...' : '💾 Guardar como ' + (nombreComision || 'Comision')}
+              </button>
+            </div>
+
+            {/* Último cálculo guardado */}
+            {comisionCalculo && (
+              <div className="rounded-2xl px-4 py-3" style={{background:'rgba(16,185,129,0.08)',border:'1px solid rgba(16,185,129,0.25)'}}>
+                <p className="text-emerald-400 text-sm font-semibold">✅ Guardado: {comisionCalculo.nombre}</p>
+                <p className="text-zinc-500 text-xs mt-0.5">{new Date(comisionCalculo.createdAt).toLocaleDateString('es-CO',{timeZone:'America/Bogota'})}</p>
+              </div>
+            )}
+          </>
+        )}
+      </div>)}
+
 
       {/* Modal Recaudar */}
       {recaudandoCartera && (

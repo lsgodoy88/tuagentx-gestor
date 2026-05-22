@@ -53,6 +53,8 @@ model Empresa {
   ordenesDespacho     OrdenDespacho[]
   ventasMes           VentaMesCliente[]
   despachoLogs        DespachoLog[]       @relation("DespachoLogEmpresa")
+  comisionConfigs     ComisionConfig[]
+  comisionCalculos    ComisionCalculo[]
 }
 
 model Empleado {
@@ -92,6 +94,7 @@ model Empleado {
   visitas             Visita[]
   ordenesAlistadas    OrdenDespacho[]      @relation("AlistadoPor")
   ordenesRepartidas   OrdenDespacho[]      @relation("RepartidorDespacho")
+  comisionConfigs     ComisionConfig[]
 
   @@map("Empleado")
 }
@@ -2881,4 +2884,37 @@ model SyncEmpleado {
   @@unique([integracionId, externalId])
   @@index([integracionId])
   @@map("SyncEmpleado")
+}
+
+model ComisionConfig {
+  id         String   @id @default(cuid())
+  empresaId  String
+  empleadoId String
+  porcentaje Decimal  @default(0) @db.Decimal(5, 2)
+  formula    String?  @default("recaudado * porcentaje / 100")
+  activo     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  empresa    Empresa  @relation(fields: [empresaId], references: [id])
+  empleado   Empleado @relation(fields: [empleadoId], references: [id])
+
+  @@unique([empresaId, empleadoId])
+  @@index([empresaId])
+  @@map("ComisionConfig")
+}
+
+model ComisionCalculo {
+  id         String   @id @default(cuid())
+  empresaId  String
+  nombre     String
+  mes        Int
+  anio       Int
+  formula    String?
+  resultados Json
+  createdAt  DateTime @default(now())
+  empresa    Empresa  @relation(fields: [empresaId], references: [id])
+
+  @@unique([empresaId, mes, anio])
+  @@index([empresaId])
+  @@map("ComisionCalculo")
 }

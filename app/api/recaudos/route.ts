@@ -17,6 +17,8 @@ export async function GET(req: NextRequest) {
   const vendedorId = searchParams.get('vendedorId') || undefined
   const estado = searchParams.get('estado') || undefined
   const fecha = searchParams.get('fecha') || undefined
+  const mes   = searchParams.get('mes')   ? parseInt(searchParams.get('mes')!)   : undefined
+  const anio  = searchParams.get('anio')  ? parseInt(searchParams.get('anio')!)  : undefined
   const cursor = searchParams.get('cursor') || null
   const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
   const limit = 15
@@ -33,7 +35,12 @@ export async function GET(req: NextRequest) {
   if (empleadoIdForzado) where.empleadoId = empleadoIdForzado
   else if (vendedorId) where.empleadoId = vendedorId
   if (estado && estado !== 'todos') where.envioEstado = estado
-  if (fecha) {
+  if (mes && anio) {
+    const inicioMes = new Date(`${anio}-${String(mes).padStart(2,'0')}-01T05:00:00.000Z`)
+    const finMes    = new Date(inicioMes)
+    finMes.setMonth(finMes.getMonth() + 1)
+    where.createdAt = { gte: inicioMes, lt: finMes }
+  } else if (fecha) {
     // Colombia = UTC-5: midnight Colombia = 05:00 UTC
     where.createdAt = {
       gte: new Date(`${fecha}T05:00:00.000Z`),
