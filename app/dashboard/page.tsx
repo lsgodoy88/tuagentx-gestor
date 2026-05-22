@@ -1123,8 +1123,8 @@ export default function DashboardPage() {
                       label="Recaudo"
                       primary={<CountUp end={Math.round((statsVendedor.recaudo?.mes || 0) + (statsVendedor.recaudo?.descuentosMes || 0))} prefix="$" />}
                       secondary={statsVendedor.recaudo?.meta > 0 ? `$${Math.round(statsVendedor.recaudo.meta).toLocaleString('es-CO')}` : '—'}
-                      primaryLabel="rec+desc"
-                      secondaryLabel="meta"
+                      primaryLabel="Recaudo+Descuento"
+                      secondaryLabel="Meta"
                       primaryColor="text-blue-400"
                     />
                   </div>
