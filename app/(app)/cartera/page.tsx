@@ -53,6 +53,7 @@ export default function CarteraPage() {
   const [guardandoMeta, setGuardandoMeta] = useState(false)
   const [vendedores, setVendedores] = useState<any[]>([])
   const [vendedorPagoId, setVendedorPagoId] = useState('')
+  const [busquedaPagos, setBusquedaPagos] = useState('')
   const [mesPagos, setMesPagos] = useState(mesBogota())
   const [anioPagos, setAnioPagos] = useState(anioBogota())
   const [comisiones, setComisiones] = useState<any[]>([])
@@ -860,6 +861,20 @@ export default function CarteraPage() {
               ))}
             </select>
           )}
+          <div className="relative flex-1 min-w-[160px] max-w-[280px]">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm pointer-events-none">🔍</span>
+            <input
+              type="text"
+              value={busquedaPagos}
+              onChange={e => setBusquedaPagos(e.target.value)}
+              placeholder="Cliente o factura..."
+              className="w-full bg-zinc-900 border border-zinc-800 rounded-xl pl-8 pr-3 py-2 text-white text-sm outline-none focus:border-blue-500 placeholder:text-zinc-600"
+            />
+            {busquedaPagos && (
+              <button onClick={() => setBusquedaPagos('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white text-xs">✕</button>
+            )}
+          </div>
         </div>
 
         {/* Tabla scroll horizontal — funciona en móvil y desktop */}
@@ -871,7 +886,17 @@ export default function CarteraPage() {
         ) : (() => {
           // Pre-calcular totales
           let totEfectivo = 0, totTransf = 0, totDesc = 0
-          const rows = pagos.map((p: any) => {
+          const pagosFiltrados = busquedaPagos.trim()
+            ? pagos.filter((p: any) => {
+                const q = busquedaPagos.toLowerCase()
+                const cliente = (p.clienteNombre || p.cartera?.cliente?.nombre || '').toLowerCase()
+                const factura = String(p.numeroFactura || '').toLowerCase()
+                const recibo  = String(p.numeroRecibo || '').toLowerCase()
+                return cliente.includes(q) || factura.includes(q) || recibo.includes(q)
+              })
+            : pagos
+
+          const rows = pagosFiltrados.map((p: any) => {
             const lineas: any[] = Array.isArray(p.lineasPago) ? p.lineasPago : []
             const efectivo  = lineas.filter(l => l.metodoPago === 'efectivo').reduce((s, l) => s + Number(l.monto || 0), 0) || ((!p.lineasPago && (p.metodoPago || p.metodopago) === 'efectivo') ? Number(p.monto) : 0)
             const transf    = lineas.filter(l => l.metodoPago !== 'efectivo' && l.metodoPago).reduce((s, l) => s + Number(l.monto || 0), 0) || ((!p.lineasPago && (p.metodoPago || p.metodopago) !== 'efectivo') ? Number(p.monto) : 0)
@@ -934,7 +959,7 @@ export default function CarteraPage() {
                   {/* Totales */}
                   <tfoot>
                     <tr style={{background:'rgba(8,8,28,0.95)',borderTop:'1px solid rgba(59,130,246,0.3)'}}>
-                      <td colSpan={4} className="px-4 py-3 text-zinc-400 font-bold">{rows.length} pagos</td>
+                      <td colSpan={4} className="px-4 py-3 text-zinc-400 font-bold">{rows.length} {busquedaPagos ? `de ${pagos.length}` : ''} pagos</td>
                       <td className="px-4 py-3 text-right text-emerald-400 font-bold whitespace-nowrap">{fmt(totEfectivo)}</td>
                       <td className="px-4 py-3 text-right text-blue-400 font-bold whitespace-nowrap">{fmt(totTransf)}</td>
                       <td className="px-4 py-3 text-right text-amber-400 font-bold whitespace-nowrap">{totDesc > 0 ? fmt(totDesc) : '—'}</td>
