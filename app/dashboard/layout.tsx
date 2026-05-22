@@ -117,6 +117,39 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { data: session, status } = useSession()
   const router = useRouter()
   const pathname = usePathname()
+
+  // Título del tab por página
+  useEffect(() => {
+    const titles: Record<string, string> = {
+      '/dashboard':              'Inicio',
+      '/dashboard/empresas':     'Empresas',
+      '/dashboard/monitor':      'Control',
+      '/dashboard/precios':      'Precios',
+      '/dashboard/code':         'Code',
+      '/dashboard/empleados':    'Activos',
+      '/dashboard/clientes':     'Clientes',
+      '/dashboard/cartera':      'Cartera',
+      '/dashboard/recaudos':     'Recaudos',
+      '/dashboard/rutas':        'Visitas',
+      '/dashboard/rutas-fijas':  'Impulsos',
+      '/dashboard/trazabilidad': 'Trazabilidad',
+      '/dashboard/reportes':     'Reportes',
+      '/dashboard/ordenes':      'Órdenes',
+      '/dashboard/inventario':   'Inventario',
+      '/dashboard/visitas':      'Mis Visitas',
+      '/dashboard/impulsadora':  'Mi Ruta',
+      '/dashboard/mi-ruta':      'Mi Ruta',
+      '/dashboard/turno':        'Turno',
+      '/dashboard/historial':    'Historial',
+      '/dashboard/mapa-ruta':    'Mapa',
+      '/dashboard/bodega':       'Bodega',
+      '/dashboard/impulsos':     'Impulsos',
+      '/dashboard/configuracion':'Configuración',
+    }
+    const label = titles[pathname] || 'Gestor'
+    document.title = `${label} — TuAgentX`
+  }, [pathname])
+
   const [collapsed, setCollapsed] = useState(false)
   const [hovered, setHovered] = useState(false)
   const sidebarExpanded = !collapsed || hovered
