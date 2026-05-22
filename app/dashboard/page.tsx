@@ -560,75 +560,37 @@ export default function DashboardPage() {
       )}
       {(isEmpresa || isSupervisor) && (
         <div className="space-y-6">
-          <div className="rounded-2xl" style={{backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)" as any,overflow:"hidden",borderRadius:16}}>
-          <div className="grid grid-cols-2 gap-3">
-
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-1 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
-              <div className="flex items-center justify-center gap-1.5 mb-2">
-                <span className="text-sm">🛍️</span>
-                <span className="text-white text-[10px] font-bold tracking-widest uppercase">Vendedores</span>
-              </div>
-              <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-white text-2xl font-bold"><CountUp end={stats.vendedoresActivos||0} /></span>
-                <span className="text-white/40 text-xl font-light">/</span>
-                <span className="text-white text-2xl font-bold"><CountUp end={stats.totalVendedores||0} /></span>
-              </div>
-              <div className="flex justify-center gap-4 mt-1">
-                <span className="text-white text-xs">en turno</span>
-                <span className="text-white text-xs">activos</span>
-              </div>
-            </div>
-
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-2 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
-              <div className="flex items-center justify-center gap-1.5 mb-2">
-                <span className="text-sm">⚡</span>
-                <span className="text-white text-[10px] font-bold tracking-widest uppercase">Impulsos</span>
-              </div>
-              <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-amber-400 text-2xl font-bold"><CountUp end={stats.impulsosActivos||0} /></span>
-                <span className="text-white/40 text-xl font-light">/</span>
-                <span className="text-white text-2xl font-bold"><CountUp end={stats.totalImpulsos||0} /></span>
-              </div>
-              <div className="flex justify-center gap-4 mt-1">
-                <span className="text-white text-xs">activas</span>
-                <span className="text-white text-xs">total</span>
-              </div>
-            </div>
-
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-3 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
-              <div className="flex items-center justify-center gap-1.5 mb-2">
-                <span className="text-sm">📦</span>
-                <span className="text-white text-[10px] font-bold tracking-widest uppercase">Órdenes hoy</span>
-              </div>
-              <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-emerald-400 text-2xl font-bold"><CountUp end={stats.ordenesDespachadasHoy||0} /></span>
-                <span className="text-white/40 text-xl font-light">/</span>
-                <span className="text-white text-2xl font-bold"><CountUp end={stats.ordenesFact||0} /></span>
-              </div>
-              <div className="flex justify-center gap-4 mt-1">
-                <span className="text-white text-xs">despacho</span>
-                <span className="text-white text-xs">facturas</span>
-              </div>
-            </div>
-
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-4 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
-              <div className="flex items-center justify-center gap-1.5 mb-2">
-                <span className="text-sm">💰</span>
-                <span className="text-white text-[10px] font-bold tracking-widest uppercase">Recaudado</span>
-              </div>
-              <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-blue-400 text-2xl font-bold"><CountUp end={stats.recaudoHoy||0} prefix="$" /></span>
-                <span className="text-white/40 text-xl font-light">/</span>
-                <span className="text-white text-2xl font-bold"><CountUp end={stats.recaudoMes||0} prefix="$" /></span>
-              </div>
-              <div className="flex justify-center gap-4 mt-1">
-                <span className="text-white text-xs">hoy</span>
-                <span className="text-white text-xs">mes</span>
-              </div>
-            </div>
-
-          </div>
-          </div>
+          <CardKPIGroup cols={2}>
+            <CardCountAdmin
+              stagger={1} icon="🛍️" label="Vendedores"
+              primary={<CountUp end={stats.vendedoresActivos||0} />}
+              secondary={<CountUp end={stats.totalVendedores||0} />}
+              primaryLabel="en turno" secondaryLabel="activos"
+              primaryColor="text-white"
+            />
+            <CardCountAdmin
+              stagger={2} icon="⚡" label="Impulsos"
+              primary={<CountUp end={stats.impulsosActivos||0} />}
+              secondary={<CountUp end={stats.totalImpulsos||0} />}
+              primaryLabel="activas" secondaryLabel="total"
+              primaryColor="text-amber-400"
+            />
+            <CardCountAdmin
+              stagger={3} icon="📦" label="Órdenes hoy"
+              primary={<CountUp end={stats.ordenesDespachadasHoy||0} />}
+              secondary={<CountUp end={stats.ordenesFact||0} />}
+              primaryLabel="despacho" secondaryLabel="facturas"
+              primaryColor="text-emerald-400"
+            />
+            <CardCountAdmin
+              stagger={4} icon="💰" label="Recaudado"
+              primary={<CountUp end={stats.recaudoHoy||0} prefix="$" />}
+              secondary={<CountUp end={stats.recaudoMes||0} prefix="$" />}
+              primaryLabel="hoy" secondaryLabel="mes"
+              primaryColor="text-blue-400"
+              compact
+            />
+          </CardKPIGroup>
 
           {/* Botón Estadísticas */}
           <button
