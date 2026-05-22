@@ -313,6 +313,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       _id: o.id,
       numeroOrden: o.orderNumber,
       numeroFacturado: o.invoiceNumber || null,
+      isInvoiced: o.isInvoiced === true,
       vTotal: o.total,
       fCreado: o.createdAt,
       fModificado: o.updatedAt,

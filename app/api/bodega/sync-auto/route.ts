@@ -125,6 +125,7 @@ async function syncEmpresa(empresaIdConIntegracion: string, origenVinculadaId: s
       telefono,
       fechaOrden: orden.fCreado ? new Date(orden.fCreado as string) : new Date(),
       totalOrden: orden.vTotal ? parseFloat(orden.vTotal) : null,
+      isFacturada: orden.isInvoiced === true,
       empresaId: empresaDestino,
       origen: origenVinculadaId ? 'vinculada' : 'propia',
       origenId,

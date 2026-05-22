@@ -69,10 +69,14 @@ export async function GET() {
           select: { estado: true, numeroFactura: true, totalOrden: true },
         })
       : Promise.resolve([]),
-    // Órdenes del mes (conteo + suma monto)
+    // Órdenes del mes — solo facturadas (isFacturada=true, equivale a isInvoiced en UpTres)
     miApiId
       ? (prisma as any).ordenDespacho.aggregate({
-          where: { vendedorApiId: miApiId, fechaOrden: { gte: inicioMes } },
+          where: {
+            vendedorApiId: miApiId,
+            fechaOrden: { gte: inicioMes },
+            isFacturada: true,
+          },
           _count: { id: true },
           _sum: { totalOrden: true },
         })
