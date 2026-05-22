@@ -5,6 +5,12 @@ const nextConfig: NextConfig = {
   reactCompiler: true,
   compress: true,
   poweredByHeader: false,
+  async redirects() {
+    return [
+      { source: '/dashboard', destination: '/inicio', permanent: true },
+      { source: '/dashboard/:path*', destination: '/:path*', permanent: true },
+    ]
+  },
   async headers() {
     return [
       {
