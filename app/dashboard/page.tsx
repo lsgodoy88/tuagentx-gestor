@@ -1037,7 +1037,7 @@ export default function DashboardPage() {
                 <div className="space-y-3">
                   {/* Visitas + Órdenes — 2 columnas sin moneda */}
                   <div className={sincVentas ? 'opacity-60 pointer-events-none transition-opacity' : 'transition-opacity'}>
-                  <CardKPIGroup cols={2}>
+                  <div className="grid grid-cols-2 gap-3">
                     <CardCountAdmin
                       stagger={1}
                       icon="👁️"
@@ -1058,9 +1058,9 @@ export default function DashboardPage() {
                       secondaryLabel="fact hoy"
                       primaryColor="text-amber-400"
                     />
-                  </CardKPIGroup>
+                  </div>
                   {/* Ventas — ancho completo */}
-                  <div className="relative" style={{backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',borderRadius:16,overflow:'hidden'}}>
+                  <div className="relative" style={{backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',borderRadius:16}}>
                     <button
                       onClick={sincronizarVentas}
                       disabled={sincVentas}
@@ -1080,7 +1080,7 @@ export default function DashboardPage() {
                     />
                   </div>
                   {/* Recaudo — ancho completo */}
-                  <div style={{backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',borderRadius:16,overflow:'hidden'}}>
+                  <div style={{backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',borderRadius:16}}>
                     <CardCountAdmin
                       stagger={4}
                       icon="💰"
