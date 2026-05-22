@@ -47,7 +47,14 @@ function ImpulsosTabla({ mes }: { mes: string }) {
   const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
   const color = (pct: number | null) => pct === null ? 'text-zinc-500' : pct >= 80 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-red-400'
 
-  if (loading) return <div className="text-zinc-400 text-sm text-center py-12">Cargando...</div>
+  if (loading) return (
+    <div className="p-4 space-y-4">
+      <div className="shimmer h-10 w-2/3 rounded-xl mx-auto" />
+      {Array.from({length: 4}).map((_,i) => (
+        <div key={i} className="shimmer rounded-2xl h-24" />
+      ))}
+    </div>
+  )
   if (!datos) return null
 
   return (

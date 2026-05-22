@@ -117,7 +117,15 @@ export default function MapaRutaPage() {
     if (res.orden) setClientesOrdenados(res.orden)
   }
 
-  if (loading) return <div className="p-8 text-zinc-400 text-center">Cargando mapa...</div>
+  if (loading) return (
+    <div className="p-4 space-y-4">
+      <div className="shimmer h-8 w-1/2 rounded-xl" />
+      <div className="shimmer rounded-2xl h-64" />
+      {Array.from({length: 3}).map((_,i) => (
+        <div key={i} className="shimmer rounded-2xl h-20" />
+      ))}
+    </div>
+  )
   if (!ruta) return <div className="p-8 text-zinc-400 text-center">Sin ruta asignada</div>
 
   function etiquetaColor(etiqueta: string): string {

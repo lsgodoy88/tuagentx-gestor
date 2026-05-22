@@ -422,7 +422,8 @@ export default function CarteraPage() {
         )}
       </div>
 
-      {tab === 'cartera' && (() => {
+      {tab === 'cartera' && (<div key='tab-cartera' className='fade-up'>
+      {(() => {
         const anio = anioAnalisis
         const mes = mesAnalisis
 
@@ -791,8 +792,9 @@ export default function CarteraPage() {
         )
       })()}
 
+      </div>)}
       {/* CLIENTES */}
-      {tab === 'clientes' && (
+      {tab === 'clientes' && (<div key='tab-clientes' className='fade-up'>
         <div className="space-y-3">
           <input value={buscar} onChange={e => onBuscarChange(e.target.value)}
             placeholder="Buscar por nombre o NIT..."
@@ -822,9 +824,9 @@ export default function CarteraPage() {
             </button>
           )}
         </div>
-      )}
+      </div>)}
       {/* PAGOS */}
-      {tab === 'pagos' && (
+      {tab === 'pagos' && (<div key='tab-pagos' className='fade-up'>
         <div>
           {pagos.length === 0 ? (
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-10 text-center">
@@ -877,7 +879,7 @@ export default function CarteraPage() {
             </div>
           )}
         </div>
-      )}
+      </div>)}
 
       {/* Modal Recaudar */}
       {recaudandoCartera && (

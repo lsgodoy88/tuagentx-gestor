@@ -58,6 +58,7 @@ export default function ModalVisita({
   const [firma, setFirma] = useState<string | null>(null)
   const [capturarGps, setCapturarGps] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [exito, setExito] = useState(false)
   const [obteniendo, setObteniendo] = useState(false)
   const [gpsProgress, setGpsProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -161,8 +162,12 @@ export default function ModalVisita({
     if (data.alertaDistancia) {
       alert('Visita registrada. Estás a ' + data.alertaDistancia + 'm del cliente')
     }
-    onClose()
-    onRegistrado?.()
+    setExito(true)
+    setTimeout(() => {
+      setExito(false)
+      onClose()
+      onRegistrado?.()
+    }, 900)
 
     // GPS en background para los casos donde no se esperó
     if (!esperarGps) {

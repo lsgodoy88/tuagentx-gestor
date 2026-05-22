@@ -85,7 +85,15 @@ export default function ImpulsoDashboard() {
     loadData()
   }
 
-  if (loading) return <div className="p-8 text-zinc-400 text-center">Cargando...</div>
+  if (loading) return (
+    <div className="p-4 space-y-4 max-w-2xl mx-auto">
+      <div className="shimmer h-8 w-1/2 rounded-xl" />
+      <div className="shimmer h-32 rounded-2xl" />
+      {Array.from({length: 5}).map((_,i) => (
+        <div key={i} className="shimmer rounded-2xl h-20" />
+      ))}
+    </div>
+  )
 
   const puntoActual = getPuntoActual()
   const completados = rutaHoy ? rutaHoy.clientes.filter((rc: any) => llegadas.filter((l: any) => l.rutaFijaClienteId === rc.id && l.tipo === 'salida').length > 0).length : 0

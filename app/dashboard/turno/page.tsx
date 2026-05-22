@@ -89,7 +89,14 @@ export default function TurnoPage() {
     return `${h}h ${m}m`
   }
 
-  if (loading) return <div className="p-8 text-zinc-400">Cargando...</div>
+  if (loading) return (
+    <div className="p-4 space-y-4 max-w-xl mx-auto">
+      <div className="shimmer h-8 w-1/3 rounded-xl" />
+      <div className="shimmer h-40 rounded-2xl" />
+      <div className="shimmer h-12 rounded-2xl" />
+      <div className="shimmer h-12 rounded-2xl" />
+    </div>
+  )
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-24 md:pb-0">

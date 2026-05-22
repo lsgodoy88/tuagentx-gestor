@@ -55,7 +55,14 @@ export default function PreciosPage() {
   }
 
 
-  if (loading) return <div className="p-8 text-zinc-400 text-center">Cargando...</div>
+  if (loading) return (
+    <div className="p-4 space-y-3">
+      <div className="shimmer h-8 w-1/3 rounded-xl" />
+      {Array.from({length: 6}).map((_,i) => (
+        <div key={i} className="shimmer rounded-2xl h-16" />
+      ))}
+    </div>
+  )
 
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-24 md:pb-0">

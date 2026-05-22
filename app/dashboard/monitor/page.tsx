@@ -50,8 +50,17 @@ export default function MonitorPage() {
   }
 
   if (loading) return (
-    <div className="flex items-center justify-center h-64">
-      <div className="text-zinc-400 animate-pulse text-sm">Cargando monitor...</div>
+    <div className="p-4 space-y-4">
+      <div className="flex justify-between items-center">
+        <div className="shimmer h-7 w-1/3 rounded-xl" />
+        <div className="shimmer h-5 w-1/4 rounded-lg" />
+      </div>
+      {Array.from({length: 3}).map((_,i) => (
+        <div key={i} className="space-y-2">
+          <div className="shimmer h-5 w-1/4 rounded" />
+          <div className="shimmer rounded-2xl h-28" />
+        </div>
+      ))}
     </div>
   )
 
