@@ -91,7 +91,10 @@ export async function GET(req: NextRequest) {
     const valorFacturasPagadas = detalleCartera.reduce((s: number, d: any) => s + d.valorFactura, 0)
     const saldoNuevo = detalleCartera.reduce((s: number, d: any) => s + d.saldoActual, 0)
     const montoPago = Number(pago.monto) + Number(pago.descuento || 0)
-    const saldoAnterior = saldoNuevo + montoPago
+    // Priorizar saldoAnterior congelado al momento del pago
+    const saldoAnterior = pago.saldoAnterior != null
+      ? Number(pago.saldoAnterior)
+      : saldoNuevo + montoPago
 
     carteraData = {
       cliente,

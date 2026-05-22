@@ -107,6 +107,14 @@ export async function POST(req: NextRequest) {
     restante -= aplicar
   }
 
+  // Congelar saldoAnterior y valorFactura ANTES de aplicar pagos
+  const saldoAnteriorTotal = deudas
+    .filter((d: any) => aplicaciones.some(a => a.syncDeudaId === d.id))
+    .reduce((s: number, d: any) => s + Number(d.saldo), 0)
+  const valorFacturaTotal = deudas
+    .filter((d: any) => aplicaciones.some(a => a.syncDeudaId === d.id))
+    .reduce((s: number, d: any) => s + Number(d.valor || d.saldo), 0)
+
   // Transacción: crear pago + actualizar saldos atómicamente
   // Si otra request modifica el saldo entre medio, esta falla y se reintenta
   const pago = await (prisma as any).$transaction(async (tx: any) => {
@@ -121,6 +129,8 @@ export async function POST(req: NextRequest) {
         clienteApiId: clienteApiId || null,
         clienteNombre: cliente?.nombre || null,
         vendedorNombre: vendedorNom || null,
+        saldoAnterior: saldoAnteriorTotal > 0 ? saldoAnteriorTotal : null,
+        valorFactura: valorFacturaTotal > 0 ? valorFacturaTotal : null,
         ...(lineasValidas.length > 0 ? { lineasPago: lineasValidas } : {}),
         ...(lat != null && lng != null ? { latCobro: Number(lat), lngCobro: Number(lng), gpsAccuracy: gpsAccuracy != null ? Number(gpsAccuracy) : null } : {}),
         numeroRecibo,
