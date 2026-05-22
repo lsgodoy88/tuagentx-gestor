@@ -884,48 +884,48 @@ export default function CarteraPage() {
           return (
             <div className="rounded-2xl overflow-hidden" style={{border:'1px solid rgba(59,130,246,0.25)'}}>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs min-w-[700px]">
+                <table className="w-full text-sm min-w-[780px]">
                   <thead>
                     <tr style={{background:'rgba(8,8,28,0.95)',borderBottom:'1px solid rgba(59,130,246,0.2)'}}>
-                      <th className="px-3 py-2.5 text-left text-zinc-400 font-semibold whitespace-nowrap">Fecha</th>
-                      <th className="px-3 py-2.5 text-left text-zinc-400 font-semibold whitespace-nowrap">#Recibo</th>
-                      <th className="px-3 py-2.5 text-left text-zinc-400 font-semibold whitespace-nowrap">Factura</th>
-                      <th className="px-3 py-2.5 text-left text-zinc-400 font-semibold whitespace-nowrap">Cliente</th>
-                      <th className="px-3 py-2.5 text-right text-zinc-400 font-semibold whitespace-nowrap">Efectivo</th>
-                      <th className="px-3 py-2.5 text-right text-zinc-400 font-semibold whitespace-nowrap">Transf.</th>
-                      <th className="px-3 py-2.5 text-right text-zinc-400 font-semibold whitespace-nowrap">Descuento</th>
-                      <th className="px-3 py-2.5 text-right text-zinc-400 font-semibold whitespace-nowrap">Nuevo Saldo</th>
+                      <th className="px-4 py-3 text-left text-zinc-400 font-semibold whitespace-nowrap">Fecha</th>
+                      <th className="px-4 py-3 text-left text-zinc-400 font-semibold whitespace-nowrap">#Recibo</th>
+                      <th className="px-4 py-3 text-left text-zinc-400 font-semibold whitespace-nowrap">Factura</th>
+                      <th className="px-4 py-3 text-left text-zinc-400 font-semibold whitespace-nowrap">Cliente</th>
+                      <th className="px-4 py-3 text-right text-zinc-400 font-semibold whitespace-nowrap">Efectivo</th>
+                      <th className="px-4 py-3 text-right text-zinc-400 font-semibold whitespace-nowrap">Transf.</th>
+                      <th className="px-4 py-3 text-right text-zinc-400 font-semibold whitespace-nowrap">Descuento</th>
+                      <th className="px-4 py-3 text-right text-zinc-400 font-semibold whitespace-nowrap">Nuevo Saldo</th>
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((p: any, i: number) => (
                       <tr key={p.id}
                         style={{background: i%2===0 ? 'rgba(8,8,28,0.70)' : 'rgba(15,15,35,0.50)', borderBottom:'1px solid rgba(59,130,246,0.08)'}}>
-                        <td className="px-3 py-2 text-zinc-400 whitespace-nowrap">
+                        <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">
                           {new Date(p.createdAt).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'America/Bogota'})}
                         </td>
-                        <td className="px-3 py-2 whitespace-nowrap">
+                        <td className="px-4 py-3 whitespace-nowrap">
                           <button onClick={() => abrirRecibo(p.id)}
                             className="flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors font-mono">
                             🖨️ {p.numeroRecibo || '—'}
                           </button>
                         </td>
-                        <td className="px-3 py-2 text-zinc-300 font-mono whitespace-nowrap">
+                        <td className="px-4 py-3 text-zinc-300 font-mono whitespace-nowrap">
                           {p.numeroFactura ? `#${p.numeroFactura}` : '—'}
                         </td>
-                        <td className="px-3 py-2 text-white max-w-[160px] truncate">
+                        <td className="px-4 py-3 text-white max-w-[160px] truncate">
                           {p.clienteNombre || p.cartera?.cliente?.nombre || p.Cartera?.Cliente?.nombre || '—'}
                         </td>
-                        <td className="px-3 py-2 text-right text-emerald-400 font-semibold whitespace-nowrap">
+                        <td className="px-4 py-3 text-right text-emerald-400 font-semibold whitespace-nowrap">
                           {p._efectivo > 0 ? fmt(p._efectivo) : '—'}
                         </td>
-                        <td className="px-3 py-2 text-right text-blue-400 font-semibold whitespace-nowrap">
+                        <td className="px-4 py-3 text-right text-blue-400 font-semibold whitespace-nowrap">
                           {p._transf > 0 ? fmt(p._transf) : '—'}
                         </td>
-                        <td className="px-3 py-2 text-right text-amber-400 whitespace-nowrap">
+                        <td className="px-4 py-3 text-right text-amber-400 whitespace-nowrap">
                           {p._desc > 0 ? fmt(p._desc) : '—'}
                         </td>
-                        <td className="px-3 py-2 text-right text-zinc-300 whitespace-nowrap">
+                        <td className="px-4 py-3 text-right text-zinc-300 whitespace-nowrap">
                           {p._nuevoSaldo !== null ? fmt(p._nuevoSaldo) : '—'}
                         </td>
                       </tr>
@@ -934,11 +934,11 @@ export default function CarteraPage() {
                   {/* Totales */}
                   <tfoot>
                     <tr style={{background:'rgba(8,8,28,0.95)',borderTop:'1px solid rgba(59,130,246,0.3)'}}>
-                      <td colSpan={4} className="px-3 py-2.5 text-zinc-400 font-bold text-xs">{rows.length} pagos</td>
-                      <td className="px-3 py-2.5 text-right text-emerald-400 font-bold whitespace-nowrap">{fmt(totEfectivo)}</td>
-                      <td className="px-3 py-2.5 text-right text-blue-400 font-bold whitespace-nowrap">{fmt(totTransf)}</td>
-                      <td className="px-3 py-2.5 text-right text-amber-400 font-bold whitespace-nowrap">{totDesc > 0 ? fmt(totDesc) : '—'}</td>
-                      <td className="px-3 py-2.5 text-right text-zinc-400 font-bold">—</td>
+                      <td colSpan={4} className="px-4 py-3 text-zinc-400 font-bold">{rows.length} pagos</td>
+                      <td className="px-4 py-3 text-right text-emerald-400 font-bold whitespace-nowrap">{fmt(totEfectivo)}</td>
+                      <td className="px-4 py-3 text-right text-blue-400 font-bold whitespace-nowrap">{fmt(totTransf)}</td>
+                      <td className="px-4 py-3 text-right text-amber-400 font-bold whitespace-nowrap">{totDesc > 0 ? fmt(totDesc) : '—'}</td>
+                      <td className="px-4 py-3 text-right text-zinc-400 font-bold">—</td>
                     </tr>
                   </tfoot>
                 </table>
@@ -978,24 +978,24 @@ export default function CarteraPage() {
             {/* Tabla de vendedores con % */}
             <div className="rounded-2xl overflow-hidden" style={{border:'1px solid rgba(59,130,246,0.25)'}}>
               <div className="overflow-x-auto">
-                <table className="w-full text-xs min-w-[600px]">
+                <table className="w-full text-sm min-w-[680px]">
                   <thead>
                     <tr style={{background:'rgba(8,8,28,0.95)',borderBottom:'1px solid rgba(59,130,246,0.2)'}}>
-                      <th className="px-3 py-2.5 text-left text-zinc-400 font-semibold">Vendedor</th>
-                      <th className="px-3 py-2.5 text-right text-zinc-400 font-semibold">Recaudado</th>
-                      <th className="px-3 py-2.5 text-right text-zinc-400 font-semibold">Pagos</th>
-                      <th className="px-3 py-2.5 text-center text-zinc-400 font-semibold w-24">% Comisión</th>
-                      <th className="px-3 py-2.5 text-left text-zinc-400 font-semibold">Fórmula</th>
-                      <th className="px-3 py-2.5 text-right text-zinc-400 font-semibold">Comisión</th>
+                      <th className="px-4 py-3 text-left text-zinc-400 font-semibold">Vendedor</th>
+                      <th className="px-4 py-3 text-right text-zinc-400 font-semibold">Recaudado</th>
+                      <th className="px-4 py-3 text-right text-zinc-400 font-semibold">Pagos</th>
+                      <th className="px-4 py-3 text-center text-zinc-400 font-semibold w-24">% Comisión</th>
+                      <th className="px-4 py-3 text-left text-zinc-400 font-semibold">Fórmula</th>
+                      <th className="px-4 py-3 text-right text-zinc-400 font-semibold">Comisión</th>
                     </tr>
                   </thead>
                   <tbody>
                     {comisiones.map((v: any, i: number) => (
                       <tr key={v.id} style={{background: i%2===0 ? 'rgba(8,8,28,0.70)' : 'rgba(15,15,35,0.50)', borderBottom:'1px solid rgba(59,130,246,0.08)'}}>
-                        <td className="px-3 py-2 text-white font-medium">{v.nombre}</td>
-                        <td className="px-3 py-2 text-right text-emerald-400 font-semibold">{fmt(v.recaudado)}</td>
-                        <td className="px-3 py-2 text-right text-zinc-400">{v.pagosCount}</td>
-                        <td className="px-3 py-2 text-center">
+                        <td className="px-4 py-3 text-white font-medium">{v.nombre}</td>
+                        <td className="px-4 py-3 text-right text-emerald-400 font-semibold">{fmt(v.recaudado)}</td>
+                        <td className="px-4 py-3 text-right text-zinc-400">{v.pagosCount}</td>
+                        <td className="px-4 py-3 text-center">
                           <input
                             type="number" min="0" max="100" step="0.5"
                             value={v.porcentaje}
@@ -1004,7 +1004,7 @@ export default function CarteraPage() {
                           />
                           <span className="text-zinc-500 ml-1">%</span>
                         </td>
-                        <td className="px-3 py-2">
+                        <td className="px-4 py-3">
                           <input
                             type="text"
                             value={v.formula || ''}
@@ -1013,17 +1013,17 @@ export default function CarteraPage() {
                             placeholder="recaudado * porcentaje / 100"
                           />
                         </td>
-                        <td className="px-3 py-2 text-right text-amber-400 font-bold">{fmt(v.comision)}</td>
+                        <td className="px-4 py-3 text-right text-amber-400 font-bold">{fmt(v.comision)}</td>
                       </tr>
                     ))}
                   </tbody>
                   <tfoot>
                     <tr style={{background:'rgba(8,8,28,0.95)',borderTop:'1px solid rgba(59,130,246,0.3)'}}>
-                      <td className="px-3 py-2.5 text-zinc-400 font-bold">Total</td>
-                      <td className="px-3 py-2.5 text-right text-emerald-400 font-bold">{fmt(comisiones.reduce((s,v)=>s+v.recaudado,0))}</td>
-                      <td className="px-3 py-2.5 text-right text-zinc-400">{comisiones.reduce((s,v)=>s+v.pagosCount,0)}</td>
+                      <td className="px-4 py-3 text-zinc-400 font-bold">Total</td>
+                      <td className="px-4 py-3 text-right text-emerald-400 font-bold">{fmt(comisiones.reduce((s,v)=>s+v.recaudado,0))}</td>
+                      <td className="px-4 py-3 text-right text-zinc-400">{comisiones.reduce((s,v)=>s+v.pagosCount,0)}</td>
                       <td colSpan={2}></td>
-                      <td className="px-3 py-2.5 text-right text-amber-400 font-bold">{fmt(comisiones.reduce((s,v)=>s+v.comision,0))}</td>
+                      <td className="px-4 py-3 text-right text-amber-400 font-bold">{fmt(comisiones.reduce((s,v)=>s+v.comision,0))}</td>
                     </tr>
                   </tfoot>
                 </table>
