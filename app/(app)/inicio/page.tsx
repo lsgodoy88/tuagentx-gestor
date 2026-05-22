@@ -935,12 +935,10 @@ export default function DashboardPage() {
           ) : (
             // ── SIN TURNO — 1 línea full width ──
             <div style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.30)",borderRadius:16,overflow:"hidden"}}>
-              <div className="flex items-center gap-2 px-3 py-2.5">
-                <span className="w-2 h-2 rounded-full bg-zinc-600 flex-shrink-0" />
-                <span className="text-zinc-500 text-sm flex-1">Sin turno activo</span>
+              <div className="flex items-center justify-between gap-2 px-3 py-2.5">
                 <button onClick={iniciarTurno} disabled={bloqueadoTurno}
-                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors flex-shrink-0">
-                  ⚡ Iniciar
+                  className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors">
+                  ⚡ Iniciar turno
                 </button>
                 <a href="/turno"
                   className="flex items-center gap-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold px-3 py-2 rounded-xl flex-shrink-0">
