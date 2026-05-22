@@ -14,7 +14,7 @@ import { CountUp, LiveDot, SkeletonCard, LoadingBorder } from '@/components/FX'
 import { SyncIcon } from '@/components/SyncIcon'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { CardKPI, CardKPIGroup, CardDark, CardSub, CardCountAdmin } from '@/components/ui/cards'
+import { CardKPI, CardKPIGroup, CardDark, CardSub, CardCountAdmin, CardCountAdminSkeleton } from '@/components/ui/cards'
 
 type LineaPago = { id: string; metodoPago: 'efectivo' | 'transferencia'; monto: string; descuento: string; voucherKey: string | null; voucherDatosIA: any; cargandoVoucher: boolean }
 function crearLinea(): LineaPago { return { id: crypto.randomUUID(), metodoPago: 'efectivo', monto: '', descuento: '', voucherKey: null, voucherDatosIA: null, cargandoVoucher: false } }
@@ -43,6 +43,7 @@ export default function DashboardPage() {
   const [sincronizando, setSincronizando] = useState(false)
   const [empresaDetalleSA, setEmpresaDetalleSA] = useState<string | null>(null)
   const [loadingStats, setLoadingStats] = useState(false)
+  const [vendedorStatsLoading, setVendedorStatsLoading] = useState(true)
   const [sincVentas, setSincVentas] = useState(false)
   const [mostrarEstadisticas, setMostrarEstadisticas] = useState(false)
   const [mostrarEstadisticasVendedor, setMostrarEstadisticasVendedor] = useState(false)
@@ -151,7 +152,7 @@ export default function DashboardPage() {
       if (user.role === 'vendedor') {
         setLoadingStats(true)
         Promise.all([
-          fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null),
+          fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null).finally(() => setVendedorStatsLoading(false)),
           fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null),
         ]).then(([stats, cartera]) => {
           if (stats) setStatsVendedor(stats)
@@ -567,9 +568,9 @@ export default function DashboardPage() {
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Vendedores</span>
               </div>
               <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-white text-2xl font-bold">{stats.vendedoresActivos||0}</span>
+                <span className="text-white text-2xl font-bold"><CountUp end={stats.vendedoresActivos||0} /></span>
                 <span className="text-white/40 text-xl font-light">/</span>
-                <span className="text-white text-2xl font-bold">{stats.totalVendedores||0}</span>
+                <span className="text-white text-2xl font-bold"><CountUp end={stats.totalVendedores||0} /></span>
               </div>
               <div className="flex justify-center gap-4 mt-1">
                 <span className="text-white text-xs">en turno</span>
@@ -583,9 +584,9 @@ export default function DashboardPage() {
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Impulsos</span>
               </div>
               <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-amber-400 text-2xl font-bold">{stats.impulsosActivos||0}</span>
+                <span className="text-amber-400 text-2xl font-bold"><CountUp end={stats.impulsosActivos||0} /></span>
                 <span className="text-white/40 text-xl font-light">/</span>
-                <span className="text-white text-2xl font-bold">{stats.totalImpulsos||0}</span>
+                <span className="text-white text-2xl font-bold"><CountUp end={stats.totalImpulsos||0} /></span>
               </div>
               <div className="flex justify-center gap-4 mt-1">
                 <span className="text-white text-xs">activas</span>
@@ -599,9 +600,9 @@ export default function DashboardPage() {
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Órdenes hoy</span>
               </div>
               <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-emerald-400 text-2xl font-bold">{stats.ordenesDespachadasHoy||0}</span>
+                <span className="text-emerald-400 text-2xl font-bold"><CountUp end={stats.ordenesDespachadasHoy||0} /></span>
                 <span className="text-white/40 text-xl font-light">/</span>
-                <span className="text-white text-2xl font-bold">{stats.ordenesFact||0}</span>
+                <span className="text-white text-2xl font-bold"><CountUp end={stats.ordenesFact||0} /></span>
               </div>
               <div className="flex justify-center gap-4 mt-1">
                 <span className="text-white text-xs">despacho</span>
@@ -615,9 +616,9 @@ export default function DashboardPage() {
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Recaudado</span>
               </div>
               <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-blue-400 text-2xl font-bold">${(stats.recaudoHoy||0).toLocaleString('es-CO')}</span>
+                <span className="text-blue-400 text-2xl font-bold"><CountUp end={stats.recaudoHoy||0} prefix="$" /></span>
                 <span className="text-white/40 text-xl font-light">/</span>
-                <span className="text-white text-2xl font-bold">${(stats.recaudoMes||0).toLocaleString('es-CO')}</span>
+                <span className="text-white text-2xl font-bold"><CountUp end={stats.recaudoMes||0} prefix="$" /></span>
               </div>
               <div className="flex justify-center gap-4 mt-1">
                 <span className="text-white text-xs">hoy</span>
@@ -1059,7 +1060,17 @@ export default function DashboardPage() {
                 </Link>
               </div>
               {/* Hoy — siempre visible */}
-              {statsVendedor && (
+              {vendedorStatsLoading && (
+                <div className="space-y-3">
+                  <CardKPIGroup cols={2}>
+                    <CardCountAdminSkeleton />
+                    <CardCountAdminSkeleton />
+                  </CardKPIGroup>
+                  <CardCountAdminSkeleton compact />
+                  <CardCountAdminSkeleton compact />
+                </div>
+              )}
+              {!vendedorStatsLoading && statsVendedor && (
                 <div className="space-y-3">
                   {/* Visitas + Órdenes — 2 columnas sin moneda */}
                   <CardKPIGroup cols={2}>
