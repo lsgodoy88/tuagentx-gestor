@@ -875,28 +875,22 @@ export default function DashboardPage() {
               )}
             </div>
           ) : turno ? (
-            // ── TURNO ACTIVO — pill centrado + card acciones como un solo componente ──
-            <div className="space-y-0">
-              {/* Pill centrado */}
-              <div className="flex justify-center">
-                <div style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.30)",borderRadius:"16px 16px 0 0",overflow:"hidden"}}>
-                  <button onClick={() => setTurnoExpandido(e => !e)}
-                    className="flex items-center justify-center gap-2 px-4 py-2.5">
-                    <span className="relative inline-flex h-2 w-2 flex-shrink-0">
-                      <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 live-ping" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                    </span>
-                    <span className="font-mono font-semibold text-emerald-400 text-sm tabular-nums">{tiempoTurno}</span>
-                    <button onClick={e => { e.stopPropagation(); setMostrarPausa(m => !m); setTurnoExpandido(true) }}
-                      className="w-7 h-7 flex items-center justify-center bg-zinc-800 rounded-lg text-xs flex-shrink-0">⏸</button>
-                    <span className={`text-zinc-600 text-[10px] transition-transform duration-200 ${turnoExpandido ? 'rotate-180' : ''}`}>▼</span>
-                  </button>
-                </div>
-              </div>
-              {/* Desplegado — aparece debajo del pill, también centrado */}
+            // ── TURNO ACTIVO — un solo contenedor, pill centrado arriba + desplegado ──
+            <div style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.30)",borderRadius:16,overflow:"hidden"}}>
+              {/* Pill — siempre visible, centrado */}
+              <button onClick={() => setTurnoExpandido(e => !e)}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5">
+                <span className="relative inline-flex h-2 w-2 flex-shrink-0">
+                  <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 live-ping" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                </span>
+                <span className="font-mono font-semibold text-emerald-400 text-sm tabular-nums">{tiempoTurno}</span>
+                <button onClick={e => { e.stopPropagation(); setMostrarPausa(m => !m); setTurnoExpandido(true) }}
+                  className="w-7 h-7 flex items-center justify-center bg-zinc-800 rounded-lg text-xs flex-shrink-0">⏸</button>
+                <span className={`text-zinc-600 text-[10px] transition-transform duration-200 ${turnoExpandido ? 'rotate-180' : ''}`}>▼</span>
+              </button>
+              {/* Desplegado */}
               {turnoExpandido && (
-                <div className="flex justify-center">
-                <div style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.30)",borderTop:"none",borderRadius:"0 0 16px 16px",overflow:"hidden",minWidth:"200px"}}>
                 <div className="border-t border-emerald-500/20 px-4 pb-4 pt-3 space-y-3">
                   <div className="grid grid-cols-2 gap-2">
                     <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Hora inicio</p><p className="text-sm font-bold text-white">{new Date(turno.inicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"})}</p></div>
@@ -922,8 +916,6 @@ export default function DashboardPage() {
                       <button onClick={pausarTurno} className="w-full bg-gradient-to-r from-amber-600 to-amber-500 text-white text-sm font-bold py-2 rounded-xl">⏸️ Confirmar pausa</button>
                     </div>
                   )}
-                </div>
-                </div>
                 </div>
               )}
             </div>
@@ -990,7 +982,7 @@ export default function DashboardPage() {
             </div>
           ) : null}
           {user?.role === 'vendedor' && turno && (
-              <div className="p-4 slide-down" style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)",borderTop:"none",borderRadius:"0 0 16px 16px"}}>
+              <div className="p-3 slide-down" style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)",borderTop:"none",borderRadius:"0 0 16px 16px",marginTop:"-1px"}}>
                 <div className="flex gap-2">
                   {[
                     { tipo: 'visita', label: 'Visita', icon: '👁️' },
