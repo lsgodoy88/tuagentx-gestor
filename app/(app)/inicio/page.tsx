@@ -876,6 +876,7 @@ export default function DashboardPage() {
             </div>
           ) : turno ? (
             // ── TURNO ACTIVO — encogida/desplegada ──
+            <div className={turnoExpandido ? '' : 'flex justify-center'}>
             <div style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.30)",borderRadius:16,overflow:"hidden",display: turnoExpandido ? "block" : "inline-block",minWidth:0}}>
               {/* Pill encogida */}
               <button onClick={() => setTurnoExpandido(e => !e)}
@@ -918,6 +919,7 @@ export default function DashboardPage() {
                   )}
                 </div>
               )}
+            </div>
             </div>
           ) : (
             // ── SIN TURNO — encogida/desplegada ──
