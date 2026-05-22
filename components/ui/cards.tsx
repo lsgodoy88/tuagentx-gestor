@@ -174,6 +174,34 @@ export function CardDarkStrong({ children, className = '', style }: CardDarkProp
   )
 }
 
+
+// ── Skeleton de CardCountAdmin — misma forma, shimmer ──────────────
+export function CardCountAdminSkeleton({ compact = false }: { compact?: boolean }) {
+  return (
+    <div
+      className="rounded-2xl p-4 fade-up flex flex-col items-center justify-center min-h-[110px]"
+      style={{
+        background: 'rgba(255,255,255,0.04)',
+        border: '1px solid rgba(255,255,255,0.10)',
+      } as CSSProperties}
+    >
+      {/* Icon + label */}
+      <div className="shimmer rounded-full h-4 w-24 mb-3" />
+      {/* Valores */}
+      <div className="flex items-center gap-2 mb-2">
+        <div className="shimmer rounded h-6 w-12" />
+        <div className="text-white/20 text-base">/</div>
+        <div className="shimmer rounded h-6 w-12" />
+      </div>
+      {/* Sublabels */}
+      <div className="flex gap-4">
+        <div className="shimmer rounded h-3 w-10" />
+        <div className="shimmer rounded h-3 w-10" />
+      </div>
+    </div>
+  )
+}
+
 // ── Sub-card — ítems internos dentro de CardDark ──────────────────
 interface CardSubProps {
   children: ReactNode
