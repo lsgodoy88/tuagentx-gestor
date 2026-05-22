@@ -51,3 +51,4 @@ public/fotos/
 lib/version.ts
 *.bak2
 *.bak3
+.edit-backups/

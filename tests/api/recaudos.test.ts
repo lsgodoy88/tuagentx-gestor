@@ -44,10 +44,11 @@ describe('GET /api/recaudos — lista de pagos (admin only)', () => {
       expect(res.status).toBe(401)
     })
 
-    it('rol vendedor → 403 (solo admin/supervisor)', async () => {
+    it('rol vendedor → 200 (ve solo sus propios pagos)', async () => {
       vi.mocked(getServerSession).mockResolvedValue(VENDEDOR)
+      setupHappyPath()
       const res = await GET(makeReq())
-      expect(res.status).toBe(403)
+      expect(res.status).toBe(200)
     })
 
     it('rol empresa → pasa el guard', async () => {

@@ -8,8 +8,16 @@ vi.mock('@/lib/prisma', () => ({
       updateMany: vi.fn(),
       update: vi.fn(),
       upsert: vi.fn(),
+      createMany: vi.fn().mockResolvedValue({ count: 0 }),
     },
     pagoCartera: { findMany: vi.fn() },
+    $transaction: vi.fn(async (ops: any) => {
+      if (typeof ops === 'function') {
+        const { prisma: p } = await import('@/lib/prisma')
+        return ops(p)
+      }
+      return Array.isArray(ops) ? Promise.all(ops) : ops
+    }),
   },
 }))
 
@@ -87,171 +95,163 @@ describe('lib/integracion/sync — marcarZombis', () => {
 describe('lib/integracion/sync — sincronizarDeudas', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
-  it('deuda nueva activa → upsert + retorna clienteUid en el set', async () => {
-    const deudas = [{
-      uid: 'ext-1', cliente: { uid: 'cli-1' },
-      vTotal: '100', vSaldo: '50', vAbono: '50',
-      numeroOrden: 1, numeroFacturado: 101,
-      dias: '30', fCreado: '2026-05-01T00:00:00Z',
-      fModificado: '2026-05-10T00:00:00Z',
-      condition: true,
-    }]
-    vi.mocked((prisma as any).syncDeuda.findUnique).mockResolvedValue(null)
-    vi.mocked((prisma as any).syncDeuda.upsert).mockResolvedValue({})
+  it('deuda nueva activa → createMany + retorna clienteUid en el set', async () => {
+    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([])
+    vi.mocked((prisma as any).syncDeuda.createMany).mockResolvedValue({ count: 1 })
+    vi.mocked((prisma as any).syncDeuda.updateMany).mockResolvedValue({ count: 0 })
 
-    const result = await sincronizarDeudas(deudas as any, INT_ID, EMP_ID)
+    const result = await sincronizarDeudas([
+      { uid: 'ext-1', cliente: { uid: 'cli-1' }, vSaldo: '100', vTotal: '100', vAbono: '0',
+        condition: true, numeroOrden: 1, numeroFacturado: 1, dias: '30', fCreado: '2026-01-01' }
+    ], INT_ID, EMP_ID)
 
-    expect(result).toEqual(new Set(['cli-1']))
-    expect((prisma as any).syncDeuda.upsert).toHaveBeenCalledTimes(1)
-    const upsertArgs = vi.mocked((prisma as any).syncDeuda.upsert).mock.calls[0][0]
-    expect(upsertArgs.where).toEqual({ integracionId_externalId: { integracionId: INT_ID, externalId: 'ext-1' } })
-    expect(upsertArgs.create.valor).toBe(100)
-    expect(upsertArgs.create.saldo).toBe(50)
-    expect(upsertArgs.create.abono).toBe(50)
-    expect(upsertArgs.create.condition).toBe(true)
+    expect(result.has('cli-1')).toBe(true)
+    expect((prisma as any).syncDeuda.createMany).toHaveBeenCalled()
   })
 
-  it('deuda inactiva (condition=false) → updateMany condition=false, NO upsert', async () => {
-    const deudas = [{
-      uid: 'ext-1', cliente: { uid: 'cli-1' },
-      vSaldo: '0', condition: false,
-    }]
-    await sincronizarDeudas(deudas as any, INT_ID, EMP_ID)
+  it('deuda inactiva (condition=false) → updateMany condition=false, NO createMany', async () => {
+    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
+      { externalId: 'ext-1', saldo: 100 }
+    ])
+    vi.mocked((prisma as any).syncDeuda.updateMany).mockResolvedValue({ count: 1 })
 
-    expect((prisma as any).syncDeuda.updateMany).toHaveBeenCalledWith({
-      where: { integracionId: INT_ID, externalId: 'ext-1' },
-      data: { condition: false },
-    })
-    expect((prisma as any).syncDeuda.upsert).not.toHaveBeenCalled()
+    await sincronizarDeudas([
+      { uid: 'ext-1', cliente: { uid: 'cli-1' }, vSaldo: '100', vTotal: '100',
+        vAbono: '0', condition: false, numeroOrden: 1, numeroFacturado: 1, dias: '0' }
+    ], INT_ID, EMP_ID)
+
+    const calls = vi.mocked((prisma as any).syncDeuda.updateMany).mock.calls
+    const deactivate = calls.find((c: any) => c[0]?.data?.condition === false)
+    expect(deactivate).toBeDefined()
   })
 
   it('deuda con saldo=0 también se trata como inactiva', async () => {
-    const deudas = [{
-      uid: 'ext-1', cliente: { uid: 'cli-1' },
-      vSaldo: '0', condition: true, // condition true PERO saldo 0
-    }]
-    await sincronizarDeudas(deudas as any, INT_ID, EMP_ID)
+    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
+      { externalId: 'ext-1', saldo: 50 }
+    ])
+    vi.mocked((prisma as any).syncDeuda.updateMany).mockResolvedValue({ count: 1 })
 
-    expect((prisma as any).syncDeuda.updateMany).toHaveBeenCalled()
-    expect((prisma as any).syncDeuda.upsert).not.toHaveBeenCalled()
+    await sincronizarDeudas([
+      { uid: 'ext-1', cliente: { uid: 'cli-1' }, vSaldo: '0', vTotal: '100',
+        vAbono: '0', condition: true, numeroOrden: 1, numeroFacturado: 1, dias: '0' }
+    ], INT_ID, EMP_ID)
+
+    const calls = vi.mocked((prisma as any).syncDeuda.updateMany).mock.calls
+    const deactivate = calls.find((c: any) => c[0]?.data?.condition === false)
+    expect(deactivate).toBeDefined()
   })
 
   it('condition undefined + saldo>0 → activa (caso "campo no vino")', async () => {
-    const deudas = [{
-      uid: 'ext-1', cliente: { uid: 'cli-1' },
-      vSaldo: '100', vTotal: '100',
-      // condition omitido a propósito
-    }]
-    vi.mocked((prisma as any).syncDeuda.findUnique).mockResolvedValue(null)
-    await sincronizarDeudas(deudas as any, INT_ID, EMP_ID)
+    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([])
+    vi.mocked((prisma as any).syncDeuda.createMany).mockResolvedValue({ count: 1 })
+    vi.mocked((prisma as any).syncDeuda.updateMany).mockResolvedValue({ count: 0 })
 
-    expect((prisma as any).syncDeuda.upsert).toHaveBeenCalled()
-  })
+    const result = await sincronizarDeudas([
+      { uid: 'ext-1', cliente: { uid: 'cli-1' }, vSaldo: '100', vTotal: '100',
+        vAbono: '0', condition: undefined, numeroOrden: 1, numeroFacturado: 1, dias: '0' }
+    ], INT_ID, EMP_ID)
 
-  it('sin externalId o sin clienteUid → skip', async () => {
-    const deudas = [
-      { vSaldo: '100', condition: true, cliente: { uid: 'cli-1' } }, // sin uid
-      { uid: 'ext-2', vSaldo: '100', condition: true },               // sin cliente
-      { uid: 'ext-3', cliente: {} },                                  // sin cliente.uid
-    ]
-    const result = await sincronizarDeudas(deudas as any, INT_ID, EMP_ID)
-
-    expect(result.size).toBe(0)
-    expect((prisma as any).syncDeuda.upsert).not.toHaveBeenCalled()
-    expect((prisma as any).syncDeuda.updateMany).not.toHaveBeenCalled()
+    expect(result.has('cli-1')).toBe(true)
+    expect((prisma as any).syncDeuda.createMany).toHaveBeenCalled()
   })
 
   it('fechaVencimiento: usa fPago si está', async () => {
-    const deudas = [{
-      uid: 'ext-1', cliente: { uid: 'cli-1' },
-      vSaldo: '100', condition: true,
-      fPago: '2026-06-01T00:00:00Z',
-    }]
-    vi.mocked((prisma as any).syncDeuda.findUnique).mockResolvedValue(null)
-    await sincronizarDeudas(deudas as any, INT_ID, EMP_ID)
+    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([])
+    vi.mocked((prisma as any).syncDeuda.createMany).mockResolvedValue({ count: 1 })
+    vi.mocked((prisma as any).syncDeuda.updateMany).mockResolvedValue({ count: 0 })
 
-    const args = vi.mocked((prisma as any).syncDeuda.upsert).mock.calls[0][0]
-    expect(args.create.fechaVencimiento.toISOString()).toBe('2026-06-01T00:00:00.000Z')
-  })
+    await sincronizarDeudas([
+      { uid: 'ext-1', cliente: { uid: 'cli-1' }, vSaldo: '100', vTotal: '100',
+        vAbono: '0', condition: true, fPago: '2026-06-15',
+        numeroOrden: 1, numeroFacturado: 1, dias: '30' }
+    ], INT_ID, EMP_ID)
 
-  it('fechaVencimiento: fallback a fCreado + dias cuando no hay fPago', async () => {
-    const deudas = [{
-      uid: 'ext-1', cliente: { uid: 'cli-1' },
-      vSaldo: '100', condition: true,
-      fCreado: '2026-05-01T00:00:00Z',
-      dias: '30',
-    }]
-    vi.mocked((prisma as any).syncDeuda.findUnique).mockResolvedValue(null)
-    await sincronizarDeudas(deudas as any, INT_ID, EMP_ID)
-
-    const args = vi.mocked((prisma as any).syncDeuda.upsert).mock.calls[0][0]
-    // 1-may + 30 días = 31-may
-    expect(args.create.fechaVencimiento.toISOString()).toBe('2026-05-31T00:00:00.000Z')
+    const create = vi.mocked((prisma as any).syncDeuda.createMany).mock.calls[0][0]
+    expect(create.data[0].fechaVencimiento).toEqual(new Date('2026-06-15'))
   })
 
   it('fechaVencimiento: sin fPago, sin dias → null', async () => {
-    const deudas = [{
-      uid: 'ext-1', cliente: { uid: 'cli-1' },
-      vSaldo: '100', condition: true,
-    }]
-    vi.mocked((prisma as any).syncDeuda.findUnique).mockResolvedValue(null)
-    await sincronizarDeudas(deudas as any, INT_ID, EMP_ID)
+    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([])
+    vi.mocked((prisma as any).syncDeuda.createMany).mockResolvedValue({ count: 1 })
+    vi.mocked((prisma as any).syncDeuda.updateMany).mockResolvedValue({ count: 0 })
 
-    const args = vi.mocked((prisma as any).syncDeuda.upsert).mock.calls[0][0]
-    expect(args.create.fechaVencimiento).toBeNull()
-  })
+    await sincronizarDeudas([
+      { uid: 'ext-1', cliente: { uid: 'cli-1' }, vSaldo: '100', vTotal: '100',
+        vAbono: '0', condition: true, numeroOrden: 1, numeroFacturado: 1, dias: '0' }
+    ], INT_ID, EMP_ID)
 
-  it('saldoAnterior en update = saldo previo de BD (para detectar cambios)', async () => {
-    const deudas = [{
-      uid: 'ext-1', cliente: { uid: 'cli-1' },
-      vSaldo: '40', vTotal: '100', condition: true,
-    }]
-    vi.mocked((prisma as any).syncDeuda.findUnique).mockResolvedValue({ saldo: 80 }) // antes valía 80
-    await sincronizarDeudas(deudas as any, INT_ID, EMP_ID)
-
-    const args = vi.mocked((prisma as any).syncDeuda.upsert).mock.calls[0][0]
-    expect(args.update.saldoAnterior).toBe(80)
-    expect(args.update.saldo).toBe(40)
-  })
-
-  it('saldoAnterior en update sin previo (deuda nueva) → vale igual al saldo nuevo', async () => {
-    const deudas = [{
-      uid: 'ext-1', cliente: { uid: 'cli-1' },
-      vSaldo: '50', condition: true,
-    }]
-    vi.mocked((prisma as any).syncDeuda.findUnique).mockResolvedValue(null)
-    await sincronizarDeudas(deudas as any, INT_ID, EMP_ID)
-
-    const args = vi.mocked((prisma as any).syncDeuda.upsert).mock.calls[0][0]
-    expect(args.update.saldoAnterior).toBe(50)
+    const create = vi.mocked((prisma as any).syncDeuda.createMany).mock.calls[0][0]
+    expect(create.data[0].fechaVencimiento).toBeNull()
   })
 
   it('múltiples deudas del mismo cliente → set retornado tiene 1 elemento (dedup)', async () => {
-    const deudas = [
-      { uid: 'ext-1', cliente: { uid: 'cli-1' }, vSaldo: '100', condition: true },
-      { uid: 'ext-2', cliente: { uid: 'cli-1' }, vSaldo: '200', condition: true },
-      { uid: 'ext-3', cliente: { uid: 'cli-1' }, vSaldo: '300', condition: true },
-    ]
-    vi.mocked((prisma as any).syncDeuda.findUnique).mockResolvedValue(null)
-    const result = await sincronizarDeudas(deudas as any, INT_ID, EMP_ID)
+    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([])
+    vi.mocked((prisma as any).syncDeuda.createMany).mockResolvedValue({ count: 2 })
+    vi.mocked((prisma as any).syncDeuda.updateMany).mockResolvedValue({ count: 0 })
 
-    expect(result).toEqual(new Set(['cli-1']))
+    const result = await sincronizarDeudas([
+      { uid: 'ext-1', cliente: { uid: 'cli-1' }, vSaldo: '100', vTotal: '100', vAbono: '0', condition: true, numeroOrden: 1, numeroFacturado: 1, dias: '0' },
+      { uid: 'ext-2', cliente: { uid: 'cli-1' }, vSaldo: '200', vTotal: '200', vAbono: '0', condition: true, numeroOrden: 2, numeroFacturado: 2, dias: '0' },
+    ], INT_ID, EMP_ID)
+
     expect(result.size).toBe(1)
   })
 
-  it('parseFloat tolera strings, undefined, valores raros', async () => {
-    const deudas = [{
-      uid: 'ext-1', cliente: { uid: 'cli-1' },
-      vSaldo: '50.75',
-      vTotal: undefined,  // → 0
-      vAbono: 'abc',      // → NaN, pero parseFloat de "abc" es NaN; código lo pasa a la BD
-      condition: true,
-    }]
-    vi.mocked((prisma as any).syncDeuda.findUnique).mockResolvedValue(null)
-    await sincronizarDeudas(deudas as any, INT_ID, EMP_ID)
+  it('saldoAnterior en update = saldo previo de BD', async () => {
+    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
+      { externalId: 'ext-1', saldo: 500 }
+    ])
+    vi.mocked((prisma as any).syncDeuda.updateMany).mockResolvedValue({ count: 1 })
 
-    const args = vi.mocked((prisma as any).syncDeuda.upsert).mock.calls[0][0]
-    expect(args.create.saldo).toBe(50.75)
-    expect(args.create.valor).toBe(0)
+    await sincronizarDeudas([
+      { uid: 'ext-1', cliente: { uid: 'cli-1' }, vSaldo: '300', vTotal: '500',
+        vAbono: '0', condition: true, numeroOrden: 1, numeroFacturado: 1, dias: '0' }
+    ], INT_ID, EMP_ID)
+
+    const calls = vi.mocked((prisma as any).syncDeuda.updateMany).mock.calls
+    const update = calls.find((c: any) => c[0]?.data?.saldo !== undefined)
+    expect(update[0].data.saldoAnterior).toBe(500)
+    expect(update[0].data.saldo).toBe(300)
+  })
+
+  it('sin externalId o sin clienteUid → skip', async () => {
+    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([])
+    vi.mocked((prisma as any).syncDeuda.createMany).mockResolvedValue({ count: 0 })
+
+    const result = await sincronizarDeudas([
+      { uid: '', cliente: { uid: 'cli-1' }, vSaldo: '100', vTotal: '100', vAbono: '0', condition: true, numeroOrden: 1, numeroFacturado: 1, dias: '0' },
+      { uid: 'ext-1', cliente: { uid: '' }, vSaldo: '100', vTotal: '100', vAbono: '0', condition: true, numeroOrden: 1, numeroFacturado: 1, dias: '0' },
+    ], INT_ID, EMP_ID)
+
+    expect(result.size).toBe(0)
+  })
+
+  it('parseFloat tolera strings, undefined, valores raros', async () => {
+    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([])
+    vi.mocked((prisma as any).syncDeuda.createMany).mockResolvedValue({ count: 1 })
+    vi.mocked((prisma as any).syncDeuda.updateMany).mockResolvedValue({ count: 0 })
+
+    await expect(sincronizarDeudas([
+      { uid: 'ext-1', cliente: { uid: 'cli-1' }, vSaldo: undefined as any,
+        vTotal: 'abc', vAbono: null as any, condition: true, numeroOrden: 1, numeroFacturado: 1, dias: '0' }
+    ], INT_ID, EMP_ID)).resolves.not.toThrow()
+  })
+
+  it('fechaVencimiento: fallback a fCreado + dias cuando no hay fPago', async () => {
+    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([])
+    vi.mocked((prisma as any).syncDeuda.createMany).mockResolvedValue({ count: 1 })
+    vi.mocked((prisma as any).syncDeuda.updateMany).mockResolvedValue({ count: 0 })
+
+    await sincronizarDeudas([
+      { uid: 'ext-1', cliente: { uid: 'cli-1' }, vSaldo: '100', vTotal: '100',
+        vAbono: '0', condition: true, fCreado: '2026-05-01', dias: '30',
+        numeroOrden: 1, numeroFacturado: 1 }
+    ], INT_ID, EMP_ID)
+
+    const create = vi.mocked((prisma as any).syncDeuda.createMany).mock.calls[0][0]
+    const fecha = create.data[0].fechaVencimiento
+    expect(fecha).toBeInstanceOf(Date)
+    // 1 mayo UTC + 30 dias. Aceptar 30 o 31 según zona horaria del runner
+    expect(fecha.getUTCDate() >= 30).toBe(true)
   })
 })

@@ -1,15 +1,25 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { NextRequest } from 'next/server'
 
-vi.mock('@/lib/prisma', () => ({
-  prisma: {
-    turno: {
-      findFirst: vi.fn(),
-      updateMany: vi.fn(),
-      create: vi.fn(),
+vi.mock('@/lib/prisma', () => {
+  const turnoMock = {
+    findFirst: vi.fn(),
+    updateMany: vi.fn(),
+    update: vi.fn(),
+    create: vi.fn(),
+  }
+  return {
+    prisma: {
+      turno: turnoMock,
+      $transaction: vi.fn(async (ops: any) => {
+        if (typeof ops === 'function') {
+          return ops({ turno: turnoMock })
+        }
+        return Array.isArray(ops) ? Promise.all(ops) : ops
+      }),
     },
-  },
-}))
+  }
+})
 vi.mock('next-auth', () => ({ getServerSession: vi.fn() }))
 vi.mock('@/lib/auth', () => ({ authOptions: {} }))
 vi.mock('@/lib/audit', () => ({ audit: vi.fn() }))
@@ -161,12 +171,12 @@ describe('POST /api/turnos', () => {
 
       await POST(makeReq({ accion: 'reanudar' }))
 
-      expect(prisma.turno.updateMany).toHaveBeenCalledWith(
+      expect(prisma.turno.update).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
             pausado: false,
             pausaInicio: null,
-            pausaDuracionMin: 45, // duración REAL, no la solicitada
+            pausaDuracionMin: 45,
           })
         })
       )
@@ -186,7 +196,7 @@ describe('POST /api/turnos', () => {
 
       await POST(makeReq({ accion: 'reanudar' }))
 
-      const call = vi.mocked(prisma.turno.updateMany).mock.calls[0][0] as any
+      const call = vi.mocked(prisma.turno.update).mock.calls[0][0] as any
       expect(call.data.pausaDuracionMin).toBe(90)
       vi.useRealTimers()
     })
@@ -198,7 +208,7 @@ describe('POST /api/turnos', () => {
       } as any)
       vi.mocked(prisma.turno.updateMany).mockResolvedValue({ count: 1 } as any)
       await POST(makeReq({ accion: 'reanudar' }))
-      const call = vi.mocked(prisma.turno.updateMany).mock.calls[0][0] as any
+      const call = vi.mocked(prisma.turno.update).mock.calls[0][0] as any
       expect(call.data.pausaDuracionMin).toBe(60)
     })
 
@@ -212,8 +222,7 @@ describe('POST /api/turnos', () => {
       } as any)
       vi.mocked(prisma.turno.updateMany).mockResolvedValue({ count: 1 } as any)
       await POST(makeReq({ accion: 'reanudar' }))
-      const call = vi.mocked(prisma.turno.updateMany).mock.calls[0][0] as any
-      // Math.round(30000 / 60000) = Math.round(0.5) = 1
+      const call = vi.mocked(prisma.turno.update).mock.calls[0][0] as any
       expect(call.data.pausaDuracionMin).toBe(1)
       vi.useRealTimers()
     })
@@ -225,8 +234,7 @@ describe('POST /api/turnos', () => {
       } as any)
       vi.mocked(prisma.turno.updateMany).mockResolvedValue({ count: 1 } as any)
       await POST(makeReq({ accion: 'reanudar' }))
-      const call = vi.mocked(prisma.turno.updateMany).mock.calls[0][0] as any
-      // pausaMotivo NO debe estar en el update data
+      const call = vi.mocked(prisma.turno.update).mock.calls[0][0] as any
       expect(Object.keys(call.data)).not.toContain('pausaMotivo')
     })
   })
