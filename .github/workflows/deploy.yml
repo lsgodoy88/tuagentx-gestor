@@ -1,0 +1,125 @@
+name: Deploy Gestor
+
+on:
+  push:
+    branches: [main]
+
+# Un solo deploy a la vez — si llega otro push mientras hay deploy en curso,
+# espera en cola. cancel-in-progress: false evita deploys parciales.
+concurrency:
+  group: deploy-gestor
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    env:
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?schema=gestor"
+      NEXTAUTH_SECRET: "ci-secret"
+      NEXTAUTH_URL: "http://localhost:3010"
+      NEXTAUTH_TRUST_HOST: "true"
+      REDIS_URL: "redis://localhost:6379"
+      DEPLOY_ENV: "production"
+      DEPLOY_BRANCH: "main"
+      OPENAI_API_KEY: "sk-ci-dummy"
+      ANTHROPIC_API_KEY: "sk-ant-ci-dummy"
+      EVOLUTION_API_URL: "http://localhost:8080"
+      EVOLUTION_API_KEY: "ci-dummy"
+      MASTER_API_SECRET: "ci-dummy"
+      UPTRES_SECRET: "ci-dummy-32-bytes-padding-xxxxx"
+      CRON_SECRET: "ci-dummy"
+      VAPID_PUBLIC_KEY: "BGM43jCYmNx71QbrprleQr4ob0WhwaZj65jrB4H7QzjDiOVpvxsOeciZSEEI3um1GN4LnXrhz_z8TI4wpt41-P8"
+      VAPID_PRIVATE_KEY: "7AuUptsIOAMdq5mD4cEtYTWQzAkL6RESvV8FYJ6cjs4"
+      VAPID_EMAIL: "mailto:ci@tuagentx.com"
+      R2_ACCOUNT_ID: "ci"
+      R2_ACCESS_KEY_ID: "ci"
+      R2_SECRET_ACCESS_KEY: "ci"
+      R2_BUCKET: "ci"
+      R2_ENDPOINT: "https://ci.r2.cloudflarestorage.com"
+      TURNSTILE_SITE_KEY_GESTOR: "ci"
+      TURNSTILE_SECRET_KEY_GESTOR: "ci"
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY_GESTOR: "ci"
+      TURNSTILE_SITE_KEY_CRM: "ci"
+      TURNSTILE_SECRET_KEY_CRM: "ci"
+      TURNSTILE_SITE_KEY_MASTER: "ci"
+      TURNSTILE_SECRET_KEY_MASTER: "ci"
+      TZ: "America/Bogota"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Prisma generate
+        run: npx prisma generate
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify build
+        run: |
+          test -d .next || { echo ".next no existe"; exit 1; }
+          grep -qE 'prerendered as static|server-rendered on demand' .next/trace 2>/dev/null || true
+          echo "✓ Build OK"
+
+      # ── Copiar .next al servidor (solo archivos cambiados) ─────────────
+      - name: Setup SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Rsync .next to server
+        run: |
+          rsync -az --delete \
+            --exclude='.next/cache' \
+            --exclude='.next/trace' \
+            .next/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/srv/gestor/.next/
+
+      # ── En el servidor: pull fuente + install si hubo cambios + restart ─
+      - name: Restart on server
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'REMOTE'
+          set -e
+          cd /srv/gestor
+
+          # Sincronizar fuente (sin rebuild)
+          git pull --ff-only origin main
+
+          # npm ci solo si cambió package-lock.json en este push
+          if git diff HEAD~1 HEAD --name-only 2>/dev/null | grep -q "package-lock.json"; then
+            echo "package-lock cambió — npm ci"
+            npm ci --omit=dev --no-audit --no-fund
+          fi
+
+          # Migraciones solo si hay nuevas
+          if git diff HEAD~1 HEAD --name-only 2>/dev/null | grep -q "prisma/migrations/"; then
+            echo "migraciones detectadas — prisma migrate deploy"
+            npx prisma migrate deploy
+          fi
+
+          # Restart (los .env del servidor se leen en runtime, no en build)
+          pm2 restart gestor --update-env
+
+          # Health check
+          sleep 4
+          HTTP=$(curl -fsS -o /dev/null -w '%{http_code}' http://localhost:3010/api/health || echo "000")
+          if [ "$HTTP" != "200" ]; then
+            echo "❌ Health check falló: HTTP $HTTP"
+            exit 1
+          fi
+
+          VER=$(curl -fsS http://localhost:3010/api/version 2>/dev/null || echo "sin versión")
+          echo "✅ Deploy OK — $VER"
+          REMOTE
