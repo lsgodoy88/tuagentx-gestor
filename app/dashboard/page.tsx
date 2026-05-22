@@ -1072,10 +1072,10 @@ export default function DashboardPage() {
                 </div>
               )}
               {!vendedorStatsLoading && statsVendedor && (
-                <div className="space-y-4">
+                <div className="space-y-3">
                   {/* Visitas + Órdenes — 2 columnas sin moneda */}
                   <div className={sincVentas ? 'opacity-60 pointer-events-none transition-opacity' : 'transition-opacity'}>
-                  <CardKPIGroup cols={2} className="gap-4">
+                  <CardKPIGroup cols={2}>
                     <CardCountAdmin
                       stagger={1}
                       icon="👁️"
