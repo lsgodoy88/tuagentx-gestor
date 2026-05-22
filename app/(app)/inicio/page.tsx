@@ -902,7 +902,8 @@ export default function DashboardPage() {
               </div>
               {/* Desplegado */}
               {turnoExpandido && (
-                <div className="border-t border-emerald-500/20 px-4 pb-4 pt-3 space-y-3 fade-up w-full">
+                <div className="w-full fade-up" style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.30)",borderTop:"1px solid rgba(16,185,129,0.15)",borderRadius:"0 0 16px 16px"}}>
+                <div className="px-4 pb-4 pt-3 space-y-3">
                   <div className="grid grid-cols-2 gap-2">
                     <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Hora inicio</p><p className="text-sm font-bold text-white">{new Date(turno.inicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"})}</p></div>
                     <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Contador</p><p className="text-emerald-400 font-mono font-bold">{tiempoTurno}</p></div>
@@ -927,6 +928,7 @@ export default function DashboardPage() {
                       <button onClick={pausarTurno} className="w-full bg-gradient-to-r from-amber-600 to-amber-500 text-white text-sm font-bold py-2 rounded-xl">⏸️ Confirmar pausa</button>
                     </div>
                   )}
+                </div>
                 </div>
               )}
             </div>
