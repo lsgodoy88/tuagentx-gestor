@@ -875,23 +875,28 @@ export default function DashboardPage() {
               )}
             </div>
           ) : turno ? (
-            // ── TURNO ACTIVO — encogida/desplegada ──
-            <div className={turnoExpandido ? '' : 'flex justify-center'}>
-            <div style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.30)",borderRadius:16,overflow:"hidden",display: turnoExpandido ? "block" : "inline-block",minWidth:0}}>
-              {/* Pill encogida */}
-              <button onClick={() => setTurnoExpandido(e => !e)}
-                className="flex items-center justify-center gap-2 px-4 py-2.5">
-                <span className="relative inline-flex h-2 w-2 flex-shrink-0">
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 live-ping" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                </span>
-                <span className="font-mono font-semibold text-emerald-400 text-sm tabular-nums">{tiempoTurno}</span>
-                <button onClick={e => { e.stopPropagation(); setMostrarPausa(m => !m); setTurnoExpandido(true) }}
-                  className="w-7 h-7 flex items-center justify-center bg-zinc-800 rounded-lg text-xs flex-shrink-0">⏸</button>
-                <span className={`text-zinc-600 text-[10px] transition-transform duration-200 ${turnoExpandido ? 'rotate-180' : ''}`}>▼</span>
-              </button>
-              {/* Desplegado */}
+            // ── TURNO ACTIVO — pill centrado + card acciones como un solo componente ──
+            <div className="space-y-0">
+              {/* Pill centrado */}
+              <div className="flex justify-center">
+                <div style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.30)",borderRadius:"16px 16px 0 0",overflow:"hidden"}}>
+                  <button onClick={() => setTurnoExpandido(e => !e)}
+                    className="flex items-center justify-center gap-2 px-4 py-2.5">
+                    <span className="relative inline-flex h-2 w-2 flex-shrink-0">
+                      <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 live-ping" />
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                    </span>
+                    <span className="font-mono font-semibold text-emerald-400 text-sm tabular-nums">{tiempoTurno}</span>
+                    <button onClick={e => { e.stopPropagation(); setMostrarPausa(m => !m); setTurnoExpandido(true) }}
+                      className="w-7 h-7 flex items-center justify-center bg-zinc-800 rounded-lg text-xs flex-shrink-0">⏸</button>
+                    <span className={`text-zinc-600 text-[10px] transition-transform duration-200 ${turnoExpandido ? 'rotate-180' : ''}`}>▼</span>
+                  </button>
+                </div>
+              </div>
+              {/* Desplegado — aparece debajo del pill, también centrado */}
               {turnoExpandido && (
+                <div className="flex justify-center">
+                <div style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.30)",borderTop:"none",borderRadius:"0 0 16px 16px",overflow:"hidden",minWidth:"200px"}}>
                 <div className="border-t border-emerald-500/20 px-4 pb-4 pt-3 space-y-3">
                   <div className="grid grid-cols-2 gap-2">
                     <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Hora inicio</p><p className="text-sm font-bold text-white">{new Date(turno.inicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"})}</p></div>
@@ -918,26 +923,25 @@ export default function DashboardPage() {
                     </div>
                   )}
                 </div>
-              )}
-            </div>
-            </div>
-          ) : (
-            // ── SIN TURNO — encogida/desplegada ──
-            <div style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.30)",borderRadius:16,overflow:"hidden"}}>
-              {/* Pill encogida */}
-              <button onClick={() => setTurnoExpandido(e => !e)}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left">
-                <span className="w-2.5 h-2.5 rounded-full bg-zinc-600 flex-shrink-0" />
-                <span className="text-zinc-500 text-sm flex-1">Sin turno activo</span>
-                <span className={`text-zinc-600 text-[10px] transition-transform duration-200 ${turnoExpandido ? 'rotate-180' : ''}`}>▼</span>
-              </button>
-              {/* Desplegado */}
-              {turnoExpandido && (
-                <div className="border-t border-zinc-800 px-4 pb-4 pt-3 space-y-2">
-                  <button onClick={iniciarTurno} disabled={bloqueadoTurno} className="w-full bg-emerald-600 text-white text-sm font-bold py-2.5 rounded-xl disabled:opacity-50">Iniciar turno</button>
-                  <a href="/turno" className="flex items-center justify-center gap-1 w-full bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold py-2.5 rounded-xl">📅 Historial</a>
+                </div>
                 </div>
               )}
+            </div>
+          ) : (
+            // ── SIN TURNO — 1 línea full width ──
+            <div style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.30)",borderRadius:16,overflow:"hidden"}}>
+              <div className="flex items-center gap-2 px-3 py-2.5">
+                <span className="w-2 h-2 rounded-full bg-zinc-600 flex-shrink-0" />
+                <span className="text-zinc-500 text-sm flex-1">Sin turno activo</span>
+                <button onClick={iniciarTurno} disabled={bloqueadoTurno}
+                  className="flex items-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors flex-shrink-0">
+                  ⚡ Iniciar
+                </button>
+                <a href="/turno"
+                  className="flex items-center gap-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold px-3 py-2 rounded-xl flex-shrink-0">
+                  📅
+                </a>
+              </div>
             </div>
           )}
           {ruta && totalClientes > 0 && !rutaCompletada ? (
@@ -986,7 +990,7 @@ export default function DashboardPage() {
             </div>
           ) : null}
           {user?.role === 'vendedor' && turno && (
-              <div className="rounded-2xl p-4 slide-down" style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)"}}>
+              <div className="p-4 slide-down" style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)",borderTop:"none",borderRadius:"0 0 16px 16px"}}>
                 <div className="flex gap-2">
                   {[
                     { tipo: 'visita', label: 'Visita', icon: '👁️' },
