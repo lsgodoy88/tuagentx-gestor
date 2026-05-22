@@ -560,7 +560,7 @@ export default function DashboardPage() {
       )}
       {(isEmpresa || isSupervisor) && (
         <div className="space-y-6">
-          <CardKPIGroup cols={2}>
+          <div className="grid grid-cols-2 gap-3">
             <CardCountAdmin
               stagger={1} icon="🛍️" label="Vendedores"
               primary={<CountUp end={stats.vendedoresActivos||0} />}
@@ -590,7 +590,7 @@ export default function DashboardPage() {
               primaryColor="text-blue-400"
               compact
             />
-          </CardKPIGroup>
+          </div>
 
           {/* Botón Estadísticas */}
           <button
