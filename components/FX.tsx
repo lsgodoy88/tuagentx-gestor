@@ -80,14 +80,24 @@ export function CountUp({
   suffix?: string;
   formatter?: (n: number) => string;
 }) {
-  const [val, setVal] = useState(0);
+  // Montaje: mostrar valor final directamente sin animación
+  // Solo anima cuando end cambia después del montaje
+  const [val, setVal] = useState(end);
+  const mounted = useRef(false);
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      setVal(end);
+      return;
+    }
+    // end cambió después del montaje → animar
+    setVal(0);
     const start = performance.now();
     const tick = (now: number) => {
       const t = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      const eased = 1 - Math.pow(1 - t, 3);
       setVal(Math.floor(end * eased));
       if (t < 1) rafRef.current = requestAnimationFrame(tick);
       else setVal(end);

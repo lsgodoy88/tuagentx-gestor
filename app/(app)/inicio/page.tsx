@@ -104,6 +104,19 @@ export default function DashboardPage() {
   const isBodega = user?.role === 'bodega'
   useEffect(() => {
     if (!turno) return
+
+    // Calcular el tiempo inmediatamente al montar — evita animación desde 0 en refresh
+    const calcTiempo = () => {
+      const inicio = new Date(turno.inicio)
+      const ahora = new Date(Date.now() - 5*60*60*1000)
+      const diff = Math.max(0, Math.floor((ahora.getTime() - inicio.getTime()) / 1000))
+      const h = Math.floor(diff / 3600)
+      const m = Math.floor((diff % 3600) / 60)
+      const s = diff % 60
+      return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0')
+    }
+    setTiempoTurno(calcTiempo()) // valor inicial inmediato
+
     const interval = setInterval(() => {
       const inicio = new Date(turno.inicio)
       const ahora = new Date(Date.now() - 5*60*60*1000)
