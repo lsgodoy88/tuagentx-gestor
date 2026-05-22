@@ -158,7 +158,7 @@ export default function DashboardPage() {
         setRuta(r)
         setClientesOrdenados(r?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, rezago: rc.rezago, orden: rc.orden, notas: rc.notas || null, ordenDespachoId: rc.ordenDespachoId || null, numeroFactura: (rc as any).numeroFactura || null, empresaOrigen: (rc as any).empresaOrigen || null, alistadoPor: (rc as any).alistadoPor || null, asignadoEn: rc.asignadoEn || null, ordenCreadaEl: (rc as any).ordenCreadaEl || null })) || [])
         setTurno(t)
-        if (!t) setTurnoExpandido(true)  // sin turno → card abierta
+        if (!t) setTurnoExpandido(false)  // sin turno → pill cerrado
         setPuedeCapturarGps(me?.puedeCapturarGps === true)
       })
       // Cargar hoy inmediatamente al montar para mostrar contadores del día
@@ -247,7 +247,7 @@ export default function DashboardPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ accion: 'iniciar', ...ubicacion })
     })
-    if (res?.ok) setTurno(res.turno)
+    if (res?.ok) { setTurnoExpandido(false); setTurno(res.turno) }
     setTimeout(() => setBloqueadoTurno(false), 10000)
   }
 
@@ -875,23 +875,34 @@ export default function DashboardPage() {
               )}
             </div>
           ) : turno ? (
-            // ── TURNO ACTIVO — un solo contenedor, pill centrado arriba + desplegado ──
-            <div style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.30)",borderRadius:16,overflow:"hidden"}}>
-              {/* Pill — siempre visible, centrado */}
-              <button onClick={() => setTurnoExpandido(e => !e)}
-                className="w-full flex items-center justify-center gap-2 px-4 py-2.5">
-                <span className="relative inline-flex h-2 w-2 flex-shrink-0">
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 live-ping" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                </span>
-                <span className="font-mono font-semibold text-emerald-400 text-sm tabular-nums">{tiempoTurno}</span>
-                <button onClick={e => { e.stopPropagation(); setMostrarPausa(m => !m); setTurnoExpandido(true) }}
-                  className="w-7 h-7 flex items-center justify-center bg-zinc-800 rounded-lg text-xs flex-shrink-0">⏸</button>
-                <span className={`text-zinc-600 text-[10px] transition-transform duration-200 ${turnoExpandido ? 'rotate-180' : ''}`}>▼</span>
-              </button>
+            // ── TURNO ACTIVO ──
+            <div className="w-full">
+              {/* Pill centrado reducido */}
+              <div className="flex justify-center">
+                <div
+                  className="inline-flex items-center gap-2 px-4 py-2 cursor-pointer"
+                  style={{
+                    background:"rgba(8,8,28,0.82)",
+                    border:"1px solid rgba(59,130,246,0.30)",
+                    borderBottom: turnoExpandido ? "none" : undefined,
+                    borderRadius: turnoExpandido ? "16px 16px 0 0" : "16px",
+                  }}
+                  onClick={() => setTurnoExpandido(e => !e)}>
+                  <span className="relative inline-flex h-2 w-2 flex-shrink-0">
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 live-ping" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                  </span>
+                  <span className="font-mono font-semibold text-emerald-400 text-sm tabular-nums">{tiempoTurno}</span>
+                  <span
+                    className="w-7 h-7 flex items-center justify-center bg-zinc-800 rounded-lg text-xs"
+                    onClick={e => { e.stopPropagation(); setMostrarPausa(m => !m); setTurnoExpandido(true) }}>⏸
+                  </span>
+                  <span className={`text-zinc-600 text-[10px] transition-transform duration-200 ${turnoExpandido ? 'rotate-180' : ''}`}>▼</span>
+                </div>
+              </div>
               {/* Desplegado */}
               {turnoExpandido && (
-                <div className="border-t border-emerald-500/20 px-4 pb-4 pt-3 space-y-3">
+                <div className="border-t border-emerald-500/20 px-4 pb-4 pt-3 space-y-3 fade-up w-full">
                   <div className="grid grid-cols-2 gap-2">
                     <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Hora inicio</p><p className="text-sm font-bold text-white">{new Date(turno.inicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"})}</p></div>
                     <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Contador</p><p className="text-emerald-400 font-mono font-bold">{tiempoTurno}</p></div>
@@ -982,7 +993,7 @@ export default function DashboardPage() {
             </div>
           ) : null}
           {user?.role === 'vendedor' && turno && (
-              <div className="p-3 slide-down" style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)",borderTop:"none",borderRadius:"0 0 16px 16px",marginTop:"-1px"}}>
+              <div className="p-3 w-full slide-down" style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)",borderTop:"none",borderRadius:"0 0 16px 16px"}}>
                 <div className="flex gap-2">
                   {[
                     { tipo: 'visita', label: 'Visita', icon: '👁️' },
