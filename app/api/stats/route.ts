@@ -4,10 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
-
-// Caché en memoria — TTL 5 min por empresaId
-const cache = new Map<string, { data: any; ts: number }>()
-const CACHE_TTL = 5 * 60 * 1000
+import { withCache } from '@/lib/cache'
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -15,12 +12,9 @@ export async function GET() {
   const user = session.user as any
   const empresaId = getEmpresaId(user)
 
-  // Servir desde caché si es reciente
-  const cached = cache.get(empresaId)
-  if (cached && Date.now() - cached.ts < CACHE_TTL) {
-    return NextResponse.json(cached.data)
-  }
+  const cacheKey = `g:${empresaId}:stats:${fechaHoyBogota()}`
 
+  const stats = await withCache(cacheKey, 300, async () => {
   const hoy = inicioDiaBogota()
   const hace7dias = new Date(Date.now() - 7 * 86400000)
   const hace30dias = new Date(Date.now() - 30 * 86400000)
@@ -141,7 +135,8 @@ export async function GET() {
     recaudoHoy: Number(recaudoHoy._sum.monto || 0),
     recaudoMes: Number(recaudoMesAgg._sum.monto || 0),
   }
-  cache.set(empresaId, { data: stats, ts: Date.now() })
+  return stats
+  }) // withCache
   const res = NextResponse.json(stats)
   res.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60')
   return res

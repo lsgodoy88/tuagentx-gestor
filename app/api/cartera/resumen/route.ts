@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId, vendedorScope } from '@/lib/auth-helpers'
+import { withCache } from '@/lib/cache'
 
 /**
  * GET /api/cartera/resumen
@@ -19,7 +20,12 @@ export async function GET() {
   if (!permitido) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const empresaId = getEmpresaId(user)
+  const scope = empleadoIdForzado ? `v:${empleadoIdForzado}` : 'admin'
+  const ahora2 = new Date()
+  const mesClave = `${ahora2.getFullYear()}-${ahora2.getMonth()}`
+  const cacheKey = `g:${empresaId}:cartera:${scope}:${mesClave}`
 
+  const resumenData = await withCache(cacheKey, 300, async () => {
   // ── Totales cartera ──────────────────────────────────────────────
   const integracion = await (prisma as any).integracion.findFirst({
     where: { empresaId, tipo: 'uptres', activa: true }
@@ -122,15 +128,9 @@ export async function GET() {
   const totalAnt       = Number(aggAnt._sum.monto || 0) + Number(aggAnt._sum.descuento || 0)
   const variacion      = totalAnt > 0 ? Math.round(((totalMes - totalAnt) / totalAnt) * 100) : 0
 
-  const _res = NextResponse.json({
-    totalCartera,
-    totalPendiente,
-    recaudadoMes,
-    descuentosMes,
-    clientes,
-    pagosCount,
-    variacion,
-  })
+  return { totalCartera, totalPendiente, recaudadoMes, descuentosMes, clientes, pagosCount, variacion }
+  }) // withCache
+  const _res = NextResponse.json(resumenData)
   _res.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60')
   return _res
 }

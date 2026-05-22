@@ -4,21 +4,18 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { DIAS } from '@/lib/constants'
-
-// Caché en memoria — TTL 5 min por userId
-const cache = new Map<string, { data: any; ts: number }>()
-const CACHE_TTL = 10 * 60 * 1000
+import { withCache } from '@/lib/cache'
 
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  const cacheKey = (session.user as any)?.id
-  const cached = cacheKey && cache.get(cacheKey)
-  if (cached && Date.now() - cached.ts < CACHE_TTL) return NextResponse.json(cached.data)
   const user = session.user as any
   if (user.role !== 'vendedor') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
   const ahora = nowBogota()
+  const hoyStrKey = ahora.toISOString().split('T')[0]
+  const cacheKey = `g:v:${user.id}:${hoyStrKey}`
+  const result = await withCache(cacheKey, 600, async () => {
   const hoyStr = ahora.toISOString().split('T')[0]
 
   // Rangos de tiempo en UTC (Colombia = UTC-5)
@@ -247,8 +244,8 @@ export async function GET() {
     }
   }))
 
-  const result = { hoy, ordenes, recaudo, dias, meses, cumplimiento }
-  if (cacheKey) cache.set(cacheKey, { data: result, ts: Date.now() })
+  return { hoy, ordenes, recaudo, dias, meses, cumplimiento }
+  }) // withCache
   const res = NextResponse.json(result)
   res.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60')
   return res

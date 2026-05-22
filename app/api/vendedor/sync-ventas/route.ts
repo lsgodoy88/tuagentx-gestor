@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import { invalidateKeys } from '@/lib/cache'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
@@ -126,5 +127,8 @@ export async function POST() {
   })
   throttle.set(empresaId, ahora)
 
+  // Limpiar caché del vendedor para que el dashboard refleje las nuevas órdenes
+  const hoyStr = new Date().toISOString().split('T')[0]
+  await invalidateKeys(`g:v:${user.id}:${hoyStr}`)
   return NextResponse.json({ ok: true, nuevas: toCreate.length })
 }
