@@ -87,6 +87,7 @@ export default function DashboardPage() {
   const [bloqueadoTurno, setBloqueadoTurno] = useState(false)
   const [mostrarPausa, setMostrarPausa] = useState(false)
   const [turnoExpandido, setTurnoExpandido] = useState(false)
+  const [turnoAnimando, setTurnoAnimando] = useState(false)
   const [pausaMotivo, setPausaMotivo] = useState('Almuerzo')
   const [pausaMotivoCustom, setPausaMotivoCustom] = useState('')
   const [pausaDuracion, setPausaDuracion] = useState(60)
@@ -234,7 +235,11 @@ export default function DashboardPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ accion: 'iniciar', ...ubicacion })
     })
-    if (res?.ok) setTurno(res.turno)
+    if (res?.ok) {
+      setTurnoAnimando(true)
+      setTimeout(() => setTurnoAnimando(false), 600)
+      setTurno(res.turno)
+    }
     setTimeout(() => setBloqueadoTurno(false), 10000)
   }
 
@@ -557,7 +562,8 @@ export default function DashboardPage() {
             className="font-bold text-white overflow-hidden whitespace-nowrap transition-all duration-500 ease-in-out"
             style={{
               fontSize: turno ? '1rem' : '1.5rem',
-              opacity: turno ? 0.7 : 1,
+              opacity: (turno && !turnoAnimando) ? 0.7 : 1,
+              transform: turnoAnimando ? 'scale(0.95)' : 'scale(1)',
             }}>
             {turno ? `Hola, ${user?.name?.split(' ')[0]}` : `Bienvenido, ${user?.name?.split(' ')[0]}`}
           </h1>
