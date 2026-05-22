@@ -117,21 +117,21 @@ export function CardCountAdmin({
         WebkitBackdropFilter: 'blur(16px)',
       } as CSSProperties}
     >
-      {/* Icon + label */}
+      {/* Icon + label — más prominente */}
       <div className="flex items-center justify-center gap-1.5 mb-2">
-        <span className="text-sm">{icon}</span>
-        <span className="text-white text-[10px] font-bold tracking-widest uppercase">{label}</span>
+        <span className="text-base">{icon}</span>
+        <span className="text-white text-sm font-bold tracking-widest uppercase">{label}</span>
       </div>
-      {/* Valores X / Y */}
+      {/* Valores X / Y — más pequeños */}
       <div className="flex items-baseline justify-center gap-1.5">
-        <span className={`${primaryColor} ${compact ? 'text-base' : 'text-2xl'} font-bold`}>{primary}</span>
-        <span className="text-white/40 text-xl font-light">/</span>
-        <span className={`text-white ${compact ? 'text-base' : 'text-2xl'} font-bold`}>{secondary}</span>
+        <span className={`${primaryColor} ${compact ? 'text-sm' : 'text-lg'} font-bold`}>{primary}</span>
+        <span className="text-white/40 text-base font-light">/</span>
+        <span className={`text-white ${compact ? 'text-sm' : 'text-lg'} font-bold`}>{secondary}</span>
       </div>
-      {/* Sub-labels */}
+      {/* Sub-labels — más grandes */}
       <div className="flex justify-center gap-4 mt-1">
-        <span className="text-white text-xs">{primaryLabel}</span>
-        <span className="text-white text-xs">{secondaryLabel}</span>
+        <span className="text-white/70 text-sm font-medium">{primaryLabel}</span>
+        <span className="text-white/70 text-sm font-medium">{secondaryLabel}</span>
       </div>
     </div>
   )

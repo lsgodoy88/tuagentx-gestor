@@ -70,8 +70,8 @@ export DEPLOY_BRANCH="$REF"
 log "npm ci…"
 npm ci --no-audit --no-fund >> "$LOG" 2>&1
 
-log "npm run build…"
-if ! npm run build 2>&1 | tee -a "$LOG" | tail -5; then
+log "npm run build (safe — max 2 CPUs)…"
+if ! taskset -c 0,1 nice -n 15 ionice -c 3 npm run build 2>&1 | tee -a "$LOG" | tail -5; then
   log "BUILD FALLÓ — rollback a $PREV_COMMIT"
   git checkout "$PREV_COMMIT"
   exit 2

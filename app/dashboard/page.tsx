@@ -13,6 +13,7 @@ import { useEffect, useState, useRef } from 'react'
 import { CountUp, LiveDot, SkeletonCard, LoadingBorder } from '@/components/FX'
 import { SyncIcon } from '@/components/SyncIcon'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { CardKPI, CardKPIGroup, CardDark, CardSub, CardCountAdmin } from '@/components/ui/cards'
 
 type LineaPago = { id: string; metodoPago: 'efectivo' | 'transferencia'; monto: string; descuento: string; voucherKey: string | null; voucherDatosIA: any; cargandoVoucher: boolean }
@@ -548,12 +549,13 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6 pb-20 md:pb-0 max-w-5xl mx-auto">
+      {!(user?.role === 'vendedor' && turno) && (
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white">Bienvenido, {user?.name?.split(' ')[0]}</h1>
         </div>
-
       </div>
+      )}
       {(isEmpresa || isSupervisor) && (
         <div className="space-y-6">
           <div className="rounded-2xl" style={{backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)" as any,overflow:"hidden",borderRadius:16}}>
@@ -969,7 +971,6 @@ export default function DashboardPage() {
           ) : null}
           {user?.role === 'vendedor' && turno && (
               <div className="rounded-2xl p-4" style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)"}}>
-                <p className="text-white font-bold mb-3">Visitas</p>
                 <div className="flex gap-2">
                   {[
                     { tipo: 'visita', label: 'Visita', icon: '👁️' },
@@ -1039,23 +1040,23 @@ export default function DashboardPage() {
           )}
           {user?.role === 'vendedor' && (
             <div className="space-y-4">
-              {/* Accesos directos */}
+              {/* Accesos directos — Link con prefetch para carga instantánea */}
               <div className="flex gap-2">
-                <button onClick={() => router.push('/dashboard/clientes')}
+                <Link href="/dashboard/clientes" prefetch
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-white transition-colors hover:opacity-80"
                   style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.35)'}}>
                   👥 Clientes
-                </button>
-                <button onClick={() => router.push('/dashboard/cartera?tab=pagos')}
+                </Link>
+                <Link href="/dashboard/cartera?tab=pagos" prefetch
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-white transition-colors hover:opacity-80"
                   style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.35)'}}>
                   💳 Pagos
-                </button>
-                <button onClick={() => router.push('/dashboard/trazabilidad')}
+                </Link>
+                <Link href="/dashboard/trazabilidad" prefetch
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-white transition-colors hover:opacity-80"
                   style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.35)'}}>
                   🔍 Trazabilidad
-                </button>
+                </Link>
               </div>
               {/* Hoy — siempre visible */}
               {statsVendedor && (

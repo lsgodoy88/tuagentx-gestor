@@ -7,7 +7,7 @@ import { DIAS } from '@/lib/constants'
 
 // Caché en memoria — TTL 5 min por userId
 const cache = new Map<string, { data: any; ts: number }>()
-const CACHE_TTL = 5 * 60 * 1000
+const CACHE_TTL = 10 * 60 * 1000
 
 export async function GET() {
   const session = await getServerSession(authOptions)
@@ -249,5 +249,7 @@ export async function GET() {
 
   const result = { hoy, ordenes, recaudo, dias, meses, cumplimiento }
   if (cacheKey) cache.set(cacheKey, { data: result, ts: Date.now() })
-  return NextResponse.json(result)
+  const res = NextResponse.json(result)
+  res.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60')
+  return res
 }

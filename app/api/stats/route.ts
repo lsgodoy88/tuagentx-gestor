@@ -142,6 +142,8 @@ export async function GET() {
     recaudoMes: Number(recaudoMesAgg._sum.monto || 0),
   }
   cache.set(empresaId, { data: stats, ts: Date.now() })
-  return NextResponse.json(stats)
+  const res = NextResponse.json(stats)
+  res.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60')
+  return res
 }
 

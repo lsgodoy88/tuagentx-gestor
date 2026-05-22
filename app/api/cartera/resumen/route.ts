@@ -122,7 +122,7 @@ export async function GET() {
   const totalAnt       = Number(aggAnt._sum.monto || 0) + Number(aggAnt._sum.descuento || 0)
   const variacion      = totalAnt > 0 ? Math.round(((totalMes - totalAnt) / totalAnt) * 100) : 0
 
-  return NextResponse.json({
+  const _res = NextResponse.json({
     totalCartera,
     totalPendiente,
     recaudadoMes,
@@ -131,4 +131,6 @@ export async function GET() {
     pagosCount,
     variacion,
   })
+  _res.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60')
+  return _res
 }
