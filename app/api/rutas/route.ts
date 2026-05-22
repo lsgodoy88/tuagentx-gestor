@@ -208,7 +208,7 @@ export async function PATCH(req: NextRequest) {
     empleadoIds,
     '🗺️ Ruta actualizada',
     `Tu ruta "${nombre}" ha sido actualizada`,
-    '/dashboard/mi-ruta'
+    '/mi-ruta'
   )
 
   return NextResponse.json({ ok: true, ruta })

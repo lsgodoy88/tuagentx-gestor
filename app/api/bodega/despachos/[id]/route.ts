@@ -157,7 +157,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           [repartidorId],
           'Nueva entrega asignada',
           `${cliente} · Fac. ${factura}`,
-          '/dashboard'
+          '/inicio'
         ).catch(() => {})
       })
     } catch {}

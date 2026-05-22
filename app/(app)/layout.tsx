@@ -121,30 +121,30 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Título del tab por página
   useEffect(() => {
     const titles: Record<string, string> = {
-      '/dashboard':              'Inicio',
-      '/dashboard/empresas':     'Empresas',
-      '/dashboard/monitor':      'Control',
-      '/dashboard/precios':      'Precios',
-      '/dashboard/code':         'Code',
-      '/dashboard/empleados':    'Activos',
-      '/dashboard/clientes':     'Clientes',
-      '/dashboard/cartera':      'Cartera',
-      '/dashboard/recaudos':     'Recaudos',
-      '/dashboard/rutas':        'Visitas',
-      '/dashboard/rutas-fijas':  'Impulsos',
-      '/dashboard/trazabilidad': 'Trazabilidad',
-      '/dashboard/reportes':     'Reportes',
-      '/dashboard/ordenes':      'Órdenes',
-      '/dashboard/inventario':   'Inventario',
-      '/dashboard/visitas':      'Mis Visitas',
-      '/dashboard/impulsadora':  'Mi Ruta',
-      '/dashboard/mi-ruta':      'Mi Ruta',
-      '/dashboard/turno':        'Turno',
-      '/dashboard/historial':    'Historial',
-      '/dashboard/mapa-ruta':    'Mapa',
-      '/dashboard/bodega':       'Bodega',
-      '/dashboard/impulsos':     'Impulsos',
-      '/dashboard/configuracion':'Configuración',
+      '/inicio':              'Inicio',
+      '/empresas':     'Empresas',
+      '/monitor':      'Control',
+      '/precios':      'Precios',
+      '/code':         'Code',
+      '/empleados':    'Activos',
+      '/clientes':     'Clientes',
+      '/cartera':      'Cartera',
+      '/recaudos':     'Recaudos',
+      '/rutas':        'Visitas',
+      '/rutas-fijas':  'Impulsos',
+      '/trazabilidad': 'Trazabilidad',
+      '/reportes':     'Reportes',
+      '/ordenes':      'Órdenes',
+      '/inventario':   'Inventario',
+      '/visitas':      'Mis Visitas',
+      '/impulsadora':  'Mi Ruta',
+      '/mi-ruta':      'Mi Ruta',
+      '/turno':        'Turno',
+      '/historial':    'Historial',
+      '/mapa-ruta':    'Mapa',
+      '/bodega':       'Bodega',
+      '/impulsos':     'Impulsos',
+      '/configuracion':'Configuración',
     }
     const label = titles[pathname] || 'Gestor'
     document.title = `${label} — TuAgentX`
@@ -263,97 +263,97 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const navGroups = [
     {
       items: [
-        { href: '/dashboard', label: 'Inicio', icon: '⚡' },
+        { href: '/inicio', label: 'Inicio', icon: '⚡' },
         ...(isSuperAdmin ? [
-          { href: '/dashboard/empresas', label: 'Empresas', icon: '🏢' },
-          { href: '/dashboard/monitor', label: 'Control', icon: '📡' },
-          { href: '/dashboard/precios', label: 'Precios', icon: '💰' },
-          { href: '/dashboard/code', label: 'Code', icon: '🧬' },
+          { href: '/empresas', label: 'Empresas', icon: '🏢' },
+          { href: '/monitor', label: 'Control', icon: '📡' },
+          { href: '/precios', label: 'Precios', icon: '💰' },
+          { href: '/code', label: 'Code', icon: '🧬' },
         ] : []),
       ]
     },
     ...(isEmpresa || isSupervisor ? [{
       label: 'Operaciones',
       items: [
-        { href: '/dashboard/empleados', label: 'Activos', icon: '👥' },
-        { href: '/dashboard/clientes', label: 'Clientes', icon: '🏪' },
-        { href: '/dashboard/cartera', label: 'Cartera', icon: '💰' },
-        { href: '/dashboard/recaudos', label: 'Recaudos', icon: '💳' },
+        { href: '/empleados', label: 'Activos', icon: '👥' },
+        { href: '/clientes', label: 'Clientes', icon: '🏪' },
+        { href: '/cartera', label: 'Cartera', icon: '💰' },
+        { href: '/recaudos', label: 'Recaudos', icon: '💳' },
       ]
     }, {
       label: 'Visitas',
       items: [
-        { href: '/dashboard/rutas', label: 'Visitas', icon: '📋' },
-        { href: '/dashboard/rutas-fijas', label: 'Impulsos', icon: '⚡' },
+        { href: '/rutas', label: 'Visitas', icon: '📋' },
+        { href: '/rutas-fijas', label: 'Impulsos', icon: '⚡' },
 
-        { href: '/dashboard/trazabilidad', label: 'Trazabilidad', icon: '📊' },
+        { href: '/trazabilidad', label: 'Trazabilidad', icon: '📊' },
       ]
     }, {
       label: 'Análisis',
       items: [
-        { href: '/dashboard/reportes', label: 'Reportes', icon: '📈' },
+        { href: '/reportes', label: 'Reportes', icon: '📈' },
       ]
     }] : []),
     ...(isBodega ? [{
       items: [
-        { href: '/dashboard/ordenes', label: 'Órdenes', icon: '📦' },
-        { href: '/dashboard/inventario', label: 'Inventario', icon: '🏭' },
+        { href: '/ordenes', label: 'Órdenes', icon: '📦' },
+        { href: '/inventario', label: 'Inventario', icon: '🏭' },
       ]
     }] : []),
     ...(isEmpleado && user?.role !== 'impulsadora' ? [{
       items: [
-        { href: '/dashboard/visitas', label: 'Visitas', icon: '📋' },
+        { href: '/visitas', label: 'Visitas', icon: '📋' },
         ...(user?.role === 'vendedor' ? [
-          { href: '/dashboard/clientes', label: 'Clientes', icon: '🏪' },
-          { href: '/dashboard/cartera', label: 'Cartera', icon: '💰' },
-          { href: '/dashboard/trazabilidad', label: 'Trazabilidad', icon: '📊' },
+          { href: '/clientes', label: 'Clientes', icon: '🏪' },
+          { href: '/cartera', label: 'Cartera', icon: '💰' },
+          { href: '/trazabilidad', label: 'Trazabilidad', icon: '📊' },
         ] : []),
-        ...(user?.role !== 'entregas' ? [{ href: '/dashboard/rutas-fijas', label: 'Mis impulsos', icon: '⚡' }] : []),
-        ...(user?.role === 'entregas' ? [{ href: '/dashboard/trazabilidad', label: 'Trazabilidad', icon: '📊' }] : []),
+        ...(user?.role !== 'entregas' ? [{ href: '/rutas-fijas', label: 'Mis impulsos', icon: '⚡' }] : []),
+        ...(user?.role === 'entregas' ? [{ href: '/trazabilidad', label: 'Trazabilidad', icon: '📊' }] : []),
       ]
     }] : []),
     ...(user?.role === 'impulsadora' ? [{
       items: [
-        { href: '/dashboard/impulsadora', label: 'Inicio', icon: '⚡' },
-        { href: '/dashboard/rutas-fijas', label: 'Mi semana', icon: '📌' },
+        { href: '/impulsadora', label: 'Inicio', icon: '⚡' },
+        { href: '/rutas-fijas', label: 'Mi semana', icon: '📌' },
       ]
     }] : []),
   ]
   const navItems = [
-    { href: '/dashboard', label: 'Inicio', icon: '⚡' },
+    { href: '/inicio', label: 'Inicio', icon: '⚡' },
     ...(isSuperAdmin ? [
-      { href: '/dashboard/empresas', label: 'Empresas', icon: '🏢' },
-      { href: '/dashboard/monitor', label: 'Control', icon: '📡' },
-      { href: '/dashboard/precios', label: 'Precios', icon: '💰' },
-      { href: '/dashboard/code', label: 'Code', icon: '🧬' },
+      { href: '/empresas', label: 'Empresas', icon: '🏢' },
+      { href: '/monitor', label: 'Control', icon: '📡' },
+      { href: '/precios', label: 'Precios', icon: '💰' },
+      { href: '/code', label: 'Code', icon: '🧬' },
     ] : []),
     ...(isEmpresa || isSupervisor ? [
-      { href: '/dashboard/empleados', label: 'Activos', icon: '👥' },
-      { href: '/dashboard/clientes', label: 'Clientes', icon: '🏪' },
-      { href: '/dashboard/cartera', label: 'Cartera', icon: '💰' },
-      { href: '/dashboard/recaudos', label: 'Recaudos', icon: '💳' },
-      { href: '/dashboard/rutas', label: 'Rutas', icon: '🗺️' },
-      { href: '/dashboard/rutas-fijas', label: 'Impulsos', icon: '⚡' },
-      { href: '/dashboard/visitas-admin', label: 'Visitas', icon: '📋' },
-      { href: '/dashboard/trazabilidad', label: 'Trazabilidad', icon: '📊' },
-      { href: '/dashboard/reportes', label: 'Reportes', icon: '📈' },
+      { href: '/empleados', label: 'Activos', icon: '👥' },
+      { href: '/clientes', label: 'Clientes', icon: '🏪' },
+      { href: '/cartera', label: 'Cartera', icon: '💰' },
+      { href: '/recaudos', label: 'Recaudos', icon: '💳' },
+      { href: '/rutas', label: 'Rutas', icon: '🗺️' },
+      { href: '/rutas-fijas', label: 'Impulsos', icon: '⚡' },
+      { href: '/visitas-admin', label: 'Visitas', icon: '📋' },
+      { href: '/trazabilidad', label: 'Trazabilidad', icon: '📊' },
+      { href: '/reportes', label: 'Reportes', icon: '📈' },
     ] : []),
     ...(isBodega ? [
-      { href: '/dashboard/ordenes', label: 'Órdenes', icon: '📦' },
-      { href: '/dashboard/inventario', label: 'Inventario', icon: '🏭' },
+      { href: '/ordenes', label: 'Órdenes', icon: '📦' },
+      { href: '/inventario', label: 'Inventario', icon: '🏭' },
     ] : []),
     ...(isEmpleado && user?.role !== 'impulsadora' ? [
-      { href: '/dashboard/visitas', label: 'Visitas', icon: '📋' },
+      { href: '/visitas', label: 'Visitas', icon: '📋' },
       ...(user?.role === 'vendedor' ? [
-        { href: '/dashboard/clientes', label: 'Clientes', icon: '🏪' },
-        { href: '/dashboard/cartera', label: 'Cartera', icon: '💰' },
+        { href: '/clientes', label: 'Clientes', icon: '🏪' },
+        { href: '/cartera', label: 'Cartera', icon: '💰' },
       ] : []),
-      ...(user?.role !== 'entregas' ? [{ href: '/dashboard/rutas-fijas', label: 'Mis impulsos', icon: '⚡ ' }] : []),
-      ...(user?.role === 'entregas' ? [{ href: '/dashboard/trazabilidad', label: 'Trazabilidad', icon: '📊' }] : []),
+      ...(user?.role !== 'entregas' ? [{ href: '/rutas-fijas', label: 'Mis impulsos', icon: '⚡ ' }] : []),
+      ...(user?.role === 'entregas' ? [{ href: '/trazabilidad', label: 'Trazabilidad', icon: '📊' }] : []),
     ] : []),
     ...(user?.role === 'impulsadora' ? [
-      { href: '/dashboard/impulsadora', label: 'Inicio', icon: '⚡' },
-      { href: '/dashboard/rutas-fijas', label: 'Mi semana', icon: '📌' },
+      { href: '/impulsadora', label: 'Inicio', icon: '⚡' },
+      { href: '/rutas-fijas', label: 'Mi semana', icon: '📌' },
     ] : []),
   ]
   const iconoActivo = navItems.find(item => pathname === item.href)?.icon || '⚡'
@@ -404,7 +404,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     </div>
                   )}
                   {group.items
-                    .filter(item => user?.role === 'impulsadora' ? item.href !== '/dashboard' : true)
+                    .filter(item => user?.role === 'impulsadora' ? item.href !== '/inicio' : true)
                     .map(item => {
                       const isActive = pathname === item.href
                       return (
@@ -445,7 +445,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </button>
               {menuUsuario && (
                 <div className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
-                  <Link href="/dashboard/configuracion" onClick={() => { setMenuMovil(false); setMenuUsuario(false) }}
+                  <Link href="/configuracion" onClick={() => { setMenuMovil(false); setMenuUsuario(false) }}
                     className="flex items-center gap-2.5 px-4 py-3 text-sm text-[#a1a1aa] hover:text-white hover:bg-[#27272a] transition-colors">
                     <span>⚙️</span> Configuración
                   </Link>
@@ -495,7 +495,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </div>
               )}
               {group.items
-                .filter(item => user?.role === 'impulsadora' ? item.href !== '/dashboard' : true)
+                .filter(item => user?.role === 'impulsadora' ? item.href !== '/inicio' : true)
                 .map(item => {
                   const isActive = pathname === item.href
                   return (
@@ -561,7 +561,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   <p className="text-white text-xs font-semibold truncate">{user?.name}</p>
                   <p className="text-zinc-400 text-[10px] capitalize">{user?.role}</p>
                 </div>
-                <Link href="/dashboard/configuracion" onClick={() => setMenuUsuario(false)}
+                <Link href="/configuracion" onClick={() => setMenuUsuario(false)}
                   className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-[#a1a1aa] hover:text-white hover:bg-[#27272a] transition-colors">
                   <span>⚙️</span> Configuración
                 </Link>

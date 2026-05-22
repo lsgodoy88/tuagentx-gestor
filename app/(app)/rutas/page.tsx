@@ -515,7 +515,7 @@ export default function RutasPage() {
                 className="text-zinc-400 hover:text-white text-sm bg-zinc-800 px-2.5 py-1.5 rounded-lg">
                 {rutaDetalle?.id === r.id ? '▲' : '👁️'}
               </button>
-              <Link href={`/dashboard/mapa?rutaId=${r.id}`}
+              <Link href={`/mapa?rutaId=${r.id}`}
                 className="text-zinc-400 hover:text-white text-sm bg-zinc-800 px-2.5 py-1.5 rounded-lg">
                 🗺️
               </Link>

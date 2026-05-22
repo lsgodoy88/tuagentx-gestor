@@ -58,7 +58,7 @@ export default function CodePage() {
   const [detalleNodo, setDetalleNodo] = useState<any>(null)
 
   useEffect(() => {
-    if (status === 'authenticated' && (session?.user as any)?.role !== 'superadmin') router.push('/dashboard')
+    if (status === 'authenticated' && (session?.user as any)?.role !== 'superadmin') router.push('/inicio')
   }, [status, session, router])
 
   async function cargar() {

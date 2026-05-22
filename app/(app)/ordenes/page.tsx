@@ -177,7 +177,7 @@ export default function OrdenesPage() {
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/login'); return }
     if (status !== 'authenticated') return
-    if (!['empresa', 'supervisor', 'bodega'].includes(user?.role)) { router.push('/dashboard'); return }
+    if (!['empresa', 'supervisor', 'bodega'].includes(user?.role)) { router.push('/inicio'); return }
     fetch('/api/bodega/empresas-origen').then(r => r.json()).then(lista => {
       setEmpresasOrigen(lista)
       if (lista.length > 0) {

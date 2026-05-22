@@ -93,7 +93,7 @@ export default function BodegaPage() {
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/login'); return }
     if (status !== 'authenticated') return
-    if (!['empresa', 'supervisor', 'bodega'].includes(user?.role)) { router.push('/dashboard'); return }
+    if (!['empresa', 'supervisor', 'bodega'].includes(user?.role)) { router.push('/inicio'); return }
     cargarDatos()
     fetch('/api/bodega/empresas-origen').then(r => r.json()).then(d => setEmpresasOrigen(Array.isArray(d) ? d : []))
     fetch('/api/empleados?rol=entregas')

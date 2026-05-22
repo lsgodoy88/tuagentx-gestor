@@ -29,11 +29,11 @@ function ReciboContent() {
   useEffect(() => {
     if (status === 'unauthenticated') { window.location.href = '/login'; return }
     if (status === 'loading') return
-    if (!token) { window.location.href = '/dashboard'; return }
+    if (!token) { window.location.href = '/inicio'; return }
     fetch(`/api/cartera/recibo-publico?token=${token}`)
       .then(r => r.json())
       .then(d => {
-        if (d.error) { window.location.href = '/dashboard'; return }
+        if (d.error) { window.location.href = '/inicio'; return }
         setPago(d.pago)
         setLoading(false)
         const cfg = d.pago?.cartera?.empresa?.configRecibos
@@ -44,7 +44,7 @@ function ReciboContent() {
             .then(r => r.json()).then(v => { if (v.url) setVoucherUrl(v.url) }).catch(() => {})
         }
       })
-      .catch(() => { window.location.href = '/dashboard' })
+      .catch(() => { window.location.href = '/inicio' })
   }, [token, status])
 
 
@@ -280,8 +280,8 @@ function ReciboContent() {
 
       <div className="no-print">
         <button className="btn btn-back" onClick={() => {
-          if (window.history.length > 1) { window.close(); setTimeout(() => { window.location.href = '/dashboard/cartera' }, 300) }
-          else { window.location.href = '/dashboard/cartera' }
+          if (window.history.length > 1) { window.close(); setTimeout(() => { window.location.href = '/cartera' }, 300) }
+          else { window.location.href = '/cartera' }
         }}>←</button>
         {!isIOS && (
           <button className="btn btn-print" onClick={imprimirBluetooth}>🖨️ BT Imprimir</button>

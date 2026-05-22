@@ -74,15 +74,15 @@ async function scanPage(modulePath: string, ruta: string) {
 }
 
 async function scanModulos() {
-  const dashboardDir = path.join(APP_DIR, 'dashboard')
+  const dashboardDir = path.join(APP_DIR, '(app)')
   const subdirs = await listDirs(dashboardDir)
   const modulos: any[] = []
   for (const sub of subdirs) {
-    const info = await scanPage(path.join(dashboardDir, sub), `/dashboard/${sub}`)
+    const info = await scanPage(path.join(dashboardDir, sub), `/${sub}`)
     if (info) modulos.push({ nombre: sub, ...info })
   }
   // Inicio
-  const inicio = await scanPage(dashboardDir, '/dashboard')
+  const inicio = await scanPage(dashboardDir, '/inicio')
   if (inicio) modulos.unshift({ nombre: '(inicio)', ...inicio })
   return modulos
 }

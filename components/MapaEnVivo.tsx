@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { CountUp, LiveDot } from '@/components/FX'
-const MapaVivo = dynamic(() => import('@/app/dashboard/mapa/MapaVivo'), { ssr: false })
+const MapaVivo = dynamic(() => import('@/app/(app)/mapa/MapaVivo'), { ssr: false })
 const COLORES = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4']
 
 function FirmaInline({ firma }: { firma: string }) {
@@ -64,7 +64,7 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
         <div>
           <div className="flex items-center gap-2">
             {rutaId && (
-              <Link href="/dashboard/rutas" className="text-zinc-400 hover:text-white text-lg">←</Link>
+              <Link href="/rutas" className="text-zinc-400 hover:text-white text-lg">←</Link>
             )}
             <h1 className="text-lg font-bold text-white flex-1">
               {rutaId ? `🗺️ ${datos.rutaNombre || 'Ruta'}` : 'Mapa en vivo'}

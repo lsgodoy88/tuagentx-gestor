@@ -294,7 +294,7 @@ export default function RecaudosPage() {
     })
 
   useEffect(() => {
-    if (status === 'authenticated' && !isAdmin) router.push('/dashboard')
+    if (status === 'authenticated' && !isAdmin) router.push('/inicio')
   }, [status, isAdmin])
 
   useEffect(() => {

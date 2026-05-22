@@ -67,7 +67,7 @@ function getClienteColumns(ctx: {
               }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 0, lineHeight: 1 }} title="Editar">✏️</button>
             )}
-            <button onClick={e => { e.stopPropagation(); ctx.router.push(`/dashboard/visitas-admin?clienteId=${c.id}`) }}
+            <button onClick={e => { e.stopPropagation(); ctx.router.push(`/visitas-admin?clienteId=${c.id}`) }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 0, lineHeight: 1 }} title="Historial">📋</button>
             {(ctx.rol === 'vendedor') && (
               <button onClick={e => { e.stopPropagation(); ctx.setVisitaModal({ cliente: c, tipo: 'visita' }) }}
@@ -425,7 +425,7 @@ export default function ClientesPage() {
                       onSelect={() => setClienteSeleccionado(c)}
                       onVisita={(tipo) => setVisitaModal({ cliente: c, tipo: tipo.toLowerCase() })}
                       onEntregar={() => setVisitaModal({ cliente: c, tipo: 'entrega' })}
-                      onHistorial={() => router.push(`/dashboard/visitas-admin?clienteId=${c.id}`)}
+                      onHistorial={() => router.push(`/visitas-admin?clienteId=${c.id}`)}
                       onEditar={puedeEditar ? () => {
                         setEditando(c)
                         setEditForm({ nombre: c.nombre, nombreComercial: c.nombreComercial||'', direccion: c.direccion||'', telefono: c.telefono||'', ciudad: c.ciudad||'', nit: c.nit||'', listaId: c.listaId||'', apiId: c.apiId||'' })

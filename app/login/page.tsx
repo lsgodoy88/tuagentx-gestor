@@ -13,7 +13,7 @@ export default function LoginPage() {
   const [showPass, setShowPass] = useState(false)
 
   useEffect(() => {
-    if (status === 'authenticated') router.replace('/dashboard')
+    if (status === 'authenticated') router.replace('/inicio')
   }, [status, router])
 
   if (status === 'loading' || status === 'authenticated') return null
@@ -33,7 +33,7 @@ export default function LoginPage() {
         setError('Usuario o contraseña incorrectos')
         setLoading(false)
       } else {
-        router.push('/dashboard')
+        router.push('/inicio')
       }
     } catch (err) {
       setError('Error de conexión. Intenta de nuevo.')

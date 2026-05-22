@@ -28,7 +28,7 @@ export default function PreciosPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (user && user.role !== 'superadmin') { router.push('/dashboard'); return }
+    if (user && user.role !== 'superadmin') { router.push('/inicio'); return }
     if (user) cargar()
   }, [user])
 

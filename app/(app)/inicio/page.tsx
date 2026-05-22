@@ -135,7 +135,7 @@ export default function DashboardPage() {
       fetch('/api/precios').then(r => r.json()).then(d => setResumenFinanciero(d))
       return
     }
-    if (isImpulsadora) { router.push('/dashboard/impulsadora'); return }
+    if (isImpulsadora) { router.push('/impulsadora'); return }
     if (isEmpleado) {
       Promise.all([
         fetch('/api/rutas/mi-ruta').then(r => r.json()),
@@ -820,7 +820,7 @@ export default function DashboardPage() {
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift">
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-white font-semibold text-sm">📦 Órdenes bodega hoy</h3>
-            <a href="/dashboard/ordenes" className="text-emerald-400 text-xs">Ver órdenes →</a>
+            <a href="/ordenes" className="text-emerald-400 text-xs">Ver órdenes →</a>
           </div>
           {bodegaStats ? (
             <div className="grid grid-cols-3 gap-2">
@@ -856,7 +856,7 @@ export default function DashboardPage() {
                   </div>
                   <div className="flex gap-2">
                     <button onClick={reanudarTurno} className="flex-1 bg-zinc-800 border border-emerald-500/30 text-emerald-400 text-sm font-semibold py-2.5 rounded-xl">▶️ Reanudar</button>
-                    <a href="/dashboard/turno" className="flex-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1">📅 Historial</a>
+                    <a href="/turno" className="flex-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1">📅 Historial</a>
                   </div>
                 </div>
               )}
@@ -886,7 +886,7 @@ export default function DashboardPage() {
                   <button onClick={cerrarTurno} disabled={bloqueadoTurno} className="w-full bg-red-600 text-white text-sm font-bold py-2.5 rounded-xl disabled:opacity-50">Cerrar turno</button>
                   <div className="flex gap-2">
                     <button onClick={() => setMostrarPausa(m => !m)} className={"flex-1 text-sm font-semibold py-2.5 rounded-xl border " + (mostrarPausa ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-zinc-800 border-zinc-700 text-zinc-400")}>⏸️ Pausar</button>
-                    <a href="/dashboard/turno" className="flex-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1">📅 Historial</a>
+                    <a href="/turno" className="flex-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1">📅 Historial</a>
                   </div>
                   {mostrarPausa && (
                     <div className="bg-black/30 rounded-xl p-3 border border-zinc-700">
@@ -920,7 +920,7 @@ export default function DashboardPage() {
               {turnoExpandido && (
                 <div className="border-t border-zinc-800 px-4 pb-4 pt-3 space-y-2">
                   <button onClick={iniciarTurno} disabled={bloqueadoTurno} className="w-full bg-emerald-600 text-white text-sm font-bold py-2.5 rounded-xl disabled:opacity-50">Iniciar turno</button>
-                  <a href="/dashboard/turno" className="flex items-center justify-center gap-1 w-full bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold py-2.5 rounded-xl">📅 Historial</a>
+                  <a href="/turno" className="flex items-center justify-center gap-1 w-full bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold py-2.5 rounded-xl">📅 Historial</a>
                 </div>
               )}
             </div>
@@ -962,7 +962,7 @@ export default function DashboardPage() {
                     <span className="text-sm font-semibold">Entrega</span>
                   </button>
                 )}
-                <button onClick={() => router.push('/dashboard/mapa-ruta')}
+                <button onClick={() => router.push('/mapa-ruta')}
                   className="flex-1 flex items-center justify-center gap-2 py-3 text-zinc-400 hover:bg-zinc-800 transition-colors">
                   <span className="text-lg">🗺️</span>
                   <span className="text-sm font-semibold">Mapa</span>
@@ -1043,17 +1043,17 @@ export default function DashboardPage() {
             <div className="space-y-4">
               {/* Accesos directos — Link con prefetch para carga instantánea */}
               <div className="flex gap-2">
-                <Link href="/dashboard/clientes" prefetch
+                <Link href="/clientes" prefetch
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-white transition-colors hover:opacity-80"
                   style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.35)'}}>
                   👥 Clientes
                 </Link>
-                <Link href="/dashboard/cartera?tab=pagos" prefetch
+                <Link href="/cartera?tab=pagos" prefetch
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-white transition-colors hover:opacity-80"
                   style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.35)'}}>
                   💳 Pagos
                 </Link>
-                <Link href="/dashboard/trazabilidad" prefetch
+                <Link href="/trazabilidad" prefetch
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-white transition-colors hover:opacity-80"
                   style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.35)'}}>
                   🔍 Trazabilidad

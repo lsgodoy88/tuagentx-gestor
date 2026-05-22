@@ -302,7 +302,7 @@ export default function MiRutaPage() {
                   className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2 rounded-xl text-xs transition-colors">
                   📋 {verClientes ? 'Ocultar' : 'Ver clientes'}
                 </button>
-                <Link href="/dashboard/mapa-ruta"
+                <Link href="/mapa-ruta"
                   className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white font-semibold py-2 rounded-xl text-xs text-center transition-colors">
                   🗺️ Ver mapa
                 </Link>
@@ -358,7 +358,7 @@ export default function MiRutaPage() {
                     className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold py-2 rounded-xl text-xs transition-colors">
                     📋 {rutaExpandida === r.id ? 'Ocultar' : 'Ver clientes'}
                   </button>
-                  <Link href="/dashboard/mapa-ruta"
+                  <Link href="/mapa-ruta"
                     className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-white font-semibold py-2 rounded-xl text-xs text-center transition-colors">
                     🗺️ Ver mapa
                   </Link>

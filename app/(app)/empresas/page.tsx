@@ -40,7 +40,7 @@ export default function EmpresasPage() {
   const [confirmText, setConfirmText] = useState('')
 
   useEffect(() => {
-    if (user?.role !== 'superadmin') { router.push('/dashboard'); return }
+    if (user?.role !== 'superadmin') { router.push('/inicio'); return }
     loadData()
   }, [user])
 

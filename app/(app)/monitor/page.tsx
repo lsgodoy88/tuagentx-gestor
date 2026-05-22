@@ -36,7 +36,7 @@ export default function MonitorPage() {
   const refreshCooldown = useRef(false)
 
   useEffect(() => {
-    if (user && user.role !== 'superadmin') { router.push('/dashboard'); return }
+    if (user && user.role !== 'superadmin') { router.push('/inicio'); return }
     if (user) cargar()
   }, [user])
 

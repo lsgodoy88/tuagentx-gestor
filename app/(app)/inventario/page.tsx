@@ -11,7 +11,7 @@ export default function InventarioPage() {
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/login'); return }
     if (status !== 'authenticated') return
-    if (!['empresa', 'supervisor', 'bodega'].includes(user?.role)) router.push('/dashboard')
+    if (!['empresa', 'supervisor', 'bodega'].includes(user?.role)) router.push('/inicio')
   }, [status])
 
   return (
