@@ -2818,6 +2818,7 @@ model OrdenDespacho {
   origenId          String?
   numeroOrden       String
   numeroFactura     String?
+  isFacturada       Boolean  @default(false)
   vendedorApiId     String?
   clienteApiId      String?
   clienteNombre     String
