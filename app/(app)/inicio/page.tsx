@@ -995,7 +995,7 @@ export default function DashboardPage() {
             </div>
           ) : null}
           {user?.role === 'vendedor' && turno && (
-              <div className="p-3 w-full slide-down" style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)",borderTop:"none",borderRadius:"0 0 16px 16px"}}>
+              <div className="rounded-2xl p-4 w-full slide-down" style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.25)"}}>
                 <div className="flex gap-2">
                   {[
                     { tipo: 'visita', label: 'Visita', icon: '👁️' },
