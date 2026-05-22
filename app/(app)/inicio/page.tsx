@@ -879,14 +879,14 @@ export default function DashboardPage() {
             <div style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.30)",borderRadius:16,overflow:"hidden"}}>
               {/* Pill encogida */}
               <button onClick={() => setTurnoExpandido(e => !e)}
-                className="w-full flex items-center gap-3 px-4 py-3 text-left">
-                <span className="relative inline-flex h-2.5 w-2.5 flex-shrink-0">
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5">
+                <span className="relative inline-flex h-2 w-2 flex-shrink-0">
                   <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 live-ping" />
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                 </span>
-                <span className="font-mono font-bold text-emerald-400 text-lg flex-1 tabular-nums">{tiempoTurno}</span>
+                <span className="font-mono font-semibold text-emerald-400 text-sm tabular-nums">{tiempoTurno}</span>
                 <button onClick={e => { e.stopPropagation(); setMostrarPausa(m => !m); setTurnoExpandido(true) }}
-                  className="w-8 h-8 flex items-center justify-center bg-zinc-800 rounded-lg text-base flex-shrink-0">⏸</button>
+                  className="w-7 h-7 flex items-center justify-center bg-zinc-800 rounded-lg text-xs flex-shrink-0">⏸</button>
                 <span className={`text-zinc-600 text-[10px] transition-transform duration-200 ${turnoExpandido ? 'rotate-180' : ''}`}>▼</span>
               </button>
               {/* Desplegado */}
