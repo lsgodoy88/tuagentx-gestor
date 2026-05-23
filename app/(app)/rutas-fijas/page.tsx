@@ -563,7 +563,7 @@ export default function RutasFijasPage() {
                                   {/* Nombre + GPS — toque para expandir acciones */}
                                   <div className="flex items-center gap-2 cursor-pointer active:opacity-70"
                                     onClick={() => setExpandedCliente(expandedCliente === rc.id ? null : rc.id)}>
-                                    <p className="text-white text-sm font-semibold flex-1 min-w-0 truncate">{rc.cliente.nombre}</p>
+                                    <p className="text-white text-xs font-semibold flex-1 min-w-0 truncate">{rc.cliente.nombre}</p>
                                     {(rc.cliente.ubicacionReal || rc.cliente.latTmp) && <span className={`text-sm flex-shrink-0 ${rc.cliente.ubicacionReal ? "" : "opacity-50"}`}>📍</span>}
                                   </div>
                                   {/* Meta · Venta · % */}
