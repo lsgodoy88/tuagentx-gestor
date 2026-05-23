@@ -38,7 +38,7 @@ export async function GET() {
   const ordenes = await adapter.fetchVentas(inicioMes)
 
   const misOrdenes = ordenes.filter((o: any) => {
-    const esMio = o.empleadoId === miApiId || o.vendedorApiId === miApiId
+    const esMio = o.empleado?.uid === miApiId
     const fc = o.fCreado ? new Date(o.fCreado as string) : null
     const esMes = fc ? fc >= inicioMes && fc.getFullYear() === anio && (fc.getMonth() + 1) === mes : true
     const facturada = !!(o.numeroFacturado || o.invoiceNumber)

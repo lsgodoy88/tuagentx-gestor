@@ -67,7 +67,7 @@ export async function GET() {
     miApiId
       ? (prisma as any).ordenDespacho.findMany({
           where: { vendedorApiId: miApiId, fechaOrden: { gte: inicioDia, lt: finDia } },
-          select: { estado: true, numeroFactura: true, totalOrden: true },
+          select: { estado: true, numeroFactura: true, totalOrden: true, isFacturada: true },
         })
       : Promise.resolve([]),
     // Órdenes del mes — solo facturadas (isFacturada=true, equivale a isInvoiced en UpTres)
@@ -125,7 +125,7 @@ export async function GET() {
   const despHoy = (ordenesHoy as any[]).filter((o: any) =>
     ['despachado','entregado'].includes(o.estado)
   ).length
-  const factHoy = (ordenesHoy as any[]).length
+  const factHoy = (ordenesHoy as any[]).filter((o: any) => o.isFacturada === true).length
 
   const ordenes = {
     despHoy,

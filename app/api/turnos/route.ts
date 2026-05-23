@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
         data: {
           id: nuevoId,
           empleadoId: user.id,
+          inicio: nowBogota(),  // explícito para evitar drift de timezone
           latInicio: lat || null,
           lngInicio: lng || null,
           activo: true,
