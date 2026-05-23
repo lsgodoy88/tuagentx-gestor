@@ -570,17 +570,17 @@ export default function RutasFijasPage() {
                                   <div className="grid gap-x-2" style={{gridTemplateColumns: rc.metaVenta > 0 ? '1fr 1fr auto' : '1fr auto'}}>
                                     {rc.metaVenta > 0 && (
                                       <div className="min-w-0">
-                                        <p className="text-zinc-500 text-xs">Meta</p>
-                                        <p className={`text-white text-sm font-bold truncate ${esRep ? 'line-through decoration-zinc-500 text-zinc-500' : ''}`}>${rc.metaVenta.toLocaleString('es-CO')}</p>
+                                        <p className="text-zinc-500 text-sm">Meta</p>
+                                        <p className={`text-white text-base font-bold truncate ${esRep ? 'line-through decoration-zinc-500 text-zinc-500' : ''}`}>${rc.metaVenta.toLocaleString('es-CO')}</p>
                                       </div>
                                     )}
                                     <div className="min-w-0">
-                                      <p className="text-zinc-500 text-xs">Venta</p>
-                                      <p className={`text-sm font-bold truncate ${esRep ? 'line-through decoration-zinc-500 text-zinc-500' : (logrado > 0 ? 'text-emerald-400' : 'text-zinc-600')}`}>${logrado.toLocaleString('es-CO')}</p>
+                                      <p className="text-zinc-500 text-sm">Venta</p>
+                                      <p className={`text-base font-bold truncate ${esRep ? 'line-through decoration-zinc-500 text-zinc-500' : (logrado > 0 ? 'text-emerald-400' : 'text-zinc-600')}`}>${logrado.toLocaleString('es-CO')}</p>
                                     </div>
                                     {pct !== null && (
                                       <div className="flex items-end pb-0.5">
-                                        <span className={`text-sm font-bold ${esRep ? 'line-through decoration-zinc-500 text-zinc-500' : (pct >= 100 ? 'text-blue-400' : pct >= 70 ? 'text-cyan-400' : pct >= 40 ? 'text-yellow-400' : 'text-red-400')}`}>{pct}%</span>
+                                        <span className={`text-base font-bold ${esRep ? 'line-through decoration-zinc-500 text-zinc-500' : (pct >= 100 ? 'text-blue-400' : pct >= 70 ? 'text-cyan-400' : pct >= 40 ? 'text-yellow-400' : 'text-red-400')}`}>{pct}%</span>
                                       </div>
                                     )}
                                   </div>
