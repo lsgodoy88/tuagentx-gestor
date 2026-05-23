@@ -489,9 +489,9 @@ export default function RutasFijasPage() {
                               <div className={`h-full rounded-full transition-all ${barColor}`}
                                 style={{width: Math.min(pct || 0, 100) + '%'}} />
                             </div>
-                            <div className="flex justify-between text-xs">
-                              <span className="text-zinc-500">Meta <span className="text-white font-semibold">${totalMeta.toLocaleString('es-CO')}</span></span>
-                              <span className="text-zinc-500">Venta <span className={totalVenta > 0 ? `font-semibold ${pctColor}` : 'text-zinc-600'}>${totalVenta.toLocaleString('es-CO')}</span></span>
+                            <div className="flex justify-between text-sm">
+                              <span className="text-zinc-500">Meta <span className="text-white font-bold">${totalMeta.toLocaleString('es-CO')}</span></span>
+                              <span className="text-zinc-500">Venta <span className={totalVenta > 0 ? `font-bold ${pctColor}` : 'text-zinc-600'}>${totalVenta.toLocaleString('es-CO')}</span></span>
                             </div>
                           </div>
                         )}
