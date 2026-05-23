@@ -1,3 +1,4 @@
+import type { VentasLiveResult } from '@/lib/types/vendedor'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
@@ -49,11 +50,12 @@ export async function GET() {
     s + parseFloat(String(o.vTotal || o.total || 0)), 0
   )
 
-  return NextResponse.json({
+  const result: VentasLiveResult = {
     ok: true,
     montoMes: Math.round(montoMes),
     ordenes: misOrdenes.length,
     mes, anio,
     fuente: 'uptres-live',
-  })
+  }
+  return NextResponse.json(result)
 }

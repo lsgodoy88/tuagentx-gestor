@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import type { VendedorStats } from '@/lib/types/vendedor'
 import { nowBogota, fechaHoyBogota, haceNDiasBogota, haceNMesesBogota, inicioDiaBogota, finDiaBogota, inicioMesBogota, inicioMesAnteriorBogota, mesBogota, anioBogota, mesAnteriorBogota, anioMesAnteriorBogota, esDelMesBogota, fmtFechaHora, fmtFechaMedia, fmtHora } from '@/lib/fechas'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
@@ -259,7 +260,7 @@ export async function GET() {
     }
   }))
 
-  return { hoy, ordenes, recaudo, dias, meses, cumplimiento }
+  return { hoy, ordenes, recaudo, dias, meses, cumplimiento } satisfies VendedorStats & { dias: any[], meses: any[] }
   }) // withCache
   const res = NextResponse.json(result)
   res.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60')

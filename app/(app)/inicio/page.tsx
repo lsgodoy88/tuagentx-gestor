@@ -11,6 +11,7 @@ import { estadoMasCritico } from '@/lib/cartera'
 import EntregaCard from '@/components/EntregaCard'
 import { useEffect, useState, useRef } from 'react'
 import { CountUp, LiveDot, SkeletonCard, LoadingBorder } from '@/components/FX'
+import type { VendedorStats, TurnoActivo, VentasLiveResult } from '@/lib/types/vendedor'
 import { SyncIcon } from '@/components/SyncIcon'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -32,9 +33,9 @@ export default function DashboardPage() {
   const router = useRouter()
   const [stats, setStats] = useState<any>({ empleados: 0, clientes: 0, visitasHoy: 0, enTurno: 0 })
   const [ruta, setRuta] = useState<any>(null)
-  const [turno, setTurno] = useState<any>(null)
+  const [turno, setTurno] = useState<TurnoActivo | null>(null)
   const [tiempoTurno, setTiempoTurno] = useState('')
-  const [statsVendedor, setStatsVendedor] = useState<any>(null)
+  const [statsVendedor, setStatsVendedor] = useState<VendedorStats | null>(null)
   const [visitasRuta, setVisitasRuta] = useState<any[]>([])
   const [resumenFinanciero, setResumenFinanciero] = useState<any>(null)
   const [monitor, setMonitor] = useState<any[]>([])
@@ -869,7 +870,7 @@ export default function DashboardPage() {
                 <div className="border-t border-amber-500/20 px-4 pb-4 pt-3 space-y-3">
                   <div className="grid grid-cols-2 gap-2">
                     <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Inicio pausa</p><p className="text-sm font-bold text-white">{turno.pausaInicio ? new Date(turno.pausaInicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"}) : "--"}</p></div>
-                    <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Reanuda a las</p><p className="text-emerald-400 text-sm font-bold">{new Date(new Date(turno.pausaInicio).getTime() + turno.pausaDuracionMin*60000).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"})}</p></div>
+                    <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Reanuda a las</p><p className="text-emerald-400 text-sm font-bold">{turno.pausaInicio && turno.pausaDuracionMin ? new Date(new Date(turno.pausaInicio).getTime() + turno.pausaDuracionMin*60000).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"}) : "--"}</p></div>
                   </div>
                   <div className="flex gap-2">
                     <button onClick={reanudarTurno} className="flex-1 bg-zinc-800 border border-emerald-500/30 text-emerald-400 text-sm font-semibold py-2.5 rounded-xl">▶️ Reanudar</button>
