@@ -125,7 +125,7 @@ export async function GET() {
   const despHoy = (ordenesHoy as any[]).filter((o: any) =>
     ['despachado','entregado'].includes(o.estado)
   ).length
-  const factHoy = (ordenesHoy as any[]).filter((o: any) => o.isFacturada === true).length
+  const factHoy = (ordenesHoy as any[]).filter((o: any) => o.numeroFactura != null && o.numeroFactura !== '').length
 
   const ordenes = {
     despHoy,
