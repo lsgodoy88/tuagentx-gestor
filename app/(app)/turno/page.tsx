@@ -101,52 +101,9 @@ export default function TurnoPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-24 md:pb-0">
       <div>
-        <h1 className="text-2xl font-bold text-white">Mi turno</h1>
-        <p className="text-zinc-400 text-sm mt-1">Controla tu jornada de trabajo</p>
+        <h1 className="text-2xl font-bold text-white">Historial de turnos</h1>
       </div>
 
-      {!turno ? (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center space-y-4">
-          <div className="w-16 h-16 bg-zinc-800 rounded-full flex items-center justify-center mx-auto">
-            <span className="text-3xl">🟡</span>
-          </div>
-          <p className="text-white font-semibold">Sin turno activo</p>
-          <p className="text-zinc-400 text-sm">Inicia tu turno para comenzar a registrar visitas</p>
-          <button onClick={iniciarTurno} disabled={accionando}
-            className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold py-4 rounded-2xl text-lg transition-colors">
-            {accionando ? 'Obteniendo ubicación...' : '🟢 Iniciar turno'}
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-2xl p-5">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-3 h-3 bg-emerald-500 rounded-full animate-pulse" />
-              <span className="text-emerald-400 font-semibold">Turno activo</span>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-zinc-400 text-xs mb-1">Inicio</p>
-                {turno.latInicio
-                  ? <a href={"https://www.google.com/maps?q=" + turno.latInicio + "," + turno.lngInicio} target="_blank" className="text-emerald-400 text-sm underline">{new Date(turno.inicio).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })} 📍</a>
-                  : <p className="text-white text-sm">{new Date(turno.inicio).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}</p>}
-              </div>
-              <div>
-                <p className="text-zinc-400 text-xs mb-1">Duración</p>
-                <p className="text-white text-sm font-mono">{duracion(turno.inicio)}</p>
-              </div>
-              <div>
-                <p className="text-zinc-400 text-xs mb-1">Visitas en turno</p>
-                <p className="text-white text-2xl font-bold">{turno.visitas?.length || 0}</p>
-              </div>
-              <div>
-                <p className="text-zinc-400 text-xs mb-1">GPS inicio</p>
-                {turno.latInicio ? <span className="text-emerald-400 text-sm">✅ Registrado</span> : <span className="text-zinc-500 text-sm">❌ Sin GPS</span>}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
       <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
         <div className="flex items-center justify-between">
           <p className="text-white font-bold">Historial de turnos</p>
