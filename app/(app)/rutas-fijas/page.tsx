@@ -369,7 +369,7 @@ export default function RutasFijasPage() {
                             ? Math.round((new Date(item.salida.createdAt).getTime() - new Date(item.entrada.createdAt).getTime()) / 60000)
                             : null
                           return (
-                            <div key={item.cliente.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-2">
+                            <div key={item.cliente.id} className="rounded-2xl p-4 space-y-2" style={{background:"#000000",border:"1px solid rgba(59,130,246,0.45)"}}>
                               <p className="text-white font-semibold">{item.cliente.nombre}</p>
                               {item.cliente.nombreComercial && <p className="text-zinc-400 text-sm">{item.cliente.nombreComercial}</p>}
                                 {(() => {
