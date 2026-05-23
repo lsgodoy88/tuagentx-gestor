@@ -63,11 +63,17 @@ export async function GET() {
     prisma.visita.findMany({
       where: { empleadoId: user.id, fechaBogota: { gte: inicioAyer, lt: finAyer } },
     }),
-    // Órdenes hoy (todas — desp+fact)
+    // Órdenes hoy — desp por fechaOrden, fact por fechaFactura
     miApiId
       ? (prisma as any).ordenDespacho.findMany({
-          where: { vendedorApiId: miApiId, fechaOrden: { gte: inicioDia, lt: finDia } },
-          select: { estado: true, numeroFactura: true, totalOrden: true, isFacturada: true },
+          where: {
+            vendedorApiId: miApiId,
+            OR: [
+              { fechaOrden:   { gte: inicioDia, lt: finDia } },
+              { fechaFactura: { gte: inicioDia, lt: finDia } },
+            ]
+          },
+          select: { estado: true, numeroFactura: true, totalOrden: true, isFacturada: true, fechaFactura: true, fechaOrden: true },
         })
       : Promise.resolve([]),
     // Órdenes del mes — solo facturadas (isFacturada=true, equivale a isInvoiced en UpTres)
@@ -125,7 +131,11 @@ export async function GET() {
   const despHoy = (ordenesHoy as any[]).filter((o: any) =>
     ['despachado','entregado'].includes(o.estado)
   ).length
-  const factHoy = (ordenesHoy as any[]).filter((o: any) => o.numeroFactura != null && o.numeroFactura !== '').length
+  const factHoy = (ordenesHoy as any[]).filter((o: any) => {
+    if (!o.fechaFactura) return false
+    const ff = new Date(o.fechaFactura)
+    return ff >= inicioDia && ff < finDia
+  }).length
 
   const ordenes = {
     despHoy,
