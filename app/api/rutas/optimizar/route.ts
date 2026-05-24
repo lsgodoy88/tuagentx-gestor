@@ -3,14 +3,19 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import Redis from 'ioredis'
 
-const redis = new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6379')
+// Instancia lazy dentro del handler para que process.env ya esté cargado
+function getRedis() {
+  return new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6379', {
+    lazyConnect: true, maxRetriesPerRequest: 1, connectTimeout: 2000
+  })
+}
 
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session || !session.user) return NextResponse.json(null)
   const user = session.user as any
   const key = 'ruta-optimizada:' + user.id
-  const data = await redis.get(key)
+  const data = await getRedis().get(key)
   if (!data) return NextResponse.json(null)
   return NextResponse.json({ orden: JSON.parse(data) })
 }
@@ -72,7 +77,7 @@ No incluyas explicación ni texto adicional, solo el JSON array.`
     const resultado = [...clientesOrdenados, ...sinGps]
     // Guardar en Redis 2 horas
     const key = 'ruta-optimizada:' + userPost.id
-    await redis.setex(key, 7200, JSON.stringify(resultado))
+    await getRedis().setex(key, 7200, JSON.stringify(resultado))
     return NextResponse.json({ orden: resultado })
   } catch (e: any) {
     return NextResponse.json({ error: 'Error al procesar respuesta IA' }, { status: 500 })
