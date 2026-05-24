@@ -12,7 +12,7 @@ try {
 } catch {}
 import { Worker, Queue, QueueEvents } from 'bullmq'
 
-const REDIS = { host: 'localhost', port: 6379, db: 1 } // db1 = gestor (db0 = Evolution)
+const REDIS = { host: 'localhost', port: 6379, db: 1, password: '7wzadPIuzVn84WkSfPUoOAIlb0PKCZK' } // db1 = gestor
 const BASE_URL = 'http://localhost:3010'
 const SECRET = process.env.CRON_SECRET || ''
 
