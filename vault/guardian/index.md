@@ -27,7 +27,7 @@ Formato de cada regla:
 - **Cálculo:** `SUM(totalOrden) WHERE vendedorApiId = miApiId AND fechaOrden >= inicioMes AND isFacturada = true`
 - **Campo clave:** `OrdenDespacho.isFacturada` (sincronizado desde `isInvoiced` de UpTres)
 - **NO usar:** `COUNT(*)` sin filtro, ni `fechaOrden` sin `isFacturada`
-- **Estado:** 📝 documentado
+- **Estado:** ✅ con test — `tests/guardian/dashboard-vendedor.test.ts`
 
 ---
 
@@ -43,7 +43,7 @@ Formato de cada regla:
   - `createdAt` → cuando se creó la orden
   - `fechaOrden` → fecha de la orden en el sistema
   - `invoicedAt` → cuando se facturó (la correcta para factHoy)
-- **Estado:** 📝 documentado
+- **Estado:** ✅ con test — `tests/guardian/dashboard-vendedor.test.ts`
 
 ---
 
@@ -59,7 +59,7 @@ Formato de cada regla:
 - **Regla:** `turno.inicio <= NOW()` siempre
 - **Causa histórica del bug:** Prisma `@default(now())` con drift de timezone entre cliente y servidor
 - **Fix:** pasar `inicio: nowBogota()` explícito en el create del turno
-- **Estado:** 📝 documentado
+- **Estado:** ✅ con test — `tests/guardian/dashboard-vendedor.test.ts`
 
 ---
 
