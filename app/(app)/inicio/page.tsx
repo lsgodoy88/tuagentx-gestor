@@ -12,6 +12,7 @@ import EntregaCard from '@/components/EntregaCard'
 import { useEffect, useState, useRef } from 'react'
 import { CountUp, LiveDot, SkeletonCard, LoadingBorder } from '@/components/FX'
 import type { VendedorStats, TurnoActivo, VentasLiveResult } from '@/lib/types/vendedor'
+import type { AdminStats } from '@/lib/types/admin'
 import { SyncIcon } from '@/components/SyncIcon'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -31,7 +32,7 @@ export default function DashboardPage() {
   const { data: session } = useSession()
   const user = session?.user as any
   const router = useRouter()
-  const [stats, setStats] = useState<any>({ empleados: 0, clientes: 0, visitasHoy: 0, enTurno: 0 })
+  const [stats, setStats] = useState<Partial<AdminStats>>({ empleados: 0, clientes: 0, visitasHoy: 0, enTurno: 0 })
   const [ruta, setRuta] = useState<any>(null)
   const [turno, setTurno] = useState<TurnoActivo | null>(null)
   const [tiempoTurno, setTiempoTurno] = useState('')
@@ -663,8 +664,8 @@ export default function DashboardPage() {
               <p className="text-white font-semibold text-sm mb-4">Visitas últimos 7 días</p>
               <div className="space-y-2">
                 {(() => {
-                  const max = Math.max(...stats.visitasPorDia.map((d: any) => d.cantidad), 1)
-                  return stats.visitasPorDia.map((d: any) => (
+                  const max = Math.max(...(stats.visitasPorDia || []).map((d: any) => d.cantidad), 1)
+                  return (stats.visitasPorDia || []).map((d: any) => (
                     <div key={d.dia} className="flex items-center gap-3">
                       <div className="text-zinc-500 text-xs w-16 flex-shrink-0">{d.dia}</div>
                       <div className="flex-1 bg-zinc-800 rounded-full h-2">
@@ -682,7 +683,7 @@ export default function DashboardPage() {
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Top vendedores - 30 dias</p>
               </div>
-              {stats.topEmpleados.map((e: any, i: number) => (
+              {(stats.topEmpleados || []).map((e: any, i: number) => (
                 <div key={e.nombre} className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 last:border-0">
                   <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-xs font-bold text-zinc-400">{i + 1}</div>
                   <div className="flex-1 min-w-0">
@@ -776,16 +777,16 @@ export default function DashboardPage() {
                   <thead>
                     <tr className="border-b border-zinc-800">
                       <th className="px-3 py-2 text-left text-zinc-500 font-medium w-24">Dia</th>
-                      {stats.vendedores7.map((v: string) => (
+                      {(stats.vendedores7 || []).map((v: string) => (
                         <th key={v} className="px-3 py-2 text-center text-zinc-400 font-medium whitespace-nowrap">{v}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {stats.tabla7dias.map((row: any) => (
+                    {(stats.tabla7dias || []).map((row: any) => (
                       <tr key={row.dia} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
                         <td className="px-3 py-2 text-zinc-400 whitespace-nowrap">{row.dia}</td>
-                        {stats.vendedores7.map((v: string) => (
+                        {(stats.vendedores7 || []).map((v: string) => (
                           <td key={v} className="px-3 py-2 text-center text-white font-medium">
                             {row[v] > 0 ? row[v] : <span className="text-zinc-700">-</span>}
                           </td>
@@ -808,16 +809,16 @@ export default function DashboardPage() {
                   <thead>
                     <tr className="border-b border-zinc-800">
                       <th className="px-3 py-2 text-left text-zinc-500 font-medium w-24">Mes</th>
-                      {stats.vendedores7m.map((v: string) => (
+                      {(stats.vendedores7m || []).map((v: string) => (
                         <th key={v} className="px-3 py-2 text-center text-zinc-400 font-medium whitespace-nowrap">{v}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {stats.tabla7meses.map((row: any) => (
+                    {(stats.tabla7meses || []).map((row: any) => (
                       <tr key={row.mes} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
                         <td className="px-3 py-2 text-zinc-400 whitespace-nowrap">{row.mes}</td>
-                        {stats.vendedores7m.map((v: string) => (
+                        {(stats.vendedores7m || []).map((v: string) => (
                           <td key={v} className="px-3 py-2 text-center text-white font-medium">
                             {row[v] > 0 ? row[v] : <span className="text-zinc-700">-</span>}
                           </td>

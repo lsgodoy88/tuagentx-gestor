@@ -1,3 +1,4 @@
+import type { AdminStats } from '@/lib/types/admin'
 import { NextResponse } from 'next/server'
 import { nowBogota, fechaHoyBogota, haceNDiasBogota, haceNMesesBogota, inicioDiaBogota, finDiaBogota, inicioMesBogota, inicioMesAnteriorBogota, mesBogota, anioBogota, mesAnteriorBogota, anioMesAnteriorBogota, esDelMesBogota, fmtFechaHora, fmtFechaMedia, fmtHora } from '@/lib/fechas'
 import { getServerSession } from 'next-auth'
@@ -135,7 +136,7 @@ export async function GET() {
     recaudoHoy: Number(recaudoHoy._sum.monto || 0),
     recaudoMes: Number(recaudoMesAgg._sum.monto || 0),
   }
-  return stats
+  return stats satisfies AdminStats
   }) // withCache
   const res = NextResponse.json(stats)
   res.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60')
