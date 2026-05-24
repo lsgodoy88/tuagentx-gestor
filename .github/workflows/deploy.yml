@@ -89,9 +89,14 @@ jobs:
 
       - name: Add server to known hosts
         run: |
+          mkdir -p ~/.ssh
+          # Intentar ssh-keyscan dinámico
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
-          ssh-keyscan -H ${{ secrets.SSH_HOST }} -p 22 >> ~/.ssh/known_hosts 2>/dev/null || true
+          # Fallback: key hardcodeada del servidor (ed25519)
+          echo "|1|dkPmopAiNsVylCQuohSFUrZFsDM=|OKpktYeqLzas/UxgYwpftJxqOr4= ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPU83nFu9fVUmhxMA6dQIFpGc1khRoS2chF6zYSAqWGn" >> ~/.ssh/known_hosts
+          echo "167.88.39.242 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPU83nFu9fVUmhxMA6dQIFpGc1khRoS2chF6zYSAqWGn" >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
+          wc -l ~/.ssh/known_hosts
 
       - name: Rsync .next to server
         run: |
