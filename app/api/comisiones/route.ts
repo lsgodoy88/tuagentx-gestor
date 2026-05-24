@@ -8,6 +8,8 @@ import { inicioDiaBogota } from '@/lib/fechas'
 
 // GET — configs + último cálculo del mes
 export async function GET(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -75,10 +77,15 @@ export async function GET(req: NextRequest) {
   })
 
   return NextResponse.json({ vendedores: vendedoresData, calculo })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 
 // POST — guardar configs + calcular comisión del mes
 export async function POST(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -124,4 +131,7 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ error: 'Acción no reconocida' }, { status: 400 })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }

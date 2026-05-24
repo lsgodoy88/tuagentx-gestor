@@ -326,7 +326,7 @@ Responde SIEMPRE en JSON exacto: { "respuesta": "texto" }
             { id: crypto.randomUUID(), empresaId, rol: 'bot', texto: parsed.respuesta },
           ]
         })
-      } catch(e: any) { console.log('Error guardando historial:', e.message) }
+      } catch(_e: any) {}
 
       return NextResponse.json({ respuesta: parsed.respuesta })
     } catch {

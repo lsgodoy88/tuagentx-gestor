@@ -11,6 +11,8 @@ function slugify(n: string) {
 }
 
 export async function GET(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const { searchParams } = new URL(req.url)
@@ -35,9 +37,14 @@ export async function GET(req: NextRequest) {
     prisma.empresa.findUnique({ where: { id: empresaId }, select: { maxSupervisores: true, maxVendedores: true, maxEntregas: true, maxImpulsadoras: true, maxBodega: true } })
   ])
   return NextResponse.json({ empleados, limites: empresa })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -98,9 +105,14 @@ export async function POST(req: NextRequest) {
 
   await audit('EMPLEADO_CREADO', user.email, `Empleado: ${nombre} | Rol: ${rol}`, empleado.id, empresaId)
   return NextResponse.json({ ok: true, email, empleado })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 
 export async function PUT(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -133,12 +145,20 @@ export async function PUT(req: NextRequest) {
 
   await audit('EMPLEADO_ACTUALIZADO', user.email, `Empleado: ${id}`, id, user.empresaId)
   return NextResponse.json({ ok: true, empleado })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 
 export async function DELETE(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const { id } = await req.json()
   await prisma.empleado.update({ where: { id }, data: { activo: false } })
   return NextResponse.json({ ok: true })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }

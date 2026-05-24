@@ -17,7 +17,6 @@ export async function POST(req: NextRequest) {
       VALUES (gen_random_uuid()::text, ${user.id}, ${endpoint}, ${keys.p256dh}, ${keys.auth}, NOW())
       ON CONFLICT (endpoint) DO UPDATE SET "empleadoId" = EXCLUDED."empleadoId", "createdAt" = NOW()`
   } catch (e) {
-    console.error('Push suscribir error:', e)
   }
   return NextResponse.json({ ok: true })
 }

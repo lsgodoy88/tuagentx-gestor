@@ -165,6 +165,7 @@ model Turno {
   visitas          Visita[]
 
   @@index([empleadoId], map: "idx_turno_empleado")
+  @@index([empleadoId, activo], map: "idx_turno_empleado_activo")
   @@map("Turno")
 }
 

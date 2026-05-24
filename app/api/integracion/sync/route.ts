@@ -18,7 +18,7 @@ function resolverConfig(config: any): Record<string, string> {
 async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor: string = 'cron', empleadoId?: string, incluirImpulsos: boolean = false): Promise<{
   clientes: number, empleados: number, deudas: number, zombis: number, confrontados: number, duracionMs: number
 }> {
-  const log = (m: string) => { logs.push(m); console.log('[sync-delta]', m) }
+  const log = (m: string) => { logs.push(m) }
   const inicio = new Date()
 
   const config = resolverConfig(integracion.config)
@@ -217,7 +217,7 @@ async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor
 async function ejecutarDeltaVendedor(integracion: any, empleadoApiId: string, logs: string[] = []): Promise<{
   clientes: number, empleados: number, deudas: number, zombis: number, confrontados: number, duracionMs: number
 }> {
-  const log = (m: string) => { logs.push(m); console.log('[sync-vendedor]', m) }
+  const log = (m: string) => { logs.push(m) }
   const inicio = new Date()
 
   const config = resolverConfig(integracion.config)
@@ -271,7 +271,7 @@ async function ejecutarDeltaVendedor(integracion: any, empleadoApiId: string, lo
 async function ejecutarInicial(integracion: any, adapter: any, empresaId: string, logs: string[]): Promise<{
   clientes: number, empleados: number, deudas: number
 }> {
-  const log = (m: string) => { logs.push(m); console.log('[sync-inicial]', m) }
+  const log = (m: string) => { logs.push(m) }
 
   // Clientes
   log('Sincronizando clientes...')

@@ -60,8 +60,6 @@ No incluyas explicación ni texto adicional, solo el JSON array.`
   })
 
   const data = await response.json()
-  console.log('IA response status:', response.status)
-  console.log('IA response data:', JSON.stringify(data).slice(0, 300))
   const texto = data.content?.[0]?.text?.trim()
 
   try {
@@ -77,7 +75,6 @@ No incluyas explicación ni texto adicional, solo el JSON array.`
     await redis.setex(key, 7200, JSON.stringify(resultado))
     return NextResponse.json({ orden: resultado })
   } catch (e: any) {
-    console.log('Error IA optimizar:', e.message, 'Respuesta:', texto)
     return NextResponse.json({ error: 'Error al procesar respuesta IA' }, { status: 500 })
   }
 }
