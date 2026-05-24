@@ -1,3 +1,4 @@
+import type { PagoSyncResponse } from '@/lib/types/cartera'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
@@ -182,5 +183,5 @@ export async function POST(req: NextRequest) {
     await actualizarCache(new Set([clienteApiId]), integracion.id, empresaId)
   }
 
-  return NextResponse.json({ pago, anchoPapel })
+  return NextResponse.json({ pago, anchoPapel } satisfies PagoSyncResponse)
 }

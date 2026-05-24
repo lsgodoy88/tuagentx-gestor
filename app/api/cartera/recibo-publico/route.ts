@@ -1,3 +1,4 @@
+import type { ReciboPublicoResponse } from '@/lib/types/cartera'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
@@ -115,5 +116,5 @@ export async function GET(req: NextRequest) {
     empleado: pago.Empleado,
   }
 
-  return NextResponse.json({ pago: normalized })
+  return NextResponse.json({ pago: normalized } satisfies ReciboPublicoResponse)
 }

@@ -12,6 +12,7 @@ import InputMoneda from '@/components/InputMoneda'
 import SelectorMes from '@/components/SelectorMes'
 import CarteraCard from '@/components/CarteraCard'
 import { ROLES_ADMIN } from '@/lib/auth-helpers'
+import type { PagoListado, ComisionVendedor } from '@/lib/types/cartera'
 
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
 const fmtShort = (n: number): string => {
@@ -56,7 +57,7 @@ export default function CarteraPage() {
   const [busquedaPagos, setBusquedaPagos] = useState('')
   const [mesPagos, setMesPagos] = useState(mesBogota())
   const [anioPagos, setAnioPagos] = useState(anioBogota())
-  const [comisiones, setComisiones] = useState<any[]>([])
+  const [comisiones, setComisiones] = useState<ComisionVendedor[]>([])
   const [comisionCalculo, setComisionCalculo] = useState<any>(null)
   const [loadingComisiones, setLoadingComisiones] = useState(false)
   const [nombreComision, setNombreComision] = useState('')
@@ -65,7 +66,7 @@ export default function CarteraPage() {
   const [anioComision, setAnioComision] = useState(anioBogota())
 
   const [carteras, setCarteras] = useState<any[]>([])
-  const [pagos, setPagos] = useState<any[]>([])
+  const [pagos, setPagos] = useState<PagoListado[]>([])
   const [metas, setMetas] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [offline, setOffline] = useState(false)
