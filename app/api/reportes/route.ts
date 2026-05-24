@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
 
 export async function GET(req: NextRequest) {
+  try {
+
   const { searchParams } = new URL(req.url)
   const esRanking = searchParams.get('ranking') === 'true'
   const periodo = searchParams.get('periodo') || 'semana'
@@ -106,4 +108,7 @@ export async function GET(req: NextRequest) {
   }
 
   return NextResponse.json({ visitas, empleados, resumenPorEmpleado, totales, turnos })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }

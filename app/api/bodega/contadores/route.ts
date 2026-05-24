@@ -8,6 +8,8 @@ const cache = new Map<string, { data: any; ts: number }>()
 const CACHE_TTL = 2 * 60 * 1000  // 2 min
 
 export async function GET() {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -29,4 +31,7 @@ export async function GET() {
   const data = { pendientes, alistados, entregados }
   cache.set(user.empresaId, { data, ts: Date.now() })
   return NextResponse.json(data)
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }

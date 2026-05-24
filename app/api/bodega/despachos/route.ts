@@ -10,6 +10,8 @@ const LIMIT  = 15
 const DIAS   = 30
 
 export async function GET(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -172,4 +174,7 @@ export async function GET(req: NextRequest) {
     controlNextCursor: controlNextCursorVal,
     controlHayMas,
   })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }

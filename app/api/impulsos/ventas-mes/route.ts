@@ -8,6 +8,8 @@ import { prisma } from '@/lib/prisma'
  * Devuelve los últimos 3 meses de ventas para los clientes solicitados.
  */
 export async function GET(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
   const user = session.user as any
@@ -36,4 +38,7 @@ export async function GET(req: NextRequest) {
   })
 
   return NextResponse.json({ ventas: registros, meses })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }

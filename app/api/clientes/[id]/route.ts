@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { expandirDireccion } from '@/lib/maps'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const { id } = await params
@@ -53,12 +55,20 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
   })
   return NextResponse.json(cliente)
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const { id } = await params
   await prisma.cliente.delete({ where: { id } })
   return NextResponse.json({ ok: true })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }

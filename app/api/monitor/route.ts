@@ -81,6 +81,8 @@ async function getMonitorData(empresaId: string, hoy: Date) {
 }
 
 export async function GET() {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -114,4 +116,7 @@ export async function GET() {
   const empresaId = getEmpresaId(user)
   const resultado = await getMonitorData(empresaId, hoy)
   return NextResponse.json(resultado)
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }

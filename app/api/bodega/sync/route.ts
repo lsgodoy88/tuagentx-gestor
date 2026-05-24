@@ -13,6 +13,8 @@ const municipiosDANE: Record<string, string> = JSON.parse(
 )
 
 export async function POST(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
   const user = session.user as any
@@ -169,4 +171,7 @@ export async function POST(req: NextRequest) {
     nuevas: toCreate.length,
     actualizadas: 0
   })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }

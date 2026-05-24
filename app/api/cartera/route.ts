@@ -135,6 +135,8 @@ async function poblarCarteraCache(integracionId: string, empresaId: string) {
 }
 
 export async function GET(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -289,9 +291,14 @@ export async function GET(req: NextRequest) {
   })
 
   return NextResponse.json({ carteras: normalized, total, page, pages: Math.ceil(total / limit), _modo: 'manual' })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -323,4 +330,7 @@ export async function POST(req: NextRequest) {
     })
   }
   return NextResponse.json({ cartera })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }

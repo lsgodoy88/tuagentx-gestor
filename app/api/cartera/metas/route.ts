@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
 
 export async function GET(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -41,9 +43,14 @@ export async function GET(req: NextRequest) {
     include: { empleado: { select: { id: true, nombre: true } } }
   })
   return NextResponse.json({ metas })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -59,4 +66,7 @@ export async function POST(req: NextRequest) {
     create: { empleadoId, empresaId, mes, anio, metaPesos, metaPct: metaPct || null }
   })
   return NextResponse.json({ meta })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }

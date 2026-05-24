@@ -12,6 +12,8 @@ import { withCache } from '@/lib/cache'
  * Devuelve: totalCartera, totalPendiente, recaudadoMes, descuentosMes, clientes, pagosCount, variacion
  */
 export async function GET() {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -133,4 +135,7 @@ export async function GET() {
   const _res = NextResponse.json(resumenData)
   _res.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60')
   return _res
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }

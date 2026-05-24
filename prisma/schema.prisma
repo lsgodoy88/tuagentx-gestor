@@ -96,6 +96,7 @@ model Empleado {
   ordenesRepartidas   OrdenDespacho[]      @relation("RepartidorDespacho")
   comisionConfigs     ComisionConfig[]
 
+  @@index([empresaId, activo], map: "idx_empleado_empresa_activo")
   @@map("Empleado")
 }
 
@@ -306,6 +307,7 @@ model VentaMesCliente {
 
   @@unique([clienteId, mes])
   @@index([empresaId, mes])
+  @@index([clienteId, mes], map: "idx_ventamescliente_cliente")
   @@map("VentaMesCliente")
 }
 

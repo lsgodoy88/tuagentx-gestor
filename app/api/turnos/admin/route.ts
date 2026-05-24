@@ -19,6 +19,8 @@ function calcDuracion(inicio: Date, fin: Date | null, pausaMin: number = 0) {
 }
 
 export async function GET(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: "No autorizado" }, { status: 401 })
   const user = session.user as any
@@ -92,4 +94,7 @@ export async function GET(req: NextRequest) {
   })
 
   return NextResponse.json({ turnos: data, total, page, pages: Math.ceil(total / LIMIT) })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }

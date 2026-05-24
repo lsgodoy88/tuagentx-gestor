@@ -7,6 +7,8 @@ import { checkPermiso } from '@/lib/permisos'
 import { expandirDireccion } from '@/lib/maps'
 
 export async function GET(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -105,9 +107,14 @@ export async function GET(req: NextRequest) {
     prisma.cliente.count({ where })
   ])
   return NextResponse.json({ clientes, total, page, pages: Math.ceil(total / limit) })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -162,9 +169,14 @@ export async function POST(req: NextRequest) {
     }
   })
   return NextResponse.json({ ok: true, cliente })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 
 export async function PATCH(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -194,9 +206,14 @@ export async function PATCH(req: NextRequest) {
   })
   if (updated.count === 0) return NextResponse.json({ error: 'No encontrado o sin permisos' }, { status: 404 })
   return NextResponse.json({ ok: true })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 
 export async function DELETE(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -208,4 +225,7 @@ export async function DELETE(req: NextRequest) {
   const deleted = await prisma.cliente.deleteMany({ where: { id, empresaId } })
   if (deleted.count === 0) return NextResponse.json({ error: 'No encontrado o sin permisos' }, { status: 404 })
   return NextResponse.json({ ok: true })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }

@@ -6,6 +6,8 @@ import { prisma } from '@/lib/prisma'
 import { audit } from '@/lib/audit'
 
 export async function GET() {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -16,9 +18,14 @@ export async function GET() {
     select: { id: true, empleadoId: true, inicio: true, fin: true, activo: true, pausado: true, pausaInicio: true, pausaDuracionMin: true, pausaMotivo: true, latInicio: true, lngInicio: true, latFin: true, lngFin: true }
   })
   return NextResponse.json(turno || null)
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -85,4 +92,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
   return NextResponse.json({ error: 'Acción inválida' }, { status: 400 })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }

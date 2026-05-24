@@ -143,6 +143,8 @@ async function poblarCarteraCache(integracionId: string, empresaId: string) {
 }
 
 export async function POST(req: NextRequest) {
+  try {
+
   const secret = req.headers.get('x-cron-secret')
   if (secret !== process.env.CRON_SECRET) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
@@ -159,4 +161,7 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ ok: true, clientes: total })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }

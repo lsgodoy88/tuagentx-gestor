@@ -7,6 +7,8 @@ import { audit } from '@/lib/audit'
 import { fechaBogotaStr, inicioDiaBogota, finDiaBogota } from '@/lib/fecha'
 
 export async function GET() {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -55,9 +57,14 @@ export async function GET() {
     return { ...ruta, visitas }
   })
   return NextResponse.json(rutasConVisitas)
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -146,9 +153,14 @@ export async function POST(req: NextRequest) {
   })
   await audit('RUTA_CREADA', user.email, `Ruta: ${ruta.nombre}`, user.id, user.id)
   return NextResponse.json({ ok: true, ruta })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 
 export async function DELETE(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -162,9 +174,14 @@ export async function DELETE(req: NextRequest) {
     prisma.ruta.delete({ where: { id } }),
   ])
   return NextResponse.json({ ok: true })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 
 export async function PATCH(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -212,4 +229,7 @@ export async function PATCH(req: NextRequest) {
   )
 
   return NextResponse.json({ ok: true, ruta })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }

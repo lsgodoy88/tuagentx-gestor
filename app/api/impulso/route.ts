@@ -8,6 +8,8 @@ import { DIAS } from '@/lib/constants'
 import { buildSemana } from '@/lib/impulsoMetricas'
 
 export async function GET(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const { searchParams } = new URL(req.url)
@@ -95,9 +97,14 @@ export async function GET(req: NextRequest) {
     pctTotal: pctGeneral,
     _modo: modoSync ? 'sync' : 'manual'
   })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const { impulsadoraId, clienteId, tipo, monto, nota } = await req.json()
@@ -114,4 +121,7 @@ export async function POST(req: NextRequest) {
     }
   })
   return NextResponse.json({ ok: true, visita })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }

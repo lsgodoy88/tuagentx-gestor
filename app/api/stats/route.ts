@@ -8,6 +8,8 @@ import { getEmpresaId } from '@/lib/auth-helpers'
 import { withCache } from '@/lib/cache'
 
 export async function GET() {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -141,5 +143,8 @@ export async function GET() {
   const res = NextResponse.json(stats)
   res.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60')
   return res
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 

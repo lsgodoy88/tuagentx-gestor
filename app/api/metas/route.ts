@@ -9,6 +9,8 @@ import { getEmpresaId, ROLES_ADMIN } from '@/lib/auth-helpers'
  * Retorna 12 meses de MetaRecaudo y MetaVenta para un empleado
  */
 export async function GET(req: Request) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -33,6 +35,9 @@ export async function GET(req: Request) {
   ])
 
   return NextResponse.json({ recaudo, venta })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 
 /**
@@ -41,6 +46,8 @@ export async function GET(req: Request) {
  * body: { empleadoId, anio, recaudo: [{mes, metaPesos}], venta: [{mes, metaPesos}] }
  */
 export async function POST(req: Request) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -82,4 +89,7 @@ export async function POST(req: Request) {
 
   await Promise.all(ops)
   return NextResponse.json({ ok: true })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }

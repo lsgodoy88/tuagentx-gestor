@@ -7,6 +7,8 @@ import { getEmpresaId } from '@/lib/auth-helpers'
 import { DIAS } from '@/lib/constants'
 
 export async function GET() {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json([])
   const user = session.user as any
@@ -32,9 +34,14 @@ export async function GET() {
     orderBy: { diaSemana: 'asc' }
   })
   return NextResponse.json(rutas)
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -118,9 +125,14 @@ export async function POST(req: NextRequest) {
     }
   })
   return NextResponse.json({ ok: true, ruta })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 
 export async function DELETE(req: NextRequest) {
+  try {
+
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const { id } = await req.json()
@@ -130,4 +142,7 @@ export async function DELETE(req: NextRequest) {
     prisma.rutaFija.delete({ where: { id } }),
   ])
   return NextResponse.json({ ok: true })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
