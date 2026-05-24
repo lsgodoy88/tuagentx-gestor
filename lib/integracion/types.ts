@@ -33,19 +33,31 @@ export interface EmpleadoExterno {
 }
 
 export interface VentaExterna {
-  uid?: string
+  uid: string
   _id?: string
-  numeroOrden?: number
-  numeroFacturado?: number
-  vTotal?: string | number
-  fCreado?: string
-  fModificado?: string
+  numeroOrden: number
+  numeroFacturado: number | null
+  /** true = facturada en UpTres → OrdenDespacho.isFacturada */
+  isInvoiced: boolean
+  /** Fecha de facturación → OrdenDespacho.fechaFactura */
+  invoicedAt: string | null
+  vTotal: string | number | null
+  fCreado: string
+  fModificado?: string | null
   condition?: boolean
-  tipo?: string
-  cliente?: { uid?: string }
-  empleado?: { uid?: string }
+  /**
+   * CRÍTICO: el empleado viene como objeto { uid }
+   * NUNCA acceder como o.empleadoId — no existe
+   * SIEMPRE usar o.empleado?.uid para comparar con miApiId
+   */
+  empleado: { uid: string | null }
+  cliente: { uid: string | null }
   productos?: any[]
-  [key: string]: unknown
+  clienteNombreApi?: string | null
+  cityId?: string | number | null
+  direccion?: string | null
+  telefono?: string | null
+  clienteNit?: string | null
 }
 
 export interface AdaptadorIntegracion {

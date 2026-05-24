@@ -1,4 +1,5 @@
 import type { VentasLiveResult } from '@/lib/types/vendedor'
+import type { VentaExterna } from '@/lib/integracion/types'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
@@ -38,11 +39,11 @@ export async function GET() {
 
   const ordenes = await adapter.fetchVentas(inicioMes)
 
-  const misOrdenes = ordenes.filter((o: any) => {
+  const misOrdenes = (ordenes as VentaExterna[]).filter((o) => {
     const esMio = o.empleado?.uid === miApiId
     const fc = o.fCreado ? new Date(o.fCreado as string) : null
     const esMes = fc ? fc >= inicioMes && fc.getFullYear() === anio && (fc.getMonth() + 1) === mes : true
-    const facturada = !!(o.numeroFacturado || o.invoiceNumber)
+    const facturada = o.isInvoiced === true
     return esMio && esMes && facturada
   })
 
