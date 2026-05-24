@@ -79,7 +79,7 @@ Formato de cada regla:
   en el momento exacto del pago, ANTES de aplicar descuentos
 - **NO recalcular** en tiempo real — el recibo debe ser inmutable
 - **Campo clave:** `PagoCartera.saldoAnterior`, `PagoCartera.clienteNombre` (congelados)
-- **Estado:** 📝 documentado
+- **Estado:** ✅ con test — `tests/guardian/cartera-pagos.test.ts`
 
 ---
 
@@ -89,7 +89,7 @@ Formato de cada regla:
 - **Regla:** `OrdenDespacho.isFacturada = orden.isInvoiced === true`
 - **Campo en adapter:** `isInvoiced` debe estar en `fields` del fetchVentas
 - **Lección:** si no está en `fields`, UpTres no lo devuelve y siempre queda `false`
-- **Estado:** 📝 documentado
+- **Estado:** ✅ con test — `tests/guardian/sync-bodega.test.ts`
 
 ### [SYNC] fechaFactura viene de invoicedAt de UpTres
 - **Regla:** `OrdenDespacho.fechaFactura = new Date(orden.invoicedAt)`
@@ -97,7 +97,7 @@ Formato de cada regla:
   - `invoicedAt` → cuándo se facturó en UpTres ← usar esto
   - `createdAt`  → cuándo se creó la orden
   - `fechaOrden` → fecha del pedido
-- **Estado:** 📝 documentado
+- **Estado:** ✅ con test — `tests/guardian/sync-bodega.test.ts`
 
 ---
 
