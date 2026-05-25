@@ -84,7 +84,10 @@ export async function GET() {
       ? (prisma as any).ordenDespacho.aggregate({
           where: {
             vendedorApiId: miApiId,
-            fechaOrden: { gte: inicioMes, lt: finMes },
+            // CORRECTO: filtrar por fechaFactura (cuándo se facturó)
+            // no por fechaOrden (cuándo se creó) — una orden de abril
+            // facturada en mayo debe contar en mayo
+            fechaFactura: { gte: inicioMes, lt: finMes },
             isFacturada: true,
           },
           _count: { id: true },

@@ -229,17 +229,29 @@ export default function DashboardPage() {
   async function sincronizarVentas() {
     setSincVentas(true)
     try {
-      // Llamar directo a UpTres — siempre datos frescos sin depender de cache o BD
+      // Paso 1: mostrar dato live de UpTres inmediatamente (UX rápida)
       const live = await fetch('/api/vendedor/ventas-live').then(r => r.json())
       if (live?.ok && live.montoMes !== undefined) {
-        // Actualizar solo el montoMes del card de ventas con dato live
         setStatsVendedor((prev: any) => prev ? {
           ...prev,
-          ordenes: { ...prev.ordenes, montoMes: live.montoMes }
+          ordenes: {
+            ...prev.ordenes,
+            montoMes: live.montoMes,
+            ventasMes: live.ordenes ?? prev.ordenes?.ventasMes,
+          }
         } : prev)
       }
-      // En paralelo sincronizar a BD (insert-only, no bloquea UI)
-      fetch('/api/vendedor/sync-ventas', { method: 'POST' }).catch(() => {})
+
+      // Paso 2: sincronizar BD (insert-only — trae órdenes nuevas de UpTres)
+      await fetch('/api/vendedor/sync-ventas', { method: 'POST' })
+
+      // Paso 3: recargar stats desde BD (ya tiene las órdenes nuevas + cache invalidado)
+      // Pequeña espera para que el insert termine de procesar
+      await new Promise(r => setTimeout(r, 800))
+      const statsActualizadas = await fetch('/api/vendedor/stats').then(r => r.json())
+      if (statsActualizadas?.ordenes) {
+        setStatsVendedor(statsActualizadas)
+      }
     } catch {}
     setSincVentas(false)
   }
