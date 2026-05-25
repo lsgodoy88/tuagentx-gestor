@@ -23,23 +23,18 @@ const PREFIJOS: Record<string, string> = {
 // GET — listar incidencias
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
-  const estado = searchParams.get('estado')
-  const modulo = searchParams.get('modulo')
-  const limite = parseInt(searchParams.get('limite') || '50')
+  const estado = searchParams.get('estado') || null
+  const modulo = searchParams.get('modulo') || null
+  const limite  = parseInt(searchParams.get('limite') || '50')
 
-  const where: any = {}
-  if (estado) where.estado = estado
-  if (modulo) where.modulo = modulo
+  // Query directo con condiciones opcionales
+  let sql = `SELECT * FROM gestor."InciGuardian" WHERE 1=1`
+  const params: any[] = []
+  if (estado) { params.push(estado); sql += ` AND estado = $${params.length}` }
+  if (modulo) { params.push(modulo); sql += ` AND modulo = $${params.length}` }
+  sql += ` ORDER BY "fechaInicio" DESC LIMIT ${limite}`
 
-  const incidencias = await prisma.$queryRaw<any[]>`
-    SELECT * FROM gestor."InciGuardian"
-    WHERE 1=1
-    ${estado ? prisma.$queryRaw`AND estado = ${estado}` : prisma.$queryRaw``}
-    ${modulo ? prisma.$queryRaw`AND modulo = ${modulo}` : prisma.$queryRaw``}
-    ORDER BY "fechaInicio" DESC
-    LIMIT ${limite}
-  `.catch(() => [])
-
+  const incidencias = await prisma.$queryRawUnsafe<any[]>(sql, ...params).catch(() => [])
   return NextResponse.json({ ok: true, total: incidencias.length, data: incidencias })
 }
 
