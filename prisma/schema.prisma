@@ -2923,3 +2923,26 @@ model ComisionCalculo {
   @@index([empresaId])
   @@map("ComisionCalculo")
 }
+
+model InciGuardian {
+  id              String    @id @default(cuid())
+  codigo          String    @unique        // SYNC-BOD-0001, TURNO-0003, etc.
+  contrato        String                   // nombre exacto del contrato
+  modulo          String                   // Dashboard Vendedor, Turno, Infra...
+  descripcion     String                   // qué detectó el guardián
+  obtenido        String                   // valor obtenido al momento del fallo
+  estado          String    @default("ACTIVO")   // ACTIVO | RESUELTO | IGNORADO
+  accionTomada    String?                  // qué acción ejecutó el guardián
+  scoreAntes      Int?                     // score antes del fallo
+  scoreDespues    Int?                     // score cuando se resolvió
+  fechaInicio     DateTime  @default(now())
+  fechaResolucion DateTime?
+  empresaId       String?                  // si aplica a una empresa específica
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([estado])
+  @@index([modulo])
+  @@index([fechaInicio])
+  @@map("InciGuardian")
+}
