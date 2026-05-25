@@ -141,5 +141,7 @@ jobs:
           bash /srv/gestor/scripts/smoke-test.sh
 
           VER=$(curl -fsS http://localhost:3010/api/version 2>/dev/null || echo "sin versión")
+          COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+          echo "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"evento\":\"deploy\",\"commit\":\"$COMMIT\",\"ok\":true,\"via\":\"github_actions\"}" >> /home/luis/logs/guardian-testigo.jsonl
           echo "✅ Deploy OK — $VER"
           REMOTE

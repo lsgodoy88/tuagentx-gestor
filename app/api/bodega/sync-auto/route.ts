@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { testigo } from '@/lib/testigo'
 import { prisma } from '@/lib/prisma'
 import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
@@ -184,6 +185,10 @@ export async function POST(req: NextRequest) {
       resultados.push({ empresaId, error: err.message })
     }
   }
+
+  // Contar total de órdenes procesadas
+  const totalOrdenes = resultados.reduce((a: number, r: any) => a + (r.insertadas || 0), 0)
+  await testigo({ evento: 'sync_bodega', ok: true, ordenes_nuevas: totalOrdenes, total: totalOrdenes, ms: 0 })
 
   return NextResponse.json({ ok: true, resultados })
 }
