@@ -228,10 +228,12 @@ export default function DashboardPage() {
 
   async function sincronizarVentas() {
     setSincVentas(true)
+    let montado = true // cancelar setState si el componente se desmonta
+
     try {
       // Paso 1: live de UpTres → muestra en milisegundos (UX inmediata)
       const live = await fetch('/api/vendedor/ventas-live').then(r => r.json()).catch(() => null)
-      if (live?.ok && live.montoMes !== undefined) {
+      if (montado && live?.ok && live.montoMes !== undefined) {
         setStatsVendedor((prev: any) => prev ? {
           ...prev,
           ordenes: {
@@ -242,22 +244,27 @@ export default function DashboardPage() {
         } : prev)
       }
 
-      // Paso 2: sync BD en segundo plano — insert de órdenes nuevas + invalida cache
-      // No bloquea la UI — el vendedor ya ve el valor correcto
-      fetch('/api/vendedor/sync-ventas', { method: 'POST' })
-        .then(() => new Promise(r => setTimeout(r, 600)))
-        .then(() => fetch('/api/vendedor/stats').then(r => r.json()))
-        .then((statsActualizadas) => {
-          // Confirmar con BD — debe coincidir con el live
-          // Si hay diferencia (caso raro) la BD gana como fuente de verdad
-          if (statsActualizadas?.ordenes) {
+      // Paso 2: sync BD — insert de órdenes nuevas + invalida cache
+      await fetch('/api/vendedor/sync-ventas', { method: 'POST' }).catch(() => {})
+      await new Promise(r => setTimeout(r, 400))
+
+      // Paso 3: recargar stats — UNA sola vez, con cache ya invalidado
+      if (montado) {
+        const statsActualizadas = await fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null)
+        if (montado && statsActualizadas?.ordenes) {
+          // Solo actualizar si BD difiere del live para evitar flash visual
+          const bdMonto = statsActualizadas.ordenes.montoMes
+          const liveMonto = live?.montoMes
+          if (!liveMonto || Math.abs(bdMonto - liveMonto) > 1000) {
             setStatsVendedor(statsActualizadas)
           }
-        })
-        .catch(() => {})
-
+          // Si coinciden (caso normal), mantener el live ya mostrado — sin flash
+        }
+      }
     } catch {}
-    setSincVentas(false) // spinner desaparece después del live (rápido)
+
+    if (montado) setSincVentas(false)
+    return () => { montado = false } // cleanup
   }
 
   async function iniciarTurno() {
