@@ -23,15 +23,17 @@ const PREFIJOS: Record<string, string> = {
 // GET — listar incidencias
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
-  const estado = searchParams.get('estado') || null
-  const modulo = searchParams.get('modulo') || null
+  const estado   = searchParams.get('estado')   || null
+  const modulo   = searchParams.get('modulo')   || null
+  const proyecto = searchParams.get('proyecto') || null
   const limite  = parseInt(searchParams.get('limite') || '50')
 
   // Query directo con condiciones opcionales
   let sql = `SELECT * FROM gestor."InciGuardian" WHERE 1=1`
   const params: any[] = []
-  if (estado) { params.push(estado); sql += ` AND estado = $${params.length}` }
-  if (modulo) { params.push(modulo); sql += ` AND modulo = $${params.length}` }
+  if (estado)   { params.push(estado);   sql += ` AND estado = $${params.length}` }
+  if (modulo)   { params.push(modulo);   sql += ` AND modulo = $${params.length}` }
+  if (proyecto) { params.push(proyecto); sql += ` AND proyecto = $${params.length}` }
   sql += ` ORDER BY "fechaInicio" DESC LIMIT ${limite}`
 
   const incidencias = await prisma.$queryRawUnsafe<any[]>(sql, ...params).catch(() => [])
@@ -47,7 +49,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.json()
-  const { contrato, modulo, descripcion, obtenido, accionTomada, scoreAntes, empresaId } = body
+  const { contrato, modulo, proyecto, descripcion, obtenido, accionTomada, scoreAntes, empresaId } = body
 
   if (!contrato || !modulo) {
     return NextResponse.json({ error: 'contrato y modulo requeridos' }, { status: 400 })
@@ -82,10 +84,10 @@ export async function POST(req: NextRequest) {
   // Insertar
   await prisma.$executeRaw`
     INSERT INTO gestor."InciGuardian"
-      (id, codigo, contrato, modulo, descripcion, obtenido, estado, "accionTomada", "scoreAntes", "empresaId", "fechaInicio", "createdAt", "updatedAt")
+      (id, codigo, contrato, modulo, proyecto, descripcion, obtenido, estado, "accionTomada", "scoreAntes", "empresaId", "fechaInicio", "createdAt", "updatedAt")
     VALUES (
       concat('inci_', substr(md5(random()::text), 1, 20)),
-      ${codigo}, ${contrato}, ${modulo}, ${descripcion || contrato},
+      ${codigo}, ${contrato}, ${modulo}, ${proyecto || 'Gestor'}, ${descripcion || contrato},
       ${obtenido || ''}, 'ACTIVO',
       ${accionTomada || null}, ${scoreAntes || null},
       ${empresaId || null}, NOW(), NOW(), NOW()
