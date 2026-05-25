@@ -87,10 +87,9 @@ export async function GET() {
       ? (prisma as any).ordenDespacho.aggregate({
           where: {
             vendedorApiId: miApiId,
-            // Filtrar por fechaOrden (cuándo se creó la orden)
-            // consistente con lo que muestra UpTres dashboard
             fechaOrden: { gte: inicioMes, lt: finMes },
             isFacturada: true,
+            isActiva: true,   // excluir órdenes canceladas en UpTres
           },
           _count: { id: true },
           _sum: { totalOrden: true },
