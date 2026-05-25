@@ -229,21 +229,35 @@ export default function DashboardPage() {
   async function sincronizarVentas() {
     setSincVentas(true)
     try {
-      // 1. Sync BD: inserta órdenes nuevas desde UpTres + invalida cache
-      const syncRes = await fetch('/api/vendedor/sync-ventas', { method: 'POST' }).then(r => r.json()).catch(() => null)
-
-      // 2. Pequeña espera para que el insert y la invalidación del cache terminen
-      await new Promise(r => setTimeout(r, 600))
-
-      // 3. Recargar stats desde BD — fuente de verdad
-      //    El cache fue invalidado por sync-ventas, así que recalcula desde BD
-      const statsActualizadas = await fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null)
-      if (statsActualizadas?.ordenes) {
-        setStatsVendedor(statsActualizadas)
-        // Si el sync no trajo nada nuevo (throttle o sin novedades), el valor de BD es correcto
+      // Paso 1: live de UpTres → muestra en milisegundos (UX inmediata)
+      const live = await fetch('/api/vendedor/ventas-live').then(r => r.json()).catch(() => null)
+      if (live?.ok && live.montoMes !== undefined) {
+        setStatsVendedor((prev: any) => prev ? {
+          ...prev,
+          ordenes: {
+            ...prev.ordenes,
+            montoMes: live.montoMes,
+            ventasMes: live.ordenes ?? prev.ordenes?.ventasMes,
+          }
+        } : prev)
       }
+
+      // Paso 2: sync BD en segundo plano — insert de órdenes nuevas + invalida cache
+      // No bloquea la UI — el vendedor ya ve el valor correcto
+      fetch('/api/vendedor/sync-ventas', { method: 'POST' })
+        .then(() => new Promise(r => setTimeout(r, 600)))
+        .then(() => fetch('/api/vendedor/stats').then(r => r.json()))
+        .then((statsActualizadas) => {
+          // Confirmar con BD — debe coincidir con el live
+          // Si hay diferencia (caso raro) la BD gana como fuente de verdad
+          if (statsActualizadas?.ordenes) {
+            setStatsVendedor(statsActualizadas)
+          }
+        })
+        .catch(() => {})
+
     } catch {}
-    setSincVentas(false)
+    setSincVentas(false) // spinner desaparece después del live (rápido)
   }
 
   async function iniciarTurno() {
