@@ -160,8 +160,10 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     }
     if (desde) {
       // Delta: solo las creadas desde la ultima sync (UpTres filtra por createdAt)
+      // IMPORTANTE: 'to' en UpTres es EXCLUSIVO — usar mañana para incluir órdenes de hoy
       params.from = desde.toISOString().split('T')[0]
-      params.to = new Date().toISOString().split('T')[0]
+      const manana = new Date(); manana.setDate(manana.getDate() + 1)
+      params.to = manana.toISOString().split('T')[0]
     }
     // Sin desde: trae TODAS las activas (sync completo). condition=true ya filtra.
     const data = await this.fetchAll('cartera', params)
