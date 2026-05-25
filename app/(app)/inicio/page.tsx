@@ -228,43 +228,43 @@ export default function DashboardPage() {
 
   async function sincronizarVentas() {
     setSincVentas(true)
-    let montado = true // cancelar setState si el componente se desmonta
+    let montado = true
 
     try {
-      // Paso 1: live de UpTres → muestra en milisegundos (UX inmediata)
-      const live = await fetch('/api/vendedor/ventas-live').then(r => r.json()).catch(() => null)
-      if (montado && live?.ok && live.montoMes !== undefined) {
-        setStatsVendedor((prev: any) => prev ? {
-          ...prev,
-          ordenes: {
-            ...prev.ordenes,
-            montoMes: live.montoMes,
-            ventasMes: live.ordenes ?? prev.ordenes?.ventasMes,
-          }
-        } : prev)
-      }
+      // Correr live y sync BD en paralelo — ambos terminan antes del único setState
+      const [live, _sync] = await Promise.all([
+        fetch('/api/vendedor/ventas-live').then(r => r.json()).catch(() => null),
+        fetch('/api/vendedor/sync-ventas', { method: 'POST' }).catch(() => null),
+      ])
 
-      // Paso 2: sync BD — insert de órdenes nuevas + invalida cache
-      await fetch('/api/vendedor/sync-ventas', { method: 'POST' }).catch(() => {})
+      // Pequeña espera para que BD procese el insert y limpie el cache
       await new Promise(r => setTimeout(r, 400))
 
-      // Paso 3: recargar stats — UNA sola vez, con cache ya invalidado
+      // UN SOLO setState — una sola animación de CountUp
+      // Prioridad: live de UpTres (más actualizado) si está disponible
       if (montado) {
-        const statsActualizadas = await fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null)
-        if (montado && statsActualizadas?.ordenes) {
-          // Solo actualizar si BD difiere del live para evitar flash visual
-          const bdMonto = statsActualizadas.ordenes.montoMes
-          const liveMonto = live?.montoMes
-          if (!liveMonto || Math.abs(bdMonto - liveMonto) > 1000) {
+        if (live?.ok && live.montoMes !== undefined) {
+          // Usar live directamente — es la fuente más fresca
+          setStatsVendedor((prev: any) => prev ? {
+            ...prev,
+            ordenes: {
+              ...prev.ordenes,
+              montoMes: live.montoMes,
+              ventasMes: live.ordenes ?? prev.ordenes?.ventasMes,
+            }
+          } : prev)
+        } else {
+          // Fallback: live falló → recargar desde BD
+          const statsActualizadas = await fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null)
+          if (montado && statsActualizadas?.ordenes) {
             setStatsVendedor(statsActualizadas)
           }
-          // Si coinciden (caso normal), mantener el live ya mostrado — sin flash
         }
       }
     } catch {}
 
     if (montado) setSincVentas(false)
-    return () => { montado = false } // cleanup
+    return () => { montado = false }
   }
 
   async function iniciarTurno() {
