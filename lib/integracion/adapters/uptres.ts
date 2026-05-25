@@ -306,6 +306,8 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     for (const o of [...activas, ...cerradas]) mapaOrdenes.set(o.id, o)
     const data = Array.from(mapaOrdenes.values())
 
+    // Marcar isActiva: true si vino de condition=true, false si de condition=false
+    const idsActivas = new Set(activas.map((o: any) => o.id))
     return data.map((o: any) => ({
       uid: o.id,
       _id: o.id,
@@ -313,6 +315,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       numeroFacturado: o.invoiceNumber || null,
       isInvoiced: o.isInvoiced === true,
       invoicedAt: o.invoicedAt || null,
+      isActiva: idsActivas.has(o.id), // true=activa, false=cancelada en UpTres
       vTotal: o.total,
       fCreado: o.createdAt,
       fModificado: o.updatedAt,

@@ -42,7 +42,8 @@ export async function GET() {
   const misOrdenes = (ordenes as VentaExterna[]).filter((o) => {
     const esMio = o.empleado?.uid === miApiId
     const facturada = o.isInvoiced === true
-    if (!esMio || !facturada) return false
+    const activa = (o as any).isActiva !== false // excluir canceladas
+    if (!esMio || !facturada || !activa) return false
 
     // Usar invoicedAt (fecha de facturación) para el filtro del mes
     // UpTres devuelve fechas en UTC — convertir a Bogotá (UTC-5) para comparar

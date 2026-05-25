@@ -127,6 +127,7 @@ async function syncEmpresa(empresaIdConIntegracion: string, origenVinculadaId: s
       fechaOrden: orden.fCreado ? new Date(orden.fCreado as string) : new Date(),
       totalOrden: orden.vTotal ? parseFloat(orden.vTotal) : null,
       isFacturada: orden.isInvoiced === true,
+      isActiva: (orden as any).isActiva !== false, // false=cancelada en UpTres
       fechaFactura: orden.invoicedAt ? new Date(orden.invoicedAt) : null,
       empresaId: empresaDestino,
       origen: origenVinculadaId ? 'vinculada' : 'propia',
@@ -137,8 +138,20 @@ async function syncEmpresa(empresaIdConIntegracion: string, origenVinculadaId: s
   })
 
   // 6. Insertar todo en una transacción
+  // origenIds de órdenes canceladas (condition=false) en este sync
+  const canceladasIds = ordenes
+    .filter((o: any) => (o as any).isActiva === false)
+    .map((o: any) => String(o.uid || o._id))
+
   await prisma.$transaction(async (tx: any) => {
     await tx.ordenDespacho.createMany({ data: toCreate, skipDuplicates: true })
+    // Marcar canceladas si ya existían en BD
+    if (canceladasIds.length > 0) {
+      await tx.ordenDespacho.updateMany({
+        where: { origenId: { in: canceladasIds }, empresaId: empresaDestino },
+        data: { isActiva: false },
+      })
+    }
     await tx.empresa.update({ where: { id: empresaDestino }, data: { ultimaSyncBodega: new Date() } })
   }, { timeout: 30000 })
 
