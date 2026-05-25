@@ -16,10 +16,13 @@ export async function GET() {
   if (user.role !== 'vendedor') return NextResponse.json({ error: 'No autorizado' }, { status: 403 })
 
   const ahora = nowBogota()
-  const hoyStrKey = ahora.toISOString().split('T')[0]
+  // CRÍTICO: usar fechaHoyBogota() — misma función que sync-ventas usa para invalidar
+  // Si se usa toISOString() (UTC) y sync-ventas usa Bogotá → después de las 7pm
+  // las keys no coinciden y el cache nunca se invalida
+  const hoyStrKey = fechaHoyBogota()
   const cacheKey = `g:v:${user.id}:${hoyStrKey}`
   const result = await withCache(cacheKey, 600, async () => {
-  const hoyStr = ahora.toISOString().split('T')[0]
+  const hoyStr = fechaHoyBogota()
 
   // Rangos de tiempo en UTC (Colombia = UTC-5)
   const inicioDia    = new Date(hoyStr + 'T05:00:00.000Z')

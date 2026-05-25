@@ -1,7 +1,7 @@
 import { fechaHoyBogota } from '@/lib/fechas'
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { invalidateKeys } from '@/lib/cache'
+import { invalidateKeys, invalidatePattern } from '@/lib/cache'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
@@ -34,7 +34,7 @@ export async function POST() {
     const restanMin = Math.ceil((THROTTLE_MS - (ahora - ultimo)) / 60000)
     // Aunque esté throttled, invalida la cache para que el dashboard refresque stats
     const hoyStrThrottle = fechaHoyBogota()
-    await invalidateKeys(`g:v:${user.id}:${hoyStrThrottle}`)
+    await invalidatePattern(`g:v:${user.id}:*`) // limpiar todas las fechas, no solo hoy
     return NextResponse.json({
       ok: false,
       throttled: true,
@@ -133,6 +133,6 @@ export async function POST() {
 
   // Limpiar caché del vendedor para que el dashboard refleje las nuevas órdenes
   const hoyStr = fechaHoyBogota()
-  await invalidateKeys(`g:v:${user.id}:${hoyStr}`)
+  await invalidatePattern(`g:v:${user.id}:*`) // limpiar todas las fechas, no solo hoy
   return NextResponse.json({ ok: true, nuevas: toCreate.length })
 }
