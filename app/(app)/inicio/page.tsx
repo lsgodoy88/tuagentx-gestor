@@ -245,11 +245,22 @@ export default function DashboardPage() {
       // Paso 2: sincronizar BD (insert-only — trae órdenes nuevas de UpTres)
       await fetch('/api/vendedor/sync-ventas', { method: 'POST' })
 
-      // Paso 3: recargar stats desde BD (ya tiene las órdenes nuevas + cache invalidado)
-      // Pequeña espera para que el insert termine de procesar
+      // Paso 3: recargar solo el conteo de órdenes desde BD
+      // NO sobreescribir montoMes con el de BD — usar el live de UpTres
+      // ya que es más preciso (incluye órdenes pendientes de sync)
       await new Promise(r => setTimeout(r, 800))
       const statsActualizadas = await fetch('/api/vendedor/stats').then(r => r.json())
-      if (statsActualizadas?.ordenes) {
+      if (statsActualizadas?.ordenes && live?.ok) {
+        setStatsVendedor((prev: any) => prev ? {
+          ...statsActualizadas,
+          ordenes: {
+            ...statsActualizadas.ordenes,
+            // Mantener montoMes del live — más actualizado que la BD
+            montoMes: live.montoMes,
+            ventasMes: live.ordenes ?? statsActualizadas.ordenes.ventasMes,
+          }
+        } : statsActualizadas)
+      } else if (statsActualizadas?.ordenes) {
         setStatsVendedor(statsActualizadas)
       }
     } catch {}
