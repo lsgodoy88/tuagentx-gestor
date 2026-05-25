@@ -2822,6 +2822,7 @@ model OrdenDespacho {
   numeroOrden       String
   numeroFactura     String?
   isFacturada       Boolean  @default(false)
+  isActiva          Boolean  @default(true)
   fechaFactura      DateTime?
   vendedorApiId     String?
   clienteApiId      String?
