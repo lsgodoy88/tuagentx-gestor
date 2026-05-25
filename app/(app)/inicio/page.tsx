@@ -229,39 +229,18 @@ export default function DashboardPage() {
   async function sincronizarVentas() {
     setSincVentas(true)
     try {
-      // Paso 1: mostrar dato live de UpTres inmediatamente (UX rápida)
-      const live = await fetch('/api/vendedor/ventas-live').then(r => r.json())
-      if (live?.ok && live.montoMes !== undefined) {
-        setStatsVendedor((prev: any) => prev ? {
-          ...prev,
-          ordenes: {
-            ...prev.ordenes,
-            montoMes: live.montoMes,
-            ventasMes: live.ordenes ?? prev.ordenes?.ventasMes,
-          }
-        } : prev)
-      }
+      // 1. Sync BD: inserta órdenes nuevas desde UpTres + invalida cache
+      const syncRes = await fetch('/api/vendedor/sync-ventas', { method: 'POST' }).then(r => r.json()).catch(() => null)
 
-      // Paso 2: sincronizar BD (insert-only — trae órdenes nuevas de UpTres)
-      await fetch('/api/vendedor/sync-ventas', { method: 'POST' })
+      // 2. Pequeña espera para que el insert y la invalidación del cache terminen
+      await new Promise(r => setTimeout(r, 600))
 
-      // Paso 3: recargar solo el conteo de órdenes desde BD
-      // NO sobreescribir montoMes con el de BD — usar el live de UpTres
-      // ya que es más preciso (incluye órdenes pendientes de sync)
-      await new Promise(r => setTimeout(r, 800))
-      const statsActualizadas = await fetch('/api/vendedor/stats').then(r => r.json())
-      if (statsActualizadas?.ordenes && live?.ok) {
-        setStatsVendedor((prev: any) => prev ? {
-          ...statsActualizadas,
-          ordenes: {
-            ...statsActualizadas.ordenes,
-            // Mantener montoMes del live — más actualizado que la BD
-            montoMes: live.montoMes,
-            ventasMes: live.ordenes ?? statsActualizadas.ordenes.ventasMes,
-          }
-        } : statsActualizadas)
-      } else if (statsActualizadas?.ordenes) {
+      // 3. Recargar stats desde BD — fuente de verdad
+      //    El cache fue invalidado por sync-ventas, así que recalcula desde BD
+      const statsActualizadas = await fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null)
+      if (statsActualizadas?.ordenes) {
         setStatsVendedor(statsActualizadas)
+        // Si el sync no trajo nada nuevo (throttle o sin novedades), el valor de BD es correcto
       }
     } catch {}
     setSincVentas(false)
