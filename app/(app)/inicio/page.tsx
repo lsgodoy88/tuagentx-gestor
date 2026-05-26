@@ -46,7 +46,6 @@ export default function DashboardPage() {
   const [empresaDetalleSA, setEmpresaDetalleSA] = useState<string | null>(null)
   const [loadingStats, setLoadingStats] = useState(false)
   const [vendedorStatsLoading, setVendedorStatsLoading] = useState(true)
-  const [sincVentas, setSincVentas] = useState(false)
   const [mostrarEstadisticas, setMostrarEstadisticas] = useState(false)
   const [mostrarEstadisticasVendedor, setMostrarEstadisticasVendedor] = useState(false)
   const [modalVisita, setModalVisita] = useState<{open: boolean, tipo: string}>({open: false, tipo: 'visita'})
@@ -226,46 +225,6 @@ export default function DashboardPage() {
     setSincronizando(false)
   }
 
-  async function sincronizarVentas() {
-    setSincVentas(true)
-    let montado = true
-
-    try {
-      // Correr live y sync BD en paralelo — ambos terminan antes del único setState
-      const [live, _sync] = await Promise.all([
-        fetch('/api/vendedor/ventas-live').then(r => r.json()).catch(() => null),
-        fetch('/api/vendedor/sync-ventas', { method: 'POST' }).catch(() => null),
-      ])
-
-      // Pequeña espera para que BD procese el insert y limpie el cache
-      await new Promise(r => setTimeout(r, 400))
-
-      // UN SOLO setState — una sola animación de CountUp
-      // Prioridad: live de UpTres (más actualizado) si está disponible
-      if (montado) {
-        if (live?.ok && live.montoMes !== undefined) {
-          // Usar live directamente — es la fuente más fresca
-          setStatsVendedor((prev: any) => prev ? {
-            ...prev,
-            ordenes: {
-              ...prev.ordenes,
-              montoMes: live.montoMes,
-              ventasMes: live.ordenes ?? prev.ordenes?.ventasMes,
-            }
-          } : prev)
-        } else {
-          // Fallback: live falló → recargar desde BD
-          const statsActualizadas = await fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null)
-          if (montado && statsActualizadas?.ordenes) {
-            setStatsVendedor(statsActualizadas)
-          }
-        }
-      }
-    } catch {}
-
-    if (montado) setSincVentas(false)
-    return () => { montado = false }
-  }
 
   async function iniciarTurno() {
     setBloqueadoTurno(true)
@@ -1148,13 +1107,6 @@ export default function DashboardPage() {
                   </CardKPIGroup>
                   {/* Ventas — ancho completo */}
                   <div className="relative" style={{backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',borderRadius:16,overflow:'hidden'}}>
-                    <button
-                      onClick={sincronizarVentas}
-                      disabled={sincVentas}
-                      className="absolute top-3 right-3 z-10 p-1 rounded-lg transition-colors hover:bg-white/10 disabled:opacity-40"
-                      title="Actualizar desde UpTres">
-                      <SyncIcon spinning={sincVentas} className="w-3.5 h-3.5 text-zinc-400" />
-                    </button>
                     <CardCountAdmin
                       stagger={3}
                       icon="💼"

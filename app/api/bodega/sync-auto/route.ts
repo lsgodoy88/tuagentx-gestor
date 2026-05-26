@@ -26,10 +26,9 @@ async function syncEmpresa(empresaIdConIntegracion: string, origenVinculadaId: s
   // Días historial de la empresa PRINCIPAL (no la vinculada)
   const principal = empresaBodegaId || empresaIdConIntegracion
 
-  // SIEMPRE traer 30 días desde UpTres; la vista filtra localmente
-  const dias = 30
-  const desde = new Date(Date.now() - 5*60*60*1000)
-  desde.setDate(desde.getDate() - dias)
+  // Ventana delta: desde ultimaSyncBodega, fallback 2 días si nunca ha sincronizado
+  const empresaData = await prisma.empresa.findUnique({ where: { id: principal }, select: { ultimaSyncBodega: true } })
+  const desde = empresaData?.ultimaSyncBodega ?? new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
 
   const ordenes = await adapter.fetchVentas(desde)
   const desdeTs = desde.getTime()

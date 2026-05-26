@@ -15,7 +15,7 @@ try {
   }
 } catch { /* .env no encontrado — usar variables de entorno del proceso */ }
 
-import { rutasDiaQueue, integracionQueue, rutasDiaWorker, integracionWorker, entregasWorker, auditQueue, auditWorker, contextoQueue, contextoWorker, mantenimientoQueue, mantenimientoWorker, bodegaSyncQueue, bodegaSyncWorker } from './index'
+import { rutasDiaQueue, integracionQueue, rutasDiaWorker, integracionWorker, entregasWorker, auditQueue, auditWorker, contextoQueue, contextoWorker, mantenimientoQueue, mantenimientoWorker, bodegaSyncQueue, bodegaSyncWorker, syncDeltaQueue, syncDeltaWorker, syncNocturnoQueue, syncNocturnoWorker } from './index'
 
 async function main() {
   // ── Registrar jobs repetitivos ────────────────────────────────────────────
@@ -74,6 +74,31 @@ async function main() {
     { name: 'mantenimiento-diario', data: {} },
   )
   console.log('  mantenimiento -> mantenimiento-diario (0 14 * * * UTC = 9am Bogota)')
+  // ── sync-delta: horario inteligente 8am–6pm UTC-5 = UTC+5 ──────────────────
+  // 8am–10am cada 30min: 13:00,13:30,14:00,14:30 UTC
+  await syncDeltaQueue.upsertJobScheduler('sync-delta-0800', { pattern: '0 13 * * 1-6' }, { name: 'sync-delta-0800', data: {} })
+  await syncDeltaQueue.upsertJobScheduler('sync-delta-0830', { pattern: '30 13 * * 1-6' }, { name: 'sync-delta-0830', data: {} })
+  await syncDeltaQueue.upsertJobScheduler('sync-delta-0900', { pattern: '0 14 * * 1-6' }, { name: 'sync-delta-0900', data: {} })
+  await syncDeltaQueue.upsertJobScheduler('sync-delta-0930', { pattern: '30 14 * * 1-6' }, { name: 'sync-delta-0930', data: {} })
+  // 10am–2pm cada hora: 15,16,17,18 UTC
+  await syncDeltaQueue.upsertJobScheduler('sync-delta-1000', { pattern: '0 15 * * 1-6' }, { name: 'sync-delta-1000', data: {} })
+  await syncDeltaQueue.upsertJobScheduler('sync-delta-1100', { pattern: '0 16 * * 1-6' }, { name: 'sync-delta-1100', data: {} })
+  await syncDeltaQueue.upsertJobScheduler('sync-delta-1200', { pattern: '0 17 * * 1-6' }, { name: 'sync-delta-1200', data: {} })
+  await syncDeltaQueue.upsertJobScheduler('sync-delta-1300', { pattern: '0 18 * * 1-6' }, { name: 'sync-delta-1300', data: {} })
+  // 2pm–4pm cada 30min: 19:00,19:30,20:00,20:30 UTC
+  await syncDeltaQueue.upsertJobScheduler('sync-delta-1400', { pattern: '0 19 * * 1-6' }, { name: 'sync-delta-1400', data: {} })
+  await syncDeltaQueue.upsertJobScheduler('sync-delta-1430', { pattern: '30 19 * * 1-6' }, { name: 'sync-delta-1430', data: {} })
+  await syncDeltaQueue.upsertJobScheduler('sync-delta-1500', { pattern: '0 20 * * 1-6' }, { name: 'sync-delta-1500', data: {} })
+  await syncDeltaQueue.upsertJobScheduler('sync-delta-1530', { pattern: '30 20 * * 1-6' }, { name: 'sync-delta-1530', data: {} })
+  // 4pm–6pm cada hora: 21,22 UTC
+  await syncDeltaQueue.upsertJobScheduler('sync-delta-1600', { pattern: '0 21 * * 1-6' }, { name: 'sync-delta-1600', data: {} })
+  await syncDeltaQueue.upsertJobScheduler('sync-delta-1700', { pattern: '0 22 * * 1-6' }, { name: 'sync-delta-1700', data: {} })
+  console.log('  sync-delta  → 14 ciclos/día (8am–6pm Bogotá, horario inteligente)')
+
+  // sync-nocturno: 8:00 UTC = 3:00 Bogotá
+  await syncNocturnoQueue.upsertJobScheduler('sync-nocturno-diario', { pattern: '0 8 * * *' }, { name: 'sync-nocturno-diario', data: {} })
+  console.log('  sync-nocturno → 0 8 * * * UTC = 3am Bogotá')
+
   console.log('[gestor-worker] Workers online. Esperando jobs...')
 
   // Mantener proceso vivo
@@ -87,6 +112,8 @@ async function main() {
       contextoWorker.close(),
       mantenimientoWorker.close(),
       bodegaSyncWorker.close(),
+      syncDeltaWorker.close(),
+      syncNocturnoWorker.close(),
     ])
     process.exit(0)
   })

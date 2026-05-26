@@ -169,3 +169,35 @@ export const mantenimientoWorker = new Worker(
 mantenimientoWorker.on('failed', (job, err) => {
   console.error(`[mantenimiento] ${job?.name} fallo:`, err.message)
 })
+
+// ── Queue: sync-delta (diurno inteligente) ───────────────────────────────────
+export const syncDeltaQueue = new Queue('sync-delta', { connection: REDIS, defaultJobOptions: { attempts: 2, backoff: { type: 'exponential', delay: 30000 }, removeOnComplete: 50, removeOnFail: 100 } })
+export const syncDeltaWorker = new Worker(
+  'sync-delta',
+  async (job) => {
+    console.log(`[sync-delta] iniciado ${new Date().toISOString()}`)
+    const result = await callEndpoint('/api/sync/delta')
+    console.log('[sync-delta] resultado:', JSON.stringify(result))
+    return result
+  },
+  { connection: REDIS, concurrency: 1 }
+)
+syncDeltaWorker.on('failed', (job, err) => {
+  console.error(`[sync-delta] ${job?.name} falló:`, err.message)
+})
+
+// ── Queue: sync-nocturno (3am Bogotá) ────────────────────────────────────────
+export const syncNocturnoQueue = new Queue('sync-nocturno', { connection: REDIS, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 60000 }, removeOnComplete: 50, removeOnFail: 100 } })
+export const syncNocturnoWorker = new Worker(
+  'sync-nocturno',
+  async (job) => {
+    console.log(`[sync-nocturno] iniciado ${new Date().toISOString()}`)
+    const result = await callEndpoint('/api/sync/nocturno')
+    console.log('[sync-nocturno] resultado:', JSON.stringify(result))
+    return result
+  },
+  { connection: REDIS, concurrency: 1 }
+)
+syncNocturnoWorker.on('failed', (job, err) => {
+  console.error(`[sync-nocturno] ${job?.name} falló:`, err.message)
+})
