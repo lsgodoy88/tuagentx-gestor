@@ -59,13 +59,7 @@ async function main() {
     { name: 'generar-contexto', data: {} },
   )
   console.log('  contexto      -> generar-contexto (0 3 * * * UTC = 10pm Bogota)')
-  // Bodega sync: 11:00 UTC = 6am Bogotá (después del delta-sync de 5am)
-  await bodegaSyncQueue.upsertJobScheduler(
-    'bodega-sync-diario',
-    { pattern: '0 11 * * *' },
-    { name: 'bodega-sync-diario', data: {} },
-  )
-  console.log('  bodega-sync -> bodega-sync-diario (0 11 * * * UTC = 6am Bogotá)')
+  // bodega-sync-diario ELIMINADO — absorbido por sync-delta
 
   // Mantenimiento: 14:00 UTC = 9am Bogota
   await mantenimientoQueue.upsertJobScheduler(
