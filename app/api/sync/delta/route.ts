@@ -132,8 +132,10 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
 
   // Invalida Redis solo si hubo cambios reales
   if (toCreate.length || deudaToCreate.length) {
-    await invalidatePattern('vendedor:stats:')
-    await invalidatePattern('stats:')
+    // Patrones reales usados por los endpoints con cache
+    await invalidatePattern('g:v:*')        // vendedor/stats → g:v:{userId}:{fecha}
+    await invalidatePattern('g:*:stats:*') // stats admin → g:{empresaId}:stats:{fecha}
+    await invalidatePattern('g:*:cartera:*') // cartera/resumen → g:{empresaId}:cartera:*
   }
 
   return { empresaId: destino, ordenes: ordenes.length, nuevasOrdenes: toCreate.length, nuevasDeudas: deudaToCreate.length }
