@@ -20,17 +20,17 @@ import { rutasDiaQueue, integracionQueue, rutasDiaWorker, integracionWorker, ent
 async function main() {
   // ── Registrar jobs repetitivos ────────────────────────────────────────────
 
-  // Crear rutas: 12:00 UTC = 7:00 Bogotá
+  // Crear rutas: 13:00 UTC = 8:00 Bogotá
   await rutasDiaQueue.upsertJobScheduler(
     'crear-rutas',
-    { pattern: '0 12 * * *' },
+    { pattern: '0 13 * * *' },
     { name: 'crear-rutas', data: {} },
   )
 
-  // Cerrar rutas: 02:00 UTC = 21:00 Bogotá
+  // Cerrar rutas: 01:00 UTC = 20:00 Bogotá
   await rutasDiaQueue.upsertJobScheduler(
     'cerrar-rutas',
-    { pattern: '0 2 * * *' },
+    { pattern: '0 1 * * *' },
     { name: 'cerrar-rutas', data: {} },
   )
 
@@ -42,8 +42,8 @@ async function main() {
   )
 
   console.log('[gestor-worker] Jobs registrados:')
-  console.log('  rutas-dia  → crear-rutas  (0 12 * * * UTC = 7am Bogotá)')
-  console.log('  rutas-dia  → cerrar-rutas (0 2  * * * UTC = 9pm Bogotá)')
+  console.log('  rutas-dia  → crear-rutas  (0 13 * * * UTC = 8am Bogotá)')
+  console.log('  rutas-dia  → cerrar-rutas (0 1  * * * UTC = 8pm Bogotá)')
   console.log('  integracion → delta-sync  (0 10 * * * UTC = 5am Bogotá)')
   // Audit: 06:00 UTC = 1:00 Bogota
   await auditQueue.upsertJobScheduler(
