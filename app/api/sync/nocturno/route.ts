@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { invalidatePattern } from '@/lib/cache'
 import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 import { calcularEstado } from '@/lib/cartera'
@@ -113,56 +114,83 @@ export async function POST(req: NextRequest) {
 
       // Traer todas las deudas sin filtro de fecha
       const deudas = await adapter.fetchDeudas()
-      let insertadas = 0
-      let actualizadas = 0
+      // #1 fix: batch en lugar de N+1
+      const externalIds = deudas.map((d: any) => String(d.uid || d._id))
+      const existentes = await (prisma as any).syncDeuda.findMany({
+        where: { integracionId: intg.id, externalId: { in: externalIds } },
+        select: { externalId: true }
+      })
+      const existentesSet = new Set(existentes.map((e: any) => e.externalId))
+
+      const toInsert: any[] = []
+      const toUpdate: any[] = []
 
       for (const d of deudas) {
-        // DeudaExterna usa uid/_id, vSaldo, vTotal, dias, fModificado
         const externalId = String(d.uid || d._id)
         const saldo = parseFloat(String(d.vSaldo ?? '0'))
         const valor = parseFloat(String(d.vTotal ?? '0'))
-        const clienteApiId = d.cliente?.uid || ''
-        const empleadoExternalId = d.empleado?.uid || null
-        const numeroOrden = d.numeroOrden ? parseInt(String(d.numeroOrden)) : null
-        const numeroFactura = d.numeroFacturado ? parseInt(String(d.numeroFacturado)) : null
-        const diasCredito = d.dias ? parseInt(String(d.dias)) : null
         const externalUpdatedAt = d.fModificado ? new Date(d.fModificado) : null
 
-        const existing = await (prisma as any).syncDeuda.findUnique({
-          where: { integracionId_externalId: { integracionId: intg.id, externalId } },
-          select: { id: true }
-        })
-
-        if (existing) {
-          await (prisma as any).syncDeuda.update({
-            where: { integracionId_externalId: { integracionId: intg.id, externalId } },
-            data: { saldo, valor, externalUpdatedAt, sincronizadoEl: new Date(), data: d as any }
-          })
-          actualizadas++
+        if (existentesSet.has(externalId)) {
+          toUpdate.push({ externalId, saldo, valor, externalUpdatedAt, data: d })
         } else {
-          await (prisma as any).syncDeuda.create({
-            data: {
-              integracionId: intg.id,
-              externalId,
-              clienteApiId,
-              empleadoExternalId,
-              numeroOrden,
-              numeroFactura,
-              valor,
-              saldo,
-              diasCredito,
-              condition: true,
-              data: d as any,
-              externalUpdatedAt,
-              sincronizadoEl: new Date(),
-            }
+          toInsert.push({
+            integracionId: intg.id,
+            externalId,
+            clienteApiId: d.cliente?.uid || '',
+            empleadoExternalId: d.empleado?.uid || null,
+            numeroOrden: d.numeroOrden ? parseInt(String(d.numeroOrden)) : null,
+            numeroFactura: d.numeroFacturado ? parseInt(String(d.numeroFacturado)) : null,
+            valor,
+            saldo,
+            diasCredito: d.dias ? parseInt(String(d.dias)) : null,
+            condition: true,
+            data: d as any,
+            externalUpdatedAt,
+            sincronizadoEl: new Date(),
           })
-          insertadas++
         }
       }
 
+      // Batch insert
+      if (toInsert.length) {
+        await (prisma as any).syncDeuda.createMany({ data: toInsert, skipDuplicates: true })
+      }
+
+      // Batch update — chunks de 100 para no sobrecargar
+      const CHUNK = 100
+      for (let i = 0; i < toUpdate.length; i += CHUNK) {
+        const chunk = toUpdate.slice(i, i + CHUNK)
+        await Promise.all(chunk.map((u: any) =>
+          (prisma as any).syncDeuda.update({
+            where: { integracionId_externalId: { integracionId: intg.id, externalId: u.externalId } },
+            data: { saldo: u.saldo, valor: u.valor, externalUpdatedAt: u.externalUpdatedAt, sincronizadoEl: new Date(), data: u.data }
+          })
+        ))
+      }
+
+      const insertadas = toInsert.length
+      const actualizadas = toUpdate.length
+
+      // #2 fix: marcar como inactivas deudas que ya no están en UpTres
+      const externalIdsActivos = new Set(externalIds)
+      const huerfanas = await (prisma as any).syncDeuda.updateMany({
+        where: {
+          integracionId: intg.id,
+          condition: true,
+          externalId: { notIn: Array.from(externalIdsActivos) }
+        },
+        data: { condition: false, sincronizadoEl: new Date() }
+      })
+
       // Reconstruir CarteraCache
       const clientesActualizados = await reconstruirCartera(intg.id, intg.empresaId)
+
+      // #4 fix: invalidar Redis para que dashboard vea datos frescos
+      await invalidatePattern('g:v:*')
+      await invalidatePattern('g:*:stats:*')
+      await invalidatePattern('g:*:cartera:*')
+
       resultados.push({ empresaId: intg.empresaId, deudas: deudas.length, insertadas, actualizadas, clientesCache: clientesActualizados })
     } catch (err: any) {
       resultados.push({ empresaId: intg.empresaId, error: err.message })

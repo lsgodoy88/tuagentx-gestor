@@ -20,8 +20,8 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   const desde = empresa?.ultimaSyncBodega ?? new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
 
   const ordenes = await adapter.fetchVentas(desde)
+  // #3 fix: si no hay órdenes NO avanzar ultimaSyncBodega — evita huecos
   if (!ordenes.length) {
-    await prisma.empresa.update({ where: { id: destino }, data: { ultimaSyncBodega: new Date() } })
     return { empresaId: destino, ordenes: 0, nuevasOrdenes: 0, nuevasDeudas: 0 }
   }
 
