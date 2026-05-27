@@ -85,11 +85,13 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
     const saldoTotalCliente = deudasEnriquecidas.reduce((s: number, d: any) => s + d.saldoReal, 0)
 
     return NextResponse.json({
+      _modo: 'sync',
       cartera: {
         cliente,
         deudas: deudasEnriquecidas,
         saldoTotal: saldoTotalCliente,
         totalDeudas: deudasEnriquecidas.length,
+        _modo: 'sync',
         _sincronizado: true,
         _integracion: { id: integracion.id, nombre: integracion.nombre }
       },

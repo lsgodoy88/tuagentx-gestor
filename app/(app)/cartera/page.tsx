@@ -249,7 +249,7 @@ export default function CarteraPage() {
     const data = await res.json()
     setLoadingDetalle(false)
     const detalleCartera = data.cartera
-    if (detalleCartera && data._modo === 'sync') {
+    if (detalleCartera && (detalleCartera._modo === 'sync' || data._modo === 'sync')) {
       // Convertir deudas sync a formato DetalleCartera
       const detallesNorm = (detalleCartera.deudas || []).map((d: any) => ({
         id: d.externalId,

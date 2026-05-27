@@ -328,7 +328,7 @@ export default function DashboardPage() {
     setLoadingDetalle(false)
     const detalleCartera = data.cartera
     if (detalleCartera) detalleCartera._modo = data._modo
-    if (detalleCartera && data._modo === 'sync') {
+    if (detalleCartera && (detalleCartera._modo === 'sync' || data._modo === 'sync')) {
       const { calcularEstado } = await import('@/lib/cartera')
       const detallesNorm = (detalleCartera.deudas || []).map((d: any) => ({
         id: d.externalId,
@@ -371,14 +371,34 @@ export default function DashboardPage() {
     if (cartera && Number(cartera.saldoPendiente) > 0) {
       setModalRecaudoRapido(false)
       setRecaudandoCartera(cartera)
+      setLineasPago([crearLinea()])
+      setNotasPago('')
+      setFacturasSeleccionadas([])
+      // Normalizar deudas sync igual que cargarDetalleCartera
+      if (cartera._modo === 'sync' && cartera.deudas) {
+        const { calcularEstado } = await import('@/lib/cartera')
+        const detallesNorm = (cartera.deudas || []).map((d: any) => {
+          const saldo = Math.max(0, d.saldoReal)
+          const vf = Number(d.valor || 0)
+          const ab = vf - saldo
+          const fv = d.fechaVencimiento ? new Date(d.fechaVencimiento) : null
+          const { estado, label, color } = calcularEstado(saldo, vf, ab, fv)
+          return {
+            id: d.externalId, valorFactura: d.valor,
+            abonos: d.valor - d.saldoReal, saldoPendiente: d.saldoReal,
+            estado, estadoLabel: label, estadoColor: color,
+            numeroFactura: d.numeroFactura || d.numeroOrden,
+            fechaVencimiento: d.fechaVencimiento, _sync: true,
+          }
+        })
+        cartera.DetalleCartera = detallesNorm
+      }
       setDetalleData(cartera)
       setLoadingDetalle(false)
       const pendientes = (cartera.DetalleCartera || [])
         .filter((d: any) => d.estado !== 'pagada')
         .map((d: any) => d.id)
-      setFacturasSeleccionadas(pendientes)
-      setLineasPago([crearLinea()])
-      setNotasPago('')
+      setFacturasSeleccionadas(pendientes.slice(0, 1))
     } else {
       setRrSinDeuda(true)
     }
