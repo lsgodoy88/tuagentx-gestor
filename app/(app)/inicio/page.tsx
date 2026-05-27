@@ -1,15 +1,10 @@
 'use client'
 import { fetchApi, errorMsg } from '@/lib/fetchApi'
-import FirmaCanvas from '@/components/FirmaCanvas'
 import InputMoneda from '@/components/InputMoneda'
 import { useSession } from 'next-auth/react'
-import ModalVisita from '@/components/ModalVisita'
-import CarteraCard from '@/components/CarteraCard'
-import ModalRecaudo from '@/components/ModalRecaudo'
 import { useGpsEnDemanda } from '@/components/useGpsEnDemanda'
 import { GpsIndicator } from '@/components/GpsIndicator'
 import { estadoMasCritico } from '@/lib/cartera'
-import EntregaCard from '@/components/EntregaCard'
 import { useEffect, useState, useRef } from 'react'
 import { CountUp, LiveDot, SkeletonCard, LoadingBorder } from '@/components/FX'
 import type { VendedorStats, TurnoActivo, VentasLiveResult } from '@/lib/types/vendedor'
@@ -17,6 +12,14 @@ import type { AdminStats } from '@/lib/types/admin'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { CardKPI, CardKPIGroup, CardDark, CardSub, CardCountAdmin, CardCountAdminSkeleton } from '@/components/ui/cards'
+import dynamic from 'next/dynamic'
+
+// Lazy — solo cargan cuando se necesitan
+const FirmaCanvas = dynamic(() => import('@/components/FirmaCanvas'), { ssr: false })
+const ModalVisita = dynamic(() => import('@/components/ModalVisita'), { ssr: false })
+const CarteraCard = dynamic(() => import('@/components/CarteraCard'), { ssr: false })
+const ModalRecaudo = dynamic(() => import('@/components/ModalRecaudo'), { ssr: false })
+const EntregaCard = dynamic(() => import('@/components/EntregaCard'), { ssr: false })
 
 type LineaPago = { id: string; metodoPago: 'efectivo' | 'transferencia'; monto: string; descuento: string; voucherKey: string | null; voucherDatosIA: any; cargandoVoucher: boolean }
 function crearLinea(): LineaPago { return { id: crypto.randomUUID(), metodoPago: 'efectivo', monto: '', descuento: '', voucherKey: null, voucherDatosIA: null, cargandoVoucher: false } }
