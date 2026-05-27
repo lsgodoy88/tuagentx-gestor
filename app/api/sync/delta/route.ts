@@ -151,45 +151,61 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   // ── Transacción ───────────────────────────────────────────────────────────
   const canceladasIds = ordenesValidas.filter((o: any) => (o as any).isActiva === false).map((o: any) => String(o.uid || o._id))
 
-  // ── Detección de brechas en consecutivos de facturas ─────────────────────
-  const facturasNuevas = toCreate
+  // ── Validación de consecutivos post-fetch ────────────────────────────────
+  // Compara MAX(invoiceNumber) de UpTres vs MAX(numeroFactura) en BD
+  // Si hay gap → los faltantes ya deberían estar en el fetch (mismo rango de fecha)
+  // Si no → brecha real → alerta WA
+
+  // Todas las facturas del ciclo (nuevas + ya existentes en el fetch)
+  const todasFacturasUpTres = ordenesValidas
     .filter((o: any) => o.numeroFactura && Number(o.numeroFactura) > 0)
     .map((o: any) => Number(o.numeroFactura))
     .sort((a: number, b: number) => a - b)
 
-  if (facturasNuevas.length > 0) {
-    // Última factura en BD antes de este sync
+  if (todasFacturasUpTres.length > 0) {
+    const maxUpTres = todasFacturasUpTres[todasFacturasUpTres.length - 1]
+    const setUpTres = new Set(todasFacturasUpTres)
+
+    // MAX en BD después del upsert
     const ultimaEnBD = await (prisma as any).ordenDespacho.findFirst({
       where: { empresaId: destino, isFacturada: true, numeroFactura: { not: null } },
       orderBy: { numeroFactura: 'desc' },
       select: { numeroFactura: true }
     })
-    const ultimaNum = ultimaEnBD?.numeroFactura ? Number(ultimaEnBD.numeroFactura) : null
-    const primeraNew = facturasNuevas[0]
+    const maxEnBD = ultimaEnBD?.numeroFactura ? Number(ultimaEnBD.numeroFactura) : null
 
-    // Brecha entre BD y las nuevas
-    if (ultimaNum && primeraNew > ultimaNum + 1) {
-      const faltantes = []
-      for (let i = ultimaNum + 1; i < primeraNew; i++) faltantes.push(i)
-      const msg = `🔢 *Brecha de facturas detectada*
+    if (maxEnBD && maxUpTres > maxEnBD) {
+      // Hay facturas en UpTres que no están en BD
+      const faltantesEnBD: number[] = []
+      for (let i = maxEnBD + 1; i <= maxUpTres; i++) {
+        if (!setUpTres.has(i)) faltantesEnBD.push(i)
+      }
+      if (faltantesEnBD.length > 0) {
+        // Brecha real — no vinieron en este fetch aunque el rango debería cubrirlas
+        const msg = `🔢 *Brecha consecutivos detectada*
 *Empresa:* ${destino}
-*Faltantes:* #${faltantes.join(', #')}
-*(entre #${ultimaNum} y #${primeraNew})*`
-      console.warn('[delta] BRECHA FACTURAS:', msg)
-      try { await notificarWA('573219182435', msg) } catch {}
+*BD tiene hasta:* #${maxEnBD}
+*UpTres llegó hasta:* #${maxUpTres}
+*No encontradas:* #${faltantesEnBD.slice(0, 10).join(', #')}${faltantesEnBD.length > 10 ? ` (+${faltantesEnBD.length - 10} más)` : ''}`
+        console.warn('[delta] BRECHA CONSECUTIVOS:', msg)
+        try { await notificarWA('573219182435', msg) } catch {}
+      }
     }
 
-    // Brechas internas en las nuevas recibidas
-    for (let i = 1; i < facturasNuevas.length; i++) {
-      if (facturasNuevas[i] > facturasNuevas[i - 1] + 1) {
-        const faltantes = []
-        for (let j = facturasNuevas[i - 1] + 1; j < facturasNuevas[i]; j++) faltantes.push(j)
-        const msg = `🔢 *Brecha interna de facturas*
+    // Brechas internas en lo que trajo UpTres
+    for (let i = 1; i < todasFacturasUpTres.length; i++) {
+      if (todasFacturasUpTres[i] > todasFacturasUpTres[i - 1] + 1) {
+        const faltantes: number[] = []
+        for (let j = todasFacturasUpTres[i - 1] + 1; j < todasFacturasUpTres[i]; j++) faltantes.push(j)
+        // Solo alertar si son menos de 50 — evitar ruido con histórico
+        if (faltantes.length <= 50) {
+          const msg = `🔢 *Brecha interna UpTres*
 *Empresa:* ${destino}
 *Faltantes:* #${faltantes.join(', #')}
-*(entre #${facturasNuevas[i-1]} y #${facturasNuevas[i]})*`
-        console.warn('[delta] BRECHA INTERNA:', msg)
-        try { await notificarWA('573219182435', msg) } catch {}
+*(entre #${todasFacturasUpTres[i-1]} y #${todasFacturasUpTres[i]})*`
+          console.warn('[delta] BRECHA INTERNA:', msg)
+          try { await notificarWA('573219182435', msg) } catch {}
+        }
       }
     }
   }
