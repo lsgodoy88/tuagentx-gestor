@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 import { invalidatePattern } from '@/lib/cache'
+import { notificarWA } from '@/lib/notificaciones'
 import fs from 'fs'
 import path from 'path'
 
@@ -124,6 +125,49 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
 
   // ── Transacción ───────────────────────────────────────────────────────────
   const canceladasIds = ordenesValidas.filter((o: any) => (o as any).isActiva === false).map((o: any) => String(o.uid || o._id))
+
+  // ── Detección de brechas en consecutivos de facturas ─────────────────────
+  const facturasNuevas = toCreate
+    .filter((o: any) => o.numeroFactura && Number(o.numeroFactura) > 0)
+    .map((o: any) => Number(o.numeroFactura))
+    .sort((a: number, b: number) => a - b)
+
+  if (facturasNuevas.length > 0) {
+    // Última factura en BD antes de este sync
+    const ultimaEnBD = await (prisma as any).ordenDespacho.findFirst({
+      where: { empresaId: destino, isFacturada: true, numeroFactura: { not: null } },
+      orderBy: { numeroFactura: 'desc' },
+      select: { numeroFactura: true }
+    })
+    const ultimaNum = ultimaEnBD?.numeroFactura ? Number(ultimaEnBD.numeroFactura) : null
+    const primeraNew = facturasNuevas[0]
+
+    // Brecha entre BD y las nuevas
+    if (ultimaNum && primeraNew > ultimaNum + 1) {
+      const faltantes = []
+      for (let i = ultimaNum + 1; i < primeraNew; i++) faltantes.push(i)
+      const msg = `🔢 *Brecha de facturas detectada*
+*Empresa:* ${destino}
+*Faltantes:* #${faltantes.join(', #')}
+*(entre #${ultimaNum} y #${primeraNew})*`
+      console.warn('[delta] BRECHA FACTURAS:', msg)
+      try { await notificarWA('573219182435', msg) } catch {}
+    }
+
+    // Brechas internas en las nuevas recibidas
+    for (let i = 1; i < facturasNuevas.length; i++) {
+      if (facturasNuevas[i] > facturasNuevas[i - 1] + 1) {
+        const faltantes = []
+        for (let j = facturasNuevas[i - 1] + 1; j < facturasNuevas[i]; j++) faltantes.push(j)
+        const msg = `🔢 *Brecha interna de facturas*
+*Empresa:* ${destino}
+*Faltantes:* #${faltantes.join(', #')}
+*(entre #${facturasNuevas[i-1]} y #${facturasNuevas[i]})*`
+        console.warn('[delta] BRECHA INTERNA:', msg)
+        try { await notificarWA('573219182435', msg) } catch {}
+      }
+    }
+  }
 
   // ultimaSyncBodega avanza a now()-30min — solapa con el ciclo anterior
   // Evita perder órdenes con timestamp reciente en UpTres
