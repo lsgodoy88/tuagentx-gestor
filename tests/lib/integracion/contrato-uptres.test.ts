@@ -113,9 +113,9 @@ describe('CONTRATO fetchVentas → /ordenes', () => {
     await a.fetchVentas()
     const params = new URLSearchParams(capturedUrl.split('?')[1])
     const fields = params.get('fields')?.split(',') ?? []
-    expect(fields).toContain('isInvoiced')     // necesario para isFacturada en bodega sync
-    expect(fields).not.toContain('isDelivered')
-    expect(fields).not.toContain('isShipped')
+    expect(fields).toContain('isInvoiced')     // necesario para isFacturada
+    expect(fields).toContain('isDelivered')   // campo nuevo UpTres
+    expect(fields).toContain('isShipped')     // campo nuevo UpTres
   })
 
   it('expand incluye customer e items', async () => {
