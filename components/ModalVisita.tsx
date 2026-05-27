@@ -77,7 +77,7 @@ export default function ModalVisita({
     if (open) {
       if (!clienteInicial) {
         setCliente(null)
-        loadClientes('', 1)
+        setClientes([])  // vacío hasta que el usuario busque
       }
       setTipo(tipoForzado || 'visita')
       setMonto(''); setNota('')
