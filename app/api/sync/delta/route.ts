@@ -125,8 +125,9 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   // ── Transacción ───────────────────────────────────────────────────────────
   const canceladasIds = ordenesValidas.filter((o: any) => (o as any).isActiva === false).map((o: any) => String(o.uid || o._id))
 
-  // ultimaSyncBodega avanza a now() — el delta corrió correctamente
-  const proximoDesde = new Date()
+  // ultimaSyncBodega avanza a now()-30min — solapa con el ciclo anterior
+  // Evita perder órdenes con timestamp reciente en UpTres
+  const proximoDesde = new Date(Date.now() - 30 * 60 * 1000)
 
   await prisma.$transaction(async (tx: any) => {
     if (toCreate.length) await tx.ordenDespacho.createMany({ data: toCreate, skipDuplicates: true })
