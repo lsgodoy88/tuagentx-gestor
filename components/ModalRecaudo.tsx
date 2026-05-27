@@ -1,4 +1,5 @@
 'use client'
+import React from 'react'
 import { useRef } from 'react'
 import InputMoneda from './InputMoneda'
 
@@ -34,17 +35,18 @@ export default function ModalRecaudo({
   onSubirVoucher, onConfirmar, crearLinea,
 }: ModalRecaudoProps) {
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map())
+  const [notasOpen, setNotasOpen] = React.useState(false)
 
   const montoSeleccionado = (detalleData?.DetalleCartera || [])
     .filter((d: any) => facturasSeleccionadas.includes(d.id))
     .reduce((s: number, d: any) => s + Math.max(0, Number(d.valorFactura ?? d.valor) - Number(d.abonos ?? 0)), 0)
 
   return (
-    <div className="fixed inset-0 bg-zinc-700 flex items-center justify-center z-50 px-2">
-      <div className="bg-slate-700 border border-slate-500 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 flex items-center justify-center z-50 px-2" style={{background:"rgba(15,23,42,0.85)"}}>
+      <div className="rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden" style={{background:"rgba(15,23,42,0.97)",border:"1px solid rgba(59,130,246,0.50)"}}>
 
         {/* Header */}
-        <div className="flex items-center justify-between px-4 pt-2.5 pb-2.5 border-b border-slate-500">
+        <div className="flex items-center justify-between px-4 pt-2.5 pb-2.5 border-b" style={{borderColor:"rgba(59,130,246,0.30)"}}>
           <p className="text-white font-semibold text-sm leading-tight">{cartera.cliente?.nombre || cartera.nombre}</p>
           <button onClick={onClose} className="text-zinc-400 hover:text-white text-xl ml-3 flex-shrink-0">×</button>
         </div>
@@ -56,7 +58,7 @@ export default function ModalRecaudo({
             <div className="space-y-3 animate-pulse">
               <div className="shimmer-light h-4 w-36 rounded" />
               {[0,1].map(i => (
-                <div key={i} className="bg-zinc-500/40 border border-zinc-400/30 rounded-xl px-4 py-3 flex items-center gap-3">
+                <div key={i} className="bg-zinc-500/40 border border-blue-500/25 rounded-xl px-4 py-3 flex items-center gap-3">
                   <div className="shimmer-light w-5 h-5 rounded flex-shrink-0" />
                   <div className="flex-1 space-y-1.5">
                     <div className="shimmer-light h-3.5 w-24 rounded" />
@@ -68,7 +70,7 @@ export default function ModalRecaudo({
                   </div>
                 </div>
               ))}
-              <div className="bg-zinc-500/40 border border-zinc-400/30 rounded-xl p-4 space-y-3">
+              <div className="bg-zinc-500/40 border border-blue-500/25 rounded-xl p-4 space-y-3">
                 <div className="shimmer-light h-3.5 w-16 rounded" />
                 <div className="flex gap-2">
                   <div className="shimmer-light flex-1 h-10 rounded-xl" />
@@ -120,7 +122,7 @@ export default function ModalRecaudo({
               {/* Líneas de pago */}
               <div className="space-y-3">
                 {lineasPago.map((linea, idx) => (
-                  <div key={linea.id} className="bg-zinc-500/40 border border-zinc-400/30 rounded-xl p-4 space-y-3">
+                  <div key={linea.id} className="bg-zinc-500/40 border border-blue-500/25 rounded-xl p-4 space-y-3">
                     <div className="flex items-center justify-between">
                       <span className="text-zinc-300 text-sm font-semibold uppercase tracking-wide">Pago {idx + 1}</span>
                       {lineasPago.length > 1 && (
@@ -139,7 +141,7 @@ export default function ModalRecaudo({
                           className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
                             linea.metodoPago === met
                               ? 'bg-zinc-400/20 border-zinc-300/50 text-white'
-                              : 'bg-zinc-700/40 border-zinc-400/30 text-zinc-300 hover:text-white'
+                              : 'bg-zinc-700/40 border-blue-500/30 text-zinc-300 hover:text-white'
                           }`}>
                           {met === 'efectivo' ? '💵 Efectivo' : '📲 Transferencia'}
                         </button>
@@ -153,13 +155,13 @@ export default function ModalRecaudo({
                           <label className="text-zinc-300 text-sm font-semibold block mb-1.5">Monto *</label>
                           <InputMoneda value={linea.monto}
                             onChange={val => onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, monto: val } : l))}
-                            className="w-full bg-zinc-700/60 border border-zinc-400/30 rounded-xl pr-4 py-2.5 text-white text-sm outline-none focus:border-zinc-300" />
+                            className="w-full bg-blue-950/40 border border-blue-500/30 rounded-xl pr-4 py-2.5 text-white text-sm outline-none focus:border-blue-400" />
                         </div>
                         <div className="flex-[4]">
                           <label className="text-zinc-300 text-sm font-semibold block mb-1.5">Descuento</label>
                           <InputMoneda value={linea.descuento} placeholder="0" prefix=""
                             onChange={val => onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, descuento: val } : l))}
-                            className="w-full bg-zinc-700/60 border border-zinc-400/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-zinc-300" />
+                            className="w-full bg-blue-950/40 border border-blue-500/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-blue-400" />
                         </div>
                       </div>
                     )}
@@ -178,7 +180,7 @@ export default function ModalRecaudo({
                           </button>
                         )}
                         {linea.cargandoVoucher && (
-                          <div className="bg-zinc-500/40 border border-zinc-400/30 rounded-xl px-4 py-3 text-zinc-300 text-sm text-center animate-pulse">
+                          <div className="bg-zinc-500/40 border border-blue-500/25 rounded-xl px-4 py-3 text-zinc-300 text-sm text-center animate-pulse">
                             Analizando comprobante con IA...
                           </div>
                         )}
@@ -203,13 +205,13 @@ export default function ModalRecaudo({
                             <div className="flex-[6]">
                               <label className="text-zinc-300 text-sm font-semibold block mb-1.5">Monto (IA)</label>
                               <InputMoneda value={linea.monto} readOnly onChange={() => {}}
-                                className="w-full bg-zinc-700/40 border border-zinc-400/20 rounded-xl pr-4 py-2.5 text-zinc-400 text-sm outline-none cursor-not-allowed" />
+                                className="w-full bg-blue-950/30 border border-blue-500/20 rounded-xl pr-4 py-2.5 text-zinc-400 text-sm outline-none cursor-not-allowed" />
                             </div>
                             <div className="flex-[4]">
                               <label className="text-zinc-300 text-sm font-semibold block mb-1.5">Descuento</label>
                               <InputMoneda value={linea.descuento} placeholder="0" prefix=""
                                 onChange={val => onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, descuento: val } : l))}
-                                className="w-full bg-zinc-700/60 border border-zinc-400/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-zinc-300" />
+                                className="w-full bg-blue-950/40 border border-blue-500/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-blue-400" />
                             </div>
                           </div>
                         )}
@@ -231,7 +233,7 @@ export default function ModalRecaudo({
                 const totalDescuento = contables.reduce((s, l) => s + Number(l.descuento || 0), 0)
                 const saldoRestante = montoSeleccionado - totalPagado - totalDescuento
                 return (
-                  <div className="bg-zinc-500/40 border border-zinc-400/30 rounded-xl px-4 py-3 space-y-1.5">
+                  <div className="bg-zinc-500/40 border border-blue-500/25 rounded-xl px-4 py-3 space-y-1.5">
                     <p className="text-zinc-300 text-sm font-semibold uppercase tracking-wide mb-2">Resumen</p>
                     {contables.map((l, i) => (
                       <div key={l.id} className="flex justify-between items-center text-sm">
@@ -265,9 +267,15 @@ export default function ModalRecaudo({
 
               {/* Notas */}
               <div>
-                <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Notas (opcional)</label>
-                <textarea rows={2} placeholder="Observaciones del recaudo..."
-                  className="w-full bg-zinc-700/60 border border-zinc-400/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-zinc-300 resize-none" />
+                <button onClick={() => setNotasOpen(o => !o)}
+                  className="flex items-center gap-2 text-zinc-400 text-xs font-semibold w-full text-left">
+                  <span>Notas (opcional)</span>
+                  <span className="text-zinc-500">{notasOpen ? '▲' : '▼'}</span>
+                </button>
+                {notasOpen && (
+                  <textarea rows={2} placeholder="Observaciones del recaudo..."
+                    className="mt-1.5 w-full bg-blue-950/40 border border-blue-500/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-blue-400 resize-none" />
+                )}
               </div>
 
               {/* Botón confirmar */}

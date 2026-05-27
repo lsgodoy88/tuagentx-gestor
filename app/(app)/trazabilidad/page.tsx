@@ -377,7 +377,7 @@ export default function TrazabilidadPage() {
         <div className="flex gap-4 max-w-6xl mx-auto items-start">
           {isDesktop ? (
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(59,130,246,0.25)' }}>
                 <DataTable
                   columns={getOrdenColumns({ setFotoModal, setFirmaModal, esVendedor })}
                   rows={pagedOrdenes}
@@ -442,7 +442,7 @@ export default function TrazabilidadPage() {
 
             const isSeleccionada = ordenSeleccionada?.id === orden.id
             return (
-              <div key={orden.id} className={`bg-zinc-900 rounded-2xl overflow-hidden transition-all ${isSeleccionada ? 'border border-blue-500/60' : 'border border-zinc-800'}`}>
+              <div key={orden.id} className={`rounded-2xl overflow-hidden transition-all`} style={{background:'rgba(8,8,28,0.88)',border:isSeleccionada?'1px solid rgba(59,130,246,0.60)':'1px solid rgba(59,130,246,0.25)',borderRadius:14}}>
                 {/* Header — siempre visible, clickeable */}
                 <div onClick={() => toggleExpandido(orden.id, orden)} className="flex items-center gap-2 p-3 cursor-pointer hover:bg-zinc-800/50 transition-colors">
                   <span className="text-zinc-400 font-mono text-xs flex-shrink-0">#{orden.numeroFactura || orden.numeroOrden}</span>
@@ -491,7 +491,7 @@ export default function TrazabilidadPage() {
         sourceOrdenes.length > 0 && (
           <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,paddingTop:8}}>
             <button onClick={() => setPage(p => p - 1)} disabled={page === 0}
-              style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'6px 16px',fontSize:12,fontWeight:700,color:page===0?'rgba(255,255,255,0.25)':'white',cursor:page===0?'not-allowed':'pointer'}}>
+              style={{background:'rgba(8,8,28,0.88)',border:'1px solid rgba(59,130,246,0.25)',borderRadius:'0.75rem',padding:'6px 16px',fontSize:12,fontWeight:700,color:page===0?'rgba(255,255,255,0.25)':'white',cursor:page===0?'not-allowed':'pointer'}}>
               ← Anterior
             </button>
             <span style={{fontSize:12,color:'rgba(255,255,255,0.6)',minWidth:90,textAlign:'center'}}>
@@ -504,7 +504,7 @@ export default function TrazabilidadPage() {
                 setPage(nextPage)
               }}
               disabled={(page >= totalPagesTraz - 1 && !hasMore) || loadingMore}
-              style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'6px 16px',fontSize:12,fontWeight:700,color:(page>=totalPagesTraz-1&&!hasMore)?'rgba(255,255,255,0.25)':'white',cursor:(page>=totalPagesTraz-1&&!hasMore)?'not-allowed':'pointer'}}>
+              style={{background:'rgba(8,8,28,0.88)',border:'1px solid rgba(59,130,246,0.25)',borderRadius:'0.75rem',padding:'6px 16px',fontSize:12,fontWeight:700,color:(page>=totalPagesTraz-1&&!hasMore)?'rgba(255,255,255,0.25)':'white',cursor:(page>=totalPagesTraz-1&&!hasMore)?'not-allowed':'pointer'}}>
               {loadingMore ? '...' : 'Siguiente →'}
             </button>
             <span style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginLeft:4}}>{sourceOrdenes.length} órdenes</span>

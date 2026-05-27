@@ -214,8 +214,8 @@ export default function ModalVisita({
   console.log('[ModalVisita render]', { clienteInicial, cliente, condicion: !clienteInicial && !cliente })
 
   return (
-    <div className="fixed inset-0 bg-black/95 flex items-start justify-center z-[1000] pt-4 px-4 pb-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md p-6 pb-6 space-y-4 max-h-[88vh] overflow-y-auto">
+    <div className="fixed inset-0 flex items-start justify-center z-[1000] pt-4 px-4 pb-4" style={{background:"rgba(15,23,42,0.85)"}}>
+      <div className="rounded-2xl w-full max-w-md p-6 pb-6 space-y-4 max-h-[88vh] overflow-y-auto overscroll-contain" style={{background:"rgba(15,23,42,0.97)",border:"1px solid rgba(59,130,246,0.50)"}}>
 
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -236,7 +236,7 @@ export default function ModalVisita({
               {loadingCli && <p className="text-zinc-500 text-xs text-center py-2">Cargando...</p>}
               {clientes.map((c: Cliente) => (
                 <button key={c.id} onClick={() => setCliente(c)}
-                  className="w-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 rounded-xl p-3 text-left transition-colors">
+                  className="w-full rounded-xl p-3 text-left transition-colors" style={{background:"rgba(113,113,122,0.40)",border:"1px solid rgba(59,130,246,0.25)"}}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm font-medium">{c.nombre}</p>
@@ -279,7 +279,7 @@ export default function ModalVisita({
                 {distanciaLejos && <p className="text-amber-400 text-xs mt-1">⚠️ Estás lejos del cliente</p>}
               </div>
               {!clienteInicial && (
-                <button onClick={() => setCliente(null)} className="text-zinc-400 text-xs bg-zinc-800 px-2 py-1 rounded-lg">Cambiar</button>
+                <button onClick={() => setCliente(null)} className="text-zinc-300 text-xs bg-zinc-500/40 border border-blue-500/25 px-2 py-1 rounded-lg">Cambiar</button>
               )}
             </div>
 
@@ -290,7 +290,7 @@ export default function ModalVisita({
                 <div className="grid grid-cols-2 gap-2">
                   {TIPOS.map(t => (
                     <button key={t.id} onClick={() => setTipo(t.id)}
-                      className={"py-2.5 rounded-xl text-sm font-semibold border transition-all " + (tipo === t.id ? "bg-emerald-600 border-emerald-500 text-white" : "bg-zinc-800 border-zinc-700 text-zinc-400")}>
+                      className={"py-2.5 rounded-xl text-sm font-semibold border transition-all " + (tipo === t.id ? "bg-emerald-600 border-emerald-500 text-white" : "bg-zinc-500/40 border-blue-500/25 text-zinc-300")}>
                       {t.icon} {t.label}
                     </button>
                   ))}
@@ -352,7 +352,7 @@ export default function ModalVisita({
                       <p className="text-zinc-400 text-xs">Tu ubicación GPS se guardará como punto de referencia para futuras comparaciones.</p>
                       {obteniendo && (
                         <div className="space-y-1">
-                          <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                          <div className="h-1.5 bg-zinc-500/40 rounded-full overflow-hidden">
                             <div className="h-full bg-blue-500 rounded-full transition-all duration-300"
                               style={{width: gpsProgress + '%'}} />
                           </div>
@@ -374,7 +374,7 @@ export default function ModalVisita({
                   {/* Barra progreso GPS en background (vendedor) */}
                   {puedeCapturarGps && obteniendo && (
                     <div className="space-y-1">
-                      <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="h-1.5 bg-zinc-500/40 rounded-full overflow-hidden">
                         <div className="h-full bg-emerald-500 rounded-full transition-all duration-300"
                           style={{width: gpsProgress + '%'}} />
                       </div>
@@ -395,10 +395,10 @@ export default function ModalVisita({
             {/* Botones */}
             <div className="flex gap-2">
               {!clienteInicial && (
-                <button onClick={() => setCliente(null)} className="flex-1 bg-zinc-800 text-white text-sm py-3 rounded-xl">Atrás</button>
+                <button onClick={() => setCliente(null)} className="flex-1 text-white text-sm py-3 rounded-xl" style={{background:"rgba(113,113,122,0.40)",border:"1px solid rgba(59,130,246,0.25)"}}>Atrás</button>
               )}
               {clienteInicial && (
-                <button onClick={onClose} className="flex-1 bg-zinc-800 text-white text-sm py-3 rounded-xl">Cancelar</button>
+                <button onClick={onClose} className="flex-1 text-white text-sm py-3 rounded-xl" style={{background:"rgba(113,113,122,0.40)",border:"1px solid rgba(59,130,246,0.25)"}}>Cancelar</button>
               )}
               <button onClick={registrar} disabled={!puedeGuardar}
                 className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold py-3 rounded-xl">

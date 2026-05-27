@@ -365,13 +365,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <div aria-hidden="true" style={{
       position:'fixed', top:0, left:0, right:0,
       height:'100lvh', zIndex:-1,
-      backgroundImage:"url('/bg-city.webp')",
-      backgroundSize:'cover', backgroundPosition:'center',
+      background:'linear-gradient(160deg, #1a2a4a 0%, #1e3a6e 30%, #1a3060 60%, #162848 100%)',
     }} />
     <div aria-hidden="true" style={{
       position:'fixed', top:0, left:0, right:0,
       height:'100lvh', zIndex:-1,
-      background:'rgba(2,2,10,0.55)',
+      background:'radial-gradient(ellipse at 15% 40%, rgba(59,130,246,0.45) 0%, transparent 55%), radial-gradient(ellipse at 85% 15%, rgba(180,190,200,0.25) 0%, transparent 45%), radial-gradient(ellipse at 70% 85%, rgba(37,99,235,0.35) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, rgba(148,163,184,0.15) 0%, transparent 40%)',
     }} />
     {/* Círculos de color estáticos — profundidad para el glass */}
 

@@ -2,7 +2,6 @@
 import ModalEscaner from '@/components/ModalEscaner'
 import { nowBogota } from '@/lib/fechas'
 import FirmaCanvas from '@/components/FirmaCanvas'
-import { SyncIcon } from '@/components/SyncIcon'
 import { useSession } from 'next-auth/react'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
@@ -627,11 +626,7 @@ export default function OrdenesPage() {
               }`}>{p.label}</span>
             </button>
           ))}
-          <button onClick={sync} disabled={syncing}
-            className={`tab-btn flex-shrink-0 flex flex-col items-center gap-0.5 py-2 px-3 text-white/60 disabled:opacity-40 ${syncing ? 'btn-shimmer' : ''}`}>
-            <SyncIcon spinning={syncing} className="w-4 h-4 text-blue-400" />
-            <span className="text-[8px] font-bold tracking-wider">{syncing ? '...' : 'SYNC'}</span>
-          </button>
+
         </div>
 
         {/* Sync line */}

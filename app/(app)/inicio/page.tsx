@@ -38,6 +38,7 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<Partial<AdminStats>>({ empleados: 0, clientes: 0, visitasHoy: 0, enTurno: 0 })
   const [ruta, setRuta] = useState<any>(null)
   const [turno, setTurno] = useState<TurnoActivo | null>(null)
+  const [cargandoTurno, setCargandoTurno] = useState(true)
   const [tiempoTurno, setTiempoTurno] = useState('')
   const [statsVendedor, setStatsVendedor] = useState<VendedorStats | null>(null)
   const [visitasRuta, setVisitasRuta] = useState<any[]>([])
@@ -87,6 +88,7 @@ export default function DashboardPage() {
   const [firmaVisita, setFirmaVisita] = useState<string | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [bloqueadoTurno, setBloqueadoTurno] = useState(false)
+  const [montado, setMontado] = useState(false)
   const [mostrarPausa, setMostrarPausa] = useState(false)
   const [turnoExpandido, setTurnoExpandido] = useState(false)
   const [pausaMotivo, setPausaMotivo] = useState('Almuerzo')
@@ -160,6 +162,7 @@ export default function DashboardPage() {
         setRuta(r)
         setClientesOrdenados(r?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, rezago: rc.rezago, orden: rc.orden, notas: rc.notas || null, ordenDespachoId: rc.ordenDespachoId || null, numeroFactura: (rc as any).numeroFactura || null, empresaOrigen: (rc as any).empresaOrigen || null, alistadoPor: (rc as any).alistadoPor || null, asignadoEn: rc.asignadoEn || null, ordenCreadaEl: (rc as any).ordenCreadaEl || null })) || [])
         setTurno(t)
+        setCargandoTurno(false)
         if (!t) setTurnoExpandido(false)  // sin turno → pill cerrado
         setPuedeCapturarGps(me?.puedeCapturarGps === true)
       })
@@ -225,8 +228,8 @@ export default function DashboardPage() {
 
 
   async function iniciarTurno() {
+    if (bloqueadoTurno) return
     setBloqueadoTurno(true)
-    setTimeout(() => refRuta.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100)
     const ubicacion = await getUbicacion()
     const res = await fetchApi('/api/turnos', {
       method: 'POST',
@@ -234,10 +237,11 @@ export default function DashboardPage() {
       body: JSON.stringify({ accion: 'iniciar', ...ubicacion })
     })
     if (res?.ok) { setTurnoExpandido(false); setTurno(res.turno) }
-    setTimeout(() => setBloqueadoTurno(false), 10000)
+    setBloqueadoTurno(false)
   }
 
   async function cerrarTurno() {
+    if (bloqueadoTurno) return
     setBloqueadoTurno(true)
     const ubicacion = await getUbicacion()
     await fetchApi('/api/turnos', {
@@ -246,7 +250,7 @@ export default function DashboardPage() {
       body: JSON.stringify({ accion: 'cerrar', ...ubicacion })
     })
     setTurno(null)
-    setTimeout(() => setBloqueadoTurno(false), 10000)
+    setBloqueadoTurno(false)
   }
 
   async function pausarTurno() {
@@ -569,7 +573,7 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-3 pb-20 md:pb-0 max-w-5xl mx-auto">
-      {!(user?.role === 'vendedor' && turno) && (
+      {!(user?.role === 'vendedor' && turno) && !cargandoTurno && (
         <h1 className="text-2xl font-bold text-white px-1">Bienvenido, {user?.name?.split(' ')[0]}</h1>
       )}
       {(isEmpresa || isSupervisor) && (
@@ -577,7 +581,7 @@ export default function DashboardPage() {
           <div className="rounded-2xl" style={{overflow:"hidden",borderRadius:16}}>
           <div className="grid grid-cols-2 gap-3">
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-1 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div className="rounded-2xl p-4 hover-lift flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(8,8,28,0.88)",border:"1px solid rgba(59,130,246,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">🛍️</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Vendedores</span>
@@ -593,7 +597,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-2 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div className="rounded-2xl p-4 hover-lift flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(8,8,28,0.88)",border:"1px solid rgba(59,130,246,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">⚡</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Impulsos</span>
@@ -609,7 +613,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-3 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div className="rounded-2xl p-4 hover-lift flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(8,8,28,0.88)",border:"1px solid rgba(59,130,246,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">📦</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Órdenes hoy</span>
@@ -625,7 +629,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-4 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div className="rounded-2xl p-4 hover-lift flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(8,8,28,0.88)",border:"1px solid rgba(59,130,246,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">💰</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Recaudado</span>
@@ -656,7 +660,7 @@ export default function DashboardPage() {
           <div className="md:grid md:grid-cols-2 md:gap-6 space-y-6 md:space-y-0" style={{}}>
           <div className="space-y-6">
           {stats.visitasPorDia && stats.visitasPorDia.length > 0 && (
-            <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div className="rounded-2xl p-4" style={{background:"rgba(8,8,28,0.88)",border:"1px solid rgba(59,130,246,0.25)"}}>
               <p className="text-white font-semibold text-sm mb-4">Visitas últimos 7 días</p>
               <div className="space-y-2">
                 {(() => {
@@ -708,7 +712,7 @@ export default function DashboardPage() {
                 if (empleadosRol.length === 0) return null
                 const titulo = rol === 'vendedor' ? 'Vendedores' : rol === 'impulsadora' ? 'Impulsadoras' : 'Entregas'
                 return (
-                  <div key={rol} className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+                  <div key={rol} className="rounded-2xl overflow-hidden" style={{background:"rgba(8,8,28,0.88)",border:"1px solid rgba(59,130,246,0.25)"}}>
                     <div className="px-4 py-3 border-b border-zinc-800">
                       <p className="text-white font-semibold text-sm">{titulo} en turno</p>
                     </div>
@@ -846,7 +850,10 @@ export default function DashboardPage() {
           ) : <p className="text-zinc-500 text-xs text-center">Cargando...</p>}
         </div>
       )}
-      {isEmpleado && (
+      {isEmpleado && cargandoTurno && (
+        <div className="rounded-2xl px-4 py-3 animate-pulse" style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.20)',height:48}} />
+      )}
+      {isEmpleado && !cargandoTurno && (
         <div className="space-y-4">
           {turno?.pausado ? (
             // ── PAUSA — encogida/desplegada ──
@@ -909,7 +916,7 @@ export default function DashboardPage() {
                     <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Hora inicio</p><p className="text-sm font-bold text-white">{new Date(turno.inicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",timeZone: 'America/Bogota'})}</p></div>
                     <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Contador</p><p className="text-emerald-400 font-mono font-bold">{tiempoTurno}</p></div>
                   </div>
-                  <button onClick={cerrarTurno} disabled={bloqueadoTurno} className="w-full bg-red-600 text-white text-sm font-bold py-2.5 rounded-xl disabled:opacity-50">Cerrar turno</button>
+                  <button onClick={cerrarTurno} className="w-full bg-red-600 text-white text-sm font-bold py-2.5 rounded-xl">{bloqueadoTurno ? "..." : "Cerrar turno"}</button>
                   <div className="flex gap-2">
                     <button onClick={() => setMostrarPausa(m => !m)} className={"flex-1 text-sm font-semibold py-2.5 rounded-xl border " + (mostrarPausa ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-zinc-800 border-zinc-700 text-zinc-400")}>⏸️ Pausar</button>
                     <a href="/turno" className="flex-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1">📅 Historial</a>
@@ -937,7 +944,7 @@ export default function DashboardPage() {
             // ── SIN TURNO — 1 línea full width ──
             <div style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.30)",borderRadius:16,overflow:"hidden"}}>
               <div className="flex items-center justify-between gap-2 px-3 py-2.5">
-                <button onClick={iniciarTurno} disabled={bloqueadoTurno}
+                <button onClick={iniciarTurno}
                   className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors">
                   ⚡ Iniciar turno
                 </button>
@@ -1336,10 +1343,10 @@ export default function DashboardPage() {
 
     {/* Modal Recaudo Rápido */}
     {modalRecaudoRapido && (
-      <div className="fixed inset-0 bg-zinc-700 flex items-start justify-center z-50 pt-4 px-2"
+      <div className="fixed inset-0 flex items-start justify-center z-50 pt-4 px-2" style={{background:"rgba(15,23,42,0.85)"}}
         onClick={e => { if (e.target === e.currentTarget) { setModalRecaudoRapido(false); setRrCliente(null); setRrSinDeuda(false) } }}>
-        <div className="bg-slate-700 border border-slate-500 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto overscroll-contain">
-          <div className="flex items-center justify-between px-4 pt-2.5 pb-2.5 border-b border-slate-500">
+        <div className="rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto overscroll-contain" style={{background:"rgba(15,23,42,0.97)",border:"1px solid rgba(59,130,246,0.50)"}}>
+          <div className="flex items-center justify-between px-4 pt-2.5 pb-2.5 border-b" style={{borderColor:"rgba(59,130,246,0.30)"}}>
             <h3 className="text-white font-bold text-lg">💵 Recaudo rápido</h3>
             <button onClick={() => { setModalRecaudoRapido(false); setRrCliente(null); setRrSinDeuda(false) }} className="text-zinc-500 hover:text-white text-xl">×</button>
           </div>
@@ -1350,7 +1357,7 @@ export default function DashboardPage() {
                   value={rrBuscarCartera}
                   onChange={e => { const v = e.target.value; setRrBuscarCartera(v); if (v.length >= 1) rrLoadCartera(v); else setRrCartera([]) }}
                   placeholder="Buscar cliente con deuda..."
-                  className="w-full bg-zinc-700/60 border border-zinc-400/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-zinc-300 placeholder:text-zinc-400"
+                  className="w-full rounded-xl px-4 py-2.5 text-white text-sm outline-none placeholder:text-zinc-400" style={{background:"rgba(30,41,59,0.80)",border:"1px solid rgba(59,130,246,0.35)"}}
                   autoFocus
                 />
                 {rrLoadingCartera && (

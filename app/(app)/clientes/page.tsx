@@ -380,12 +380,7 @@ export default function ClientesPage() {
             {listas.map((l: any) => <option key={l.id} value={l.id}>{l.nombre}</option>)}
           </select>
         )}
-        {tieneIntegracion && (
-          <button onClick={sincronizarClientes} disabled={sincronizando}
-            style={{flexShrink:0,background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'8px 14px',fontSize:12,fontWeight:700,color:sincronizando?'rgba(255,255,255,0.4)':'white',cursor:sincronizando?'not-allowed':'pointer',display:'flex',alignItems:'center',gap:6,whiteSpace:'nowrap'}}>
-            🔄 {sincronizando ? 'Sync...' : 'Sync'}
-          </button>
-        )}
+
       </div>
 
       {/* Layout: cards + panel lateral */}
