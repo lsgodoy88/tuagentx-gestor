@@ -574,10 +574,10 @@ export default function DashboardPage() {
       )}
       {(isEmpresa || isSupervisor) && (
         <div className="space-y-6">
-          <div className="rounded-2xl" style={{backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)" as any,overflow:"hidden",borderRadius:16}}>
+          <div className="rounded-2xl" style={{overflow:"hidden",borderRadius:16}}>
           <div className="grid grid-cols-2 gap-3">
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-1 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-1 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">🛍️</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Vendedores</span>
@@ -593,7 +593,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-2 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-2 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">⚡</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Impulsos</span>
@@ -609,7 +609,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-3 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-3 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">📦</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Órdenes hoy</span>
@@ -625,7 +625,7 @@ export default function DashboardPage() {
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift fade-up stagger-4 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
+            <div className="rounded-2xl p-4 hover-lift fade-up stagger-4 flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">💰</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Recaudado</span>
@@ -653,10 +653,10 @@ export default function DashboardPage() {
           </button>
 
           {mostrarEstadisticas ? (
-          <div className="md:grid md:grid-cols-2 md:gap-6 space-y-6 md:space-y-0" style={{backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)" as any}}>
+          <div className="md:grid md:grid-cols-2 md:gap-6 space-y-6 md:space-y-0" style={{}}>
           <div className="space-y-6">
           {stats.visitasPorDia && stats.visitasPorDia.length > 0 && (
-            <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
+            <div className="rounded-2xl p-4" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <p className="text-white font-semibold text-sm mb-4">Visitas últimos 7 días</p>
               <div className="space-y-2">
                 {(() => {
@@ -708,7 +708,7 @@ export default function DashboardPage() {
                 if (empleadosRol.length === 0) return null
                 const titulo = rol === 'vendedor' ? 'Vendedores' : rol === 'impulsadora' ? 'Impulsadoras' : 'Entregas'
                 return (
-                  <div key={rol} className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)",backdropFilter:"blur(16px)",WebkitBackdropFilter:"blur(16px)"}}>
+                  <div key={rol} className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
                     <div className="px-4 py-3 border-b border-zinc-800">
                       <p className="text-white font-semibold text-sm">{titulo} en turno</p>
                     </div>
@@ -887,8 +887,7 @@ export default function DashboardPage() {
                     background:"rgba(8,8,28,0.82)",
                     border:"1px solid rgba(59,130,246,0.30)",
                     borderBottom: turnoExpandido ? "none" : undefined,
-                    borderRadius: turnoExpandido ? "16px 16px 0 0" : "16px",
-                  }}
+                    borderRadius: turnoExpandido ? "16px 16px 0 0" : "16px"}}
                   onClick={() => setTurnoExpandido(e => !e)}>
                   <span className="relative inline-flex h-2 w-2 flex-shrink-0">
                     <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 live-ping" />
@@ -1120,7 +1119,7 @@ export default function DashboardPage() {
                     />
                   </CardKPIGroup>
                   {/* Ventas — ancho completo */}
-                  <div className="relative" style={{backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',borderRadius:16,overflow:'hidden'}}>
+                  <div className="relative" style={{borderRadius:16,overflow:'hidden'}}>
                     <CardCountAdmin
                       stagger={3}
                       icon="💼"
@@ -1133,7 +1132,7 @@ export default function DashboardPage() {
                     />
                   </div>
                   {/* Recaudo — ancho completo */}
-                  <div style={{backdropFilter:'blur(16px)',WebkitBackdropFilter:'blur(16px)',borderRadius:16,overflow:'hidden'}}>
+                  <div style={{borderRadius:16,overflow:'hidden'}}>
                     <CardCountAdmin
                       stagger={4}
                       icon="💰"

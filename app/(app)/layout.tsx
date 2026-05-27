@@ -380,7 +380,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Drawer móvil — estilo B */}
       {menuMovil && (
         <div className="fixed inset-0 z-[2000] md:hidden" style={{overflow:"hidden"}}>
-          <div className="absolute top-0 bottom-0 right-0" style={{left:"224px", backdropFilter:"blur(12px)", WebkitBackdropFilter:"blur(12px)", background:"rgba(2,2,10,0.60)"}} onClick={() => setMenuMovil(false)} />
+          <div className="absolute top-0 bottom-0 right-0" style={{left:"224px", background:"rgba(2,2,10,0.60)"}} onClick={() => setMenuMovil(false)} />
           <div className="absolute left-0 top-0 bottom-0 w-56 border-r flex flex-col z-[2001] shadow-2xl" style={{background:"#0a0a1e",borderColor:"rgba(255,255,255,0.08)"}}>
 
             {/* Header */}
@@ -470,7 +470,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
       <aside
         className="w-56 flex-col hidden md:flex flex-shrink-0 fixed top-0 left-0 h-screen overflow-y-auto z-10"
-        style={{background:"rgba(8,10,30,0.45)",backdropFilter:"blur(20px)",WebkitBackdropFilter:"blur(20px)",borderRight:"1px solid rgba(255,255,255,0.15)"}}>
+        style={{background:"rgba(8,10,30,0.45)",borderRight:"1px solid rgba(255,255,255,0.15)"}}>
 
         {/* Header */}
         <div className="flex items-center px-4 h-14 border-b border-[#1c1c20] flex-shrink-0">

@@ -23,8 +23,6 @@ export function NetworkBanner() {
       <div className="relative w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg cursor-default"
         style={{
           background: 'rgba(220,38,38,0.25)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
           border: '1px solid rgba(239,68,68,0.55)',
         }}>
 
@@ -49,7 +47,6 @@ export function NetworkBanner() {
       <div className="absolute top-12 right-0 whitespace-nowrap text-xs font-semibold text-red-300 px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
         style={{
           background: 'rgba(10,8,4,0.85)',
-          backdropFilter: 'blur(8px)',
           border: '1px solid rgba(239,68,68,0.4)',
         }}>
         {label}

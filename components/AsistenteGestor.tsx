@@ -56,7 +56,7 @@ export default function AsistenteGestor({ onClose }: Props) {
   return (
     <>
       <div className="fixed inset-0 bg-black/50 z-[998]" onClick={onClose} />
-      <div className="fixed top-0 right-0 w-full md:w-[380px] h-full z-[999] flex flex-col shadow-2xl border-l border-white/10" style={{background:"rgba(8,10,28,0.72)",backdropFilter:"blur(28px)",WebkitBackdropFilter:"blur(28px)"}}>
+      <div className="fixed top-0 right-0 w-full md:w-[380px] h-full z-[999] flex flex-col shadow-2xl border-l border-white/10" style={{background:"rgba(8,10,28,0.72)"}}>
         {/* Header */}
         <div className="p-4 border-b border-zinc-800 flex items-center gap-3">
           <div className="relative w-11 h-11 bg-gradient-to-br from-blue-500 to-blue-700 rounded-2xl flex items-center justify-center text-2xl flex-shrink-0">

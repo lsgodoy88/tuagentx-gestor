@@ -33,8 +33,6 @@ export function CardKPI({ children, stagger = 1, className = '', center = true }
         background: 'rgba(255,255,255,0.08)',
         border: '1px solid rgba(255,255,255,0.30)',
         boxShadow: '0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
       } as CSSProperties}
     >
       {children}
@@ -53,10 +51,7 @@ export function CardKPIGroup({ children, cols = 2, className = '' }: CardKPIGrou
   return (
     <div
       className={[`grid grid-cols-${cols} gap-3`, className].filter(Boolean).join(' ')}
-      style={{
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        overflow: 'hidden',
+      style={{overflow: 'hidden',
         borderRadius: 16,
       } as CSSProperties}
     >
@@ -113,8 +108,6 @@ export function CardCountAdmin({
         background: 'rgba(255,255,255,0.08)',
         border: '1px solid rgba(255,255,255,0.30)',
         boxShadow: '0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
       } as CSSProperties}
     >
       {/* Icon + label — más prominente */}
