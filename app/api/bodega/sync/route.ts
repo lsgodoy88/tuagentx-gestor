@@ -5,6 +5,12 @@ import path from 'path'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { NextRequest, NextResponse } from 'next/server'
+// UTC → Bogotá (UTC-5)
+function toBogota(d: Date | null): Date | null {
+  return d ? new Date(d.getTime() - 5 * 60 * 60 * 1000) : null
+}
+
+
 import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 
@@ -150,6 +156,7 @@ export async function POST(req: NextRequest) {
       direccion,
       telefono,
       fechaOrden: orden.fCreado ? new Date(orden.fCreado as string) : new Date(),
+      fechaOrdenBogota: orden.fCreado ? toBogota(new Date(orden.fCreado as string)) : toBogota(new Date()),
       totalOrden: orden.vTotal ? parseFloat(orden.vTotal) : null,
       empresaId: empresaBodegaId,
       origen: origenVinculadaId ? 'vinculada' : 'propia',

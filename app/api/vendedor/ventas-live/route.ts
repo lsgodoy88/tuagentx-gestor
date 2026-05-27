@@ -47,11 +47,10 @@ export async function GET() {
 
     // Usar invoicedAt (fecha de facturación) para el filtro del mes
     // UpTres devuelve fechas en UTC — convertir a Bogotá (UTC-5) para comparar
-    // Una orden con invoicedAt="2026-04-30T05:30:00Z" = 30 abr 0:30 Bogotá → no es de mayo
+    // Usar fechaOrdenBogota si existe, fallback al hack UTC-5
     const fechaRef = o.invoicedAt || o.fCreado
     if (!fechaRef) return true
     const fechaUTC = new Date(fechaRef as string)
-    // Ajustar a Bogotá: restar 5 horas para obtener la fecha local real
     const fechaBogota = new Date(fechaUTC.getTime() - 5 * 60 * 60 * 1000)
     const esMes = fechaBogota.getUTCFullYear() === anio &&
                   (fechaBogota.getUTCMonth() + 1) === mes

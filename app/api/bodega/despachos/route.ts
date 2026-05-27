@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
     WHERE "empresaId" = $1
       AND ${origenSQL}
       AND estado IN (${estadoIn})
-      AND ("fechaOrden" >= $2::timestamp OR ("fechaOrden" IS NULL AND "createdAt" >= $2::timestamp))
+      AND ("fechaOrdenBogota" >= $2::timestamp OR ("fechaOrdenBogota" IS NULL AND "createdAt" >= $2::timestamp))
       ${qFilter}
       ${cursorFilter}
     ORDER BY nf DESC
@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
       WHERE "empresaId" = $1
         AND ${origenSQL}
         AND "numeroFactura" ~ '^[0-9]+$'
-        AND ("fechaOrden" >= $2::timestamp OR ("fechaOrden" IS NULL AND "createdAt" >= $2::timestamp))
+        AND ("fechaOrdenBogota" >= $2::timestamp OR ("fechaOrdenBogota" IS NULL AND "createdAt" >= $2::timestamp))
         ${controlCursorFilter}
       ORDER BY nf_int DESC
       LIMIT ${CONTROL_LIMIT + 1}

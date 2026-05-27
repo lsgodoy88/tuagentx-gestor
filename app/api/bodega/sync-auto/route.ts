@@ -1,4 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+// UTC → Bogotá (UTC-5)
+function toBogota(d: Date | null): Date | null {
+  return d ? new Date(d.getTime() - 5 * 60 * 60 * 1000) : null
+}
+
+
 import { testigo } from '@/lib/testigo'
 import { prisma } from '@/lib/prisma'
 import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
@@ -124,6 +130,7 @@ async function syncEmpresa(empresaIdConIntegracion: string, origenVinculadaId: s
       direccion,
       telefono,
       fechaOrden: orden.fCreado ? new Date(orden.fCreado as string) : new Date(),
+      fechaOrdenBogota: orden.fCreado ? toBogota(new Date(orden.fCreado as string)) : toBogota(new Date()),
       totalOrden: orden.vTotal ? parseFloat(orden.vTotal) : null,
       isFacturada: orden.isInvoiced === true,
       isActiva: (orden as any).isActiva !== false, // false=cancelada en UpTres
