@@ -75,7 +75,7 @@ export async function GET() {
           where: {
             vendedorApiId: miApiId,
             OR: [
-              { fechaOrden:   { gte: inicioDia, lt: finDia } },
+              { fechaOrdenBogota: { gte: inicioDia, lt: finDia } },
               { fechaFactura: { gte: inicioDia, lt: finDia } },
             ]
           },
@@ -87,7 +87,7 @@ export async function GET() {
       ? (prisma as any).ordenDespacho.aggregate({
           where: {
             vendedorApiId: miApiId,
-            fechaOrden: { gte: inicioMes, lt: finMes },
+            fechaOrdenBogota: { gte: inicioMes, lt: finMes },
             isFacturada: true,
             isActiva: true,   // excluir órdenes canceladas en UpTres
           },
