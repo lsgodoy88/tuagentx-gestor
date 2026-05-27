@@ -20,8 +20,10 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   const desde = empresa?.ultimaSyncBodega ?? new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
 
   const ordenes = await adapter.fetchVentas(desde)
-  // #3 fix: si no hay órdenes NO avanzar ultimaSyncBodega — evita huecos
+  // #3 fix: si no hay órdenes, avanzar ultimaSyncBodega a now() — el delta corrió OK
+  // Solo no avanzar si el fetch falló (error), no si vino vacío legitimamente
   if (!ordenes.length) {
+    await prisma.empresa.update({ where: { id: destino }, data: { ultimaSyncBodega: new Date() } })
     return { empresaId: destino, ordenes: 0, nuevasOrdenes: 0, nuevasDeudas: 0 }
   }
 
@@ -130,9 +132,9 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     .map((o: any) => o.fCreado ? new Date(o.fCreado as string).getTime() : 0)
     .filter(t => t > 0)
   const maxFechaOrden = fechasOrdenes.length > 0 ? Math.max(...fechasOrdenes) : 0
-  const proximoDesde = maxFechaOrden > desde.getTime()
-    ? new Date(maxFechaOrden - 5 * 60 * 1000)  // fecha más reciente - 5 min solapamiento
-    : desde  // no retroceder si no hay órdenes más recientes
+  // Avanzar a now() siempre — el delta corrió correctamente
+  // Si hay órdenes futuras al próximo ciclo se solapan naturalmente
+  const proximoDesde = new Date()
 
   await prisma.$transaction(async (tx: any) => {
     if (toCreate.length) await tx.ordenDespacho.createMany({ data: toCreate, skipDuplicates: true })
