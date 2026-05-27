@@ -123,11 +123,22 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   // ── Transacción ───────────────────────────────────────────────────────────
   const canceladasIds = ordenes.filter((o: any) => (o as any).isActiva === false).map((o: any) => String(o.uid || o._id))
 
+  // Solución real: avanzar ultimaSyncBodega a la fecha más reciente de las órdenes
+  // recibidas - 5 min de solapamiento. Así nunca se salta órdenes por desfaces de tiempo.
+  // Si todas son más viejas que 'desde', mantener 'desde' para no retroceder.
+  const fechasOrdenes = ordenes
+    .map((o: any) => o.fCreado ? new Date(o.fCreado as string).getTime() : 0)
+    .filter(t => t > 0)
+  const maxFechaOrden = fechasOrdenes.length > 0 ? Math.max(...fechasOrdenes) : 0
+  const proximoDesde = maxFechaOrden > desde.getTime()
+    ? new Date(maxFechaOrden - 5 * 60 * 1000)  // fecha más reciente - 5 min solapamiento
+    : desde  // no retroceder si no hay órdenes más recientes
+
   await prisma.$transaction(async (tx: any) => {
     if (toCreate.length) await tx.ordenDespacho.createMany({ data: toCreate, skipDuplicates: true })
     if (canceladasIds.length) await tx.ordenDespacho.updateMany({ where: { origenId: { in: canceladasIds }, empresaId: destino }, data: { isActiva: false } })
     if (deudaToCreate.length) await tx.syncDeuda.createMany({ data: deudaToCreate, skipDuplicates: true })
-    await tx.empresa.update({ where: { id: destino }, data: { ultimaSyncBodega: new Date() } })
+    await tx.empresa.update({ where: { id: destino }, data: { ultimaSyncBodega: proximoDesde } })
   }, { timeout: 30000 })
 
   // Invalida Redis solo si hubo cambios reales
