@@ -20,6 +20,7 @@ interface CarteraCardProps {
   fmt: (n: number) => string
   onRecaudar?: (cartera?: any) => void
   onWhatsApp?: (cartera?: any) => void
+  variant?: 'lista' | 'modal'
 }
 
 const WhatsAppIcon = () => (
@@ -58,10 +59,9 @@ function estadoPrincipal(porEstado: any): string {
   return 'pendiente'
 }
 
-export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onWhatsApp }: CarteraCardProps) {
+export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onWhatsApp, variant = 'lista' }: CarteraCardProps) {
   const [open, setOpen] = useState(false)
   const esSupervisor = rol === 'empresa' || rol === 'supervisor'
-  const sincronizado = c._fuente === 'sync'
   const estado = estadoPrincipal(c.porEstado)
   const color = c.empresaVinculada?.color || ESTADO_COLOR[estado] || '#6366f1'
   const deudas: DetalleDeuda[] = [...(c.DetalleCartera || [])].sort((a, b) => {
@@ -74,8 +74,8 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onWhatsA
     <div
       onClick={() => setOpen(o => !o)}
       style={{
-        background: 'rgba(8,8,28,0.88)',
-        border: `1px solid ${open ? 'rgba(59,130,246,0.40)' : 'rgba(59,130,246,0.20)'}`,
+        background: variant === 'modal' ? 'rgba(71,85,105,0.5)' : 'rgba(24,24,27,0.98)',
+        border: `1px solid ${open ? 'rgba(59,130,246,0.40)' : 'rgba(63,63,70,1)'}`,
         borderRadius: 14,
         padding: '10px 12px',
         cursor: 'pointer',
@@ -98,15 +98,13 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onWhatsA
           }}>
             {c.cliente?.nombre}
           </span>
-          {sincronizado && (
-            <span title="Sincronizado" style={{ fontSize: 11, color: '#22c55e', flexShrink: 0 }}>⇄</span>
-          )}
+
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: '#fde68a' }}>
             {fmt(Number(c.saldoPendiente))}
           </span>
-          <span style={{ fontSize: 11, color: '#9ca3af' }}>{open ? '▲' : '▼'}</span>
+          <span style={{ fontSize: 11, color: '#ffffff' }}>{open ? '▲' : '▼'}</span>
         </div>
       </div>
 
@@ -115,12 +113,12 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onWhatsA
         <div onClick={e => e.stopPropagation()}>
           {/* NIT */}
           {c.cliente?.nit && (
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', marginTop: 6 }}>NIT: {c.cliente.nit}</p>
+            <p style={{ fontSize: 12, color: '#ffffff', marginTop: 6 }}>NIT: {c.cliente.nit}</p>
           )}
 
           {/* Vendedor (admin/supervisor) */}
           {esSupervisor && c.empleado?.nombre && (
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.50)', marginTop: 2 }}>
+            <p style={{ fontSize: 12, color: '#ffffff', marginTop: 2 }}>
               Vendedor: {c.empleado.nombre}
             </p>
           )}
@@ -137,11 +135,11 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onWhatsA
                   background: 'rgba(15,15,22,0.60)', border: '1px solid rgba(59,130,246,0.15)', borderRadius: 8, padding: '5px 8px',
                 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.60)' }}>
+                    <span style={{ fontSize: 12, color: '#ffffff' }}>
                       {d.numeroFactura ? `#${d.numeroFactura}` : d.numeroOrden ? `#${d.numeroOrden}` : `Deuda ${i+1}`}
                     </span>
                     {d.fechaVencimiento && (
-                      <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginLeft: 6 }}>
+                      <span style={{ fontSize: 11, color: '#ffffff', marginLeft: 6 }}>
                         Vence: {new Date(d.fechaVencimiento).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: '2-digit', timeZone: 'America/Bogota' })}
                       </span>
                     )}
@@ -159,7 +157,7 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onWhatsA
               ))}
             </div>
           ) : (
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.40)' }}>Sin detalle de deudas</p>
+            <p style={{ fontSize: 12, color: '#ffffff' }}>Sin detalle de deudas</p>
           )}
 
           {/* Botones recaudar + WhatsApp */}

@@ -28,7 +28,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
 
     if (!cliente?.apiId) {
       // Cliente sin apiId — no está en UpTres, retornar cartera manual si existe
-      return NextResponse.json({ cartera: null, _modo: 'sin_sync', _motivo: 'cliente sin apiId' })
+      return NextResponse.json({ cartera: null,
+ _motivo: 'cliente sin apiId' })
     }
 
     // Live sync — refrescar deudas de este cliente desde UpTres antes de leer
@@ -89,11 +90,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
         deudas: deudasEnriquecidas,
         saldoTotal: saldoTotalCliente,
         totalDeudas: deudasEnriquecidas.length,
-        _fuente: 'sync',
         _sincronizado: true,
         _integracion: { id: integracion.id, nombre: integracion.nombre }
       },
-      _modo: 'sync'
     })
   }
 
@@ -114,7 +113,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
     }
   })
 
-  if (!cartera) return NextResponse.json({ cartera: null, _modo: 'manual' })
+  if (!cartera) return NextResponse.json({ cartera: null,
+ })
 
   const detalles = (cartera.DetalleCartera as any[]).map((d: any) => {
     const vf = Number(d.valorFactura ?? d.valor)
@@ -133,13 +133,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
   return NextResponse.json({
     cartera: {
       ...cartera,
-      _fuente: 'manual',
       _sincronizado: false,
       cliente: cartera.Cliente,
       empleado: cartera.Empleado,
       DetalleCartera: detalles,
       PagoCartera: pagos,
     },
-    _modo: 'manual'
   })
 }

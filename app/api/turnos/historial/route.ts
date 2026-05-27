@@ -22,7 +22,7 @@ export async function GET() {
     const duracionMs = fin ? fin.getTime() - inicio.getTime() : null
     const h = duracionMs ? Math.floor(duracionMs / 3600000) : null
     const m = duracionMs ? Math.floor((duracionMs % 3600000) / 60000) : null
-    const fechaBogota = new Date(inicio.getTime() - 5*60*60*1000).toISOString().split('T')[0]
+    const fechaBogota = inicio.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) // YYYY-MM-DD en Bogotá
     return {
       id: t.id,
       fecha: fechaBogota,

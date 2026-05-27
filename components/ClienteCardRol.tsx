@@ -92,10 +92,7 @@ export default function ClienteCardRol({ cliente: c, rol, onVisita, onEntregar, 
           }}>
             {c.nombre}
           </div>
-          <span title={c.apiId ? 'Sincronizado con UpTres' : 'Sin sincronizar'} style={{
-            fontSize: 13, flexShrink: 0,
-            color: c.apiId ? '#22c55e' : '#3f3f46',
-          }}>⇄</span>
+
         </div>
         {open && subtituloAbierto && (
           <div style={{ fontSize: 12, color: '#c4c4c4', marginTop: 2 }}>

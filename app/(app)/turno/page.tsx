@@ -100,11 +100,7 @@ export default function TurnoPage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-24 md:pb-0">
-      <div>
-        <h1 className="text-2xl font-bold text-white">Historial de turnos</h1>
-      </div>
-
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
+<div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
         <div className="flex items-center justify-between">
           <p className="text-white font-bold">Historial de turnos</p>
           <div className="relative">

@@ -104,7 +104,6 @@ export async function GET(req: NextRequest) {
       saldoPendiente: saldoNuevo,
       saldoAnterior,
       valorFacturasPagadas,
-      _modo: 'sync',
     }
   }
 

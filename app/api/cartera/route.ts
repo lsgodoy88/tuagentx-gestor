@@ -196,7 +196,6 @@ export async function GET(req: NextRequest) {
     const carteras = caches.map((c: any) => ({
       id: c.clienteId || c.clienteApiId,
       clienteId: c.clienteId,
-      _fuente: 'sync',
       _sincronizado: true,
       saldoPendiente: Number(c.saldoPendiente),
       saldoTotal: Number(c.saldoTotal),
@@ -235,7 +234,6 @@ export async function GET(req: NextRequest) {
       pages: Math.ceil(total / limit),
       totalSaldoPendiente: Number(agg._sum.saldoPendiente || 0),
       totalSaldoTotal: Number(agg._sum.saldoTotal || 0),
-      _modo: 'sync',
       _integracion: { id: integracion.id, nombre: integracion.nombre }
     })
   }
@@ -280,7 +278,6 @@ export async function GET(req: NextRequest) {
     }
     return {
       ...c,
-      _fuente: 'manual',
       _sincronizado: false,
       cliente: c.Cliente,
       empleado: c.Empleado,
@@ -290,7 +287,8 @@ export async function GET(req: NextRequest) {
     }
   })
 
-  return NextResponse.json({ carteras: normalized, total, page, pages: Math.ceil(total / limit), _modo: 'manual' })
+  return NextResponse.json({ carteras: normalized, total, page, pages: Math.ceil(total / limit),
+ })
   } catch (err: any) {
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   }
