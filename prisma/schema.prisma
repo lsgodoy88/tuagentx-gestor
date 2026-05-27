@@ -76,6 +76,12 @@ model Empleado {
   uptresPassword      String?
   apiId               String?
   metaVenta           Float?
+  documento           String?
+  tipoDocumento       String?
+  direccionUptres     String?
+  departamento        String?
+  ciudadApiId         String?
+  fechaNacimiento     DateTime?
   subEmpresaId        String?
   configRecibos       Json?                @default("{\"prefijo\": null, \"anchoPapel\": null, \"consecutivoMes\": null, \"consecutivoActual\": 0, \"usarConfigEmpresa\": true}")
   Cartera             Cartera[]
@@ -2767,7 +2773,11 @@ model SyncDeuda {
   data               Json? // JSON crudo completo del externo
   modificadoEn       DateTime?
   externalUpdatedAt  DateTime? // updatedAt de UpTres — señal de cambio en origen
-  sincronizadoEl     DateTime    @default(now())
+  isDelivered        Boolean?
+  paymentMethod      String?
+  discountAdi        Decimal?  @db.Decimal(14, 2)
+  note               String?
+  sincronizadoEl     DateTime  @default(now())
   integracion        Integracion @relation(fields: [integracionId], references: [id])
 
   @@unique([integracionId, externalId])
@@ -2844,6 +2854,14 @@ model OrdenDespacho {
   guiaTransporte    String?
   fechaOrden        DateTime?
   totalOrden        Decimal?          @db.Decimal(14, 2)
+  discount          Decimal?          @db.Decimal(14, 2)
+  balance           Decimal?          @db.Decimal(14, 2)
+  paymentType       String?
+  paymentMethod     String?
+  isDelivered       Boolean?
+  isShipped         Boolean?
+  isCompleted       Boolean?
+  amountItems       Int?
   origenVinculadaId String?
   createdAt         DateTime          @default(now())
   empresaVinculada  EmpresaVinculada? @relation(fields: [origenVinculadaId], references: [id])
@@ -2855,7 +2873,7 @@ model OrdenDespacho {
 
   @@index([empresaId, estado])
   @@index([empresaId, origen])
-  @@index([empresaId, origenId])
+  @@unique([origenId, empresaId], name: "origenId_empresaId")
   @@index([empresaId, vendedorApiId])
   @@index([empresaId, numeroFactura])
   @@map("OrdenDespacho")

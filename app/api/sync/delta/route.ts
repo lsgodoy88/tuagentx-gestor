@@ -85,6 +85,15 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
       isFacturada: orden.isInvoiced === true,
       isActiva: (orden as any).isActiva !== false,
       fechaFactura: orden.invoicedAt ? new Date(orden.invoicedAt) : null,
+      // Nuevos campos UpTres
+      discount: (orden as any).discount ? parseFloat((orden as any).discount) : null,
+      balance: (orden as any).balance ? parseFloat((orden as any).balance) : null,
+      paymentType: (orden as any).paymentType || null,
+      paymentMethod: (orden as any).paymentMethod || null,
+      isDelivered: (orden as any).isDelivered ?? null,
+      isShipped: (orden as any).isShipped ?? null,
+      isCompleted: (orden as any).isCompleted ?? null,
+      amountItems: (orden as any).amountItems || null,
       empresaId: destino,
       origen: origenVinculadaId ? 'vinculada' : 'propia',
       origenId,
@@ -174,7 +183,17 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   const proximoDesde = new Date(Date.now() - 30 * 60 * 1000)
 
   await prisma.$transaction(async (tx: any) => {
-    if (toCreate.length) await tx.ordenDespacho.createMany({ data: toCreate, skipDuplicates: true })
+    // Upsert por origenId+empresaId — evita duplicados, nunca actualiza si ya existe
+    if (toCreate.length) {
+      for (const orden of toCreate) {
+        if (!orden.origenId) continue
+        await tx.ordenDespacho.upsert({
+          where: { origenId_empresaId: { origenId: orden.origenId, empresaId: orden.empresaId } },
+          create: orden,
+          update: {}, // insert-only: si ya existe no toca nada
+        })
+      }
+    }
     if (canceladasIds.length) await tx.ordenDespacho.updateMany({ where: { origenId: { in: canceladasIds }, empresaId: destino }, data: { isActiva: false } })
     if (deudaToCreate.length) await tx.syncDeuda.createMany({ data: deudaToCreate, skipDuplicates: true })
     await tx.empresa.update({ where: { id: destino }, data: { ultimaSyncBodega: proximoDesde } })
