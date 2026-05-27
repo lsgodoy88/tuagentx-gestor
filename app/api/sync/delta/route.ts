@@ -7,6 +7,12 @@ import { notificarWA } from '@/lib/notificaciones'
 import fs from 'fs'
 import path from 'path'
 
+// UTC → Bogotá (UTC-5): restar 5 horas
+function toBogota(utcDate: Date | null): Date | null {
+  if (!utcDate) return null
+  return new Date(utcDate.getTime() - 5 * 60 * 60 * 1000)
+}
+
 const municipiosDANE: Record<string, string> = JSON.parse(
   fs.readFileSync(path.join(process.cwd(), 'public/municipios_dane.json'), 'utf-8')
 )
@@ -81,6 +87,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
       direccion,
       telefono,
       fechaOrden: orden.fCreado ? new Date(orden.fCreado as string) : new Date(),
+      fechaOrdenBogota: orden.fCreado ? toBogota(new Date(orden.fCreado as string)) : toBogota(new Date()),
       totalOrden: orden.vTotal ? parseFloat(orden.vTotal) : null,
       isFacturada: orden.isInvoiced === true,
       isActiva: (orden as any).isActiva !== false,

@@ -284,7 +284,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
 
   async fetchVentas(desde?: Date, customerId?: string): Promise<VentaExterna[]> {
     const baseParams: Record<string, string> = {
-      fields: 'id,orderNumber,invoiceNumber,isInvoiced,invoicedAt,customerId,employeeId,total,items,createdAt,updatedAt,cityId,address,phone',
+      fields: 'id,orderNumber,invoiceNumber,isInvoiced,invoicedAt,customerId,employeeId,total,discount,balance,paymentType,paymentMethod,isDelivered,isShipped,isCompleted,amountItems,comment,createdAt,updatedAt,cityId,address,phone',
       expand: 'customer,items',
       includeTotal: 'false',
     }
