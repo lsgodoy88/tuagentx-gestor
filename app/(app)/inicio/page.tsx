@@ -304,7 +304,7 @@ export default function DashboardPage() {
     setModalRecaudoRapido(true)
     setRrBuscar(''); setRrPage(1); setRrCliente(null); setRrSinDeuda(false)
     setRrBuscarCartera('')
-    rrLoadCartera('')
+    setRrCartera([])  // no cargar hasta que el vendedor busque
   }
 
   function abrirWhatsApp(cartera: any) {
@@ -1349,7 +1349,7 @@ export default function DashboardPage() {
               <>
                 <input
                   value={rrBuscarCartera}
-                  onChange={e => { setRrBuscarCartera(e.target.value); rrLoadCartera(e.target.value) }}
+                  onChange={e => { const v = e.target.value; setRrBuscarCartera(v); if (v.length >= 1) rrLoadCartera(v); else setRrCartera([]) }}
                   placeholder="Buscar cliente con deuda..."
                   className="w-full bg-zinc-700/60 border border-zinc-400/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-zinc-300 placeholder:text-zinc-400"
                   autoFocus

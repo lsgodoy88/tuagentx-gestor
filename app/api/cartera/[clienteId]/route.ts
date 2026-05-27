@@ -4,8 +4,6 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
 import { calcularEstado } from '@/lib/cartera'
-import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
-import { sincronizarDeudas, actualizarCache } from '@/lib/integracion/sync'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ clienteId: string }> }) {
   const session = await getServerSession(authOptions)
@@ -32,20 +30,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
  _motivo: 'cliente sin apiId' })
     }
 
-    // Live sync — refrescar deudas de este cliente desde UpTres antes de leer
-    try {
-      const config = integracion.config as any
-      const { decrypt } = await import('@/lib/crypto-uptres')
-      const apiSecret = decrypt(config.apiSecret, process.env.UPTRES_SECRET!)
-      const adapter = new UpTresAdapter(config.apiKey, apiSecret)
-      await adapter.login()
-      const deudasFrescas = await adapter.fetchDeudasCliente(cliente.apiId)
-      const afectados = await sincronizarDeudas(deudasFrescas, integracion.id, empresaId)
-      await actualizarCache(afectados, integracion.id, empresaId)
-    } catch {
-      // Si UpTres no responde, continuar con datos en caché
-    }
-
+    // Lee directo de SyncDeuda — el nocturno y el delta mantienen los datos frescos
     // Buscar todas las deudas de este cliente en SyncDeuda
     const deudas = await (prisma as any).syncDeuda.findMany({
       where: { integracionId: integracion.id, clienteApiId: cliente.apiId, condition: true },
