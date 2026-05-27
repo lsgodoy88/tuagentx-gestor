@@ -68,7 +68,7 @@ export default function MapaVivo({ visitas, colorEmpleado, onVisitaClick }: Prop
               <p style={{ fontWeight: 'bold', margin: '0 0 4px' }}>{v.cliente?.nombre}</p>
               <p style={{ color: '#666', margin: '0 0 2px', fontSize: '12px' }}>{v.empleado?.nombre}</p>
               <p style={{ color: '#666', margin: '0 0 4px', fontSize: '12px' }}>
-                {new Date(v.createdAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                {new Date(v.createdAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })}
               </p>
               {v.tipo && v.tipo !== 'visita' && <p style={{ fontSize: '12px', margin: '2px 0', color: '#10b981', fontWeight: 'bold' }}>{v.tipo === 'venta' ? '💰' : v.tipo === 'cobro' ? '💵' : '📦'} {v.tipo.charAt(0).toUpperCase() + v.tipo.slice(1)}{v.monto ? ': $' + Number(v.monto).toLocaleString('es-CO') : ''}</p>}
               {v.nota && <p style={{ fontSize: '12px', margin: 0, color: '#999' }}>{v.nota}</p>}

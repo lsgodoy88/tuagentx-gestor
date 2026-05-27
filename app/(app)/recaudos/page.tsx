@@ -45,7 +45,7 @@ function fmtMonto(v: number | string) {
 }
 function fmtHora(iso: string | null) {
   if (!iso) return ''
-  return new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+  return new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })
 }
 function fmtFecha(iso: string | null) {
   if (!iso) return ''

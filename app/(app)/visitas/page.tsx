@@ -114,7 +114,7 @@ export default function VisitasPage() {
             {v.factura && <p className="text-blue-400 text-xs font-semibold">Factura: {v.factura}</p>}
             {v.monto && <p className="text-emerald-400 text-sm font-semibold">${Number(v.monto).toLocaleString('es-CO')}</p>}
             {v.nota && <p className="text-zinc-400 text-xs">{v.nota}</p>}
-            <p className="text-zinc-500 text-xs">{new Date(v.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'})}</p>
+            <p className="text-zinc-500 text-xs">{new Date(v.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})}</p>
             {v.lat ? <p className="text-emerald-400 text-xs">GPS registrado</p> : <p className="text-zinc-600 text-xs">Sin GPS</p>}
             {v.firma && (
               <button onClick={async () => {

@@ -29,7 +29,7 @@ const LABEL: Record<string, string> = {
 function formatHora(iso: string | null | undefined) {
   if (!iso) return ''
   const d = new Date(iso)
-  return d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })
+  return d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' })
 }
 
 function nombreCorto(n: string) {

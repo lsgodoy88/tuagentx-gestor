@@ -577,7 +577,7 @@ export default function RutasPage() {
                                   <span>{v.tipo === 'venta' ? '💰' : v.tipo === 'cobro' ? '💵' : v.tipo === 'entrega' ? '📦' : '👁️'}</span>
                                   <span className="text-zinc-300 capitalize">{v.tipo}</span>
                                   {v.monto && <span className="text-emerald-400 font-semibold">${Number(v.monto).toLocaleString('es-CO')}</span>}
-                                  <span className="text-zinc-500 ml-auto">{new Date(new Date(v.createdAt).getTime() - 5*60*60*1000).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'})}</span>
+                                  <span className="text-zinc-500 ml-auto">{new Date(v.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})}</span>
                                   {v.firma && <span className="text-blue-400">✍️</span>}
                                   {v.lat && <span className="text-emerald-400">📍</span>}
                                 </button>

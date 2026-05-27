@@ -9,7 +9,6 @@ import { useRouter } from 'next/navigation'
 import { checkPermiso } from '@/lib/permisos'
 
 import { DIAS } from '@/lib/constants'
-import { SyncIcon } from '@/components/SyncIcon'
 import { distanciaMetros } from '@/lib/gps'
 
 export default function RutasFijasPage() {
@@ -310,13 +309,7 @@ export default function RutasFijasPage() {
 <div className="flex gap-1 tab-pills rounded-xl p-1">
         <button onClick={() => setTab('rutas')} className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tab === 'rutas' ? 'tab-active' : 'text-white hover:text-white'}`}>Rutas fijas</button>
         <button onClick={() => setTab('historial')} className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tab === 'historial' ? 'tab-active' : 'text-white hover:text-white'}`}>Historial</button>
-        {syncVentas && (
-          <button onClick={ejecutarSyncVentas} disabled={sincronizandoVentas}
-            className={`tab-btn flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-semibold disabled:opacity-40 ${sincronizandoVentas ? 'btn-shimmer' : ''}`}>
-            <SyncIcon spinning={sincronizandoVentas} className="w-3.5 h-3.5 text-blue-400" />
-            {sincronizandoVentas ? '...' : 'Sync'}
-          </button>
-        )}
+
       </div>
 
       {tab === 'historial' && (
@@ -390,7 +383,7 @@ export default function RutasFijasPage() {
                                         <div>
                                           <div className={"rounded-xl p-2.5 relative " + (item.entrada ? "bg-blue-500/10 border border-blue-500/20" : "bg-zinc-800")}>
                                             <p className="text-zinc-400 text-xs">Entrada</p>
-                                            {item.entrada ? <p className="text-blue-400 font-semibold text-sm">{new Date(item.entrada.createdAt).toLocaleTimeString("es-CO", {hour:"2-digit", minute:"2-digit"})}</p> : <p className="text-zinc-600 text-sm">-</p>}
+                                            {item.entrada ? <p className="text-blue-400 font-semibold text-sm">{new Date(item.entrada.createdAt).toLocaleTimeString("es-CO", {hour:"2-digit", minute:"2-digit", timeZone: 'America/Bogota'})}</p> : <p className="text-zinc-600 text-sm">-</p>}
                                             {item.entrada?.lat && (
                                               <a href={"https://www.google.com/maps?q=" + item.entrada.lat + "," + item.entrada.lng} target="_blank" className="absolute top-2 right-2 text-base leading-none">📍</a>
                                             )}
@@ -404,7 +397,7 @@ export default function RutasFijasPage() {
                                         <div>
                                           <div className={"rounded-xl p-2.5 relative " + (item.salida ? "bg-orange-500/10 border border-orange-500/20" : "bg-zinc-800")}>
                                             <p className="text-zinc-400 text-xs">Salida</p>
-                                            {item.salida ? <p className="text-orange-400 font-semibold text-sm">{new Date(item.salida.createdAt).toLocaleTimeString("es-CO", {hour:"2-digit", minute:"2-digit"})}</p> : <p className="text-zinc-600 text-sm">-</p>}
+                                            {item.salida ? <p className="text-orange-400 font-semibold text-sm">{new Date(item.salida.createdAt).toLocaleTimeString("es-CO", {hour:"2-digit", minute:"2-digit", timeZone: 'America/Bogota'})}</p> : <p className="text-zinc-600 text-sm">-</p>}
                                             {item.salida?.lat && (
                                               <a href={"https://www.google.com/maps?q=" + item.salida.lat + "," + item.salida.lng} target="_blank" className="absolute top-2 right-2 text-base leading-none">📍</a>
                                             )}

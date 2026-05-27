@@ -86,7 +86,7 @@ export default function HistorialPage() {
                     </div>
                     {item.entrada ? (
                       <p className="text-emerald-400 font-semibold text-sm">
-                        {new Date(item.entrada.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'})}
+                        {new Date(item.entrada.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})}
                       </p>
                     ) : (
                       <p className="text-zinc-600 text-sm">—</p>
@@ -102,7 +102,7 @@ export default function HistorialPage() {
                     </div>
                     {item.salida ? (
                       <p className="text-orange-400 font-semibold text-sm">
-                        {new Date(item.salida.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'})}
+                        {new Date(item.salida.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})}
                       </p>
                     ) : (
                       <p className="text-zinc-600 text-sm">—</p>

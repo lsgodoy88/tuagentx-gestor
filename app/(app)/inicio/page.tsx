@@ -13,7 +13,6 @@ import { useEffect, useState, useRef } from 'react'
 import { CountUp, LiveDot, SkeletonCard, LoadingBorder } from '@/components/FX'
 import type { VendedorStats, TurnoActivo, VentasLiveResult } from '@/lib/types/vendedor'
 import type { AdminStats } from '@/lib/types/admin'
-import { SyncIcon } from '@/components/SyncIcon'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { CardKPI, CardKPIGroup, CardDark, CardSub, CardCountAdmin, CardCountAdminSkeleton } from '@/components/ui/cards'
@@ -40,8 +39,6 @@ export default function DashboardPage() {
   const [visitasRuta, setVisitasRuta] = useState<any[]>([])
   const [resumenFinanciero, setResumenFinanciero] = useState<any>(null)
   const [monitor, setMonitor] = useState<any[]>([])
-  const [syncInfo, setSyncInfo] = useState<any>(null)
-  const [modalSync, setModalSync] = useState(false)
   const [sincronizando, setSincronizando] = useState(false)
   const [empresaDetalleSA, setEmpresaDetalleSA] = useState<string | null>(null)
   const [loadingStats, setLoadingStats] = useState(false)
@@ -186,7 +183,6 @@ export default function DashboardPage() {
 
       Promise.all(adminFetches).then(([stats, integracion, bodega, cartera]) => {
         if (stats) setStats(stats)
-        if (integracion) setSyncInfo(integracion)
         if (bodega) setBodegaStats({ pendientes: bodega.pendientes ?? 0, alistados: bodega.alistados ?? 0, entregados: bodega.entregados ?? 0 })
         if (cartera) setResumenCartera(cartera)
       })
@@ -217,8 +213,6 @@ export default function DashboardPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tipo: 'delta' })
       })
-      const res = await fetch('/api/integracion/estado').then(r => r.json())
-      setSyncInfo(res)
       // recargar stats
       fetch('/api/stats').then(r => r.json()).then(d => setStats(d)).catch(() => {})
     } catch {}
@@ -717,7 +711,7 @@ export default function DashboardPage() {
                                 {m.totalRuta > 0 && <p className="text-zinc-500">{m.visitados}/{m.totalRuta}</p>}
                               </td>
                               <td className="px-3 py-2 whitespace-nowrap">
-                                <p className="text-white">{new Date(m.inicioTurno).toLocaleTimeString('es-CO', {hour: '2-digit', minute: '2-digit'})}</p>
+                                <p className="text-white">{new Date(m.inicioTurno).toLocaleTimeString('es-CO', {hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota'})}</p>
                                 {m.latInicio && m.lngInicio && (
                                   <a href={'https://www.google.com/maps?q=' + m.latInicio + ',' + m.lngInicio} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">📍 ver</a>
                                 )}
@@ -725,7 +719,7 @@ export default function DashboardPage() {
                               <td className="px-3 py-2">
                                 {m.ultimaVisita ? (
                                   <div>
-                                    <p className="text-white whitespace-nowrap">{new Date(m.ultimaVisita.hora).toLocaleTimeString('es-CO', {hour: '2-digit', minute: '2-digit'})} - {m.ultimaVisita.cliente}</p>
+                                    <p className="text-white whitespace-nowrap">{new Date(m.ultimaVisita.hora).toLocaleTimeString('es-CO', {hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota'})} - {m.ultimaVisita.cliente}</p>
                                     <p className="text-zinc-500 capitalize">{m.ultimaVisita.tipo}</p>
                                     {m.ultimaVisita.lat && m.ultimaVisita.lng && (
                                       <a href={'https://www.google.com/maps?q=' + m.ultimaVisita.lat + ',' + m.ultimaVisita.lng} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">📍 ver</a>
@@ -852,8 +846,8 @@ export default function DashboardPage() {
               {turnoExpandido && (
                 <div className="border-t border-amber-500/20 px-4 pb-4 pt-3 space-y-3">
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Inicio pausa</p><p className="text-sm font-bold text-white">{turno.pausaInicio ? new Date(turno.pausaInicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"}) : "--"}</p></div>
-                    <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Reanuda a las</p><p className="text-emerald-400 text-sm font-bold">{turno.pausaInicio && turno.pausaDuracionMin ? new Date(new Date(turno.pausaInicio).getTime() + turno.pausaDuracionMin*60000).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"}) : "--"}</p></div>
+                    <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Inicio pausa</p><p className="text-sm font-bold text-white">{turno.pausaInicio ? new Date(turno.pausaInicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",timeZone: 'America/Bogota'}) : "--"}</p></div>
+                    <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Reanuda a las</p><p className="text-emerald-400 text-sm font-bold">{turno.pausaInicio && turno.pausaDuracionMin ? new Date(new Date(turno.pausaInicio).getTime() + turno.pausaDuracionMin*60000).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",timeZone: 'America/Bogota'}) : "--"}</p></div>
                   </div>
                   <div className="flex gap-2">
                     <button onClick={reanudarTurno} className="flex-1 bg-zinc-800 border border-emerald-500/30 text-emerald-400 text-sm font-semibold py-2.5 rounded-xl">▶️ Reanudar</button>
@@ -893,7 +887,7 @@ export default function DashboardPage() {
                 <div className="w-full fade-up" style={{background:"rgba(8,8,28,0.82)",border:"1px solid rgba(59,130,246,0.30)",borderTop:"1px solid rgba(16,185,129,0.15)",borderRadius:"0 0 16px 16px"}}>
                 <div className="px-4 pb-4 pt-3 space-y-3">
                   <div className="grid grid-cols-2 gap-2">
-                    <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Hora inicio</p><p className="text-sm font-bold text-white">{new Date(turno.inicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit"})}</p></div>
+                    <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Hora inicio</p><p className="text-sm font-bold text-white">{new Date(turno.inicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",timeZone: 'America/Bogota'})}</p></div>
                     <div className="rounded-lg p-2" style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.20)'}}><p className="text-zinc-500 text-xs">Contador</p><p className="text-emerald-400 font-mono font-bold">{tiempoTurno}</p></div>
                   </div>
                   <button onClick={cerrarTurno} disabled={bloqueadoTurno} className="w-full bg-red-600 text-white text-sm font-bold py-2.5 rounded-xl disabled:opacity-50">Cerrar turno</button>
@@ -1180,7 +1174,7 @@ export default function DashboardPage() {
                                 <div style={{background:"rgba(127,29,29,0.30)",border:"1px solid rgba(239,68,68,0.30)",borderRadius:8,padding:"8px 12px"}}>
                                   <p className="text-red-400 text-xs font-semibold">⚠️ Alertas GPS hoy ({imp.alertasGps.length})</p>
                                   {imp.alertasGps.slice(0,2).map((a: any, i: number) => (
-                                    <p key={i} className="text-red-300 text-xs">{a.detalle} — {new Date(a.hora).toLocaleTimeString('es-CO', {hour:'2-digit',minute:'2-digit'})}</p>
+                                    <p key={i} className="text-red-300 text-xs">{a.detalle} — {new Date(a.hora).toLocaleTimeString('es-CO', {hour:'2-digit',minute:'2-digit',timeZone: 'America/Bogota'})}</p>
                                   ))}
                                 </div>
                               )}
@@ -1323,10 +1317,10 @@ export default function DashboardPage() {
 
     {/* Modal Recaudo Rápido */}
     {modalRecaudoRapido && (
-      <div className="fixed inset-0 bg-black/70 flex items-start justify-center z-50 p-4 pt-16"
+      <div className="fixed inset-0 bg-zinc-700 flex items-start justify-center z-50 pt-4 px-2"
         onClick={e => { if (e.target === e.currentTarget) { setModalRecaudoRapido(false); setRrCliente(null); setRrSinDeuda(false) } }}>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
-          <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-zinc-800">
+        <div className="bg-slate-700 border border-slate-500 rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto overscroll-contain">
+          <div className="flex items-center justify-between px-4 pt-2.5 pb-2.5 border-b border-slate-500">
             <h3 className="text-white font-bold text-lg">💵 Recaudo rápido</h3>
             <button onClick={() => { setModalRecaudoRapido(false); setRrCliente(null); setRrSinDeuda(false) }} className="text-zinc-500 hover:text-white text-xl">×</button>
           </div>
@@ -1337,7 +1331,7 @@ export default function DashboardPage() {
                   value={rrBuscarCartera}
                   onChange={e => { setRrBuscarCartera(e.target.value); rrLoadCartera(e.target.value) }}
                   placeholder="Buscar cliente con deuda..."
-                  className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500"
+                  className="w-full bg-zinc-700/60 border border-zinc-400/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-zinc-300 placeholder:text-zinc-400"
                   autoFocus
                 />
                 {rrLoadingCartera && (
@@ -1358,6 +1352,7 @@ export default function DashboardPage() {
                       cargarDetalleCartera(c)
                     }}
                     onWhatsApp={abrirWhatsApp}
+                    variant="modal"
                   />
                 ))}
               </>
@@ -1390,7 +1385,7 @@ export default function DashboardPage() {
                   ))}
                 </div>
                 <button onClick={() => { setRrCliente(null); setRrSinDeuda(false) }}
-                  className="w-full bg-zinc-800 text-zinc-400 hover:text-white text-sm py-2 rounded-xl transition-colors">
+                  className="w-full bg-black border border-blue-500/20 text-zinc-400 hover:text-white text-sm py-2 rounded-xl transition-colors">
                   ← Cambiar cliente
                 </button>
               </div>
@@ -1406,41 +1401,68 @@ export default function DashboardPage() {
         ?.filter((d: any) => facturasSeleccionadas.includes(d.id) && d.estado !== 'pagada')
         .reduce((acc: number, d: any) => acc + Math.max(0, Number(d.valorFactura ?? d.valor) - Number(d.abonos ?? 0)), 0) ?? 0
       return (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between px-6 pt-5">
-              <h3 className="text-white font-bold text-lg">💳 Recaudar</h3>
-              <button onClick={() => setRecaudandoCartera(null)} className="text-zinc-500 hover:text-white text-xl">×</button>
-            </div>
-            <div className="px-6 space-y-4 pb-6">
-              <div className="bg-zinc-800 rounded-xl px-4 py-3">
-                <p className="text-white font-medium text-sm">{recaudandoCartera.cliente?.nombre}</p>
-                {recaudandoCartera.cliente?.nit && <p className="text-zinc-400 text-xs">NIT: {recaudandoCartera.cliente.nit}</p>}
+        <div className="fixed inset-0 bg-zinc-700 flex items-center justify-center z-50 px-2">
+          <div className="bg-slate-700 border border-slate-500 rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+            {/* Header cliente + cerrar */}
+            <div className="flex items-center justify-between px-4 pt-2.5 pb-2.5 border-b border-slate-500">
+              <div>
+                <p className="text-white font-semibold text-sm leading-tight">{recaudandoCartera.cliente?.nombre}</p>
               </div>
+              <button onClick={() => setRecaudandoCartera(null)} className="text-zinc-400 hover:text-white text-xl ml-3 flex-shrink-0">×</button>
+            </div>
+            <div className="px-4 space-y-3 pb-4 overflow-y-auto overscroll-contain flex-1 pt-4">
               {loadingDetalle ? (
-                <div className="space-y-2">{Array.from({length:3}).map((_,i)=><div key={i} className="shimmer rounded-xl h-12"/>)}</div>
+                <div className="space-y-3 animate-pulse">
+                  {/* Skeleton facturas */}
+                  <div className="shimmer-light h-4 w-36 rounded" />
+                  {[0,1].map(i => (
+                    <div key={i} className="bg-zinc-500/40 border border-zinc-400/30 rounded-xl px-4 py-3 flex items-center gap-3">
+                      <div className="shimmer-light w-5 h-5 rounded flex-shrink-0" />
+                      <div className="flex-1 space-y-1.5">
+                        <div className="shimmer-light h-3.5 w-24 rounded" />
+                        <div className="shimmer-light h-3 w-28 rounded" />
+                      </div>
+                      <div className="text-right space-y-1.5">
+                        <div className="shimmer-light h-4 w-20 rounded" />
+                        <div className="shimmer-light h-3 w-16 rounded ml-auto" />
+                      </div>
+                    </div>
+                  ))}
+                  {/* Skeleton card pago */}
+                  <div className="bg-zinc-500/40 border border-zinc-400/30 rounded-xl p-4 space-y-3">
+                    <div className="shimmer-light h-3.5 w-16 rounded" />
+                    <div className="flex gap-2">
+                      <div className="shimmer-light flex-1 h-10 rounded-xl" />
+                      <div className="shimmer-light flex-1 h-10 rounded-xl" />
+                    </div>
+                    <div className="flex gap-3">
+                      <div className="shimmer-light flex-[6] h-10 rounded-xl" />
+                      <div className="shimmer-light flex-[3] h-10 rounded-xl" />
+                    </div>
+                  </div>
+                </div>
               ) : !detalleData ? (
                 <p className="text-zinc-500 text-sm text-center py-4">Sin cartera registrada</p>
               ) : (
                 <>
                   {detalleData.DetalleCartera?.filter((d: any) => d.estado !== 'pagada').length > 0 && (
                     <div className="space-y-1.5">
-                      <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wide">Facturas pendientes</p>
+                      <p className="text-zinc-300 text-sm font-semibold uppercase tracking-wide">Facturas pendientes</p>
                       {detalleData.DetalleCartera.filter((d: any) => d.estado !== 'pagada').map((d: any) => {
                         const saldo = Math.max(0, Number(d.valorFactura ?? d.valor) - Number(d.abonos ?? 0))
                         const seleccionada = facturasSeleccionadas.includes(d.id)
                         return (
-                          <label key={d.id} className={`flex items-center gap-3 bg-zinc-800 border rounded-xl px-4 py-2.5 cursor-pointer transition-colors ${seleccionada ? 'border-emerald-500/50' : 'border-zinc-700 hover:border-zinc-600'}`}>
+                          <label key={d.id} className={`flex items-center gap-3 bg-zinc-500/40 border rounded-xl px-4 py-2.5 cursor-pointer transition-colors ${seleccionada ? 'border-emerald-400/60' : 'border-zinc-400/30 hover:border-zinc-300/50'}`}>
                             <input type="checkbox" checked={seleccionada}
                               onChange={e => setFacturasSeleccionadas(prev => e.target.checked ? [...prev, d.id] : prev.filter(x => x !== d.id))}
                               className="accent-emerald-500 flex-shrink-0" />
                             <div className="flex-1 min-w-0">
-                              {d.numeroFactura && <p className="text-white text-xs font-medium">Fact. {d.numeroFactura}</p>}
+                              {d.numeroFactura && <p className="text-white text-sm font-medium">Fact. {d.numeroFactura}</p>}
                               {d.concepto && <p className="text-zinc-400 text-xs truncate">{d.concepto}</p>}
-                              {d.fechaVencimiento && <p className="text-zinc-500 text-xs">Vence: {new Date(d.fechaVencimiento).toLocaleDateString('es-CO', {timeZone:'America/Bogota'})}</p>}
+                              {d.fechaVencimiento && <p className="text-zinc-400 text-xs mt-0.5">Vence: {new Date(d.fechaVencimiento).toLocaleDateString('es-CO', {timeZone:'America/Bogota'})}</p>}
                             </div>
                             <div className="text-right flex-shrink-0">
-                              <p className="text-white text-sm font-semibold">{fmt(saldo)}</p>
+                              <p className="text-white text-base font-bold">{fmt(saldo)}</p>
                               <span className="text-xs text-zinc-400">{d.estadoLabel || d.estado}</span>
                             </div>
                           </label>
@@ -1448,16 +1470,12 @@ export default function DashboardPage() {
                       })}
                     </div>
                   )}
-                  {facturasSeleccionadas.length > 0 && (
-                    <p className="text-zinc-500 text-xs text-right">
-                      Deuda seleccionada: <span className="text-white font-semibold">{fmt(montoSeleccionado)}</span>
-                    </p>
-                  )}
+
                   <div className="space-y-3">
                     {lineasPago.map((linea, idx) => (
-                      <div key={linea.id} className="bg-zinc-800 border border-zinc-700 rounded-xl p-4 space-y-3">
+                      <div key={linea.id} className="bg-zinc-500/40 border border-zinc-400/30 rounded-xl p-4 space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-zinc-400 text-xs font-semibold uppercase tracking-wide">Pago {idx + 1}</span>
+                          <span className="text-zinc-300 text-sm font-semibold uppercase tracking-wide">Pago {idx + 1}</span>
                           {lineasPago.length > 1 && (
                             <button onClick={() => setLineasPago(prev => prev.filter(l => l.id !== linea.id))}
                               className="text-zinc-500 hover:text-red-400 text-sm transition-colors">✕</button>
@@ -1466,7 +1484,7 @@ export default function DashboardPage() {
                         <div className="grid grid-cols-2 gap-2">
                           {(['efectivo', 'transferencia'] as const).map(met => (
                             <button key={met} onClick={() => setLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, metodoPago: met, voucherKey: null, voucherDatosIA: null, cargandoVoucher: false } : l))}
-                              className={`py-2 rounded-xl text-xs font-semibold border transition-colors ${linea.metodoPago === met ? 'bg-zinc-700 border-zinc-500 text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white'}`}>
+                              className={`py-2 rounded-xl text-xs font-semibold border transition-colors ${linea.metodoPago === met ? 'bg-zinc-400/20 border-zinc-300/50 text-white' : 'bg-zinc-700/40 border-zinc-400/30 text-zinc-300 hover:text-white'}`}>
                               {met === 'efectivo' ? '💵 Efectivo' : '📲 Transferencia'}
                             </button>
                           ))}
@@ -1474,16 +1492,16 @@ export default function DashboardPage() {
                         {linea.metodoPago === 'efectivo' && (
                           <div className="flex gap-3">
                             <div className="flex-[7]">
-                              <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Monto *</label>
+                              <label className="text-zinc-300 text-sm font-semibold block mb-1.5">Monto *</label>
                               <InputMoneda value={linea.monto}
                                 onChange={val => setLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, monto: val } : l))}
-                                className="w-full bg-zinc-700 border border-zinc-600 rounded-xl pr-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
+                                className="w-full bg-zinc-700/60 border border-zinc-400/30 rounded-xl pr-4 py-2.5 text-white text-sm outline-none focus:border-zinc-300 placeholder:text-zinc-400" />
                             </div>
                             <div className="flex-[3]">
-                              <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Descuento</label>
+                              <label className="text-zinc-300 text-sm font-semibold block mb-1.5">Descuento</label>
                               <InputMoneda value={linea.descuento} placeholder="0" prefix=""
                                 onChange={val => setLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, descuento: val } : l))}
-                                className="w-full bg-zinc-700 border border-zinc-600 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
+                                className="w-full bg-zinc-700/60 border border-zinc-400/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-zinc-300 placeholder:text-zinc-400" />
                             </div>
                           </div>
                         )}
@@ -1494,17 +1512,17 @@ export default function DashboardPage() {
                               onChange={e => { if (e.target.files?.[0]) subirVoucherArchivo(linea.id, e.target.files[0]) }} />
                             {!linea.voucherKey && !linea.cargandoVoucher && (
                               <button onClick={() => fileInputRefs.current.get(linea.id)?.click()}
-                                className="w-full bg-zinc-700 border border-dashed border-zinc-500 rounded-xl py-2.5 text-zinc-400 text-sm hover:text-white hover:border-zinc-400 transition-colors">
+                                className="w-full bg-zinc-500/30 border border-dashed border-zinc-400/40 rounded-xl py-2.5 text-zinc-300 text-sm hover:text-white hover:border-zinc-300 transition-colors">
                                 📎 Adjuntar comprobante
                               </button>
                             )}
                             {linea.cargandoVoucher && (
-                              <div className="bg-zinc-700 border border-zinc-600 rounded-xl px-4 py-3 text-zinc-400 text-sm text-center animate-pulse">
+                              <div className="bg-zinc-500/40 border border-zinc-400/30 rounded-xl px-4 py-3 text-zinc-300 text-sm text-center animate-pulse">
                                 Analizando comprobante con IA...
                               </div>
                             )}
                             {linea.voucherDatosIA && !linea.cargandoVoucher && (
-                              <div className="bg-zinc-700 border border-emerald-700/40 rounded-xl px-4 py-3 space-y-2.5">
+                              <div className="bg-zinc-500/40 border border-emerald-400/30 rounded-xl px-4 py-3 space-y-2.5">
                                 <div className="flex items-center justify-between">
                                   <span className="text-emerald-400 text-xs font-semibold">✅ Comprobante procesado</span>
                                   <button onClick={() => setLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, voucherKey: null, voucherDatosIA: null, monto: '', descuento: '' } : l))}
@@ -1523,10 +1541,10 @@ export default function DashboardPage() {
                                 <div className="flex-[7]">
                                   <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Monto (IA)</label>
                                   <InputMoneda value={linea.monto} readOnly
-                                    className="w-full bg-zinc-700/50 border border-zinc-600 rounded-xl pr-4 py-2.5 text-zinc-300 text-sm outline-none cursor-not-allowed" onChange={() => {}} />
+                                    className="w-full bg-zinc-700/40 border border-zinc-400/20 rounded-xl pr-4 py-2.5 text-zinc-400 text-sm outline-none cursor-not-allowed" onChange={() => {}} />
                                 </div>
                                 <div className="flex-[3]">
-                                  <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Descuento</label>
+                                  <label className="text-zinc-300 text-sm font-semibold block mb-1.5">Descuento</label>
                                   <InputMoneda value={linea.descuento} placeholder="0" prefix=""
                                     onChange={val => {
                                       const desc = val
@@ -1534,7 +1552,7 @@ export default function DashboardPage() {
                                         ? String(Math.max(0, Math.round(linea.voucherDatosIA.valor - Number(desc || 0)))) : linea.monto
                                       setLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, descuento: desc, monto: montoFinal } : l))
                                     }}
-                                    className="w-full bg-zinc-700 border border-zinc-600 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
+                                    className="w-full bg-zinc-700/60 border border-zinc-400/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-zinc-300 placeholder:text-zinc-400" />
                                 </div>
                               </div>
                             )}
@@ -1543,7 +1561,7 @@ export default function DashboardPage() {
                       </div>
                     ))}
                     <button onClick={() => setLineasPago(prev => [...prev, crearLinea()])}
-                      className="w-full bg-zinc-800 border border-dashed border-zinc-600 hover:border-zinc-500 text-zinc-400 hover:text-white text-sm py-2.5 rounded-xl transition-colors">
+                      className="w-full bg-black border border-dashed border-blue-500/25 hover:border-blue-500 text-zinc-400 hover:text-white text-sm py-2.5 rounded-xl transition-colors">
                       ＋ Agregar otro método
                     </button>
                   </div>
@@ -1552,20 +1570,20 @@ export default function DashboardPage() {
                     const totalPagado = lineasContables.reduce((s, l) => s + Number(l.monto || 0), 0)
                     const saldoRestante = montoSeleccionado - totalPagado
                     return (
-                      <div className="bg-zinc-800/60 border border-zinc-700 rounded-xl px-4 py-3 space-y-1.5">
-                        <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wide mb-2">Resumen</p>
+                      <div className="bg-zinc-500/40 border border-zinc-400/30 rounded-xl px-4 py-3 space-y-1.5">
+                        <p className="text-zinc-300 text-sm font-semibold uppercase tracking-wide mb-2">Resumen</p>
                         {lineasContables.map((l, i) => (
-                          <div key={l.id} className="flex justify-between items-center text-xs">
+                          <div key={l.id} className="flex justify-between items-center text-sm">
                             <span className="text-zinc-500">Pago {i + 1} · {l.metodoPago === 'efectivo' ? 'Efectivo' : 'Transferencia'}</span>
                             <span className="text-white font-medium">{l.monto ? fmt(Number(l.monto)) : '—'}</span>
                           </div>
                         ))}
                         <div className="border-t border-zinc-700 pt-1.5 mt-1.5 space-y-1">
-                          <div className="flex justify-between items-center text-xs">
+                          <div className="flex justify-between items-center text-sm">
                             <span className="text-zinc-400">Total pagado</span>
                             <span className="text-white font-bold">{fmt(totalPagado)}</span>
                           </div>
-                          <div className="flex justify-between items-center text-xs">
+                          <div className="flex justify-between items-center text-sm">
                             <span className="text-zinc-400">Deuda actual</span>
                             <span className="text-zinc-300">{fmt(montoSeleccionado)}</span>
                           </div>
@@ -1583,7 +1601,7 @@ export default function DashboardPage() {
                     <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Notas (opcional)</label>
                     <input value={notasPago} onChange={e => setNotasPago(e.target.value)}
                       placeholder="Observaciones..."
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
+                      className="w-full bg-zinc-700/60 border border-zinc-400/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-zinc-300 placeholder:text-zinc-400" />
                   </div>
                   <div className="flex justify-center pt-1">
                     <GpsIndicator estado={gpsRecaudo.estado} intento={gpsRecaudo.intento} max={gpsRecaudo.MAX_INTENTOS} pos={gpsRecaudo.pos} />
@@ -1605,47 +1623,7 @@ export default function DashboardPage() {
       )
     })()}
 
-    {modalSync && syncInfo?.tieneIntegracion && (
-      <div className="fixed inset-0 bg-black/60 z-50 flex items-start justify-center p-4 pt-20" onClick={() => setModalSync(false)}>
-        <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-5 max-w-md w-full" onClick={e => e.stopPropagation()}>
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-white font-bold text-lg">🔄 Sincronización</h3>
-            <button onClick={() => setModalSync(false)} className="text-zinc-500 hover:text-white text-xl">×</button>
-          </div>
-          <div className="space-y-3 text-sm">
-            <div className="bg-zinc-800/60 rounded-xl p-3">
-              <div className="text-zinc-400 text-xs mb-1">Última sincronización</div>
-              <div className="text-white font-semibold">
-                {syncInfo.ultimaSync
-                  ? new Date(syncInfo.ultimaSync).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'America/Bogota' })
-                  : 'Nunca'}
-              </div>
-            </div>
-            {syncInfo.historial && syncInfo.historial.length > 0 && (
-              <div className="bg-zinc-800/60 rounded-xl p-3 max-h-48 overflow-y-auto">
-                <div className="text-zinc-400 text-xs mb-2">Historial reciente</div>
-                <div className="space-y-1.5">
-                  {syncInfo.historial.slice(0, 5).map((h: any) => (
-                    <div key={h.id} className="text-xs flex justify-between">
-                      <span className="text-zinc-300">{new Date(h.inicio).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short', timeZone: 'America/Bogota' })}</span>
-                      <span className="text-zinc-500">
-                        {h.clientesActualizados} cli · {h.deudasSincronizadas} deu
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-          <button
-            onClick={() => { setModalSync(false); dispararSync() }}
-            disabled={sincronizando}
-            className="mt-4 w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold py-2.5 rounded-xl disabled:opacity-50">
-            {sincronizando ? 'Sincronizando...' : 'Sincronizar ahora'}
-          </button>
-        </div>
-      </div>
-    )}
+
     </div>
   )
 }

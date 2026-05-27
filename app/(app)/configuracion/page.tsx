@@ -678,7 +678,7 @@ export default function ConfiguracionPage() {
                           <span className="text-emerald-400">✅</span>
                           <p className="text-emerald-400 text-sm font-semibold">Conectado</p>
                         </div>
-                        {ultimaSync && <p className="text-zinc-500 text-xs mt-0.5">Última sync: {new Date(ultimaSync).toLocaleString('es-CO', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})}</p>}
+                        {ultimaSync && <p className="text-zinc-500 text-xs mt-0.5">Última sync: {new Date(ultimaSync).toLocaleString('es-CO', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'})}</p>}
 
                         {/* Bitácora sync */}
                         {syncHistorial.length > 0 && (
@@ -687,7 +687,7 @@ export default function ConfiguracionPage() {
                             <div className="space-y-1.5">
                               {syncHistorial.map((s: any) => {
                                 const durSeg = s.duracionMs ? Math.round(s.duracionMs / 1000) : null
-                                const fecha = new Date(s.inicio).toLocaleString('es-CO', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'})
+                                const fecha = new Date(s.inicio).toLocaleString('es-CO', {day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'})
                                 return (
                                   <div key={s.id} className={`rounded-xl px-3 py-2 text-xs border ${s.estado === 'error' ? 'bg-red-500/10 border-red-500/20' : 'bg-zinc-800/60 border-zinc-700/50'}`}>
                                     <div className="flex items-center justify-between gap-2 mb-1">

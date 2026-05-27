@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react'
 import { fechaHoyBogota, haceNDiasBogota } from '@/lib/fechas'
 import DataTable, { ColDef } from '@/components/DataTable'
 import { useSession } from 'next-auth/react'
-import { SyncIcon } from '@/components/SyncIcon'
 
 function fmtFecha(d: string | null | undefined) {
   if (!d) return '—'
@@ -287,13 +286,7 @@ export default function TrazabilidadPage() {
           className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'inventario' ? 'tab-active' : 'text-white hover:text-white'}`}>
           🏭 Inventario
         </button>
-        {['empresa','supervisor','superadmin','bodega'].includes(user?.role) && (
-          <button onClick={sincronizar} disabled={sincronizando}
-            className={`tab-btn flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-semibold disabled:opacity-50 ${sincronizando ? 'btn-shimmer' : ''}`}>
-            <SyncIcon spinning={sincronizando} className="w-3.5 h-3.5 text-blue-400" />
-            {sincronizando ? '...' : 'Sync'}
-          </button>
-        )}
+
         {/* Guía de estados */}
         <div style={{ position: 'relative', flexShrink: 0 }}>
           <button onClick={() => setGuiaOpen(v => !v)}

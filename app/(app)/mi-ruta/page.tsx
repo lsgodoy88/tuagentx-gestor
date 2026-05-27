@@ -226,7 +226,7 @@ export default function MiRutaPage() {
                 <span className="text-zinc-400 text-xs capitalize">{v.tipo}</span>
                 {v.monto && <span className="text-emerald-400 text-xs font-semibold">$<CountUp end={Number(v.monto)} duration={500} /></span>}
                 {v.nota && <span className="text-zinc-500 text-xs truncate">— {v.nota}</span>}
-                <span className="text-zinc-600 text-xs ml-auto">{new Date(v.createdAt).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })}</span>
+                <span className="text-zinc-600 text-xs ml-auto">{new Date(v.createdAt).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", timeZone: 'America/Bogota' })}</span>
               </div>
             ))}
           </div>

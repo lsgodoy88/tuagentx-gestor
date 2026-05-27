@@ -170,8 +170,8 @@ export default function ImpulsoDashboard() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className={'text-sm font-medium ' + (salida ? 'text-zinc-500' : 'text-white')}>{rc.cliente.nombre}</p>
-                    {entrada && <p className="text-zinc-500 text-xs">Entrada: {new Date(entrada.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'})}</p>}
-                    {salida && <p className="text-zinc-500 text-xs">Salida: {new Date(salida.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit'})}</p>}
+                    {entrada && <p className="text-zinc-500 text-xs">Entrada: {new Date(entrada.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})}</p>}
+                    {salida && <p className="text-zinc-500 text-xs">Salida: {new Date(salida.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})}</p>}
                   </div>
                   {salida && entrada && (
                     <span className="text-zinc-500 text-xs flex-shrink-0">
