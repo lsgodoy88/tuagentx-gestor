@@ -95,12 +95,12 @@ export default function ClienteCardRol({ cliente: c, rol, onVisita, onEntregar, 
 
         </div>
         {open && subtituloAbierto && (
-          <div style={{ fontSize: 12, color: '#c4c4c4', marginTop: 2 }}>
+          <div style={{ fontSize: 12, color: '#ffffff', marginTop: 2 }}>
             {subtituloAbierto}
           </div>
         )}
       </div>
-      <span style={{ fontSize: 11, color: '#9ca3af', flexShrink: 0 }}>{open ? '▲' : '▼'}</span>
+      <span style={{ fontSize: 11, color: '#ffffff', flexShrink: 0 }}>{open ? '▲' : '▼'}</span>
     </div>
   )
 
@@ -114,7 +114,7 @@ export default function ClienteCardRol({ cliente: c, rol, onVisita, onEntregar, 
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               gap: 4, flex: 1, padding: '7px 0', borderRadius: 9,
-              background: '#18181b', color: '#9ca3af',
+              background: '#18181b', color: '#ffffff',
               border: '1px solid #27272a', textDecoration: 'none',
               fontSize: 13, fontWeight: 600, cursor: 'pointer',
             }}>
@@ -159,7 +159,7 @@ export default function ClienteCardRol({ cliente: c, rol, onVisita, onEntregar, 
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               gap: 4, flex: 1, height: 36, borderRadius: 9,
-              background: '#18181b', color: '#c4c4c4',
+              background: '#18181b', color: '#ffffff',
               border: '1px solid #27272a', textDecoration: 'none',
               fontSize: 13, fontWeight: 500, cursor: 'pointer',
             }}>
@@ -232,7 +232,7 @@ export default function ClienteCardRol({ cliente: c, rol, onVisita, onEntregar, 
             <div style={{ display: 'flex', gap: 8, margin: '8px 0 4px' }}>
               {c.telefono && (
                 <div style={{ flex: 1, background: '#18181b', borderRadius: 9, padding: '5px 8px' }}>
-                  <div style={{ fontSize: 11, color: '#c4c4c4' }}>Celular</div>
+                  <div style={{ fontSize: 11, color: '#ffffff' }}>Celular</div>
                   <div style={{ fontSize: 13, color: '#d1d5db', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {c.telefono}
                   </div>
@@ -240,7 +240,7 @@ export default function ClienteCardRol({ cliente: c, rol, onVisita, onEntregar, 
               )}
               {c.ciudad && (
                 <div style={{ flex: 1, background: '#18181b', borderRadius: 9, padding: '5px 8px' }}>
-                  <div style={{ fontSize: 11, color: '#c4c4c4' }}>Ciudad</div>
+                  <div style={{ fontSize: 11, color: '#ffffff' }}>Ciudad</div>
                   <div style={{ fontSize: 13, color: '#d1d5db', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {c.ciudad}
                   </div>
@@ -253,7 +253,7 @@ export default function ClienteCardRol({ cliente: c, rol, onVisita, onEntregar, 
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8 }}>
                 <span>📍</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 11, color: '#c4c4c4' }}>Dirección</div>
+                  <div style={{ fontSize: 11, color: '#ffffff' }}>Dirección</div>
                   <div style={{ fontSize: 13, color: '#d1d5db', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {c.direccion}
                   </div>
@@ -308,7 +308,7 @@ export default function ClienteCardRol({ cliente: c, rol, onVisita, onEntregar, 
                         width: 30, height: 30, borderRadius: 8, flexShrink: 0,
                         background: '#18181b',
                         border: '1px solid #27272a',
-                        color: '#9ca3af', cursor: 'not-allowed',
+                        color: '#ffffff', cursor: 'not-allowed',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: 14,
                       }}

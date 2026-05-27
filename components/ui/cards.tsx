@@ -24,16 +24,11 @@ export function CardKPI({ children, stagger = 1, className = '', center = true }
   return (
     <div
       className={[
-        'rounded-2xl p-4 hover-lift fade-up',
-        `stagger-${stagger}`,
+        'rounded-2xl hover-lift',
         center ? 'flex flex-col items-center justify-center min-h-[110px]' : '',
         className,
       ].filter(Boolean).join(' ')}
-      style={{
-        background: 'rgba(255,255,255,0.08)',
-        border: '1px solid rgba(255,255,255,0.30)',
-        boxShadow: '0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',
-      } as CSSProperties}
+      style={{ background: 'rgba(8,8,28,0.88)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 14, padding: '10px 12px' } as CSSProperties}
     >
       {children}
     </div>
@@ -103,12 +98,8 @@ export function CardCountAdmin({
 }: CardCountAdminProps) {
   return (
     <div
-      className={`rounded-2xl p-4 hover-lift fade-up stagger-${stagger} flex flex-col items-center justify-center min-h-[110px]`}
-      style={{
-        background: 'rgba(255,255,255,0.08)',
-        border: '1px solid rgba(255,255,255,0.30)',
-        boxShadow: '0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',
-      } as CSSProperties}
+      className={`rounded-2xl hover-lift flex flex-col items-center justify-center min-h-[110px]`}
+      style={{ background: 'rgba(8,8,28,0.88)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 14, padding: '10px 12px' } as CSSProperties}
     >
       {/* Icon + label — más prominente */}
       <div className="flex items-center justify-center gap-1.5 mb-2">
@@ -141,7 +132,7 @@ export function CardDark({ children, className = '', style }: CardDarkProps) {
     <div
       className={['rounded-2xl fade-up', className].filter(Boolean).join(' ')}
       style={{
-        background: 'rgba(8,8,28,0.82)',
+        background: 'rgba(8,8,28,0.88)',
         border: '1px solid rgba(59,130,246,0.25)',
         ...style,
       } as CSSProperties}

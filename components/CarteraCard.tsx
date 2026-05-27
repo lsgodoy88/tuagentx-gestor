@@ -74,8 +74,8 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onWhatsA
     <div
       onClick={() => setOpen(o => !o)}
       style={{
-        background: variant === 'modal' ? 'rgba(71,85,105,0.5)' : 'rgba(24,24,27,0.98)',
-        border: `1px solid ${open ? 'rgba(59,130,246,0.40)' : 'rgba(63,63,70,1)'}`,
+        background: variant === 'modal' ? 'rgba(71,85,105,0.5)' : 'rgba(8,8,28,0.88)',
+        border: `1px solid ${open ? 'rgba(59,130,246,0.40)' : 'rgba(59,130,246,0.25)'}`,
         borderRadius: 14,
         padding: '10px 12px',
         cursor: 'pointer',
@@ -93,7 +93,7 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onWhatsA
           }} />
           {/* Nombre + icono sync */}
           <span style={{
-            fontSize: 14, fontWeight: 700, color: '#fff',
+            fontSize: 15, fontWeight: 700, color: '#fff',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
             {c.cliente?.nombre}
