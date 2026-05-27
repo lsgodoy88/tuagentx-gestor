@@ -7,10 +7,10 @@ import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { calcularEstado, estadoMasCritico } from '@/lib/cartera'
 import { CountUp, LiveDot, LoadingBorder } from '@/components/FX'
-import { SyncIcon } from '@/components/SyncIcon'
 import InputMoneda from '@/components/InputMoneda'
 import SelectorMes from '@/components/SelectorMes'
 import CarteraCard from '@/components/CarteraCard'
+import ModalRecaudo from '@/components/ModalRecaudo'
 import { ROLES_ADMIN } from '@/lib/auth-helpers'
 import type { PagoListado, ComisionVendedor } from '@/lib/types/cartera'
 
@@ -30,8 +30,8 @@ const ESTADO_CONFIG: Record<string, { label: string; color: string; border: stri
   vencida:  { label: '🟠 Vencida',     color: 'bg-orange-950/40',  border: 'border-orange-700/60', text: 'text-orange-400' },
   proxima:  { label: '⚠️ Por vencer',  color: 'bg-amber-950/40',   border: 'border-amber-700/60',  text: 'text-amber-400' },
   pendiente:{ label: '🟡 Pendiente',   color: 'bg-yellow-950/40',  border: 'border-yellow-700/60', text: 'text-yellow-400' },
-  vigente:  { label: '🔵 Vigente',     color: 'bg-blue-950/40',    border: 'border-blue-700/60',   text: 'text-blue-400' },
-  abonada:  { label: '🔵 Abonada',     color: 'bg-blue-950/40',    border: 'border-blue-700/60',   text: 'text-blue-400' },
+  vigente:  { label: '🔵 Vigente',     color: 'bg-blue-950/40',    border: 'border-blue-500/30',   text: 'text-blue-400' },
+  abonada:  { label: '🔵 Abonada',     color: 'bg-blue-950/40',    border: 'border-blue-500/30',   text: 'text-blue-400' },
   pagada:   { label: '✅ Pagada',      color: 'bg-emerald-950/40', border: 'border-emerald-700/60',text: 'text-emerald-400' },
 }
 
@@ -266,7 +266,7 @@ export default function CarteraPage() {
         })(),
         numeroFactura: d.numeroFactura || d.numeroOrden,
         fechaVencimiento: d.fechaVencimiento,
-        concepto: d.numeroOrden ? `Orden ${d.numeroOrden}` : null,
+        concepto: null,
         _sync: true,
       }))
       detalleCartera.DetalleCartera = detallesNorm
@@ -431,12 +431,7 @@ export default function CarteraPage() {
           <button key={t.id} onClick={() => setTab(t.id as any)}
             className={`flex-1 py-2 text-sm font-semibold transition-colors ${tab === t.id ? 'tab-active' : 'text-white hover:text-white'}`}>{t.label}</button>
         ))}
-        {(esAdmin || esVendedor) && (
-          <button onClick={() => esAdmin ? setModalSync(true) : sincronizar()} disabled={sincronizando}
-            className={`tab-btn flex-shrink-0 flex items-center gap-1.5 px-3 py-2 text-xs font-semibold disabled:opacity-50 ${sincronizando ? 'btn-shimmer' : ''}`}>
-            <SyncIcon spinning={sincronizando} className="w-3.5 h-3.5 text-blue-400" /><span className="hidden md:inline">{sincronizando ? '...' : 'Sync'}</span>
-          </button>
-        )}
+
       </div>
 
       {tab === 'cartera' && (<div key='tab-cartera' className='fade-up'>
@@ -825,6 +820,7 @@ export default function CarteraPage() {
                 fmt={fmt}
                 onRecaudar={() => abrirRecaudar(c)}
                 onWhatsApp={() => abrirWhatsApp(c)}
+                variant="lista"
               />
             ))}
             {filtradas.length === 0 && (
@@ -1097,252 +1093,21 @@ export default function CarteraPage() {
 
       {/* Modal Recaudar */}
       {recaudandoCartera && (
-        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md space-y-4 max-h-[90vh] overflow-y-auto">
-            {/* Header */}
-            <div className="flex items-center justify-between px-6 pt-5">
-              <h3 className="text-white font-bold text-lg">💳 Recaudar</h3>
-              <button onClick={() => setRecaudandoCartera(null)}
-                className="text-zinc-500 hover:text-white text-xl">×</button>
-            </div>
-
-            <div className="px-6 space-y-4 pb-6">
-              <div className="bg-zinc-800 rounded-xl px-4 py-3">
-                <p className="text-white font-medium text-sm">{recaudandoCartera.cliente?.nombre}</p>
-                {recaudandoCartera.cliente?.nit && <p className="text-zinc-400 text-xs">NIT: {recaudandoCartera.cliente.nit}</p>}
-              </div>
-
-              {loadingDetalle ? (
-                <div className="space-y-2">{Array.from({length:3}).map((_,i)=><div key={i} className="shimmer rounded-xl h-12"/>)}</div>
-              ) : !detalleData ? (
-                <p className="text-zinc-500 text-sm text-center py-4">Sin cartera registrada</p>
-              ) : (
-                <>
-                  {/* Facturas pendientes */}
-                  {detalleData.DetalleCartera?.filter((d: any) => d.estado !== 'pagada').length > 0 && (
-                    <div className="space-y-1.5">
-                      <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wide">Facturas pendientes</p>
-                      {detalleData.DetalleCartera.filter((d: any) => d.estado !== 'pagada').map((d: any) => {
-                        const vf = Number(d.valorFactura ?? d.valor)
-                        const ab = Number(d.abonos ?? 0)
-                        const saldo = Math.max(0, vf - ab)
-                        const seleccionada = facturasSeleccionadas.includes(d.id)
-                        return (
-                          <label key={d.id} className={`flex items-center gap-3 bg-zinc-800 border rounded-xl px-4 py-2.5 cursor-pointer transition-colors ${
-                            seleccionada ? 'border-emerald-500/50' : 'border-zinc-700 hover:border-zinc-600'
-                          }`}>
-                            <input type="checkbox" checked={seleccionada}
-                              onChange={e => setFacturasSeleccionadas(prev => e.target.checked ? [...prev, d.id] : prev.filter(x => x !== d.id))}
-                              className="accent-emerald-500 flex-shrink-0" />
-                            <div className="flex-1 min-w-0">
-                              {d.numeroFactura && <p className="text-white text-xs font-medium">Fact. {d.numeroFactura}</p>}
-                              {d.concepto && <p className="text-zinc-400 text-xs truncate">{d.concepto}</p>}
-                              {d.fechaVencimiento && <p className="text-zinc-500 text-xs">Vence: {new Date(d.fechaVencimiento).toLocaleDateString('es-CO', {timeZone:'America/Bogota'})}</p>}
-                            </div>
-                            <div className="text-right flex-shrink-0">
-                              <p className="text-white text-sm font-semibold">{fmt(saldo)}</p>
-                              <span className={`text-xs ${
-                                d.estadoColor === 'red' ? 'text-red-400' :
-                                d.estadoColor === 'rose' ? 'text-rose-400' :
-                                d.estadoColor === 'orange' ? 'text-orange-400' :
-                                d.estadoColor === 'amber' ? 'text-amber-400' :
-                                d.estadoColor === 'yellow' ? 'text-yellow-400' :
-                                d.estadoColor === 'blue' ? 'text-blue-400' :
-                                d.estadoColor === 'emerald' ? 'text-emerald-400' :
-                                'text-zinc-400'
-                              }`}>
-                                {d.estadoLabel || d.estado}
-                              </span>
-                            </div>
-                          </label>
-                        )
-                      })}
-                    </div>
-                  )}
-
-                  {facturasSeleccionadas.length > 0 && (
-                    <p className="text-zinc-500 text-xs text-right">
-                      Deuda seleccionada: <span className="text-white font-semibold">{fmt(montoSeleccionado)}</span>
-                    </p>
-                  )}
-
-                  {/* Líneas de pago */}
-                  <div className="space-y-3">
-                    {lineasPago.map((linea, idx) => (
-                      <div key={linea.id} className="bg-zinc-800 border border-zinc-700 rounded-xl p-4 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <span className="text-zinc-400 text-xs font-semibold uppercase tracking-wide">Pago {idx + 1}</span>
-                          {lineasPago.length > 1 && (
-                            <button onClick={() => setLineasPago(prev => prev.filter(l => l.id !== linea.id))}
-                              className="text-zinc-500 hover:text-red-400 text-sm transition-colors">✕</button>
-                          )}
-                        </div>
-
-                        {/* Botones método */}
-                        <div className="grid grid-cols-2 gap-2">
-                          {(['efectivo', 'transferencia'] as const).map(met => (
-                            <button key={met} onClick={() => setLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, metodoPago: met, voucherKey: null, voucherDatosIA: null, cargandoVoucher: false } : l))}
-                              className={`py-2 rounded-xl text-xs font-semibold border transition-colors ${
-                                linea.metodoPago === met ? 'bg-zinc-700 border-zinc-500 text-white' : 'bg-zinc-900 border-zinc-700 text-zinc-400 hover:text-white'
-                              }`}>
-                              {met === 'efectivo' ? '💵 Efectivo' : '📲 Transferencia'}
-                            </button>
-                          ))}
-                        </div>
-
-                        {/* Efectivo: monto + descuento */}
-                        {linea.metodoPago === 'efectivo' && (
-                          <div className="flex gap-3">
-                            <div className="flex-[6]">
-                              <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Monto *</label>
-                              <InputMoneda value={linea.monto}
-                                onChange={val => setLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, monto: val } : l))}
-                                className="w-full bg-zinc-700 border border-zinc-600 rounded-xl pr-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
-                            </div>
-                            <div className="flex-[4]">
-                              <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Descuento</label>
-                              <InputMoneda value={linea.descuento} placeholder="0" prefix=""
-                                onChange={val => setLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, descuento: val } : l))}
-                                className="w-full bg-zinc-700 border border-zinc-600 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Transferencia: voucher primero, luego monto bloqueado */}
-                        {linea.metodoPago === 'transferencia' && (
-                          <div className="space-y-3">
-                            <input type="file" accept="image/*,application/pdf" className="hidden"
-                              ref={el => { if (el) fileInputRefs.current.set(linea.id, el); else fileInputRefs.current.delete(linea.id) }}
-                              onChange={e => { if (e.target.files?.[0]) subirVoucherArchivo(linea.id, e.target.files[0]) }} />
-
-                            {!linea.voucherKey && !linea.cargandoVoucher && (
-                              <button onClick={() => fileInputRefs.current.get(linea.id)?.click()}
-                                className="w-full bg-zinc-700 border border-dashed border-zinc-500 rounded-xl py-2.5 text-zinc-400 text-sm hover:text-white hover:border-zinc-400 transition-colors">
-                                📎 Adjuntar comprobante
-                              </button>
-                            )}
-
-                            {linea.cargandoVoucher && (
-                              <div className="bg-zinc-700 border border-zinc-600 rounded-xl px-4 py-3 text-zinc-400 text-sm text-center animate-pulse">
-                                Analizando comprobante con IA...
-                              </div>
-                            )}
-
-                            {linea.voucherDatosIA && !linea.cargandoVoucher && (
-                              <div className="bg-zinc-700 border border-emerald-700/40 rounded-xl px-4 py-3 space-y-2.5">
-                                <div className="flex items-center justify-between">
-                                  <span className="text-emerald-400 text-xs font-semibold">✅ Comprobante procesado</span>
-                                  <button onClick={() => setLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, voucherKey: null, voucherDatosIA: null, monto: '', descuento: '' } : l))}
-                                    className="text-zinc-500 hover:text-red-400 text-xs transition-colors">✕ Quitar</button>
-                                </div>
-                                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                                  {linea.voucherDatosIA.valor != null && (
-                                    <div><span className="text-zinc-500">Valor:</span> <span className="text-white font-semibold">{fmt(linea.voucherDatosIA.valor)}</span></div>
-                                  )}
-                                  {linea.voucherDatosIA.fecha && (
-                                    <div className="whitespace-nowrap"><span className="text-zinc-500">Fecha:</span> <span className="text-white">{linea.voucherDatosIA.fecha}</span></div>
-                                  )}
-                                  {linea.voucherDatosIA.banco && (
-                                    <div className="col-span-2"><span className="text-zinc-500">Banco:</span> <span className="text-white">{linea.voucherDatosIA.banco}</span></div>
-                                  )}
-                                  {linea.voucherDatosIA.referencia && (
-                                    <div className="col-span-2"><span className="text-zinc-500">Ref:</span> <span className="text-white">{linea.voucherDatosIA.referencia}</span></div>
-                                  )}
-                                </div>
-                              </div>
-                            )}
-
-                            {/* Monto bloqueado + descuento — solo después del voucher */}
-                            {linea.voucherDatosIA && (
-                              <div className="flex gap-3">
-                                <div className="flex-[6]">
-                                  <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Monto (IA)</label>
-                                  <InputMoneda value={linea.monto} readOnly
-                                    className="w-full bg-zinc-700/50 border border-zinc-600 rounded-xl pr-4 py-2.5 text-zinc-300 text-sm outline-none cursor-not-allowed" onChange={() => {}} />
-                                </div>
-                                <div className="flex-[4]">
-                                  <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Descuento</label>
-                                  <InputMoneda value={linea.descuento} placeholder="0" prefix=""
-                                    onChange={val => setLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, descuento: val } : l))}
-                                    className="w-full bg-zinc-700 border border-zinc-600 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-
-                    <button onClick={() => setLineasPago(prev => [...prev, crearLinea()])}
-                      className="w-full bg-zinc-800 border border-dashed border-zinc-600 hover:border-zinc-500 text-zinc-400 hover:text-white text-sm py-2.5 rounded-xl transition-colors">
-                      ＋ Agregar otro método
-                    </button>
-                  </div>
-
-                  {/* Resumen */}
-                  {(() => {
-                    const lineasContables = lineasPago.filter(l => l.metodoPago === 'efectivo' || l.voucherDatosIA)
-                    const totalPagado = lineasContables.reduce((s, l) => s + Number(l.monto || 0), 0)
-                    const totalDescuento = lineasContables.reduce((s, l) => s + Number(l.descuento || 0), 0)
-                    const totalAbonado = totalPagado + totalDescuento
-                    const saldoRestante = montoSeleccionado - totalAbonado
-                    return (
-                      <div className="bg-zinc-800/60 border border-zinc-700 rounded-xl px-4 py-3 space-y-1.5">
-                        <p className="text-zinc-400 text-xs font-semibold uppercase tracking-wide mb-2">Resumen</p>
-                        {lineasContables.map((l, i) => (
-                          <div key={l.id} className="flex justify-between items-center text-xs">
-                            <span className="text-zinc-500">Pago {i + 1} · {l.metodoPago === 'efectivo' ? 'Efectivo' : 'Transferencia'}</span>
-                            <span className="text-white font-medium">{l.monto ? fmt(Number(l.monto)) : '—'}</span>
-                          </div>
-                        ))}
-                        <div className="border-t border-zinc-700 pt-1.5 mt-1.5 space-y-1">
-                          <div className="flex justify-between items-center text-xs">
-                            <span className="text-zinc-400">Total pagado</span>
-                            <span className="text-white font-bold">{fmt(totalPagado)}</span>
-                          </div>
-                          {totalDescuento > 0 && (
-                            <div className="flex justify-between items-center text-xs">
-                              <span className="text-zinc-400">Descuento</span>
-                              <span className="text-orange-400 font-bold">{fmt(totalDescuento)}</span>
-                            </div>
-                          )}
-                          <div className="flex justify-between items-center text-xs">
-                            <span className="text-zinc-400">Deuda actual</span>
-                            <span className="text-zinc-300">{fmt(montoSeleccionado)}</span>
-                          </div>
-                          <div className="flex justify-between items-center text-sm font-bold">
-                            <span className="text-zinc-300">Saldo restante</span>
-                            <span className={saldoRestante === 0 ? 'text-emerald-400' : saldoRestante > 0 ? 'text-yellow-400' : 'text-red-400'}>
-                              {saldoRestante < 0 ? `${fmt(Math.abs(saldoRestante))} de más` : fmt(saldoRestante)}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })()}
-
-                  {/* Notas */}
-                  <div>
-                    <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Notas (opcional)</label>
-                    <input value={notasPago} onChange={e => setNotasPago(e.target.value)}
-                      placeholder="Observaciones..."
-                      className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
-                  </div>
-
-                  <div className="flex gap-2 pt-1">
-                    <button onClick={() => setRecaudandoCartera(null)}
-                      className="flex-1 bg-zinc-800 text-white text-sm py-3 rounded-xl">Cancelar</button>
-                    <button onClick={registrarPago}
-                      disabled={guardandoPago || lineasPago.some(l => l.metodoPago === 'transferencia' && !l.voucherKey) || lineasPago.filter(l => l.metodoPago === 'efectivo' || l.voucherDatosIA).reduce((s, l) => s + Number(l.monto || 0), 0) === 0}
-                      className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold text-sm py-3 rounded-2xl">
-                      {guardandoPago ? 'Guardando...' : 'Confirmar pago'}
-                    </button>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+        <ModalRecaudo
+          cartera={recaudandoCartera}
+          detalleData={detalleData}
+          loadingDetalle={loadingDetalle}
+          lineasPago={lineasPago}
+          facturasSeleccionadas={facturasSeleccionadas}
+          procesando={guardandoPago}
+          fmt={fmt}
+          onClose={() => setRecaudandoCartera(null)}
+          onSetLineasPago={setLineasPago}
+          onSetFacturasSeleccionadas={setFacturasSeleccionadas}
+          onSubirVoucher={subirVoucherArchivo}
+          onConfirmar={registrarPago}
+          crearLinea={crearLinea}
+        />
       )}
     </div>
 
