@@ -98,6 +98,7 @@ export async function GET(req: NextRequest) {
       : saldoNuevo + montoPago
 
     carteraData = {
+      _modo: 'sync',
       cliente,
       empresa,
       DetalleCartera: detalleCartera,
