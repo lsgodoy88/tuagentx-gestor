@@ -22,9 +22,18 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   const adapter = new UpTresAdapter(apiKey, apiSecret)
   await adapter.login()
 
-  // Ventana delta: desde ultimaSyncBodega, fallback 2 días
+  // Usar MAX(fechaFactura UTC) como from — fecha de factura UpTres (invoicedAt)
+  // Más preciso que ultimaSyncBodega: refleja cuándo UpTres registró la última factura
+  const maxFactura = await (prisma as any).ordenDespacho.findFirst({
+    where: { empresaId: destino, isFacturada: true, fechaFactura: { not: null } },
+    orderBy: { fechaFactura: 'desc' },
+    select: { fechaFactura: true }
+  })
   const empresa = await prisma.empresa.findUnique({ where: { id: destino }, select: { ultimaSyncBodega: true } })
-  const desde = empresa?.ultimaSyncBodega ?? new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+  // Prioridad: MAX(fechaFactura) → ultimaSyncBodega → 2 días atrás
+  const baseDesde = maxFactura?.fechaFactura || empresa?.ultimaSyncBodega
+    || new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+  const desde = new Date(baseDesde.getTime() - 30 * 60 * 1000) // solapamiento 30min
 
   const ordenes = await adapter.fetchVentas(desde)
   // #3 fix: si no hay órdenes, avanzar ultimaSyncBodega a now() — el delta corrió OK
