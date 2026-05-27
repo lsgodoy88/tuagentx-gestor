@@ -93,7 +93,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   })
 
   // ── SyncDeuda — órdenes de crédito nuevas ────────────────────────────────
-  const ordenesCredito = ordenes.filter((o: any) =>
+  const ordenesCredito = ordenesValidas.filter((o: any) =>
     (o as any).paymentType === 'credito' &&
     parseFloat((o as any).balance ?? '0') > 0 &&
     (o as any).isActiva !== false
@@ -123,17 +123,9 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   }))
 
   // ── Transacción ───────────────────────────────────────────────────────────
-  const canceladasIds = ordenes.filter((o: any) => (o as any).isActiva === false).map((o: any) => String(o.uid || o._id))
+  const canceladasIds = ordenesValidas.filter((o: any) => (o as any).isActiva === false).map((o: any) => String(o.uid || o._id))
 
-  // Solución real: avanzar ultimaSyncBodega a la fecha más reciente de las órdenes
-  // recibidas - 5 min de solapamiento. Así nunca se salta órdenes por desfaces de tiempo.
-  // Si todas son más viejas que 'desde', mantener 'desde' para no retroceder.
-  const fechasOrdenes = ordenes
-    .map((o: any) => o.fCreado ? new Date(o.fCreado as string).getTime() : 0)
-    .filter(t => t > 0)
-  const maxFechaOrden = fechasOrdenes.length > 0 ? Math.max(...fechasOrdenes) : 0
-  // Avanzar a now() siempre — el delta corrió correctamente
-  // Si hay órdenes futuras al próximo ciclo se solapan naturalmente
+  // ultimaSyncBodega avanza a now() — el delta corrió correctamente
   const proximoDesde = new Date()
 
   await prisma.$transaction(async (tx: any) => {
