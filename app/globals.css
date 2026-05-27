@@ -395,48 +395,6 @@ body {
   }
 }
 
-/* En móvil desactivar las animaciones de fondo más pesadas (GPU-intensive) */
-@media (max-width: 768px) {
-  .glow-pulse,
-  .shimmer-wave,
-  .gradient-flow {
-    animation: none !important;
-  }
-  /* Desactivar backdrop-blur globalmente en móvil — muy costoso en GPU bajo */
-  .backdrop-blur-sm,
-  .bg-zinc-900,
-  .bg-zinc-800,
-  .bg-zinc-950,
-  .bg-zinc-700 {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-  /* Fondos semi-sólidos — visualmente casi igual sin costo de GPU */
-  .bg-zinc-900 {
-    background-color: rgba(10, 10, 18, 0.96) !important;
-  }
-  .bg-zinc-800 {
-    background-color: rgba(18, 18, 28, 0.96) !important;
-  }
-  .bg-zinc-950 {
-    background-color: rgba(5, 5, 12, 0.98) !important;
-  }
-  /* Desactivar animación de nodos del sidebar en móvil */
-  .sidebar-overlay::before,
-  .sidebar-overlay::after {
-    animation: none !important;
-    display: none;
-  }
-  /* live-ping solo si no hay prefers-reduced-motion */
-  .live-ping {
-    animation-duration: 3s;
-  }
-  /* driftNodes — costoso */
-  .drift-nodes {
-    animation: none !important;
-  }
-}
-
 /* ── Glassmorphism global ──────────────────────────────────────────
    Sobreescribe los fondos sólidos de Tailwind para que el fondo
    de imagen del dashboard sea visible a través de las cards.
@@ -513,6 +471,50 @@ body {
   -webkit-backdrop-filter: blur(20px) !important;
   border-top: 1px solid rgba(255,255,255,0.08) !important;
 }
+
+
+/* En móvil desactivar las animaciones de fondo más pesadas (GPU-intensive) */
+@media (max-width: 768px) {
+  .glow-pulse,
+  .shimmer-wave,
+  .gradient-flow {
+    animation: none !important;
+  }
+  /* Desactivar backdrop-blur globalmente en móvil — muy costoso en GPU bajo */
+  .backdrop-blur-sm,
+  .bg-zinc-900,
+  .bg-zinc-800,
+  .bg-zinc-950,
+  .bg-zinc-700 {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+  /* Fondos semi-sólidos — visualmente casi igual sin costo de GPU */
+  .bg-zinc-900 {
+    background-color: rgba(10, 10, 18, 0.96) !important;
+  }
+  .bg-zinc-800 {
+    background-color: rgba(18, 18, 28, 0.96) !important;
+  }
+  .bg-zinc-950 {
+    background-color: rgba(5, 5, 12, 0.98) !important;
+  }
+  /* Desactivar animación de nodos del sidebar en móvil */
+  .sidebar-overlay::before,
+  .sidebar-overlay::after {
+    animation: none !important;
+    display: none;
+  }
+  /* live-ping solo si no hay prefers-reduced-motion */
+  .live-ping {
+    animation-duration: 3s;
+  }
+  /* driftNodes — costoso */
+  .drift-nodes {
+    animation: none !important;
+  }
+}
+
 
 /* ── Textos grises → blancos ───────────────────────────────────────
    Con el fondo oscuro del glass, los grises se pierden.
