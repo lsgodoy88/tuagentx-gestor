@@ -655,7 +655,7 @@ export default function MiRutaPage() {
                             </span>
                           )}
                           <span className="text-zinc-600 text-xs">
-                            {new Date(v.createdAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })}
+                            {new Date(v.createdAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })}
                           </span>
                         </div>
                       ))}

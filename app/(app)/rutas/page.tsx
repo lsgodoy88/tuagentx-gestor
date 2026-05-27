@@ -1055,7 +1055,7 @@ export default function RutasPage() {
               <p className="text-zinc-400">Factura: <span className="text-blue-400 font-semibold">{visitaModal.factura || 'Sin factura'}</span></p>
               {visitaModal.monto && <p className="text-zinc-400">Monto: <span className="text-emerald-400 font-semibold">${Number(visitaModal.monto).toLocaleString('es-CO')}</span></p>}
               {visitaModal.nota && <p className="text-zinc-400">Nota: <span className="text-white">{visitaModal.nota}</span></p>}
-              <p className="text-zinc-400">Fecha: <span className="text-white">{new Date(new Date(visitaModal.createdAt).getTime() - 5*60*60*1000).toLocaleString('es-CO', {day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit'})}</span></p>
+              <p className="text-zinc-400">Fecha: <span className="text-white">{new Date(visitaModal.createdAt).toLocaleString('es-CO', {day:'numeric', month:'long', year:'numeric', hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})}</span></p>
             </div>
             {visitaModal.firma && (
               <div className="bg-white rounded-xl p-2">
