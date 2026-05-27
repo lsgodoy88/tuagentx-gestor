@@ -669,7 +669,7 @@ export default function RecaudosPage() {
               else              { await enviarTodos();         setValidadoTodos(false) }
             }}
             disabled={enviandoTodos || enviandoSeleccionados}
-            style={{border:'1px solid rgba(96,165,250,0.5)',background:'rgba(37,99,235,0.35)',backdropFilter:'blur(8px)',WebkitBackdropFilter:'blur(8px)',borderRadius:'0.75rem',color:'white',boxShadow:'0 4px 16px rgba(37,99,235,0.4)',display:'flex',alignItems:'center',gap:'6px',padding:'10px 20px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
+            style={{border:'1px solid rgba(96,165,250,0.5)',background:'rgba(37,99,235,0.35)',borderRadius:'0.75rem',color:'white',boxShadow:'0 4px 16px rgba(37,99,235,0.4)',display:'flex',alignItems:'center',gap:'6px',padding:'10px 20px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
             {enviandoTodos || enviandoSeleccionados
               ? '⏳ Enviando...'
               : haySeleccion ? `📤 Enviar (${seleccionados.size})` : '📤 Enviar todos'}
