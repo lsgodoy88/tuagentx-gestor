@@ -5,6 +5,12 @@ import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 import { calcularEstado } from '@/lib/cartera'
 
+// UTC → Bogotá (UTC-5)
+function toBogota(utcDate: Date | null): Date | null {
+  if (!utcDate) return null
+  return new Date(utcDate.getTime() - 5 * 60 * 60 * 1000)
+}
+
 // ── Reconstruir CarteraCache ────────────────────────────────────────────────
 async function reconstruirCartera(integracionId: string, empresaId: string) {
   const deudas = await (prisma as any).syncDeuda.findMany({
@@ -104,7 +110,7 @@ export async function POST(req: NextRequest) {
     select: { id: true, empresaId: true, config: true }
   })
 
-  const resultados = []
+  const resultados: any[] = []
   for (const intg of integraciones) {
     try {
       const config = intg.config as any
@@ -182,6 +188,7 @@ export async function POST(req: NextRequest) {
         },
         data: { condition: false, sincronizadoEl: new Date() }
       })
+
 
       // Reconstruir CarteraCache
       const clientesActualizados = await reconstruirCartera(intg.id, intg.empresaId)
