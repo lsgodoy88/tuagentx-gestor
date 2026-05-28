@@ -148,6 +148,113 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     sincronizadoEl: new Date(),
   }))
 
+  // ── Clientes nuevos (desde MAX createdAtBogota en BD) ──────────────────────
+  // Solo trae clientes creados/modificados en UpTres desde la última introducción
+  // Protegido: insert-only por apiId, no sobreescribe datos locales existentes
+  let clientesNuevos = 0
+  try {
+    const maxClienteBogota = await (prisma as any).cliente.findFirst({
+      where: { empresaId: destino, creadoEnBogota: { not: null } },
+      orderBy: { creadoEnBogota: 'desc' },
+      select: { creadoEnBogota: true }
+    })
+    // Fallback: si no hay ninguno con creadoEnBogota, usar ultimaSyncBodega o 2 días
+    const baseCli = maxClienteBogota?.creadoEnBogota
+      || empresa?.ultimaSyncBodega
+      || new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+    const desdeCli = new Date(baseCli.getTime() - 30 * 60 * 1000) // solapamiento 30min
+
+    const clientesExt = await adapter.fetchClientes(desdeCli)
+    if (clientesExt.length > 0) {
+      // Solo insertar los que no existen por apiId — nunca sobreescribir
+      const apiIds = clientesExt.map((c: any) => c.uid).filter(Boolean)
+      const existentesApiId = await (prisma as any).cliente.findMany({
+        where: { empresaId: destino, apiId: { in: apiIds } },
+        select: { apiId: true }
+      })
+      const existentesSet = new Set(existentesApiId.map((e: any) => e.apiId))
+      const nuevosCli = clientesExt.filter((c: any) => c.uid && !existentesSet.has(c.uid))
+      if (nuevosCli.length > 0) {
+        await (prisma as any).cliente.createMany({
+          data: nuevosCli.map((c: any) => ({
+            nombre: `${c.name || ''} ${c.lastName || ''}`.trim() || 'Sin nombre',
+            nombreComercial: c.nombreComercial || null,
+            direccion: c.dir || null,
+            telefono: c.nCel || null,
+            email: c.email || null,
+            ciudad: c.ciudad || null,
+            departamento: c.departamento || null,
+            apiId: c.uid,
+            empresaId: destino,
+            // fecha UpTres updatedAt UTC → Bogotá al introducir
+            creadoEnBogota: c.fModificado ? toBogota(new Date(c.fModificado)) : toBogota(new Date()),
+          })),
+          skipDuplicates: true,
+        })
+        clientesNuevos = nuevosCli.length
+      }
+    }
+  } catch (err: any) {
+    // No romper el flujo principal si clientes falla
+    console.error('[delta] clientes error:', err.message)
+  }
+
+  // ── Deudas nuevas (desde MAX createdAtBogota en SyncDeuda) ──────────────────
+  // Solo trae deudas de crédito creadas desde la última introducción
+  // Protegido: skipDuplicates por (integracionId, externalId) — nunca duplica
+  let deudasNuevasDelta = 0
+  try {
+    const maxDeudaBogota = await (prisma as any).syncDeuda.findFirst({
+      where: { integracionId, createdAtBogota: { not: null } },
+      orderBy: { createdAtBogota: 'desc' },
+      select: { createdAtBogota: true }
+    })
+    const baseDeuda = maxDeudaBogota?.createdAtBogota
+      || empresa?.ultimaSyncBodega
+      || new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+    const desdeDeuda = new Date(baseDeuda.getTime() - 30 * 60 * 1000) // solapamiento 30min
+
+    const deudasExt = await adapter.fetchDeudas(desdeDeuda)
+    if (deudasExt.length > 0) {
+      const extIds = deudasExt.map((d: any) => String(d.uid || d._id)).filter(Boolean)
+      const existentesDeuda = await (prisma as any).syncDeuda.findMany({
+        where: { integracionId, externalId: { in: extIds } },
+        select: { externalId: true }
+      })
+      const existentesDeudaSet = new Set(existentesDeuda.map((d: any) => d.externalId))
+      const nuevasDeudas = deudasExt.filter((d: any) => {
+        const extId = String(d.uid || d._id || '')
+        return extId && !existentesDeudaSet.has(extId)
+      })
+      if (nuevasDeudas.length > 0) {
+        await (prisma as any).syncDeuda.createMany({
+          data: nuevasDeudas.map((d: any) => ({
+            integracionId,
+            externalId: String(d.uid || d._id),
+            clienteApiId: d.cliente?.uid || '',
+            empleadoExternalId: d.empleado?.uid || null,
+            numeroOrden: d.numeroOrden ? parseInt(String(d.numeroOrden)) : null,
+            numeroFactura: d.numeroFacturado ? parseInt(String(d.numeroFacturado)) : null,
+            valor: parseFloat(d.vTotal ?? '0'),
+            saldo: parseFloat(d.vSaldo ?? '0'),
+            diasCredito: d.dias ? parseInt(String(d.dias)) : null,
+            condition: true,
+            data: d,
+            externalUpdatedAt: d.fModificado ? new Date(d.fModificado) : null,
+            sincronizadoEl: new Date(),
+            // fecha UpTres createdAt UTC → Bogotá al introducir — misma lógica que fechaOrdenBogota
+            createdAtBogota: d.fCreado ? toBogota(new Date(d.fCreado as string)) : toBogota(new Date()),
+          })),
+          skipDuplicates: true,
+        })
+        deudasNuevasDelta = nuevasDeudas.length
+      }
+    }
+  } catch (err: any) {
+    // No romper el flujo principal si deudas falla
+    console.error('[delta] deudas error:', err.message)
+  }
+
   // ── Transacción ───────────────────────────────────────────────────────────
   const canceladasIds = ordenesValidas.filter((o: any) => (o as any).isActiva === false).map((o: any) => String(o.uid || o._id))
 
@@ -232,14 +339,14 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   }, { timeout: 30000 })
 
   // Invalida Redis solo si hubo cambios reales
-  if (toCreate.length || deudaToCreate.length) {
+  if (toCreate.length || deudaToCreate.length || clientesNuevos || deudasNuevasDelta) {
     // Patrones reales usados por los endpoints con cache
     await invalidatePattern('g:v:*')        // vendedor/stats → g:v:{userId}:{fecha}
     await invalidatePattern('g:*:stats:*') // stats admin → g:{empresaId}:stats:{fecha}
     await invalidatePattern('g:*:cartera:*') // cartera/resumen → g:{empresaId}:cartera:*
   }
 
-  return { empresaId: destino, ordenes: ordenes.length, nuevasOrdenes: toCreate.length, nuevasDeudas: deudaToCreate.length }
+  return { empresaId: destino, ordenes: ordenes.length, nuevasOrdenes: toCreate.length, nuevasDeudas: deudaToCreate.length, clientesNuevos, deudasNuevasDelta }
 }
 
 export async function POST(req: NextRequest) {

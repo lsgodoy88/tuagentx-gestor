@@ -129,6 +129,7 @@ model Cliente {
   empresaId       String
   subEmpresaId    String?
   createdAt       DateTime          @default(now())
+  creadoEnBogota  DateTime? // fecha UpTres updatedAt UTC → Bogotá al introducir en BD
   metaVenta       Float?
   nit             String?           @db.VarChar(255)
   ciudad          String?           @db.VarChar(255)
@@ -2778,6 +2779,7 @@ model SyncDeuda {
   discountAdi        Decimal?  @db.Decimal(14, 2)
   note               String?
   sincronizadoEl     DateTime  @default(now())
+  createdAtBogota    DateTime? // createdAt UpTres UTC → convertido UTC-5 Bogotá al insertar
   integracion        Integracion @relation(fields: [integracionId], references: [id])
 
   @@unique([integracionId, externalId])
