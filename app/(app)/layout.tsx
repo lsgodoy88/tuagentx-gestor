@@ -376,7 +376,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* ── DRAWER — siempre en DOM, GPU translateY ── */}
       <div className="fixed bottom-0 left-0 right-0 z-[999] md:hidden"
         style={{
-          background:'rgba(8,8,28,0.98)',
+          background:'rgba(30,36,58,0.99)',
           borderTop:'1px solid rgba(59,130,246,0.30)',
           borderRadius:'24px 24px 0 0',
           padding:'12px 16px 28px',
@@ -399,8 +399,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 style={{
                   display:'flex',flexDirection:'column',alignItems:'center',gap:4,
                   padding:'10px 4px',borderRadius:14,textDecoration:'none',
-                  background: isAct ? 'rgba(59,130,246,0.12)' : 'transparent',
-                  border:`1px solid ${isAct ? 'rgba(59,130,246,0.25)' : 'transparent'}`,
+                  background: isAct ? 'rgba(59,130,246,0.18)' : 'rgba(63,63,70,0.55)',
+                  border:`1px solid ${isAct ? 'rgba(59,130,246,0.40)' : 'rgba(59,130,246,0.12)'}`,
                 }}>
                 <span style={{fontSize:20}}>{item.icon}</span>
                 <span style={{fontSize:12,color:isAct ? '#3b82f6' : '#ffffff',fontWeight:isAct ? 600 : 400}}>
@@ -438,7 +438,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             className="fixed bottom-0 left-0 right-0 z-[999] md:hidden"
             style={{
               height:16,
-              background:'rgba(6,8,24,0.98)',
+              background:'rgba(30,36,58,0.99)',
               borderTop:'1.5px solid rgba(59,130,246,0.30)',
             }}
           />
@@ -449,7 +449,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             style={{background:'none',border:'none',padding:0,cursor:'pointer'}}>
             <div style={{
               width:106, height:42,
-              background:'rgba(6,8,24,0.98)',
+              background:'rgba(30,36,58,0.99)',
               border:'1.5px solid rgba(59,130,246,0.35)',
               borderBottom:'none',
               borderRadius:'24px 24px 0 0',

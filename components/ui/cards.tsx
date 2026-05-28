@@ -28,7 +28,7 @@ export function CardKPI({ children, stagger = 1, className = '', center = true }
         center ? 'flex flex-col items-center justify-center min-h-[110px]' : '',
         className,
       ].filter(Boolean).join(' ')}
-      style={{ background: 'rgba(8,8,28,0.88)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 14, padding: '10px 12px' } as CSSProperties}
+      style={{ background: 'rgba(148,160,185,0.22)', border: '1px solid rgba(148,180,255,0.35)', borderRadius: 14, padding: '10px 12px' } as CSSProperties}
     >
       {children}
     </div>
@@ -99,7 +99,7 @@ export function CardCountAdmin({
   return (
     <div
       className={`rounded-2xl hover-lift flex flex-col items-center justify-center min-h-[110px]`}
-      style={{ background: 'rgba(8,8,28,0.88)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 14, padding: '10px 12px' } as CSSProperties}
+      style={{ background: 'rgba(148,160,185,0.22)', border: '1px solid rgba(148,180,255,0.35)', borderRadius: 14, padding: '10px 12px' } as CSSProperties}
     >
       {/* Icon + label — más prominente */}
       <div className="flex items-center justify-center gap-1.5 mb-2">
@@ -132,8 +132,8 @@ export function CardDark({ children, className = '', style }: CardDarkProps) {
     <div
       className={['rounded-2xl fade-up', className].filter(Boolean).join(' ')}
       style={{
-        background: 'rgba(8,8,28,0.88)',
-        border: '1px solid rgba(59,130,246,0.25)',
+        background: 'rgba(90,95,110,0.72)',
+        border: '1px solid rgba(59,130,246,0.28)',
         ...style,
       } as CSSProperties}
     >
@@ -148,8 +148,8 @@ export function CardDarkStrong({ children, className = '', style }: CardDarkProp
     <div
       className={['rounded-2xl fade-up', className].filter(Boolean).join(' ')}
       style={{
-        background: 'rgba(8,8,28,0.82)',
-        border: '1px solid rgba(59,130,246,0.35)',
+        background: 'rgba(90,95,110,0.82)',
+        border: '1px solid rgba(59,130,246,0.40)',
         ...style,
       } as CSSProperties}
     >
@@ -198,10 +198,10 @@ export function CardSub({ children, alerta = false, className = '', style }: Car
     <div
       className={['rounded-xl', className].filter(Boolean).join(' ')}
       style={{
-        background: alerta ? 'rgba(127,29,29,0.40)' : 'rgba(15,15,22,0.60)',
+        background: alerta ? 'rgba(127,29,29,0.50)' : 'rgba(148,160,185,0.22)',
         border: alerta
           ? '1px solid rgba(239,68,68,0.30)'
-          : '1px solid rgba(59,130,246,0.20)',
+          : '1px solid rgba(148,180,255,0.25)',
         borderRadius: 10,
         ...style,
       } as CSSProperties}
