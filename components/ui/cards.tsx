@@ -132,8 +132,8 @@ export function CardDark({ children, className = '', style }: CardDarkProps) {
     <div
       className={['rounded-2xl fade-up', className].filter(Boolean).join(' ')}
       style={{
-        background: 'rgba(90,95,110,0.72)',
-        border: '1px solid rgba(59,130,246,0.28)',
+        background: 'rgba(148,160,185,0.22)',
+        border: '1px solid rgba(148,180,255,0.35)',
         ...style,
       } as CSSProperties}
     >
@@ -148,8 +148,8 @@ export function CardDarkStrong({ children, className = '', style }: CardDarkProp
     <div
       className={['rounded-2xl fade-up', className].filter(Boolean).join(' ')}
       style={{
-        background: 'rgba(90,95,110,0.82)',
-        border: '1px solid rgba(59,130,246,0.40)',
+        background: 'rgba(148,160,185,0.28)',
+        border: '1px solid rgba(148,180,255,0.45)',
         ...style,
       } as CSSProperties}
     >

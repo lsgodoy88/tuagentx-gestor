@@ -1165,7 +1165,7 @@ function DashboardPageInner() {
                     <div>
                       <button
                         onClick={() => setMostrarImpulsadoras(v => !v)}
-                        style={{background:'rgba(63,63,70,0.40)',border:`1px solid ${tieneAlerta ? 'rgba(239,68,68,0.5)' : 'rgba(59,130,246,0.18)'}`,borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
+                        style={{background:'rgba(148,160,185,0.22)',border:`1px solid ${tieneAlerta ? 'rgba(239,68,68,0.5)' : 'rgba(148,180,255,0.35)'}`,borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
                         <span className="text-white font-semibold text-sm">
                           ⚡ Impulsos
                           {tieneAlerta && <span className="ml-2 text-red-400 text-xs font-bold">● Alerta</span>}
@@ -1173,7 +1173,7 @@ function DashboardPageInner() {
                         <span className="text-zinc-500 text-xs">{mostrarImpulsadoras ? '▲ Ocultar' : '▼ Ver'}</span>
                       </button>
                       {mostrarImpulsadoras && (
-                        <div className="mt-2 space-y-3">
+                        <div className="mt-2 space-y-3 bg-zinc-900 border border-zinc-800 rounded-2xl p-3">
                           {statsVendedor.cumplimiento.map((imp: any) => {
                             const diasSemana = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
                             const diaHoy = diasSemana[new Date().getDay()]
