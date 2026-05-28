@@ -69,7 +69,7 @@ export function LiveDot({ color = "blue" }: { color?: "blue" | "emerald" | "ambe
  */
 export function CountUp({
   end,
-  duration = 800,
+  duration = 250,
   prefix = "",
   suffix = "",
   formatter,

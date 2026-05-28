@@ -272,6 +272,7 @@ export async function GET() {
   res.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60')
   return res
   } catch (err: any) {
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+    console.error('[vendedor/stats] ERROR:', err?.message, err?.stack?.slice(0,300))
+    return NextResponse.json({ error: 'Error interno', detail: err?.message }, { status: 500 })
   }
 }

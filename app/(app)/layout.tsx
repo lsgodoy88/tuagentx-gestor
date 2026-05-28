@@ -169,7 +169,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           { href: '/cartera',      label: 'Cartera',     icon: '💰' },
           { href: '/trazabilidad', label: 'Trazabilidad',icon: '📊' },
         ] : []),
-        ...(user?.role !== 'entregas' ? [{ href: '/rutas-fijas', label: 'Mis impulsos', icon: '⚡' }] : []),
+        ...(user?.role !== 'entregas' ? [{ href: '/rutas-fijas', label: 'Impulsos', icon: '⚡' }] : []),
         ...(user?.role === 'entregas' ? [{ href: '/trazabilidad', label: 'Trazabilidad', icon: '📊' }] : []),
       ]
     }] : []),
@@ -211,7 +211,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { href: '/cartera',      label: 'Cartera',     icon: '💰' },
         { href: '/trazabilidad', label: 'Trazabilidad',icon: '📊' },
       ] : []),
-      ...(user?.role !== 'entregas' ? [{ href: '/rutas-fijas', label: 'Mis impulsos', icon: '⚡' }] : []),
+      ...(user?.role !== 'entregas' ? [{ href: '/rutas-fijas', label: 'Impulsos', icon: '⚡' }] : []),
     ] : []),
     ...(user?.role === 'impulsadora' ? [
       { href: '/impulsadora', label: 'Inicio',    icon: '⚡' },
@@ -403,7 +403,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   border:`1px solid ${isAct ? 'rgba(59,130,246,0.25)' : 'transparent'}`,
                 }}>
                 <span style={{fontSize:20}}>{item.icon}</span>
-                <span style={{fontSize:9,color:isAct ? '#3b82f6' : 'rgba(255,255,255,0.45)',fontWeight:isAct ? 600 : 400}}>
+                <span style={{fontSize:12,color:isAct ? '#3b82f6' : '#ffffff',fontWeight:isAct ? 600 : 400}}>
                   {item.label}
                 </span>
               </Link>
@@ -420,8 +420,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             {user?.name?.[0]?.toUpperCase()}
           </div>
           <div style={{flex:1}}>
-            <div style={{fontSize:11,fontWeight:600,color:'#e4e4e7'}}>{user?.name}</div>
-            <div style={{fontSize:9,color:'rgba(255,255,255,0.35)',textTransform:'capitalize'}}>{user?.role}</div>
+            <div style={{fontSize:14,fontWeight:600,color:'#e4e4e7'}}>{user?.name}</div>
+            <div style={{fontSize:12,color:'rgba(255,255,255,0.35)',textTransform:'capitalize'}}>{user?.role}</div>
           </div>
           <button onClick={() => signOut({ callbackUrl: '/login' })}
             style={{fontSize:16,opacity:.4,background:'none',border:'none',cursor:'pointer',padding:4}}>
@@ -430,26 +430,43 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </div>
 
-      {/* ── MUESCA — siempre visible, centrada ── */}
-      <button
-        className="fixed bottom-0 left-1/2 -translate-x-1/2 z-[1000] md:hidden"
-        onClick={() => setDrawerOpen(o => !o)}
-        style={{background:'none',border:'none',padding:0,cursor:'pointer'}}>
-        <div style={{
-          width:80,height:36,
-          background:'rgba(8,8,28,0.97)',
-          border:'1px solid rgba(59,130,246,0.40)',
-          borderBottom:'none',
-          borderRadius:'24px 24px 0 0',
-          display:'flex',flexDirection:'column',
-          alignItems:'center',justifyContent:'center',gap:2,
-        }}>
-          <span style={{fontSize:15,lineHeight:1}}>{sincronizandoGps ? '📍' : iconoActivo}</span>
-          <span style={{fontSize:8,fontWeight:700,color:'#3b82f6',letterSpacing:'.06em',textTransform:'uppercase'}}>
-            {sincronizandoGps ? 'GPS...' : labelActivo}
-          </span>
-        </div>
-      </button>
+      {/* ── MUESCA + BANDA — se oculta cuando drawer abierto ── */}
+      {!drawerOpen && (
+        <>
+          {/* Banda full-width */}
+          <div
+            className="fixed bottom-0 left-0 right-0 z-[999] md:hidden"
+            style={{
+              height:16,
+              background:'rgba(6,8,24,0.98)',
+              borderTop:'1.5px solid rgba(59,130,246,0.30)',
+            }}
+          />
+          {/* Notch — solo texto blanco */}
+          <button
+            className="fixed bottom-0 left-1/2 -translate-x-1/2 z-[1000] md:hidden"
+            onClick={() => setDrawerOpen(true)}
+            style={{background:'none',border:'none',padding:0,cursor:'pointer'}}>
+            <div style={{
+              width:106, height:42,
+              background:'rgba(6,8,24,0.98)',
+              border:'1.5px solid rgba(59,130,246,0.35)',
+              borderBottom:'none',
+              borderRadius:'24px 24px 0 0',
+              display:'flex', alignItems:'center', justifyContent:'center',
+            }}>
+              <span style={{
+                fontSize:11, fontWeight:800,
+                color:'#fff',
+                letterSpacing:'.1em',
+                textTransform:'uppercase',
+              }}>
+                {sincronizandoGps ? 'GPS...' : labelActivo}
+              </span>
+            </div>
+          </button>
+        </>
+      )}
 
       {asistenteAbierto && <AsistenteGestor onClose={() => setAsistenteAbierto(false)} />}
 

@@ -480,6 +480,29 @@ body {
   .gradient-flow {
     animation: none !important;
   }
+  /* fade-up — evita repaints por transform en cada card */
+  .fade-up {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  /* hover-lift — innecesario en touch */
+  .hover-lift {
+    transition: none !important;
+  }
+  .hover-lift:hover {
+    transform: none !important;
+    box-shadow: none !important;
+  }
+  /* shimmer skeletons — reduce GPU paint */
+  .shimmer, .shimmer-light {
+    animation-duration: 3s !important;
+    background: rgba(255,255,255,0.06) !important;
+  }
+  /* btn-shimmer — caro en gama media */
+  .btn-shimmer::after {
+    animation: none !important;
+  }
   /* Desactivar backdrop-blur globalmente en móvil — muy costoso en GPU bajo */
   .backdrop-blur-sm,
   .bg-zinc-900,

@@ -7,9 +7,9 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode},{err:any
   render() {
     if (this.state.err) return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="text-center text-zinc-400 p-8">
-          <p className="text-2xl mb-2">⚠️</p>
-          <p className="text-sm">Error al cargar. Recarga la página.</p>
+        <div style={{padding:16,color:'#fff',background:'#1a0000',margin:16,borderRadius:8,border:'1px solid #f00',fontSize:11,wordBreak:'break-all'}}>
+          <b>ERR:</b> {String(this.state.err?.message||this.state.err)}<br/>
+          <small>{String(this.state.err?.stack||'').slice(0,300)}</small>
         </div>
       </div>
     )
@@ -71,6 +71,7 @@ function DashboardPageInner() {
   const [vendedorStatsLoading, setVendedorStatsLoading] = useState(true)
   const [mostrarEstadisticas, setMostrarEstadisticas] = useState(false)
   const [mostrarEstadisticasVendedor, setMostrarEstadisticasVendedor] = useState(false)
+  const [mostrarImpulsadoras, setMostrarImpulsadoras] = useState(false)
   const [modalVisita, setModalVisita] = useState<{open: boolean, tipo: string}>({open: false, tipo: 'visita'})
   const [clienteModal, setClienteModal] = useState<any>(null)
   const [ordenesEntregadas, setOrdenesEntregadas] = useState<Set<string>>(new Set())
@@ -1092,24 +1093,6 @@ function DashboardPageInner() {
           )}
           {user?.role === 'vendedor' && (
             <div className="space-y-4">
-              {/* Accesos directos — Link con prefetch para carga instantánea */}
-              <div className="flex gap-2">
-                <Link href="/clientes"
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-white transition-colors hover:opacity-80"
-                  style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.35)'}}>
-                  👥 Clientes
-                </Link>
-                <Link href="/cartera?tab=pagos"
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-white transition-colors hover:opacity-80"
-                  style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.35)'}}>
-                  💳 Pagos
-                </Link>
-                <Link href="/trazabilidad"
-                  className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-white transition-colors hover:opacity-80"
-                  style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.35)'}}>
-                  🔍 Trazabilidad
-                </Link>
-              </div>
               {/* Hoy — siempre visible */}
               {vendedorStatsLoading && (
                 <div className="space-y-3">
@@ -1176,68 +1159,86 @@ function DashboardPageInner() {
               )}
 
 
-                {statsVendedor && statsVendedor.cumplimiento?.length > 0 && (
-                  <CardDark className="p-4">
-                    <p className="text-white font-bold mb-3">Impulsadoras hoy</p>
-                    <div className="space-y-3">
-                      {statsVendedor.cumplimiento.map((imp: any) => (
-                        <CardSub key={imp.id} alerta={imp.alerta} className="p-3">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <div className={"w-2 h-2 rounded-full " + (imp.turnoActivo ? "bg-emerald-500 animate-pulse" : "bg-zinc-600")} />
-                              <p className="text-white text-sm font-medium">{imp.nombre}</p>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              {imp.alerta && <span className="text-red-400 text-xs">Alerta</span>}
-                              {imp.pct !== null && (
-                                <span className={"text-xs font-bold " + (imp.pct >= 80 ? "text-emerald-400" : imp.pct >= 50 ? "text-yellow-400" : "text-red-400")}>{imp.pct}%</span>
-                              )}
-                            </div>
-                          </div>
-                          {imp.totalPuntos > 0 && (
-                            <div className="space-y-2">
-                              <div>
-                                <div className="w-full rounded-full h-1.5 overflow-hidden" style={{background:"rgba(59,130,246,0.15)"}}>
-                                  <div className={"h-1.5 rounded-full transition-all " + (imp.pct >= 80 ? "bg-emerald-500" : imp.pct >= 50 ? "bg-yellow-500" : "bg-red-500")}
-                                    style={{ width: (imp.pct || 0) + '%' }} />
+                {statsVendedor && statsVendedor.cumplimiento?.length > 0 && (() => {
+                  const tieneAlerta = statsVendedor.cumplimiento.some((imp: any) => imp.alerta)
+                  return (
+                    <div>
+                      <button
+                        onClick={() => setMostrarImpulsadoras(v => !v)}
+                        className="w-full flex items-center justify-between bg-zinc-900 hover:bg-zinc-800 border rounded-2xl px-4 py-3 transition-colors"
+                        style={{borderColor: tieneAlerta ? 'rgba(239,68,68,0.5)' : 'rgb(39,39,42)'}}>
+                        <span className="text-white font-semibold text-sm">
+                          ⚡ Impulsos
+                          {tieneAlerta && <span className="ml-2 text-red-400 text-xs font-bold">● Alerta</span>}
+                        </span>
+                        <span className="text-zinc-500 text-xs">{mostrarImpulsadoras ? '▲ Ocultar' : '▼ Ver'}</span>
+                      </button>
+                      {mostrarImpulsadoras && (
+                        <div className="mt-2 space-y-3">
+                          {statsVendedor.cumplimiento.map((imp: any) => {
+                            const diasSemana = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
+                            const diaHoy = diasSemana[new Date().getDay()]
+                            return (
+                              <CardSub key={imp.id} alerta={imp.alerta} className="p-3">
+                                <div className="flex items-center justify-between mb-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className={"w-2 h-2 rounded-full " + (imp.turnoActivo ? "bg-emerald-500 animate-pulse" : "bg-zinc-600")} />
+                                    <p className="text-white text-sm font-medium">{imp.nombre}</p>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    {imp.alerta && <span className="text-red-400 text-xs">Alerta</span>}
+                                    {imp.pct !== null && (
+                                      <span className={"text-xs font-bold " + (imp.pct >= 80 ? "text-emerald-400" : imp.pct >= 50 ? "text-yellow-400" : "text-red-400")}>{imp.pct}%</span>
+                                    )}
+                                  </div>
                                 </div>
-                                <p className="text-zinc-500 text-xs mt-1">{imp.visitados}/{imp.totalPuntos} puntos visitados</p>
-                              </div>
-                              {imp.puntoActual && (
-                                <div style={{background:"rgba(15,15,22,0.60)",border:"1px solid rgba(59,130,246,0.25)",borderRadius:8,padding:"8px 12px"}}>
-                                  <p className="text-zinc-400 text-xs">📍 Está en:</p>
-                                  <p className="text-emerald-400 text-sm font-medium">{imp.puntoActual.nombre}</p>
-                                  {imp.puntoActual.nombreComercial && <p className="text-zinc-500 text-xs">{imp.puntoActual.nombreComercial}</p>}
-                                </div>
-                              )}
-                              {!imp.puntoActual && imp.proximoPunto && (
-                                <div style={{background:"rgba(15,15,22,0.60)",border:"1px solid rgba(59,130,246,0.20)",borderRadius:8,padding:"8px 12px"}}>
-                                  <p className="text-zinc-400 text-xs">➡️ Va hacia:</p>
-                                  <p className="text-white text-sm font-medium">{imp.proximoPunto.nombre}</p>
-                                  {imp.proximoPunto.nombreComercial && <p className="text-zinc-500 text-xs">{imp.proximoPunto.nombreComercial}</p>}
-                                </div>
-                              )}
-                              {imp.alertasGps?.length > 0 && (
-                                <div style={{background:"rgba(127,29,29,0.30)",border:"1px solid rgba(239,68,68,0.30)",borderRadius:8,padding:"8px 12px"}}>
-                                  <p className="text-red-400 text-xs font-semibold">⚠️ Alertas GPS hoy ({imp.alertasGps.length})</p>
-                                  {imp.alertasGps.slice(0,2).map((a: any, i: number) => (
-                                    <p key={i} className="text-red-300 text-xs">{a.detalle} — {new Date(a.hora).toLocaleTimeString('es-CO', {hour:'2-digit',minute:'2-digit',timeZone: 'America/Bogota'})}</p>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          {imp.totalPuntos === 0 && (
-                            <div>
-                              <p className="text-zinc-500 text-xs">Sin ruta asignada hoy</p>
-                              {imp.proximoDia && <p className="text-zinc-400 text-xs mt-1">📅 Próxima ruta: <span className="text-white">{imp.proximoDia}</span></p>}
-                            </div>
-                          )}
-                        </CardSub>
-                      ))}
+                                {imp.totalPuntos > 0 && (
+                                  <div className="space-y-2">
+                                    <div>
+                                      <p className="text-zinc-400 text-xs mb-1">hoy {diaHoy}: {imp.visitados}/{imp.totalPuntos} puntos</p>
+                                      <div className="w-full rounded-full h-1.5 overflow-hidden" style={{background:"rgba(59,130,246,0.15)"}}>
+                                        <div className={"h-1.5 rounded-full transition-all " + (imp.pct >= 80 ? "bg-emerald-500" : imp.pct >= 50 ? "bg-yellow-500" : "bg-red-500")}
+                                          style={{width: (imp.pct || 0) + '%'}} />
+                                      </div>
+                                    </div>
+                                    {imp.puntoActual && (
+                                      <div style={{background:"rgba(15,15,22,0.60)",border:"1px solid rgba(59,130,246,0.25)",borderRadius:8,padding:"8px 12px"}}>
+                                        <p className="text-zinc-400 text-xs">📍 Está en:</p>
+                                        <p className="text-emerald-400 text-sm font-medium">{imp.puntoActual.nombre}</p>
+                                        {imp.puntoActual.nombreComercial && <p className="text-zinc-500 text-xs">{imp.puntoActual.nombreComercial}</p>}
+                                      </div>
+                                    )}
+                                    {!imp.puntoActual && imp.proximoPunto && (
+                                      <div style={{background:"rgba(15,15,22,0.60)",border:"1px solid rgba(59,130,246,0.20)",borderRadius:8,padding:"8px 12px"}}>
+                                        <p className="text-zinc-400 text-xs">➡️ Va hacia:</p>
+                                        <p className="text-white text-sm font-medium">{imp.proximoPunto.nombre}</p>
+                                        {imp.proximoPunto.nombreComercial && <p className="text-zinc-500 text-xs">{imp.proximoPunto.nombreComercial}</p>}
+                                      </div>
+                                    )}
+                                    {imp.alertasGps?.length > 0 && (
+                                      <div style={{background:"rgba(127,29,29,0.30)",border:"1px solid rgba(239,68,68,0.30)",borderRadius:8,padding:"8px 12px"}}>
+                                        <p className="text-red-400 text-xs font-semibold">⚠️ Alertas GPS hoy ({imp.alertasGps.length})</p>
+                                        {imp.alertasGps.slice(0,2).map((a: any, i: number) => (
+                                          <p key={i} className="text-red-300 text-xs">{a.detalle} — {new Date(a.hora).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'})}</p>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                                {imp.totalPuntos === 0 && (
+                                  <div>
+                                    <p className="text-zinc-500 text-xs">Sin ruta asignada hoy</p>
+                                    {imp.proximoDia && <p className="text-zinc-400 text-xs mt-1">📅 Próxima ruta: <span className="text-white">{imp.proximoDia}</span></p>}
+                                  </div>
+                                )}
+                              </CardSub>
+                            )
+                          })}
+                        </div>
+                      )}
                     </div>
-                  </CardDark>
-                )}
+                  )
+                })()}
 
               {/* Estadísticas — históricos bajo demanda */}
               <button
