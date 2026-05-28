@@ -109,8 +109,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{background:'transparent'}}>
-        <div className="text-zinc-200">Cargando...</div>
+      <div className="space-y-3 pb-20 max-w-5xl mx-auto px-1 pt-4">
+        <div className="animate-pulse rounded-2xl" style={{height:44,background:'rgba(148,160,185,0.15)',border:'1px solid rgba(148,180,255,0.12)'}} />
+        <div className="grid grid-cols-2 gap-3">
+          {[1,2].map(i => <div key={i} className="animate-pulse rounded-2xl" style={{height:96,background:'rgba(148,160,185,0.12)',border:'1px solid rgba(148,180,255,0.10)'}} />)}
+        </div>
+        <div className="animate-pulse rounded-2xl" style={{height:80,background:'rgba(148,160,185,0.12)'}} />
+        <div className="animate-pulse rounded-2xl" style={{height:80,background:'rgba(148,160,185,0.12)'}} />
       </div>
     )
   }
