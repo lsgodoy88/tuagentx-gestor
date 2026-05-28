@@ -223,26 +223,23 @@ function DashboardPageInner() {
       })
     }
   }, [user])
-  // ── Polling sync/pulse — refresca stats cuando el delta trae datos nuevos ──
+  // ── Refresco al volver a la pantalla — sin polling, sin batería extra ──
   useEffect(() => {
     if (!user || user.role !== 'vendedor') return
-    const poll = setInterval(async () => {
-      try {
-        const res = await fetch('/api/sync/pulse')
-        const { ts } = await res.json()
-        if (ts > 0 && ts > lastPulseTs.current) {
-          lastPulseTs.current = ts
-          // Hay sync nuevo — invalida cache y recarga stats silenciosamente
-          const [stats, cartera] = await Promise.all([
-            fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null),
-            fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null),
-          ])
-          if (stats && !stats.error) setStatsVendedor(stats)
-          if (cartera) setResumenCartera(cartera)
-        }
-      } catch {}
-    }, 2 * 60 * 1000) // cada 2 minutos
-    return () => clearInterval(poll)
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      // Solo refresca si pasaron más de 3 min desde la última carga
+      if (Date.now() - lastPulseTs.current < 3 * 60 * 1000) return
+      lastPulseTs.current = Date.now()
+      fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null).then(stats => {
+        if (stats && !stats.error) setStatsVendedor(stats)
+      })
+      fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null).then(cartera => {
+        if (cartera) setResumenCartera(cartera)
+      })
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
   }, [user])
 
   async function cargarStatsVendedor() {
