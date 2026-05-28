@@ -1,4 +1,3 @@
-
 'use client'
 import React from 'react'
 
@@ -10,7 +9,7 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode},{err:any
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center text-zinc-400 p-8">
           <p className="text-2xl mb-2">⚠️</p>
-          <p className="text-sm">Error al cargar inicio. Recarga la página.</p>
+          <p className="text-sm">Error al cargar. Recarga la página.</p>
         </div>
       </div>
     )
@@ -45,14 +44,11 @@ function genId(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; return (c==='x'?r:(r&0x3|0x8)).toString(16) })
 }
 function crearLinea(): LineaPago { return { id: genId(), metodoPago: 'efectivo', monto: '', descuento: '', voucherKey: null, voucherDatosIA: null, cargandoVoucher: false } }
-const fmt = (n: number) => { try { return '$' + Math.round(n).toLocaleString('es-CO') } catch { return '$' + Math.round(n) } }
-const safeLocale = (n: number, opts?: Intl.NumberFormatOptions) => {
-  try { return n.toLocaleString('es-CO', opts) } catch { return n.toLocaleString() }
-}
+const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
 const fmtShort = (n: number): string => {
-  if (n >= 1_000_000) return '$' + safeLocale(n / 1_000_000, { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' mill'
-  if (n >= 1_000)     return '$' + safeLocale(n / 1_000,     { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' K'
-  return '$' + safeLocale(Math.round(n))
+  if (n >= 1_000_000) return '$' + (n / 1_000_000).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' mill'
+  if (n >= 1_000)     return '$' + (n / 1_000).toLocaleString('es-CO',     { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' K'
+  return '$' + Math.round(n).toLocaleString('es-CO')
 }
 const RR_LIMIT = 10
 
@@ -198,7 +194,7 @@ function DashboardPageInner() {
           fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null).finally(() => setVendedorStatsLoading(false)),
           fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null),
         ]).then(([stats, cartera]) => {
-          if (stats?.hoy) setStatsVendedor(stats)
+          if (stats) setStatsVendedor(stats)
           if (cartera) setResumenCartera(cartera)
           setLoadingStats(false)
         }).catch(() => setLoadingStats(false))
