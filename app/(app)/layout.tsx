@@ -402,7 +402,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   background: isAct ? 'rgba(59,130,246,0.18)' : 'rgba(63,63,70,0.55)',
                   border:`1px solid ${isAct ? 'rgba(59,130,246,0.40)' : 'rgba(59,130,246,0.12)'}`,
                 }}>
-                <span style={{fontSize:20}}>{item.icon}</span>
+                {item.href === '/inicio' || item.href === '/impulsadora' ? (
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                    <path d="M3 12L12 3L21 12V21H15V15H9V21H3V12Z"
+                      fill={isAct ? 'rgba(96,165,250,0.9)' : 'rgba(255,255,255,0.85)'}/>
+                    <path d="M3 12L12 3L21 12"
+                      stroke={isAct ? '#3b82f6' : 'rgba(255,255,255,0.5)'}
+                      strokeWidth="1.5" fill="none" strokeLinejoin="round"/>
+                    <rect x="9" y="15" width="6" height="6"
+                      fill={isAct ? 'rgba(37,99,235,0.8)' : 'rgba(0,0,0,0.3)'}/>
+                  </svg>
+                ) : (
+                  <span style={{fontSize:20}}>{item.icon}</span>
+                )}
                 <span style={{fontSize:12,color:isAct ? '#3b82f6' : '#ffffff',fontWeight:isAct ? 600 : 400}}>
                   {item.label}
                 </span>
