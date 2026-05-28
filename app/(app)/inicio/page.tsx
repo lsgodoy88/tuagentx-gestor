@@ -114,6 +114,31 @@ function DashboardPageInner() {
   const [mostrarPausa, setMostrarPausa] = useState(false)
   const [turnoExpandido, setTurnoExpandido] = useState(false)
   const lastPulseTs = useRef<number>(0) // último pulse sync procesado
+
+  // ── Cache sessionStorage — datos persisten entre navegaciones ──────────────
+  // Solo carga frescos si viene del login o si el cache expiró (10 min)
+  const CACHE_KEY = 'inicio_cache'
+  const CACHE_TTL = 10 * 60 * 1000 // 10 minutos
+
+  function getCached() {
+    try {
+      const raw = sessionStorage.getItem(CACHE_KEY)
+      if (!raw) return null
+      const { ts, data } = JSON.parse(raw)
+      if (Date.now() - ts > CACHE_TTL) { sessionStorage.removeItem(CACHE_KEY); return null }
+      return data
+    } catch { return null }
+  }
+
+  function setCached(data: any) {
+    try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data })) } catch {}
+  }
+
+  function vieneDelLogin() {
+    try {
+      return document.referrer.includes('/login') || sessionStorage.getItem(CACHE_KEY) === null
+    } catch { return true }
+  }
   const [pausaMotivo, setPausaMotivo] = useState('Almuerzo')
   const [pausaMotivoCustom, setPausaMotivoCustom] = useState('')
   const [pausaDuracion, setPausaDuracion] = useState(60)
@@ -195,16 +220,37 @@ function DashboardPageInner() {
       }).catch(() => {})
 
       if (user.role === 'vendedor') {
-        // Stats y cartera en background — no bloquean la UI
-        setLoadingStats(true)
-        fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null).then(stats => {
-          if (stats && !stats.error) { setStatsVendedor(stats); lastPulseTs.current = Date.now() }
-          setVendedorStatsLoading(false)
-        })
-        fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null).then(cartera => {
-          if (cartera) setResumenCartera(cartera)
+        // Si viene del login o no hay cache → carga fresca
+        // Si navega de vuelta desde otro módulo → usa cache sin re-fetch
+        const cached = getCached()
+        if (cached && !vieneDelLogin()) {
+          // Restaurar desde cache — sin peticiones
+          if (cached.statsVendedor) { setStatsVendedor(cached.statsVendedor); lastPulseTs.current = cached.ts || 0 }
+          if (cached.resumenCartera) setResumenCartera(cached.resumenCartera)
           setLoadingStats(false)
-        })
+          setVendedorStatsLoading(false)
+        } else {
+          // Carga fresca — login o cache expirado
+          setLoadingStats(true)
+          fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null).then(stats => {
+            if (stats && !stats.error) {
+              setStatsVendedor(stats)
+              lastPulseTs.current = Date.now()
+              // Guardar en cache para navegaciones posteriores
+              setCached({ statsVendedor: stats, ts: Date.now() })
+            }
+            setVendedorStatsLoading(false)
+          })
+          fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null).then(cartera => {
+            if (cartera) {
+              setResumenCartera(cartera)
+              // Actualizar cache con cartera
+              const cached2 = getCached()
+              if (cached2) setCached({ ...cached2, resumenCartera: cartera })
+            }
+            setLoadingStats(false)
+          })
+        }
       }
       // (el histórico se carga al presionar Estadísticas si no estaba cargado)
     } else {
