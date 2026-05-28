@@ -395,7 +395,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             const isAct = pathname === item.href
             return (
               <Link key={item.href} href={item.href}
-                prefetch={item.href === '/inicio'}
+                prefetch
                 onClick={() => setDrawerOpen(false)}
                 style={{
                   display:'flex',flexDirection:'column',alignItems:'center',gap:4,
