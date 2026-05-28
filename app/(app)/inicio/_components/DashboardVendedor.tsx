@@ -531,145 +531,146 @@ export default function DashboardVendedor({ user }: { user: any }) {
               </div>
             </div>
           )}
-
-          {/* Stats cards */}
-          <div className="space-y-4">
-            {vendedorStatsLoading && (
-              <div className="space-y-3">
-                <CardKPIGroup cols={2}><CardCountAdminSkeleton /><CardCountAdminSkeleton /></CardKPIGroup>
-                <CardCountAdminSkeleton compact /><CardCountAdminSkeleton compact />
-              </div>
-            )}
-            {!vendedorStatsLoading && statsVendedor && (
-              <div className="space-y-3">
-                <CardKPIGroup cols={2}>
-                  <CardCountAdmin stagger={1} icon="👁️" label="Visitas"
-                    primary={<CountUp end={statsVendedor.hoy.total || 0} />}
-                    secondary={<CountUp end={statsVendedor.hoy.ayer || 0} />}
-                    primaryLabel="hoy" secondaryLabel="ayer" primaryColor="text-white" />
-                  <CardCountAdmin stagger={2} icon="📦" label="Órdenes"
-                    primary={<CountUp end={statsVendedor.ordenes?.despHoy || 0} />}
-                    secondary={<CountUp end={statsVendedor.ordenes?.factHoy || 0} />}
-                    primaryLabel="desp hoy" secondaryLabel="fact hoy" primaryColor="text-amber-400" />
-                </CardKPIGroup>
-                <div className="relative" style={{borderRadius:16,overflow:'hidden'}}>
-                  <CardCountAdmin stagger={3} icon="💼" label="Ventas"
-                    primary={<CountUp end={Math.round(statsVendedor.ordenes?.montoMes || 0)} prefix="$" />}
-                    secondary={statsVendedor.ordenes?.metaVentaMes > 0 ? <CountUp end={Math.round(statsVendedor.ordenes.metaVentaMes)} prefix="$" /> : '—'}
-                    primaryLabel="mes" secondaryLabel="meta" primaryColor="text-emerald-400" />
-                </div>
-                <div style={{borderRadius:16,overflow:'hidden'}}>
-                  <CardCountAdmin stagger={4} icon="💰" label="Recaudo"
-                    primary={<CountUp end={Math.round((statsVendedor.recaudo?.mes || 0) + (statsVendedor.recaudo?.descuentosMes || 0))} prefix="$" />}
-                    secondary={statsVendedor.recaudo?.meta > 0 ? `$${Math.round(statsVendedor.recaudo.meta).toLocaleString('es-CO')}` : '—'}
-                    primaryLabel="Recaudo+Descuento" secondaryLabel="Meta" primaryColor="text-blue-400" />
-                </div>
-              </div>
-            )}
-
-            {/* Impulsos */}
-            {statsVendedor && (statsVendedor.cumplimiento?.length ?? 0) > 0 && (() => {
-              const tieneAlerta = statsVendedor.cumplimiento.some((imp: any) => imp.alerta)
-              return (
-                <div>
-                  <button onClick={() => setMostrarImpulsadoras(v => !v)}
-                    style={{background:'rgba(148,160,185,0.22)',border:`1px solid ${tieneAlerta ? 'rgba(239,68,68,0.5)' : 'rgba(148,180,255,0.35)'}`,borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
-                    <span className="text-white font-semibold text-sm">⚡ Impulsos{tieneAlerta && <span className="ml-2 text-red-400 text-xs font-bold">● Alerta</span>}</span>
-                    <span className="text-zinc-500 text-xs">{mostrarImpulsadoras ? '▲ Ocultar' : '▼ Ver'}</span>
-                  </button>
-                  {mostrarImpulsadoras && (
-                    <div className="mt-2 space-y-3 bg-zinc-900 border border-zinc-800 rounded-2xl p-3">
-                      {statsVendedor.cumplimiento.map((imp: any) => {
-                        const diasSemana = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
-                        const diaHoy = diasSemana[new Date().getDay()]
-                        return (
-                          <CardSub key={imp.id} alerta={imp.alerta} className="p-3">
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center gap-2">
-                                <div className={"w-2 h-2 rounded-full " + (imp.turnoActivo ? "bg-emerald-500 animate-pulse" : "bg-zinc-600")} />
-                                <p className="text-white text-sm font-medium">{imp.nombre}</p>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                {imp.alerta && <span className="text-red-400 text-xs">Alerta</span>}
-                                {imp.pct !== null && <span className={"text-xs font-bold " + (imp.pct >= 80 ? "text-emerald-400" : imp.pct >= 50 ? "text-yellow-400" : "text-red-400")}>{imp.pct}%</span>}
-                              </div>
-                            </div>
-                            {imp.totalPuntos > 0 && (
-                              <div className="space-y-2">
-                                <div>
-                                  <p className="text-zinc-400 text-xs mb-1">hoy {diaHoy}: {imp.visitados}/{imp.totalPuntos} puntos</p>
-                                  <div className="w-full rounded-full h-1.5 overflow-hidden" style={{background:"rgba(59,130,246,0.15)"}}>
-                                    <div className={"h-1.5 rounded-full transition-all " + (imp.pct >= 80 ? "bg-emerald-500" : imp.pct >= 50 ? "bg-yellow-500" : "bg-red-500")} style={{width:(imp.pct||0)+'%'}} />
-                                  </div>
-                                </div>
-                                {imp.puntoActual && <div style={{background:"rgba(148,160,185,0.28)",border:"1px solid rgba(148,180,255,0.35)",borderRadius:8,padding:"8px 12px"}}><p className="text-zinc-400 text-xs">📍 Está en:</p><p className="text-emerald-400 text-sm font-medium">{imp.puntoActual.nombre}</p>{imp.puntoActual.nombreComercial && <p className="text-zinc-500 text-xs">{imp.puntoActual.nombreComercial}</p>}</div>}
-                                {!imp.puntoActual && imp.proximoPunto && <div style={{background:"rgba(148,160,185,0.28)",border:"1px solid rgba(148,180,255,0.25)",borderRadius:8,padding:"8px 12px"}}><p className="text-zinc-400 text-xs">➡️ Va hacia:</p><p className="text-white text-sm font-medium">{imp.proximoPunto.nombre}</p>{imp.proximoPunto.nombreComercial && <p className="text-zinc-500 text-xs">{imp.proximoPunto.nombreComercial}</p>}</div>}
-                                {imp.alertasGps?.length > 0 && <div style={{background:"rgba(127,29,29,0.30)",border:"1px solid rgba(239,68,68,0.30)",borderRadius:8,padding:"8px 12px"}}><p className="text-red-400 text-xs font-semibold">⚠️ Alertas GPS hoy ({imp.alertasGps.length})</p>{imp.alertasGps.slice(0,2).map((a: any, i: number) => <p key={i} className="text-red-300 text-xs">{a.detalle} — {new Date(a.hora).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'})}</p>)}</div>}
-                              </div>
-                            )}
-                            {imp.totalPuntos === 0 && <div><p className="text-zinc-500 text-xs">Sin ruta asignada hoy</p>{imp.proximoDia && <p className="text-zinc-400 text-xs mt-1">📅 Próxima ruta: <span className="text-white">{imp.proximoDia}</span></p>}</div>}
-                          </CardSub>
-                        )
-                      })}
-                    </div>
-                  )}
-                </div>
-              )
-            })()}
-
-            {/* Estadísticas */}
-            <button onClick={() => setMostrarEstadisticasVendedor(v => !v)}
-              style={{background:'rgba(148,160,185,0.22)',border:'1px solid rgba(148,180,255,0.35)',borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
-              <span className="text-white font-semibold text-sm">📊 Estadísticas</span>
-              <span className="text-zinc-500 text-xs">{mostrarEstadisticasVendedor ? '▲ Ocultar' : '▼ Ver'}</span>
-            </button>
-            {mostrarEstadisticasVendedor && !loadingStats && statsVendedor && (
-              <div className="space-y-4">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-2">
-                  <p className="text-white font-bold mb-3">Últimos 6 días</p>
-                  <div className="overflow-x-auto">
-                    <div className="flex items-center gap-2 mb-2 pb-1 border-b border-zinc-700">
-                      <p className="text-zinc-500 text-xs w-14 flex-shrink-0">Dia</p><p className="text-zinc-500 text-xs flex-1"></p>
-                      <p className="text-zinc-500 text-xs w-6 text-right">Vis.</p><p className="text-zinc-500 text-xs w-16 text-right">Ventas</p><p className="text-zinc-500 text-xs w-16 text-right">Recaudo</p>
-                    </div>
-                    <div className="space-y-2">
-                      {statsVendedor.dias.slice().reverse().map((d: any) => (
-                        <div key={d.fecha} className="flex items-center gap-1">
-                          <p className="text-zinc-400 text-xs w-14 flex-shrink-0 capitalize">{d.label}</p>
-                          <div className="flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden"><div className="bg-emerald-500 h-2 rounded-full transition-all" style={{width: d.total > 0 ? Math.min(100,d.total*10)+'%' : '0%'}} /></div>
-                          <p className="text-white text-xs w-6 text-right">{d.total}</p>
-                          <p className="text-emerald-400 text-xs w-16 text-right">{d.montoVentas > 0 ? '$'+d.montoVentas.toLocaleString('es-CO') : '—'}</p>
-                          <p className="text-blue-400 text-xs w-16 text-right">{d.montoCobros > 0 ? '$'+d.montoCobros.toLocaleString('es-CO') : '—'}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-                  <p className="text-white font-bold mb-3">Últimos 6 meses</p>
-                  <div className="overflow-x-auto">
-                    <div className="flex items-center gap-2 mb-2 pb-1 border-b border-zinc-700">
-                      <p className="text-zinc-500 text-xs w-14 flex-shrink-0">Mes</p><p className="text-zinc-500 text-xs flex-1"></p>
-                      <p className="text-zinc-500 text-xs w-6 text-right">Vis.</p><p className="text-zinc-500 text-xs w-16 text-right">Ventas</p><p className="text-zinc-500 text-xs w-16 text-right">Recaudo</p>
-                    </div>
-                    <div className="space-y-2">
-                      {statsVendedor.meses.slice().reverse().map((m: any) => (
-                        <div key={m.label} className="flex items-center gap-1">
-                          <p className="text-zinc-400 text-xs w-14 flex-shrink-0 capitalize">{m.label}</p>
-                          <div className="flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden"><div className="bg-blue-500 h-2 rounded-full transition-all" style={{width: m.total > 0 ? Math.min(100,m.total*2)+'%' : '0%'}} /></div>
-                          <p className="text-white text-xs w-6 text-right">{m.total}</p>
-                          <p className="text-emerald-400 text-xs w-16 text-right">{m.montoVentas > 0 ? '$'+m.montoVentas.toLocaleString('es-CO') : '—'}</p>
-                          <p className="text-blue-400 text-xs w-16 text-right">{m.montoCobros > 0 ? '$'+m.montoCobros.toLocaleString('es-CO') : '—'}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       )}
+
+
+      {/* Stats — independiente: visibles desde el primer render */}
+      <div className="space-y-4">
+        {vendedorStatsLoading && (
+          <div className="space-y-3">
+        <CardKPIGroup cols={2}><CardCountAdminSkeleton /><CardCountAdminSkeleton /></CardKPIGroup>
+        <CardCountAdminSkeleton compact /><CardCountAdminSkeleton compact />
+          </div>
+        )}
+        {!vendedorStatsLoading && statsVendedor && (
+          <div className="space-y-3">
+        <CardKPIGroup cols={2}>
+          <CardCountAdmin stagger={1} icon="👁️" label="Visitas"
+            primary={<CountUp end={statsVendedor.hoy.total || 0} />}
+            secondary={<CountUp end={statsVendedor.hoy.ayer || 0} />}
+            primaryLabel="hoy" secondaryLabel="ayer" primaryColor="text-white" />
+          <CardCountAdmin stagger={2} icon="📦" label="Órdenes"
+            primary={<CountUp end={statsVendedor.ordenes?.despHoy || 0} />}
+            secondary={<CountUp end={statsVendedor.ordenes?.factHoy || 0} />}
+            primaryLabel="desp hoy" secondaryLabel="fact hoy" primaryColor="text-amber-400" />
+        </CardKPIGroup>
+        <div className="relative" style={{borderRadius:16,overflow:'hidden'}}>
+          <CardCountAdmin stagger={3} icon="💼" label="Ventas"
+            primary={<CountUp end={Math.round(statsVendedor.ordenes?.montoMes || 0)} prefix="$" />}
+            secondary={statsVendedor.ordenes?.metaVentaMes > 0 ? <CountUp end={Math.round(statsVendedor.ordenes.metaVentaMes)} prefix="$" /> : '—'}
+            primaryLabel="mes" secondaryLabel="meta" primaryColor="text-emerald-400" />
+        </div>
+        <div style={{borderRadius:16,overflow:'hidden'}}>
+          <CardCountAdmin stagger={4} icon="💰" label="Recaudo"
+            primary={<CountUp end={Math.round((statsVendedor.recaudo?.mes || 0) + (statsVendedor.recaudo?.descuentosMes || 0))} prefix="$" />}
+            secondary={statsVendedor.recaudo?.meta > 0 ? `$${Math.round(statsVendedor.recaudo.meta).toLocaleString('es-CO')}` : '—'}
+            primaryLabel="Recaudo+Descuento" secondaryLabel="Meta" primaryColor="text-blue-400" />
+        </div>
+          </div>
+        )}
+
+        {/* Impulsos */}
+        {statsVendedor && (statsVendedor.cumplimiento?.length ?? 0) > 0 && (() => {
+          const tieneAlerta = statsVendedor.cumplimiento.some((imp: any) => imp.alerta)
+          return (
+        <div>
+          <button onClick={() => setMostrarImpulsadoras(v => !v)}
+            style={{background:'rgba(148,160,185,0.22)',border:`1px solid ${tieneAlerta ? 'rgba(239,68,68,0.5)' : 'rgba(148,180,255,0.35)'}`,borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
+            <span className="text-white font-semibold text-sm">⚡ Impulsos{tieneAlerta && <span className="ml-2 text-red-400 text-xs font-bold">● Alerta</span>}</span>
+            <span className="text-zinc-500 text-xs">{mostrarImpulsadoras ? '▲ Ocultar' : '▼ Ver'}</span>
+          </button>
+          {mostrarImpulsadoras && (
+            <div className="mt-2 space-y-3 bg-zinc-900 border border-zinc-800 rounded-2xl p-3">
+          {statsVendedor.cumplimiento.map((imp: any) => {
+            const diasSemana = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
+            const diaHoy = diasSemana[new Date().getDay()]
+            return (
+          <CardSub key={imp.id} alerta={imp.alerta} className="p-3">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <div className={"w-2 h-2 rounded-full " + (imp.turnoActivo ? "bg-emerald-500 animate-pulse" : "bg-zinc-600")} />
+                <p className="text-white text-sm font-medium">{imp.nombre}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                {imp.alerta && <span className="text-red-400 text-xs">Alerta</span>}
+                {imp.pct !== null && <span className={"text-xs font-bold " + (imp.pct >= 80 ? "text-emerald-400" : imp.pct >= 50 ? "text-yellow-400" : "text-red-400")}>{imp.pct}%</span>}
+              </div>
+            </div>
+            {imp.totalPuntos > 0 && (
+              <div className="space-y-2">
+                <div>
+                  <p className="text-zinc-400 text-xs mb-1">hoy {diaHoy}: {imp.visitados}/{imp.totalPuntos} puntos</p>
+                  <div className="w-full rounded-full h-1.5 overflow-hidden" style={{background:"rgba(59,130,246,0.15)"}}>
+                    <div className={"h-1.5 rounded-full transition-all " + (imp.pct >= 80 ? "bg-emerald-500" : imp.pct >= 50 ? "bg-yellow-500" : "bg-red-500")} style={{width:(imp.pct||0)+'%'}} />
+                  </div>
+                </div>
+                {imp.puntoActual && <div style={{background:"rgba(148,160,185,0.28)",border:"1px solid rgba(148,180,255,0.35)",borderRadius:8,padding:"8px 12px"}}><p className="text-zinc-400 text-xs">📍 Está en:</p><p className="text-emerald-400 text-sm font-medium">{imp.puntoActual.nombre}</p>{imp.puntoActual.nombreComercial && <p className="text-zinc-500 text-xs">{imp.puntoActual.nombreComercial}</p>}</div>}
+                {!imp.puntoActual && imp.proximoPunto && <div style={{background:"rgba(148,160,185,0.28)",border:"1px solid rgba(148,180,255,0.25)",borderRadius:8,padding:"8px 12px"}}><p className="text-zinc-400 text-xs">➡️ Va hacia:</p><p className="text-white text-sm font-medium">{imp.proximoPunto.nombre}</p>{imp.proximoPunto.nombreComercial && <p className="text-zinc-500 text-xs">{imp.proximoPunto.nombreComercial}</p>}</div>}
+                {imp.alertasGps?.length > 0 && <div style={{background:"rgba(127,29,29,0.30)",border:"1px solid rgba(239,68,68,0.30)",borderRadius:8,padding:"8px 12px"}}><p className="text-red-400 text-xs font-semibold">⚠️ Alertas GPS hoy ({imp.alertasGps.length})</p>{imp.alertasGps.slice(0,2).map((a: any, i: number) => <p key={i} className="text-red-300 text-xs">{a.detalle} — {new Date(a.hora).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'})}</p>)}</div>}
+              </div>
+            )}
+            {imp.totalPuntos === 0 && <div><p className="text-zinc-500 text-xs">Sin ruta asignada hoy</p>{imp.proximoDia && <p className="text-zinc-400 text-xs mt-1">📅 Próxima ruta: <span className="text-white">{imp.proximoDia}</span></p>}</div>}
+          </CardSub>
+            )
+          })}
+            </div>
+          )}
+        </div>
+          )
+        })()}
+
+        {/* Estadísticas */}
+        <button onClick={() => setMostrarEstadisticasVendedor(v => !v)}
+          style={{background:'rgba(148,160,185,0.22)',border:'1px solid rgba(148,180,255,0.35)',borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
+          <span className="text-white font-semibold text-sm">📊 Estadísticas</span>
+          <span className="text-zinc-500 text-xs">{mostrarEstadisticasVendedor ? '▲ Ocultar' : '▼ Ver'}</span>
+        </button>
+        {mostrarEstadisticasVendedor && !loadingStats && statsVendedor && (
+          <div className="space-y-4">
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 hover-lift fade-up stagger-2">
+          <p className="text-white font-bold mb-3">Últimos 6 días</p>
+          <div className="overflow-x-auto">
+            <div className="flex items-center gap-2 mb-2 pb-1 border-b border-zinc-700">
+          <p className="text-zinc-500 text-xs w-14 flex-shrink-0">Dia</p><p className="text-zinc-500 text-xs flex-1"></p>
+          <p className="text-zinc-500 text-xs w-6 text-right">Vis.</p><p className="text-zinc-500 text-xs w-16 text-right">Ventas</p><p className="text-zinc-500 text-xs w-16 text-right">Recaudo</p>
+            </div>
+            <div className="space-y-2">
+          {statsVendedor.dias.slice().reverse().map((d: any) => (
+            <div key={d.fecha} className="flex items-center gap-1">
+          <p className="text-zinc-400 text-xs w-14 flex-shrink-0 capitalize">{d.label}</p>
+          <div className="flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden"><div className="bg-emerald-500 h-2 rounded-full transition-all" style={{width: d.total > 0 ? Math.min(100,d.total*10)+'%' : '0%'}} /></div>
+          <p className="text-white text-xs w-6 text-right">{d.total}</p>
+          <p className="text-emerald-400 text-xs w-16 text-right">{d.montoVentas > 0 ? '$'+d.montoVentas.toLocaleString('es-CO') : '—'}</p>
+          <p className="text-blue-400 text-xs w-16 text-right">{d.montoCobros > 0 ? '$'+d.montoCobros.toLocaleString('es-CO') : '—'}</p>
+            </div>
+          ))}
+            </div>
+          </div>
+        </div>
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <p className="text-white font-bold mb-3">Últimos 6 meses</p>
+          <div className="overflow-x-auto">
+            <div className="flex items-center gap-2 mb-2 pb-1 border-b border-zinc-700">
+          <p className="text-zinc-500 text-xs w-14 flex-shrink-0">Mes</p><p className="text-zinc-500 text-xs flex-1"></p>
+          <p className="text-zinc-500 text-xs w-6 text-right">Vis.</p><p className="text-zinc-500 text-xs w-16 text-right">Ventas</p><p className="text-zinc-500 text-xs w-16 text-right">Recaudo</p>
+            </div>
+            <div className="space-y-2">
+          {statsVendedor.meses.slice().reverse().map((m: any) => (
+            <div key={m.label} className="flex items-center gap-1">
+          <p className="text-zinc-400 text-xs w-14 flex-shrink-0 capitalize">{m.label}</p>
+          <div className="flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden"><div className="bg-blue-500 h-2 rounded-full transition-all" style={{width: m.total > 0 ? Math.min(100,m.total*2)+'%' : '0%'}} /></div>
+          <p className="text-white text-xs w-6 text-right">{m.total}</p>
+          <p className="text-emerald-400 text-xs w-16 text-right">{m.montoVentas > 0 ? '$'+m.montoVentas.toLocaleString('es-CO') : '—'}</p>
+          <p className="text-blue-400 text-xs w-16 text-right">{m.montoCobros > 0 ? '$'+m.montoCobros.toLocaleString('es-CO') : '—'}</p>
+            </div>
+          ))}
+            </div>
+          </div>
+        </div>
+          </div>
+        )}
+      </div>
 
       {/* ── Modales ── */}
       <ModalVisita
