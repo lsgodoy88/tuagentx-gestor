@@ -10,9 +10,6 @@ concurrency:
   group: deploy-gestor
   cancel-in-progress: false
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
-
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -51,6 +48,9 @@ jobs:
       TZ: "America/Bogota"
 
     steps:
+      - name: Runner info
+        run: echo "Runner ${{ runner.name }} — OS ${{ runner.os }} — Node $(node --version 2>/dev/null || echo 'N/A')"
+
       - uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
