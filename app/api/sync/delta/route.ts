@@ -19,6 +19,7 @@ const municipiosDANE: Record<string, string> = JSON.parse(
 
 async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: string, apiSecret: string, origenVinculadaId: string | null = null, empresaDestinoId?: string) {
   const destino = empresaDestinoId || empresaId
+  const inicioTs = Date.now()
   const adapter = new UpTresAdapter(apiKey, apiSecret)
   await adapter.login()
 
@@ -40,6 +41,25 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   // Solo no avanzar si el fetch falló (error), no si vino vacío legitimamente
   if (!ordenes.length) {
     await prisma.empresa.update({ where: { id: destino }, data: { ultimaSyncBodega: new Date() } })
+    try {
+      await (prisma as any).syncLog.create({
+        data: {
+          integracionId,
+          empresaId: destino,
+          tipo: 'delta',
+          inicio: new Date(inicioTs),
+          fin: new Date(),
+          duracionMs: Date.now() - inicioTs,
+          estado: 'ok',
+          disparadoPor: 'cron',
+          ordenesNuevas: 0,
+          deudasSincronizadas: 0,
+          clientesNuevos: 0,
+          deudasNuevasDelta: 0,
+          comprasSincronizadas: 0,
+        }
+      })
+    } catch {}
     return { empresaId: destino, ordenes: 0, nuevasOrdenes: 0, nuevasDeudas: 0 }
   }
 
@@ -344,6 +364,32 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     await invalidatePattern('g:v:*')        // vendedor/stats → g:v:{userId}:{fecha}
     await invalidatePattern('g:*:stats:*') // stats admin → g:{empresaId}:stats:{fecha}
     await invalidatePattern('g:*:cartera:*') // cartera/resumen → g:{empresaId}:cartera:*
+  }
+
+  const duracionMs = Date.now() - inicioTs
+
+  // ── SyncLog — registro del ciclo delta ──────────────────────────────────
+  // Retención 30 días — limpieza nocturna en sync-nocturno
+  try {
+    await (prisma as any).syncLog.create({
+      data: {
+        integracionId,
+        empresaId: destino,
+        tipo: 'delta',
+        inicio: new Date(inicioTs),
+        fin: new Date(),
+        duracionMs,
+        estado: 'ok',
+        disparadoPor: 'cron',
+        ordenesNuevas: toCreate.length,
+        deudasSincronizadas: deudaToCreate.length,
+        clientesNuevos,
+        deudasNuevasDelta,
+        comprasSincronizadas: ordenes.length,
+      }
+    })
+  } catch (logErr: any) {
+    console.error('[delta] syncLog insert error:', logErr.message)
   }
 
   return { empresaId: destino, ordenes: ordenes.length, nuevasOrdenes: toCreate.length, nuevasDeudas: deudaToCreate.length, clientesNuevos, deudasNuevasDelta }

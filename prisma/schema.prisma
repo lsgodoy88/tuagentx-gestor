@@ -2804,9 +2804,16 @@ model SyncLog {
   errores              Json?
   estado               String      @default("ok") // ok | parcial | error
   createdAt            DateTime    @default(now())
+  // Campos delta — ordenes, clientes y deudas por ciclo
+  tipo                 String      @default("integracion") // delta | bodega | integracion | nocturno
+  ordenesNuevas        Int         @default(0)
+  clientesNuevos       Int         @default(0)
+  deudasNuevasDelta    Int         @default(0)
+  empresaId            String?
   integracion          Integracion @relation(fields: [integracionId], references: [id])
 
   @@index([integracionId])
+  @@index([empresaId, createdAt])
   @@map("SyncLog")
 }
 

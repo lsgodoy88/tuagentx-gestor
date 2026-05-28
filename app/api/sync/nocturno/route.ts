@@ -204,5 +204,18 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // ── Limpieza SyncLog — retención 30 días ────────────────────────────────
+  try {
+    const hace30dias = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    const eliminados = await (prisma as any).syncLog.deleteMany({
+      where: { createdAt: { lt: hace30dias } }
+    })
+    if (eliminados.count > 0) {
+      console.log(`[nocturno] SyncLog limpieza: ${eliminados.count} registros eliminados (>30 días)`)
+    }
+  } catch (err: any) {
+    console.error('[nocturno] SyncLog limpieza error:', err.message)
+  }
+
   return NextResponse.json({ ok: true, resultados })
 }
