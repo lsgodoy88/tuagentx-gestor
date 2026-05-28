@@ -177,29 +177,34 @@ function DashboardPageInner() {
     }
     if (isImpulsadora) { router.push('/impulsadora'); return }
     if (isEmpleado) {
+      // ── PRIORIDAD 1: turno + me — lo más urgente, muestra UI inmediatamente ──
       Promise.all([
-        fetch('/api/rutas/mi-ruta').then(r => r.json()),
         fetch('/api/turnos').then(r => r.json()),
         fetch('/api/me').then(r => r.json()),
-      ]).then(([r, t, me]) => {
-        setRuta(r)
-        setClientesOrdenados(r?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, rezago: rc.rezago, orden: rc.orden, notas: rc.notas || null, ordenDespachoId: rc.ordenDespachoId || null, numeroFactura: (rc as any).numeroFactura || null, empresaOrigen: (rc as any).empresaOrigen || null, alistadoPor: (rc as any).alistadoPor || null, asignadoEn: rc.asignadoEn || null, ordenCreadaEl: (rc as any).ordenCreadaEl || null })) || [])
+      ]).then(([t, me]) => {
         setTurno(t)
         setCargandoTurno(false)
-        if (!t) setTurnoExpandido(false)  // sin turno → pill cerrado
+        if (!t) setTurnoExpandido(false)
         setPuedeCapturarGps(me?.puedeCapturarGps === true)
       })
-      // Cargar hoy inmediatamente al montar para mostrar contadores del día
+
+      // ── PRIORIDAD 2: ruta + stats — en background, no bloquea el turno ──
+      fetch('/api/rutas/mi-ruta').then(r => r.json()).then(r => {
+        setRuta(r)
+        setClientesOrdenados(r?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, rezago: rc.rezago, orden: rc.orden, notas: rc.notas || null, ordenDespachoId: rc.ordenDespachoId || null, numeroFactura: (rc as any).numeroFactura || null, empresaOrigen: (rc as any).empresaOrigen || null, alistadoPor: (rc as any).alistadoPor || null, asignadoEn: rc.asignadoEn || null, ordenCreadaEl: (rc as any).ordenCreadaEl || null })) || [])
+      }).catch(() => {})
+
       if (user.role === 'vendedor') {
+        // Stats y cartera en background — no bloquean la UI
         setLoadingStats(true)
-        Promise.all([
-          fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null).finally(() => setVendedorStatsLoading(false)),
-          fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null),
-        ]).then(([stats, cartera]) => {
+        fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null).then(stats => {
           if (stats && !stats.error) { setStatsVendedor(stats); lastPulseTs.current = Date.now() }
+          setVendedorStatsLoading(false)
+        })
+        fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null).then(cartera => {
           if (cartera) setResumenCartera(cartera)
           setLoadingStats(false)
-        }).catch(() => setLoadingStats(false))
+        })
       }
       // (el histórico se carga al presionar Estadísticas si no estaba cargado)
     } else {
