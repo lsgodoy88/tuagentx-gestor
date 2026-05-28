@@ -462,28 +462,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               borderBottom:'none',
               borderRadius:'24px 24px 0 0',
               display:'flex', alignItems:'center', justifyContent:'center',
-              gap:6,
             }}>
-              {sincronizandoGps ? (
-                <span style={{fontSize:11,fontWeight:800,color:'#fff',letterSpacing:'.1em'}}>GPS...</span>
-              ) : (
-                <svg width="22" height="22" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  {/* Casa 3D — frente */}
-                  <path d="M6 16L16 7L26 16V27H18V20H14V27H6V16Z" fill="rgba(148,180,255,0.90)"/>
-                  {/* Techo izquierdo — sombra */}
-                  <path d="M6 16L16 7L16 7.5L6.5 16.5L6 16Z" fill="rgba(59,100,200,0.5)"/>
-                  {/* Lado derecho — profundidad */}
-                  <path d="M26 16L29 14L29 25L26 27V16Z" fill="rgba(59,100,200,0.65)"/>
-                  {/* Techo derecho — profundidad */}
-                  <path d="M16 7L19 5L29 14L26 16L16 7Z" fill="rgba(100,140,230,0.80)"/>
-                  {/* Puerta */}
-                  <rect x="14" y="20" width="4" height="7" rx="1" fill="rgba(30,60,150,0.70)"/>
-                  {/* Ventana */}
-                  <rect x="8" y="18" width="4" height="4" rx="0.5" fill="rgba(200,220,255,0.70)"/>
-                  {/* Brillo techo */}
-                  <path d="M16 7.5L25.5 16H26L16 7L16 7.5Z" fill="rgba(255,255,255,0.15)"/>
-                </svg>
-              )}
+              <span style={{fontSize:11,fontWeight:800,color:'#fff',letterSpacing:'.1em',textTransform:'uppercase'}}>
+                {sincronizandoGps ? 'GPS...' : labelActivo}
+              </span>
             </div>
           </button>
         </>
