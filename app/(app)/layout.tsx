@@ -414,18 +414,26 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Divider */}
         <div style={{height:1,background:'rgba(59,130,246,0.12)',margin:'8px 0'}} />
 
-        {/* Usuario */}
-        <div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 10px',background:'rgba(59,130,246,0.06)',border:'1px solid rgba(59,130,246,0.12)',borderRadius:12}}>
-          <div style={{width:28,height:28,borderRadius:8,background:'linear-gradient(135deg,#3b82f6,#1d4ed8)',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:12,fontWeight:700,flexShrink:0}}>
+        {/* Usuario — 60% nombre / 17px config / 17px power */}
+        <div style={{display:'flex',alignItems:'center',gap:8,padding:'9px 12px',background:'rgba(39,42,60,0.70)',border:'1px solid rgba(59,130,246,0.25)',borderRadius:12}}>
+          <div style={{width:30,height:30,borderRadius:8,background:'linear-gradient(135deg,#3b82f6,#1d4ed8)',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:13,fontWeight:700,flexShrink:0}}>
             {user?.name?.[0]?.toUpperCase()}
           </div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:14,fontWeight:600,color:'#e4e4e7'}}>{user?.name}</div>
-            <div style={{fontSize:12,color:'rgba(255,255,255,0.35)',textTransform:'capitalize'}}>{user?.role}</div>
+          <div style={{flex:'0 0 58%',minWidth:0,overflow:'hidden'}}>
+            <div style={{fontSize:14,fontWeight:600,color:'#f1f5f9',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{user?.name}</div>
+            <div style={{fontSize:11,color:'rgba(255,255,255,0.35)',textTransform:'capitalize'}}>{user?.role}</div>
           </div>
+          <div style={{flex:1}} />
+          <Link href="/configuracion" onClick={() => setDrawerOpen(false)}
+            style={{width:32,height:32,borderRadius:8,background:'rgba(59,130,246,0.10)',border:'1px solid rgba(59,130,246,0.20)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:17,textDecoration:'none'}}>
+            ⚙️
+          </Link>
           <button onClick={() => signOut({ callbackUrl: '/login' })}
-            style={{fontSize:16,opacity:.4,background:'none',border:'none',cursor:'pointer',padding:4}}>
-            🚪
+            style={{width:32,height:32,borderRadius:8,background:'rgba(239,68,68,0.10)',border:'1px solid rgba(239,68,68,0.30)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,cursor:'pointer'}}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
+              <path d="M12 3v9" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round"/>
+              <path d="M7.5 6.5A8 8 0 1 0 16.5 6.5" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round"/>
+            </svg>
           </button>
         </div>
       </div>
@@ -454,15 +462,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               borderBottom:'none',
               borderRadius:'24px 24px 0 0',
               display:'flex', alignItems:'center', justifyContent:'center',
+              gap:6,
             }}>
-              <span style={{
-                fontSize:11, fontWeight:800,
-                color:'#fff',
-                letterSpacing:'.1em',
-                textTransform:'uppercase',
-              }}>
-                {sincronizandoGps ? 'GPS...' : labelActivo}
-              </span>
+              {sincronizandoGps ? (
+                <span style={{fontSize:11,fontWeight:800,color:'#fff',letterSpacing:'.1em'}}>GPS...</span>
+              ) : (
+                <svg width="22" height="22" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  {/* Casa 3D — frente */}
+                  <path d="M6 16L16 7L26 16V27H18V20H14V27H6V16Z" fill="rgba(148,180,255,0.90)"/>
+                  {/* Techo izquierdo — sombra */}
+                  <path d="M6 16L16 7L16 7.5L6.5 16.5L6 16Z" fill="rgba(59,100,200,0.5)"/>
+                  {/* Lado derecho — profundidad */}
+                  <path d="M26 16L29 14L29 25L26 27V16Z" fill="rgba(59,100,200,0.65)"/>
+                  {/* Techo derecho — profundidad */}
+                  <path d="M16 7L19 5L29 14L26 16L16 7Z" fill="rgba(100,140,230,0.80)"/>
+                  {/* Puerta */}
+                  <rect x="14" y="20" width="4" height="7" rx="1" fill="rgba(30,60,150,0.70)"/>
+                  {/* Ventana */}
+                  <rect x="8" y="18" width="4" height="4" rx="0.5" fill="rgba(200,220,255,0.70)"/>
+                  {/* Brillo techo */}
+                  <path d="M16 7.5L25.5 16H26L16 7L16 7.5Z" fill="rgba(255,255,255,0.15)"/>
+                </svg>
+              )}
             </div>
           </button>
         </>
