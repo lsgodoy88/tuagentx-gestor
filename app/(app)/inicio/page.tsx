@@ -1,4 +1,22 @@
+
 'use client'
+import React from 'react'
+
+class ErrorBoundary extends React.Component<{children: React.ReactNode},{err:any}> {
+  constructor(p: any) { super(p); this.state = {err: null} }
+  static getDerivedStateFromError(e: any) { return {err: e} }
+  render() {
+    if (this.state.err) return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center text-zinc-400 p-8">
+          <p className="text-2xl mb-2">⚠️</p>
+          <p className="text-sm">Error al cargar inicio. Recarga la página.</p>
+        </div>
+      </div>
+    )
+    return this.props.children
+  }
+}
 import { fetchApi, errorMsg } from '@/lib/fetchApi'
 import InputMoneda from '@/components/InputMoneda'
 import { useSession } from 'next-auth/react'
@@ -22,16 +40,23 @@ const ModalRecaudo = dynamic(() => import('@/components/ModalRecaudo'), { ssr: f
 const EntregaCard = dynamic(() => import('@/components/EntregaCard'), { ssr: false })
 
 type LineaPago = { id: string; metodoPago: 'efectivo' | 'transferencia'; monto: string; descuento: string; voucherKey: string | null; voucherDatosIA: any; cargandoVoucher: boolean }
-function crearLinea(): LineaPago { return { id: crypto.randomUUID(), metodoPago: 'efectivo', monto: '', descuento: '', voucherKey: null, voucherDatosIA: null, cargandoVoucher: false } }
-const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
+function genId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; return (c==='x'?r:(r&0x3|0x8)).toString(16) })
+}
+function crearLinea(): LineaPago { return { id: genId(), metodoPago: 'efectivo', monto: '', descuento: '', voucherKey: null, voucherDatosIA: null, cargandoVoucher: false } }
+const fmt = (n: number) => { try { return '$' + Math.round(n).toLocaleString('es-CO') } catch { return '$' + Math.round(n) } }
+const safeLocale = (n: number, opts?: Intl.NumberFormatOptions) => {
+  try { return n.toLocaleString('es-CO', opts) } catch { return n.toLocaleString() }
+}
 const fmtShort = (n: number): string => {
-  if (n >= 1_000_000) return '$' + (n / 1_000_000).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' mill'
-  if (n >= 1_000)     return '$' + (n / 1_000).toLocaleString('es-CO',     { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' K'
-  return '$' + Math.round(n).toLocaleString('es-CO')
+  if (n >= 1_000_000) return '$' + safeLocale(n / 1_000_000, { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' mill'
+  if (n >= 1_000)     return '$' + safeLocale(n / 1_000,     { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' K'
+  return '$' + safeLocale(Math.round(n))
 }
 const RR_LIMIT = 10
 
-export default function DashboardPage() {
+function DashboardPageInner() {
   const { data: session } = useSession()
   const user = session?.user as any
   const router = useRouter()
@@ -173,7 +198,7 @@ export default function DashboardPage() {
           fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null).finally(() => setVendedorStatsLoading(false)),
           fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null),
         ]).then(([stats, cartera]) => {
-          if (stats) setStatsVendedor(stats)
+          if (stats?.hoy) setStatsVendedor(stats)
           if (cartera) setResumenCartera(cartera)
           setLoadingStats(false)
         }).catch(() => setLoadingStats(false))
@@ -423,7 +448,7 @@ export default function DashboardPage() {
       const res = await fetch('/api/cartera/voucher', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ archivoBase64, mimeType: file.type, pagoId: crypto.randomUUID() }),
+        body: JSON.stringify({ archivoBase64, mimeType: file.type, pagoId: genId() }),
       })
       const d = await res.json()
       setLineasPago(prev => prev.map(l => l.id === lineaId ? {
@@ -1073,17 +1098,17 @@ export default function DashboardPage() {
             <div className="space-y-4">
               {/* Accesos directos — Link con prefetch para carga instantánea */}
               <div className="flex gap-2">
-                <Link href="/clientes" prefetch
+                <Link href="/clientes"
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-white transition-colors hover:opacity-80"
                   style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.35)'}}>
                   👥 Clientes
                 </Link>
-                <Link href="/cartera?tab=pagos" prefetch
+                <Link href="/cartera?tab=pagos"
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-white transition-colors hover:opacity-80"
                   style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.35)'}}>
                   💳 Pagos
                 </Link>
-                <Link href="/trazabilidad" prefetch
+                <Link href="/trazabilidad"
                   className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-semibold text-white transition-colors hover:opacity-80"
                   style={{background:'rgba(8,8,28,0.82)',border:'1px solid rgba(59,130,246,0.35)'}}>
                   🔍 Trazabilidad
@@ -1443,4 +1468,8 @@ export default function DashboardPage() {
 
     </div>
   )
+}
+
+export default function DashboardPage() {
+  return <ErrorBoundary><DashboardPageInner /></ErrorBoundary>
 }

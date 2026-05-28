@@ -1,160 +1,52 @@
 'use client'
 import AsistenteGestor from '@/components/AsistenteGestor'
-
-function gearPath(cx: number, cy: number, outerR: number, innerR: number, teeth: number): string {
-  const pts: string[] = []
-  for (let i = 0; i < teeth * 2; i++) {
-    const angle = (i * Math.PI) / teeth - Math.PI / 2
-    const r = i % 2 === 0 ? outerR : innerR
-    pts.push(`${i === 0 ? 'M' : 'L'}${(cx + r * Math.cos(angle)).toFixed(2)},${(cy + r * Math.sin(angle)).toFixed(2)}`)
-  }
-  return pts.join(' ') + ' Z'
-}
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import { GpsContext } from '@/lib/gps-context'
 import Link from 'next/link'
 import PermisosGuard from '@/components/PermisosGuard'
 import { NetworkBanner } from '@/components/NetworkBanner'
 
-
-function RouteCanvasMini() {
-  const ref = useRef<HTMLCanvasElement>(null)
-  useEffect(() => {
-    const canvas = ref.current
-    if (!canvas) return
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return
-    let animId: number
-    const setSize = () => {
-      canvas.width = window.innerWidth
-      canvas.height = window.innerHeight
-    }
-    const resize = setSize
-    resize()
-    window.addEventListener('resize', resize)
-    const N = 18
-    const nodes = Array.from({length: N}, () => ({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      vx: (Math.random() - 0.5) * 0.3,
-      vy: (Math.random() - 0.5) * 0.3,
-    }))
-    const draw = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height)
-      ctx.fillStyle = 'rgba(0,0,0,0.75)'
-      ctx.fillRect(0, 0, canvas.width, canvas.height)
-      for (const n of nodes) {
-        n.x += n.vx; n.y += n.vy
-        if (n.x < 0 || n.x > canvas.width) n.vx *= -1
-        if (n.y < 0 || n.y > canvas.height) n.vy *= -1
-      }
-      for (let i = 0; i < nodes.length; i++) {
-        for (let j = i + 1; j < nodes.length; j++) {
-          const dx = nodes[i].x - nodes[j].x
-          const dy = nodes[i].y - nodes[j].y
-          const dist = Math.sqrt(dx*dx + dy*dy)
-          if (dist < 140) {
-            ctx.beginPath()
-            ctx.moveTo(nodes[i].x, nodes[i].y)
-            ctx.lineTo(nodes[j].x, nodes[j].y)
-            ctx.strokeStyle = `rgba(59,130,246,${(1 - dist/140) * 0.15})`
-            ctx.lineWidth = 1
-            ctx.stroke()
-          }
-        }
-      }
-      for (const n of nodes) {
-        ctx.beginPath()
-        ctx.arc(n.x, n.y, 1.5, 0, Math.PI * 2)
-        ctx.fillStyle = 'rgba(59,130,246,0.2)'
-        ctx.fill()
-      }
-      animId = requestAnimationFrame(draw)
-    }
-    draw()
-    return () => { cancelAnimationFrame(animId); window.removeEventListener('resize', resize) }
-  }, [])
-  return <canvas ref={ref} style={{display:"block",width:"100%",height:"100%"}} />
-}
-
-
-const FRASES_ROL: Record<string, {icon:string, lineas:string[]}[]> = {
-  vendedor: [
-    { icon: '🌟', lineas: ['Hoy es tu', 'día, sal', 'y vende'] },
-    { icon: '🤝', lineas: ['Cada cliente', 'es una', 'oportunidad'] },
-    { icon: '🎯', lineas: ['Tu meta', 'está cerca,', '¡vamos!'] },
-    { icon: '🏆', lineas: ['El mejor', 'vendedor', 'eres tú'] },
-  ],
-  impulsadora: [
-    { icon: '🗺️', lineas: ['Tu ruta', 'de hoy', 'te espera'] },
-    { icon: '🚀', lineas: ['Cada visita', 'suma,', '¡adelante!'] },
-    { icon: '⚡', lineas: ['Tú mueves', 'el negocio', 'hoy'] },
-    { icon: '💪', lineas: ['Constancia', 'es tu', 'superpoder'] },
-  ],
-  bodega: [
-    { icon: '📦', lineas: ['Cada orden', 'bien hecha', 'cuenta'] },
-    { icon: '🏭', lineas: ['Tu trabajo', 'mueve la', 'empresa'] },
-    { icon: '⚡', lineas: ['Precisión', 'y rapidez,', '¡tú puedes!'] },
-    { icon: '🌟', lineas: ['Hoy despacha', 'con', 'orgullo'] },
-  ],
-  entregas: [
-    { icon: '🚚', lineas: ['El cliente', 'espera,', 'tú llegas'] },
-    { icon: '🗺️', lineas: ['Tu ruta', 'es tu', 'misión hoy'] },
-    { icon: '🤝', lineas: ['Cada entrega', 'es una', 'promesa'] },
-    { icon: '🏆', lineas: ['Puntual,', 'confiable,', 'imparable'] },
-  ],
-  default: [
-    { icon: '🌟', lineas: ['Tu visión', 'mueve', 'el equipo'] },
-    { icon: '💡', lineas: ['Hoy lideras', 'con', 'propósito'] },
-    { icon: '🚀', lineas: ['Grandes', 'resultados', 'te esperan'] },
-    { icon: '🏆', lineas: ['Tu equipo', 'necesita', 'lo mejor'] },
-  ],
-}
-const FRASES = FRASES_ROL
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession()
   const router = useRouter()
   const pathname = usePathname()
 
-  // Título del tab por página
   useEffect(() => {
     const titles: Record<string, string> = {
-      '/inicio':              'Inicio',
-      '/empresas':     'Empresas',
-      '/monitor':      'Control',
-      '/precios':      'Precios',
-      '/code':         'Code',
-      '/empleados':    'Activos',
-      '/clientes':     'Clientes',
-      '/cartera':      'Cartera',
-      '/recaudos':     'Recaudos',
-      '/rutas':        'Visitas',
-      '/rutas-fijas':  'Impulsos',
-      '/trazabilidad': 'Trazabilidad',
-      '/reportes':     'Reportes',
-      '/ordenes':      'Órdenes',
-      '/inventario':   'Inventario',
-      '/visitas':      'Mis Visitas',
-      '/impulsadora':  'Mi Ruta',
-      '/mi-ruta':      'Mi Ruta',
-      '/turno':        'Turno',
-      '/historial':    'Historial',
-      '/mapa-ruta':    'Mapa',
-      '/bodega':       'Bodega',
-      '/impulsos':     'Impulsos',
-      '/configuracion':'Configuración',
+      '/inicio':        'Inicio',
+      '/empresas':      'Empresas',
+      '/monitor':       'Control',
+      '/precios':       'Precios',
+      '/code':          'Code',
+      '/empleados':     'Activos',
+      '/clientes':      'Clientes',
+      '/cartera':       'Cartera',
+      '/recaudos':      'Recaudos',
+      '/rutas':         'Visitas',
+      '/rutas-fijas':   'Impulsos',
+      '/trazabilidad':  'Trazabilidad',
+      '/reportes':      'Reportes',
+      '/ordenes':       'Órdenes',
+      '/inventario':    'Inventario',
+      '/visitas':       'Mis Visitas',
+      '/impulsadora':   'Mi Ruta',
+      '/mi-ruta':       'Mi Ruta',
+      '/turno':         'Turno',
+      '/historial':     'Historial',
+      '/mapa-ruta':     'Mapa',
+      '/bodega':        'Bodega',
+      '/impulsos':      'Impulsos',
+      '/configuracion': 'Configuración',
     }
-    const label = titles[pathname] || 'Gestor'
-    document.title = `${label} — TuAgentX`
+    document.title = `${titles[pathname] || 'Gestor'} — TuAgentX`
   }, [pathname])
 
   const [collapsed, setCollapsed] = useState(false)
   const [hovered, setHovered] = useState(false)
   const sidebarExpanded = !collapsed || hovered
-  const [menuMovil, setMenuMovil] = useState(false)
-  const [fraseIdx, setFraseIdx] = useState(0)
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const [asistenteAbierto, setAsistenteAbierto] = useState(false)
   const [bloqueado, setBloqueado] = useState(false)
   const [diasRestantes, setDiasRestantes] = useState<number | null>(null)
@@ -167,18 +59,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!user) return
     const role = user.role as string
     const necesitaNotif = ['empresa', 'supervisor', 'vendedor', 'entregas', 'impulsadora'].includes(role)
-    const necesitaGps = ['vendedor', 'entregas', 'impulsadora'].includes(role)
-
+    const necesitaGps   = ['vendedor', 'entregas', 'impulsadora'].includes(role)
     async function pedirPermisos() {
-      // GPS
       if (necesitaGps && navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          () => {}, // éxito — permiso concedido
-          () => {}, // error — usuario rechazó
-          { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
-        )
+        navigator.geolocation.getCurrentPosition(() => {}, () => {}, { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 })
       }
-      // Notificaciones push
       if (necesitaNotif && 'serviceWorker' in navigator && 'PushManager' in window) {
         try {
           const reg = await navigator.serviceWorker.register('/sw.js')
@@ -189,11 +74,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             userVisibleOnly: true,
             applicationServerKey: 'BGM43jCYmNx71QbrprleQr4ob0WhwaZj65jrB4H7QzjDiOVpvxsOeciZSEEI3um1GN4LnXrhz_z8TI4wpt41-P8'
           })
-          await fetch('/api/push/suscribir', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(sub.toJSON()),
-          })
+          await fetch('/api/push/suscribir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub.toJSON()) })
         } catch(e) { console.log('Push no disponible:', e) }
       }
     }
@@ -205,24 +86,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [status, router])
 
   useEffect(() => {
-    if (!menuMovil) return
-    const t = setInterval(() => setFraseIdx(i => (i + 1) % 4), 4000)
-    return () => clearInterval(t)
-  }, [menuMovil])
-
-  // Bloquear scroll del body cuando el drawer móvil está abierto
-  useEffect(() => {
-    if (menuMovil) {
-      document.body.style.overflow = 'hidden'
-    } else {
-      document.body.style.overflow = ''
-    }
-    return () => { document.body.style.overflow = '' }
-  }, [menuMovil])
-
-  useEffect(() => {
     if (!user || user.role === 'superadmin') return
-    // Cachear en sessionStorage — no cambia durante la sesión
     const cacheKey = 'txa_empresa_estado_' + (user.empresaId || user.id)
     try {
       const cached = sessionStorage.getItem(cacheKey)
@@ -230,7 +94,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         const d = JSON.parse(cached)
         if (d.activa === false) setBloqueado(true)
         if (typeof d.diasRestantes === 'number') setDiasRestantes(d.diasRestantes)
-        return // no hacer fetch si ya tenemos el estado
+        return
       }
     } catch {}
     fetch('/api/mi-empresa/estado')
@@ -243,50 +107,47 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       .catch(() => {})
   }, [user])
 
-
-
   if (status === 'loading') {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{background:"transparent"}}>
+      <div className="min-h-screen flex items-center justify-center" style={{background:'transparent'}}>
         <div className="text-zinc-200">Cargando...</div>
       </div>
     )
   }
 
-  const isSuperAdmin = user?.role === 'superadmin'
+  const isSuperAdmin  = user?.role === 'superadmin'
+  const isEmpresa     = user?.role === 'empresa'
+  const isSupervisor  = user?.role === 'supervisor'
+  const isEmpleado    = ['vendedor', 'entregas'].includes(user?.role)
+  const isBodega      = user?.role === 'bodega'
 
-  const isEmpresa = user?.role === 'empresa'
-  const isSupervisor = user?.role === 'supervisor'
-  const isEmpleado = ['vendedor', 'entregas'].includes(user?.role)
-  const isBodega = user?.role === 'bodega'
-
+  // ── Nav groups (desktop sidebar) ────────────────────────────────
   const navGroups = [
     {
       items: [
         { href: '/inicio', label: 'Inicio', icon: '⚡' },
         ...(isSuperAdmin ? [
-          { href: '/empresas', label: 'Empresas', icon: '🏢' },
-          { href: '/monitor', label: 'Control', icon: '📡' },
-          { href: '/precios', label: 'Precios', icon: '💰' },
-          { href: '/code', label: 'Code', icon: '🧬' },
+          { href: '/empresas',  label: 'Empresas', icon: '🏢' },
+          { href: '/monitor',   label: 'Control',  icon: '📡' },
+          { href: '/precios',   label: 'Precios',  icon: '💰' },
+          { href: '/code',      label: 'Code',     icon: '🧬' },
         ] : []),
       ]
     },
     ...(isEmpresa || isSupervisor ? [{
       label: 'Operaciones',
       items: [
-        { href: '/empleados', label: 'Activos', icon: '👥' },
-        { href: '/clientes', label: 'Clientes', icon: '🏪' },
-        { href: '/cartera', label: 'Cartera', icon: '💰' },
-        { href: '/recaudos', label: 'Recaudos', icon: '💳' },
+        { href: '/empleados', label: 'Activos',   icon: '👥' },
+        { href: '/clientes',  label: 'Clientes',  icon: '🏪' },
+        { href: '/cartera',   label: 'Cartera',   icon: '💰' },
+        { href: '/recaudos',  label: 'Recaudos',  icon: '💳' },
       ]
     }, {
       label: 'Visitas',
       items: [
-        { href: '/rutas', label: 'Visitas', icon: '📋' },
-        { href: '/rutas-fijas', label: 'Impulsos', icon: '⚡' },
-
-        { href: '/trazabilidad', label: 'Trazabilidad', icon: '📊' },
+        { href: '/rutas',        label: 'Visitas',       icon: '📋' },
+        { href: '/rutas-fijas',  label: 'Impulsos',      icon: '⚡' },
+        { href: '/trazabilidad', label: 'Trazabilidad',  icon: '📊' },
       ]
     }, {
       label: 'Análisis',
@@ -296,7 +157,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }] : []),
     ...(isBodega ? [{
       items: [
-        { href: '/ordenes', label: 'Órdenes', icon: '📦' },
+        { href: '/ordenes',    label: 'Órdenes',    icon: '📦' },
         { href: '/inventario', label: 'Inventario', icon: '🏭' },
       ]
     }] : []),
@@ -304,9 +165,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       items: [
         { href: '/visitas', label: 'Visitas', icon: '📋' },
         ...(user?.role === 'vendedor' ? [
-          { href: '/clientes', label: 'Clientes', icon: '🏪' },
-          { href: '/cartera', label: 'Cartera', icon: '💰' },
-          { href: '/trazabilidad', label: 'Trazabilidad', icon: '📊' },
+          { href: '/clientes',     label: 'Clientes',    icon: '🏪' },
+          { href: '/cartera',      label: 'Cartera',     icon: '💰' },
+          { href: '/trazabilidad', label: 'Trazabilidad',icon: '📊' },
         ] : []),
         ...(user?.role !== 'entregas' ? [{ href: '/rutas-fijas', label: 'Mis impulsos', icon: '⚡' }] : []),
         ...(user?.role === 'entregas' ? [{ href: '/trazabilidad', label: 'Trazabilidad', icon: '📊' }] : []),
@@ -314,176 +175,77 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }] : []),
     ...(user?.role === 'impulsadora' ? [{
       items: [
-        { href: '/impulsadora', label: 'Inicio', icon: '⚡' },
+        { href: '/impulsadora', label: 'Inicio',    icon: '⚡' },
         { href: '/rutas-fijas', label: 'Mi semana', icon: '📌' },
       ]
     }] : []),
   ]
-  const navItems = [
+
+  // ── Nav items móvil (drawer) ─────────────────────────────────────
+  const navMovil: { href: string; label: string; icon: string }[] = [
     { href: '/inicio', label: 'Inicio', icon: '⚡' },
     ...(isSuperAdmin ? [
-      { href: '/empresas', label: 'Empresas', icon: '🏢' },
-      { href: '/monitor', label: 'Control', icon: '📡' },
-      { href: '/precios', label: 'Precios', icon: '💰' },
-      { href: '/code', label: 'Code', icon: '🧬' },
+      { href: '/empresas',  label: 'Empresas', icon: '🏢' },
+      { href: '/monitor',   label: 'Control',  icon: '📡' },
+      { href: '/precios',   label: 'Precios',  icon: '💰' },
+      { href: '/code',      label: 'Code',     icon: '🧬' },
     ] : []),
     ...(isEmpresa || isSupervisor ? [
-      { href: '/empleados', label: 'Activos', icon: '👥' },
-      { href: '/clientes', label: 'Clientes', icon: '🏪' },
-      { href: '/cartera', label: 'Cartera', icon: '💰' },
-      { href: '/recaudos', label: 'Recaudos', icon: '💳' },
-      { href: '/rutas', label: 'Rutas', icon: '🗺️' },
-      { href: '/rutas-fijas', label: 'Impulsos', icon: '⚡' },
-      { href: '/visitas-admin', label: 'Visitas', icon: '📋' },
-      { href: '/trazabilidad', label: 'Trazabilidad', icon: '📊' },
-      { href: '/reportes', label: 'Reportes', icon: '📈' },
+      { href: '/empleados',     label: 'Activos',      icon: '👥' },
+      { href: '/clientes',      label: 'Clientes',     icon: '🏪' },
+      { href: '/cartera',       label: 'Cartera',      icon: '💰' },
+      { href: '/recaudos',      label: 'Recaudos',     icon: '💳' },
+      { href: '/rutas',         label: 'Visitas',      icon: '📋' },
+      { href: '/rutas-fijas',   label: 'Impulsos',     icon: '⚡' },
+      { href: '/trazabilidad',  label: 'Trazabilidad', icon: '📊' },
+      { href: '/reportes',      label: 'Reportes',     icon: '📈' },
     ] : []),
     ...(isBodega ? [
-      { href: '/ordenes', label: 'Órdenes', icon: '📦' },
+      { href: '/ordenes',    label: 'Órdenes',    icon: '📦' },
       { href: '/inventario', label: 'Inventario', icon: '🏭' },
     ] : []),
     ...(isEmpleado && user?.role !== 'impulsadora' ? [
       { href: '/visitas', label: 'Visitas', icon: '📋' },
       ...(user?.role === 'vendedor' ? [
-        { href: '/clientes', label: 'Clientes', icon: '🏪' },
-        { href: '/cartera', label: 'Cartera', icon: '💰' },
+        { href: '/clientes',     label: 'Clientes',    icon: '🏪' },
+        { href: '/cartera',      label: 'Cartera',     icon: '💰' },
+        { href: '/trazabilidad', label: 'Trazabilidad',icon: '📊' },
       ] : []),
-      ...(user?.role !== 'entregas' ? [{ href: '/rutas-fijas', label: 'Mis impulsos', icon: '⚡ ' }] : []),
-      ...(user?.role === 'entregas' ? [{ href: '/trazabilidad', label: 'Trazabilidad', icon: '📊' }] : []),
+      ...(user?.role !== 'entregas' ? [{ href: '/rutas-fijas', label: 'Mis impulsos', icon: '⚡' }] : []),
     ] : []),
     ...(user?.role === 'impulsadora' ? [
-      { href: '/impulsadora', label: 'Inicio', icon: '⚡' },
+      { href: '/impulsadora', label: 'Inicio',    icon: '⚡' },
       { href: '/rutas-fijas', label: 'Mi semana', icon: '📌' },
     ] : []),
   ]
-  const iconoActivo = navItems.find(item => pathname === item.href)?.icon || '⚡'
+
+  const navActivo  = navMovil.find(item => pathname === item.href)
+  const iconoActivo = navActivo?.icon  || '⚡'
+  const labelActivo = navActivo?.label || 'Inicio'
 
   return (
     <>
-    {/* Capa de fondo fija */}
-    {/* Fondo fijo — 100lvh no se redimensiona con browser bar en mobile */}
-    <div aria-hidden="true" style={{
-      position:'fixed', top:0, left:0, right:0,
-      height:'100lvh', zIndex:-1,
-      background:'linear-gradient(160deg, #1a2a4a 0%, #1e3a6e 30%, #1a3060 60%, #162848 100%)',
-    }} />
-    <div aria-hidden="true" style={{
-      position:'fixed', top:0, left:0, right:0,
-      height:'100lvh', zIndex:-1,
-      background:'radial-gradient(ellipse at 15% 40%, rgba(59,130,246,0.45) 0%, transparent 55%), radial-gradient(ellipse at 85% 15%, rgba(180,190,200,0.25) 0%, transparent 45%), radial-gradient(ellipse at 70% 85%, rgba(37,99,235,0.35) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, rgba(148,163,184,0.15) 0%, transparent 40%)',
-    }} />
-    {/* Círculos de color estáticos — profundidad para el glass */}
-
+    <div aria-hidden="true" style={{position:'fixed',top:0,left:0,right:0,height:'100lvh',zIndex:-1,background:'linear-gradient(160deg, #1a2a4a 0%, #1e3a6e 30%, #1a3060 60%, #162848 100%)'}} />
+    <div aria-hidden="true" style={{position:'fixed',top:0,left:0,right:0,height:'100lvh',zIndex:-1,background:'radial-gradient(ellipse at 15% 40%, rgba(59,130,246,0.45) 0%, transparent 55%), radial-gradient(ellipse at 85% 15%, rgba(180,190,200,0.25) 0%, transparent 45%), radial-gradient(ellipse at 70% 85%, rgba(37,99,235,0.35) 0%, transparent 50%), radial-gradient(ellipse at 50% 50%, rgba(148,163,184,0.15) 0%, transparent 40%)'}} />
 
     <div className="flex min-h-screen" style={{background:'transparent'}}>
-      {/* Drawer móvil — estilo B */}
-      {menuMovil && (
-        <div className="fixed inset-0 z-[2000] md:hidden" style={{overflow:"hidden"}}>
-          <div className="absolute top-0 bottom-0 right-0" style={{left:"224px", background:"rgba(2,2,10,0.60)"}} onClick={() => setMenuMovil(false)} />
-          <div className="absolute left-0 top-0 bottom-0 w-56 border-r flex flex-col z-[2001] shadow-2xl" style={{background:"#0a0a1e",borderColor:"rgba(255,255,255,0.08)"}}>
-
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 h-14 border-b border-[#1c1c20]">
-              <div className="flex items-center gap-2.5">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center text-xs flex-shrink-0" style={{background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', boxShadow: '0 0 12px #2563eb40'}}>🗺️</div>
-                <span className="text-white font-bold text-sm tracking-tight">Gestor</span>
-              </div>
-              <button onClick={() => setMenuMovil(false)} className="w-7 h-7 flex items-center justify-center text-zinc-400 hover:text-white rounded-lg hover:bg-[#18181b] transition-colors">✕</button>
-            </div>
-
-            {/* Nav con grupos */}
-            <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5" style={{scrollbarWidth:"none",msOverflowStyle:"none"}}>
-              {navGroups.map((group, gi) => (
-                <div key={gi}>
-                  {gi > 0 && (
-                    <div className="my-2 mx-1 flex items-center gap-2">
-                      <div className="flex-1 h-px bg-[#1c1c20]" />
-                      {group.label && <span className="text-zinc-500 text-[9px] font-bold uppercase tracking-widest px-1 whitespace-nowrap">{group.label}</span>}
-                      <div className="flex-1 h-px bg-[#1c1c20]" />
-                    </div>
-                  )}
-                  {group.items
-                    .filter(item => user?.role === 'impulsadora' ? item.href !== '/inicio' : true)
-                    .map(item => {
-                      const isActive = pathname === item.href
-                      return (
-                        <Link key={item.href} href={item.href} onClick={() => setMenuMovil(false)}
-                          className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                            isActive ? 'text-white border border-[#2563eb40]' : 'text-zinc-300 hover:text-white hover:bg-[#18181b]'
-                          }`}
-                          style={isActive ? { background: '#1e3a5f', boxShadow: '0 1px 8px #2563eb20' } : {}}>
-                          <span className="text-base flex-shrink-0">{item.icon}</span>
-                          <span className="flex-1">{item.label}</span>
-                          {isActive && <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />}
-                        </Link>
-                      )
-                    })}
-                </div>
-              ))}
-            </nav>
-
-            {/* Footer */}
-            <div className="border-t border-[#1c1c20] p-2 space-y-0.5">
-              {isEmpresa && (
-                <button onClick={() => { setMenuMovil(false); setAsistenteAbierto(true) }}
-                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-zinc-300 hover:text-white hover:bg-[#18181b] transition-colors">
-                  <span className="relative text-base">🤖<span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full border border-[#0f0f11]" /></span>
-                  TuAgentX
-                </button>
-              )}
-              <button onClick={() => setMenuUsuario(m => !m)}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[#18181b] transition-colors bg-[#18181b]">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white text-sm font-bold flex-shrink-0 relative" style={{background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)'}}>
-                  {user?.name?.[0]?.toUpperCase()}
-                </div>
-                <div className="flex-1 min-w-0 text-left">
-                  <div className="text-[#e4e4e7] text-sm font-semibold truncate">{user?.name}</div>
-                  <div className="text-zinc-400 text-xs capitalize">{user?.role}</div>
-                </div>
-                <div className="w-2 h-2 rounded-full bg-emerald-400 flex-shrink-0" />
-              </button>
-              {menuUsuario && (
-                <div className="bg-[#18181b] border border-[#27272a] rounded-xl overflow-hidden">
-                  <Link href="/configuracion" onClick={() => { setMenuMovil(false); setMenuUsuario(false) }}
-                    className="flex items-center gap-2.5 px-4 py-3 text-sm text-[#a1a1aa] hover:text-white hover:bg-[#27272a] transition-colors">
-                    <span>⚙️</span> Configuración
-                  </Link>
-                  <button onClick={() => signOut({ callbackUrl: '/login' })}
-                    className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-400 hover:text-red-300 hover:bg-[#27272a] transition-colors">
-                    <span>🚪</span> Cerrar sesión
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
 
       <NetworkBanner />
-      {/* Boton flotante movil */}
-      <div className={`fixed bottom-6 left-4 z-[990] md:hidden ${menuMovil ? "hidden" : ""}`}>
-        <button onClick={() => setMenuMovil(true)}
-          className="flex flex-col items-center gap-1 bg-black/50 backdrop-blur-sm border border-blue-500/40 rounded-2xl px-3 py-2.5 shadow-2xl">
-          <span className={"text-2xl" + (sincronizandoGps ? " animate-pulse" : "")}>{sincronizandoGps ? "📍" : iconoActivo}</span>
-        </button>
-      </div>
-      <aside
-        className="w-56 flex-col hidden md:flex flex-shrink-0 fixed top-0 left-0 h-screen overflow-y-auto z-10"
-        style={{background:"rgba(8,10,30,0.45)",borderRight:"1px solid rgba(255,255,255,0.15)"}}>
 
-        {/* Header */}
+      {/* ── SIDEBAR DESKTOP ── */}
+      <aside className="w-56 flex-col hidden md:flex flex-shrink-0 fixed top-0 left-0 h-screen overflow-y-auto z-10"
+        style={{background:'rgba(8,10,30,0.45)',borderRight:'1px solid rgba(255,255,255,0.15)'}}>
+
         <div className="flex items-center px-4 h-14 border-b border-[#1c1c20] flex-shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs" style={{background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', boxShadow: '0 0 12px #2563eb40'}}>🗺️</div>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs" style={{background:'linear-gradient(135deg,#2563eb,#1d4ed8)',boxShadow:'0 0 12px #2563eb40'}}>🗺️</div>
             <span className="text-white font-bold text-sm tracking-tight">Gestor</span>
           </div>
         </div>
 
-        {/* Nav con grupos */}
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
           {navGroups.map((group, gi) => (
             <div key={gi}>
-              {/* Separador entre grupos */}
               {gi > 0 && (
                 <div className="my-2 mx-1 flex items-center gap-2">
                   <div className="flex-1 h-px bg-[#1c1c20]" />
@@ -500,13 +262,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   return (
                     <Link key={item.href} href={item.href}
                       title={!sidebarExpanded ? item.label : ''}
-                      className={`relative flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${
-                        !sidebarExpanded ? 'justify-center' : ''
-                      } ${isActive
-                        ? 'text-white border border-[#2563eb40]'
-                        : 'text-zinc-300 hover:text-white hover:bg-[#18181b]'
-                      }`}
-                      style={isActive ? { background: '#1e3a5f', boxShadow: '0 1px 8px #2563eb20' } : {}}>
+                      className={`relative flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${!sidebarExpanded ? 'justify-center' : ''} ${isActive ? 'text-white border border-[#2563eb40]' : 'text-zinc-300 hover:text-white hover:bg-[#18181b]'}`}
+                      style={isActive ? {background:'#1e3a5f',boxShadow:'0 1px 8px #2563eb20'} : {}}>
                       <span className="text-base flex-shrink-0">{item.icon}</span>
                       {sidebarExpanded && (
                         <>
@@ -521,26 +278,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           ))}
         </nav>
 
-        {/* Footer sticky */}
         <div className="flex-shrink-0 border-t border-[#1c1c20] p-2 space-y-0.5">
-          {/* TuAgentX */}
           {isEmpresa && (
             <button onClick={() => setAsistenteAbierto(true)}
               title={!sidebarExpanded ? 'TuAgentX' : ''}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-zinc-300 hover:text-white hover:bg-[#18181b] transition-colors ${!sidebarExpanded ? 'justify-center' : ''}`}>
-              <span className="relative flex-shrink-0">
-                🤖
-                <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full border border-[#0f0f11]" />
-              </span>
+              <span className="relative flex-shrink-0">🤖<span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full border border-[#0f0f11]" /></span>
               {sidebarExpanded && <span className="truncate">TuAgentX</span>}
             </button>
           )}
-
-          {/* Avatar usuario */}
           <div className="relative">
             <button onClick={() => setMenuUsuario(m => !m)}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[#18181b] transition-colors ${!sidebarExpanded ? 'justify-center' : 'bg-[#18181b]'}`}>
-              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0 relative" style={{background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)'}}>
+              <div className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold flex-shrink-0" style={{background:'linear-gradient(135deg,#3b82f6,#1d4ed8)'}}>
                 {user?.name?.[0]?.toUpperCase()}
               </div>
               {sidebarExpanded && (
@@ -553,9 +303,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 </>
               )}
             </button>
-
             {menuUsuario && (
-              <div className={`absolute ${sidebarExpanded ? 'bottom-full left-0 right-0' : 'bottom-0 left-full ml-2 w-48'} mb-1 rounded-xl overflow-hidden shadow-2xl`} style={{background:"#0d0d14",border:"1px solid rgba(255,255,255,0.12)"}}>
+              <div className={`absolute ${sidebarExpanded ? 'bottom-full left-0 right-0' : 'bottom-0 left-full ml-2 w-48'} mb-1 rounded-xl overflow-hidden shadow-2xl`} style={{background:'#0d0d14',border:'1px solid rgba(255,255,255,0.12)'}}>
                 <div className="px-4 py-2.5 border-b border-[#27272a]">
                   <p className="text-white text-xs font-semibold truncate">{user?.name}</p>
                   <p className="text-zinc-400 text-[10px] capitalize">{user?.role}</p>
@@ -573,15 +322,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </div>
       </aside>
+
+      {/* ── MAIN ── */}
       <main className="flex-1 flex flex-col min-w-0 md:ml-56">
         {bloqueado && (
           <div className="bg-red-900/80 border-b border-red-700 flex items-center justify-between px-4 h-10 flex-shrink-0 overflow-hidden">
-            <span className="text-red-100 text-sm truncate">
-              <span className="hidden sm:inline">🔴 Cuenta suspendida</span>
-              <span className="sm:hidden">🔴 Cuenta suspendida</span>
-            </span>
-            <a href="https://wa.me/573164349389?text=Hola, necesito reactivar mi cuenta de TuAgentX"
-              target="_blank" rel="noopener noreferrer"
+            <span className="text-red-100 text-sm truncate">🔴 Cuenta suspendida</span>
+            <a href="https://wa.me/573164349389?text=Hola, necesito reactivar mi cuenta de TuAgentX" target="_blank" rel="noopener noreferrer"
               className="ml-4 flex-shrink-0 bg-red-700 hover:bg-red-600 text-white text-xs font-semibold px-3 py-1 rounded-lg transition-colors">
               💬 Contactar
             </a>
@@ -590,16 +337,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {!bloqueado && !bannerCerrado && diasRestantes !== null && diasRestantes >= 1 && diasRestantes <= 7 && (() => {
           const d = diasRestantes
           const cfg = d === 1
-            ? { bg: 'bg-red-900/80 border-red-700',         txt: '🔴 Tu plan vence MAÑANA',          cta: 'Renovar ahora' }
+            ? { bg: 'bg-red-900/80 border-red-700',         txt: '🔴 Tu plan vence MAÑANA',       cta: 'Renovar ahora' }
             : d <= 3
-            ? { bg: 'bg-orange-900/70 border-orange-700',   txt: `⚠️ Tu plan vence en ${d} días`,    cta: 'Renovar ahora' }
-            : { bg: 'bg-emerald-900/60 border-emerald-700', txt: `📅 Tu plan vence en ${d} días`,    cta: '¿Renovar?' }
+            ? { bg: 'bg-orange-900/70 border-orange-700',   txt: `⚠️ Tu plan vence en ${d} días`, cta: 'Renovar ahora' }
+            : { bg: 'bg-emerald-900/60 border-emerald-700', txt: `📅 Tu plan vence en ${d} días`, cta: '¿Renovar?' }
           return (
             <div className={`${cfg.bg} border-b flex items-center justify-between px-4 h-10 flex-shrink-0 overflow-hidden`}>
               <span className="text-white text-sm truncate">{cfg.txt}</span>
               <div className="flex items-center gap-2 ml-4 flex-shrink-0">
-                <a href="https://wa.me/573164349389?text=Hola, quiero renovar mi plan de TuAgentX"
-                  target="_blank" rel="noopener noreferrer"
+                <a href="https://wa.me/573164349389?text=Hola, quiero renovar mi plan de TuAgentX" target="_blank" rel="noopener noreferrer"
                   className="bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-3 py-1 rounded-lg transition-colors">
                   💳 {cfg.cta}
                 </a>
@@ -609,16 +355,105 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )
         })()}
 
-        <div className={`flex-1 overflow-x-hidden p-4 md:p-6 pb-20 md:pb-6${bloqueado ? ' pointer-events-none opacity-50' : ''}`}>
+        <div className={`flex-1 overflow-x-hidden p-4 md:p-6 pb-24 md:pb-6${bloqueado ? ' pointer-events-none opacity-50' : ''}`}>
           <div className="max-w-screen-xl mx-auto w-full space-y-6">
-            <PermisosGuard role={user?.role}><GpsContext.Provider value={{ setSincronizandoGps }}>{children}</GpsContext.Provider></PermisosGuard>
+            <PermisosGuard role={user?.role}>
+              <GpsContext.Provider value={{ setSincronizandoGps }}>
+                {children}
+              </GpsContext.Provider>
+            </PermisosGuard>
           </div>
         </div>
       </main>
-    {asistenteAbierto && <AsistenteGestor onClose={() => setAsistenteAbierto(false)} />}
 
-    {/* Overlay configuración inicial de equipo */}
+      {/* ── MUESCA MÓVIL — overlay ── */}
+      {drawerOpen && (
+        <div className="fixed inset-0 z-[998] md:hidden"
+          style={{background:'rgba(0,0,0,0.35)'}}
+          onClick={() => setDrawerOpen(false)} />
+      )}
+
+      {/* ── DRAWER — siempre en DOM, GPU translateY ── */}
+      <div className="fixed bottom-0 left-0 right-0 z-[999] md:hidden"
+        style={{
+          background:'rgba(8,8,28,0.98)',
+          borderTop:'1px solid rgba(59,130,246,0.30)',
+          borderRadius:'24px 24px 0 0',
+          padding:'12px 16px 28px',
+          transform: drawerOpen ? 'translateY(0)' : 'translateY(100%)',
+          transition:'transform .28s cubic-bezier(.32,.72,0,1)',
+        }}>
+
+        {/* Handle */}
+        <div style={{display:'flex',justifyContent:'center',marginBottom:14}}>
+          <div style={{width:40,height:4,background:'rgba(59,130,246,0.4)',borderRadius:2}} />
         </div>
+
+        {/* Grid 4 columnas */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,marginBottom:10}}>
+          {navMovil.slice(0, 8).map(item => {
+            const isAct = pathname === item.href
+            return (
+              <Link key={item.href} href={item.href}
+                onClick={() => setDrawerOpen(false)}
+                style={{
+                  display:'flex',flexDirection:'column',alignItems:'center',gap:4,
+                  padding:'10px 4px',borderRadius:14,textDecoration:'none',
+                  background: isAct ? 'rgba(59,130,246,0.12)' : 'transparent',
+                  border:`1px solid ${isAct ? 'rgba(59,130,246,0.25)' : 'transparent'}`,
+                }}>
+                <span style={{fontSize:20}}>{item.icon}</span>
+                <span style={{fontSize:9,color:isAct ? '#3b82f6' : 'rgba(255,255,255,0.45)',fontWeight:isAct ? 600 : 400}}>
+                  {item.label}
+                </span>
+              </Link>
+            )
+          })}
+        </div>
+
+        {/* Divider */}
+        <div style={{height:1,background:'rgba(59,130,246,0.12)',margin:'8px 0'}} />
+
+        {/* Usuario */}
+        <div style={{display:'flex',alignItems:'center',gap:10,padding:'8px 10px',background:'rgba(59,130,246,0.06)',border:'1px solid rgba(59,130,246,0.12)',borderRadius:12}}>
+          <div style={{width:28,height:28,borderRadius:8,background:'linear-gradient(135deg,#3b82f6,#1d4ed8)',display:'flex',alignItems:'center',justifyContent:'center',color:'#fff',fontSize:12,fontWeight:700,flexShrink:0}}>
+            {user?.name?.[0]?.toUpperCase()}
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:11,fontWeight:600,color:'#e4e4e7'}}>{user?.name}</div>
+            <div style={{fontSize:9,color:'rgba(255,255,255,0.35)',textTransform:'capitalize'}}>{user?.role}</div>
+          </div>
+          <button onClick={() => signOut({ callbackUrl: '/login' })}
+            style={{fontSize:16,opacity:.4,background:'none',border:'none',cursor:'pointer',padding:4}}>
+            🚪
+          </button>
+        </div>
+      </div>
+
+      {/* ── MUESCA — siempre visible, centrada ── */}
+      <button
+        className="fixed bottom-0 left-1/2 -translate-x-1/2 z-[1000] md:hidden"
+        onClick={() => setDrawerOpen(o => !o)}
+        style={{background:'none',border:'none',padding:0,cursor:'pointer'}}>
+        <div style={{
+          width:80,height:36,
+          background:'rgba(8,8,28,0.97)',
+          border:'1px solid rgba(59,130,246,0.40)',
+          borderBottom:'none',
+          borderRadius:'24px 24px 0 0',
+          display:'flex',flexDirection:'column',
+          alignItems:'center',justifyContent:'center',gap:2,
+        }}>
+          <span style={{fontSize:15,lineHeight:1}}>{sincronizandoGps ? '📍' : iconoActivo}</span>
+          <span style={{fontSize:8,fontWeight:700,color:'#3b82f6',letterSpacing:'.06em',textTransform:'uppercase'}}>
+            {sincronizandoGps ? 'GPS...' : labelActivo}
+          </span>
+        </div>
+      </button>
+
+      {asistenteAbierto && <AsistenteGestor onClose={() => setAsistenteAbierto(false)} />}
+
+    </div>
     </>
   )
 }
