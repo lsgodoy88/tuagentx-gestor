@@ -60,7 +60,9 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     const todos: any[] = []
     let cursorDate: string | null = null
     let cursorId: string | null = null
-    while (true) {
+    let pagina = 0
+    const MAX_PAGINAS = 200 // guardia anti-loop infinito — 200 × 100 = 20k registros
+    while (pagina++ < MAX_PAGINAS) {
       const p = new URLSearchParams({ limit: '100', ...extraParams })
       if (cursorDate && cursorId) { p.set('cursorDate', cursorDate); p.set('cursorId', cursorId) }
       const controller = new AbortController()
@@ -83,8 +85,9 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     const todos: any[] = []
     let cursorDate: string | null = null
     let cursorId: string | null = null
-
-    while (true) {
+    let pagina = 0
+    const MAX_PAGINAS = 200 // guardia anti-loop infinito — 200 × 100 = 20k registros
+    while (pagina++ < MAX_PAGINAS) {
       const p = new URLSearchParams({ limit: '100', condition: 'true', ...extraParams })
       if (cursorDate && cursorId) {
         p.set('cursorDate', cursorDate)

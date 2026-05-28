@@ -82,7 +82,7 @@ async function main() {
   for (const pattern of syncPatterns) {
     await syncDeltaQueue.add('sync-delta', {}, { repeat: { pattern } })
   }
-  console.log('  sync-delta  → 14 ciclos/día (8am–6pm Bogotá, horario inteligente)')
+  console.log('  sync-delta  → 16 ciclos/día (8am–5pm Bogotá, cada 30min en pico)')
 
   // sync-nocturno: 8:00 UTC = 3:00 Bogotá
   await syncNocturnoQueue.upsertJobScheduler('sync-nocturno-diario', { pattern: '0 8 * * *' }, { name: 'sync-nocturno-diario', data: {} })

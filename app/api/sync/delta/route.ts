@@ -83,7 +83,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   const clienteApiIds = [...new Set(nuevasOrdenes.map((o: any) => o.cliente?.uid).filter(Boolean))]
   const clienteNits = [...new Set(nuevasOrdenes.map((o: any) => o.clienteNit).filter(Boolean))]
   const clientesLocales = await (prisma as any).cliente.findMany({
-    where: { empresaId, OR: [...(clienteApiIds.length ? [{ apiId: { in: clienteApiIds } }] : []), ...(clienteNits.length ? [{ nit: { in: clienteNits } }] : [])] },
+    where: { empresaId: destino, OR: [...(clienteApiIds.length ? [{ apiId: { in: clienteApiIds } }] : []), ...(clienteNits.length ? [{ nit: { in: clienteNits } }] : [])] }, // fix: usar destino (no empresaId) para soportar empresas vinculadas
     select: { apiId: true, nit: true, ciudad: true, direccion: true, telefono: true }
   })
   const porApiId = new Map(clientesLocales.filter((c: any) => c.apiId).map((c: any) => [c.apiId, c]))

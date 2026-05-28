@@ -24,7 +24,7 @@ import { GpsIndicator } from '@/components/GpsIndicator'
 import { estadoMasCritico } from '@/lib/cartera'
 import { useEffect, useState, useRef } from 'react'
 import { CountUp, LiveDot, SkeletonCard, LoadingBorder } from '@/components/FX'
-import type { VendedorStats, TurnoActivo, VentasLiveResult } from '@/lib/types/vendedor'
+import type { VendedorStats, TurnoActivo } from '@/lib/types/vendedor'
 import type { AdminStats } from '@/lib/types/admin'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
@@ -271,24 +271,7 @@ function DashboardPageInner() {
       })
     }
   }, [user])
-  // ── Refresco al volver a la pantalla — sin polling, sin batería extra ──
-  useEffect(() => {
-    if (!user || user.role !== 'vendedor') return
-    const onVisible = () => {
-      if (document.visibilityState !== 'visible') return
-      // Solo refresca si pasaron más de 3 min desde la última carga
-      if (Date.now() - lastPulseTs.current < 3 * 60 * 1000) return
-      lastPulseTs.current = Date.now()
-      fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null).then(stats => {
-        if (stats && !stats.error) setStatsVendedor(stats)
-      })
-      fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null).then(cartera => {
-        if (cartera) setResumenCartera(cartera)
-      })
-    }
-    document.addEventListener('visibilitychange', onVisible)
-    return () => document.removeEventListener('visibilitychange', onVisible)
-  }, [user])
+  // visibilitychange vendedor → manejado en DashboardVendedor.tsx (evitar doble listener)
 
   async function cargarStatsVendedor() {
     setMostrarEstadisticasVendedor(prev => !prev)

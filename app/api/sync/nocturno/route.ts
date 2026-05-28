@@ -206,12 +206,12 @@ export async function POST(req: NextRequest) {
 
   // ── Limpieza SyncLog — retención 2 días ────────────────────────────────
   try {
-    const hace30dias = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+    const hace2dias = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
     const eliminados = await (prisma as any).syncLog.deleteMany({
-      where: { createdAt: { lt: hace30dias } }
+      where: { createdAt: { lt: hace2dias } }
     })
     if (eliminados.count > 0) {
-      console.log(`[nocturno] SyncLog limpieza: ${eliminados.count} registros eliminados (>2 días)`)
+      console.log(`[nocturno] SyncLog limpieza: ${eliminados.count} registros eliminados (>2 días — retención 2 días)`)
     }
   } catch (err: any) {
     console.error('[nocturno] SyncLog limpieza error:', err.message)
