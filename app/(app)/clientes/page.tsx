@@ -3,6 +3,7 @@ import ClienteCardRol from '@/components/ClienteCardRol'
 import DataTable, { ColDef } from '@/components/DataTable'
 const ModalVisita = dynamic(() => import('@/components/ModalVisita'), { ssr: false })
 import { useEffect, useState, useRef } from 'react'
+import { saveCache, loadCache } from '@/lib/offlineCache'
 import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -139,13 +140,36 @@ export default function ClientesPage() {
 
   async function loadClientes(q: string = '', cursor: string | null = null, listaOverride?: string) {
     const listaToUse = listaOverride !== undefined ? listaOverride : filtroLista
-    if (!cursor) setLoading(true); else setLoadingMore(true)
     const params = new URLSearchParams({ q, limit: String(LIMIT) })
     if (cursor) params.set('cursor', cursor)
     if (listaToUse) params.set('listaId', listaToUse)
+
+    // Stale-while-revalidate: mostrar caché al instante, red en background
+    if (!cursor && !q && !listaToUse) {
+      const cached = loadCache<any>('clientes')
+      if (cached?.data?.clientes) {
+        setClientes(cached.data.clientes)
+        setNextCursor(cached.data.nextCursor ?? null)
+        setHasMore(cached.data.hasMore ?? false)
+        setTotal(cached.data.clientes.length)
+        // Refrescar en background sin spinner
+        fetch(`/api/clientes?${params}`).then(r => r.json()).then(data => {
+          const nuevos = data.clientes ?? []
+          saveCache('clientes', { clientes: nuevos, nextCursor: data.nextCursor, hasMore: data.hasMore })
+          setClientes(nuevos)
+          setNextCursor(data.nextCursor ?? null)
+          setHasMore(data.hasMore ?? false)
+          setTotal(nuevos.length)
+        }).catch(() => {})
+        return
+      }
+    }
+
+    if (!cursor) setLoading(true); else setLoadingMore(true)
     const res = await fetch(`/api/clientes?${params}`)
     const data = await res.json()
     const nuevos = data.clientes ?? []
+    if (!cursor) saveCache('clientes', { clientes: nuevos, nextCursor: data.nextCursor, hasMore: data.hasMore })
     setClientes(!cursor ? nuevos : prev => [...prev, ...nuevos])
     setNextCursor(data.nextCursor ?? null)
     setHasMore(data.hasMore ?? false)

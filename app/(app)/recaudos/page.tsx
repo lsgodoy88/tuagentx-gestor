@@ -1,5 +1,6 @@
 'use client'
 import React from 'react'
+import { saveCache, loadCache } from '@/lib/offlineCache'
 import { useSession } from 'next-auth/react'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
@@ -307,15 +308,38 @@ export default function RecaudosPage() {
 
   const fetchPagos = useCallback(async (cursor: string | null = null) => {
     if (!isAdmin) return
-    if (!cursor) { setLoading(true); setSeleccionados(new Set()); setPage(0) } else setLoadingMore(true)
     const params = new URLSearchParams()
     if (vendedorId) params.set('vendedorId', vendedorId)
     if (tab !== 'todos') params.set('estado', tab)
     if (fecha) params.set('fecha', fecha)
     if (cursor) params.set('cursor', cursor)
+
+    // Stale-while-revalidate: mostrar caché al instante (solo carga inicial sin filtros)
+    const cacheKey = `recaudos:${tab}:${vendedorId}:${fecha}`
+    if (!cursor) {
+      const cached = loadCache<any>(cacheKey)
+      if (cached?.data?.pagos) {
+        setPagos(cached.data.pagos)
+        setNextCursor(cached.data.nextCursor ?? null)
+        setHasMore(cached.data.hasMore ?? false)
+        setSeleccionados(new Set()); setPage(0)
+        // Refrescar en background sin spinner
+        fetch(`/api/recaudos?${params}`).then(r => r.json()).then(data => {
+          const nuevos = data.pagos ?? []
+          saveCache(cacheKey, { pagos: nuevos, nextCursor: data.nextCursor, hasMore: data.hasMore })
+          setPagos(nuevos)
+          setNextCursor(data.nextCursor ?? null)
+          setHasMore(data.hasMore ?? false)
+        }).catch(() => {})
+        return
+      }
+      setLoading(true); setSeleccionados(new Set()); setPage(0)
+    } else setLoadingMore(true)
+
     const res  = await fetch(`/api/recaudos?${params}`)
     const data = await res.json()
     const nuevos = data.pagos ?? []
+    if (!cursor) saveCache(cacheKey, { pagos: nuevos, nextCursor: data.nextCursor, hasMore: data.hasMore })
     setPagos(!cursor ? nuevos : prev => [...prev, ...nuevos])
     setNextCursor(data.nextCursor ?? null)
     setHasMore(data.hasMore ?? false)

@@ -2,8 +2,9 @@
 import { useEffect, useState, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { fetchApi } from '@/lib/fetchApi'
-import ModalVisita from '@/components/ModalVisita'
-import MapaEnVivo from '@/components/MapaEnVivo'
+import dynamic from 'next/dynamic'
+const ModalVisita = dynamic(() => import('@/components/ModalVisita'), { ssr: false })
+const MapaEnVivo  = dynamic(() => import('@/components/MapaEnVivo'),  { ssr: false })
 import { checkPermiso } from '@/lib/permisos'
 
 export default function VisitasPage() {
