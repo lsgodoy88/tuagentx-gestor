@@ -37,6 +37,7 @@ const ModalVisita = dynamic(() => import('@/components/ModalVisita'), { ssr: fal
 const CarteraCard = dynamic(() => import('@/components/CarteraCard'), { ssr: false })
 const ModalRecaudo = dynamic(() => import('@/components/ModalRecaudo'), { ssr: false })
 const EntregaCard = dynamic(() => import('@/components/EntregaCard'), { ssr: false })
+const DashboardVendedor = dynamic(() => import('./_components/DashboardVendedor'), { ssr: false })
 
 type LineaPago = { id: string; metodoPago: 'efectivo' | 'transferencia'; monto: string; descuento: string; voucherKey: string | null; voucherDatosIA: any; cargandoVoucher: boolean }
 function genId(): string {
@@ -196,6 +197,7 @@ function DashboardPageInner() {
   }, [turno])
   useEffect(() => {
     if (!user) return
+    if (user.role === 'vendedor') return // DashboardVendedor maneja sus propios effects
     if (user.role === 'superadmin') {
       fetch('/api/precios').then(r => r.json()).then(d => setResumenFinanciero(d))
       return
@@ -581,6 +583,11 @@ function DashboardPageInner() {
   }
 
 
+
+  // ── Early return para vendedor ──────────────────────────────────────────
+  if (user?.role === 'vendedor') {
+    return <DashboardVendedor user={user} />
+  }
 
   const clientesConGps = clientesOrdenados.filter((c: any) => c.ubicacionReal).length
   const totalClientes = clientesOrdenados.length
