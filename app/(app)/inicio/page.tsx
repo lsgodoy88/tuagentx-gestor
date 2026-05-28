@@ -113,6 +113,7 @@ function DashboardPageInner() {
   const [montado, setMontado] = useState(false)
   const [mostrarPausa, setMostrarPausa] = useState(false)
   const [turnoExpandido, setTurnoExpandido] = useState(false)
+  const lastPulseTs = useRef<number>(0) // último pulse sync procesado
   const [pausaMotivo, setPausaMotivo] = useState('Almuerzo')
   const [pausaMotivoCustom, setPausaMotivoCustom] = useState('')
   const [pausaDuracion, setPausaDuracion] = useState(60)
@@ -195,7 +196,7 @@ function DashboardPageInner() {
           fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null).finally(() => setVendedorStatsLoading(false)),
           fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null),
         ]).then(([stats, cartera]) => {
-          if (stats) setStatsVendedor(stats)
+          if (stats && !stats.error) { setStatsVendedor(stats); lastPulseTs.current = Date.now() }
           if (cartera) setResumenCartera(cartera)
           setLoadingStats(false)
         }).catch(() => setLoadingStats(false))
@@ -217,6 +218,28 @@ function DashboardPageInner() {
       })
     }
   }, [user])
+  // ── Polling sync/pulse — refresca stats cuando el delta trae datos nuevos ──
+  useEffect(() => {
+    if (!user || user.role !== 'vendedor') return
+    const poll = setInterval(async () => {
+      try {
+        const res = await fetch('/api/sync/pulse')
+        const { ts } = await res.json()
+        if (ts > 0 && ts > lastPulseTs.current) {
+          lastPulseTs.current = ts
+          // Hay sync nuevo — invalida cache y recarga stats silenciosamente
+          const [stats, cartera] = await Promise.all([
+            fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null),
+            fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null),
+          ])
+          if (stats && !stats.error) setStatsVendedor(stats)
+          if (cartera) setResumenCartera(cartera)
+        }
+      } catch {}
+    }, 2 * 60 * 1000) // cada 2 minutos
+    return () => clearInterval(poll)
+  }, [user])
+
   async function cargarStatsVendedor() {
     setMostrarEstadisticasVendedor(prev => !prev)
     // statsVendedor ya se cargó al montar — no recargar
@@ -1023,8 +1046,7 @@ function DashboardPageInner() {
             </div>
           ) : null}
           {user?.role === 'vendedor' && turno && (
-              <div className="rounded-2xl p-4 w-full slide-down" style={{background:"rgba(148,160,185,0.22)",border:"1px solid rgba(148,180,255,0.35)"}}>
-                <div className="flex gap-2">
+              <div className="flex gap-2 w-full slide-down">
                   {[
                     { tipo: 'visita', label: 'Visita', icon: '👁️' },
                     { tipo: 'venta', label: 'Venta', icon: '💰' },
@@ -1032,13 +1054,12 @@ function DashboardPageInner() {
                     { tipo: 'entrega', label: 'Entrega', icon: '📦' },
                   ].map(b => (
                     <button key={b.tipo} onClick={() => b.tipo === 'cobro' ? abrirModalRecaudoRapido() : abrirModalVisita(b.tipo)}
-                      className="flex-1 text-white font-semibold py-3 rounded-xl text-sm transition-colors flex flex-col items-center gap-1"
+                      className="flex-1 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors flex flex-col items-center gap-1"
                       style={{background:'rgba(148,160,185,0.22)',border:'1px solid rgba(148,180,255,0.35)'}}>
                       <span className="text-lg">{b.icon}</span>
                       <span>{b.label}</span>
                     </button>
                   ))}
-                </div>
               </div>
             )}
           {user?.role === 'entregas' && ruta && ruta.clientes?.length > 0 && (
@@ -1276,7 +1297,7 @@ function DashboardPageInner() {
                       </div>
                     </div>
                   </div>
-                  <div className="rounded-2xl p-4" style={{background:"rgba(148,160,185,0.22)",border:"1px solid rgba(148,180,255,0.35)"}}>
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
                     <p className="text-white font-bold mb-3">Últimos 6 meses</p>
                     <div className="overflow-x-auto">
                       <div>

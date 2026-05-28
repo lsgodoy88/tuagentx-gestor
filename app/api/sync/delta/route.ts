@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 import { invalidatePattern } from '@/lib/cache'
+import { redis } from '@/lib/redis'
 import { notificarWA } from '@/lib/notificaciones'
 import fs from 'fs'
 import path from 'path'
@@ -344,6 +345,8 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     await invalidatePattern('g:v:*')        // vendedor/stats → g:v:{userId}:{fecha}
     await invalidatePattern('g:*:stats:*') // stats admin → g:{empresaId}:stats:{fecha}
     await invalidatePattern('g:*:cartera:*') // cartera/resumen → g:{empresaId}:cartera:*
+    // Pulse — señal para que el dashboard recargue stats automáticamente
+    try { await redis.set(`g:sync:pulse:${destino}`, Date.now(), 'EX', 300) } catch {}
   }
 
   return { empresaId: destino, ordenes: ordenes.length, nuevasOrdenes: toCreate.length, nuevasDeudas: deudaToCreate.length, clientesNuevos, deudasNuevasDelta }
