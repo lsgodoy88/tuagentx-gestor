@@ -104,7 +104,7 @@ export function CardCountAdmin({
       {/* Icon + label — más prominente */}
       <div className="flex items-center justify-center gap-1.5 mb-2">
         <span className="text-base">{icon}</span>
-        <span className="text-white text-sm font-bold tracking-widest uppercase">{label}</span>
+        <span className="text-white text-sm font-bold tracking-wide">{label}</span>
       </div>
       {/* Valores X / Y — más pequeños */}
       <div className="flex items-baseline justify-center gap-1.5">
