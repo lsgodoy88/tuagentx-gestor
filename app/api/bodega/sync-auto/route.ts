@@ -47,12 +47,11 @@ async function syncEmpresa(empresaIdConIntegracion: string, origenVinculadaId: s
   let nuevas = 0
   const empresaDestino = empresaBodegaId || empresaIdConIntegracion
 
-  // 1. Filtrar órdenes válidas (con factura y nombre)
+  // 1. Filtrar órdenes válidas (con factura y origenId — nombre no requerido para no perder órdenes)
   const ordenesValidas = ordenesFiltradas.filter((orden: any) => {
     const numFactura = orden.numeroFacturado ? String(orden.numeroFacturado) : null
-    const nombre = orden.clienteNombre || orden.clienteNombreApi
     const origenId = String(orden.uid || orden._id || '')
-    return numFactura && nombre && origenId
+    return numFactura && origenId
   })
 
   // 2. Un solo query para saber cuáles ya existen
@@ -124,7 +123,7 @@ async function syncEmpresa(empresaIdConIntegracion: string, origenVinculadaId: s
       numeroFactura: numFactura,
       vendedorApiId,
       clienteApiId,
-      clienteNombre: orden.clienteNombre || orden.clienteNombreApi,
+      clienteNombre: orden.clienteNombre || orden.clienteNombreApi || 'Sin nombre',
       clienteNit,
       ciudad: ciudadNombre,
       direccion,
