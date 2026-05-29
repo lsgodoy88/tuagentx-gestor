@@ -37,13 +37,13 @@ export async function POST(req: NextRequest) {
       // Cerrar cualquier turno activo previo
       await tx.turno.updateMany({
         where: { empleadoId: user.id, activo: true },
-        data: { activo: false, fin: nowBogota() }
+        data: { activo: false, fin: new Date() } // new Date() = UTC real
       })
       return tx.turno.create({
         data: {
           id: nuevoId,
           empleadoId: user.id,
-          inicio: nowBogota(),  // explícito para evitar drift de timezone
+          inicio: new Date(),   // new Date() = UTC real (nowBogota restaba 5h incorrectamente)
           latInicio: lat || null,
           lngInicio: lng || null,
           activo: true,
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
   if (accion === 'cerrar') {
     await prisma.turno.updateMany({
       where: { empleadoId: user.id, activo: true },
-      data: { activo: false, fin: nowBogota(), latFin: lat || null, lngFin: lng || null }
+      data: { activo: false, fin: new Date(), latFin: lat || null, lngFin: lng || null } // new Date() = UTC real
     })
     await audit('TURNO_CERRADO', user.email, `Turno cerrado`, user.id, user.empresaId)
     return NextResponse.json({ ok: true })
@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
   if (accion === 'pausar') {
     await prisma.turno.updateMany({
       where: { empleadoId: user.id, activo: true },
-      data: { pausado: true, pausaInicio: nowBogota(), pausaMotivo: motivo || null, pausaDuracionMin: duracionMin || null }
+      data: { pausado: true, pausaInicio: new Date(), pausaMotivo: motivo || null, pausaDuracionMin: duracionMin || null } // new Date() = UTC real
     })
     return NextResponse.json({ ok: true })
   }

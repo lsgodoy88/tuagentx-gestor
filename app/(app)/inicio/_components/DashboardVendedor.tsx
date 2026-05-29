@@ -110,7 +110,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
     if (!turno) return
     const calcTiempo = () => {
       const inicio = new Date(turno.inicio)
-      const ahora  = new Date(Date.now() - 5*60*60*1000)
+      const ahora  = new Date() // UTC real — turno.inicio ahora se guarda como UTC real
       const diff   = Math.max(0, Math.floor((ahora.getTime() - inicio.getTime()) / 1000))
       const h = Math.floor(diff / 3600), m = Math.floor((diff % 3600) / 60), s = diff % 60
       return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0')
@@ -118,7 +118,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
     setTiempoTurno(calcTiempo())
     const interval = setInterval(() => {
       const inicio = new Date(turno.inicio)
-      const ahora  = new Date(Date.now() - 5*60*60*1000)
+      const ahora  = new Date() // UTC real
       const diff   = Math.max(0, Math.floor((ahora.getTime() - inicio.getTime()) / 1000))
       const h = Math.floor(diff / 3600), m = Math.floor((diff % 3600) / 60), s = diff % 60
       setTiempoTurno(String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0'))
