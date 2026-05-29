@@ -44,15 +44,13 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen relative flex items-center justify-center p-4 overflow-hidden">
 
-      {/* Fondo — imagen aérea de ciudad con rutas */}
+      {/* Fondo — misma imagen que desktop */}
       <div
         className="absolute inset-0 bg-cover bg-center"
-        style={{ backgroundImage: "url('https://images.unsplash.com/photo-1477959858617-67f85cf4f1df?w=1600&q=80')" }}
+        style={{ backgroundImage: "url('/bg-city.webp')" }}
       />
-      {/* Overlay oscuro para contraste */}
-      <div className="absolute inset-0 bg-black/55" />
-      {/* Viñeta en bordes */}
-      <div className="absolute inset-0" style={{background:'radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.7) 100%)'}} />
+      {/* Overlay azul — mismo tono que desktop */}
+      <div className="absolute inset-0" style={{background:'rgba(4,12,40,0.40)'}} />
 
       {/* Card glassmorphism */}
       <div className="relative z-10 w-full max-w-sm">
