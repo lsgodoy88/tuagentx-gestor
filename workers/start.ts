@@ -15,7 +15,7 @@ try {
   }
 } catch { /* .env no encontrado — usar variables de entorno del proceso */ }
 
-import { rutasDiaQueue, integracionQueue, rutasDiaWorker, integracionWorker, entregasWorker, auditQueue, auditWorker, contextoQueue, contextoWorker, mantenimientoQueue, mantenimientoWorker, bodegaSyncQueue, bodegaSyncWorker, syncDeltaQueue, syncDeltaWorker, syncNocturnoQueue, syncNocturnoWorker } from './index'
+import { rutasDiaQueue, integracionQueue, rutasDiaWorker, integracionWorker, entregasWorker, auditQueue, auditWorker, contextoQueue, contextoWorker, mantenimientoQueue, mantenimientoWorker, bodegaSyncQueue, bodegaSyncWorker, syncDeltaWorker, syncNocturnoQueue, syncNocturnoWorker } from './index'
 
 async function main() {
   // ── Registrar jobs repetitivos ────────────────────────────────────────────
@@ -68,21 +68,9 @@ async function main() {
     { name: 'mantenimiento-diario', data: {} },
   )
   console.log('  mantenimiento -> mantenimiento-diario (0 14 * * * UTC = 9am Bogota)')
-  // ── sync-delta: horario inteligente 8am–6pm Bogotá — cada 30min usando add+repeat
-  const syncPatterns = [
-    '0 13 * * 1-6',  '30 13 * * 1-6',  // 8am, 8:30am
-    '0 14 * * 1-6',  '30 14 * * 1-6',  // 9am, 9:30am
-    '0 15 * * 1-6',  '30 15 * * 1-6', // 10am, 10:30am
-    '0 16 * * 1-6',  '30 16 * * 1-6', // 11am, 11:30am
-    '0 17 * * 1-6',  '0 18 * * 1-6',   // 12pm, 1pm
-    '0 19 * * 1-6',  '30 19 * * 1-6',  // 2pm, 2:30pm
-    '0 20 * * 1-6',  '30 20 * * 1-6',  // 3pm, 3:30pm
-    '0 21 * * 1-6',  '0 22 * * 1-6',   // 4pm, 5pm
-  ]
-  for (const pattern of syncPatterns) {
-    await syncDeltaQueue.add('sync-delta', {}, { repeat: { pattern } })
-  }
-  console.log('  sync-delta  → 16 ciclos/día (8am–5pm Bogotá, cada 30min en pico)')
+  // sync-delta: manejado por crontab Linux (*/30 13-21 * * 1-6)
+  // Más confiable que BullMQ — sobrevive reinicios del worker y de Redis
+  console.log('  sync-delta  → crontab OS (*/30 13-21 UTC = 8am-4:30pm Bogotá, L-S)')
 
   // sync-nocturno: 8:00 UTC = 3:00 Bogotá
   await syncNocturnoQueue.upsertJobScheduler('sync-nocturno-diario', { pattern: '0 8 * * *' }, { name: 'sync-nocturno-diario', data: {} })
