@@ -26,7 +26,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       '/recaudos':      'Recaudos',
       '/rutas':         'Visitas',
       '/rutas-fijas':   'Impulsos',
-      '/trazabilidad':  'Trazabilidad',
+      '/trazabilidad':  'Despacho',
       '/reportes':      'Reportes',
       '/ordenes':       'Órdenes',
       '/inventario':    'Inventario',
@@ -152,7 +152,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       items: [
         { href: '/rutas',        label: 'Visitas',       icon: '📋' },
         { href: '/rutas-fijas',  label: 'Impulsos',      icon: '⚡' },
-        { href: '/trazabilidad', label: 'Trazabilidad',  icon: '📊' },
+        { href: '/trazabilidad', label: 'Despacho',  icon: '🚚' },
       ]
     }, {
       label: 'Análisis',
@@ -172,10 +172,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         ...(user?.role === 'vendedor' ? [
           { href: '/clientes',     label: 'Clientes',    icon: '🏪' },
           { href: '/cartera',      label: 'Cartera',     icon: '💰' },
-          { href: '/trazabilidad', label: 'Trazabilidad',icon: '📊' },
+          { href: '/trazabilidad', label: 'Despacho',icon: '🚚' },
         ] : []),
         ...(user?.role !== 'entregas' ? [{ href: '/rutas-fijas', label: 'Impulsos', icon: '⚡' }] : []),
-        ...(user?.role === 'entregas' ? [{ href: '/trazabilidad', label: 'Trazabilidad', icon: '📊' }] : []),
+        ...(user?.role === 'entregas' ? [{ href: '/trazabilidad', label: 'Despacho', icon: '🚚' }] : []),
       ]
     }] : []),
     ...(user?.role === 'impulsadora' ? [{
@@ -202,7 +202,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: '/recaudos',      label: 'Recaudos',     icon: '💳' },
       { href: '/rutas',         label: 'Visitas',      icon: '📋' },
       { href: '/rutas-fijas',   label: 'Impulsos',     icon: '⚡' },
-      { href: '/trazabilidad',  label: 'Trazabilidad', icon: '📊' },
+      { href: '/trazabilidad',  label: 'Despacho', icon: '🚚' },
       { href: '/reportes',      label: 'Reportes',     icon: '📈' },
     ] : []),
     ...(isBodega ? [
@@ -214,7 +214,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       ...(user?.role === 'vendedor' ? [
         { href: '/clientes',     label: 'Clientes',    icon: '🏪' },
         { href: '/cartera',      label: 'Cartera',     icon: '💰' },
-        { href: '/trazabilidad', label: 'Trazabilidad',icon: '📊' },
+        { href: '/trazabilidad', label: 'Despacho',icon: '🚚' },
       ] : []),
       ...(user?.role !== 'entregas' ? [{ href: '/rutas-fijas', label: 'Impulsos', icon: '⚡' }] : []),
     ] : []),
