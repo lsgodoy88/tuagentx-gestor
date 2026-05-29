@@ -10,10 +10,10 @@
 }
 
 :root {
-  --background: #07122e;
-  --foreground: #e2e8f0;
-  --card-bg: rgba(8,8,28,0.72);
-  --card-bg-2: rgba(13,13,30,0.68);
+  --background: #060f2c;
+  --foreground: #bdd0ee;
+  --card-bg: rgba(6,10,36,0.75);
+  --card-bg-2: rgba(8,12,38,0.70);
   --border-blue: rgba(59, 130, 246, 0.45);
 }
 
@@ -543,8 +543,8 @@ body {
    Con el fondo oscuro del glass, los grises se pierden.
    Se mantiene una jerarquía leve: zinc-600 levemente atenuado.
    ------------------------------------------------------------------ */
-.text-zinc-200, .text-zinc-300, .text-zinc-400 { color: rgba(255,255,255,1) !important; }
-.text-zinc-500 { color: rgba(255,255,255,0.90) !important; }
+.text-zinc-200, .text-zinc-300, .text-zinc-400 { color: rgba(210,228,255,0.92) !important; }
+.text-zinc-500 { color: rgba(180,205,245,0.80) !important; }
 .text-zinc-600 { color: rgba(255,255,255,0.80) !important; }
 .text-zinc-700 { color: rgba(255,255,255,0.70) !important; }
 .text-slate-400, .text-slate-500 { color: rgba(255,255,255,0.90) !important; }
