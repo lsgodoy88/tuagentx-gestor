@@ -1,9 +1,47 @@
 'use client'
 import { useSession, signOut } from 'next-auth/react'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 
 const eyeOpen = <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
 const eyeOff = <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+
+// ── Helpers tema ─────────────────────────────────────────────────────────────
+function hslToHex(h: number, s: number, l: number): string {
+  s /= 100; l /= 100
+  const a = s * Math.min(l, 1 - l)
+  const f = (n: number) => {
+    const k = (n + h / 30) % 12
+    const color = l - a * Math.max(Math.min(k - 3, 9 - k, 1), -1)
+    return Math.round(255 * color).toString(16).padStart(2, '0')
+  }
+  return `#${f(0)}${f(8)}${f(4)}`
+}
+function colorNameFromHue(hue: number): string {
+  if (hue < 15) return 'Rojo oscuro'
+  if (hue < 35) return 'Naranja noche'
+  if (hue < 55) return 'Ámbar oscuro'
+  if (hue < 75) return 'Lima oscura'
+  if (hue < 100) return 'Verde bosque'
+  if (hue < 140) return 'Esmeralda'
+  if (hue < 165) return 'Turquesa oscuro'
+  if (hue < 195) return 'Cyan noche'
+  if (hue < 225) return 'Azul océano'
+  if (hue < 255) return 'Azul índigo'
+  if (hue < 285) return 'Violeta oscuro'
+  if (hue < 315) return 'Púrpura'
+  if (hue < 345) return 'Rosa oscuro'
+  return 'Rojo oscuro'
+}
+const TEMA_PRESETS = [
+  { hue:225, sat:72, lit:11, label:'Noche azul' },
+  { hue:240, sat:60, lit:10, label:'Índigo' },
+  { hue:270, sat:55, lit:10, label:'Violeta' },
+  { hue:210, sat:65, lit:12, label:'Océano' },
+  { hue:160, sat:60, lit:10, label:'Esmeralda' },
+  { hue:195, sat:65, lit:11, label:'Cyan' },
+  { hue:10,  sat:55, lit:10, label:'Rojo oscuro' },
+  { hue:280, sat:50, lit:11, label:'Púrpura' },
+]
 
 function Seccion({ titulo, icono, isOpen, onToggle, children }: {
   titulo: string
@@ -27,9 +65,14 @@ export default function ConfiguracionPage() {
   const { data: session, status } = useSession()
   const user = session?.user as any
   // Tema
+  const [temaHue, setTemaHue] = useState(225)
+  const [temaSat, setTemaSat] = useState(72)
+  const [temaLit, setTemaLit] = useState(11)
   const [colorFondo, setColorFondo] = useState('#060f2c')
   const [savingTema, setSavingTema] = useState(false)
   const [msgTema, setMsgTema] = useState('')
+  const temaBandRef = useRef<HTMLDivElement>(null)
+  const temaDragging = useRef(false)
 
   const [newPass, setNewPass] = useState('')
   const [newPass2, setNewPass2] = useState('')
@@ -252,10 +295,40 @@ export default function ConfiguracionPage() {
     setTimeout(() => setMsgTema(''), 3000)
   }
 
-  function previewColor(hex: string) {
+  function previewColor(hex: string, h?: number, s?: number, l?: number) {
     setColorFondo(hex)
+    if (h !== undefined) setTemaHue(h)
+    if (s !== undefined) setTemaSat(s)
+    if (l !== undefined) setTemaLit(l)
     document.documentElement.style.setProperty('--background', hex)
+    localStorage.setItem('colorFondo', hex)
   }
+
+  const getHueFromBand = useCallback((e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
+    const band = temaBandRef.current
+    if (!band) return
+    const rect = band.getBoundingClientRect()
+    const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX
+    const x = Math.max(0, Math.min(clientX - rect.left, rect.width))
+    const newHue = Math.round((x / rect.width) * 360)
+    const hex = hslToHex(newHue, temaSat, temaLit)
+    previewColor(hex, newHue, temaSat, temaLit)
+  }, [temaSat, temaLit])
+
+  useEffect(() => {
+    const onMove = (e: MouseEvent | TouchEvent) => { if (temaDragging.current) getHueFromBand(e as any) }
+    const onUp = () => { temaDragging.current = false }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    window.addEventListener('touchmove', onMove)
+    window.addEventListener('touchend', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('touchmove', onMove)
+      window.removeEventListener('touchend', onUp)
+    }
+  }, [getHueFromBand])
 
   async function cambiarPassword() {
     if (newPass !== newPass2) { setMsg('Las contraseñas no coinciden'); return }
@@ -1283,66 +1356,116 @@ export default function ConfiguracionPage() {
       {/* ── TEMA ── */}
       <Seccion titulo="Tema" icono="🎨" isOpen={seccionAbierta === 'tema'} onToggle={() => toggleSeccion('tema')}>
         <p className="text-zinc-400 text-xs">Color base del fondo de la aplicación</p>
-        <div className="flex gap-2 flex-wrap">
-          {([
-            { hex: '#060f2c', label: 'Noche' },
-            { hex: '#0a1628', label: 'Océano' },
-            { hex: '#0d1f3c', label: 'Marina' },
-            { hex: '#0f172a', label: 'Carbón' },
-            { hex: '#1a0d2e', label: 'Índigo' },
-            { hex: '#0c1a2e', label: 'Acero' },
-            { hex: '#071520', label: 'Medianoche' },
-            { hex: '#0a0e1a', label: 'Eclipse' },
-          ] as {hex:string,label:string}[]).map(p => (
-            <button key={p.hex} onClick={() => previewColor(p.hex)} className="flex flex-col items-center gap-1">
-              <div className="w-8 h-8 rounded-full border-2 transition-all"
-                style={{ background: p.hex, borderColor: colorFondo === p.hex ? 'rgba(59,130,246,0.9)' : 'rgba(59,130,246,0.20)', boxShadow: colorFondo === p.hex ? '0 0 8px rgba(59,130,246,0.5)' : 'none' }} />
-              <span className="text-zinc-500 text-[10px]">{p.label}</span>
-            </button>
-          ))}
+
+        {/* Color actual */}
+        <div className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.06)'}}>
+          <div className="w-10 h-10 rounded-xl flex-shrink-0 transition-all" style={{background:colorFondo,border:'2px solid rgba(255,255,255,0.15)',boxShadow:`0 0 16px ${colorFondo}88`}} />
+          <div>
+            <p className="text-white font-semibold text-sm">{colorNameFromHue(temaHue)}</p>
+            <p className="text-zinc-500 text-xs font-mono">{colorFondo} — {temaHue}° {temaSat}% {temaLit}%</p>
+          </div>
         </div>
-        <div className="space-y-2">
-          <div className="relative h-8 rounded-xl overflow-hidden"
-            style={{background:'linear-gradient(to right, #020510, #060f2c, #0d1f45, #1a3060, #0f2050, #1a0d2e, #0a0e1a, #071520)'}}>
-            <input type="range" min={0} max={7}
-              value={Math.max(0, ['#020510','#060f2c','#0d1f45','#1a3060','#0f2050','#1a0d2e','#0a0e1a','#071520'].indexOf(colorFondo))}
-              onChange={e => {
-                const s = ['#020510','#060f2c','#0d1f45','#1a3060','#0f2050','#1a0d2e','#0a0e1a','#071520']
-                previewColor(s[Number(e.target.value)] || s[0])
-              }}
-              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
-            <div className="pointer-events-none absolute top-1/2 -translate-y-1/2 -translate-x-1/2 transition-all"
-              style={{left: `${Math.max(0, ['#020510','#060f2c','#0d1f45','#1a3060','#0f2050','#1a0d2e','#0a0e1a','#071520'].indexOf(colorFondo)) / 7 * 100}%`}}>
-              <div className="flex flex-col items-center gap-0.5">
-                <div className="text-[10px] font-mono text-white rounded px-1 py-0.5 whitespace-nowrap" style={{background:'rgba(0,0,0,0.7)',border:'1px solid rgba(59,130,246,0.5)'}}>{colorFondo}</div>
-                <div className="w-0.5 h-2 bg-white/60" />
-                <div className="w-3 h-3 rounded-full border-2 border-white" style={{background: colorFondo}} />
+
+        {/* Banda espectro */}
+        <div className="space-y-1">
+          <p className="text-zinc-500 text-[10px] tracking-widest uppercase">Espectro</p>
+          <div
+            ref={temaBandRef}
+            className="relative rounded-xl overflow-visible select-none"
+            style={{
+              height:44, cursor:'crosshair',
+              background:'linear-gradient(to right, hsl(0,65%,12%), hsl(30,65%,12%), hsl(60,65%,12%), hsl(90,65%,12%), hsl(120,65%,12%), hsl(150,65%,12%), hsl(180,65%,12%), hsl(210,65%,12%), hsl(240,65%,12%), hsl(270,65%,12%), hsl(300,65%,12%), hsl(330,65%,12%), hsl(360,65%,12%))',
+              border:'1px solid rgba(255,255,255,0.08)',
+            }}
+            onMouseDown={(e) => { temaDragging.current = true; getHueFromBand(e) }}
+            onTouchStart={(e) => { temaDragging.current = true; getHueFromBand(e) }}
+          >
+            {/* Marcas primarios */}
+            {([{h:0,l:'R'},{h:60,l:'Y'},{h:120,l:'G'},{h:180,l:'C'},{h:240,l:'B'},{h:300,l:'M'}] as {h:number,l:string}[]).map(({h,l}) => (
+              <div key={h} style={{position:'absolute',bottom:-16,left:`${(h/360)*100}%`,transform:'translateX(-50%)',color:`hsl(${h},70%,65%)`,fontSize:9,fontWeight:700}}>
+                {l}
               </div>
+            ))}
+
+            {/* Pin */}
+            <div className="pointer-events-none absolute top-1/2 -translate-y-1/2 -translate-x-1/2 flex flex-col items-center transition-all"
+              style={{left:`${(temaHue/360)*100}%`}}>
+              <div className="text-[10px] font-mono text-white rounded px-1.5 py-0.5 mb-0.5 whitespace-nowrap"
+                style={{background:'rgba(6,8,20,0.95)',border:`1px solid ${colorFondo}`,boxShadow:`0 0 8px ${colorFondo}66`}}>
+                {colorFondo}
+              </div>
+              <div className="w-0.5 h-1.5 bg-white/70" />
+              <div className="w-4 h-4 rounded-full border-2 border-white"
+                style={{background:colorFondo,boxShadow:`0 0 10px ${colorFondo}99`}} />
             </div>
           </div>
-          <p className="text-zinc-500 text-xs text-center">Arrastra para explorar tonos</p>
+          <div style={{height:16}} />
         </div>
-        <div className="rounded-xl p-3 flex items-center gap-3 transition-all"
-          style={{background: colorFondo, border:'1px solid rgba(59,130,246,0.30)'}}>
-          <div className="w-8 h-8 rounded-full flex-shrink-0" style={{background: colorFondo, border:'2px solid rgba(59,130,246,0.5)'}} />
-          <div>
-            <p className="text-white text-sm font-semibold">Vista previa</p>
-            <p className="text-zinc-400 text-xs font-mono">{colorFondo}</p>
+
+        {/* Sat / Lit sliders */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <p className="text-zinc-500 text-[10px] tracking-widest uppercase">Saturación {temaSat}%</p>
+            <input type="range" min={30} max={85} value={temaSat}
+              onChange={e => { const s=Number(e.target.value); setTemaSat(s); const hex=hslToHex(temaHue,s,temaLit); previewColor(hex,temaHue,s,temaLit) }}
+              className="w-full cursor-pointer"
+              style={{accentColor:colorFondo}} />
           </div>
-          <div className="ml-auto flex gap-1">
-            {['rgba(59,130,246,0.4)','rgba(29,78,216,0.3)','rgba(37,99,235,0.2)'].map((bg, i) => (
-              <div key={i} className="w-4 h-4 rounded-full" style={{background: bg}} />
+          <div className="space-y-1">
+            <p className="text-zinc-500 text-[10px] tracking-widest uppercase">Profundidad {temaLit}%</p>
+            <input type="range" min={6} max={20} value={temaLit}
+              onChange={e => { const l=Number(e.target.value); setTemaLit(l); const hex=hslToHex(temaHue,temaSat,l); previewColor(hex,temaHue,temaSat,l) }}
+              className="w-full cursor-pointer"
+              style={{accentColor:colorFondo}} />
+          </div>
+        </div>
+
+        {/* Presets */}
+        <div className="space-y-1">
+          <p className="text-zinc-500 text-[10px] tracking-widest uppercase">Presets</p>
+          <div className="flex gap-2 flex-wrap">
+            {TEMA_PRESETS.map(p => {
+              const ph = hslToHex(p.hue, p.sat, p.lit)
+              const active = temaHue===p.hue && temaSat===p.sat && temaLit===p.lit
+              return (
+                <button key={p.label} onClick={() => previewColor(ph, p.hue, p.sat, p.lit)}
+                  className="flex flex-col items-center gap-1">
+                  <div className="w-8 h-8 rounded-lg border-2 transition-all"
+                    style={{background:`hsl(${p.hue},${p.sat}%,${p.lit}%)`,borderColor:active?'rgba(59,130,246,0.9)':'rgba(255,255,255,0.10)',boxShadow:active?`0 0 10px ${ph}88`:'none'}} />
+                  <span className="text-zinc-500 text-[9px] whitespace-nowrap">{p.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Preview */}
+        <div className="rounded-xl overflow-hidden" style={{border:'1px solid rgba(59,130,246,0.20)'}}>
+          <div className="px-3 py-2 flex items-center gap-2 transition-all" style={{background:colorFondo}}>
+            <div className="w-1.5 h-1.5 rounded-full" style={{background:'rgba(59,130,246,0.8)'}} />
+            <span className="text-white/60 text-xs">Vista previa del fondo</span>
+          </div>
+          <div className="p-3 space-y-2 transition-all" style={{background:`linear-gradient(160deg, ${colorFondo} 0%, ${hslToHex(temaHue,temaSat-10,temaLit+3)} 60%, ${colorFondo} 100%)`}}>
+            {[{dot:'#ef4444',name:'ALBA CECILIA TORRES',val:'$528.800'},{dot:'#f97316',name:'ALBA VARON',val:'$3.968.000'}].map((r,i) => (
+              <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{background:'rgba(30,36,58,0.92)',border:'1px solid rgba(59,130,246,0.18)'}}>
+                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{background:r.dot}} />
+                <span className="text-white text-xs flex-1">{r.name}</span>
+                <span className="text-yellow-400 text-xs font-bold">{r.val}</span>
+              </div>
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-3">
+
+        {/* Guardar */}
+        <div className="flex gap-2">
           <button onClick={guardarTema} disabled={savingTema}
-            className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
+            className="flex-1 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-all"
+            style={{background:`rgba(${parseInt(hslToHex(temaHue,temaSat+10,temaLit+8).slice(1,3),16)},${parseInt(hslToHex(temaHue,temaSat+10,temaLit+8).slice(3,5),16)},${parseInt(hslToHex(temaHue,temaSat+10,temaLit+8).slice(5,7),16)},0.35)`,border:`1px solid ${colorFondo}88`}}>
             {savingTema ? 'Guardando...' : '💾 Guardar tema'}
           </button>
-          <button onClick={() => previewColor('#060f2c')}
+          <button onClick={() => previewColor('#060f2c', 225, 72, 11)}
             className="px-4 py-2.5 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm rounded-xl hover:text-white transition-colors">
-            ↺ Reset
+            ↺
           </button>
         </div>
         {msgTema && <p className={`text-xs text-center ${msgTema.startsWith('✅') ? 'text-emerald-400' : 'text-red-400'}`}>{msgTema}</p>}
