@@ -24,7 +24,7 @@ export function CardKPI({ children, stagger = 1, className = '', center = true }
   return (
     <div
       className={[
-        'rounded-2xl hover-lift',
+        'rounded-2xl hover-lift card-glass',
         center ? 'flex flex-col items-center justify-center min-h-[110px]' : '',
         className,
       ].filter(Boolean).join(' ')}
@@ -45,7 +45,7 @@ interface CardKPIGroupProps {
 export function CardKPIGroup({ children, cols = 2, className = '' }: CardKPIGroupProps) {
   return (
     <div
-      className={[`grid grid-cols-${cols} gap-3`, className].filter(Boolean).join(' ')}
+      className={[`grid grid-cols-${cols} gap-3 card-glass-group`, className].filter(Boolean).join(' ')}
       style={{overflow: 'hidden',
         borderRadius: 16,
       } as CSSProperties}
@@ -98,7 +98,7 @@ export function CardCountAdmin({
 }: CardCountAdminProps) {
   return (
     <div
-      className={`rounded-2xl hover-lift flex flex-col items-center justify-center min-h-[110px]`}
+      className={`rounded-2xl hover-lift card-glass flex flex-col items-center justify-center min-h-[110px]`}
       style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.30)', boxShadow: '0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)', borderRadius: 14, padding: '10px 12px' } as CSSProperties}
     >
       {/* Icon + label — más prominente */}
@@ -130,7 +130,7 @@ interface CardDarkProps {
 export function CardDark({ children, className = '', style }: CardDarkProps) {
   return (
     <div
-      className={['rounded-2xl fade-up', className].filter(Boolean).join(' ')}
+      className={['rounded-2xl fade-up card-glass', className].filter(Boolean).join(' ')}
       style={{
         background: 'rgba(255,255,255,0.08)',
         border: '1px solid rgba(255,255,255,0.18)',
@@ -147,7 +147,7 @@ export function CardDark({ children, className = '', style }: CardDarkProps) {
 export function CardDarkStrong({ children, className = '', style }: CardDarkProps) {
   return (
     <div
-      className={['rounded-2xl fade-up', className].filter(Boolean).join(' ')}
+      className={['rounded-2xl fade-up card-glass', className].filter(Boolean).join(' ')}
       style={{
         background: 'rgba(255,255,255,0.10)',
         border: '1px solid rgba(255,255,255,0.22)',
