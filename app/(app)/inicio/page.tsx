@@ -660,6 +660,9 @@ function DashboardPageInner() {
         <h1 className="text-2xl font-bold text-white px-1">Bienvenido, {user?.name?.split(' ')[0]}</h1>
       )}
       {(isEmpresa || isSupervisor) && (
+        <h1 className="text-2xl font-bold text-white px-1">Bienvenido, {user?.name?.split(' ')[0]}</h1>
+      )}
+      {(isEmpresa || isSupervisor) && (
         <div className="space-y-6">
           <div className="rounded-2xl" style={{overflow:"hidden",borderRadius:16}}>
           <div className="grid grid-cols-2 gap-3">
