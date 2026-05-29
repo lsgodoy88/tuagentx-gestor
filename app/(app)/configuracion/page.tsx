@@ -52,7 +52,7 @@ function Seccion({ titulo, icono, isOpen, onToggle, children, cardStyle }: {
   cardStyle?: React.CSSProperties
 }) {
   return (
-    <div className="rounded-2xl overflow-hidden" style={cardStyle ?? {background:'#18181b',border:'1px solid #27272a'}}>
+    <div className="rounded-2xl overflow-hidden" style={cardStyle ?? {background:'rgba(30,36,58,0.99)',border:'1px solid rgba(59,130,246,0.22)'}}>
       <button onClick={onToggle} className="w-full flex items-center justify-between px-5 py-4 text-left">
         <span className="text-white font-semibold">{icono} {titulo}</span>
         <span className="text-zinc-500 text-xs">{isOpen ? '▲' : '▼'}</span>
@@ -1357,8 +1357,8 @@ export default function ConfiguracionPage() {
       {/* ── TEMA ── */}
       <Seccion titulo="Tema" icono="🎨" isOpen={seccionAbierta === 'tema'} onToggle={() => toggleSeccion('tema')} cardStyle={{background:'rgba(30,36,58,0.99)',border:'1px solid rgba(59,130,246,0.30)'}}>
 
-        {/* Banda espectro — fondo notch */}
-        <div className="rounded-2xl p-4 space-y-4" style={{background:'rgba(30,36,58,0.99)',border:'1px solid rgba(59,130,246,0.30)'}}>
+        {/* Banda espectro — subcontenedor más claro */}
+        <div className="rounded-2xl p-4 space-y-4" style={{background:'rgba(55,65,95,0.55)',border:'1px solid rgba(100,130,200,0.25)'}}>
 
           {/* Banda con pin */}
           <div
