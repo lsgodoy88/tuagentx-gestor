@@ -43,15 +43,16 @@ const TEMA_PRESETS = [
   { hue:280, sat:50, lit:11, label:'Púrpura' },
 ]
 
-function Seccion({ titulo, icono, isOpen, onToggle, children }: {
+function Seccion({ titulo, icono, isOpen, onToggle, children, cardStyle }: {
   titulo: string
   icono: string
   isOpen: boolean
   onToggle: () => void
   children: React.ReactNode
+  cardStyle?: React.CSSProperties
 }) {
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+    <div className="rounded-2xl overflow-hidden" style={cardStyle ?? {background:'#18181b',border:'1px solid #27272a'}}>
       <button onClick={onToggle} className="w-full flex items-center justify-between px-5 py-4 text-left">
         <span className="text-white font-semibold">{icono} {titulo}</span>
         <span className="text-zinc-500 text-xs">{isOpen ? '▲' : '▼'}</span>
@@ -62,7 +63,7 @@ function Seccion({ titulo, icono, isOpen, onToggle, children }: {
 }
 
 export default function ConfiguracionPage() {
-  const { data: session, status } = useSession()
+  const { data: session, status, update } = useSession()
   const user = session?.user as any
   // Tema
   const [temaHue, setTemaHue] = useState(225)
@@ -289,6 +290,7 @@ export default function ConfiguracionPage() {
         document.documentElement.style.setProperty('--background', colorFondo)
         localStorage.setItem('colorFondo', colorFondo)
         setMsgTema('✅ Guardado')
+        try { await update({ colorFondo }) } catch {}
       } else { setMsgTema('Error al guardar') }
     } catch { setMsgTema('Error al guardar') }
     setSavingTema(false)
@@ -1203,14 +1205,7 @@ export default function ConfiguracionPage() {
         </>
       )}
 
-      {/* Sesión */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-4 flex items-center justify-between">
-        <p className="text-zinc-400 text-sm">Sesión activa</p>
-        <button onClick={() => signOut({ callbackUrl: '/login' })}
-          className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
-          Cerrar sesión
-        </button>
-      </div>
+
 
       {/* Modal validación API UpTres */}
       {modalValidacion && (
@@ -1360,7 +1355,7 @@ export default function ConfiguracionPage() {
       )}
 
       {/* ── TEMA ── */}
-      <Seccion titulo="Tema" icono="🎨" isOpen={seccionAbierta === 'tema'} onToggle={() => toggleSeccion('tema')}>
+      <Seccion titulo="Tema" icono="🎨" isOpen={seccionAbierta === 'tema'} onToggle={() => toggleSeccion('tema')} cardStyle={{background:'rgba(30,36,58,0.99)',border:'1px solid rgba(59,130,246,0.30)'}}>
 
         {/* Banda espectro — fondo notch */}
         <div className="rounded-2xl p-4 space-y-4" style={{background:'rgba(30,36,58,0.99)',border:'1px solid rgba(59,130,246,0.30)'}}>
@@ -1445,6 +1440,18 @@ export default function ConfiguracionPage() {
         </div>
         {msgTema && <p className={`text-xs text-center ${msgTema.startsWith('✅') ? 'text-emerald-400' : 'text-red-400'}`}>{msgTema}</p>}
       </Seccion>
+
+      {/* ── CERRAR SESIÓN — siempre al final ── */}
+      <div className="rounded-2xl px-5 py-4 flex items-center justify-between" style={{background:'rgba(30,36,58,0.99)',border:'1px solid rgba(59,130,246,0.20)'}}>
+        <div>
+          <p className="text-white text-sm font-medium">Sesión activa</p>
+          <p className="text-zinc-500 text-xs">{user?.email}</p>
+        </div>
+        <button onClick={() => signOut({ callbackUrl: '/login' })}
+          className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
+          Cerrar sesión
+        </button>
+      </div>
     </div>
   )
 }
