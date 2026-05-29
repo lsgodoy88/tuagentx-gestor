@@ -16,6 +16,16 @@ function hslToHex(h: number, s: number, l: number): string {
   }
   return `#${f(0)}${f(8)}${f(4)}`
 }
+function buildGradient(h: number, s: number, l: number): string {
+  // Genera el gradiente del fondo basado en el hue seleccionado
+  const d1 = hslToHex(h, s, l)           // más oscuro
+  const d2 = hslToHex(h, Math.max(20,s-12), l+7)  // oscuro medio
+  const m1 = hslToHex(h, Math.max(20,s-15), l+17) // medio
+  const m2 = hslToHex(h, Math.max(20,s-18), l+21) // medio claro
+  const d3 = hslToHex(h, Math.max(20,s-10), l+8)  // oscuro variante
+  return `linear-gradient(160deg, ${d1} 0%, ${d2} 12%, ${m1} 30%, ${m2} 48%, ${d3} 65%, ${d1} 82%, ${d2} 100%)`
+}
+
 function colorNameFromHue(hue: number): string {
   if (hue < 15) return 'Rojo oscuro'
   if (hue < 35) return 'Naranja noche'
@@ -298,18 +308,20 @@ export default function ConfiguracionPage() {
   }
 
   function previewColor(hex: string, h?: number, s?: number, l?: number) {
+    const newHue = h !== undefined ? h : temaHue
+    const newSat = s !== undefined ? s : temaSat
+    const newLit = l !== undefined ? l : temaLit
     setColorFondo(hex)
     if (h !== undefined) setTemaHue(h)
     if (s !== undefined) setTemaSat(s)
     if (l !== undefined) setTemaLit(l)
+    // Actualizar CSS variable del body
     document.documentElement.style.setProperty('--background', hex)
+    // Actualizar el gradiente real del fondo
+    const grad = document.getElementById('bg-grad-base')
+    if (grad) grad.style.background = buildGradient(newHue, newSat, newLit)
     localStorage.setItem('colorFondo', hex)
-    // Guardar en historial (máx 5, sin duplicados)
-    setTemaHistorial(prev => {
-      const nuevo = [hex, ...prev.filter(x => x !== hex)].slice(0, 5)
-      try { localStorage.setItem('colorFondoHistorial', JSON.stringify(nuevo)) } catch {}
-      return nuevo
-    })
+    localStorage.setItem('colorFondoGradient', buildGradient(newHue, newSat, newLit))
   }
 
   const getHueFromBand = useCallback((e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
@@ -1385,28 +1397,23 @@ export default function ConfiguracionPage() {
             </div>
           </div>
 
-          {/* Historial + 5 presets en una línea */}
-          {(() => {
-            const defaultPresets = TEMA_PRESETS.slice(0,5).map(p => hslToHex(p.hue,p.sat,p.lit))
-            const histColors = temaHistorial.length > 0 ? temaHistorial : defaultPresets
-            const shown = histColors.slice(0,5)
-            return (
-              <div className="flex gap-2 justify-between">
-                {shown.map((hex, i) => {
-                  const active = colorFondo === hex
-                  return (
-                    <button key={i} onClick={() => previewColor(hex, undefined, undefined, undefined)}
-                      className="flex-1 rounded-lg border-2 transition-all"
-                      style={{
-                        height:28, background:hex,
-                        borderColor: active ? 'rgba(59,130,246,0.9)' : 'rgba(255,255,255,0.10)',
-                        boxShadow: active ? `0 0 8px ${hex}88` : 'none',
-                      }} />
-                  )
-                })}
-              </div>
-            )
-          })()}
+          {/* 5 presets recomendados — fijos */}
+          <div className="flex gap-2 justify-between">
+            {TEMA_PRESETS.slice(0,5).map(p => {
+              const ph = hslToHex(p.hue, p.sat, p.lit)
+              const active = colorFondo === ph
+              return (
+                <button key={p.label}
+                  onClick={() => previewColor(ph, p.hue, p.sat, p.lit)}
+                  className="flex-1 rounded-lg border-2 transition-all"
+                  style={{
+                    height:28, background:ph,
+                    borderColor: active ? 'rgba(59,130,246,0.9)' : 'rgba(255,255,255,0.10)',
+                    boxShadow: active ? `0 0 8px ${ph}88` : 'none',
+                  }} />
+              )
+            })}
+          </div>
         </div>
 
         {/* Preview */}
@@ -1433,7 +1440,13 @@ export default function ConfiguracionPage() {
             style={{background:`${colorFondo}55`,border:`1px solid ${colorFondo}88`}}>
             {savingTema ? 'Guardando...' : '💾 Guardar tema'}
           </button>
-          <button onClick={() => previewColor('#060f2c', 225, 72, 11)}
+          <button onClick={() => {
+              previewColor('#060f34', 225, 72, 11)
+              const grad = document.getElementById('bg-grad-base')
+              if (grad) grad.style.background = 'linear-gradient(160deg, #060f34 0%, #0a1628 12%, #1a3060 30%, #1e3a6e 48%, #0d1f45 65%, #07103a 82%, #0a1848 100%)'
+              localStorage.removeItem('colorFondo')
+              localStorage.removeItem('colorFondoGradient')
+            }}
             className="px-4 py-2.5 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm rounded-xl hover:text-white transition-colors">
             ↺
           </button>

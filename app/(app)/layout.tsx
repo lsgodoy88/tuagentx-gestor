@@ -84,13 +84,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // Aplicar color de fondo personalizado del usuario
   useEffect(() => {
     const color = (user as any)?.colorFondo
+    const applyColor = (hex: string) => {
+      document.documentElement.style.setProperty('--background', hex)
+      const savedGrad = localStorage.getItem('colorFondoGradient')
+      const grad = document.getElementById('bg-grad-base')
+      if (grad && savedGrad) grad.style.background = savedGrad
+    }
     if (color && /^#[0-9a-fA-F]{6}$/.test(color)) {
-      document.documentElement.style.setProperty('--background', color)
+      applyColor(color)
       localStorage.setItem('colorFondo', color)
     } else {
       const cached = localStorage.getItem('colorFondo')
       if (cached && /^#[0-9a-fA-F]{6}$/.test(cached)) {
-        document.documentElement.style.setProperty('--background', cached)
+        applyColor(cached)
       }
     }
   }, [user])
@@ -244,7 +250,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   return (
     <>
-    <div aria-hidden="true" style={{position:'fixed',top:0,left:0,right:0,height:'100lvh',zIndex:-1,background:'linear-gradient(160deg, #060f34 0%, #0a1628 12%, #1a3060 30%, #1e3a6e 48%, #0d1f45 65%, #07103a 82%, #0a1848 100%)'}} />
+    <div id="bg-grad-base" aria-hidden="true" style={{position:'fixed',top:0,left:0,right:0,height:'100lvh',zIndex:-1,background:'linear-gradient(160deg, #060f34 0%, #0a1628 12%, #1a3060 30%, #1e3a6e 48%, #0d1f45 65%, #07103a 82%, #0a1848 100%)'}} />
     <div aria-hidden="true" style={{position:'fixed',top:0,left:0,right:0,height:'100lvh',zIndex:-1,background:'radial-gradient(ellipse at 10% 20%, rgba(37,99,235,0.40) 0%, transparent 38%), radial-gradient(ellipse at 85% 10%, rgba(5,12,52,0.55) 0%, transparent 35%), radial-gradient(ellipse at 60% 50%, rgba(59,130,246,0.28) 0%, transparent 42%), radial-gradient(ellipse at 5% 80%, rgba(5,12,52,0.45) 0%, transparent 30%), radial-gradient(ellipse at 90% 75%, rgba(29,78,216,0.32) 0%, transparent 40%), radial-gradient(ellipse at 45% 90%, rgba(5,12,52,0.38) 0%, transparent 28%), radial-gradient(ellipse at 75% 35%, rgba(96,165,250,0.14) 0%, transparent 35%)'}} />
     {/* Ciudad — solo desktop. hidden en móvil = display:none = NO descarga la imagen */}
     <div aria-hidden="true" className="hidden md:block" style={{position:'fixed',top:0,left:0,right:0,height:'100lvh',zIndex:-1,backgroundImage:"url('/bg-city.webp')",backgroundSize:'cover',backgroundPosition:'center'}} />
