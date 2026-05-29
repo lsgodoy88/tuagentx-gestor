@@ -26,6 +26,11 @@ function Seccion({ titulo, icono, isOpen, onToggle, children }: {
 export default function ConfiguracionPage() {
   const { data: session, status } = useSession()
   const user = session?.user as any
+  // Tema
+  const [colorFondo, setColorFondo] = useState('#060f2c')
+  const [savingTema, setSavingTema] = useState(false)
+  const [msgTema, setMsgTema] = useState('')
+
   const [newPass, setNewPass] = useState('')
   const [newPass2, setNewPass2] = useState('')
   const [msg, setMsg] = useState('')
@@ -227,6 +232,29 @@ export default function ConfiguracionPage() {
     setSavingRutas(false)
     setMsgRutas(res.ok ? '✅ Guardado' : 'Error al guardar')
     setTimeout(() => setMsgRutas(''), 3000)
+  }
+
+  async function guardarTema() {
+    setSavingTema(true); setMsgTema('')
+    try {
+      const res = await fetch('/api/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ colorFondo })
+      })
+      if (res.ok) {
+        document.documentElement.style.setProperty('--background', colorFondo)
+        localStorage.setItem('colorFondo', colorFondo)
+        setMsgTema('✅ Guardado')
+      } else { setMsgTema('Error al guardar') }
+    } catch { setMsgTema('Error al guardar') }
+    setSavingTema(false)
+    setTimeout(() => setMsgTema(''), 3000)
+  }
+
+  function previewColor(hex: string) {
+    setColorFondo(hex)
+    document.documentElement.style.setProperty('--background', hex)
   }
 
   async function cambiarPassword() {
@@ -1251,6 +1279,74 @@ export default function ConfiguracionPage() {
           </div>
         </div>
       )}
+
+      {/* ── TEMA ── */}
+      <Seccion titulo="Tema" icono="🎨" isOpen={seccionAbierta === 'tema'} onToggle={() => toggleSeccion('tema')}>
+        <p className="text-zinc-400 text-xs">Color base del fondo de la aplicación</p>
+        <div className="flex gap-2 flex-wrap">
+          {([
+            { hex: '#060f2c', label: 'Noche' },
+            { hex: '#0a1628', label: 'Océano' },
+            { hex: '#0d1f3c', label: 'Marina' },
+            { hex: '#0f172a', label: 'Carbón' },
+            { hex: '#1a0d2e', label: 'Índigo' },
+            { hex: '#0c1a2e', label: 'Acero' },
+            { hex: '#071520', label: 'Medianoche' },
+            { hex: '#0a0e1a', label: 'Eclipse' },
+          ] as {hex:string,label:string}[]).map(p => (
+            <button key={p.hex} onClick={() => previewColor(p.hex)} className="flex flex-col items-center gap-1">
+              <div className="w-8 h-8 rounded-full border-2 transition-all"
+                style={{ background: p.hex, borderColor: colorFondo === p.hex ? 'rgba(59,130,246,0.9)' : 'rgba(59,130,246,0.20)', boxShadow: colorFondo === p.hex ? '0 0 8px rgba(59,130,246,0.5)' : 'none' }} />
+              <span className="text-zinc-500 text-[10px]">{p.label}</span>
+            </button>
+          ))}
+        </div>
+        <div className="space-y-2">
+          <div className="relative h-8 rounded-xl overflow-hidden"
+            style={{background:'linear-gradient(to right, #020510, #060f2c, #0d1f45, #1a3060, #0f2050, #1a0d2e, #0a0e1a, #071520)'}}>
+            <input type="range" min={0} max={7}
+              value={Math.max(0, ['#020510','#060f2c','#0d1f45','#1a3060','#0f2050','#1a0d2e','#0a0e1a','#071520'].indexOf(colorFondo))}
+              onChange={e => {
+                const s = ['#020510','#060f2c','#0d1f45','#1a3060','#0f2050','#1a0d2e','#0a0e1a','#071520']
+                previewColor(s[Number(e.target.value)] || s[0])
+              }}
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+            <div className="pointer-events-none absolute top-1/2 -translate-y-1/2 -translate-x-1/2 transition-all"
+              style={{left: `${Math.max(0, ['#020510','#060f2c','#0d1f45','#1a3060','#0f2050','#1a0d2e','#0a0e1a','#071520'].indexOf(colorFondo)) / 7 * 100}%`}}>
+              <div className="flex flex-col items-center gap-0.5">
+                <div className="text-[10px] font-mono text-white rounded px-1 py-0.5 whitespace-nowrap" style={{background:'rgba(0,0,0,0.7)',border:'1px solid rgba(59,130,246,0.5)'}}>{colorFondo}</div>
+                <div className="w-0.5 h-2 bg-white/60" />
+                <div className="w-3 h-3 rounded-full border-2 border-white" style={{background: colorFondo}} />
+              </div>
+            </div>
+          </div>
+          <p className="text-zinc-500 text-xs text-center">Arrastra para explorar tonos</p>
+        </div>
+        <div className="rounded-xl p-3 flex items-center gap-3 transition-all"
+          style={{background: colorFondo, border:'1px solid rgba(59,130,246,0.30)'}}>
+          <div className="w-8 h-8 rounded-full flex-shrink-0" style={{background: colorFondo, border:'2px solid rgba(59,130,246,0.5)'}} />
+          <div>
+            <p className="text-white text-sm font-semibold">Vista previa</p>
+            <p className="text-zinc-400 text-xs font-mono">{colorFondo}</p>
+          </div>
+          <div className="ml-auto flex gap-1">
+            {['rgba(59,130,246,0.4)','rgba(29,78,216,0.3)','rgba(37,99,235,0.2)'].map((bg, i) => (
+              <div key={i} className="w-4 h-4 rounded-full" style={{background: bg}} />
+            ))}
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button onClick={guardarTema} disabled={savingTema}
+            className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-colors">
+            {savingTema ? 'Guardando...' : '💾 Guardar tema'}
+          </button>
+          <button onClick={() => previewColor('#060f2c')}
+            className="px-4 py-2.5 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm rounded-xl hover:text-white transition-colors">
+            ↺ Reset
+          </button>
+        </div>
+        {msgTema && <p className={`text-xs text-center ${msgTema.startsWith('✅') ? 'text-emerald-400' : 'text-red-400'}`}>{msgTema}</p>}
+      </Seccion>
     </div>
   )
 }

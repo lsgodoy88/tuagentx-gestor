@@ -84,6 +84,7 @@ model Empleado {
   fechaNacimiento     DateTime?
   subEmpresaId        String?
   configRecibos       Json?                @default("{\"prefijo\": null, \"anchoPapel\": null, \"consecutivoMes\": null, \"consecutivoActual\": 0, \"usarConfigEmpresa\": true}")
+  colorFondo           String?
   Cartera             Cartera[]
   DetalleCartera      DetalleCartera[]
   empresa             Empresa              @relation(fields: [empresaId], references: [id])

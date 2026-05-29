@@ -54,6 +54,7 @@ export const authOptions: NextAuthOptions = {
             permisos: (empleado as any).permisos ?? {},
             etiqueta: (empleado as any).etiqueta ?? null,
             apiId: (empleado as any).apiId ?? null,
+            colorFondo: (empleado as any).colorFondo ?? null,
           }
         }
 
@@ -73,6 +74,7 @@ export const authOptions: NextAuthOptions = {
         token.tieneVinculacion = (user as any).tieneVinculacion ?? false
         token.tieneVinculacion = (user as any).tieneVinculacion ?? false
         token.apiId = (user as any).apiId ?? null
+        token.colorFondo = (user as any).colorFondo ?? null
       }
       return token
     },
@@ -87,6 +89,7 @@ export const authOptions: NextAuthOptions = {
         ;(session.user as any).tieneVinculacion = token.tieneVinculacion ?? false
         ;(session.user as any).tieneVinculacion = token.tieneVinculacion ?? false
         ;(session.user as any).apiId = token.apiId ?? null
+        ;(session.user as any).colorFondo = token.colorFondo ?? null
       }
       return session
     },

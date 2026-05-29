@@ -81,6 +81,20 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     pedirPermisos()
   }, [user])
 
+  // Aplicar color de fondo personalizado del usuario
+  useEffect(() => {
+    const color = (user as any)?.colorFondo
+    if (color && /^#[0-9a-fA-F]{6}$/.test(color)) {
+      document.documentElement.style.setProperty('--background', color)
+      localStorage.setItem('colorFondo', color)
+    } else {
+      const cached = localStorage.getItem('colorFondo')
+      if (cached && /^#[0-9a-fA-F]{6}$/.test(cached)) {
+        document.documentElement.style.setProperty('--background', cached)
+      }
+    }
+  }, [user])
+
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login')
   }, [status, router])
