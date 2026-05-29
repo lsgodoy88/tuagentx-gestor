@@ -701,3 +701,25 @@ input[type="date"] { appearance: none; -webkit-appearance: none; }
 .slide-down {
   animation: slide-down 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
+
+/* ── Desktop only — blur sobre imagen de ciudad ─────────────────────────────
+   min-width: 769px es mutuamente excluyente con max-width: 768px (móvil).
+   El móvil nunca entra aquí. El aside es hidden md:flex — no existe en móvil.
+*/
+@media (min-width: 769px) {
+  /* Cards KPI y contenedores — glass sobre bg-city */
+  [style*="rgba(148,160,185"] {
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+  }
+  /* CardDark / CardDarkStrong — mismo glass */
+  [style*="rgba(6,10,36"], [style*="rgba(8,12,38"] {
+    backdrop-filter: blur(12px) !important;
+    -webkit-backdrop-filter: blur(12px) !important;
+  }
+  /* card-dark y card-dark-2 via CSS class */
+  .card-dark, .card-dark-2 {
+    backdrop-filter: blur(14px) !important;
+    -webkit-backdrop-filter: blur(14px) !important;
+  }
+}
