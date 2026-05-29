@@ -121,7 +121,7 @@ export async function GET(req: NextRequest) {
         take: PAGE_SIZE,
         select: {
           id: true, numeroOrden: true, numeroFactura: true, vendedorApiId: true, clienteNombre: true, ciudad: true,
-          estado: true, fechaOrden: true, alistadoEl: true, entregadoEl: true,
+          estado: true, fechaOrden: true, fechaFactura: true, alistadoEl: true, entregadoEl: true,
           fotosAlistamiento: true, firmaEntrega: true,
           alistadoPor: { select: { nombre: true } },
           repartidor: { select: { nombre: true } },
@@ -180,7 +180,7 @@ export async function GET(req: NextRequest) {
       where: { id: { in: finalIds } },
       select: {
         id: true, numeroOrden: true, numeroFactura: true, vendedorApiId: true, clienteNombre: true, ciudad: true,
-        estado: true, fechaOrden: true, alistadoEl: true, entregadoEl: true,
+        estado: true, fechaOrden: true, fechaFactura: true, alistadoEl: true, entregadoEl: true,
         fotosAlistamiento: true, firmaEntrega: true,
         alistadoPor: { select: { nombre: true } },
         repartidor: { select: { nombre: true } },
@@ -246,6 +246,7 @@ export async function GET(req: NextRequest) {
     ciudad: true,
     estado: true,
     fechaOrden: true,
+    fechaFactura: true,
     alistadoEl: true,
     entregadoEl: true,
     fotosAlistamiento: true,

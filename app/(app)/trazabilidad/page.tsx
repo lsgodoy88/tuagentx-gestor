@@ -94,7 +94,7 @@ function getOrdenColumns(ctx: {
     },
     {
       key: 'fecha', label: 'Facturado', width: 122, minWidth: 80,
-      render: (o: any) => <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>{o.fechaOrden ? fmtFecha(o.fechaOrden) : '—'}</span>,
+      render: (o: any) => <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>{o.fechaFactura ? fmtFecha(o.fechaFactura) : o.fechaOrden ? fmtFecha(o.fechaOrden) : '—'}</span>,
     },
     {
       key: 'alistado', label: 'Alistado', width: 130, minWidth: 80,
@@ -403,6 +403,14 @@ export default function TrazabilidadPage() {
                 icon: '📋',
                 label: 'Orden',
                 fecha: orden.fechaOrden,
+                quien: null as string | null,
+                accion: null as (() => void) | null,
+                accionLabel: '',
+              },
+              {
+                icon: '🧾',
+                label: 'Facturado',
+                fecha: orden.fechaFactura || null,
                 quien: null as string | null,
                 accion: null as (() => void) | null,
                 accionLabel: '',

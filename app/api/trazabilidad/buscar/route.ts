@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
   const SELECT = {
     id: true, numeroOrden: true, numeroFactura: true, vendedorApiId: true,
     clienteNombre: true, ciudad: true,
-    estado: true, fechaOrden: true, alistadoEl: true, entregadoEl: true,
+    estado: true, fechaOrden: true, fechaFactura: true, alistadoEl: true, entregadoEl: true,
     fotosAlistamiento: true, firmaEntrega: true, repartidorId: true,
     alistadoPor: { select: { nombre: true } },
     repartidor: { select: { nombre: true } },
