@@ -35,6 +35,7 @@ export const authOptions: NextAuthOptions = {
             bodegaPuedeEnviar: empresa.bodegaPuedeEnviar ?? false,
             tieneVinculacion: vinculaciones.length > 0,
             tieneVinculacionBodega: vinculacionesBodega.length > 0,
+            colorFondo: (empresa as any).colorFondo ?? null,
           }
         }
 

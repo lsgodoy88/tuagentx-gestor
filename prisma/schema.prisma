@@ -38,6 +38,7 @@ model Empresa {
   syncVentasUltimo    DateTime?
   ultimaSyncBodega    DateTime?
   configRecibos       Json?              @default("{\"nit\": null, \"logo\": null, \"prefijo\": \"REC\", \"telefono\": null, \"direccion\": null, \"anchoPapel\": \"80mm\"}")
+  colorFondo           String?
   chatsAsistente      AsistenteChat[]
   Cartera             Cartera[]
   clientes            Cliente[]

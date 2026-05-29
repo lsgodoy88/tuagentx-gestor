@@ -14,7 +14,7 @@ export async function GET() {
         where: { id: user.id },
         select: { id: true, nombre: true, email: true, plan: true, activo: true,
                   maxSupervisores: true, maxVendedores: true, maxEntregas: true,
-                  maxImpulsadoras: true, createdAt: true },
+                  maxImpulsadoras: true, createdAt: true, colorFondo: true },
       })
       return NextResponse.json(empresa || {})
     } else {
@@ -38,14 +38,8 @@ export async function PATCH(req: NextRequest) {
     const user = session.user as any
     const body = await req.json()
 
-    // Solo empleados pueden actualizar preferencias de tema
-    if (user.role === 'empresa' || user.role === 'superadmin') {
-      return NextResponse.json({ error: 'No disponible para empresa' }, { status: 400 })
-    }
-
     const data: any = {}
     if (typeof body.colorFondo === 'string') {
-      // Validar que sea un color hex válido o null
       const valid = /^#[0-9a-fA-F]{6}$/.test(body.colorFondo)
       if (!valid && body.colorFondo !== '') return NextResponse.json({ error: 'Color inválido' }, { status: 400 })
       data.colorFondo = body.colorFondo || null
@@ -53,7 +47,12 @@ export async function PATCH(req: NextRequest) {
 
     if (Object.keys(data).length === 0) return NextResponse.json({ error: 'Nada que actualizar' }, { status: 400 })
 
-    await prisma.empleado.update({ where: { id: user.id }, data })
+    if (user.role === 'empresa' || user.role === 'superadmin') {
+      await prisma.empresa.update({ where: { id: user.id }, data })
+    } else {
+      await prisma.empleado.update({ where: { id: user.id }, data })
+    }
+
     return NextResponse.json({ ok: true })
   } catch (err: any) {
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
