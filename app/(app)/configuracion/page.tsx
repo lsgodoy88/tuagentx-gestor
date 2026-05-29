@@ -71,6 +71,9 @@ export default function ConfiguracionPage() {
   const [colorFondo, setColorFondo] = useState('#060f2c')
   const [savingTema, setSavingTema] = useState(false)
   const [msgTema, setMsgTema] = useState('')
+  const [temaHistorial, setTemaHistorial] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('colorFondoHistorial') || '[]') } catch { return [] }
+  })
   const temaBandRef = useRef<HTMLDivElement>(null)
   const temaDragging = useRef(false)
 
@@ -188,9 +191,6 @@ export default function ConfiguracionPage() {
   useEffect(() => {
     if (status !== 'authenticated') return
 
-    // Abrir primera sección por defecto
-    setSeccionAbierta(user?.role === 'empresa' || user?.role === 'supervisor' ? 'empresa' : 'perfil')
-
     if (user?.role === 'empresa' || user?.role === 'supervisor') {
       fetch('/api/empresas-vinculadas').then(r => r.json()).then(d => { setVinculadas(d.vinculadas || []); setConectadas(d.conectadas || []) })
     }
@@ -302,6 +302,12 @@ export default function ConfiguracionPage() {
     if (l !== undefined) setTemaLit(l)
     document.documentElement.style.setProperty('--background', hex)
     localStorage.setItem('colorFondo', hex)
+    // Guardar en historial (máx 5, sin duplicados)
+    setTemaHistorial(prev => {
+      const nuevo = [hex, ...prev.filter(x => x !== hex)].slice(0, 5)
+      try { localStorage.setItem('colorFondoHistorial', JSON.stringify(nuevo)) } catch {}
+      return nuevo
+    })
   }
 
   const getHueFromBand = useCallback((e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
@@ -1355,23 +1361,14 @@ export default function ConfiguracionPage() {
 
       {/* ── TEMA ── */}
       <Seccion titulo="Tema" icono="🎨" isOpen={seccionAbierta === 'tema'} onToggle={() => toggleSeccion('tema')}>
-        <p className="text-zinc-400 text-xs">Color base del fondo de la aplicación</p>
 
-        {/* Color actual */}
-        <div className="flex items-center gap-3 rounded-xl px-3 py-2.5" style={{background:'rgba(255,255,255,0.04)',border:'1px solid rgba(255,255,255,0.06)'}}>
-          <div className="w-10 h-10 rounded-xl flex-shrink-0 transition-all" style={{background:colorFondo,border:'2px solid rgba(255,255,255,0.15)',boxShadow:`0 0 16px ${colorFondo}88`}} />
-          <div>
-            <p className="text-white font-semibold text-sm">{colorNameFromHue(temaHue)}</p>
-            <p className="text-zinc-500 text-xs font-mono">{colorFondo} — {temaHue}° {temaSat}% {temaLit}%</p>
-          </div>
-        </div>
+        {/* Banda espectro — fondo notch */}
+        <div className="rounded-2xl p-4 space-y-4" style={{background:'rgba(30,36,58,0.99)',border:'1px solid rgba(59,130,246,0.30)'}}>
 
-        {/* Banda espectro */}
-        <div className="space-y-1">
-          <p className="text-zinc-500 text-[10px] tracking-widest uppercase">Espectro</p>
+          {/* Banda con pin */}
           <div
             ref={temaBandRef}
-            className="relative rounded-xl overflow-visible select-none"
+            className="relative rounded-xl select-none"
             style={{
               height:44, cursor:'crosshair',
               background:'linear-gradient(to right, hsl(0,65%,12%), hsl(30,65%,12%), hsl(60,65%,12%), hsl(90,65%,12%), hsl(120,65%,12%), hsl(150,65%,12%), hsl(180,65%,12%), hsl(210,65%,12%), hsl(240,65%,12%), hsl(270,65%,12%), hsl(300,65%,12%), hsl(330,65%,12%), hsl(360,65%,12%))',
@@ -1380,13 +1377,6 @@ export default function ConfiguracionPage() {
             onMouseDown={(e) => { temaDragging.current = true; getHueFromBand(e) }}
             onTouchStart={(e) => { temaDragging.current = true; getHueFromBand(e) }}
           >
-            {/* Marcas primarios */}
-            {([{h:0,l:'R'},{h:60,l:'Y'},{h:120,l:'G'},{h:180,l:'C'},{h:240,l:'B'},{h:300,l:'M'}] as {h:number,l:string}[]).map(({h,l}) => (
-              <div key={h} style={{position:'absolute',bottom:-16,left:`${(h/360)*100}%`,transform:'translateX(-50%)',color:`hsl(${h},70%,65%)`,fontSize:9,fontWeight:700}}>
-                {l}
-              </div>
-            ))}
-
             {/* Pin */}
             <div className="pointer-events-none absolute top-1/2 -translate-y-1/2 -translate-x-1/2 flex flex-col items-center transition-all"
               style={{left:`${(temaHue/360)*100}%`}}>
@@ -1399,44 +1389,29 @@ export default function ConfiguracionPage() {
                 style={{background:colorFondo,boxShadow:`0 0 10px ${colorFondo}99`}} />
             </div>
           </div>
-          <div style={{height:16}} />
-        </div>
 
-        {/* Sat / Lit sliders */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <p className="text-zinc-500 text-[10px] tracking-widest uppercase">Saturación {temaSat}%</p>
-            <input type="range" min={30} max={85} value={temaSat}
-              onChange={e => { const s=Number(e.target.value); setTemaSat(s); const hex=hslToHex(temaHue,s,temaLit); previewColor(hex,temaHue,s,temaLit) }}
-              className="w-full cursor-pointer"
-              style={{accentColor:colorFondo}} />
-          </div>
-          <div className="space-y-1">
-            <p className="text-zinc-500 text-[10px] tracking-widest uppercase">Profundidad {temaLit}%</p>
-            <input type="range" min={6} max={20} value={temaLit}
-              onChange={e => { const l=Number(e.target.value); setTemaLit(l); const hex=hslToHex(temaHue,temaSat,l); previewColor(hex,temaHue,temaSat,l) }}
-              className="w-full cursor-pointer"
-              style={{accentColor:colorFondo}} />
-          </div>
-        </div>
-
-        {/* Presets */}
-        <div className="space-y-1">
-          <p className="text-zinc-500 text-[10px] tracking-widest uppercase">Presets</p>
-          <div className="flex gap-2 flex-wrap">
-            {TEMA_PRESETS.map(p => {
-              const ph = hslToHex(p.hue, p.sat, p.lit)
-              const active = temaHue===p.hue && temaSat===p.sat && temaLit===p.lit
-              return (
-                <button key={p.label} onClick={() => previewColor(ph, p.hue, p.sat, p.lit)}
-                  className="flex flex-col items-center gap-1">
-                  <div className="w-8 h-8 rounded-lg border-2 transition-all"
-                    style={{background:`hsl(${p.hue},${p.sat}%,${p.lit}%)`,borderColor:active?'rgba(59,130,246,0.9)':'rgba(255,255,255,0.10)',boxShadow:active?`0 0 10px ${ph}88`:'none'}} />
-                  <span className="text-zinc-500 text-[9px] whitespace-nowrap">{p.label}</span>
-                </button>
-              )
-            })}
-          </div>
+          {/* Historial + 5 presets en una línea */}
+          {(() => {
+            const defaultPresets = TEMA_PRESETS.slice(0,5).map(p => hslToHex(p.hue,p.sat,p.lit))
+            const histColors = temaHistorial.length > 0 ? temaHistorial : defaultPresets
+            const shown = histColors.slice(0,5)
+            return (
+              <div className="flex gap-2 justify-between">
+                {shown.map((hex, i) => {
+                  const active = colorFondo === hex
+                  return (
+                    <button key={i} onClick={() => previewColor(hex, undefined, undefined, undefined)}
+                      className="flex-1 rounded-lg border-2 transition-all"
+                      style={{
+                        height:28, background:hex,
+                        borderColor: active ? 'rgba(59,130,246,0.9)' : 'rgba(255,255,255,0.10)',
+                        boxShadow: active ? `0 0 8px ${hex}88` : 'none',
+                      }} />
+                  )
+                })}
+              </div>
+            )
+          })()}
         </div>
 
         {/* Preview */}
@@ -1445,7 +1420,7 @@ export default function ConfiguracionPage() {
             <div className="w-1.5 h-1.5 rounded-full" style={{background:'rgba(59,130,246,0.8)'}} />
             <span className="text-white/60 text-xs">Vista previa del fondo</span>
           </div>
-          <div className="p-3 space-y-2 transition-all" style={{background:`linear-gradient(160deg, ${colorFondo} 0%, ${hslToHex(temaHue,temaSat-10,temaLit+3)} 60%, ${colorFondo} 100%)`}}>
+          <div className="p-3 space-y-2 transition-all" style={{background:`linear-gradient(160deg, ${colorFondo} 0%, ${hslToHex(temaHue,Math.max(20,temaSat-10),Math.min(20,temaLit+3))} 60%, ${colorFondo} 100%)`}}>
             {[{dot:'#ef4444',name:'ALBA CECILIA TORRES',val:'$528.800'},{dot:'#f97316',name:'ALBA VARON',val:'$3.968.000'}].map((r,i) => (
               <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{background:'rgba(30,36,58,0.92)',border:'1px solid rgba(59,130,246,0.18)'}}>
                 <div className="w-2 h-2 rounded-full flex-shrink-0" style={{background:r.dot}} />
@@ -1460,7 +1435,7 @@ export default function ConfiguracionPage() {
         <div className="flex gap-2">
           <button onClick={guardarTema} disabled={savingTema}
             className="flex-1 disabled:opacity-40 text-white py-2.5 rounded-xl text-sm font-semibold transition-all"
-            style={{background:`rgba(${parseInt(hslToHex(temaHue,temaSat+10,temaLit+8).slice(1,3),16)},${parseInt(hslToHex(temaHue,temaSat+10,temaLit+8).slice(3,5),16)},${parseInt(hslToHex(temaHue,temaSat+10,temaLit+8).slice(5,7),16)},0.35)`,border:`1px solid ${colorFondo}88`}}>
+            style={{background:`${colorFondo}55`,border:`1px solid ${colorFondo}88`}}>
             {savingTema ? 'Guardando...' : '💾 Guardar tema'}
           </button>
           <button onClick={() => previewColor('#060f2c', 225, 72, 11)}
