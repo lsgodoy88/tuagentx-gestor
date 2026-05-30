@@ -271,7 +271,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
     setRrBuscarCartera(''); setRrCliente(null); setRrSinDeuda(false); setRrCartera([])
   }
   function abrirWhatsApp(cartera: any) {
-    const telefono = (cartera.telefono || cartera.cliente?.celular || '').replace(/\D/g, '')
+    const telefono = (cartera.telefono || cartera.cliente?.telefono || cartera.cliente?.celular || '').replace(/\D/g, '')
     if (!telefono) { alert('Cliente sin teléfono'); return }
     const deudas = (cartera.DetalleCartera || cartera.deudas || []).filter((d: any) => d.estado !== 'pagada' && Number(d.saldo ?? d.saldoPendiente ?? 0) > 0)
     const total  = deudas.reduce((s: number, d: any) => s + Number(d.saldo ?? d.saldoPendiente ?? 0), 0)
