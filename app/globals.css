@@ -707,18 +707,12 @@ input[type="date"] { appearance: none; -webkit-appearance: none; }
    El móvil NUNCA entra aquí — cero impacto en mobile.
 */
 @media (min-width: 769px) {
-  /* Cards glass — clase CSS explícita, no attribute selector frágil */
-  .card-glass {
-    backdrop-filter: blur(16px) !important;
+  /* Cards glass — clase CSS explícita */
+  .card-glass,
+  .card-glass-group,
+  .card-dark,
+  .card-dark-2 {
     -webkit-backdrop-filter: blur(16px) !important;
-  }
-  .card-glass-group {
     backdrop-filter: blur(16px) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
-  }
-  /* card-dark y card-dark-2 via CSS class */
-  .card-dark, .card-dark-2 {
-    backdrop-filter: blur(16px) !important;
-    -webkit-backdrop-filter: blur(16px) !important;
   }
 }
