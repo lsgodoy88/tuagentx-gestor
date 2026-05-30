@@ -383,7 +383,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )
         })()}
 
-        <div className={`flex-1 overflow-x-hidden p-4 md:p-6 pb-24 md:pb-6${bloqueado ? ' pointer-events-none opacity-50' : ''}`}>
+        <div className={`flex-1 overflow-x-clip p-4 md:p-6 pb-24 md:pb-6${bloqueado ? ' pointer-events-none opacity-50' : ''}`}>
           <div className="max-w-screen-xl mx-auto w-full space-y-6">
             <PermisosGuard role={user?.role}>
               <GpsContext.Provider value={{ setSincronizandoGps }}>
