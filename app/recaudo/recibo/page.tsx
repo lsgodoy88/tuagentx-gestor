@@ -307,7 +307,18 @@ function ReciboContent() {
 
           <hr className="sep" />
 
-          <div className="row"><span className="lbl">Cliente:</span><span className="val b">{cliente?.nombre}</span></div>
+          {(() => {
+            const nombreCli = cliente?.nombre || ''
+            if (nombreCli.length <= 22) {
+              return <div className="row"><span className="lbl">Cliente:</span><span className="val b">{nombreCli}</span></div>
+            }
+            return (
+              <div>
+                <div><span className="lbl">Cliente:</span></div>
+                <div className="tc b">{nombreCli}</div>
+              </div>
+            )
+          })()}
           {cliente?.nit && <div className="row"><span className="lbl">NIT:</span><span className="val">{cliente.nit}</span></div>}
           {cliente?.telefono && <div className="row"><span className="lbl">Tel:</span><span className="val">{cliente.telefono}</span></div>}
 
@@ -353,7 +364,14 @@ function ReciboContent() {
           )}
 
           <hr className="sep" />
-          <div className="row"><span className="lbl">Atendió:</span><span className="val">{pago.empleado?.nombre || '-'}</span></div>
+          {(() => {
+            const nombreCompleto = pago.empleado?.nombre || '-'
+            const partes = nombreCompleto.split(' ').filter(Boolean)
+            const primerNombre = partes[0] || ''
+            const primerApellido = partes.length > 2 ? partes[Math.floor(partes.length / 2)] : (partes[1] || '')
+            const nombreCorto = primerApellido ? `${primerNombre} ${primerApellido}` : primerNombre
+            return <div className="row"><span className="lbl">Atendió:</span><span className="val">{nombreCorto}</span></div>
+          })()}
 
           <hr className="sep" />
           <div className="saldo-final" style={{ fontSize: fs.saldo }}>
