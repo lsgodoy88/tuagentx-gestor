@@ -599,7 +599,7 @@ function DashboardPageInner() {
           </div>
           <p className="text-emerald-400 font-bold text-2xl">${totalMensual.toLocaleString('es-CO')}</p>
         </div>
-        <div className="rounded-2xl overflow-hidden" style={{background:"rgba(148,160,185,0.22)",border:"1px solid rgba(148,180,255,0.35)"}}>
+        <div className="rounded-2xl overflow-hidden card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
           <div className="px-4 py-3 border-b border-zinc-800">
             <p className="text-white font-semibold">Por empresa</p>
           </div>
@@ -667,7 +667,7 @@ function DashboardPageInner() {
           <div className="rounded-2xl" style={{overflow:"hidden",borderRadius:16}}>
           <div className="grid grid-cols-2 gap-3">
 
-            <div className="rounded-2xl p-4 hover-lift flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(148,160,185,0.22)",border:"1px solid rgba(148,180,255,0.35)"}}>
+            <div className="rounded-2xl p-4 hover-lift card-glass flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">🛍️</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Vendedores</span>
@@ -683,7 +683,7 @@ function DashboardPageInner() {
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(148,160,185,0.22)",border:"1px solid rgba(148,180,255,0.35)"}}>
+            <div className="rounded-2xl p-4 hover-lift card-glass flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">⚡</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Impulsos</span>
@@ -699,7 +699,7 @@ function DashboardPageInner() {
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(148,160,185,0.22)",border:"1px solid rgba(148,180,255,0.35)"}}>
+            <div className="rounded-2xl p-4 hover-lift card-glass flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">📦</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Órdenes hoy</span>
@@ -715,7 +715,7 @@ function DashboardPageInner() {
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(148,160,185,0.22)",border:"1px solid rgba(148,180,255,0.35)"}}>
+            <div className="rounded-2xl p-4 hover-lift card-glass flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">💰</span>
                 <span className="text-white text-[10px] font-bold tracking-widest uppercase">Recaudado</span>
@@ -737,7 +737,7 @@ function DashboardPageInner() {
           {/* Botón Estadísticas */}
           <button
             onClick={cargarEstadisticas}
-            style={{background:'rgba(148,160,185,0.22)',border:'1px solid rgba(148,180,255,0.35)',borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
+            style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25)',borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
             <span className="text-white font-semibold text-sm">📊 Estadísticas</span>
             <span className="text-zinc-500 text-xs">{mostrarEstadisticas ? '▲ Ocultar' : '▼ Ver'}</span>
           </button>
@@ -746,7 +746,7 @@ function DashboardPageInner() {
           <div className="md:grid md:grid-cols-2 md:gap-6 space-y-6 md:space-y-0" style={{}}>
           <div className="space-y-6">
           {stats.visitasPorDia && stats.visitasPorDia.length > 0 && (
-            <div className="rounded-2xl p-4" style={{background:"rgba(148,160,185,0.22)",border:"1px solid rgba(148,180,255,0.35)"}}>
+            <div className="rounded-2xl p-4 card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <p className="text-white font-semibold text-sm mb-4">Visitas últimos 7 días</p>
               <div className="space-y-2">
                 {(() => {
@@ -765,7 +765,7 @@ function DashboardPageInner() {
             </div>
           )}
           {stats.topEmpleados && stats.topEmpleados.length > 0 && (
-            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(148,160,185,0.22)",border:"1px solid rgba(148,180,255,0.35)"}}>
+            <div className="rounded-2xl overflow-hidden card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Top vendedores - 30 dias</p>
               </div>
@@ -781,7 +781,7 @@ function DashboardPageInner() {
               ))}
             </div>
           )}
-          <div className="rounded-2xl p-4 flex items-center justify-between" style={{background:"rgba(148,160,185,0.22)",border:"1px solid rgba(148,180,255,0.35)"}}>
+          <div className="rounded-2xl p-4 card-glass flex items-center justify-between" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
             <div>
               <p className="text-white font-semibold">Rutas activas</p>
               <p className="text-zinc-500 text-xs mt-0.5">Sin cerrar</p>
@@ -798,7 +798,7 @@ function DashboardPageInner() {
                 if (empleadosRol.length === 0) return null
                 const titulo = rol === 'vendedor' ? 'Vendedores' : rol === 'impulsadora' ? 'Impulsadoras' : 'Entregas'
                 return (
-                  <div key={rol} className="rounded-2xl overflow-hidden" style={{background:"rgba(148,160,185,0.22)",border:"1px solid rgba(148,180,255,0.35)"}}>
+                  <div key={rol} className="rounded-2xl overflow-hidden card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
                     <div className="px-4 py-3 border-b border-zinc-800">
                       <p className="text-white font-semibold text-sm">{titulo} en turno</p>
                     </div>
@@ -854,7 +854,7 @@ function DashboardPageInner() {
           )}
           {/* Tabla 7 dias x vendedor */}
           {stats.vendedores7 && stats.vendedores7.length > 0 && (
-            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(148,160,185,0.22)",border:"1px solid rgba(148,180,255,0.35)"}}>
+            <div className="rounded-2xl overflow-hidden card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Visitas por vendedor - ultimos 7 dias</p>
               </div>
@@ -886,7 +886,7 @@ function DashboardPageInner() {
           )}
           {/* Tabla 7 meses x vendedor */}
           {stats.vendedores7m && stats.vendedores7m.length > 0 && (
-            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(148,160,185,0.22)",border:"1px solid rgba(148,180,255,0.35)"}}>
+            <div className="rounded-2xl overflow-hidden card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="px-4 py-3 border-b border-zinc-800">
                 <p className="text-white font-semibold text-sm">Visitas por vendedor - ultimos 7 meses</p>
               </div>
@@ -922,7 +922,7 @@ function DashboardPageInner() {
         </div>
       )}
       {isBodega && (
-        <div className="rounded-2xl p-4" style={{background:"rgba(148,160,185,0.22)",border:"1px solid rgba(148,180,255,0.35)"}}>
+        <div className="rounded-2xl p-4 card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
           <div className="flex items-center justify-between mb-3">
             <h3 className="text-white font-semibold text-sm">📦 Órdenes bodega hoy</h3>
             <a href="/ordenes" className="text-emerald-400 text-xs">Ver órdenes →</a>
@@ -943,7 +943,7 @@ function DashboardPageInner() {
         <div className="space-y-4">
           {turno?.pausado ? (
             // ── PAUSA — encogida/desplegada ──
-            <div style={{background:"rgba(148,160,185,0.22)",border:"1px solid rgba(148,180,255,0.35)",borderRadius:16,overflow:"hidden"}}>
+            <div className="card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25)",borderRadius:16,overflow:"hidden"}}>
               {/* Pill encogida */}
               <button onClick={() => setTurnoExpandido(e => !e)}
                 className="w-full flex items-center gap-3 px-4 py-3 text-left">
@@ -977,7 +977,7 @@ function DashboardPageInner() {
                 <div
                   className="inline-flex items-center gap-2 px-4 py-2 cursor-pointer"
                   style={{
-                    background:"rgba(148,160,185,0.22)",
+                    background:"rgba(255,255,255,0.08)",
                     border:"1px solid rgba(148,180,255,0.35)",
                     borderBottom: turnoExpandido ? "none" : undefined,
                     borderRadius: turnoExpandido ? "16px 16px 0 0" : "16px"}}
@@ -996,7 +996,7 @@ function DashboardPageInner() {
               </div>
               {/* Desplegado */}
               {turnoExpandido && (
-                <div className="w-full fade-up" style={{background:"rgba(148,160,185,0.22)",border:"1px solid rgba(148,180,255,0.35)",borderTop:"1px solid rgba(16,185,129,0.15)",borderRadius:"0 0 16px 16px"}}>
+                <div className="w-full fade-up" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(148,180,255,0.35)",borderTop:"1px solid rgba(16,185,129,0.15)",borderRadius:"0 0 16px 16px"}}>
                 <div className="px-4 pb-4 pt-3 space-y-3">
                   <div className="grid grid-cols-2 gap-2">
                     <div className="rounded-lg p-2" style={{background:'rgba(148,160,185,0.28)',border:'1px solid rgba(148,180,255,0.25)'}}><p className="text-zinc-500 text-xs">Hora inicio</p><p className="text-sm font-bold text-white">{new Date(turno.inicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",timeZone: 'America/Bogota'})}</p></div>
@@ -1028,7 +1028,7 @@ function DashboardPageInner() {
             </div>
           ) : (
             // ── SIN TURNO — 1 línea full width ──
-            <div style={{background:"rgba(148,160,185,0.22)",border:"1px solid rgba(148,180,255,0.35)",borderRadius:16,overflow:"hidden"}}>
+            <div className="card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25)",borderRadius:16,overflow:"hidden"}}>
               <div className="flex items-center justify-between gap-2 px-3 py-2.5">
                 <button onClick={iniciarTurno}
                   className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors">
@@ -1042,7 +1042,7 @@ function DashboardPageInner() {
             </div>
           )}
           {ruta && totalClientes > 0 && !rutaCompletada ? (
-            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(148,160,185,0.22)",border:"1px solid rgba(148,180,255,0.35)"}}>
+            <div className="rounded-2xl overflow-hidden card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               {/* Header */}
               <div className="px-4 pt-4 pb-3">
                 {/* Fila 1: nombre ruta */}
@@ -1095,8 +1095,8 @@ function DashboardPageInner() {
                     { tipo: 'entrega', label: 'Entrega', icon: '📦' },
                   ].map(b => (
                     <button key={b.tipo} onClick={() => b.tipo === 'cobro' ? abrirModalRecaudoRapido() : abrirModalVisita(b.tipo)}
-                      className="flex-1 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors flex flex-col items-center gap-1"
-                      style={{background:'rgba(148,160,185,0.22)',border:'1px solid rgba(148,180,255,0.35)'}}>
+                      className="flex-1 card-glass text-white font-semibold py-2.5 rounded-xl text-sm transition-colors flex flex-col items-center gap-1"
+                      style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25)'}}>
                       <span className="text-lg">{b.icon}</span>
                       <span>{b.label}</span>
                     </button>
@@ -1104,7 +1104,7 @@ function DashboardPageInner() {
               </div>
             )}
           {user?.role === 'entregas' && ruta && ruta.clientes?.length > 0 && (
-            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(148,160,185,0.22)",border:"1px solid rgba(148,180,255,0.35)"}}>
+            <div className="rounded-2xl overflow-hidden card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
                 <p className="text-white font-bold">📦 Ruta de hoy</p>
                 <span className="text-zinc-400 text-xs">{ejecutadosRuta}/{totalClientes} entregas</span>
@@ -1227,7 +1227,7 @@ function DashboardPageInner() {
                     <div>
                       <button
                         onClick={() => setMostrarImpulsadoras(v => !v)}
-                        style={{background:'rgba(148,160,185,0.22)',border:`1px solid ${tieneAlerta ? 'rgba(239,68,68,0.5)' : 'rgba(148,180,255,0.35)'}`,borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
+                        className='card-glass' style={{background:'rgba(255,255,255,0.08)',border:`1px solid ${tieneAlerta ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.25)'}`,boxShadow:'0 4px 24px rgba(0,0,0,0.25)',borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
                         <span className="text-white font-semibold text-sm">
                           ⚡ Impulsos
                           {tieneAlerta && <span className="ml-2 text-red-400 text-xs font-bold">● Alerta</span>}
@@ -1304,7 +1304,7 @@ function DashboardPageInner() {
               {/* Estadísticas — históricos bajo demanda */}
               <button
                 onClick={cargarStatsVendedor}
-                style={{background:'rgba(148,160,185,0.22)',border:'1px solid rgba(148,180,255,0.35)',borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
+                style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25)',borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
                 <span className="text-white font-semibold text-sm">📊 Estadísticas</span>
                 <span className="text-zinc-500 text-xs">{mostrarEstadisticasVendedor ? '▲ Ocultar' : '▼ Ver'}</span>
               </button>
