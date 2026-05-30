@@ -315,7 +315,7 @@ function ReciboContent() {
             return (
               <div>
                 <div><span className="lbl">Cliente:</span></div>
-                <div className="tc b">{nombreCli}</div>
+                <div className="b">{nombreCli}</div>
               </div>
             )
           })()}
