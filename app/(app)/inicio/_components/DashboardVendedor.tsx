@@ -281,7 +281,6 @@ export default function DashboardVendedor({ user }: { user: any }) {
     if (!deudas.length) { alert('Sin facturas pendientes'); return }
 
     const nombreCliente = cartera.cliente?.nombre || cartera.nombre || ''
-    const nombreEmpresa = (user as any)?.empresa?.nombre || (user as any)?.empresaNombre || 'nuestra empresa'
     const total = deudas.reduce((sum: number, d: any) => sum + Number(d.saldo ?? d.saldoPendiente ?? 0), 0)
 
     let mensaje = `Hola Sr(a) *${nombreCliente}*, le recordamos que tiene *${deudas.length} factura${deudas.length > 1 ? 's' : ''} pendiente${deudas.length > 1 ? 's' : ''}*:\n`
@@ -292,7 +291,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
     })
 
     mensaje += `\n\n💰 *Total pendiente: $${total.toLocaleString('es-CO')}*`
-    mensaje += `\n\nAgradecemos su pronto pago.\n— ${nombreEmpresa}`
+    mensaje += `\n\nAgradecemos su pronto pago.`
 
     window.open(`https://wa.me/57${telefono}?text=${encodeURIComponent(mensaje)}`, '_blank')
   }
