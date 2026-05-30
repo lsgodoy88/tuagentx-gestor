@@ -302,8 +302,8 @@ function ReciboContent() {
 
           <hr className="sep" />
 
-          <div className="tc b" style={{ fontSize: fs.base + 1, letterSpacing: 1 }}>RECIBO DE CAJA</div>
-          <div className="tc b" style={{ fontSize: fs.empresa, color: '#000', letterSpacing: 1 }}>#{reciboNum}</div>
+          <div className="tc b" style={{ fontSize: fs.base - 1, letterSpacing: 1 }}>RECIBO DE CAJA</div>
+          <div className="tc b" style={{ fontSize: fs.base - 1, color: '#000', letterSpacing: 1 }}>{reciboNum}</div>
 
           <hr className="sep" />
 
