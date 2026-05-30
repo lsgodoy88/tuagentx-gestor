@@ -272,12 +272,29 @@ export default function DashboardVendedor({ user }: { user: any }) {
   }
   function abrirWhatsApp(cartera: any) {
     const telefono = (cartera.cliente?.celular || cartera.cliente?.telefono || cartera.telefono || cartera.celular || '').replace(/\D/g, '')
-    if (!telefono) { alert('Cliente sin teléfono'); return }
-    const deudas = (cartera.DetalleCartera || cartera.deudas || []).filter((d: any) => d.estado !== 'pagada' && Number(d.saldo ?? d.saldoPendiente ?? 0) > 0)
-    const total  = deudas.reduce((s: number, d: any) => s + Number(d.saldo ?? d.saldoPendiente ?? 0), 0)
-    const nombre = cartera.nombre || cartera.cliente?.nombre || ''
-    const msg    = `Hola ${nombre}, te recordamos que tienes una deuda pendiente de $${Math.round(total).toLocaleString('es-CO')}. Por favor comunícate con nosotros para gestionar tu pago. Gracias.`
-    window.open(`https://wa.me/57${telefono}?text=${encodeURIComponent(msg)}`, '_blank')
+    if (!telefono) { alert('Cliente sin teléfono registrado'); return }
+
+    const deudas = (cartera.DetalleCartera || cartera.deudas || [])
+      .filter((d: any) => d.estado !== 'pagada' && Number(d.saldo ?? d.saldoPendiente ?? 0) > 0)
+      .sort((a: any, b: any) => new Date(a.fechaVencimiento || 0).getTime() - new Date(b.fechaVencimiento || 0).getTime())
+
+    if (!deudas.length) { alert('Sin facturas pendientes'); return }
+
+    const nombreCliente = cartera.cliente?.nombre || cartera.nombre || ''
+    const nombreEmpresa = (user as any)?.empresa?.nombre || (user as any)?.empresaNombre || 'nuestra empresa'
+    const total = deudas.reduce((sum: number, d: any) => sum + Number(d.saldo ?? d.saldoPendiente ?? 0), 0)
+
+    let mensaje = `Hola Sr(a) *${nombreCliente}*, le recordamos que tiene *${deudas.length} factura${deudas.length > 1 ? 's' : ''} pendiente${deudas.length > 1 ? 's' : ''}*:\n`
+
+    deudas.forEach((d: any) => {
+      mensaje += `\n📋 Fact. ${d.numeroFactura || d.numeroOrden || ''} → $${Number(d.saldo ?? d.saldoPendiente ?? 0).toLocaleString('es-CO')}`
+      if (d.fechaVencimiento) mensaje += ` _(vence ${new Date(d.fechaVencimiento).toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: '2-digit' })})_`
+    })
+
+    mensaje += `\n\n💰 *Total pendiente: $${total.toLocaleString('es-CO')}*`
+    mensaje += `\n\nAgradecemos su pronto pago.\n— ${nombreEmpresa}`
+
+    window.open(`https://wa.me/57${telefono}?text=${encodeURIComponent(mensaje)}`, '_blank')
   }
 
   async function cargarDetalleCartera(cartera: any) {
