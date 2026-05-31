@@ -138,35 +138,10 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     }
   })
 
-  // ── SyncDeuda — órdenes de crédito nuevas ────────────────────────────────
-  const ordenesCredito = ordenesValidas.filter((o: any) =>
-    (o as any).paymentType === 'credito' &&
-    parseFloat((o as any).balance ?? '0') > 0 &&
-    (o as any).isActiva !== false
-  )
-  const externalIdsCredito = ordenesCredito.map((o: any) => String(o.uid || o._id))
-  const deudaExistentes = await (prisma as any).syncDeuda.findMany({
-    where: { integracionId, externalId: { in: externalIdsCredito } },
-    select: { externalId: true }
-  })
-  const deudaExistentesSet = new Set(deudaExistentes.map((d: any) => d.externalId))
-  const nuevasDeudas = ordenesCredito.filter((o: any) => !deudaExistentesSet.has(String(o.uid || o._id)))
-
-  const deudaToCreate = nuevasDeudas.map((o: any) => ({
-    integracionId,
-    externalId: String(o.uid || o._id),
-    clienteApiId: o.cliente?.uid || o.customerId || '',
-    empleadoExternalId: o.empleado?.uid || o.employeeId || null,
-    numeroOrden: o.numeroOrden ? parseInt(String(o.numeroOrden)) : null,
-    numeroFactura: o.numeroFacturado ? parseInt(String(o.numeroFacturado)) : null,
-    valor: parseFloat(o.vTotal ?? o.total ?? '0'),
-    saldo: parseFloat(o.balance ?? '0'),
-    diasCredito: o.creditDay ? parseInt(String(o.creditDay)) : null,
-    condition: true,
-    data: o,
-    externalUpdatedAt: o.updatedAt ? new Date(o.updatedAt) : null,
-    sincronizadoEl: new Date(),
-  }))
+  // ── SyncDeuda nuevas — manejadas por deudasNuevasDelta (fetchDeudas) ──────
+  // Ruta única: fetchDeudas con filtro de fecha → más completo (incluye receivableAt)
+  // deudaToCreate eliminado — evitar doble insert en órdenes de crédito nuevas
+  const deudaToCreate: any[] = []
 
   // ── Clientes nuevos (desde MAX createdAtBogota en BD) ──────────────────────
   // Solo trae clientes creados/modificados en UpTres desde la última introducción
@@ -219,6 +194,45 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     console.error('[delta] clientes error:', err.message)
   }
 
+  // ── Empleados — actualizar datos de vendedores existentes ───────────────
+  // Insert-only NO aplica — empleados se crean desde el panel con password+rol
+  // Solo actualiza: telefono, documento, direccion, ciudad si el apiId ya existe
+  let empleadosActualizados = 0
+  try {
+    const maxEmpleado = await (prisma as any).empleado.aggregate({
+      where: { empresaId: destino, apiId: { not: null } },
+      _max: { createdAt: true }
+    })
+    const baseEmp = maxEmpleado._max.createdAt
+      || empresa?.ultimaSyncBodega
+      || new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+    const desdeEmp = new Date(baseEmp.getTime() - 30 * 60 * 1000)
+
+    const empleadosExt = await adapter.fetchEmpleados(desdeEmp)
+    if (empleadosExt.length > 0) {
+      const apiIds = empleadosExt.map((e: any) => e.uid).filter(Boolean)
+      const existentesEmp = await (prisma as any).empleado.findMany({
+        where: { empresaId: destino, apiId: { in: apiIds } },
+        select: { apiId: true }
+      })
+      const existentesEmpSet = new Set(existentesEmp.map((e: any) => e.apiId))
+      const aActualizar = empleadosExt.filter((e: any) => e.uid && existentesEmpSet.has(e.uid))
+      for (const e of aActualizar) {
+        await (prisma as any).empleado.updateMany({
+          where: { empresaId: destino, apiId: e.uid },
+          data: {
+            ...(e.nCel ? { telefono: e.nCel } : {}),
+            ...(e.doc ? { documento: e.doc } : {}),
+            ...(e.ciudad ? { ciudadApiId: e.ciudad } : {}),
+          }
+        })
+      }
+      empleadosActualizados = aActualizar.length
+    }
+  } catch (err: any) {
+    console.error('[delta] empleados error:', err.message)
+  }
+
   // ── Deudas nuevas (desde MAX createdAtBogota en SyncDeuda) ──────────────────
   // Solo trae deudas de crédito creadas desde la última introducción
   // Protegido: skipDuplicates por (integracionId, externalId) — nunca duplica
@@ -261,6 +275,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
             condition: true,
             data: d,
             externalUpdatedAt: d.fModificado ? new Date(d.fModificado) : null,
+            receivableAt: d.receivableAt ? new Date(d.receivableAt) : null,
             sincronizadoEl: new Date(),
             // fecha UpTres createdAt UTC → Bogotá al introducir — misma lógica que fechaOrdenBogota
             createdAtBogota: d.fCreado ? toBogota(new Date(d.fCreado as string)) : toBogota(new Date()),
@@ -366,6 +381,54 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     await invalidatePattern('g:*:cartera:*') // cartera/resumen → g:{empresaId}:cartera:*
   }
 
+  // ── Delta saldos cartera — fetchDeudasDesde con token ya activo ──────────
+  // Usa receivableAt como ventana — solo deudas con pagos desde última sync
+  // No hace login adicional — reutiliza el adapter ya autenticado
+  let saldosActualizados = 0
+  try {
+    const ultimaReceivable = await (prisma as any).syncDeuda.aggregate({
+      where: { integracionId },
+      _max: { receivableAt: true }
+    })
+    const desdeReceivable: Date = ultimaReceivable._max.receivableAt
+      ? new Date(new Date(ultimaReceivable._max.receivableAt).getTime() - 5 * 60 * 1000)
+      : new Date(Date.now() - 24 * 60 * 60 * 1000)
+
+    const deudasConPago = await adapter.fetchDeudasDesde(desdeReceivable)
+    if (deudasConPago.length > 0) {
+      const exIds = deudasConPago.map((d: any) => String(d.uid || d._id))
+      const existentesSaldo = await (prisma as any).syncDeuda.findMany({
+        where: { integracionId, externalId: { in: exIds } },
+        select: { externalId: true }
+      })
+      const existentesSaldoSet = new Set(existentesSaldo.map((e: any) => e.externalId))
+      const toUpdateSaldo = deudasConPago.filter((d: any) => existentesSaldoSet.has(String(d.uid || d._id)))
+      const CHUNK = 100
+      for (let i = 0; i < toUpdateSaldo.length; i += CHUNK) {
+        const chunk = toUpdateSaldo.slice(i, i + CHUNK)
+        await Promise.all(chunk.map((d: any) =>
+          (prisma as any).syncDeuda.update({
+            where: { integracionId_externalId: { integracionId, externalId: String(d.uid || d._id) } },
+            data: {
+              saldo: parseFloat(String(d.vSaldo ?? '0')),
+              valor: parseFloat(String(d.vTotal ?? '0')),
+              receivableAt: d.receivableAt ? new Date(d.receivableAt) : null,
+              externalUpdatedAt: d.fModificado ? new Date(d.fModificado) : null,
+              sincronizadoEl: new Date(),
+            }
+          })
+        ))
+      }
+      saldosActualizados = toUpdateSaldo.length
+      if (saldosActualizados > 0) {
+        await invalidatePattern('g:*:cartera:*')
+        await invalidatePattern('g:v:*')
+      }
+    }
+  } catch (err: any) {
+    console.error('[delta] delta-saldos error:', err.message)
+  }
+
   const duracionMs = Date.now() - inicioTs
 
   // ── SyncLog — registro del ciclo delta ──────────────────────────────────
@@ -386,13 +449,16 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
         clientesNuevos,
         deudasNuevasDelta,
         comprasSincronizadas: ordenes.length,
+        // Campos extendidos — cast a any por schema dinámico
+        ...(empleadosActualizados ? { empleadosActualizados } : {}),
+        ...(saldosActualizados ? { saldosActualizados } : {}),
       }
     })
   } catch (logErr: any) {
     console.error('[delta] syncLog insert error:', logErr.message)
   }
 
-  return { empresaId: destino, ordenes: ordenes.length, nuevasOrdenes: toCreate.length, nuevasDeudas: deudaToCreate.length, clientesNuevos, deudasNuevasDelta }
+  return { empresaId: destino, ordenes: ordenes.length, nuevasOrdenes: toCreate.length, nuevasDeudas: deudaToCreate.length, clientesNuevos, deudasNuevasDelta, empleadosActualizados, saldosActualizados }
 }
 
 export async function POST(req: NextRequest) {
