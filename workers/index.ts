@@ -191,8 +191,9 @@ export const syncNocturnoQueue = new Queue('sync-nocturno', { connection: REDIS,
 export const syncNocturnoWorker = new Worker(
   'sync-nocturno',
   async (job) => {
-    console.log(`[sync-nocturno] iniciado ${new Date().toISOString()}`)
-    const result = await callEndpoint('/api/sync/nocturno')
+    const modo = job.data?.modo ?? 'completo'
+    console.log(`[sync-nocturno] iniciado modo=${modo} ${new Date().toISOString()}`)
+    const result = await callEndpoint(`/api/sync/nocturno?modo=${modo}`)
     console.log('[sync-nocturno] resultado:', JSON.stringify(result))
     return result
   },

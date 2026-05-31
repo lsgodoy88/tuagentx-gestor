@@ -198,6 +198,34 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     })
   }
 
+  // Delta de cartera — solo deudas con pagos desde 'desde' (filtra por receivableAt)
+  // Usa /cartera/update — receivableAt ya viene en hora Bogotá, sin conversión
+  async fetchDeudasDesde(desde: Date): Promise<DeudaExterna[]> {
+    const manana = new Date(); manana.setDate(manana.getDate() + 1)
+    const params: Record<string, string> = {
+      fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt,receivableAt',
+      from: desde.toISOString().split('T')[0],
+      to: manana.toISOString().split('T')[0],
+      includeTotal: 'false',
+    }
+    const data = await this.fetchAll('cartera/update', params)
+    return data.map((o: any) => ({
+      uid: o.id,
+      _id: o.id,
+      numeroOrden: o.orderNumber,
+      numeroFacturado: o.invoiceNumber || null,
+      vTotal: o.total,
+      vSaldo: o.balance,
+      vAbono: String(parseFloat(o.total || '0') - parseFloat(o.balance || '0')),
+      dias: o.creditDay || '0',
+      fCreado: o.createdAt,
+      fModificado: o.updatedAt,
+      receivableAt: o.receivableAt || null,
+      cliente: { uid: o.customerId },
+      empleado: { uid: o.employeeId },
+    }))
+  }
+
   async fetchDeudasEmpleado(empleadoApiId: string): Promise<DeudaExterna[]> {
     // Trae todas las deudas activas asociadas a un empleado (vendedor)
     // Usa cursor paginación si hay muchas

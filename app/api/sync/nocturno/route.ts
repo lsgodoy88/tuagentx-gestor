@@ -105,6 +105,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   }
 
+  // modo=delta → solo deudas nuevas (externalUpdatedAt reciente), sin reconstruir cache
+  // modo=completo (default) → todo: 553 registros + huérfanas + CarteraCache
+  const { searchParams } = new URL(req.url)
+  const modo = searchParams.get('modo') ?? 'completo'
+
   const integraciones = await (prisma as any).integracion.findMany({
     where: { tipo: 'uptres', activa: true },
     select: { id: true, empresaId: true, config: true }
@@ -118,8 +123,19 @@ export async function POST(req: NextRequest) {
       const adapter = new UpTresAdapter(config.apiKey, apiSecret)
       await adapter.login()
 
-      // Traer todas las deudas sin filtro de fecha
-      const deudas = await adapter.fetchDeudas()
+      // modo=delta: solo deudas creadas/modificadas recientemente (externalUpdatedAt)
+      // modo=completo: todas las deudas sin filtro
+      let desde: Date | undefined
+      if (modo === 'delta') {
+        const ultima = await (prisma as any).syncDeuda.aggregate({
+          where: { integracionId: intg.id },
+          _max: { externalUpdatedAt: true }
+        })
+        desde = ultima._max.externalUpdatedAt
+          ? new Date(new Date(ultima._max.externalUpdatedAt).getTime() - 5 * 60 * 1000)
+          : new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+      }
+      const deudas = await adapter.fetchDeudas(desde)
       // #1 fix: batch en lugar de N+1
       const externalIds = deudas.map((d: any) => String(d.uid || d._id))
       const existentes = await (prisma as any).syncDeuda.findMany({
@@ -180,6 +196,8 @@ export async function POST(req: NextRequest) {
       const insertadas = toInsert.length
       const actualizadas = toUpdate.length
 
+      // modo=completo: marcar huérfanas y reconstruir cache — modo=delta: skip
+      if (modo === 'completo') {
       // #2 fix: marcar como inactivas deudas que ya no están en UpTres
       const externalIdsActivos = new Set(externalIds)
       const huerfanas = await (prisma as any).syncDeuda.updateMany({
@@ -192,8 +210,12 @@ export async function POST(req: NextRequest) {
       })
 
 
-      // Reconstruir CarteraCache
-      const clientesActualizados = await reconstruirCartera(intg.id, intg.empresaId)
+      } // fin if modo=completo huérfanas
+
+      // Reconstruir CarteraCache solo en modo completo
+      const clientesActualizados = modo === 'completo'
+        ? await reconstruirCartera(intg.id, intg.empresaId)
+        : 0
 
       // #4 fix: invalidar Redis para que dashboard vea datos frescos
       await invalidatePattern('g:v:*')

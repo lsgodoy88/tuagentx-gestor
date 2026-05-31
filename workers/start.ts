@@ -73,8 +73,11 @@ async function main() {
   console.log('  sync-delta  → crontab OS (*/30 13-21 UTC = 8am-4:30pm Bogotá, L-S)')
 
   // sync-nocturno: 8:00 UTC = 3:00 Bogotá
-  await syncNocturnoQueue.upsertJobScheduler('sync-nocturno-diario', { pattern: '0 8 * * *' }, { name: 'sync-nocturno-diario', data: {} })
-  console.log('  sync-nocturno → 0 8 * * * UTC = 3am Bogotá')
+  // Completo domingos 3am Bogotá — huérfanas + CarteraCache
+  await syncNocturnoQueue.upsertJobScheduler('sync-nocturno-semanal', { pattern: '0 8 * * 0' }, { name: 'sync-nocturno-semanal', data: { modo: 'completo' } })
+  // Delta deudas nuevas lunes-sábado 3am Bogotá — solo insert nuevas, sin cache
+  await syncNocturnoQueue.upsertJobScheduler('sync-nocturno-delta', { pattern: '0 8 * * 1-6' }, { name: 'sync-nocturno-delta', data: { modo: 'delta' } })
+  console.log('  sync-nocturno → completo domingos / delta lun-sab (0 8 UTC = 3am Bogotá)')
 
   console.log('[gestor-worker] Workers online. Esperando jobs...')
 
