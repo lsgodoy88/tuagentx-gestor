@@ -829,7 +829,7 @@ export default function CarteraPage() {
             className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
 
           {/* MÓVIL — cards colapsables (sin cambios) */}
-          <div className="md:hidden">
+          <div className="lg:hidden">
             {filtradas.map((c: any) => (
               <CarteraCard
                 key={c.id}
@@ -850,7 +850,7 @@ export default function CarteraPage() {
           </div>
 
           {/* DESKTOP — tabla plana una fila por deuda */}
-          <div className="hidden md:block">
+          <div className="hidden lg:block">
             {filtradas.length === 0 ? (
               <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-10 text-center">
                 <p className="text-3xl mb-2">📋</p>
