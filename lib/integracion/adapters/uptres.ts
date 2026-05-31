@@ -113,7 +113,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
 
   async fetchClientes(desde?: Date): Promise<ClienteExterno[]> {
     const params: Record<string, string> = {
-      fields: 'id,firstName,lastName,document,email,phone,address,cityId,neighborhood,tradeName,updatedAt,employeeId',
+      fields: 'id,firstName,lastName,document,email,phone,address,cityId,updatedAt',
       includeTotal: 'false',
     }
     if (desde) params.desde = desde.toISOString()  // ISO completo con hora para no perder clientes del mismo día
@@ -129,10 +129,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       dir: c.address || null,
       ciudad: getCiudad(c.cityId),
       departamento: getDepartamento(c.cityId),
-      barrio: c.neighborhood || null,
-      nombreComercial: c.tradeName || null,
       fModificado: c.updatedAt,
-      employeeId: c.employeeId || null,
     }))
   }
 
