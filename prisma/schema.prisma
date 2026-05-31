@@ -2776,6 +2776,7 @@ model SyncDeuda {
   data               Json? // JSON crudo completo del externo
   modificadoEn       DateTime?
   externalUpdatedAt  DateTime? // updatedAt de UpTres — señal de cambio en origen
+  receivableAt       DateTime? // fecha del último pago en UpTres — ya en hora Bogotá, sin conversión
   isDelivered        Boolean?
   paymentMethod      String?
   discountAdi        Decimal?  @db.Decimal(14, 2)

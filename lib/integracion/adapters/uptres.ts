@@ -191,6 +191,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
         fCreado: o.createdAt,
         fPago: fPago ?? undefined,
         fModificado: o.updatedAt,
+        receivableAt: o.receivableAt || null,
         cliente: { uid: o.customerId },
         empleado: { uid: o.employeeId },
       }
@@ -241,6 +242,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
         fCreado: o.createdAt,
         fPago: fPago ?? undefined,
         fModificado: o.updatedAt,
+        receivableAt: o.receivableAt || null,
         cliente: { uid: o.customerId },
         empleado: { uid: o.employeeId },
       }
@@ -276,6 +278,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
         fCreado: o.createdAt,
         fPago: fPago ?? undefined,
         fModificado: o.updatedAt,
+        receivableAt: o.receivableAt || null,
         cliente: { uid: clienteId },
         empleado: { uid: null },
       }

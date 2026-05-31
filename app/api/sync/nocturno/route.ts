@@ -136,9 +136,10 @@ export async function POST(req: NextRequest) {
         const saldo = parseFloat(String(d.vSaldo ?? '0'))
         const valor = parseFloat(String(d.vTotal ?? '0'))
         const externalUpdatedAt = d.fModificado ? new Date(d.fModificado) : null
+        const receivableAt = d.receivableAt ? new Date(d.receivableAt) : null
 
         if (existentesSet.has(externalId)) {
-          toUpdate.push({ externalId, saldo, valor, externalUpdatedAt, data: d })
+          toUpdate.push({ externalId, saldo, valor, externalUpdatedAt, receivableAt, data: d })
         } else {
           toInsert.push({
             integracionId: intg.id,
@@ -153,6 +154,7 @@ export async function POST(req: NextRequest) {
             condition: true,
             data: d as any,
             externalUpdatedAt,
+            receivableAt,
             sincronizadoEl: new Date(),
           })
         }
@@ -170,7 +172,7 @@ export async function POST(req: NextRequest) {
         await Promise.all(chunk.map((u: any) =>
           (prisma as any).syncDeuda.update({
             where: { integracionId_externalId: { integracionId: intg.id, externalId: u.externalId } },
-            data: { saldo: u.saldo, valor: u.valor, externalUpdatedAt: u.externalUpdatedAt, sincronizadoEl: new Date(), data: u.data }
+            data: { saldo: u.saldo, valor: u.valor, externalUpdatedAt: u.externalUpdatedAt, receivableAt: u.receivableAt, sincronizadoEl: new Date(), data: u.data }
           })
         ))
       }

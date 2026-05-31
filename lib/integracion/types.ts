@@ -10,6 +10,7 @@ export interface DeudaExterna {
   fPago?: string
   fCreado?: string
   fModificado?: string
+  receivableAt?: string | null
   condition?: boolean
   cliente?: { uid?: string }
   empleado?: { uid?: string }
