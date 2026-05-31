@@ -857,11 +857,11 @@ export default function CarteraPage() {
                 <p className="text-zinc-400">{buscar ? 'Sin resultados' : 'Sin cartera registrada'}</p>
               </div>
             ) : (
-              <div className="rounded-2xl overflow-hidden" style={{border:'1px solid rgba(59,130,246,0.25)'}}>
+              <div className="rounded-2xl overflow-hidden" style={{border:'1px solid #1e3a5f'}}>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm min-w-[820px]">
                     <thead>
-                      <tr style={{background:'rgba(8,8,28,0.95)',borderBottom:'1px solid rgba(59,130,246,0.2)'}}>
+                      <tr style={{background:'#08081c',borderBottom:'1px solid #1a3557'}}>
                         <th className="px-4 py-3 text-left text-zinc-400 font-semibold whitespace-nowrap">Cliente</th>
                         {(user?.role === 'empresa' || user?.role === 'supervisor') && (
                           <th className="px-4 py-3 text-left text-zinc-400 font-semibold whitespace-nowrap">Vendedor</th>
@@ -887,11 +887,11 @@ export default function CarteraPage() {
                           const esUltimaDeuda = di === deudas.length - 1
                           const color = ESTADO_COLOR[d.estado] || '#6366f1'
                           const separador = esUltimaDeuda && !esUltimoCliente
-                            ? '2px solid rgba(59,130,246,0.20)'
-                            : '1px solid rgba(59,130,246,0.08)'
+                            ? '2px solid #1a3557'
+                            : '1px solid #0f1f35'
                           return (
                             <tr key={`${cartera.id}-${di}`}
-                              style={{background: ci%2===0 ? 'rgba(8,8,28,0.70)' : 'rgba(15,15,35,0.50)', borderBottom: separador}}>
+                              style={{background: ci%2===0 ? '#0d0d20' : '#111124', borderBottom: separador}}>
                               {/* Cliente — solo primera fila del grupo */}
                               <td className="px-4 py-3 max-w-[180px]">
                                 {esPrimera ? (
@@ -953,7 +953,7 @@ export default function CarteraPage() {
                     </tbody>
                     {/* Totales */}
                     <tfoot>
-                      <tr style={{background:'rgba(8,8,28,0.95)',borderTop:'1px solid rgba(59,130,246,0.3)'}}>
+                      <tr style={{background:'#08081c',borderTop:'1px solid #1d3f6e'}}>
                         <td colSpan={(user?.role === 'empresa' || user?.role === 'supervisor') ? 4 : 3}
                           className="px-4 py-3 text-zinc-400 font-bold text-xs">
                           {filtradas.length} clientes · {filtradas.reduce((s: number, c: any) => s + (c.DetalleCartera?.length || 0), 0)} facturas
@@ -1044,11 +1044,11 @@ export default function CarteraPage() {
             return { ...p, _efectivo: efectivo, _transf: transf, _desc: desc, _nuevoSaldo: nuevoSaldo }
           })
           return (
-            <div className="rounded-2xl overflow-hidden" style={{border:'1px solid rgba(59,130,246,0.25)'}}>
+            <div className="rounded-2xl overflow-hidden" style={{border:'1px solid #1e3a5f'}}>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm min-w-[780px]">
                   <thead>
-                    <tr style={{background:'rgba(8,8,28,0.95)',borderBottom:'1px solid rgba(59,130,246,0.2)'}}>
+                    <tr style={{background:'#08081c',borderBottom:'1px solid #1a3557'}}>
                       <th className="px-4 py-3 text-left text-zinc-400 font-semibold whitespace-nowrap">Fecha</th>
                       <th className="px-4 py-3 text-left text-zinc-400 font-semibold whitespace-nowrap">#Recibo</th>
                       <th className="px-4 py-3 text-left text-zinc-400 font-semibold whitespace-nowrap">Factura</th>
@@ -1062,7 +1062,7 @@ export default function CarteraPage() {
                   <tbody>
                     {rows.map((p: any, i: number) => (
                       <tr key={p.id}
-                        style={{background: i%2===0 ? 'rgba(8,8,28,0.70)' : 'rgba(15,15,35,0.50)', borderBottom:'1px solid rgba(59,130,246,0.08)'}}>
+                        style={{background: i%2===0 ? '#0d0d20' : '#111124', borderBottom:'1px solid #0f1f35'}}>
                         <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">
                           {new Date(p.createdAt).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'America/Bogota'})}
                         </td>
@@ -1095,7 +1095,7 @@ export default function CarteraPage() {
                   </tbody>
                   {/* Totales */}
                   <tfoot>
-                    <tr style={{background:'rgba(8,8,28,0.95)',borderTop:'1px solid rgba(59,130,246,0.3)'}}>
+                    <tr style={{background:'#08081c',borderTop:'1px solid #1d3f6e'}}>
                       <td colSpan={4} className="px-4 py-3 text-zinc-400 font-bold">{rows.length} {busquedaPagos ? `de ${pagos.length}` : ''} pagos</td>
                       <td className="px-4 py-3 text-right text-emerald-400 font-bold whitespace-nowrap">{fmt(totEfectivo)}</td>
                       <td className="px-4 py-3 text-right text-blue-400 font-bold whitespace-nowrap">{fmt(totTransf)}</td>
@@ -1138,11 +1138,11 @@ export default function CarteraPage() {
         {comisiones.length > 0 && (
           <>
             {/* Tabla de vendedores con % */}
-            <div className="rounded-2xl overflow-hidden" style={{border:'1px solid rgba(59,130,246,0.25)'}}>
+            <div className="rounded-2xl overflow-hidden" style={{border:'1px solid #1e3a5f'}}>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm min-w-[680px]">
                   <thead>
-                    <tr style={{background:'rgba(8,8,28,0.95)',borderBottom:'1px solid rgba(59,130,246,0.2)'}}>
+                    <tr style={{background:'#08081c',borderBottom:'1px solid #1a3557'}}>
                       <th className="px-4 py-3 text-left text-zinc-400 font-semibold">Vendedor</th>
                       <th className="px-4 py-3 text-right text-zinc-400 font-semibold">Recaudado</th>
                       <th className="px-4 py-3 text-right text-zinc-400 font-semibold">Pagos</th>
@@ -1153,7 +1153,7 @@ export default function CarteraPage() {
                   </thead>
                   <tbody>
                     {comisiones.map((v: any, i: number) => (
-                      <tr key={v.id} style={{background: i%2===0 ? 'rgba(8,8,28,0.70)' : 'rgba(15,15,35,0.50)', borderBottom:'1px solid rgba(59,130,246,0.08)'}}>
+                      <tr key={v.id} style={{background: i%2===0 ? '#0d0d20' : '#111124', borderBottom:'1px solid #0f1f35'}}>
                         <td className="px-4 py-3 text-white font-medium">{v.nombre}</td>
                         <td className="px-4 py-3 text-right text-emerald-400 font-semibold">{fmt(v.recaudado)}</td>
                         <td className="px-4 py-3 text-right text-zinc-400">{v.pagosCount}</td>
@@ -1180,7 +1180,7 @@ export default function CarteraPage() {
                     ))}
                   </tbody>
                   <tfoot>
-                    <tr style={{background:'rgba(8,8,28,0.95)',borderTop:'1px solid rgba(59,130,246,0.3)'}}>
+                    <tr style={{background:'#08081c',borderTop:'1px solid #1d3f6e'}}>
                       <td className="px-4 py-3 text-zinc-400 font-bold">Total</td>
                       <td className="px-4 py-3 text-right text-emerald-400 font-bold">{fmt(comisiones.reduce((s,v)=>s+v.recaudado,0))}</td>
                       <td className="px-4 py-3 text-right text-zinc-400">{comisiones.reduce((s,v)=>s+v.pagosCount,0)}</td>
