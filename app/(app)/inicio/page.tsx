@@ -1257,7 +1257,7 @@ function DashboardPageInner() {
                                   <div className="space-y-2">
                                     <div>
                                       <p className="text-zinc-400 text-xs mb-1">hoy {diaHoy}: {imp.visitados}/{imp.totalPuntos} puntos</p>
-                                      <div className="w-full rounded-full h-1.5 overflow-hidden" style={{background:"rgba(59,130,246,0.15)"}}>
+                                      <div className="w-full rounded-full h-1.5 overflow-hidden" style={{background:"#162d4a"}}>
                                         <div className={"h-1.5 rounded-full transition-all " + (imp.pct >= 80 ? "bg-emerald-500" : imp.pct >= 50 ? "bg-yellow-500" : "bg-red-500")}
                                           style={{width: (imp.pct || 0) + '%'}} />
                                       </div>
@@ -1429,7 +1429,7 @@ function DashboardPageInner() {
       <div className="fixed inset-0 flex items-start justify-center z-50 pt-4 px-2" style={{background:"rgba(15,23,42,0.85)"}}
         onClick={e => { if (e.target === e.currentTarget) { setModalRecaudoRapido(false); setRrCliente(null); setRrSinDeuda(false) } }}>
         <div className="rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto overscroll-contain" style={{background:"rgba(15,23,42,0.97)",border:"1px solid rgba(59,130,246,0.50)"}}>
-          <div className="flex items-center justify-between px-4 pt-2.5 pb-2.5 border-b" style={{borderColor:"rgba(59,130,246,0.30)"}}>
+          <div className="flex items-center justify-between px-4 pt-2.5 pb-2.5 border-b" style={{borderColor:"#1d3f6e"}}>
             <h3 className="text-white font-bold text-lg">💵 Recaudo rápido</h3>
             <button onClick={() => { setModalRecaudoRapido(false); setRrCliente(null); setRrSinDeuda(false) }} className="text-zinc-500 hover:text-white text-xl">×</button>
           </div>
