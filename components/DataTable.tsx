@@ -43,12 +43,12 @@ const TH: React.CSSProperties = {
 const TD: React.CSSProperties = {
   padding: '8px 10px',
   fontSize: 14, fontWeight: 500,
-  color: '#1e3a5f',
+  color: 'white',
   textAlign: 'center',
   overflow: 'hidden',
   whiteSpace: 'nowrap',
   textOverflow: 'ellipsis',
-  borderBottom: '1px solid #e2e8f0',
+  borderBottom: '1px solid #162d4a',
 }
 
 const CHECKBOX_W = 32  // px fijo para la columna de checkbox
@@ -204,7 +204,7 @@ export default function DataTable<T>({
             const subs = subRows?.(row) ?? []
             const isMulti = subs.length > 0
 
-            const ROW_BG = sel ? '#dbeafe' : '#f8fafc'
+            const ROW_BG = sel ? '#1e3a8a' : '#09091f'
             const ROW_BORDER = `1px solid ${sel ? '#3b82f6' : '#1a3557'}`
 
             return (
@@ -248,7 +248,7 @@ export default function DataTable<T>({
                 {subs.map((sub, si) => {
                   const isLastSub = si === subs.length - 1
                   return (
-                    <tr key={`${id}-sub-${si}`} style={{ background: '#f1f5f9' }}>
+                    <tr key={`${id}-sub-${si}`} style={{ background: '#09091f' }}>
                       {showCheckbox && <td style={{ ...TD, borderLeft: ROW_BORDER, borderBottom: isLastSub ? ROW_BORDER : 'none', borderTop: 'none', borderRight: 'none' }} />}
                       {columns.map((col, ci) => {
                         const isLast = ci === columns.length - 1
