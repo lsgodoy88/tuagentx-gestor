@@ -248,6 +248,34 @@ export default function CarteraPage() {
 
   const totalPendiente = totalReal ? totalReal.saldoPendiente : carteras.reduce((s, c) => s + Number(c.saldoPendiente), 0)
 
+  // ── CPC resize ──────────────────────────────────────────────────
+  const CPC_COLS_BASE = [220, 160, 120, 120, 130, 110, 160] // cliente,vendedor,factura,vcto,saldo,estado,acciones
+  const CPC_STORAGE = 'dt-widths-cpc'
+  const [cpcWidths, setCpcWidths] = useState<number[]>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const s = localStorage.getItem(CPC_STORAGE)
+        if (s) { const p = JSON.parse(s); if (Array.isArray(p)) return p }
+      } catch {}
+    }
+    return CPC_COLS_BASE
+  })
+  useEffect(() => {
+    try { localStorage.setItem(CPC_STORAGE, JSON.stringify(cpcWidths)) } catch {}
+  }, [cpcWidths])
+  const cpcResizing = useRef<{ci:number;sx:number;sw:number}|null>(null)
+  const onCpcResize = useCallback((e: React.MouseEvent, ci: number) => {
+    e.preventDefault(); e.stopPropagation()
+    cpcResizing.current = { ci, sx: e.clientX, sw: cpcWidths[ci] }
+    const onMove = (ev: MouseEvent) => {
+      if (!cpcResizing.current) return
+      const { ci, sx, sw } = cpcResizing.current
+      setCpcWidths(prev => { const w=[...prev]; w[ci]=Math.max(60,sw+ev.clientX-sx); return w })
+    }
+    const onUp = () => { cpcResizing.current=null; window.removeEventListener('mousemove',onMove); window.removeEventListener('mouseup',onUp) }
+    window.addEventListener('mousemove',onMove); window.addEventListener('mouseup',onUp)
+  }, [cpcWidths])
+
   const filtradas = carteras
 
   // --- Importar ---
@@ -860,17 +888,26 @@ export default function CarteraPage() {
               <div className="rounded-2xl overflow-hidden" style={{border:'1px solid #1e2a3d'}}>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm min-w-[820px]">
+                    <colgroup>
+                      <col style={{width:cpcWidths[0]}} />
+                      {(user?.role === 'empresa' || user?.role === 'supervisor') && <col style={{width:cpcWidths[1]}} />}
+                      <col style={{width:cpcWidths[2]}} />
+                      <col style={{width:cpcWidths[3]}} />
+                      <col style={{width:cpcWidths[4]}} />
+                      <col style={{width:cpcWidths[5]}} />
+                      <col style={{width:cpcWidths[6]}} />
+                    </colgroup>
                     <thead>
                       <tr style={{background:'#0d1220',borderBottom:'1px solid #1e2a3d'}}>
-                        <th className="px-4 py-3 text-left text-zinc-400 font-semibold whitespace-nowrap">Cliente</th>
-                        {(user?.role === 'empresa' || user?.role === 'supervisor') && (
-                          <th className="px-4 py-3 text-left text-zinc-400 font-semibold whitespace-nowrap">Vendedor</th>
-                        )}
-                        <th className="px-4 py-3 text-left text-zinc-400 font-semibold whitespace-nowrap">Factura</th>
-                        <th className="px-4 py-3 text-left text-zinc-400 font-semibold whitespace-nowrap">Vencimiento</th>
-                        <th className="px-4 py-3 text-right text-zinc-400 font-semibold whitespace-nowrap">Saldo</th>
-                        <th className="px-4 py-3 text-center text-zinc-400 font-semibold whitespace-nowrap">Estado</th>
-                        <th className="px-4 py-3 text-center text-zinc-400 font-semibold whitespace-nowrap">Acciones</th>
+                        {(['Cliente','Vendedor','Factura','Vencimiento','Saldo','Estado','Acciones'] as const).map((label,i) => {
+                          if (label==='Vendedor' && !(user?.role==='empresa'||user?.role==='supervisor')) return null
+                          return (
+                            <th key={label} style={{padding:'7px 10px',fontSize:14,fontWeight:500,color:'white',textAlign:i>=4?'right' as const:'left' as const,userSelect:'none' as const,position:'relative' as const,whiteSpace:'nowrap' as const,overflow:'hidden' as const,borderRight:'1px solid #1e2a3d'}}>
+                              {label}
+                              <div onMouseDown={e=>onCpcResize(e,i)} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',background:'transparent'}} />
+                            </th>
+                          )
+                        })}
                       </tr>
                     </thead>
                     <tbody>
