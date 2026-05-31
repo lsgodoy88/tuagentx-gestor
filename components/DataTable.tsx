@@ -131,7 +131,7 @@ export default function DataTable<T>({
         </colgroup>
 
         {/* Header */}
-        <thead style={{background:"#0f0f1a",borderBottom:"1px solid #234a7a"}}>
+        <thead style={{background:"#0d1220",borderBottom:"1px solid #1e2a3d"}}>
           <tr>
             {/* Checkbox header — selecciona/deselecciona todos */}
             {showCheckbox && <th style={{ ...TH, width: CHECKBOX_W, padding: '7px 0' }}>
