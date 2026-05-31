@@ -35,6 +35,22 @@ const ESTADO_CONFIG: Record<string, { label: string; color: string; border: stri
   pagada:   { label: '✅ Pagada',      color: 'bg-emerald-950/40', border: 'border-emerald-700/60',text: 'text-emerald-400' },
 }
 
+const ESTADO_COLOR: Record<string, string> = {
+  critica: '#dc2626', mora: '#f43f5e', vencida: '#f97316',
+  proxima: '#f59e0b', pendiente: '#eab308', vigente: '#3b82f6',
+  abonada: '#3b82f6', pagada: '#22c55e',
+}
+const ESTADO_LABEL: Record<string, string> = {
+  critica: 'Crítica', mora: 'En mora', vencida: 'Vencida',
+  proxima: 'Por vencer', pendiente: 'Pendiente', vigente: 'Vigente',
+  abonada: 'Abonada', pagada: 'Pagada',
+}
+function estadoPrincipal(porEstado: any): string {
+  for (const e of ['critica','mora','vencida','pendiente','abonada','pagada'])
+    if (porEstado?.[e] > 0) return e
+  return 'pendiente'
+}
+
 export default function CarteraPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -811,8 +827,10 @@ export default function CarteraPage() {
           <input value={buscar} onChange={e => onBuscarChange(e.target.value)}
             placeholder="Buscar por nombre o NIT..."
             className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
-          <div>
-            {filtradas.map(c => (
+
+          {/* MÓVIL — cards colapsables (sin cambios) */}
+          <div className="md:hidden">
+            {filtradas.map((c: any) => (
               <CarteraCard
                 key={c.id}
                 cartera={c}
@@ -830,6 +848,128 @@ export default function CarteraPage() {
               </div>
             )}
           </div>
+
+          {/* DESKTOP — tabla plana una fila por deuda */}
+          <div className="hidden md:block">
+            {filtradas.length === 0 ? (
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-10 text-center">
+                <p className="text-3xl mb-2">📋</p>
+                <p className="text-zinc-400">{buscar ? 'Sin resultados' : 'Sin cartera registrada'}</p>
+              </div>
+            ) : (
+              <div className="rounded-2xl overflow-hidden" style={{border:'1px solid rgba(59,130,246,0.25)'}}>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm min-w-[820px]">
+                    <thead>
+                      <tr style={{background:'rgba(8,8,28,0.95)',borderBottom:'1px solid rgba(59,130,246,0.2)'}}>
+                        <th className="px-4 py-3 text-left text-zinc-400 font-semibold whitespace-nowrap">Cliente</th>
+                        {(user?.role === 'empresa' || user?.role === 'supervisor') && (
+                          <th className="px-4 py-3 text-left text-zinc-400 font-semibold whitespace-nowrap">Vendedor</th>
+                        )}
+                        <th className="px-4 py-3 text-left text-zinc-400 font-semibold whitespace-nowrap">Factura</th>
+                        <th className="px-4 py-3 text-left text-zinc-400 font-semibold whitespace-nowrap">Vencimiento</th>
+                        <th className="px-4 py-3 text-right text-zinc-400 font-semibold whitespace-nowrap">Saldo</th>
+                        <th className="px-4 py-3 text-center text-zinc-400 font-semibold whitespace-nowrap">Estado</th>
+                        <th className="px-4 py-3 text-center text-zinc-400 font-semibold whitespace-nowrap">Acciones</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtradas.map((cartera: any, ci: number) => {
+                        const deudas = [...(cartera.DetalleCartera || [])].sort((a: any, b: any) => {
+                          const fa = a.fechaVencimiento ? new Date(a.fechaVencimiento).getTime() : Infinity
+                          const fb = b.fechaVencimiento ? new Date(b.fechaVencimiento).getTime() : Infinity
+                          return fa - fb
+                        })
+                        const esSupervisor = user?.role === 'empresa' || user?.role === 'supervisor'
+                        const esUltimoCliente = ci === filtradas.length - 1
+                        return deudas.map((d: any, di: number) => {
+                          const esPrimera = di === 0
+                          const esUltimaDeuda = di === deudas.length - 1
+                          const color = ESTADO_COLOR[d.estado] || '#6366f1'
+                          const separador = esUltimaDeuda && !esUltimoCliente
+                            ? '2px solid rgba(59,130,246,0.20)'
+                            : '1px solid rgba(59,130,246,0.08)'
+                          return (
+                            <tr key={`${cartera.id}-${di}`}
+                              style={{background: ci%2===0 ? 'rgba(8,8,28,0.70)' : 'rgba(15,15,35,0.50)', borderBottom: separador}}>
+                              {/* Cliente — solo primera fila del grupo */}
+                              <td className="px-4 py-3 max-w-[180px]">
+                                {esPrimera ? (
+                                  <div className="flex items-center gap-2">
+                                    <span style={{width:8,height:8,borderRadius:'50%',background:ESTADO_COLOR[estadoPrincipal(cartera.porEstado)]||'#6366f1',flexShrink:0,boxShadow:`0 0 5px ${ESTADO_COLOR[estadoPrincipal(cartera.porEstado)]||'#6366f1'}`}} />
+                                    <span className="text-white font-semibold truncate text-xs">{cartera.cliente?.nombre || '—'}</span>
+                                  </div>
+                                ) : null}
+                              </td>
+                              {/* Vendedor — solo primera fila */}
+                              {esSupervisor && (
+                                <td className="px-4 py-3 text-zinc-400 text-xs whitespace-nowrap">
+                                  {esPrimera ? (cartera.empleado?.nombre || '—') : null}
+                                </td>
+                              )}
+                              {/* Factura */}
+                              <td className="px-4 py-3 text-zinc-300 font-mono whitespace-nowrap text-xs">
+                                {d.numeroFactura ? `#${d.numeroFactura}` : d.numeroOrden ? `#${d.numeroOrden}` : '—'}
+                              </td>
+                              {/* Vencimiento */}
+                              <td className="px-4 py-3 text-zinc-400 whitespace-nowrap text-xs">
+                                {d.fechaVencimiento
+                                  ? new Date(d.fechaVencimiento).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'America/Bogota'})
+                                  : '—'}
+                              </td>
+                              {/* Saldo */}
+                              <td className="px-4 py-3 text-right font-semibold whitespace-nowrap" style={{color:'#fde68a'}}>
+                                {fmt(Number(d.saldo))}
+                              </td>
+                              {/* Estado */}
+                              <td className="px-4 py-3 text-center whitespace-nowrap">
+                                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
+                                  style={{background:`${color}22`,color,border:`1px solid ${color}55`}}>
+                                  <span style={{width:6,height:6,borderRadius:'50%',background:color,display:'inline-block'}} />
+                                  {ESTADO_LABEL[d.estado] || d.estado}
+                                </span>
+                              </td>
+                              {/* Acciones — solo primera fila */}
+                              <td className="px-4 py-3 text-center whitespace-nowrap">
+                                {esPrimera && Number(cartera.saldoPendiente) > 0 ? (
+                                  <div className="flex items-center justify-center gap-2">
+                                    <button onClick={() => abrirRecaudar(cartera)}
+                                      className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                                      style={{background:'linear-gradient(135deg,#1d4ed8,#3b82f6)',color:'#fff'}}>
+                                      💳 Recaudar
+                                    </button>
+                                    <button onClick={() => abrirWhatsApp(cartera)}
+                                      className="flex items-center justify-center p-1.5 rounded-lg transition-colors"
+                                      style={{background:'#25D366',color:'#fff'}}>
+                                      <svg viewBox="0 0 24 24" style={{width:14,height:14,fill:'currentColor'}}><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                    </button>
+                                  </div>
+                                ) : null}
+                              </td>
+                            </tr>
+                          )
+                        })
+                      })}
+                    </tbody>
+                    {/* Totales */}
+                    <tfoot>
+                      <tr style={{background:'rgba(8,8,28,0.95)',borderTop:'1px solid rgba(59,130,246,0.3)'}}>
+                        <td colSpan={(user?.role === 'empresa' || user?.role === 'supervisor') ? 4 : 3}
+                          className="px-4 py-3 text-zinc-400 font-bold text-xs">
+                          {filtradas.length} clientes · {filtradas.reduce((s: number, c: any) => s + (c.DetalleCartera?.length || 0), 0)} facturas
+                        </td>
+                        <td className="px-4 py-3 text-right font-bold whitespace-nowrap text-xs" style={{color:'#fde68a'}}>
+                          {fmt(filtradas.reduce((s: number, c: any) => s + Number(c.saldoPendiente), 0))}
+                        </td>
+                        <td colSpan={2} />
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+
           {hayMas && (
             <button onClick={cargarMas} disabled={cargandoMas} data-loading={cargandoMas}
               className={`w-full bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 text-sm font-semibold py-3 rounded-xl transition-colors ${(cargandoMas) ? 'btn-shimmer' : ''}`}>
