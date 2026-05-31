@@ -26,7 +26,7 @@ function getClienteColumns(ctx: {
       key: 'nombre', label: 'Cliente', width: 220, minWidth: 120,
       render: (c: any) => (
         <div style={{ textAlign: 'left' }}>
-          <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', textTransform: 'capitalize' }}>{c.nombre?.toLowerCase()}</div>
+          <div style={{ fontWeight: 400, overflow: 'hidden', textOverflow: 'ellipsis', textTransform: 'capitalize' }}>{c.nombre?.toLowerCase()}</div>
           {c.nombreComercial && c.nombreComercial !== c.nombre && (
             <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.40)', fontWeight: 400, overflow: 'hidden', textOverflow: 'ellipsis', textTransform: 'capitalize' }}>{c.nombreComercial?.toLowerCase()}</div>
           )}
