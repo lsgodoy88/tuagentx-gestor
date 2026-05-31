@@ -26,9 +26,9 @@ function getClienteColumns(ctx: {
       key: 'nombre', label: 'Cliente', width: 220, minWidth: 120,
       render: (c: any) => (
         <div style={{ textAlign: 'left' }}>
-          <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.nombre}</div>
+          <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', textTransform: 'capitalize' }}>{c.nombre?.toLowerCase()}</div>
           {c.nombreComercial && c.nombreComercial !== c.nombre && (
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.40)', fontWeight: 400, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.nombreComercial}</div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.40)', fontWeight: 400, overflow: 'hidden', textOverflow: 'ellipsis', textTransform: 'capitalize' }}>{c.nombreComercial?.toLowerCase()}</div>
           )}
         </div>
       ),
@@ -43,11 +43,11 @@ function getClienteColumns(ctx: {
     },
     {
       key: 'ciudad', label: 'Ciudad', width: 130, minWidth: 80,
-      render: (c: any) => <span>{c.ciudad || '—'}</span>,
+      render: (c: any) => <span style={{textTransform:'capitalize'}}>{c.ciudad?.toLowerCase() || '—'}</span>,
     },
     {
       key: 'vendedor', label: 'Vendedor', width: 130, minWidth: 80,
-      render: (c: any) => <span>{c.lista?.vendedores?.[0]?.empleado?.nombre?.split(' ')[0] || '—'}</span>,
+      render: (c: any) => <span style={{textTransform:'capitalize'}}>{c.lista?.vendedores?.[0]?.empleado?.nombre?.split(' ')[0]?.toLowerCase() || '—'}</span>,
     },
     {
       key: 'acciones', label: 'Acciones', width: 170, minWidth: 120,
