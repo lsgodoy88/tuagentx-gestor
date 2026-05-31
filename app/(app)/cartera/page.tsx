@@ -891,34 +891,34 @@ export default function CarteraPage() {
                             : '1px solid #1e2a3d'
                           return (
                             <tr key={`${cartera.id}-${di}`}
-                              style={{background: ci%2===0 ? '#f8fafc' : '#eef2f7', color:'#1e293b', borderBottom: separador}}>
+                              style={{background:'#141c2e', borderBottom: separador}}>
                               {/* Cliente — solo primera fila del grupo */}
                               <td className="px-4 py-3 max-w-[180px]">
                                 {esPrimera ? (
                                   <div className="flex items-center gap-2">
                                     <span style={{width:8,height:8,borderRadius:'50%',background:ESTADO_COLOR[estadoPrincipal(cartera.porEstado)]||'#6366f1',flexShrink:0,boxShadow:`0 0 5px ${ESTADO_COLOR[estadoPrincipal(cartera.porEstado)]||'#6366f1'}`}} />
-                                    <span style={{color:"#1e293b",fontWeight:600,fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textTransform:"capitalize"}}>{cartera.cliente?.nombre || '—'}</span>
+                                    <span style={{color:"white",fontWeight:400,fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textTransform:"capitalize"}}>{cartera.cliente?.nombre || '—'}</span>
                                   </div>
                                 ) : null}
                               </td>
                               {/* Vendedor — solo primera fila */}
                               {esSupervisor && (
-                                <td className="px-4 py-3 whitespace-nowrap text-xs" style={{color:"#475569"}}>
+                                <td className="px-4 py-3 whitespace-nowrap text-xs text-zinc-400">
                                   {esPrimera ? (cartera.empleado?.nombre || '—') : null}
                                 </td>
                               )}
                               {/* Factura */}
-                              <td className="px-4 py-3 font-mono whitespace-nowrap text-xs" style={{color:"#334155"}}>
+                              <td className="px-4 py-3 font-mono whitespace-nowrap text-xs text-zinc-300">
                                 {d.numeroFactura ? `#${d.numeroFactura}` : d.numeroOrden ? `#${d.numeroOrden}` : '—'}
                               </td>
                               {/* Vencimiento */}
-                              <td className="px-4 py-3 whitespace-nowrap text-xs" style={{color:"#475569"}}>
+                              <td className="px-4 py-3 whitespace-nowrap text-xs text-zinc-400">
                                 {d.fechaVencimiento
                                   ? new Date(d.fechaVencimiento).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'America/Bogota'})
                                   : '—'}
                               </td>
                               {/* Saldo */}
-                              <td className="px-4 py-3 text-right font-semibold whitespace-nowrap" style={{color:'#1d4ed8'}}>
+                              <td className="px-4 py-3 text-right font-semibold whitespace-nowrap" style={{color:'#fde68a'}}>
                                 {fmt(Number(d.saldo))}
                               </td>
                               {/* Estado */}
