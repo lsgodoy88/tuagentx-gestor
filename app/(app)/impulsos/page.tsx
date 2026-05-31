@@ -71,7 +71,7 @@ function ImpulsosTabla({ mes }: { mes: string }) {
           </div>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-800">
+              <tr style={{background:"#0d1220",borderBottom:"1px solid #1e2a3d"}}>
                 <th className="text-left text-zinc-400 font-medium px-4 py-2">Cliente</th>
                 <th className="text-right text-zinc-400 font-medium px-4 py-2 w-24">Meta</th>
                 <th className="text-right text-zinc-400 font-medium px-4 py-2 w-24">Ventas</th>
@@ -81,7 +81,7 @@ function ImpulsosTabla({ mes }: { mes: string }) {
             <tbody>
               {imp.semana?.map((dia: any) => (
                 <>
-                  <tr key={'dia-' + dia.dia} className="border-b border-zinc-800 bg-zinc-800/50">
+                  <tr key={'dia-' + dia.dia} style={{background:"#141c2e",borderBottom:"1px solid #1e2a3d"}}>
                     <td className="px-4 py-2 text-zinc-300 font-semibold">{dia.nombre}</td>
                     <td className="px-4 py-2 text-right text-zinc-400 text-xs">{dia.totalMeta > 0 ? fmt(dia.totalMeta) : ''}</td>
                     <td className="px-4 py-2 text-right text-zinc-400 text-xs">{dia.totalMes > 0 ? fmt(dia.totalMes) : ''}</td>
@@ -90,7 +90,7 @@ function ImpulsosTabla({ mes }: { mes: string }) {
                     </td>
                   </tr>
                   {dia.puntos?.map((p: any, i: number) => (
-                    <tr key={i} className="border-b border-zinc-800/50 last:border-0 hover:bg-zinc-800/30">
+                    <tr key={i} style={{background:"#141c2e",borderBottom:"1px solid #1e2a3d"}}>
                       <td className="px-4 py-2">
                         <span className="text-white">{p.nombre}</span>
                         {p.nombreComercial && <span className="text-zinc-500 text-xs ml-1">— {p.nombreComercial}</span>}

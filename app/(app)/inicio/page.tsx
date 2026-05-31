@@ -805,7 +805,7 @@ function DashboardPageInner() {
                     <div className="overflow-x-auto">
                       <table className="w-full text-xs">
                         <thead>
-                          <tr className="border-b border-zinc-800">
+                          <tr style={{background:"#0d1220",borderBottom:"1px solid #1e2a3d"}}>
                             <th className="px-3 py-2 text-left text-zinc-500 font-medium">Empleado</th>
                             <th className="px-3 py-2 text-left text-zinc-500 font-medium">Inicio turno</th>
                             <th className="px-3 py-2 text-left text-zinc-500 font-medium">Ultima visita</th>
@@ -814,7 +814,7 @@ function DashboardPageInner() {
                         </thead>
                         <tbody>
                           {empleadosRol.map((m: any) => (
-                            <tr key={m.empleado} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                            <tr key={m.empleado} style={{background:"#141c2e",borderBottom:"1px solid #1e2a3d"}}>
                               <td className="px-3 py-2">
                                 <p className="text-white font-medium whitespace-nowrap">{m.empleado}</p>
                                 {m.ruta && <p className="text-blue-400 mt-0.5">{m.ruta}</p>}
@@ -861,7 +861,7 @@ function DashboardPageInner() {
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="border-b border-zinc-800">
+                    <tr style={{background:"#0d1220",borderBottom:"1px solid #1e2a3d"}}>
                       <th className="px-3 py-2 text-left text-zinc-500 font-medium w-24">Dia</th>
                       {(stats.vendedores7 || []).map((v: string) => (
                         <th key={v} className="px-3 py-2 text-center text-zinc-400 font-medium whitespace-nowrap">{v}</th>
@@ -870,7 +870,7 @@ function DashboardPageInner() {
                   </thead>
                   <tbody>
                     {(stats.tabla7dias || []).map((row: any) => (
-                      <tr key={row.dia} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                      <tr key={row.dia} style={{background:"#141c2e",borderBottom:"1px solid #1e2a3d"}}>
                         <td className="px-3 py-2 text-zinc-400 whitespace-nowrap">{row.dia}</td>
                         {(stats.vendedores7 || []).map((v: string) => (
                           <td key={v} className="px-3 py-2 text-center text-white font-medium">
@@ -893,7 +893,7 @@ function DashboardPageInner() {
               <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="border-b border-zinc-800">
+                    <tr style={{background:"#0d1220",borderBottom:"1px solid #1e2a3d"}}>
                       <th className="px-3 py-2 text-left text-zinc-500 font-medium w-24">Mes</th>
                       {(stats.vendedores7m || []).map((v: string) => (
                         <th key={v} className="px-3 py-2 text-center text-zinc-400 font-medium whitespace-nowrap">{v}</th>
@@ -902,7 +902,7 @@ function DashboardPageInner() {
                   </thead>
                   <tbody>
                     {(stats.tabla7meses || []).map((row: any) => (
-                      <tr key={row.mes} className="border-b border-zinc-800/50 hover:bg-zinc-800/30">
+                      <tr key={row.mes} style={{background:"#141c2e",borderBottom:"1px solid #1e2a3d"}}>
                         <td className="px-3 py-2 text-zinc-400 whitespace-nowrap">{row.mes}</td>
                         {(stats.vendedores7m || []).map((v: string) => (
                           <td key={v} className="px-3 py-2 text-center text-white font-medium">
