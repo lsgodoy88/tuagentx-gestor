@@ -857,7 +857,7 @@ export default function CarteraPage() {
                 <p className="text-zinc-400">{buscar ? 'Sin resultados' : 'Sin cartera registrada'}</p>
               </div>
             ) : (
-              <div className="rounded-2xl overflow-hidden" style={{border:'1px solid #1e3a5f'}}>
+              <div className="rounded-2xl overflow-hidden" style={{border:'1px solid #cbd5e1'}}>
                 <div className="overflow-x-auto">
                   <table className="w-full text-sm min-w-[820px]">
                     <thead>
@@ -887,38 +887,38 @@ export default function CarteraPage() {
                           const esUltimaDeuda = di === deudas.length - 1
                           const color = ESTADO_COLOR[d.estado] || '#6366f1'
                           const separador = esUltimaDeuda && !esUltimoCliente
-                            ? '2px solid #1a3557'
-                            : '1px solid #0f1f35'
+                            ? '2px solid #bfdbfe'
+                            : '1px solid #e2e8f0'
                           return (
                             <tr key={`${cartera.id}-${di}`}
-                              style={{background: ci%2===0 ? '#0d0d20' : '#111124', borderBottom: separador}}>
+                              style={{background: ci%2===0 ? '#f8fafc' : '#eef2f7', color:'#1e293b', borderBottom: separador}}>
                               {/* Cliente — solo primera fila del grupo */}
                               <td className="px-4 py-3 max-w-[180px]">
                                 {esPrimera ? (
                                   <div className="flex items-center gap-2">
                                     <span style={{width:8,height:8,borderRadius:'50%',background:ESTADO_COLOR[estadoPrincipal(cartera.porEstado)]||'#6366f1',flexShrink:0,boxShadow:`0 0 5px ${ESTADO_COLOR[estadoPrincipal(cartera.porEstado)]||'#6366f1'}`}} />
-                                    <span className="text-white font-semibold truncate text-xs">{cartera.cliente?.nombre || '—'}</span>
+                                    <span style={{color:"#1e293b",fontWeight:600,fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textTransform:"capitalize"}}>{cartera.cliente?.nombre || '—'}</span>
                                   </div>
                                 ) : null}
                               </td>
                               {/* Vendedor — solo primera fila */}
                               {esSupervisor && (
-                                <td className="px-4 py-3 text-zinc-400 text-xs whitespace-nowrap">
+                                <td className="px-4 py-3 whitespace-nowrap text-xs" style={{color:"#475569"}}>
                                   {esPrimera ? (cartera.empleado?.nombre || '—') : null}
                                 </td>
                               )}
                               {/* Factura */}
-                              <td className="px-4 py-3 text-zinc-300 font-mono whitespace-nowrap text-xs">
+                              <td className="px-4 py-3 font-mono whitespace-nowrap text-xs" style={{color:"#334155"}}>
                                 {d.numeroFactura ? `#${d.numeroFactura}` : d.numeroOrden ? `#${d.numeroOrden}` : '—'}
                               </td>
                               {/* Vencimiento */}
-                              <td className="px-4 py-3 text-zinc-400 whitespace-nowrap text-xs">
+                              <td className="px-4 py-3 whitespace-nowrap text-xs" style={{color:"#475569"}}>
                                 {d.fechaVencimiento
                                   ? new Date(d.fechaVencimiento).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'America/Bogota'})
                                   : '—'}
                               </td>
                               {/* Saldo */}
-                              <td className="px-4 py-3 text-right font-semibold whitespace-nowrap" style={{color:'#fde68a'}}>
+                              <td className="px-4 py-3 text-right font-semibold whitespace-nowrap" style={{color:'#1d4ed8'}}>
                                 {fmt(Number(d.saldo))}
                               </td>
                               {/* Estado */}
@@ -953,9 +953,9 @@ export default function CarteraPage() {
                     </tbody>
                     {/* Totales */}
                     <tfoot>
-                      <tr style={{background:'#08081c',borderTop:'1px solid #1d3f6e'}}>
+                      <tr style={{background:'#1e293b',borderTop:'1px solid #cbd5e1'}}>
                         <td colSpan={(user?.role === 'empresa' || user?.role === 'supervisor') ? 4 : 3}
-                          className="px-4 py-3 text-zinc-400 font-bold text-xs">
+                          className="px-4 py-3 text-slate-300 font-bold text-xs">
                           {filtradas.length} clientes · {filtradas.reduce((s: number, c: any) => s + (c.DetalleCartera?.length || 0), 0)} facturas
                         </td>
                         <td className="px-4 py-3 text-right font-bold whitespace-nowrap text-xs" style={{color:'#fde68a'}}>
@@ -1062,7 +1062,7 @@ export default function CarteraPage() {
                   <tbody>
                     {rows.map((p: any, i: number) => (
                       <tr key={p.id}
-                        style={{background: i%2===0 ? '#0d0d20' : '#111124', borderBottom:'1px solid #0f1f35'}}>
+                        style={{background: i%2===0 ? '#0d0d20' : '#111124', borderBottom:'1px solid #e2e8f0'}}>
                         <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">
                           {new Date(p.createdAt).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'America/Bogota'})}
                         </td>
@@ -1153,7 +1153,7 @@ export default function CarteraPage() {
                   </thead>
                   <tbody>
                     {comisiones.map((v: any, i: number) => (
-                      <tr key={v.id} style={{background: i%2===0 ? '#0d0d20' : '#111124', borderBottom:'1px solid #0f1f35'}}>
+                      <tr key={v.id} style={{background: i%2===0 ? '#0d0d20' : '#111124', borderBottom:'1px solid #e2e8f0'}}>
                         <td className="px-4 py-3 text-white font-medium">{v.nombre}</td>
                         <td className="px-4 py-3 text-right text-emerald-400 font-semibold">{fmt(v.recaudado)}</td>
                         <td className="px-4 py-3 text-right text-zinc-400">{v.pagosCount}</td>
