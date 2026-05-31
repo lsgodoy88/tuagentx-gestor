@@ -27,9 +27,9 @@ interface DataTableProps<T = any> {
 // ── Estilos base ─────────────────────────────────────────────────
 const TH: React.CSSProperties = {
   padding: '7px 10px',
-  fontSize: 11, fontWeight: 700,
+  fontSize: 14, fontWeight: 500,
   color: 'white',
-  letterSpacing: 0.3,
+  letterSpacing: 0,
   textTransform: 'none',
   textAlign: 'center',
   userSelect: 'none',
@@ -42,7 +42,7 @@ const TH: React.CSSProperties = {
 
 const TD: React.CSSProperties = {
   padding: '8px 10px',
-  fontSize: 12, fontWeight: 700,
+  fontSize: 14, fontWeight: 500,
   color: 'white',
   textAlign: 'center',
   overflow: 'hidden',
