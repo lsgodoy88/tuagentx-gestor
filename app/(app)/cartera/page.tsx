@@ -408,7 +408,7 @@ export default function CarteraPage() {
   const isAdmin = ROLES_ADMIN.includes(user?.role)
 
   const tabs = [
-    { id: 'clientes', label: '📋 Clientes' },
+    { id: 'clientes', label: '📋 CPC' },
     { id: 'pagos', label: '💳 Pagos' },
     { id: 'cartera', label: '📈 Cartera' },
     ...(isAdmin ? [{ id: 'comisiones', label: '💼 Comisiones' }] : []),
