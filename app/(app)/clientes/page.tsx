@@ -412,9 +412,7 @@ export default function ClientesPage() {
 
         {/* Cards area */}
         <div className="flex-1 min-w-0">
-          {clientes.length > 0 && (
-            <p className="text-zinc-500 text-xs mb-2">Mostrando {clientesFiltrados.length} de {total} clientes</p>
-          )}
+
 
           {isDesktop ? (
             <div style={{ borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
