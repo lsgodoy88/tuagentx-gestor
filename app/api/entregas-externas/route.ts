@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { entregasQueue } from '@/lib/queues'
 
 // POST — crear entrega desde empresa vinculada
 export async function POST(req: NextRequest) {
@@ -88,7 +87,7 @@ export async function POST(req: NextRequest) {
       },
     })
     if (!cliente.lat && !cliente.lng && cliente.direccion) {
-      await entregasQueue.add('geocodificar', { clienteId: cliente.id })
+      fetch(`${process.env.NEXT_PUBLIC_URL || 'http://localhost:3010'}/api/entregas/geocodificar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clienteId: cliente.id }) }).catch((err: any) => console.error('[entregas-externas] geocodificar error:', err.message))
     }
     return NextResponse.json({ id: rutaActiva.id, ordenId: orden.id, clienteId: cliente.id, estado: 'asignado' }, { status: 201 })
   }
@@ -112,7 +111,7 @@ export async function POST(req: NextRequest) {
   })
 
   if (!cliente.lat && !cliente.lng && cliente.direccion) {
-    await entregasQueue.add('geocodificar', { clienteId: cliente.id })
+    fetch(`${process.env.NEXT_PUBLIC_URL || 'http://localhost:3010'}/api/entregas/geocodificar`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ clienteId: cliente.id }) }).catch((err: any) => console.error('[entregas-externas] geocodificar error:', err.message))
   }
 
   return NextResponse.json({ id: ruta.id, ordenId: orden.id, estado: 'pendiente' }, { status: 201 })
