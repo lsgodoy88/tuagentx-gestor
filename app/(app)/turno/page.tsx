@@ -122,13 +122,13 @@ export default function TurnoPage() {
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-zinc-700">
-                    <th className="text-zinc-500 font-medium text-left pb-2">Fecha</th>
-                    <th className="text-zinc-500 font-medium text-center pb-2">Inicio</th>
-                    <th className="text-zinc-500 font-medium text-center pb-2">Cierre</th>
-                    <th className="text-zinc-500 font-medium text-center pb-2">Duración</th>
-                    <th className="text-zinc-500 font-medium text-center pb-2">Pausa</th>
-                    <th className="text-zinc-500 font-medium text-center pb-2">Efectivo</th>
-                    <th className="text-zinc-500 font-medium text-center pb-2">GPS</th>
+                    <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left"}}>Fecha</th>
+                    <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>Inicio</th>
+                    <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>Cierre</th>
+                    <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>Duración</th>
+                    <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>Pausa</th>
+                    <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>Efectivo</th>
+                    <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>GPS</th>
                   </tr>
                 </thead>
                 <tbody className="space-y-1">

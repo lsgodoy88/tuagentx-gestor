@@ -806,10 +806,10 @@ function DashboardPageInner() {
                       <table className="w-full text-xs">
                         <thead>
                           <tr style={{background:"#0d1220",borderBottom:"1px solid #1e2a3d"}}>
-                            <th className="px-3 py-2 text-left text-zinc-500 font-medium">Empleado</th>
-                            <th className="px-3 py-2 text-left text-zinc-500 font-medium">Inicio turno</th>
-                            <th className="px-3 py-2 text-left text-zinc-500 font-medium">Ultima visita</th>
-                            <th className="px-3 py-2 text-left text-zinc-500 font-medium">Proximo</th>
+                            <th style={{padding:'7px 10px',fontSize:14,fontWeight:500,color:'white',textAlign:'left',whiteSpace:'nowrap' as const,overflow:'hidden' as const}}>Empleado</th>
+                            <th style={{padding:'7px 10px',fontSize:14,fontWeight:500,color:'white',textAlign:'left',whiteSpace:'nowrap' as const,overflow:'hidden' as const}}>Inicio turno</th>
+                            <th style={{padding:'7px 10px',fontSize:14,fontWeight:500,color:'white',textAlign:'left',whiteSpace:'nowrap' as const,overflow:'hidden' as const}}>Ultima visita</th>
+                            <th style={{padding:'7px 10px',fontSize:14,fontWeight:500,color:'white',textAlign:'left',whiteSpace:'nowrap' as const,overflow:'hidden' as const}}>Proximo</th>
                           </tr>
                         </thead>
                         <tbody>

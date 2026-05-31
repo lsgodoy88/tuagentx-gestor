@@ -1086,21 +1086,21 @@ export default function CarteraPage() {
                 <table className="w-full text-sm min-w-[780px]">
                   <thead>
                     <tr style={{background:'#0d1220',borderBottom:'1px solid #1e2a3d'}}>
-                      <th className="px-4 py-3 text-left text-zinc-400 font-semibold whitespace-nowrap">Fecha</th>
-                      <th className="px-4 py-3 text-left text-zinc-400 font-semibold whitespace-nowrap">#Recibo</th>
-                      <th className="px-4 py-3 text-left text-zinc-400 font-semibold whitespace-nowrap">Factura</th>
-                      <th className="px-4 py-3 text-left text-zinc-400 font-semibold whitespace-nowrap">Cliente</th>
-                      <th className="px-4 py-3 text-right text-zinc-400 font-semibold whitespace-nowrap">Efectivo</th>
-                      <th className="px-4 py-3 text-right text-zinc-400 font-semibold whitespace-nowrap">Transf.</th>
-                      <th className="px-4 py-3 text-right text-zinc-400 font-semibold whitespace-nowrap">Descuento</th>
-                      <th className="px-4 py-3 text-right text-zinc-400 font-semibold whitespace-nowrap">Nuevo Saldo</th>
+                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left",whiteSpace:"nowrap"}}>Fecha</th>
+                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left",whiteSpace:"nowrap"}}>#Recibo</th>
+                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left",whiteSpace:"nowrap"}}>Factura</th>
+                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left",whiteSpace:"nowrap"}}>Cliente</th>
+                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",whiteSpace:"nowrap"}}>Efectivo</th>
+                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",whiteSpace:"nowrap"}}>Transf.</th>
+                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",whiteSpace:"nowrap"}}>Descuento</th>
+                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",whiteSpace:"nowrap"}}>Nuevo Saldo</th>
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((p: any, i: number) => (
                       <tr key={p.id}
                         style={{background: i%2===0 ? '#141c2e' : '#141c2e', borderBottom:'1px solid #1e2a3d'}}>
-                        <td className="px-4 py-3 text-zinc-400 whitespace-nowrap">
+                        <td style={{padding:"8px 16px",fontSize:14,fontWeight:500,color:"rgba(255,255,255,0.6)",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
                           {new Date(p.createdAt).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'America/Bogota'})}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
@@ -1109,10 +1109,10 @@ export default function CarteraPage() {
                             🖨️ {p.numeroRecibo || '—'}
                           </button>
                         </td>
-                        <td className="px-4 py-3 text-zinc-300 font-mono whitespace-nowrap">
+                        <td style={{padding:"8px 16px",fontSize:14,fontWeight:500,color:"white",fontFamily:"monospace",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
                           {p.numeroFactura ? `#${p.numeroFactura}` : '—'}
                         </td>
-                        <td className="px-4 py-3 text-white max-w-[160px] truncate">
+                        <td style={{padding:"8px 16px",fontSize:14,fontWeight:500,color:"white",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
                           {p.clienteNombre || p.cartera?.cliente?.nombre || p.Cartera?.Cliente?.nombre || '—'}
                         </td>
                         <td className="px-4 py-3 text-right text-emerald-400 font-semibold whitespace-nowrap">
@@ -1180,12 +1180,12 @@ export default function CarteraPage() {
                 <table className="w-full text-sm min-w-[680px]">
                   <thead>
                     <tr style={{background:'#0d1220',borderBottom:'1px solid #1e2a3d'}}>
-                      <th className="px-4 py-3 text-left text-zinc-400 font-semibold">Vendedor</th>
-                      <th className="px-4 py-3 text-right text-zinc-400 font-semibold">Recaudado</th>
-                      <th className="px-4 py-3 text-right text-zinc-400 font-semibold">Pagos</th>
-                      <th className="px-4 py-3 text-center text-zinc-400 font-semibold w-24">% Comisión</th>
-                      <th className="px-4 py-3 text-left text-zinc-400 font-semibold">Fórmula</th>
-                      <th className="px-4 py-3 text-right text-zinc-400 font-semibold">Comisión</th>
+                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left"}}>Vendedor</th>
+                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Recaudado</th>
+                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Pagos</th>
+                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>% Comisión</th>
+                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left"}}>Fórmula</th>
+                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Comisión</th>
                     </tr>
                   </thead>
                   <tbody>
