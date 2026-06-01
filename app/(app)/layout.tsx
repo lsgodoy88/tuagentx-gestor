@@ -98,20 +98,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     pedirPermisos()
   }, [user])
 
-  // Aplicar color de fondo personalizado del usuario
+  // Aplicar color de fondo personalizado del usuario (clave por userId)
   useEffect(() => {
+    const uid = (user as any)?.id
+    if (!uid) return
     const color = (user as any)?.colorFondo
+    const keyColor = `colorFondo_${uid}`
+    const keyGrad  = `colorFondoGradient_${uid}`
     const applyColor = (hex: string) => {
       document.documentElement.style.setProperty('--background', hex)
-      const savedGrad = localStorage.getItem('colorFondoGradient')
+      const savedGrad = localStorage.getItem(keyGrad)
       const grad = document.getElementById('bg-grad-base')
       if (grad && savedGrad) grad.style.background = savedGrad
     }
     if (color && /^#[0-9a-fA-F]{6}$/.test(color)) {
       applyColor(color)
-      localStorage.setItem('colorFondo', color)
+      localStorage.setItem(keyColor, color)
     } else {
-      const cached = localStorage.getItem('colorFondo')
+      const cached = localStorage.getItem(keyColor)
       if (cached && /^#[0-9a-fA-F]{6}$/.test(cached)) {
         applyColor(cached)
       }

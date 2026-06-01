@@ -82,9 +82,7 @@ export default function ConfiguracionPage() {
   const [colorFondo, setColorFondo] = useState('#060f2c')
   const [savingTema, setSavingTema] = useState(false)
   const [msgTema, setMsgTema] = useState('')
-  const [temaHistorial, setTemaHistorial] = useState<string[]>(() => {
-    try { return JSON.parse(localStorage.getItem('colorFondoHistorial') || '[]') } catch { return [] }
-  })
+  const [temaHistorial, setTemaHistorial] = useState<string[]>([])
   const temaBandRef = useRef<HTMLDivElement>(null)
   const temaDragging = useRef(false)
 
@@ -201,6 +199,16 @@ export default function ConfiguracionPage() {
 
   useEffect(() => {
     if (status !== 'authenticated') return
+    const uid = user?.id
+    if (uid) {
+      // Cargar historial y color guardado con clave por usuario
+      try {
+        const hist = JSON.parse(localStorage.getItem(`colorFondoHistorial_${uid}`) || '[]')
+        if (Array.isArray(hist)) setTemaHistorial(hist)
+      } catch {}
+      const cached = localStorage.getItem(`colorFondo_${uid}`)
+      if (cached && /^#[0-9a-fA-F]{6}$/.test(cached)) setColorFondo(cached)
+    }
 
     if (user?.role === 'empresa' || user?.role === 'supervisor') {
       fetch('/api/empresas-vinculadas').then(r => r.json()).then(d => { setVinculadas(d.vinculadas || []); setConectadas(d.conectadas || []) })
@@ -297,8 +305,9 @@ export default function ConfiguracionPage() {
         body: JSON.stringify({ colorFondo })
       })
       if (res.ok) {
+        const uid = user?.id
         document.documentElement.style.setProperty('--background', colorFondo)
-        localStorage.setItem('colorFondo', colorFondo)
+        if (uid) localStorage.setItem(`colorFondo_${uid}`, colorFondo)
         setMsgTema('✅ Guardado')
         try { await update({ colorFondo }) } catch {}
       } else { setMsgTema('Error al guardar') }
@@ -320,8 +329,11 @@ export default function ConfiguracionPage() {
     // Actualizar el gradiente real del fondo
     const grad = document.getElementById('bg-grad-base')
     if (grad) grad.style.background = buildGradient(newHue, newSat, newLit)
-    localStorage.setItem('colorFondo', hex)
-    localStorage.setItem('colorFondoGradient', buildGradient(newHue, newSat, newLit))
+    const uid = user?.id
+    if (uid) {
+      localStorage.setItem(`colorFondo_${uid}`, hex)
+      localStorage.setItem(`colorFondoGradient_${uid}`, buildGradient(newHue, newSat, newLit))
+    }
   }
 
   const getHueFromBand = useCallback((e: React.MouseEvent | React.TouchEvent | MouseEvent | TouchEvent) => {
@@ -1444,8 +1456,11 @@ export default function ConfiguracionPage() {
               previewColor('#060f34', 225, 72, 11)
               const grad = document.getElementById('bg-grad-base')
               if (grad) grad.style.background = 'linear-gradient(160deg, #060f34 0%, #0a1628 12%, #1a3060 30%, #1e3a6e 48%, #0d1f45 65%, #07103a 82%, #0a1848 100%)'
-              localStorage.removeItem('colorFondo')
-              localStorage.removeItem('colorFondoGradient')
+              const uid = user?.id
+              if (uid) {
+                localStorage.removeItem(`colorFondo_${uid}`)
+                localStorage.removeItem(`colorFondoGradient_${uid}`)
+              }
             }}
             className="px-4 py-2.5 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm rounded-xl hover:text-white transition-colors">
             ↺
