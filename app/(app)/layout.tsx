@@ -43,21 +43,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     document.title = `${titles[pathname] || 'Gestor'} — TuAgentX`
   }, [pathname])
 
-  const [autoCollapsed, setAutoCollapsed] = useState(false) // por viewport
-  const [pinned, setPinned] = useState(false)               // forzado abierto por usuario
-  const collapsed = autoCollapsed && !pinned
-  const sidebarExpanded = !collapsed
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const sidebarExpanded = sidebarOpen
+  const collapsed = !sidebarOpen
 
-  // Auto-colapso en viewport < 1280px
+  // Auto-colapso inicial en viewport < 1280px
   useEffect(() => {
-    const check = () => {
-      const small = window.innerWidth < 1280
-      setAutoCollapsed(small)
-      if (!small) setPinned(false) // en pantalla grande, siempre visible
-    }
-    check()
-    window.addEventListener('resize', check)
-    return () => window.removeEventListener('resize', check)
+    if (window.innerWidth < 1280) setSidebarOpen(false)
   }, [])
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [asistenteAbierto, setAsistenteAbierto] = useState(false)
@@ -363,15 +355,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      {/* Notch para expandir sidebar en desktop */}
-      {collapsed && (
-        <button
-          className="hidden md:flex fixed top-1/2 left-0 -translate-y-1/2 z-20 items-center justify-center"
-          onClick={() => setPinned(p => !p)}
-          style={{width:20,height:80,background:'#1e243a',borderRadius:'0 10px 10px 0',border:'1px solid rgba(59,130,246,0.25)',borderLeft:'none',cursor:'pointer',color:'#7aa2c8',fontSize:16,fontWeight:'bold',letterSpacing:0}}>
-          ›
-        </button>
-      )}
+      {/* Notch toggle sidebar — siempre visible en desktop */}
+      <button
+        className="hidden md:flex fixed top-1/2 z-20 items-center justify-center"
+        onClick={() => setSidebarOpen(o => !o)}
+        style={{left: sidebarOpen ? 224 : 0, width:20,height:80,background:'#1e243a',borderRadius:'0 10px 10px 0',border:'1px solid rgba(59,130,246,0.25)',borderLeft:'none',cursor:'pointer',color:'#7aa2c8',fontSize:16,fontWeight:'bold',transition:'left 0.2s ease'}}>
+        {sidebarOpen ? '‹' : '›'}
+      </button>
 
       {/* ── MAIN ── */}
       <main className="flex-1 flex flex-col min-w-0" style={{marginLeft: sidebarExpanded ? 224 : 0, transition:"margin-left 0.2s ease"}}>
