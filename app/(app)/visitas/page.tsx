@@ -187,9 +187,9 @@ export default function VisitasPage() {
 
   return (
     <div className="max-w-2xl md:max-w-none mx-auto space-y-6 pb-24 md:pb-0">
-      <div className="flex gap-2 items-center">
+      <div className="flex flex-col gap-2">
         {/* Tabs */}
-        <div className="flex gap-1 tab-pills rounded-xl p-1 flex-1">
+        <div className="flex gap-1 tab-pills rounded-xl p-1">
           <button onClick={() => setTab('mapa')}
             className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'mapa' ? "tab-active" : "text-white hover:text-white")}>
             🗺️ Mapa
@@ -205,7 +205,7 @@ export default function VisitasPage() {
         </div>
         {/* Controles historial desktop — inline con tabs */}
         {tab === 'historial' && (
-          <div className="hidden md:flex gap-2 items-center flex-shrink-0">
+          <div className="hidden md:flex gap-2 items-center">
             {/* Buscador con autocomplete */}
             <div style={{position:'relative',display:'flex',alignItems:'center',background:'#1e243a',border:'1px solid #1e3a5f',borderRadius:10,padding:'0 10px',gap:6}}>
               <span style={{color:'#4b7cb5',fontSize:14,flexShrink:0}}>🔍</span>
