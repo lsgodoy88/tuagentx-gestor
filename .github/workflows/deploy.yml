@@ -1,8 +1,10 @@
 name: Deploy Gestor
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
+  # push deshabilitado — deploys manuales desde servidor hasta resolver conflicto rsync/.next
+  # push:
+  #   branches: [main]
 
 # Un solo deploy a la vez — si llega otro push mientras hay deploy en curso,
 # espera en cola. cancel-in-progress: false evita deploys parciales.
