@@ -268,7 +268,6 @@ function ReciboContent() {
         .btn-print { background: #059669; color: white; }
         .btn-share { background: #3b82f6; color: white; }
         .btn-fmt { background: #f3f4f6; color: #111; flex: 0 0 auto; padding: 10px 12px; font-size: 12px; }
-        .btn-back { background: #f3f4f6; color: #111; flex: 0 0 auto; padding: 10px 12px; font-size: 12px; }
         @media print {
           html, body { background: white !important; }
           .no-print { display: none !important; }
@@ -279,10 +278,6 @@ function ReciboContent() {
       `}</style>
 
       <div className="no-print">
-        <button className="btn btn-back" onClick={() => {
-          if (window.history.length > 1) { window.close(); setTimeout(() => { window.location.href = '/cartera' }, 300) }
-          else { window.location.href = '/cartera' }
-        }}>←</button>
         {!isIOS && (
           <button className="btn btn-print" onClick={imprimirBluetooth}>🖨️ BT Imprimir</button>
         )}
