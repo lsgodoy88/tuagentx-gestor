@@ -186,10 +186,7 @@ export default function VisitasPage() {
             className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'nueva' ? "tab-active" : "text-white hover:text-white")}>
             {isEntregas ? '📦 Nueva' : '📍 Nueva'}
           </button>
-          <button onClick={() => setTab('historial')}
-            className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'historial' ? "tab-active" : "text-white hover:text-white")}>
-            Historial
-          </button>
+
         </div>
         {/* Controles historial — solo desktop cuando tab historial */}
         {tab === 'historial' && (
