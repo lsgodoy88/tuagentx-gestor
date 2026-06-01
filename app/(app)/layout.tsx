@@ -46,6 +46,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [collapsed, setCollapsed] = useState(false)
   const [hovered, setHovered] = useState(false)
   const sidebarExpanded = !collapsed || hovered
+
+  // Auto-colapso en viewport < 1280px
+  useEffect(() => {
+    const check = () => setCollapsed(window.innerWidth < 1280)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [asistenteAbierto, setAsistenteAbierto] = useState(false)
   const [bloqueado, setBloqueado] = useState(false)
@@ -261,8 +269,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <NetworkBanner />
 
       {/* ── SIDEBAR DESKTOP ── */}
-      <aside className="w-56 flex-col hidden md:flex flex-shrink-0 fixed top-0 left-0 h-screen overflow-y-auto z-10"
-        style={{background:'rgba(8,10,30,0.82)',backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',borderRight:'1px solid rgba(255,255,255,0.10)'}}>
+      <aside className="flex-col hidden md:flex flex-shrink-0 fixed top-0 left-0 h-screen z-10" style={{width: sidebarExpanded ? 224 : 0, transition:"width 0.2s ease", overflowX:"hidden", overflowY: sidebarExpanded ? "auto" : "hidden", background:'rgba(8,10,30,0.82)',backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',borderRight:'1px solid rgba(255,255,255,0.10)'}}>
 
         <div className="flex items-center px-4 h-14 border-b border-[#1c1c20] flex-shrink-0">
           <div className="flex items-center gap-2.5">
@@ -351,8 +358,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
+      {/* Notch para expandir sidebar en desktop */}
+      {collapsed && !hovered && (
+        <button
+          className="hidden md:flex fixed top-1/2 left-0 -translate-y-1/2 z-20 items-center justify-center"
+          onClick={() => setCollapsed(false)}
+          style={{width:16,height:48,background:'#1e243a',borderRadius:'0 8px 8px 0',border:'1px solid rgba(255,255,255,0.10)',borderLeft:'none',cursor:'pointer',color:'white',fontSize:10}}>
+          ›
+        </button>
+      )}
+
       {/* ── MAIN ── */}
-      <main className="flex-1 flex flex-col min-w-0 md:ml-56">
+      <main className="flex-1 flex flex-col min-w-0" style={{marginLeft: sidebarExpanded ? 224 : 0, transition:"margin-left 0.2s ease"}}>
         {bloqueado && (
           <div className="bg-red-900/80 border-b border-red-700 flex items-center justify-between px-4 h-10 flex-shrink-0 overflow-hidden">
             <span className="text-red-100 text-sm truncate">🔴 Cuenta suspendida</span>
