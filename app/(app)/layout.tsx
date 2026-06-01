@@ -274,7 +274,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <NetworkBanner />
 
       {/* ── SIDEBAR DESKTOP ── */}
-      <aside className="flex-col hidden md:flex flex-shrink-0 fixed top-0 left-0 h-screen z-10" style={{width: sidebarExpanded ? 224 : 0, transition:"width 0.2s ease", overflowX:"hidden", overflowY: sidebarExpanded ? "auto" : "hidden", background:'rgba(8,10,30,0.82)',backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',borderRight:'1px solid rgba(255,255,255,0.10)'}}>
+      <aside className="flex-col hidden md:flex flex-shrink-0 fixed top-0 left-0 h-screen z-10" style={{width: sidebarExpanded ? 224 : 0, opacity: sidebarExpanded ? 1 : 0, transition:"width 0.2s ease, opacity 0.1s ease", overflowX:"hidden", overflowY: sidebarExpanded ? "auto" : "hidden", background:'rgba(8,10,30,0.82)',backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',borderRight:'1px solid rgba(255,255,255,0.10)'}}>
 
         <div className="flex items-center px-4 h-14 border-b border-[#1c1c20] flex-shrink-0">
           <div className="flex items-center gap-2.5">
