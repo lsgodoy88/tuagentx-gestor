@@ -71,8 +71,12 @@ export default function CarteraPage() {
   const [vendedores, setVendedores] = useState<any[]>([])
   const [vendedorPagoId, setVendedorPagoId] = useState('')
   const [busquedaPagos, setBusquedaPagos] = useState('')
-  const [mesPagos, setMesPagos] = useState(mesBogota())
-  const [anioPagos, setAnioPagos] = useState(anioBogota())
+  const [mesPagos, setMesPagos] = useState(() => {
+    try { const v = sessionStorage.getItem('cartera_mesPagos'); return v ? parseInt(v) : mesBogota() } catch { return mesBogota() }
+  })
+  const [anioPagos, setAnioPagos] = useState(() => {
+    try { const v = sessionStorage.getItem('cartera_anioPagos'); return v ? parseInt(v) : anioBogota() } catch { return anioBogota() }
+  })
   const [comisiones, setComisiones] = useState<ComisionVendedor[]>([])
   const [comisionCalculo, setComisionCalculo] = useState<any>(null)
   const [loadingComisiones, setLoadingComisiones] = useState(false)
@@ -1019,7 +1023,7 @@ export default function CarteraPage() {
         <div className="flex flex-wrap items-center gap-2">
           <SelectorMes
             value={`${anioPagos}-${String(mesPagos).padStart(2,'0')}`}
-            onChange={v => { const [a,m] = v.split('-'); setAnioPagos(Number(a)); setMesPagos(Number(m)) }}
+            onChange={v => { const [a,m] = v.split('-'); const anio=Number(a), mes=Number(m); setAnioPagos(anio); setMesPagos(mes); try { sessionStorage.setItem('cartera_mesPagos', String(mes)); sessionStorage.setItem('cartera_anioPagos', String(anio)) } catch {} }}
           />
           {isAdmin && (
             <select
