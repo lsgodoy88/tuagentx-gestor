@@ -51,7 +51,7 @@ export default function VisitasAdminPage() {
         <div className="flex gap-2">
           <input value={clienteFiltro} onChange={e => setClienteFiltro(e.target.value)}
             placeholder="Buscar cliente..." onKeyDown={e => e.key === 'Enter' && buscar()}
-            className="flex-1  rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
+            className="flex-1  rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
           <button onClick={() => buscar()} disabled={loading}
             className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-xl text-sm transition-colors flex-shrink-0">
             {loading ? '...' : 'Buscar'}
@@ -59,7 +59,7 @@ export default function VisitasAdminPage() {
         </div>
         <div className="flex gap-2">
           <select value={empleadoFiltro} onChange={e => setEmpleadoFiltro(e.target.value)}
-            className="flex-1  rounded-xl px-3 py-2 text-white text-sm outline-none" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+            className="flex-1  rounded-xl px-3 py-2 text-white text-sm outline-none" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
             <option value="">Todos los empleados</option>
             {empleados.filter((e: any) => e.activo).map((e: any) => (
               <option key={e.id} value={e.id}>{e.nombre}</option>

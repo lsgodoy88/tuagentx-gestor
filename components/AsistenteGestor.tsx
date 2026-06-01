@@ -113,7 +113,7 @@ export default function AsistenteGestor({ onClose }: Props) {
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && !e.shiftKey && enviar()}
               placeholder="Haz una pregunta..."
-              className="flex-1  rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-zinc-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}
+              className="flex-1  rounded-xl px-4 py-2.5 text-white text-sm focus:outline-none focus:border-blue-500 placeholder-zinc-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}
             />
             <button onClick={enviar} disabled={!input.trim() || cargando}
               className={`w-10 h-10 bg-blue-600 hover:bg-blue-500 disabled:opacity-40 rounded-xl flex items-center justify-center transition-colors flex-shrink-0 ${(!input.trim() || cargando) ? 'btn-shimmer' : ''}`}>

@@ -214,8 +214,8 @@ export default function ModalVisita({
   console.log('[ModalVisita render]', { clienteInicial, cliente, condicion: !clienteInicial && !cliente })
 
   return (
-    <div className="fixed inset-0 flex items-start justify-center z-[1000] pt-4 px-4 pb-4" style={{background:"rgba(15,23,42,0.85)"}}>
-      <div className="rounded-2xl w-full max-w-md p-6 pb-6 space-y-4 max-h-[88vh] overflow-y-auto overscroll-contain" style={{background:"rgba(15,23,42,0.97)",border:"1px solid rgba(59,130,246,0.50)"}}>
+    <div className="fixed inset-0 flex items-start justify-center z-[1000] pt-4 px-4 pb-4" style={{background:"#0f1729"}}>
+      <div className="rounded-2xl w-full max-w-md p-6 pb-6 space-y-4 max-h-[88vh] overflow-y-auto overscroll-contain" style={{background:"#0f172a",border:"1px solid rgba(59,130,246,0.50)"}}>
 
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -230,13 +230,13 @@ export default function ModalVisita({
               value={buscar}
               onChange={e => { setBuscar(e.target.value); setPageCli(1); loadClientes(e.target.value, 1) }}
               placeholder="Buscar cliente..."
-              className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}
+              className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}
             />
             <div className="space-y-2">
               {loadingCli && <p className="text-zinc-500 text-xs text-center py-2">Cargando...</p>}
               {clientes.map((c: Cliente) => (
                 <button key={c.id} onClick={() => setCliente(c)}
-                  className="w-full rounded-xl p-3 text-left transition-colors" style={{background:"rgba(113,113,122,0.40)",border:"1px solid rgba(59,130,246,0.25)"}}>
+                  className="w-full rounded-xl p-3 text-left transition-colors" style={{background:"#3f3f46",border:"1px solid rgba(59,130,246,0.25)"}}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm font-medium">{c.nombre}</p>
@@ -304,7 +304,7 @@ export default function ModalVisita({
                 <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Monto ($)</label>
                 <input type="number" value={monto} onChange={e => setMonto(e.target.value)}
                   placeholder="Ej: 44000"
-                  className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
+                  className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
               </div>
             )}
 
@@ -313,14 +313,14 @@ export default function ModalVisita({
               <div>
                 <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Número de factura</label>
                 {facturaPreset ? (
-                  <div className="rounded-xl px-4 py-2.5 flex items-center gap-2" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+                  <div className="rounded-xl px-4 py-2.5 flex items-center gap-2" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                     <span className="text-lg">📦</span>
                     <span className="text-white text-sm font-semibold">Factura: #{facturaPreset}</span>
                   </div>
                 ) : (
                   <input value={factura} onChange={e => setFactura(e.target.value)}
                     placeholder="Ej: FAC-001234"
-                    className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
+                    className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
                 )}
               </div>
             )}
@@ -332,7 +332,7 @@ export default function ModalVisita({
               </label>
               <textarea value={nota} onChange={e => setNota(e.target.value)}
                 rows={2} placeholder="Observaciones..."
-                className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500 resize-none" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
+                className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500 resize-none" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
             </div>
 
             {/* Firma */}
@@ -362,7 +362,7 @@ export default function ModalVisita({
                   )}
                   {/* Checkbox solo para vendedor autorizado */}
                   {puedeCapturarGps && (
-                    <div className="flex items-center gap-3  rounded-xl px-4 py-3" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+                    <div className="flex items-center gap-3  rounded-xl px-4 py-3" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                       <input type="checkbox" id="capturarGpsModal" checked={capturarGps}
                         onChange={e => setCapturarGps(e.target.checked)}
                         className="w-4 h-4 accent-emerald-500" />
@@ -395,10 +395,10 @@ export default function ModalVisita({
             {/* Botones */}
             <div className="flex gap-2">
               {!clienteInicial && (
-                <button onClick={() => setCliente(null)} className="flex-1 text-white text-sm py-3 rounded-xl" style={{background:"rgba(113,113,122,0.40)",border:"1px solid rgba(59,130,246,0.25)"}}>Atrás</button>
+                <button onClick={() => setCliente(null)} className="flex-1 text-white text-sm py-3 rounded-xl" style={{background:"#3f3f46",border:"1px solid rgba(59,130,246,0.25)"}}>Atrás</button>
               )}
               {clienteInicial && (
-                <button onClick={onClose} className="flex-1 text-white text-sm py-3 rounded-xl" style={{background:"rgba(113,113,122,0.40)",border:"1px solid rgba(59,130,246,0.25)"}}>Cancelar</button>
+                <button onClick={onClose} className="flex-1 text-white text-sm py-3 rounded-xl" style={{background:"#3f3f46",border:"1px solid rgba(59,130,246,0.25)"}}>Cancelar</button>
               )}
               <button onClick={registrar} disabled={!puedeGuardar}
                 className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold py-3 rounded-xl">

@@ -585,7 +585,7 @@ export default function OrdenesPage() {
           <select
             value={origenId}
             onChange={e => { setOrigenId(e.target.value); cargarDatos(e.target.value); setBusqueda('') }}
-            className="rounded-xl px-3 py-2 text-white text-sm" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)",width: '30%'}}>
+            className="rounded-xl px-3 py-2 text-white text-sm" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)",width: '30%'}}>
             {empresasOrigen.map(e => (
               <option key={e.id} value={e.id}>{e.nombre}</option>
             ))}
@@ -596,7 +596,7 @@ export default function OrdenesPage() {
           onChange={e => setBusqueda(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && ejecutarBusqueda()}
           placeholder="Cliente u orden..."
-          className="rounded-xl px-3 py-2 text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-zinc-500 min-w-0" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)",width: '60%'}}
+          className="rounded-xl px-3 py-2 text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-zinc-500 min-w-0" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)",width: '60%'}}
         />
         <button onClick={ejecutarBusqueda}
           className="bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 text-white rounded-xl text-sm flex-shrink-0"
@@ -648,7 +648,7 @@ export default function OrdenesPage() {
         if (ciudades.length <= 1) return null
         return (
           <select value={ciudadFiltro} onChange={e => { setCiudadFiltro(e.target.value); setSeleccionados([]) }}
-            className="w-full  rounded-xl px-3 py-2 text-white text-sm" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+            className="w-full  rounded-xl px-3 py-2 text-white text-sm" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
             <option value="">🏙️ Todas las ciudades</option>
             {ciudades.map(c => <option key={c} value={c}>{c}</option>)}
           </select>
@@ -773,7 +773,7 @@ export default function OrdenesPage() {
                                     value={editRepartidor[d.id] ?? ''}
                                     onChange={e => setEditRepartidor(p => ({ ...p, [d.id]: e.target.value }))}
                                     disabled={!esLocalidad2}
-                                    className="flex-1  rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-blue-500 disabled:opacity-40" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+                                    className="flex-1  rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-blue-500 disabled:opacity-40" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                                     <option value="">— Repartidor —</option>
                                     {repartidores.map((r: any) => (
                                       <option key={r.id} value={r.id}>{r.nombre}</option>
@@ -1010,7 +1010,7 @@ export default function OrdenesPage() {
               <span className="text-zinc-400 text-sm">{seleccionados.length} orden{seleccionados.length > 1 ? 'es' : ''}</span>
             </div>
             <select value={asignarTodasRepartidor} onChange={e => setAsignarTodasRepartidor(e.target.value)}
-              className="w-full  rounded-xl px-3 py-3 text-white text-sm" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+              className="w-full  rounded-xl px-3 py-3 text-white text-sm" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
               <option value="">— Selecciona repartidor —</option>
               {repartidores.map((r: any) => <option key={r.id} value={r.id}>{r.nombre}</option>)}
             </select>

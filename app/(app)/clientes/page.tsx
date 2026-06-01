@@ -309,7 +309,7 @@ export default function ClientesPage() {
               <div>
                 <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Nombre *</label>
                 <input value={nombreLista} onChange={e => setNombreLista(e.target.value)} onKeyDown={e => e.key === 'Enter' && crearLista()} placeholder="Ej: Zona Norte" autoFocus
-                  className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
+                  className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
               </div>
               <div className="flex gap-2 pt-1">
                 <button onClick={() => setModalCrear(false)} className="flex-1 bg-zinc-800 text-white text-sm py-3 rounded-xl">Cancelar</button>
@@ -329,12 +329,12 @@ export default function ClientesPage() {
               <div>
                 <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Nombre *</label>
                 <input value={nombreLista} onChange={e => setNombreLista(e.target.value)}
-                  className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
+                  className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
               </div>
               {empTab.length > 0 && (
                 <div>
                   <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Vendedores asignados</label>
-                  <div className="space-y-1 max-h-48 overflow-y-auto  rounded-xl p-2" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+                  <div className="space-y-1 max-h-48 overflow-y-auto  rounded-xl p-2" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                     {empTab.map((emp: any) => (
                       <label key={emp.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-700 cursor-pointer">
                         <input type="checkbox" checked={vendedorIds.includes(emp.id)}
@@ -517,7 +517,7 @@ export default function ClientesPage() {
               <label className="text-zinc-400 text-xs font-semibold block mb-1.5">NIT</label>
               <div style={{position:'relative'}}>
                 <input value={editForm.nit} onChange={e => setEditForm({...editForm, nit: e.target.value})}
-                  className="w-full rounded-xl px-4 py-2.5 text-white text-sm outline-none" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)",paddingRight: editando?.apiId ? 36 : undefined}} />
+                  className="w-full rounded-xl px-4 py-2.5 text-white text-sm outline-none" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)",paddingRight: editando?.apiId ? 36 : undefined}} />
                 {editando?.apiId && (
                   <span title="Sincronizado con UpTres" style={{position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', fontSize:14, color:'#22c55e', pointerEvents:'none'}}>🔒</span>
                 )}
@@ -526,18 +526,18 @@ export default function ClientesPage() {
             <div>
               <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Nombre *</label>
               <input value={editForm.nombre} onChange={e => setEditForm({...editForm, nombre: e.target.value})}
-                className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
+                className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
             </div>
             <div>
               <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Nombre comercial</label>
               <input value={editForm.nombreComercial} onChange={e => setEditForm({...editForm, nombreComercial: e.target.value})}
-                className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
+                className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Celular</label>
                 <input value={editForm.telefono} onChange={e => setEditForm({...editForm, telefono: e.target.value})}
-                  className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
+                  className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
               </div>
               <div>
                 <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Ciudad</label>
@@ -557,9 +557,9 @@ export default function ClientesPage() {
                       setCiudadSugeridas(res.slice(0, 8))
                     }}
                     placeholder="Buscar ciudad..."
-                    className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
+                    className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
                   {ciudadSugeridas.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1  rounded-xl overflow-hidden shadow-xl" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+                    <div className="absolute z-10 w-full mt-1  rounded-xl overflow-hidden shadow-xl" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                       {ciudadSugeridas.map(c => (
                         <button key={c} type="button" onClick={() => { setEditForm({...editForm, ciudad: c}); setCiudadSugeridas([]) }}
                           className="w-full text-left px-4 py-2 text-sm text-zinc-300 hover:bg-zinc-700 hover:text-white transition-colors">
@@ -574,13 +574,13 @@ export default function ClientesPage() {
             <div>
               <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Dirección</label>
               <input value={editForm.direccion} onChange={e => setEditForm({...editForm, direccion: e.target.value})}
-                className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
+                className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
             </div>
             {esAdmin && (
               <div>
                 <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Lista</label>
                 <select value={editForm.listaId||''} onChange={e => setEditForm({...editForm, listaId: e.target.value})}
-                  className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+                  className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                   <option value="">Sin lista</option>
                   {listas.map((l:any) => <option key={l.id} value={l.id}>{l.nombre}</option>)}
                 </select>
@@ -591,7 +591,7 @@ export default function ClientesPage() {
               <label className="text-zinc-400 text-xs font-semibold block mb-1.5">URL Maps</label>
               <input value={editForm.maps||''} onChange={e => setEditForm({...editForm, maps: e.target.value})}
                 placeholder={(editForm.direccion || editForm.ciudad) ? 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent([editForm.direccion, editForm.ciudad].filter(Boolean).join(' ')) : 'https://www.google.com/maps/search/?api=1&query=...'}
-                className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
+                className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
             </div>
             <div className="flex gap-2 pt-2">
               <button onClick={() => setEditando(null)} className="flex-1 bg-zinc-800 text-white text-sm py-3 rounded-xl">Cancelar</button>

@@ -275,7 +275,7 @@ export default function BodegaPage() {
           <p className="text-zinc-400 text-sm mt-0.5">Gestión de despachos y alistamiento</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <div className="flex items-center gap-1  rounded-xl px-1 py-1" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+          <div className="flex items-center gap-1  rounded-xl px-1 py-1" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
             <button onClick={() => cambiarDias(-1)} disabled={diasHistorial <= 1}
               className="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-white disabled:opacity-30 text-sm font-bold">−</button>
             <span className="text-white text-xs font-semibold w-8 text-center">{diasHistorial}d</span>
@@ -358,7 +358,7 @@ export default function BodegaPage() {
                 {subTab === 'alistados' && despachosVisibles.length > 0 && puedeEnviar && (
                   <div className="flex gap-2 items-center">
                     <select value={asignarTodasRepartidor} onChange={e => setAsignarTodasRepartidor(e.target.value)}
-                      className="flex-1  rounded-xl px-3 py-2 text-white text-xs" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+                      className="flex-1  rounded-xl px-3 py-2 text-white text-xs" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                       <option value="">— Repartidor —</option>
                       {repartidores.map(r => <option key={r.id} value={r.id}>{r.nombre}</option>)}
                     </select>
@@ -450,7 +450,7 @@ export default function BodegaPage() {
                                 <select
                                   value={editRepartidor[d.id] ?? ''}
                                   onChange={e => setEditRepartidor(p => ({ ...p, [d.id]: e.target.value }))}
-                                  className="flex-1  rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-blue-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+                                  className="flex-1  rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-blue-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                                   <option value="">— Seleccionar —</option>
                                   {repartidores.map((r: any) => (
                                     <option key={r.id} value={r.id}>{r.nombre}</option>
@@ -473,7 +473,7 @@ export default function BodegaPage() {
                                     value={editTransporte[d.id]?.transportadora ?? ''}
                                     onChange={e => setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], transportadora: e.target.value } }))}
                                     placeholder="Servientrega"
-                                    className="w-full  rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-orange-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}
+                                    className="w-full  rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-orange-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}
                                   />
                                 </div>
                                 <div>
@@ -482,7 +482,7 @@ export default function BodegaPage() {
                                     value={editTransporte[d.id]?.guia ?? ''}
                                     onChange={e => setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], guia: e.target.value } }))}
                                     placeholder="123456789"
-                                    className="w-full  rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-orange-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}
+                                    className="w-full  rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-orange-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}
                                   />
                                 </div>
                               </div>

@@ -561,7 +561,7 @@ export default function RecaudosPage() {
                     {/* Fila contraída */}
                     <div
                       onClick={() => toggleAbierto(pago.id, pago.voucherKey)}
-                      style={{ background: 'rgba(8,8,28,0.88)' }}
+                      style={{ background: '#09091f' }}
                       className={`border ${tieneVariacion ? 'border-red-500/40' : seleccionado ? 'border-blue-500/60' : 'border-zinc-800'} ${abierto ? 'rounded-t-[10px]' : 'rounded-[10px]'} px-[11px] py-[9px] flex items-center gap-2 cursor-pointer select-none`}>
                       {/* Checkbox */}
                       <div onClick={e => { e.stopPropagation(); toggleSeleccion(pago.id) }}

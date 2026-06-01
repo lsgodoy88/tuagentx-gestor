@@ -630,7 +630,7 @@ export default function ConfiguracionPage() {
       {user?.role === 'empresa' && (
         <>
           <Seccion titulo="Mi empresa" icono="🏢" isOpen={seccionAbierta === 'empresa'} onToggle={() => toggleSeccion('empresa')}>
-            <div className="rounded-xl px-4 py-3 space-y-0.5" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+            <div className="rounded-xl px-4 py-3 space-y-0.5" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
               <p className="text-zinc-400 text-xs">Cuenta</p>
               <p className="text-white text-sm font-mono">{user?.email}</p>
             </div>
@@ -850,7 +850,7 @@ export default function ConfiguracionPage() {
                           </button>
                         </div>
                       ) : (
-                        <div className="rounded-xl px-4 py-3" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+                        <div className="rounded-xl px-4 py-3" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                           <p className="text-zinc-400 text-xs">✅ Sync inicial completada</p>
                           <p className="text-zinc-500 text-xs mt-0.5">Delta diario 3am Bogotá</p>
                           {msgSync && <p className="text-sm text-emerald-400 mt-1">{msgSync}</p>}
@@ -916,7 +916,7 @@ export default function ConfiguracionPage() {
                         <p className="text-zinc-400 text-xs mt-0.5 font-mono truncate">{intUrl}</p>
                       </div>
                       {resultValidacion && (
-                        <div className="space-y-1.5  rounded-xl p-3" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+                        <div className="space-y-1.5  rounded-xl p-3" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                           {Object.entries(resultValidacion).map(([ep, r]: any) => (
                             <div key={ep} className="flex items-center gap-2 text-xs">
                               <span>{r.ok ? '✅' : r.error === 'timeout' ? '⏱️' : '❌'}</span>
@@ -956,7 +956,7 @@ export default function ConfiguracionPage() {
                       <div>
                         <label className={labelClass}>Documentación de la API <span className="text-zinc-600">(opcional — para análisis IA)</span></label>
                         <textarea value={docApi} onChange={e => setDocApi(e.target.value)} rows={4} placeholder="Pega aquí la documentación, Swagger o ejemplos de endpoints…"
-                          className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-sky-500 resize-none" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
+                          className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-sky-500 resize-none" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
                       </div>
                       <div className="flex gap-2 flex-wrap">
                         {docApi.trim() && (
@@ -979,7 +979,7 @@ export default function ConfiguracionPage() {
                         <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-xs flex items-center justify-center font-bold flex-shrink-0">2</span>
                         <p className="text-zinc-300 text-xs font-semibold">Endpoints detectados — edita si es necesario</p>
                       </div>
-                      <div className="rounded-xl p-3 space-y-2" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+                      <div className="rounded-xl p-3 space-y-2" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                         {(['clientes','cartera','empleados','recaudos'] as const).map(ep => (
                           <div key={ep} className="flex items-center gap-2">
                             <span className="text-zinc-500 text-xs w-20 flex-shrink-0">{ep}</span>
@@ -1027,7 +1027,7 @@ export default function ConfiguracionPage() {
                             <span className="w-5 h-5 rounded-full bg-sky-600 text-white text-xs flex items-center justify-center font-bold flex-shrink-0">3</span>
                             <p className="text-zinc-300 text-xs font-semibold">Resultado de validación</p>
                           </div>
-                          <div className="rounded-xl p-3 space-y-2" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+                          <div className="rounded-xl p-3 space-y-2" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                             {eps.map(([ep, r]: any) => (
                               <div key={ep} className="flex items-center gap-2 text-xs">
                                 <span className="w-4">{r.ok ? '✅' : r.error === 'timeout' ? '⏱️' : '❌'}</span>
@@ -1090,7 +1090,7 @@ export default function ConfiguracionPage() {
             ) : (
               <div className="space-y-2">
                 {vinculadas.map(v => (
-                  <div key={v.id} className="rounded-xl px-4 py-3 flex items-center gap-3" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+                  <div key={v.id} className="rounded-xl px-4 py-3 flex items-center gap-3" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                     <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: v.color }} />
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm font-medium">{v.nombre === 'Pendiente' ? '⏳ Esperando conexión' : v.nombre}</p>
@@ -1103,7 +1103,7 @@ export default function ConfiguracionPage() {
                   </div>
                 ))}
                 {conectadas.map(v => (
-                  <div key={v.id} className="rounded-xl px-4 py-3 flex items-center gap-3" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+                  <div key={v.id} className="rounded-xl px-4 py-3 flex items-center gap-3" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                     <span className="w-3 h-3 rounded-full flex-shrink-0 bg-emerald-500" />
                     <div className="flex-1 min-w-0">
                       <p className="text-white text-sm font-medium">✅ {v.nombreEmpresaPrincipal}</p>
@@ -1167,7 +1167,7 @@ export default function ConfiguracionPage() {
       {esSoloEmpleado && (
         <>
           <Seccion titulo="Mi perfil" icono="👤" isOpen={seccionAbierta === 'perfil'} onToggle={() => toggleSeccion('perfil')}>
-            <div className="rounded-xl px-4 py-3 space-y-0.5" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+            <div className="rounded-xl px-4 py-3 space-y-0.5" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
               <p className="text-zinc-400 text-xs">Email</p>
               <p className="text-white text-sm font-mono">{user?.email}</p>
               <p className="text-zinc-500 text-xs capitalize">{user?.role}</p>
@@ -1205,7 +1205,7 @@ export default function ConfiguracionPage() {
                 </div>
               </div>
             )}
-            <div className="rounded-xl px-4 py-3 flex items-center justify-between" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+            <div className="rounded-xl px-4 py-3 flex items-center justify-between" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
               <div>
                 <p className="text-zinc-400 text-xs">Consecutivo actual</p>
                 <p className="text-white font-mono text-lg font-bold">{String(cfgConsecutivo).padStart(3, '0')}</p>
@@ -1311,7 +1311,7 @@ export default function ConfiguracionPage() {
               <>
                 <h3 className="text-white font-semibold">✅ Token generado</h3>
                 <p className="text-zinc-400 text-xs">Comparte este token con la empresa. Solo se muestra una vez.</p>
-                <div className="rounded-xl px-4 py-3 flex items-center gap-2" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+                <div className="rounded-xl px-4 py-3 flex items-center gap-2" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                   <p className="text-white font-mono text-xs flex-1 break-all">{tokenGenerado}</p>
                   <button onClick={() => navigator.clipboard.writeText(tokenGenerado)}
                     className="text-violet-400 hover:text-violet-300 flex-shrink-0 text-xs font-semibold">Copiar</button>
@@ -1336,7 +1336,7 @@ export default function ConfiguracionPage() {
               value={tokenInput}
               onChange={e => { setTokenInput(e.target.value); setTokenLookup(null); setTokenMsg('') }}
               placeholder="Pega el token aquí..."
-              className="w-full  rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-violet-500 font-mono" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}
+              className="w-full  rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-violet-500 font-mono" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}
             />
             {tokenLookup && (
               <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-3">

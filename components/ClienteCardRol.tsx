@@ -216,7 +216,7 @@ export default function ClienteCardRol({ cliente: c, rol, onVisita, onEntregar, 
           }
         }}
         style={{
-          background: 'rgba(8,8,28,0.88)',
+          background: '#09091f',
           border: `1px solid ${isSelected ? '#3b82f6' : (open ? '#52525b' : '#3f3f46')}`,
           boxShadow: isSelected ? '0 0 0 1px #3b82f6' : 'none',
           borderRadius: 14,

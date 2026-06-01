@@ -166,7 +166,7 @@ export default function VisitasPage() {
               debounceRef.current = setTimeout(() => loadHistorial(q, '', null), 500)
             }}
               placeholder="Buscar cliente..."
-              style={{ background:'rgba(8,8,28,0.82)', border:'1px solid rgba(59,130,246,0.30)', borderRadius:10, padding:'7px 14px', color:'white', fontSize:12, outline:'none', width:160 }} />
+              style={{ background:'#0a0a20', border:'1px solid rgba(59,130,246,0.30)', borderRadius:10, padding:'7px 14px', color:'white', fontSize:12, outline:'none', width:160 }} />
             <div className="relative flex-shrink-0">
               <input type="date" value={fechaHistorial} onChange={e => {
                 const f = e.target.value
@@ -176,7 +176,7 @@ export default function VisitasPage() {
                 loadHistorial('', f, null)
               }} className="absolute inset-0 opacity-0 cursor-pointer w-full" />
               <div style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 12px', borderRadius:10, fontSize:12, fontWeight:600, border:'1px solid', cursor:'pointer',
-                background: fechaHistorial ? 'rgba(8,8,28,0.90)' : 'rgba(8,8,28,0.60)',
+                background: fechaHistorial ? '#09091e' : 'rgba(8,8,28,0.60)',
                 borderColor: fechaHistorial ? 'rgba(59,130,246,0.60)' : 'rgba(59,130,246,0.30)',
                 color: fechaHistorial ? 'white' : 'rgba(255,255,255,0.5)',
               }}>
@@ -250,7 +250,7 @@ export default function VisitasPage() {
               debounceRef.current = setTimeout(() => loadHistorial(q, '', null), 500)
             }}
               placeholder="Buscar cliente..."
-              style={{ flex:1, background:'rgba(8,8,28,0.82)', border:'1px solid rgba(59,130,246,0.30)', borderRadius:10, padding:'10px 14px', color:'white', fontSize:13, outline:'none' }} />
+              style={{ flex:1, background:'#0a0a20', border:'1px solid rgba(59,130,246,0.30)', borderRadius:10, padding:'10px 14px', color:'white', fontSize:13, outline:'none' }} />
             <div className="relative flex-shrink-0">
               <input type="date" value={fechaHistorial} onChange={e => {
                 const f = e.target.value
@@ -261,7 +261,7 @@ export default function VisitasPage() {
               }}
                 className="absolute inset-0 opacity-0 cursor-pointer w-full" />
               <div style={{ display:'flex', alignItems:'center', gap:6, padding:'10px 12px', borderRadius:10, fontSize:13, fontWeight:600, border:'1px solid', cursor:'pointer',
-                background: fechaHistorial ? 'rgba(8,8,28,0.90)' : 'rgba(8,8,28,0.60)',
+                background: fechaHistorial ? '#09091e' : 'rgba(8,8,28,0.60)',
                 borderColor: fechaHistorial ? 'rgba(59,130,246,0.60)' : 'rgba(59,130,246,0.30)',
                 color: fechaHistorial ? 'white' : 'rgba(255,255,255,0.5)',
               }}>

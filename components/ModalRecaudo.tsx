@@ -42,8 +42,8 @@ export default function ModalRecaudo({
     .reduce((s: number, d: any) => s + Math.max(0, Number(d.valorFactura ?? d.valor) - Number(d.abonos ?? 0)), 0)
 
   return (
-    <div className="fixed inset-0 flex items-center justify-center z-50 px-2" style={{background:"rgba(15,23,42,0.85)"}}>
-      <div className="rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden" style={{background:"rgba(15,23,42,0.97)",border:"1px solid rgba(59,130,246,0.50)"}}>
+    <div className="fixed inset-0 flex items-center justify-center z-50 px-2" style={{background:"#0f1729"}}>
+      <div className="rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden" style={{background:"#0f172a",border:"1px solid rgba(59,130,246,0.50)"}}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 pt-2.5 pb-2.5 border-b" style={{borderColor:"rgba(59,130,246,0.30)"}}>

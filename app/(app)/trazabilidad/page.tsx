@@ -340,10 +340,10 @@ export default function TrazabilidadPage() {
             onChange={e => setQInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && buscar()}
             placeholder="# orden o cliente..."
-            className="flex-1 min-w-0  rounded-xl px-3 py-2 text-white text-sm outline-none" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}
+            className="flex-1 min-w-0  rounded-xl px-3 py-2 text-white text-sm outline-none" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}
           />
           <select value={estado} onChange={e => setEstado(e.target.value)}
-            className="rounded-xl px-3 py-2 text-white text-sm outline-none" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+            className="rounded-xl px-3 py-2 text-white text-sm outline-none" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
             {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
           </select>
           <button onClick={buscar}
@@ -450,7 +450,7 @@ export default function TrazabilidadPage() {
 
             const isSeleccionada = ordenSeleccionada?.id === orden.id
             return (
-              <div key={orden.id} className={`rounded-2xl overflow-hidden transition-all`} style={{background:'rgba(8,8,28,0.88)',border:isSeleccionada?'1px solid rgba(59,130,246,0.60)':'1px solid rgba(59,130,246,0.25)',borderRadius:14}}>
+              <div key={orden.id} className={`rounded-2xl overflow-hidden transition-all`} style={{background:'#09091f',border:isSeleccionada?'1px solid rgba(59,130,246,0.60)':'1px solid rgba(59,130,246,0.25)',borderRadius:14}}>
                 {/* Header — siempre visible, clickeable */}
                 <div onClick={() => toggleExpandido(orden.id, orden)} className="flex items-center gap-2 p-3 cursor-pointer hover:bg-zinc-800/50 transition-colors">
                   <span className="text-zinc-400 font-mono text-xs flex-shrink-0">#{orden.numeroFactura || orden.numeroOrden}</span>

@@ -135,7 +135,7 @@ export default function ListasPage() {
                 onKeyDown={e => e.key === 'Enter' && crear()}
                 placeholder="Ej: Zona Norte"
                 autoFocus
-                className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}
+                className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}
               />
             </div>
             <div className="flex gap-2 pt-1">
@@ -160,13 +160,13 @@ export default function ListasPage() {
               <input
                 value={nombre}
                 onChange={e => setNombre(e.target.value)}
-                className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}
+                className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}
               />
             </div>
             {empleados.length > 0 && (
               <div>
                 <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Vendedores asignados</label>
-                <div className="space-y-1 max-h-48 overflow-y-auto  rounded-xl p-2" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+                <div className="space-y-1 max-h-48 overflow-y-auto  rounded-xl p-2" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                   {empleados.map((emp: any) => (
                     <label key={emp.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-700 cursor-pointer">
                       <input

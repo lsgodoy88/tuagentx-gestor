@@ -689,7 +689,7 @@ export default function RutasFijasPage() {
                 <input value={buscarCli}
                   onChange={e => { setBuscarCli(e.target.value); setPageCli(1); loadClientes(e.target.value, 1) }}
                   placeholder="Buscar..."
-                  className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-blue-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
+                  className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-blue-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
                 <div className="space-y-1.5">
                   {clientes.filter((c: any) => !cliSeleccionados.includes(c.id)).map((c: any) => (
                     <div key={c.id} className="flex items-center gap-3 bg-zinc-800 rounded-xl px-3 py-2.5">
@@ -758,7 +758,7 @@ export default function RutasFijasPage() {
             {/* Promedio */}
             {promedio ? (
               promedio.promedio ? (
-                <div className="rounded-xl px-4 py-3 space-y-0.5" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+                <div className="rounded-xl px-4 py-3 space-y-0.5" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                   <p className="text-zinc-400 text-xs">Promedio mensual (últimos {promedio.meses} {promedio.meses === 1 ? 'mes' : 'meses'})</p>
                   <p className="text-emerald-400 font-bold text-base">${promedio.promedio.toLocaleString('es-CO')}</p>
                   <p className="text-zinc-600 text-[10px]">{promedio.cantidadVisitas} visitas registradas</p>
@@ -822,7 +822,7 @@ export default function RutasFijasPage() {
               <h3 className="text-white font-bold">Registrar gestion</h3>
               <button onClick={() => setModalGestion(false)} className="text-zinc-500 hover:text-white">x</button>
             </div>
-            <div className="rounded-xl p-3" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+            <div className="rounded-xl p-3" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
               <p className="text-white font-medium">{gestionPunto.nombre}</p>
               {gestionPunto.meta > 0 && <p className="text-zinc-500 text-xs mt-1">Meta: ${gestionPunto.meta.toLocaleString('es-CO')}</p>}
             </div>
@@ -837,10 +837,10 @@ export default function RutasFijasPage() {
             <input type="text" inputMode="numeric" value={gestionMonto}
               onChange={e => setGestionMonto(e.target.value.replace(/[^0-9]/g,''))}
               placeholder="Monto $"
-              className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-blue-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
+              className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-blue-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
             <textarea value={gestionNota} onChange={e => setGestionNota(e.target.value)}
               rows={2} placeholder="Nota opcional"
-              className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none resize-none" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
+              className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none resize-none" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
             <div className="flex gap-2">
               <button onClick={() => setModalGestion(false)} className="flex-1 bg-zinc-800 text-white text-sm py-3 rounded-xl">Cancelar</button>
               <button onClick={registrarGestion} disabled={guardandoGestion || !gestionMonto}

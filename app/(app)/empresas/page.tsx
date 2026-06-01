@@ -261,10 +261,10 @@ export default function EmpresasPage() {
                     <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Nombre empresa</label>
                     <input value={nombre} onChange={e => setNombre(e.target.value)}
                       placeholder="Ej: Distribuidora XYZ"
-                      className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
+                      className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
                   </div>
                   {nombre && (
-                    <div className="rounded-xl p-3" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+                    <div className="rounded-xl p-3" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                       <p className="text-zinc-400 text-xs mb-1">Usuario admin:</p>
                       <p className="text-emerald-400 font-mono text-sm">admin@{slugify(nombre)}</p>
                     </div>
@@ -273,7 +273,7 @@ export default function EmpresasPage() {
                     <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Contraseña inicial</label>
                     <input type="text" value={password} onChange={e => setPassword(e.target.value)}
                       placeholder="Contraseña para el admin"
-                      className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
+                      className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
                   </div>
                 </div>
               )}
@@ -281,7 +281,7 @@ export default function EmpresasPage() {
                 <div className="space-y-3">
                   <p className="text-white font-semibold">Cantidad de roles</p>
                   {rolesConfig.map(r => (
-                    <div key={r.label} className="flex items-center justify-between  rounded-xl px-4 py-3" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+                    <div key={r.label} className="flex items-center justify-between  rounded-xl px-4 py-3" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                       <span className="text-white text-sm font-medium">{r.label}</span>
                       <div className="flex items-center gap-3">
                         <button onClick={() => r.set(Math.max(0, r.value - 1))}
@@ -299,7 +299,7 @@ export default function EmpresasPage() {
                 <div className="text-center space-y-3">
                   <div className="text-4xl">✅</div>
                   <p className="text-white font-semibold">Empresa creada</p>
-                  <div className="rounded-xl p-4 text-left space-y-2" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+                  <div className="rounded-xl p-4 text-left space-y-2" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                     <p className="text-zinc-400 text-xs">Email admin:</p>
                     <p className="text-emerald-400 font-mono text-sm">{resultado.email}</p>
                     <p className="text-zinc-400 text-xs mt-2">Contraseña:</p>
@@ -340,7 +340,7 @@ export default function EmpresasPage() {
             </div>
             <div className="space-y-3">
               {rolesConfig.map(r => (
-                <div key={r.label} className="flex items-center justify-between  rounded-xl px-4 py-3" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}}>
+                <div key={r.label} className="flex items-center justify-between  rounded-xl px-4 py-3" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                   <span className="text-white text-sm font-medium">{r.label}</span>
                   <div className="flex items-center gap-3">
                     <button onClick={() => r.set(Math.max(0, r.value - 1))}
@@ -381,7 +381,7 @@ export default function EmpresasPage() {
               </label>
               <input value={confirmText} onChange={e => setConfirmText(e.target.value)}
                 placeholder="eliminar"
-                className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-red-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
+                className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-red-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
             </div>
             <div className="flex gap-2">
               <button onClick={() => { setModalEliminar(null); setConfirmText('') }}
@@ -405,7 +405,7 @@ export default function EmpresasPage() {
               <input value={newPass} onChange={e => setNewPass(e.target.value)}
                 placeholder="Nueva contraseña (mín. 6 caracteres)"
                 type={showPass ? 'text' : 'password'}
-                className="w-full  rounded-xl px-4 py-2.5 pr-10 text-white text-sm outline-none focus:border-emerald-500" style={{background:"rgba(30,32,48,0.98)",border:"1px solid rgba(59,130,246,0.20)"}} />
+                className="w-full  rounded-xl px-4 py-2.5 pr-10 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
               <button type="button" tabIndex={-1} onClick={() => setShowPass(p => !p)}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white">
                 {showPass
