@@ -19,7 +19,10 @@ export async function GET(req: NextRequest) {
   const useCursor = !!cursor || searchParams.has('cursor') || (searchParams.has('limit') && !searchParams.has('page'))
   const skip = useCursor ? undefined : (page - 1) * limit
 
-  const where: any = { empleadoId: user.id }
+  const isAdmin = ['empresa', 'supervisor'].includes(user.role)
+  const where: any = isAdmin ? {} : { empleadoId: user.id }
+  // Filtrar por empresa si es admin
+  if (isAdmin && user.empresaId) where.empleado = { empresaId: user.empresaId }
 
   if (fecha) {
     // Compensar UTC-5 de Bogotá: el día local inicia a las 05:00Z y termina a las 04:59:59.999Z del día siguiente
