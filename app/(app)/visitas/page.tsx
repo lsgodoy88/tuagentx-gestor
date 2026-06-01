@@ -34,8 +34,10 @@ export default function VisitasPage() {
   const [tab, setTab] = useState<'mapa' | 'nueva' | 'historial'>('mapa')
   const searchParams = useSearchParams()
 
-  // Activar tab historial y prellenar búsqueda desde URL
+  // Activar tab historial y prellenar búsqueda desde URL — esperar sesión
+  const [urlParamsApplied, setUrlParamsApplied] = useState(false)
   useEffect(() => {
+    if (!session || urlParamsApplied) return
     const tabParam = searchParams.get('tab')
     const qParam = searchParams.get('q')
     if (tabParam === 'historial') {
@@ -44,8 +46,9 @@ export default function VisitasPage() {
         setBuscarHistorial(qParam)
         loadHistorial(qParam, '', null)
       }
+      setUrlParamsApplied(true)
     }
-  }, [])
+  }, [session])
 
   // Firma viewer
   const [firmaVer, setFirmaVer] = useState<any>(null)
