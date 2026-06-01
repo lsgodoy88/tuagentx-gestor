@@ -940,7 +940,7 @@ export default function CarteraPage() {
                               </td>
                               {/* Vendedor — solo primera fila */}
                               {esSupervisor && (
-                                <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"rgba(255,255,255,0.6)",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d",textTransform:"capitalize"}}>
+                                <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d",textTransform:"capitalize"}}>
                                   {esPrimera ? (cartera.empleado?.nombre?.toLowerCase() || '—') : null}
                                 </td>
                               )}
@@ -949,7 +949,7 @@ export default function CarteraPage() {
                                 {d.numeroFactura ? `#${d.numeroFactura}` : d.numeroOrden ? `#${d.numeroOrden}` : '—'}
                               </td>
                               {/* Vencimiento */}
-                              <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"rgba(255,255,255,0.6)",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d",textTransform:"capitalize"}}>
+                              <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d",textTransform:"capitalize"}}>
                                 {d.fechaVencimiento
                                   ? new Date(d.fechaVencimiento).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'America/Bogota'})
                                   : '—'}
@@ -1100,7 +1100,7 @@ export default function CarteraPage() {
                     {rows.map((p: any, i: number) => (
                       <tr key={p.id}
                         style={{background: i%2===0 ? '#141c2e' : '#141c2e', borderBottom:'1px solid #1e2a3d'}}>
-                        <td style={{padding:"8px 16px",fontSize:14,fontWeight:500,color:"rgba(255,255,255,0.6)",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
+                        <td style={{padding:"8px 16px",fontSize:14,fontWeight:500,color:"white",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
                           {new Date(p.createdAt).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'America/Bogota'})}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
