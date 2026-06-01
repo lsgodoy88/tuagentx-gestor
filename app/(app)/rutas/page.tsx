@@ -377,32 +377,55 @@ export default function RutasPage() {
 
       {tabPrincipal === 'historial' && (
         <div className="space-y-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-2">
-            <div className="flex gap-2">
-              <input value={visClienteFiltro} onChange={e => setVisClienteFiltro(e.target.value)}
-                placeholder="Buscar cliente..." onKeyDown={e => e.key === 'Enter' && buscarVisitas()}
-                className="flex-1  rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
-              <button onClick={() => buscarVisitas()} disabled={visLoading}
-                className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-xl text-sm flex-shrink-0">
-                {visLoading ? '...' : '🔍'}
-              </button>
-            </div>
-            <div className="flex gap-2">
-              <select value={visEmpleadoFiltro} onChange={e => setVisEmpleadoFiltro(e.target.value)}
-                className="flex-1  rounded-xl px-3 py-2 text-white text-sm outline-none" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
-                <option value="">Todos los empleados</option>
-                {visEmpleados.filter((e: any) => e.activo).map((e: any) => (
-                  <option key={e.id} value={e.id}>{e.nombre}</option>
-                ))}
-              </select>
-              <div className="relative flex-shrink-0">
-                <input type="date" value={visFechaFiltro} onChange={e => setVisFechaFiltro(e.target.value)}
-                  className="absolute inset-0 opacity-0 cursor-pointer w-full" />
-                <div className={"flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-medium border " + (visFechaFiltro ? "bg-emerald-600 border-emerald-500 text-white" : "bg-zinc-800 border-zinc-700 text-zinc-400")}>
-                  <span>📅</span>
-                  {visFechaFiltro ? new Date(visFechaFiltro + 'T12:00:00Z').toLocaleDateString('es-CO', {day:'numeric', month:'short', timeZone: 'America/Bogota'}) : ''}
-                  {visFechaFiltro && <button onClick={e => { e.stopPropagation(); setVisFechaFiltro('') }} className="ml-1 text-white/70 hover:text-white">✕</button>}
+          {/* Controles — una sola línea */}
+          <div className="flex gap-2 items-center">
+            <div style={{position:'relative',display:'flex',alignItems:'center',background:'#1e243a',border:'1px solid #1e3a5f',borderRadius:10,padding:'0 10px',gap:6,flex:1}}>
+              <span style={{color:'#4b7cb5',fontSize:14,flexShrink:0}}>🔍</span>
+              <input value={visClienteFiltro} onChange={e => {
+                setVisClienteFiltro(e.target.value)
+                clearTimeout(visSugRef.current)
+                visSugRef.current = setTimeout(() => { buscarClientesVis(e.target.value); setVisShowSug(true) }, 300)
+              }}
+                placeholder="Buscar cliente..."
+                autoComplete="off"
+                onFocus={() => { if (visClienteFiltro.length >= 2) setVisShowSug(true) }}
+                onBlur={() => setTimeout(() => setVisShowSug(false), 200)}
+                onKeyDown={e => e.key === 'Enter' && buscarVisitas()}
+                style={{background:'none',border:'none',color:'white',fontSize:12,outline:'none',flex:1,padding:'7px 0'}} />
+              {visClienteFiltro && <button onClick={()=>{setVisClienteFiltro('');setVisSugerencias([]);buscarVisitas()}} style={{background:'none',border:'none',color:'#6b7280',cursor:'pointer',fontSize:14,padding:0,flexShrink:0}}>×</button>}
+              {visShowSug && visSugerencias.length > 0 && (
+                <div style={{position:'absolute',top:'100%',left:0,zIndex:50,background:'#1e243a',border:'1px solid #1e3a5f',borderRadius:10,minWidth:260,marginTop:4,overflow:'hidden'}}>
+                  {visSugerencias.map((cl:any) => (
+                    <button key={cl.id} onMouseDown={() => {
+                      setVisShowSug(false); setVisSugerencias([])
+                      setVisClienteFiltro(cl.nit || cl.nombre)
+                      setTimeout(() => buscarVisitas(), 50)
+                    }} style={{width:'100%',textAlign:'left',padding:'8px 14px',background:'none',border:'none',borderBottom:'1px solid #1e3a5f',color:'white',fontSize:12,cursor:'pointer'}}
+                      onMouseEnter={e=>(e.currentTarget.style.background='#0f2540')}
+                      onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+                      <span style={{fontWeight:500}}>{cl.nombre}</span>
+                      {cl.nit && <span style={{color:'#6b7280',marginLeft:6}}>{cl.nit}</span>}
+                    </button>
+                  ))}
                 </div>
+              )}
+            </div>
+            <select value={visEmpleadoFiltro} onChange={e => { setVisEmpleadoFiltro(e.target.value); setTimeout(() => buscarVisitas(), 50) }}
+              style={{background:'#1e243a',border:'1px solid #1e3a5f',borderRadius:10,padding:'7px 10px',color:'white',fontSize:12,outline:'none',cursor:'pointer'}}>
+              <option value="">Todos los empleados</option>
+              {visEmpleados.filter((e: any) => e.activo).map((e: any) => (
+                <option key={e.id} value={e.id}>{e.nombre}</option>
+              ))}
+            </select>
+            <div className="relative flex-shrink-0">
+              <input type="date" value={visFechaFiltro} onChange={e => { setVisFechaFiltro(e.target.value); setTimeout(() => buscarVisitas(), 50) }}
+                className="absolute inset-0 opacity-0 cursor-pointer w-full" />
+              <div style={{display:'flex',alignItems:'center',gap:4,padding:'7px 10px',borderRadius:10,fontSize:12,border:'1px solid',cursor:'pointer',
+                background: visFechaFiltro ? '#09091e' : '#1e243a',
+                borderColor: visFechaFiltro ? '#2563eb' : '#1e3a5f',
+                color: visFechaFiltro ? 'white' : 'rgba(255,255,255,0.5)'}}>
+                📅{visFechaFiltro ? ' '+new Date(visFechaFiltro+'T12:00:00Z').toLocaleDateString('es-CO',{day:'numeric',month:'short',timeZone:'America/Bogota'}) : ''}
+                {visFechaFiltro && <button onClick={e=>{e.stopPropagation();setVisFechaFiltro('');buscarVisitas()}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.7)',cursor:'pointer',fontSize:14,lineHeight:1,padding:0,marginLeft:2}}>×</button>}
               </div>
             </div>
           </div>
