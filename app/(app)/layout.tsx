@@ -2,11 +2,13 @@
 import AsistenteGestor from '@/components/AsistenteGestor'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { GpsContext } from '@/lib/gps-context'
 import Link from 'next/link'
 import PermisosGuard from '@/components/PermisosGuard'
 import { NetworkBanner } from '@/components/NetworkBanner'
+import { NetworkContext } from '@/lib/network-context'
+import { useNetwork } from '@/lib/useNetwork'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession()
@@ -58,6 +60,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [bannerCerrado, setBannerCerrado] = useState(false)
   const [menuUsuario, setMenuUsuario] = useState(false)
   const [sincronizandoGps, setSincronizandoGps] = useState(false)
+  const { online } = useNetwork()
+  const [offlineToast, setOfflineToast] = useState(false)
+
+  const handleOfflineNav = useCallback((e: React.MouseEvent) => {
+    if (!online) {
+      e.preventDefault()
+      setOfflineToast(true)
+      setTimeout(() => setOfflineToast(false), 2800)
+    }
+  }, [online])
   const user = session?.user as any
 
   useEffect(() => {
@@ -265,6 +277,27 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <NetworkBanner />
 
+      {/* Toast sin conexión */}
+      {offlineToast && (
+        <div aria-live="polite" style={{
+          position:'fixed', bottom:80, left:'50%', transform:'translateX(-50%)',
+          zIndex:9999, background:'rgba(10,8,4,0.92)', border:'1px solid rgba(239,68,68,0.55)',
+          borderRadius:14, padding:'10px 18px', display:'flex', alignItems:'center', gap:8,
+          whiteSpace:'nowrap', pointerEvents:'none',
+          boxShadow:'0 0 16px rgba(239,68,68,0.25)',
+        }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+            <rect x="2" y="18" width="3" height="3" rx="0.5" fill="white" opacity="0.7"/>
+            <rect x="7" y="14" width="3" height="7" rx="0.5" fill="white" opacity="0.7"/>
+            <rect x="12" y="10" width="3" height="11" rx="0.5" fill="white" opacity="0.7"/>
+            <rect x="17" y="6" width="3" height="15" rx="0.5" fill="white" opacity="0.7"/>
+            <line x1="14" y1="3" x2="20" y2="9" stroke="#ef4444" strokeWidth="2" strokeLinecap="round"/>
+            <line x1="20" y1="3" x2="14" y2="9" stroke="#ef4444" strokeWidth="2" strokeLinecap="round"/>
+          </svg>
+          <span style={{fontSize:13, fontWeight:600, color:'#fca5a5'}}>Sin conexión — no se puede navegar</span>
+        </div>
+      )}
+
       {/* ── SIDEBAR DESKTOP ── */}
       <aside className="flex-col hidden md:flex flex-shrink-0 fixed top-0 left-0 h-screen z-10" style={{width: sidebarExpanded ? 224 : 0, opacity: sidebarExpanded ? 1 : 0, transition:"width 0.2s ease, opacity 0.1s ease", overflowX:"hidden", overflowY: sidebarExpanded ? "auto" : "hidden", background:'rgba(8,10,30,0.82)',backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',borderRight:'1px solid rgba(255,255,255,0.10)'}}>
 
@@ -294,6 +327,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   return (
                     <Link key={item.href} href={item.href}
                       title={!sidebarExpanded ? item.label : ''}
+                      onClick={handleOfflineNav}
                       className={`relative flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium ${!sidebarExpanded ? 'justify-center' : ''} ${isActive ? 'text-white' : 'text-white hover:bg-[#0f2540]'}`}
                       style={isActive ? {background:'#1e3a5f'} : {}}>
                       <span className="text-base flex-shrink-0">{item.icon}</span>
@@ -398,9 +432,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className={`flex-1 overflow-x-clip p-4 md:p-6 pb-24 md:pb-6${bloqueado ? ' pointer-events-none opacity-50' : ''}`}>
           <div className="max-w-screen-xl mx-auto w-full space-y-6">
             <PermisosGuard role={user?.role}>
-              <GpsContext.Provider value={{ setSincronizandoGps }}>
-                {children}
-              </GpsContext.Provider>
+              <NetworkContext.Provider value={{ online }}>
+                <GpsContext.Provider value={{ setSincronizandoGps }}>
+                  {children}
+                </GpsContext.Provider>
+              </NetworkContext.Provider>
             </PermisosGuard>
           </div>
         </div>
@@ -436,7 +472,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             return (
               <Link key={item.href} href={item.href}
                 prefetch
-                onClick={() => setDrawerOpen(false)}
+                onClick={(e) => { handleOfflineNav(e); if (online) setDrawerOpen(false) }}
                 style={{
                   display:'flex',flexDirection:'column',alignItems:'center',gap:4,
                   padding:'10px 4px',borderRadius:14,textDecoration:'none',
