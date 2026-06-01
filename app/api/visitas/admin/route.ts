@@ -29,7 +29,10 @@ export async function GET(req: NextRequest) {
     empleado: { empresaId },
   }
   if (tipo) where.tipo = tipo
-  if (q) where.cliente = { nombre: { contains: q, mode: 'insensitive' } }
+  if (q) where.cliente = { OR: [
+    { nombre: { contains: q, mode: 'insensitive' } },
+    { nit: { contains: q, mode: 'insensitive' } },
+  ] }
 
   if (empleadoId) where.empleadoId = empleadoId
   if (fecha) {

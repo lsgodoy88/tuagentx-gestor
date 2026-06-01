@@ -399,9 +399,8 @@ export default function RutasPage() {
                   {visSugerencias.map((cl:any) => (
                     <button key={cl.id} onMouseDown={() => {
                       setVisShowSug(false); setVisSugerencias([])
-                      const qVal = cl.nit || cl.nombre
-                      setVisClienteFiltro(qVal)
-                      buscarVisitas(1, qVal)
+                      setVisClienteFiltro(cl.nombre)
+                      buscarVisitas(1, cl.nombre)
                     }} style={{width:'100%',textAlign:'left',padding:'8px 14px',background:'none',border:'none',borderBottom:'1px solid #1e3a5f',color:'white',fontSize:12,cursor:'pointer'}}
                       onMouseEnter={e=>(e.currentTarget.style.background='#0f2540')}
                       onMouseLeave={e=>(e.currentTarget.style.background='none')}>
