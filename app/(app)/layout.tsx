@@ -355,11 +355,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       </aside>
 
-      {/* Notch toggle sidebar — al nivel del header */}
+      {/* Notch toggle sidebar — centrado vertical */}
       <button
-        className="hidden md:flex fixed z-20 items-center justify-center"
+        className="hidden md:flex fixed top-1/2 -translate-y-1/2 z-20 items-center justify-center"
         onClick={() => setSidebarOpen(o => !o)}
-        style={{left: sidebarOpen ? 224 : 0, top:0, width:20, height:56, background:'rgba(8,10,30,0.82)', borderRadius:'0 0 8px 0', borderRight:'1px solid rgba(59,130,246,0.25)', borderBottom:'1px solid rgba(59,130,246,0.25)', cursor:'pointer', color:'#7aa2c8', fontSize:14, fontWeight:'bold', transition:'left 0.2s ease'}}>
+        style={{left: sidebarOpen ? 224 : 0, width:20, height:80, background:'rgba(8,10,30,0.82)', borderRadius:'0 10px 10px 0', border:'1px solid rgba(59,130,246,0.25)', borderLeft:'none', cursor:'pointer', color:'#7aa2c8', fontSize:16, fontWeight:'bold', transition:'left 0.2s ease'}}>
         {sidebarOpen ? '‹' : '›'}
       </button>
 
