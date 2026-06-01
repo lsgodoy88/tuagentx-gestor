@@ -87,7 +87,7 @@ export default function VisitasPage() {
   function CardVisita({ v }: { v: any }) {
     const expandido = detalleCliente === v.id
     return (
-      <div className="border border-zinc-800 rounded-2xl p-4" style={{background:"#060a24"}}>
+      <div className="border border-zinc-800 rounded-2xl p-4" style={{background:"#1e243a"}}>
         <div className="flex items-center gap-3">
           <span className="text-lg flex-shrink-0">
             {v.tipo === 'venta' ? '💰' : v.tipo === 'cobro' ? '💵' : v.tipo === 'entrega' ? '📦' : '👁️'}
@@ -166,7 +166,7 @@ export default function VisitasPage() {
               debounceRef.current = setTimeout(() => loadHistorial(q, '', null), 500)
             }}
               placeholder="Buscar cliente..."
-              style={{ background:'#060a24', border:'1px solid #1e3a5f', borderRadius:10, padding:'7px 14px', color:'white', fontSize:12, outline:'none', width:160 }} />
+              style={{ background:'#1e243a', border:'1px solid #1e3a5f', borderRadius:10, padding:'7px 14px', color:'white', fontSize:12, outline:'none', width:160 }} />
             <div className="relative flex-shrink-0">
               <input type="date" value={fechaHistorial} onChange={e => {
                 const f = e.target.value
@@ -196,12 +196,12 @@ export default function VisitasPage() {
             isEntregas ? (
               <div className="space-y-2">
                 {ordenesAsignadas.length === 0 && (
-                  <div className="border border-zinc-800 rounded-2xl p-4 text-center" style={{background:"#060a24"}}>
+                  <div className="border border-zinc-800 rounded-2xl p-4 text-center" style={{background:"#1e243a"}}>
                     <p className="text-zinc-400 text-sm">No tienes órdenes asignadas pendientes de entrega</p>
                   </div>
                 )}
                 {ordenesAsignadas.map((o: any) => (
-                  <div key={o.id} className="border border-zinc-800 rounded-2xl px-4 py-3 flex items-center justify-between gap-3" style={{background:"#060a24"}}>
+                  <div key={o.id} className="border border-zinc-800 rounded-2xl px-4 py-3 flex items-center justify-between gap-3" style={{background:"#1e243a"}}>
                     <div className="min-w-0">
                       <p className="text-white text-sm font-semibold truncate">#{o.numeroFactura || o.numeroOrden} · {o.clienteNombre}</p>
                       {o.ciudad && <p className="text-zinc-400 text-xs">{o.ciudad}</p>}
@@ -221,11 +221,11 @@ export default function VisitasPage() {
             </button>
             )
           ) : turno && !puedeRegistrar ? (
-            <div className="border border-zinc-800 rounded-2xl p-4 text-center" style={{background:"#060a24"}}>
+            <div className="border border-zinc-800 rounded-2xl p-4 text-center" style={{background:"#1e243a"}}>
               <p className="text-zinc-400 text-sm">Sin permiso para registrar visitas</p>
             </div>
           ) : (
-            <div className="border border-zinc-800 rounded-2xl p-4 text-center" style={{background:"#060a24"}}>
+            <div className="border border-zinc-800 rounded-2xl p-4 text-center" style={{background:"#1e243a"}}>
               <p className="text-zinc-400 text-sm">Debes tener un turno activo para {isEntregas ? 'registrar entregas' : 'registrar visitas'}</p>
             </div>
           )}
@@ -250,7 +250,7 @@ export default function VisitasPage() {
               debounceRef.current = setTimeout(() => loadHistorial(q, '', null), 500)
             }}
               placeholder="Buscar cliente..."
-              style={{ flex:1, background:'#060a24', border:'1px solid #1e3a5f', borderRadius:10, padding:'10px 14px', color:'white', fontSize:13, outline:'none' }} />
+              style={{ flex:1, background:'#1e243a', border:'1px solid #1e3a5f', borderRadius:10, padding:'10px 14px', color:'white', fontSize:13, outline:'none' }} />
             <div className="relative flex-shrink-0">
               <input type="date" value={fechaHistorial} onChange={e => {
                 const f = e.target.value
