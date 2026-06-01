@@ -973,8 +973,7 @@ export default function CarteraPage() {
                                 {esPrimera && Number(cartera.saldoPendiente) > 0 ? (
                                   <div className="flex items-center justify-center gap-2">
                                     <button onClick={() => abrirRecaudar(cartera)}
-                                      className="flex items-center justify-center px-2 py-1.5 rounded-lg transition-colors"
-                                      style={{background:'linear-gradient(135deg,#1d4ed8,#3b82f6)',color:'#fff'}}>
+                                      style={{background:'none',border:'none',cursor:'pointer',fontSize:18,padding:'2px 4px'}}>
                                       💳
                                     </button>
                                     <button onClick={() => abrirWhatsApp(cartera)}
