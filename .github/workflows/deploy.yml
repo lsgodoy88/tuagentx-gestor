@@ -102,6 +102,11 @@ jobs:
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'touch /tmp/gestor-deploying'
 
+      - name: Clean .next on server
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            'rm -rf /srv/gestor/.next'
+
       - name: Rsync .next to server
         run: |
           rsync -az --delete \
