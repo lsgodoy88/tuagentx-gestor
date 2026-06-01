@@ -38,7 +38,8 @@ export default function VisitasPage() {
   // Activar tab historial y prellenar búsqueda desde URL — esperar sesión
   const [urlParamsApplied, setUrlParamsApplied] = useState(false)
   const [selectedGps, setSelectedGps] = useState<{lat:number,lng:number}|null>(null)
-  const clienteEspecifico = !!searchParams.get('q')
+  const clientesUnicos = [...new Set(historial.map(v => v.clienteId).filter(Boolean))]
+  const clienteEspecifico = clientesUnicos.length === 1 && historial.length > 0
   const [sugerencias, setSugerencias] = useState<any[]>([])
   const [showSug, setShowSug] = useState(false)
   const sugRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
