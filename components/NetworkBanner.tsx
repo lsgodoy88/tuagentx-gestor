@@ -1,8 +1,8 @@
 'use client'
-import { useNetwork } from '@/lib/useNetwork'
+import { useNetworkContext } from '@/lib/network-context'
 
 export function NetworkBanner() {
-  const { online, lastOnline } = useNetwork()
+  const { online, lastOnline } = useNetworkContext()
   if (online) return null
 
   const mins = lastOnline
@@ -23,7 +23,6 @@ export function NetworkBanner() {
           inset: 0,
           zIndex: 9998,
           pointerEvents: 'none',
-          borderRadius: 0,
           boxShadow:
             'inset 0 0 0 2px rgba(239,68,68,0.70), inset 0 0 12px 2px rgba(239,68,68,0.35), inset 0 0 28px 4px rgba(239,68,68,0.15)',
           animation: 'neon-border-pulse 2s ease-in-out infinite',
@@ -57,7 +56,6 @@ export function NetworkBanner() {
             background: 'rgba(220,38,38,0.25)',
             border: '1px solid rgba(239,68,68,0.55)',
           }}>
-
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
             <rect x="2" y="18" width="3" height="3" rx="0.5" fill="white" opacity="0.9"/>
             <rect x="7" y="14" width="3" height="7" rx="0.5" fill="white" opacity="0.9"/>
@@ -66,12 +64,9 @@ export function NetworkBanner() {
             <line x1="14" y1="3" x2="20" y2="9" stroke="#ef4444" strokeWidth="2" strokeLinecap="round"/>
             <line x1="20" y1="3" x2="14" y2="9" stroke="#ef4444" strokeWidth="2" strokeLinecap="round"/>
           </svg>
-
           <span className="absolute inset-0 rounded-2xl animate-ping"
             style={{background:'rgba(220,38,38,0.20)', animationDuration:'2s'}} />
         </div>
-
-        {/* Tooltip */}
         <div className="absolute top-12 right-0 whitespace-nowrap text-xs font-semibold text-red-300 px-3 py-1.5 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
           style={{
             background: 'rgba(10,8,4,0.85)',
