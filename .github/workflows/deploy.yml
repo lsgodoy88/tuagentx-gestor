@@ -2,9 +2,8 @@ name: Deploy Gestor
 
 on:
   workflow_dispatch:
-  # Activar cuando esté validado:
-  # push:
-  #   branches: [main]
+  push:
+    branches: [main]
 
 concurrency:
   group: deploy-gestor
