@@ -140,8 +140,8 @@ jobs:
             exit 1
           fi
 
-          rm -f /tmp/gestor-deploying
           bash /srv/gestor/scripts/smoke-test.sh
+          rm -f /tmp/gestor-deploying
 
           VER=$(curl -fsS http://localhost:3010/api/version 2>/dev/null || echo "sin versión")
           COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
