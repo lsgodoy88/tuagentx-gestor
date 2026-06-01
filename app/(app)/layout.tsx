@@ -43,13 +43,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     document.title = `${titles[pathname] || 'Gestor'} — TuAgentX`
   }, [pathname])
 
-  const [collapsed, setCollapsed] = useState(false)
-  const [hovered, setHovered] = useState(false)
-  const sidebarExpanded = !collapsed || hovered
+  const [autoCollapsed, setAutoCollapsed] = useState(false) // por viewport
+  const [pinned, setPinned] = useState(false)               // forzado abierto por usuario
+  const collapsed = autoCollapsed && !pinned
+  const sidebarExpanded = !collapsed
 
   // Auto-colapso en viewport < 1280px
   useEffect(() => {
-    const check = () => setCollapsed(window.innerWidth < 1280)
+    const check = () => {
+      const small = window.innerWidth < 1280
+      setAutoCollapsed(small)
+      if (!small) setPinned(false) // en pantalla grande, siempre visible
+    }
     check()
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
@@ -359,10 +364,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </aside>
 
       {/* Notch para expandir sidebar en desktop */}
-      {collapsed && !hovered && (
+      {collapsed && (
         <button
           className="hidden md:flex fixed top-1/2 left-0 -translate-y-1/2 z-20 items-center justify-center"
-          onClick={() => setCollapsed(false)}
+          onClick={() => setPinned(p => !p)}
           style={{width:16,height:48,background:'#1e243a',borderRadius:'0 8px 8px 0',border:'1px solid rgba(255,255,255,0.10)',borderLeft:'none',cursor:'pointer',color:'white',fontSize:10}}>
           ›
         </button>
