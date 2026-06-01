@@ -439,7 +439,7 @@ export default function CarteraPage() {
     { id: 'clientes', label: '📋 CPC' },
     { id: 'pagos', label: '💳 Pagos' },
     { id: 'cartera', label: '📈 Cartera' },
-    ...(isAdmin ? [{ id: 'comisiones', label: '💼 Comisiones' }] : []),
+    ...(isAdmin ? [{ id: 'comisiones', label: '💼 Bonus' }] : []),
   ] as const
 
 
@@ -475,8 +475,12 @@ export default function CarteraPage() {
           <button key={t.id} onClick={() => setTab(t.id as any)}
             className={`flex-1 py-2 text-sm font-semibold transition-colors ${tab === t.id ? 'tab-active' : 'text-white hover:text-white'}`}>{t.label}</button>
         ))}
-
       </div>
+      {tab === 'clientes' && (
+        <input value={buscar} onChange={e => onBuscarChange(e.target.value)}
+          placeholder="Buscar por nombre o NIT..."
+          className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
+      )}
 
       {tab === 'cartera' && (<div key='tab-cartera' className='fade-up'>
       {(() => {
@@ -852,9 +856,6 @@ export default function CarteraPage() {
       {/* CLIENTES */}
       {tab === 'clientes' && (<div key='tab-clientes' className='fade-up'>
         <div className="space-y-3">
-          <input value={buscar} onChange={e => onBuscarChange(e.target.value)}
-            placeholder="Buscar por nombre o NIT..."
-            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
 
           {/* MÓVIL — cards colapsables (sin cambios) */}
           <div className="lg:hidden">
