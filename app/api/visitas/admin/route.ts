@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
   const [visitas, total] = await Promise.all([
     prisma.visita.findMany({
       where,
-      select: { id: true, tipo: true, monto: true, nota: true, factura: true, firma: true, lat: true, lng: true, createdAt: true, fechaBogota: true, clienteId: true, empleadoId: true, cliente: { select: { id: true, nombre: true, ciudad: true } }, empleado: { select: { id: true, nombre: true, rol: true } } },
+      select: { id: true, tipo: true, monto: true, nota: true, factura: true, firma: true, lat: true, lng: true, createdAt: true, fechaBogota: true, clienteId: true, empleadoId: true, cliente: { select: { id: true, nombre: true, ciudad: true, direccion: true, nit: true, maps: true, lat: true, lng: true } }, empleado: { select: { id: true, nombre: true, rol: true } } },
       orderBy: { createdAt: 'desc' },
       skip,
       take: limit,

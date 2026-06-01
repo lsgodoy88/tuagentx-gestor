@@ -56,13 +56,14 @@ export default function RutasPage() {
     setVisSugerencias(Array.isArray(res?.clientes) ? res.clientes : Array.isArray(res) ? res : [])
   }
 
-  async function buscarVisitas(p?: number) {
+  async function buscarVisitas(p?: number, qOverride?: string) {
     const pg = p ?? visPage
+    const qVal = qOverride !== undefined ? qOverride : visClienteFiltro
     setVisLoading(true)
     const params = new URLSearchParams()
     if (visEmpleadoFiltro) params.set('empleadoId', visEmpleadoFiltro)
     if (visFechaFiltro) params.set('fecha', visFechaFiltro)
-    if (visClienteFiltro) params.set('q', visClienteFiltro)
+    if (qVal) params.set('q', qVal)
     params.set('page', String(pg))
     params.set('limit', String(VIS_LIMIT))
     const res = await fetch('/api/visitas/admin?' + params.toString()).then(r => r.json())
@@ -392,14 +393,15 @@ export default function RutasPage() {
                 onBlur={() => setTimeout(() => setVisShowSug(false), 200)}
                 onKeyDown={e => e.key === 'Enter' && buscarVisitas()}
                 style={{background:'none',border:'none',color:'white',fontSize:12,outline:'none',flex:1,padding:'7px 0'}} />
-              {visClienteFiltro && <button onClick={()=>{setVisClienteFiltro('');setVisSugerencias([]);buscarVisitas()}} style={{background:'none',border:'none',color:'#6b7280',cursor:'pointer',fontSize:14,padding:0,flexShrink:0}}>×</button>}
+              {visClienteFiltro && <button onClick={()=>{setVisClienteFiltro('');setVisSugerencias([]);buscarVisitas(1,'')}} style={{background:'none',border:'none',color:'#6b7280',cursor:'pointer',fontSize:14,padding:0,flexShrink:0}}>×</button>}
               {visShowSug && visSugerencias.length > 0 && (
                 <div style={{position:'absolute',top:'100%',left:0,zIndex:50,background:'#1e243a',border:'1px solid #1e3a5f',borderRadius:10,minWidth:260,marginTop:4,overflow:'hidden'}}>
                   {visSugerencias.map((cl:any) => (
                     <button key={cl.id} onMouseDown={() => {
                       setVisShowSug(false); setVisSugerencias([])
-                      setVisClienteFiltro(cl.nit || cl.nombre)
-                      setTimeout(() => buscarVisitas(), 50)
+                      const qVal = cl.nit || cl.nombre
+                      setVisClienteFiltro(qVal)
+                      buscarVisitas(1, qVal)
                     }} style={{width:'100%',textAlign:'left',padding:'8px 14px',background:'none',border:'none',borderBottom:'1px solid #1e3a5f',color:'white',fontSize:12,cursor:'pointer'}}
                       onMouseEnter={e=>(e.currentTarget.style.background='#0f2540')}
                       onMouseLeave={e=>(e.currentTarget.style.background='none')}>
@@ -410,7 +412,7 @@ export default function RutasPage() {
                 </div>
               )}
             </div>
-            <select value={visEmpleadoFiltro} onChange={e => { setVisEmpleadoFiltro(e.target.value); setTimeout(() => buscarVisitas(), 50) }}
+            <select value={visEmpleadoFiltro} onChange={e => { setVisEmpleadoFiltro(e.target.value); buscarVisitas(1) }}
               style={{background:'#1e243a',border:'1px solid #1e3a5f',borderRadius:10,padding:'7px 10px',color:'white',fontSize:12,outline:'none',cursor:'pointer'}}>
               <option value="">Todos los empleados</option>
               {visEmpleados.filter((e: any) => e.activo).map((e: any) => (
@@ -418,7 +420,7 @@ export default function RutasPage() {
               ))}
             </select>
             <div className="relative flex-shrink-0">
-              <input type="date" value={visFechaFiltro} onChange={e => { setVisFechaFiltro(e.target.value); setTimeout(() => buscarVisitas(), 50) }}
+              <input type="date" value={visFechaFiltro} onChange={e => { setVisFechaFiltro(e.target.value); buscarVisitas(1) }}
                 className="absolute inset-0 opacity-0 cursor-pointer w-full" />
               <div style={{display:'flex',alignItems:'center',gap:4,padding:'7px 10px',borderRadius:10,fontSize:12,border:'1px solid',cursor:'pointer',
                 background: visFechaFiltro ? '#09091e' : '#1e243a',
