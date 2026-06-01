@@ -942,7 +942,7 @@ export default function CarteraPage() {
                               </td>
                               {/* Vendedor — solo primera fila */}
                               {esSupervisor && (
-                                <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",fontFamily:"monospace",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d",textAlign:"center"}}>
+                                <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d",textAlign:"center"}}>
                                   {esPrimera ? (cartera.empleado?.nombre?.toLowerCase() || '—') : null}
                                 </td>
                               )}
