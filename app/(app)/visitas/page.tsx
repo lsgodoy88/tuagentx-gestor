@@ -195,42 +195,54 @@ export default function VisitasPage() {
             className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'nueva' ? "tab-active" : "text-white hover:text-white")}>
             {isEntregas ? '📦 Nueva' : '📍 Nueva'}
           </button>
-
+          <button onClick={() => setTab('historial')}
+            className={"flex-1 py-2 rounded-lg text-sm font-medium transition-colors " + (tab === 'historial' ? "tab-active" : "text-white hover:text-white")}>
+            📋 Historial
+          </button>
         </div>
-        {/* Controles historial — solo desktop cuando tab historial */}
+        {/* Controles historial desktop — inline con tabs */}
         {tab === 'historial' && (
           <div className="hidden md:flex gap-2 items-center flex-shrink-0">
-            <div style={{position:'relative'}}>
-            <input value={buscarHistorial} onChange={e => {
-              const q = e.target.value
-              setBuscarHistorial(q)
-              setFechaHistorial('')
-              clearTimeout(debounceRef.current)
-              clearTimeout(sugRef.current)
-              sugRef.current = setTimeout(() => { buscarClientes(q); setShowSug(true) }, 300)
-            }}
-              placeholder="Buscar cliente..."
-              autoComplete="off"
-              onFocus={() => { if (buscarHistorial.length >= 2) setShowSug(true) }}
-              onBlur={() => setTimeout(() => setShowSug(false), 200)}
-              style={{ background:'#1e243a', border:'1px solid #1e3a5f', borderRadius:10, padding:'7px 14px', color:'white', fontSize:12, outline:'none', width:200 }} />
-            {showSug && sugerencias.length > 0 && (
-              <div style={{position:'absolute',top:'100%',left:0,zIndex:50,background:'#1e243a',border:'1px solid #1e3a5f',borderRadius:10,minWidth:240,marginTop:4,overflow:'hidden'}}>
-                {sugerencias.map((cl:any) => (
-                  <button key={cl.id} onMouseDown={() => {
-                    setShowSug(false); setSugerencias([])
-                    setBuscarHistorial(cl.nit || cl.nombre)
-                    loadHistorial(cl.nit || cl.nombre, '', null)
-                  }} style={{width:'100%',textAlign:'left',padding:'8px 14px',background:'none',border:'none',borderBottom:'1px solid #1e3a5f',color:'white',fontSize:12,cursor:'pointer'}}
-                    onMouseEnter={e=>(e.currentTarget.style.background='#0f2540')}
-                    onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                    <span style={{fontWeight:500}}>{cl.nombre}</span>
-                    {cl.nit && <span style={{color:'#6b7280',marginLeft:6}}>{cl.nit}</span>}
-                  </button>
-                ))}
-              </div>
-            )}
+            {/* Buscador con autocomplete */}
+            <div style={{position:'relative',display:'flex',alignItems:'center',background:'#1e243a',border:'1px solid #1e3a5f',borderRadius:10,padding:'0 10px',gap:6}}>
+              <span style={{color:'#4b7cb5',fontSize:14,flexShrink:0}}>🔍</span>
+              <input value={buscarHistorial} onChange={e => {
+                const q = e.target.value
+                setBuscarHistorial(q)
+                setFechaHistorial('')
+                clearTimeout(debounceRef.current)
+                clearTimeout(sugRef.current)
+                sugRef.current = setTimeout(() => { buscarClientes(q); setShowSug(true) }, 300)
+              }}
+                placeholder="Buscar cliente..."
+                autoComplete="off"
+                onFocus={() => { if (buscarHistorial.length >= 2) setShowSug(true) }}
+                onBlur={() => setTimeout(() => setShowSug(false), 200)}
+                style={{background:'none',border:'none',color:'white',fontSize:12,outline:'none',width:180,padding:'7px 0'}} />
+              {buscarHistorial && <button onClick={()=>{setBuscarHistorial('');setSugerencias([]);loadHistorial('','',null)}} style={{background:'none',border:'none',color:'#6b7280',cursor:'pointer',fontSize:14,padding:0,flexShrink:0}}>×</button>}
+              {showSug && sugerencias.length > 0 && (
+                <div style={{position:'absolute',top:'100%',left:0,zIndex:50,background:'#1e243a',border:'1px solid #1e3a5f',borderRadius:10,minWidth:260,marginTop:4,overflow:'hidden'}}>
+                  {sugerencias.map((cl:any) => (
+                    <button key={cl.id} onMouseDown={() => {
+                      setShowSug(false); setSugerencias([])
+                      setBuscarHistorial(cl.nit || cl.nombre)
+                      loadHistorial(cl.nit || cl.nombre, '', null)
+                    }} style={{width:'100%',textAlign:'left',padding:'8px 14px',background:'none',border:'none',borderBottom:'1px solid #1e3a5f',color:'white',fontSize:12,cursor:'pointer'}}
+                      onMouseEnter={e=>(e.currentTarget.style.background='#0f2540')}
+                      onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+                      <span style={{fontWeight:500}}>{cl.nombre}</span>
+                      {cl.nit && <span style={{color:'#6b7280',marginLeft:6}}>{cl.nit}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
+            {/* Dropdown empleados */}
+            <select onChange={e => { setBuscarHistorial(''); loadHistorial('', fechaHistorial, null) }}
+              style={{background:'#1e243a',border:'1px solid #1e3a5f',borderRadius:10,padding:'7px 10px',color:'white',fontSize:12,outline:'none',cursor:'pointer'}}>
+              <option value="">Todos los empleados</option>
+            </select>
+            {/* Calendario */}
             <div className="relative flex-shrink-0">
               <input type="date" value={fechaHistorial} onChange={e => {
                 const f = e.target.value
@@ -239,13 +251,12 @@ export default function VisitasPage() {
                 clearTimeout(debounceRef.current)
                 loadHistorial('', f, null)
               }} className="absolute inset-0 opacity-0 cursor-pointer w-full" />
-              <div style={{ display:'flex', alignItems:'center', gap:6, padding:'7px 12px', borderRadius:10, fontSize:12, fontWeight:600, border:'1px solid', cursor:'pointer',
-                background: fechaHistorial ? '#09091e' : '#0c0c1c',
+              <div style={{display:'flex',alignItems:'center',gap:4,padding:'7px 10px',borderRadius:10,fontSize:12,border:'1px solid',cursor:'pointer',
+                background: fechaHistorial ? '#09091e' : '#1e243a',
                 borderColor: fechaHistorial ? '#2563eb' : '#1e3a5f',
-                color: fechaHistorial ? 'white' : 'rgba(255,255,255,0.5)',
-              }}>
-                📅 {fechaHistorial ? new Date(fechaHistorial + 'T12:00:00Z').toLocaleDateString('es-CO', {day:'numeric', month:'short', timeZone: 'America/Bogota'}) : 'Fecha'}
-                {fechaHistorial && <button onClick={e => { e.stopPropagation(); setFechaHistorial(''); loadHistorial('', '', null) }} style={{ background:'none', border:'none', color:'rgba(255,255,255,0.7)', cursor:'pointer', fontSize:14, lineHeight:1, padding:0, marginLeft:2 }}>×</button>}
+                color: fechaHistorial ? 'white' : 'rgba(255,255,255,0.5)'}}>
+                📅{fechaHistorial ? ' '+new Date(fechaHistorial + 'T12:00:00Z').toLocaleDateString('es-CO', {day:'numeric', month:'short', timeZone: 'America/Bogota'}) : ''}
+                {fechaHistorial && <button onClick={e => { e.stopPropagation(); setFechaHistorial(''); loadHistorial('', '', null) }} style={{background:'none',border:'none',color:'rgba(255,255,255,0.7)',cursor:'pointer',fontSize:14,lineHeight:1,padding:0,marginLeft:2}}>×</button>}
               </div>
             </div>
           </div>
