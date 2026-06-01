@@ -449,7 +449,7 @@ export default function RutasFijasPage() {
             })
             const rutasEmp = rutasDeEmpleado(emp.id)
             return (
-              <div key={emp.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+              <div key={emp.id} className="border border-zinc-800 rounded-2xl overflow-hidden" style={{background:"#060a24"}}>
                 {(() => {
                     const metaPorCliente: Record<string, number> = {}
                     const ventaPorCliente: Record<string, number> = {}
@@ -500,7 +500,7 @@ export default function RutasFijasPage() {
                                         const logradoTotal = rutaDia ? rutaDia.clientes.reduce((a: number, rc: any) => a + (ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || ventasHoy[rc.clienteId] || 0), 0) : 0
                     const pctTotal = metaTotal > 0 ? Math.round((logradoTotal / metaTotal) * 100) : null
                     return (
-                      <div key={diaNum} className={rutaDia ? 'bg-zinc-800/60 border border-blue-500/40 rounded-2xl overflow-hidden' : 'rounded-xl'}>
+                      <div key={diaNum} className={rutaDia ? 'border border-blue-500/40 rounded-2xl overflow-hidden' : 'rounded-xl'} style={rutaDia ? {background:'#0d1220'} : {}}>
                         {/* Header del día — tap para colapsar */}
                         <div
                           className={"flex items-center gap-3 px-3 py-2.5 " + (rutaDia ? 'cursor-pointer hover:bg-zinc-700/30 transition-colors' : '')}
