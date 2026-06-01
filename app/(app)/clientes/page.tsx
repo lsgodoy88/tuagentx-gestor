@@ -60,8 +60,7 @@ function getClienteColumns(ctx: {
             <a href={`https://wa.me/57${tel}`} target="_blank" rel="noreferrer" title="WhatsApp"
               style={{ fontSize: 16, lineHeight: 1, textDecoration: 'none' }}>💬</a>
 
-            <button onClick={e => { e.stopPropagation(); ctx.router.push(`/visitas?tab=historial&q=${encodeURIComponent(c.nit || c.nombre)}`) }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 0, lineHeight: 1 }} title="Historial">📋</button>
+
             {(ctx.rol === 'vendedor') && (
               <button onClick={e => { e.stopPropagation(); ctx.setVisitaModal({ cliente: c, tipo: 'visita' }) }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 0, lineHeight: 1 }} title="Visita">✅</button>
@@ -434,7 +433,6 @@ export default function ClientesPage() {
                       onSelect={() => setClienteSeleccionado(c)}
                       onVisita={(tipo) => setVisitaModal({ cliente: c, tipo: tipo.toLowerCase() })}
                       onEntregar={() => setVisitaModal({ cliente: c, tipo: 'entrega' })}
-                      onHistorial={() => router.push(`/visitas?tab=historial&q=${encodeURIComponent(c.nit || c.nombre)}`)}
                       onEditar={puedeEditar ? () => {
                         setEditando(c)
                         setEditForm({ nombre: c.nombre, nombreComercial: c.nombreComercial||'', direccion: c.direccion||'', telefono: c.telefono||'', ciudad: c.ciudad||'', nit: c.nit||'', listaId: c.listaId||'', apiId: c.apiId||'' })
