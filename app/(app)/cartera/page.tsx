@@ -1008,12 +1008,8 @@ export default function CarteraPage() {
             )}
           </div>
 
-          {hayMas && (
-            <button onClick={cargarMas} disabled={cargandoMas} data-loading={cargandoMas}
-              style={{background:"#1e2a3d",border:"1px solid #1e3a5f",borderRadius:10,padding:"6px 18px",color:"white",fontSize:13,fontWeight:500,cursor:"pointer"}}>
-              {cargandoMas ? 'Cargando...' : 'Cargar más'}
-            </button>
-          )}
+          {hayMas && (<div style={{textAlign:"center"}}><button onClick={cargarMas} disabled={cargandoMas} data-loading={cargandoMas}
+              style={{background:"#1e2a3d",border:"1px solid #1e3a5f",borderRadius:10,padding:"6px 18px",color:"white",fontSize:13,fontWeight:500,cursor:"pointer"}}>{cargandoMas ? 'Cargando...' : 'Cargar más'}</button></div>)}
         </div>
       </div>)}
       {/* PAGOS */}
