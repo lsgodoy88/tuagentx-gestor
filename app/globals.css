@@ -79,7 +79,7 @@ body {
   border-color: var(--border-blue) !important;
 }
 [class*="bg-zinc-800/60"][class*="border"][class*="zinc-700"] {
-  background: rgba(8, 8, 24, 0.7) !important;
+  background: #08081c !important;
   border-color: var(--border-blue) !important;
 }
 
@@ -395,69 +395,7 @@ body {
   }
 }
 
-/* ── Glassmorphism global ──────────────────────────────────────────
-   Sobreescribe los fondos sólidos de Tailwind para que el fondo
-   de imagen del dashboard sea visible a través de las cards.
-   backdrop-filter actúa sobre la imagen fija del layout.
-   ------------------------------------------------------------------ */
-
-/* Cards principales */
-.bg-zinc-900 {
-  background-color: rgba(10, 10, 18, 0.78) !important;
-  backdrop-filter: blur(14px) !important;
-  -webkit-backdrop-filter: blur(14px) !important;
-  border: 1px solid rgba(255,255,255,0.08) !important;
-}
-
-/* Inputs, selects, elementos secundarios */
-.bg-zinc-800 {
-  background-color: rgba(18, 18, 28, 0.74) !important;
-  backdrop-filter: blur(10px) !important;
-  -webkit-backdrop-filter: blur(10px) !important;
-  border: 1px solid rgba(255,255,255,0.06) !important;
-}
-
-/* Elementos terciarios (botones, chips) */
-.bg-zinc-700 {
-  background-color: rgba(30, 30, 42, 0.76) !important;
-  backdrop-filter: blur(8px) !important;
-  -webkit-backdrop-filter: blur(8px) !important;
-  border: 1px solid rgba(255,255,255,0.05) !important;
-}
-
-/* Fondos muy oscuros usados en sidebar / panels */
-.bg-\[\#18181b\] {
-  background-color: rgba(10, 10, 18, 0.80) !important;
-  backdrop-filter: blur(14px) !important;
-  -webkit-backdrop-filter: blur(14px) !important;
-  border: 1px solid rgba(255,255,255,0.08) !important;
-}
-.bg-\[\#27272a\] {
-  background-color: rgba(18, 18, 28, 0.76) !important;
-  backdrop-filter: blur(10px) !important;
-  -webkit-backdrop-filter: blur(10px) !important;
-  border: 1px solid rgba(255,255,255,0.06) !important;
-}
-.bg-zinc-950 {
-  background-color: rgba(4, 4, 10, 0.82) !important;
-  backdrop-filter: blur(18px) !important;
-  -webkit-backdrop-filter: blur(18px) !important;
-  border: 1px solid rgba(255,255,255,0.09) !important;
-}
-
-/* bg-[#080818] y bg-[#0d0d1a] — card-bg original */
-.bg-\[\#080818\] {
-  background-color: rgba(5, 5, 18, 0.78) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  border: 1px solid rgba(255,255,255,0.08) !important;
-}
-.bg-\[\#0d0d1a\] {
-  background-color: rgba(8, 8, 20, 0.76) !important;
-  backdrop-filter: blur(16px) !important;
-  -webkit-backdrop-filter: blur(16px) !important;
-  border: 1px solid rgba(255,255,255,0.08) !important;
-}
+/* ── Fondos sólidos — sin glassmorphism ─────────────────────────── */
 
 /* Topbar y barra inferior — también glass */
 .border-\[\#1c1c20\] {
@@ -466,10 +404,8 @@ body {
 
 /* bg-zinc-950 barra inferior de acciones */
 .bg-zinc-950 {
-  background-color: rgba(6, 6, 12, 0.75) !important;
-  backdrop-filter: blur(20px) !important;
-  -webkit-backdrop-filter: blur(20px) !important;
-  border-top: 1px solid rgba(255,255,255,0.08) !important;
+  background-color: #06060c !important;
+  border-top: 1px solid #1e2a3d !important;
 }
 
 
@@ -497,7 +433,7 @@ body {
   /* shimmer skeletons — reduce GPU paint */
   .shimmer, .shimmer-light {
     animation-duration: 3s !important;
-    background: rgba(255,255,255,0.06) !important;
+    background: #1a1a2e !important;
   }
   /* btn-shimmer — caro en gama media */
   .btn-shimmer::after {
@@ -514,13 +450,13 @@ body {
   }
   /* Fondos semi-sólidos — visualmente casi igual sin costo de GPU */
   .bg-zinc-900 {
-    background-color: rgba(10, 10, 18, 0.96) !important;
+    background-color: #0a0a12 !important;
   }
   .bg-zinc-800 {
-    background-color: rgba(18, 18, 28, 0.96) !important;
+    background-color: #12121c !important;
   }
   .bg-zinc-950 {
-    background-color: rgba(5, 5, 12, 0.98) !important;
+    background-color: #05050c !important;
   }
   /* Desactivar animación de nodos del sidebar en móvil */
   .sidebar-overlay::before,
@@ -670,7 +606,7 @@ input[type="date"] { appearance: none; -webkit-appearance: none; }
 }
 @media (max-width: 768px) {
   .kpi-card {
-    background: rgba(20, 24, 48, 0.95) !important;
+    background: #141830 !important;
     border: 1px solid rgba(59,130,246,0.35) !important;
     box-shadow: none !important;
     backdrop-filter: none !important;
@@ -681,10 +617,8 @@ input[type="date"] { appearance: none; -webkit-appearance: none; }
 /* ── KPI glass más visible en móvil ── */
 @media (max-width: 768px) {
   [data-kpi] {
-    background: rgba(255,255,255,0.13) !important;
-    border: 1px solid rgba(255,255,255,0.25) !important;
-    backdrop-filter: blur(12px) !important;
-    -webkit-backdrop-filter: blur(12px) !important;
+    background: #141c2e !important;
+    border: 1px solid #1e2a3d !important;
   }
 }
 
