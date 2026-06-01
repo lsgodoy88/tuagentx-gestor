@@ -54,6 +54,7 @@ export default function VisitasPage() {
   const [firmaVer, setFirmaVer] = useState<any>(null)
   const [firmaUrlGenerada, setFirmaUrlGenerada] = useState<string | null>(null)
   const [detalleCliente, setDetalleCliente] = useState<string | null>(null)
+  const [visitaModal, setVisitaModal] = useState<any>(null)
   const [ordenesAsignadas, setOrdenesAsignadas] = useState<any[]>([])
   const [clienteModal, setClienteModal] = useState<any>(null)
 
@@ -103,51 +104,20 @@ export default function VisitasPage() {
   const visitasLibres = visitasHoy.filter(v => v.esLibre)
 
   function CardVisita({ v }: { v: any }) {
-    const expandido = detalleCliente === v.id
+    const TIPO_ICON: Record<string, string> = { venta: '💰', cobro: '💵', recaudo: '💵', entrega: '📦' }
     return (
-      <div className="border border-zinc-800 rounded-2xl p-4" style={{background:"#1e243a"}}>
+      <button onClick={() => setVisitaModal(v)}
+        className="w-full text-left border border-zinc-800 rounded-2xl p-4 hover:border-blue-500/40 transition-colors"
+        style={{background:"#1e243a"}}>
         <div className="flex items-center gap-3">
-          <span className="text-lg flex-shrink-0">
-            {v.tipo === 'venta' ? '💰' : v.tipo === 'cobro' ? '💵' : v.tipo === 'entrega' ? '📦' : '👁️'}
-          </span>
+          <span className="text-lg flex-shrink-0">{TIPO_ICON[v.tipo] || '👁️'}</span>
           <div className="flex-1 min-w-0">
-            <p className="text-white text-sm font-medium truncate">{v.cliente?.nombre}</p>
-            <p className="text-zinc-500 text-xs capitalize">{v.tipo} — {new Date(v.createdAt).toLocaleDateString('es-CO', {day:'numeric', month:'short', timeZone: 'America/Bogota'})}</p>
+            <p className="text-white text-sm font-medium truncate">{v.cliente?.nombre || 'Sin cliente'}</p>
+            <p className="text-zinc-500 text-xs capitalize">{v.tipo} · {new Date(v.createdAt).toLocaleDateString('es-CO', {day:'numeric', month:'short', timeZone: 'America/Bogota'})} · {new Date(v.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})}</p>
           </div>
-          <div className="flex gap-1 flex-shrink-0">
-            <button onClick={() => setDetalleCliente(expandido ? null : v.id)}
-              className="text-zinc-400 text-xs bg-zinc-800 px-2 py-1 rounded-lg hover:bg-zinc-700">
-              {expandido ? 'Ocultar' : 'Ver'}
-            </button>
-            {v.lat && (
-              <a href={"https://www.google.com/maps?q=" + v.lat + "," + v.lng}
-                target="_blank" className="text-emerald-400 text-xs bg-emerald-500/10 px-2 py-1 rounded-lg">
-                Mapa
-              </a>
-            )}
-          </div>
+          {v.lat && <span className="text-emerald-400 text-xs flex-shrink-0">📍</span>}
         </div>
-        {expandido && (
-          <div className="mt-3 pl-8 space-y-1">
-            {v.cliente?.direccion && <p className="text-zinc-400 text-xs">{v.cliente.direccion}</p>}
-            {v.factura && <p className="text-blue-400 text-xs font-semibold">Factura: {v.factura}</p>}
-            {v.monto && <p className="text-emerald-400 text-sm font-semibold">${Number(v.monto).toLocaleString('es-CO')}</p>}
-            {v.nota && <p className="text-zinc-400 text-xs">{v.nota}</p>}
-            <p className="text-zinc-500 text-xs">{new Date(v.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})}</p>
-            {v.lat ? <p className="text-emerald-400 text-xs">GPS registrado</p> : <p className="text-zinc-600 text-xs">Sin GPS</p>}
-            {v.firma && (
-              <button onClick={async () => {
-                setFirmaUrlGenerada(null)
-                setFirmaVer({ cliente: v.cliente?.nombre, factura: v.factura, fecha: new Date(v.createdAt).toLocaleDateString('es-CO', {day:'numeric', month:'long', year:'numeric', timeZone: 'America/Bogota'}) })
-                const d = await fetchApi('/api/firma', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ firma: v.firma }) })
-                if (d?.url) setFirmaUrlGenerada(d.url)
-              }} className="text-blue-400 text-xs bg-blue-500/10 px-2 py-1 rounded-lg border border-blue-500/20">
-                Ver firma
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+      </button>
     )
   }
 
@@ -346,6 +316,64 @@ export default function VisitasPage() {
           extraData={{ ordenDespachoId: clienteModal.ordenDespachoId }}
           facturaPreset={clienteModal.ordenNumero}
         />
+      )}
+
+      {/* Modal detalle visita */}
+      {visitaModal && (
+        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4" style={{background:'rgba(0,0,0,0.7)'}}
+          onClick={() => setVisitaModal(null)}>
+          <div className="w-full max-w-md rounded-2xl overflow-hidden" style={{background:'#1e243a', border:'1px solid #1e3a5f'}}
+            onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">
+                  {visitaModal.tipo === 'venta' ? '💰' : visitaModal.tipo === 'cobro' || visitaModal.tipo === 'recaudo' ? '💵' : visitaModal.tipo === 'entrega' ? '📦' : '👁️'}
+                </span>
+                <span className="text-white font-semibold capitalize">{visitaModal.tipo}</span>
+              </div>
+              <button onClick={() => setVisitaModal(null)} className="text-zinc-400 hover:text-white text-xl">×</button>
+            </div>
+            {/* Cliente info */}
+            <div className="px-4 py-3 space-y-1 border-b border-zinc-800">
+              <p className="text-white font-semibold">{visitaModal.cliente?.nombre || 'Sin cliente'}</p>
+              {visitaModal.cliente?.nit && <p className="text-zinc-400 text-xs">NIT: {visitaModal.cliente.nit}</p>}
+              {visitaModal.cliente?.direccion && <p className="text-zinc-400 text-xs">📍 {visitaModal.cliente.direccion}</p>}
+              {visitaModal.lat && (
+                <a href={`https://www.google.com/maps?q=${visitaModal.lat},${visitaModal.lng}`}
+                  target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-emerald-400 text-xs bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20 mt-1">
+                  🗺️ Ver en Maps
+                </a>
+              )}
+              {visitaModal.cliente?.maps && (
+                <a href={visitaModal.cliente.maps} target="_blank" rel="noreferrer"
+                  className="inline-flex items-center gap-1 text-blue-400 text-xs bg-blue-500/10 px-2 py-1 rounded-lg border border-blue-500/20 mt-1 ml-2">
+                  📌 Ubicación guardada
+                </a>
+              )}
+            </div>
+            {/* Fecha hora + datos */}
+            <div className="px-4 py-3 space-y-1 border-b border-zinc-800">
+              <p className="text-zinc-400 text-xs">📅 {new Date(visitaModal.createdAt).toLocaleDateString('es-CO', {weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone: 'America/Bogota'})}</p>
+              <p className="text-zinc-400 text-xs">🕐 {new Date(visitaModal.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})}</p>
+              {visitaModal.monto && <p className="text-emerald-400 text-sm font-semibold">${Number(visitaModal.monto).toLocaleString('es-CO')}</p>}
+              {visitaModal.factura && <p className="text-blue-400 text-xs">Factura: {visitaModal.factura}</p>}
+              {visitaModal.nota && <p className="text-zinc-400 text-xs italic">{visitaModal.nota}</p>}
+              {visitaModal.empleado && <p className="text-zinc-500 text-xs">Vendedor: {visitaModal.empleado.nombre}</p>}
+            </div>
+            {/* Mini mapa */}
+            {visitaModal.lat && (
+              <div style={{height:180, overflow:'hidden'}}>
+                <iframe
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${visitaModal.lng-0.002},${visitaModal.lat-0.002},${visitaModal.lng+0.002},${visitaModal.lat+0.002}&layer=mapnik&marker=${visitaModal.lat},${visitaModal.lng}`}
+                  style={{width:'100%', height:'100%', border:'none'}}
+                  loading="lazy"
+                />
+              </div>
+            )}
+          </div>
+        </div>
       )}
 
       {firmaVer && (
