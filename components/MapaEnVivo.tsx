@@ -130,7 +130,7 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{minHeight:'320px'}}>
-        <div className="lg:col-span-2 bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden" style={{height:'clamp(400px, 85vw, 560px)'}}>
+        <div className="lg:col-span-2 border border-zinc-800 rounded-2xl overflow-hidden" style={{background:"#060a24",height:'clamp(400px, 85vw, 560px)'}}>
           {loading ? (
             <div className="h-full p-4 space-y-3"><div className="shimmer h-full rounded-xl" /></div>
           ) : datos.visitas.length === 0 ? (
@@ -147,7 +147,7 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
           )}
         </div>
 
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-3 overflow-y-auto" style={{ maxHeight: window && window.innerWidth < 1024 ? "none" : "500px" }}>
+        <div className="border border-zinc-800 rounded-2xl p-3 overflow-y-auto" style={{background:"#060a24", maxHeight: window && window.innerWidth < 1024 ? "none" : "500px"}}>
           <p className="text-zinc-600 text-[10px] font-bold tracking-widest mb-2 px-1">TIMELINE</p>
           {datos.visitas.length === 0 ? (
             <p className="text-zinc-600 text-sm px-1">Sin visitas</p>
@@ -162,7 +162,7 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
                 const mapsUrl = v.lat && v.lng ? `https://www.google.com/maps?q=${v.lat},${v.lng}` : (v.cliente?.maps || null)
                 return (
                   <div key={v.id}
-                    className={`bg-zinc-800 border rounded-xl overflow-hidden transition-colors fade-up stagger-${Math.min(i+1,8)} ${isOpen ? 'border-zinc-600' : 'border-zinc-800 hover:border-zinc-700'}`}>
+                    className={`border rounded-xl overflow-hidden transition-colors fade-up stagger-${Math.min(i+1,8)} ${isOpen ? 'border-zinc-600' : 'border-zinc-800 hover:border-zinc-700'}`} style={{background:"#060a24"}}>
                     {/* Línea 1 — siempre visible */}
                     <button onClick={() => setVisitaSeleccionada(isOpen ? null : v)}
                       className="w-full flex items-center gap-2 px-3 py-2 text-left">

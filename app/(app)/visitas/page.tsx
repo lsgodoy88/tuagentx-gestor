@@ -87,7 +87,7 @@ export default function VisitasPage() {
   function CardVisita({ v }: { v: any }) {
     const expandido = detalleCliente === v.id
     return (
-      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+      <div className="border border-zinc-800 rounded-2xl p-4" style={{background:"#060a24"}}>
         <div className="flex items-center gap-3">
           <span className="text-lg flex-shrink-0">
             {v.tipo === 'venta' ? '💰' : v.tipo === 'cobro' ? '💵' : v.tipo === 'entrega' ? '📦' : '👁️'}
@@ -196,12 +196,12 @@ export default function VisitasPage() {
             isEntregas ? (
               <div className="space-y-2">
                 {ordenesAsignadas.length === 0 && (
-                  <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-center">
+                  <div className="border border-zinc-800 rounded-2xl p-4 text-center" style={{background:"#060a24"}}>
                     <p className="text-zinc-400 text-sm">No tienes órdenes asignadas pendientes de entrega</p>
                   </div>
                 )}
                 {ordenesAsignadas.map((o: any) => (
-                  <div key={o.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3 flex items-center justify-between gap-3">
+                  <div key={o.id} className="border border-zinc-800 rounded-2xl px-4 py-3 flex items-center justify-between gap-3" style={{background:"#060a24"}}>
                     <div className="min-w-0">
                       <p className="text-white text-sm font-semibold truncate">#{o.numeroFactura || o.numeroOrden} · {o.clienteNombre}</p>
                       {o.ciudad && <p className="text-zinc-400 text-xs">{o.ciudad}</p>}
@@ -221,11 +221,11 @@ export default function VisitasPage() {
             </button>
             )
           ) : turno && !puedeRegistrar ? (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-center">
+            <div className="border border-zinc-800 rounded-2xl p-4 text-center" style={{background:"#060a24"}}>
               <p className="text-zinc-400 text-sm">Sin permiso para registrar visitas</p>
             </div>
           ) : (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-center">
+            <div className="border border-zinc-800 rounded-2xl p-4 text-center" style={{background:"#060a24"}}>
               <p className="text-zinc-400 text-sm">Debes tener un turno activo para {isEntregas ? 'registrar entregas' : 'registrar visitas'}</p>
             </div>
           )}
