@@ -40,7 +40,10 @@ export default function VisitasPage() {
     const qParam = searchParams.get('q')
     if (tabParam === 'historial') {
       setTab('historial')
-      if (qParam) setBuscarHistorial(qParam)
+      if (qParam) {
+        setBuscarHistorial(qParam)
+        loadHistorial(qParam, '', null)
+      }
     }
   }, [])
 
