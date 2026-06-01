@@ -98,6 +98,10 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
           wc -l ~/.ssh/known_hosts
 
+      - name: Set deploy flag
+        run: |
+          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'touch /tmp/gestor-deploying'
+
       - name: Rsync .next to server
         run: |
           rsync -az --delete \
