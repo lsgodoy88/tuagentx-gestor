@@ -103,34 +103,62 @@ export default function VisitasPage() {
   const hoyStr = new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]
   const visitasLibres = visitasHoy.filter(v => v.esLibre)
 
+  const TIPO_ICON: Record<string, string> = { venta: '💰', cobro: '💵', recaudo: '💵', entrega: '📦' }
+  const TIPO_COLOR: Record<string, string> = { venta: '#34d399', cobro: '#34d399', recaudo: '#34d399', entrega: '#60a5fa' }
+
   function CardVisita({ v }: { v: any }) {
-    const TIPO_ICON: Record<string, string> = { venta: '💰', cobro: '💵', recaudo: '💵', entrega: '📦' }
     const fecha = new Date(v.createdAt).toLocaleDateString('es-CO', {day:'numeric', month:'short', timeZone: 'America/Bogota'})
     const hora  = new Date(v.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})
     const mapsUrl = v.lat ? `https://www.google.com/maps?q=${v.lat},${v.lng}` : v.cliente?.maps || null
     return (
       <div className="rounded-2xl overflow-hidden" style={{background:"#1e243a", border:"1px solid #1e3a5f"}}>
-        {/* Encabezado — cliente */}
-        <div className="flex items-start justify-between gap-2 px-4 py-3 border-b border-zinc-800">
-          <div className="min-w-0">
-            <p className="text-white text-sm font-semibold truncate">{v.cliente?.nombre || 'Sin cliente'}</p>
-            {v.cliente?.direccion && <p className="text-zinc-400 text-xs truncate mt-0.5">{v.cliente.direccion}</p>}
-          </div>
+        <div className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800">
+          <p className="text-white text-sm font-medium flex-1 min-w-0 truncate">{v.cliente?.nombre || 'Sin cliente'}</p>
+          {v.cliente?.direccion && <p className="text-zinc-500 text-xs hidden md:block truncate max-w-[160px]">{v.cliente.direccion}</p>}
+          {mapsUrl && <a href={mapsUrl} target="_blank" rel="noreferrer" className="text-zinc-500 text-xs hover:text-emerald-400 flex-shrink-0">🗺️</a>}
+        </div>
+        <div className="flex items-center gap-3 px-4 py-2">
+          <span className="text-sm flex-shrink-0">{TIPO_ICON[v.tipo] || '👁️'}</span>
+          <span className="text-zinc-300 text-xs capitalize flex-shrink-0">{v.tipo}</span>
+          <span className="text-zinc-600 text-xs flex-shrink-0">·</span>
+          <span className="text-zinc-400 text-xs flex-shrink-0">{fecha} · {hora}</span>
+          {v.monto ? <span className="text-emerald-400 text-xs font-medium ml-auto flex-shrink-0">${Number(v.monto).toLocaleString('es-CO')}</span> : null}
+        </div>
+      </div>
+    )
+  }
+
+  function HistorialGroup({ clienteId, visitas }: { clienteId: string, visitas: any[] }) {
+    const cli = visitas[0]?.cliente
+    const mapsUrl = visitas.find(v => v.lat) ? `https://www.google.com/maps?q=${visitas.find(v => v.lat).lat},${visitas.find(v => v.lat).lng}` : cli?.maps || null
+    return (
+      <div className="rounded-2xl overflow-hidden" style={{background:"#1e243a", border:"1px solid #1e3a5f"}}>
+        {/* Encabezado cliente — una línea */}
+        <div className="flex items-center gap-3 px-4 py-2.5 border-b border-zinc-800">
+          <span className="text-white text-sm font-medium flex-1 min-w-0 truncate">{cli?.nombre || 'Sin cliente'}</span>
+          {cli?.direccion && <span className="text-zinc-500 text-xs hidden md:block truncate max-w-[200px] flex-shrink-0">{cli.direccion}</span>}
           {mapsUrl && (
             <a href={mapsUrl} target="_blank" rel="noreferrer"
-              className="flex-shrink-0 text-lg" title="Ver en Maps">🗺️</a>
+              className="flex-shrink-0 text-zinc-400 hover:text-emerald-400 text-xs flex items-center gap-1 transition-colors"
+              style={{whiteSpace:'nowrap'}}>
+              🗺️ <span className="hidden md:inline">Maps</span>
+            </a>
           )}
         </div>
-        {/* Contenido — tipo, fecha, hora */}
-        <div className="flex items-center gap-2 px-4 py-2.5">
-          <span className="text-base flex-shrink-0">{TIPO_ICON[v.tipo] || '👁️'}</span>
-          <span className="text-zinc-300 text-xs capitalize">{v.tipo}</span>
-          <span className="text-zinc-600 text-xs">·</span>
-          <span className="text-zinc-400 text-xs">{fecha}</span>
-          <span className="text-zinc-600 text-xs">·</span>
-          <span className="text-zinc-400 text-xs">{hora}</span>
-          {v.monto ? <><span className="text-zinc-600 text-xs ml-auto">·</span><span className="text-emerald-400 text-xs font-semibold ml-1">${Number(v.monto).toLocaleString('es-CO')}</span></> : null}
-        </div>
+        {/* Visitas — una línea por visita */}
+        {visitas.map((v, i) => {
+          const fecha = new Date(v.createdAt).toLocaleDateString('es-CO', {day:'numeric', month:'short', timeZone: 'America/Bogota'})
+          const hora  = new Date(v.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})
+          return (
+            <div key={v.id} className="flex items-center gap-3 px-4 py-2" style={{borderBottom: i < visitas.length-1 ? '1px solid #1e2a3d' : 'none'}}>
+              <span className="text-sm flex-shrink-0">{TIPO_ICON[v.tipo] || '👁️'}</span>
+              <span className="text-zinc-300 text-xs capitalize flex-shrink-0" style={{minWidth:56}}>{v.tipo}</span>
+              <span className="text-zinc-500 text-xs flex-shrink-0 hidden md:block">·</span>
+              <span className="text-zinc-400 text-xs flex-shrink-0">{fecha} · {hora}</span>
+              {v.monto ? <span className="text-emerald-400 text-xs font-medium ml-auto flex-shrink-0">${Number(v.monto).toLocaleString('es-CO')}</span> : null}
+            </div>
+          )
+        })}
       </div>
     )
   }
@@ -287,7 +315,17 @@ export default function VisitasPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {historial.map(v => <CardVisita key={v.id} v={v} />)}
+              {(() => {
+                const groups: Record<string, any[]> = {}
+                historial.forEach(v => {
+                  const key = v.clienteId || 'sin-cliente'
+                  if (!groups[key]) groups[key] = []
+                  groups[key].push(v)
+                })
+                return Object.entries(groups).map(([key, visitas]) => (
+                  <HistorialGroup key={key} clienteId={key} visitas={visitas} />
+                ))
+              })()}
               {historialHasMore && (
                 <button onClick={() => loadHistorial(buscarHistorial, fechaHistorial, historialCursor)} disabled={loadingMore}
                   className="w-full bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 text-sm font-medium py-3 rounded-2xl border border-zinc-700 transition-colors">
