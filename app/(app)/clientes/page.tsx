@@ -59,6 +59,8 @@ function getClienteColumns(ctx: {
               style={{ fontSize: 16, lineHeight: 1, textDecoration: 'none' }}>📞</a>
             <a href={`https://wa.me/57${tel}`} target="_blank" rel="noreferrer" title="WhatsApp"
               style={{ fontSize: 16, lineHeight: 1, textDecoration: 'none' }}>💬</a>
+            <button onClick={e => { e.stopPropagation(); ctx.router.push(`/visitas?tab=historial&q=${encodeURIComponent(c.nit || c.nombre)}`) }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 0, lineHeight: 1 }} title="Historial">📋</button>
 
 
             {(ctx.rol === 'vendedor') && (
@@ -438,6 +440,7 @@ export default function ClientesPage() {
                         setEditForm({ nombre: c.nombre, nombreComercial: c.nombreComercial||'', direccion: c.direccion||'', telefono: c.telefono||'', ciudad: c.ciudad||'', nit: c.nit||'', listaId: c.listaId||'', apiId: c.apiId||'' })
                         if (colombiaData.length === 0) fetch('/colombia.json').then(r => r.json()).then(d => setColombiaData(d))
                       } : undefined}
+                      onHistorial={() => router.push(`/visitas?tab=historial&q=${encodeURIComponent(c.nit || c.nombre)}`)}
                     />
                   ))}
                   {clientesFiltrados.length === 0 && !loading && (
