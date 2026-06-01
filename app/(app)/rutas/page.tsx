@@ -361,7 +361,7 @@ export default function RutasPage() {
         </button>
       </div>
 
-      {tabPrincipal === 'mapa' && <MapaEnVivo embebido />}
+      {tabPrincipal === 'mapa' && <div style={{marginTop:-12}}><MapaEnVivo embebido /></div>}
 
       {tabPrincipal === 'historial' && (
         <div className="space-y-4">
