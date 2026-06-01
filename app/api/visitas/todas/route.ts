@@ -20,13 +20,13 @@ export async function GET(req: NextRequest) {
 
   const isAdmin = ['empresa', 'supervisor'].includes(user.role)
 
-  const conditions: any[] = []
+  const where: any = {}
 
   // Filtro por usuario o empresa
   if (!isAdmin) {
-    conditions.push({ empleadoId: user.id })
+    where.empleadoId = user.id
   } else if (user.empresaId) {
-    conditions.push({ empleado: { empresaId: user.empresaId } })
+    where.empleado = { empresaId: user.empresaId }
   }
 
   // Filtro por fecha
@@ -34,27 +34,26 @@ export async function GET(req: NextRequest) {
     const nextDay = new Date(fecha + 'T00:00:00.000Z')
     nextDay.setUTCDate(nextDay.getUTCDate() + 1)
     const nextDayStr = nextDay.toISOString().slice(0, 10)
-    conditions.push({
-      fechaBogota: {
-        gte: new Date(fecha + 'T05:00:00.000Z'),
-        lte: new Date(nextDayStr + 'T04:59:59.999Z'),
-      }
-    })
+    where.fechaBogota = {
+      gte: new Date(fecha + 'T05:00:00.000Z'),
+      lte: new Date(nextDayStr + 'T04:59:59.999Z'),
+    }
   }
 
   // Filtro por cliente — nombre o NIT
   if (q) {
-    conditions.push({
-      cliente: {
-        OR: [
-          { nombre: { contains: q, mode: 'insensitive' } },
-          { nit: { contains: q, mode: 'insensitive' } },
-        ]
+    where.AND = [
+      ...(where.AND || []),
+      {
+        cliente: {
+          OR: [
+            { nombre: { contains: q, mode: 'insensitive' } },
+            { nit: { contains: q, mode: 'insensitive' } },
+          ]
+        }
       }
-    })
+    ]
   }
-
-  const where: any = conditions.length > 0 ? { AND: conditions } : {}
 
   const select = {
     id: true, tipo: true, monto: true, nota: true, factura: true,
@@ -84,6 +83,7 @@ export async function GET(req: NextRequest) {
   ])
   return NextResponse.json({ visitas, total, page, pages: Math.ceil(total / limit) })
   } catch (err: any) {
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+    console.error('visitas/todas error:', err)
+    return NextResponse.json({ error: 'Error interno', detail: err?.message }, { status: 500 })
   }
 }
