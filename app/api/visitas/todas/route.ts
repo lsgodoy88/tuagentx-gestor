@@ -5,7 +5,6 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET(req: NextRequest) {
   try {
-
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json([])
   const user = session.user as any
@@ -20,35 +19,49 @@ export async function GET(req: NextRequest) {
   const skip = useCursor ? undefined : (page - 1) * limit
 
   const isAdmin = ['empresa', 'supervisor'].includes(user.role)
-  const where: any = isAdmin ? {} : { empleadoId: user.id }
-  // Filtrar por empresa si es admin
-  if (isAdmin && user.empresaId) where.empleado = { empresaId: user.empresaId }
 
+  const conditions: any[] = []
+
+  // Filtro por usuario o empresa
+  if (!isAdmin) {
+    conditions.push({ empleadoId: user.id })
+  } else if (user.empresaId) {
+    conditions.push({ empleado: { empresaId: user.empresaId } })
+  }
+
+  // Filtro por fecha
   if (fecha) {
-    // Compensar UTC-5 de Bogotá: el día local inicia a las 05:00Z y termina a las 04:59:59.999Z del día siguiente
     const nextDay = new Date(fecha + 'T00:00:00.000Z')
     nextDay.setUTCDate(nextDay.getUTCDate() + 1)
     const nextDayStr = nextDay.toISOString().slice(0, 10)
-    where.fechaBogota = {
-      gte: new Date(fecha + 'T05:00:00.000Z'),
-      lte: new Date(nextDayStr + 'T04:59:59.999Z'),
-    }
+    conditions.push({
+      fechaBogota: {
+        gte: new Date(fecha + 'T05:00:00.000Z'),
+        lte: new Date(nextDayStr + 'T04:59:59.999Z'),
+      }
+    })
   }
 
+  // Filtro por cliente — nombre o NIT
   if (q) {
-    where.cliente = {
-      OR: [
-        { nombre: { contains: q, mode: 'insensitive' } },
-        { nit: { contains: q, mode: 'insensitive' } },
-      ]
-    }
+    conditions.push({
+      cliente: {
+        OR: [
+          { nombre: { contains: q, mode: 'insensitive' } },
+          { nit: { contains: q, mode: 'insensitive' } },
+        ]
+      }
+    })
   }
+
+  const where: any = conditions.length > 0 ? { AND: conditions } : {}
 
   const select = {
     id: true, tipo: true, monto: true, nota: true, factura: true,
     firma: true, lat: true, lng: true, esLibre: true,
     createdAt: true, fechaBogota: true, clienteId: true,
-    cliente: { select: { id: true, nombre: true, direccion: true } }
+    cliente: { select: { id: true, nombre: true, nit: true, direccion: true } },
+    empleado: { select: { id: true, nombre: true } }
   }
 
   if (useCursor) {
