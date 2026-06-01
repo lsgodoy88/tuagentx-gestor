@@ -188,7 +188,7 @@ export default function VisitasPage() {
         )}
       </div>
 
-      {tab === 'mapa' && <MapaEnVivo embebido />}
+      {tab === 'mapa' && <div style={{marginTop:-12}}><MapaEnVivo embebido /></div>}
 
       {tab === 'nueva' && (
         <div className="space-y-4">
