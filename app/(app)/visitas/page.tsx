@@ -130,7 +130,8 @@ export default function VisitasPage() {
 
   function HistorialGroup({ clienteId, visitas }: { clienteId: string, visitas: any[] }) {
     const cli = visitas[0]?.cliente
-    const mapsUrl = visitas.find(v => v.lat) ? `https://www.google.com/maps?q=${visitas.find(v => v.lat).lat},${visitas.find(v => v.lat).lng}` : cli?.maps || null
+    const conGps = visitas.find(v => v.lat)
+    const mapsUrl = conGps ? `https://www.google.com/maps?q=${conGps.lat},${conGps.lng}` : cli?.maps || null
     return (
       <div className="rounded-2xl overflow-hidden" style={{background:"#1e243a", border:"1px solid #1e3a5f"}}>
         {/* Encabezado cliente — una línea */}
@@ -155,7 +156,9 @@ export default function VisitasPage() {
               <span className="text-zinc-300 text-xs capitalize flex-shrink-0" style={{minWidth:56}}>{v.tipo}</span>
               <span className="text-zinc-500 text-xs flex-shrink-0 hidden md:block">·</span>
               <span className="text-zinc-400 text-xs flex-shrink-0">{fecha} · {hora}</span>
-              {v.monto ? <span className="text-emerald-400 text-xs font-medium ml-auto flex-shrink-0">${Number(v.monto).toLocaleString('es-CO')}</span> : null}
+              <span className="flex-1" />
+              {v.monto ? <span className="text-emerald-400 text-xs font-medium flex-shrink-0">${Number(v.monto).toLocaleString('es-CO')}</span> : null}
+              {v.lat && <a href={`https://www.google.com/maps?q=${v.lat},${v.lng}`} target="_blank" rel="noreferrer" className="text-zinc-500 hover:text-emerald-400 flex-shrink-0 ml-1" style={{fontSize:14}} title="Ver en Maps">📍</a>}
             </div>
           )
         })}
