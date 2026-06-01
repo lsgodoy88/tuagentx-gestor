@@ -6,6 +6,7 @@ import { fetchApi } from '@/lib/fetchApi'
 import dynamic from 'next/dynamic'
 const ModalVisita = dynamic(() => import('@/components/ModalVisita'), { ssr: false })
 const MapaEnVivo  = dynamic(() => import('@/components/MapaEnVivo'),  { ssr: false })
+const MapaHistorialCliente = dynamic(() => import('@/components/MapaHistorialCliente'), { ssr: false })
 import { checkPermiso } from '@/lib/permisos'
 
 export default function VisitasPage() {
@@ -36,6 +37,8 @@ export default function VisitasPage() {
 
   // Activar tab historial y prellenar búsqueda desde URL — esperar sesión
   const [urlParamsApplied, setUrlParamsApplied] = useState(false)
+  const [selectedGps, setSelectedGps] = useState<{lat:number,lng:number}|null>(null)
+  const clienteEspecifico = !!searchParams.get('q')
   useEffect(() => {
     if (!session || urlParamsApplied) return
     const tabParam = searchParams.get('tab')
@@ -158,7 +161,7 @@ export default function VisitasPage() {
               <span className="text-zinc-400 text-xs flex-shrink-0">{fecha} · {hora}</span>
               <span className="flex-1" />
               {v.monto ? <span className="text-emerald-400 text-xs font-medium flex-shrink-0">${Number(v.monto).toLocaleString('es-CO')}</span> : null}
-              {v.lat && <a href={`https://www.google.com/maps?q=${v.lat},${v.lng}`} target="_blank" rel="noreferrer" className="text-zinc-500 hover:text-emerald-400 flex-shrink-0 ml-1" style={{fontSize:14}} title="Ver en Maps">📍</a>}
+              {v.lat && <button onClick={()=>setSelectedGps({lat:v.lat!,lng:v.lng!})} className="text-zinc-500 hover:text-emerald-400 flex-shrink-0 ml-1 border-none bg-transparent cursor-pointer" style={{fontSize:14,padding:0}} title="Ver en mapa">📍</button>}
             </div>
           )
         })}
@@ -317,7 +320,8 @@ export default function VisitasPage() {
               <p className="text-zinc-400 text-sm">{buscarHistorial || fechaHistorial ? 'Sin resultados' : 'Sin registros anteriores'}</p>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className={clienteEspecifico ? "hidden md:flex gap-4 items-start" : ""}>
+              <div className={clienteEspecifico ? "flex-1 min-w-0 space-y-2" : "space-y-2"}>
               {(() => {
                 const groups: Record<string, any[]> = {}
                 historial.forEach(v => {
@@ -330,10 +334,15 @@ export default function VisitasPage() {
                 ))
               })()}
               {historialHasMore && (
-                <button onClick={() => loadHistorial(buscarHistorial, fechaHistorial, historialCursor)} disabled={loadingMore}
-                  className="w-full bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 text-sm font-medium py-3 rounded-2xl border border-zinc-700 transition-colors">
-                  {loadingMore ? 'Cargando...' : 'Cargar más'}
-                </button>
+                <div style={{textAlign:"center"}}><button onClick={() => loadHistorial(buscarHistorial, fechaHistorial, historialCursor)} disabled={loadingMore}
+                  style={{background:"#1e2a3d",border:"1px solid #1e3a5f",borderRadius:10,padding:"6px 18px",color:"white",fontSize:13,cursor:"pointer"}}>
+                  {loadingMore ? 'Cargando...' : 'Cargar más'}</button></div>
+              )}
+              </div>
+              {clienteEspecifico && historial.some(v => v.lat) && (
+                <div className="hidden md:block flex-shrink-0" style={{width:420,height:520,position:'sticky',top:16}}>
+                  <MapaHistorialCliente visitas={historial} selected={selectedGps} />
+                </div>
               )}
             </div>
           )}

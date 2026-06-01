@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
     id: true, tipo: true, monto: true, nota: true, factura: true,
     firma: true, lat: true, lng: true, esLibre: true,
     createdAt: true, fechaBogota: true, clienteId: true,
-    cliente: { select: { id: true, nombre: true, nit: true, direccion: true, maps: true } },
+    cliente: { select: { id: true, nombre: true, nit: true, direccion: true, maps: true, lat: true, lng: true } },
     empleado: { select: { id: true, nombre: true } }
   }
 
