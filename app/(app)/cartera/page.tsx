@@ -1,5 +1,4 @@
 'use client'
-import dynamic from 'next/dynamic'
 import DataTable, { ColDef } from '@/components/DataTable'
 import { mesBogota, anioBogota, esDelMesBogota } from '@/lib/fechas'
 import { useEffect, useState, useRef, useCallback } from 'react'
@@ -10,8 +9,8 @@ import { calcularEstado, estadoMasCritico } from '@/lib/cartera'
 import { CountUp, LiveDot, LoadingBorder } from '@/components/FX'
 import InputMoneda from '@/components/InputMoneda'
 import SelectorMes from '@/components/SelectorMes'
-const CarteraCard = dynamic(() => import('@/components/CarteraCard'), { ssr: false })
-const ModalRecaudo = dynamic(() => import('@/components/ModalRecaudo'), { ssr: false })
+import CarteraCard from '@/components/CarteraCard'
+import ModalRecaudo from '@/components/ModalRecaudo'
 import { ROLES_ADMIN } from '@/lib/auth-helpers'
 import type { PagoListado, ComisionVendedor } from '@/lib/types/cartera'
 
