@@ -302,7 +302,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   return (
                     <Link key={item.href} href={item.href}
                       title={!sidebarExpanded ? item.label : ''}
-                      className={`relative flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${!sidebarExpanded ? 'justify-center' : ''} ${isActive ? 'text-white border border-[#2563eb40]' : 'text-white hover:text-white hover:bg-[#18181b]'}`}
+                      className={`relative flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-colors ${!sidebarExpanded ? 'justify-center' : ''} ${isActive ? 'text-white border border-[#2563eb40]' : 'text-white hover:text-white hover:bg-[#18181b]'}`}
                       style={isActive ? {background:'#1e3a5f',boxShadow:'0 1px 8px #2563eb20'} : {}}>
                       <span className="text-base flex-shrink-0">{item.icon}</span>
                       {sidebarExpanded && (
