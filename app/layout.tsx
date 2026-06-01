@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
-      <body className={`${geist.className} bg-zinc-950 text-white`}>
+      <body className={`${geist.className} text-white`} style={{background:'#060f2c'}}>
         <Providers>{children}</Providers>
         <SwUpdateNotifier />
       </body>
