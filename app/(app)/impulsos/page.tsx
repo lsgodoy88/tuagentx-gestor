@@ -72,19 +72,19 @@ function ImpulsosTabla({ mes }: { mes: string }) {
           <table className="w-full text-sm">
             <thead>
               <tr style={{background:"#0d1220",borderBottom:"1px solid #1e2a3d"}}>
-                <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left"}}>Cliente</th>
-                <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Meta</th>
-                <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Ventas</th>
-                <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>%</th>
+                <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left"}}>Cliente</th>
+                <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Meta</th>
+                <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Ventas</th>
+                <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>%</th>
               </tr>
             </thead>
             <tbody>
               {imp.semana?.map((dia: any) => (
                 <>
                   <tr key={'dia-' + dia.dia} style={{background:"#141c2e",borderBottom:"1px solid #1e2a3d"}}>
-                    <td style={{padding:"8px 16px",fontSize:14,fontWeight:500,color:"white",borderBottom:"1px solid #1e2a3d"}}>{dia.nombre}</td>
-                    <td style={{padding:"8px 16px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",borderBottom:"1px solid #1e2a3d"}}>{dia.totalMeta > 0 ? fmt(dia.totalMeta) : ''}</td>
-                    <td style={{padding:"8px 16px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",borderBottom:"1px solid #1e2a3d"}}>{dia.totalMes > 0 ? fmt(dia.totalMes) : ''}</td>
+                    <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",borderBottom:"1px solid #1e2a3d"}}>{dia.nombre}</td>
+                    <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",borderBottom:"1px solid #1e2a3d"}}>{dia.totalMeta > 0 ? fmt(dia.totalMeta) : ''}</td>
+                    <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",borderBottom:"1px solid #1e2a3d"}}>{dia.totalMes > 0 ? fmt(dia.totalMes) : ''}</td>
                     <td className={'px-4 py-2 text-right text-xs font-bold ' + color(dia.pctTotal)}>
                       {dia.pctTotal !== null ? dia.pctTotal + '%' : ''}
                     </td>

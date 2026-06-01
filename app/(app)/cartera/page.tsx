@@ -904,7 +904,7 @@ export default function CarteraPage() {
                         {(['Cliente','Vendedor','Factura','Vencimiento','Saldo','Estado','Acciones'] as const).map((label,i) => {
                           if (label==='Vendedor' && !(user?.role==='empresa'||user?.role==='supervisor')) return null
                           return (
-                            <th key={label} style={{padding:'7px 10px',fontSize:14,fontWeight:500,color:'white',textAlign:'center' as const,userSelect:'none' as const,position:'relative' as const,whiteSpace:'nowrap' as const,overflow:'hidden' as const,borderRight:'1px solid #1e2a3d'}}>
+                            <th key={label} style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:'white',textAlign:'center' as const,userSelect:'none' as const,position:'relative' as const,whiteSpace:'nowrap' as const,overflow:'hidden' as const,borderRight:'1px solid #1e2a3d'}}>
                               {label}
                               <div onMouseDown={e=>onCpcResize(e,i)} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',background:'transparent'}} />
                             </th>
@@ -1083,21 +1083,21 @@ export default function CarteraPage() {
                 <table className="w-full text-sm min-w-[780px]">
                   <thead>
                     <tr style={{background:'#0d1220',borderBottom:'1px solid #1e2a3d'}}>
-                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left",whiteSpace:"nowrap"}}>Fecha</th>
-                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left",whiteSpace:"nowrap"}}>#Recibo</th>
-                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left",whiteSpace:"nowrap"}}>Factura</th>
-                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left",whiteSpace:"nowrap"}}>Cliente</th>
-                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",whiteSpace:"nowrap"}}>Efectivo</th>
-                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",whiteSpace:"nowrap"}}>Transf.</th>
-                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",whiteSpace:"nowrap"}}>Descuento</th>
-                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",whiteSpace:"nowrap"}}>Nuevo Saldo</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left",whiteSpace:"nowrap"}}>Fecha</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left",whiteSpace:"nowrap"}}>#Recibo</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left",whiteSpace:"nowrap"}}>Factura</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left",whiteSpace:"nowrap"}}>Cliente</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",whiteSpace:"nowrap"}}>Efectivo</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",whiteSpace:"nowrap"}}>Transf.</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",whiteSpace:"nowrap"}}>Descuento</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",whiteSpace:"nowrap"}}>Nuevo Saldo</th>
                     </tr>
                   </thead>
                   <tbody>
                     {rows.map((p: any, i: number) => (
                       <tr key={p.id}
                         style={{background: i%2===0 ? '#141c2e' : '#141c2e', borderBottom:'1px solid #1e2a3d'}}>
-                        <td style={{padding:"8px 16px",fontSize:14,fontWeight:500,color:"white",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
+                        <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
                           {new Date(p.createdAt).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'America/Bogota'})}
                         </td>
                         <td className="px-4 py-3 whitespace-nowrap">
@@ -1106,10 +1106,10 @@ export default function CarteraPage() {
                             🖨️ {p.numeroRecibo || '—'}
                           </button>
                         </td>
-                        <td style={{padding:"8px 16px",fontSize:14,fontWeight:500,color:"white",fontFamily:"monospace",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
+                        <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",fontFamily:"monospace",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
                           {p.numeroFactura ? `#${p.numeroFactura}` : '—'}
                         </td>
-                        <td style={{padding:"8px 16px",fontSize:14,fontWeight:500,color:"white",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
+                        <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
                           {p.clienteNombre || p.cartera?.cliente?.nombre || p.Cartera?.Cliente?.nombre || '—'}
                         </td>
                         <td className="px-4 py-3 text-right text-emerald-400 font-semibold whitespace-nowrap">
@@ -1177,12 +1177,12 @@ export default function CarteraPage() {
                 <table className="w-full text-sm min-w-[680px]">
                   <thead>
                     <tr style={{background:'#0d1220',borderBottom:'1px solid #1e2a3d'}}>
-                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left"}}>Vendedor</th>
-                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Recaudado</th>
-                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Pagos</th>
-                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>% Comisión</th>
-                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left"}}>Fórmula</th>
-                      <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Comisión</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left"}}>Vendedor</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Recaudado</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Pagos</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>% Comisión</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left"}}>Fórmula</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Comisión</th>
                     </tr>
                   </thead>
                   <tbody>

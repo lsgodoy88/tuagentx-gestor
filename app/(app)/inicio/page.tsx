@@ -806,10 +806,10 @@ function DashboardPageInner() {
                       <table className="w-full text-xs">
                         <thead>
                           <tr style={{background:"#0d1220",borderBottom:"1px solid #1e2a3d"}}>
-                            <th style={{padding:'7px 10px',fontSize:14,fontWeight:500,color:'white',textAlign:'left',whiteSpace:'nowrap' as const,overflow:'hidden' as const}}>Empleado</th>
-                            <th style={{padding:'7px 10px',fontSize:14,fontWeight:500,color:'white',textAlign:'left',whiteSpace:'nowrap' as const,overflow:'hidden' as const}}>Inicio turno</th>
-                            <th style={{padding:'7px 10px',fontSize:14,fontWeight:500,color:'white',textAlign:'left',whiteSpace:'nowrap' as const,overflow:'hidden' as const}}>Ultima visita</th>
-                            <th style={{padding:'7px 10px',fontSize:14,fontWeight:500,color:'white',textAlign:'left',whiteSpace:'nowrap' as const,overflow:'hidden' as const}}>Proximo</th>
+                            <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:'white',textAlign:'left',whiteSpace:'nowrap' as const,overflow:'hidden' as const}}>Empleado</th>
+                            <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:'white',textAlign:'left',whiteSpace:'nowrap' as const,overflow:'hidden' as const}}>Inicio turno</th>
+                            <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:'white',textAlign:'left',whiteSpace:'nowrap' as const,overflow:'hidden' as const}}>Ultima visita</th>
+                            <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:'white',textAlign:'left',whiteSpace:'nowrap' as const,overflow:'hidden' as const}}>Proximo</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -1263,21 +1263,21 @@ function DashboardPageInner() {
                                       </div>
                                     </div>
                                     {imp.puntoActual && (
-                                      <div style={{background:"rgba(148,160,185,0.28)",border:"1px solid rgba(148,180,255,0.35)",borderRadius:8,padding:"8px 12px"}}>
+                                      <div style={{background:"rgba(148,160,185,0.28)",border:"1px solid rgba(148,180,255,0.35)",borderRadius:8,padding:"8px 10px"}}>
                                         <p className="text-zinc-400 text-xs">📍 Está en:</p>
                                         <p className="text-emerald-400 text-sm font-medium">{imp.puntoActual.nombre}</p>
                                         {imp.puntoActual.nombreComercial && <p className="text-zinc-500 text-xs">{imp.puntoActual.nombreComercial}</p>}
                                       </div>
                                     )}
                                     {!imp.puntoActual && imp.proximoPunto && (
-                                      <div style={{background:"rgba(148,160,185,0.28)",border:"1px solid rgba(148,180,255,0.25)",borderRadius:8,padding:"8px 12px"}}>
+                                      <div style={{background:"rgba(148,160,185,0.28)",border:"1px solid rgba(148,180,255,0.25)",borderRadius:8,padding:"8px 10px"}}>
                                         <p className="text-zinc-400 text-xs">➡️ Va hacia:</p>
                                         <p className="text-white text-sm font-medium">{imp.proximoPunto.nombre}</p>
                                         {imp.proximoPunto.nombreComercial && <p className="text-zinc-500 text-xs">{imp.proximoPunto.nombreComercial}</p>}
                                       </div>
                                     )}
                                     {imp.alertasGps?.length > 0 && (
-                                      <div style={{background:"rgba(127,29,29,0.30)",border:"1px solid rgba(239,68,68,0.30)",borderRadius:8,padding:"8px 12px"}}>
+                                      <div style={{background:"rgba(127,29,29,0.30)",border:"1px solid rgba(239,68,68,0.30)",borderRadius:8,padding:"8px 10px"}}>
                                         <p className="text-red-400 text-xs font-semibold">⚠️ Alertas GPS hoy ({imp.alertasGps.length})</p>
                                         {imp.alertasGps.slice(0,2).map((a: any, i: number) => (
                                           <p key={i} className="text-red-300 text-xs">{a.detalle} — {new Date(a.hora).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'})}</p>

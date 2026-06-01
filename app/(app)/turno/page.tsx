@@ -122,13 +122,13 @@ export default function TurnoPage() {
               <table className="w-full text-xs">
                 <thead>
                   <tr className="border-b border-zinc-700">
-                    <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left"}}>Fecha</th>
-                    <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>Inicio</th>
-                    <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>Cierre</th>
-                    <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>Duración</th>
-                    <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>Pausa</th>
-                    <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>Efectivo</th>
-                    <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>GPS</th>
+                    <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left"}}>Fecha</th>
+                    <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>Inicio</th>
+                    <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>Cierre</th>
+                    <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>Duración</th>
+                    <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>Pausa</th>
+                    <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>Efectivo</th>
+                    <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>GPS</th>
                   </tr>
                 </thead>
                 <tbody className="space-y-1">

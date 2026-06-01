@@ -87,10 +87,10 @@ export default function CumplimientoTabla({ impId, data, onVenta, esImpulsadora 
       <table className="w-full text-xs">
         <thead>
           <tr className="border-b border-zinc-800">
-            <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left"}}>Cliente</th>
-            <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Meta</th>
-            <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Ventas</th>
-            <th style={{padding:"7px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>%</th>
+            <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left"}}>Cliente</th>
+            <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Meta</th>
+            <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Ventas</th>
+            <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>%</th>
           </tr>
         </thead>
         <tbody>
