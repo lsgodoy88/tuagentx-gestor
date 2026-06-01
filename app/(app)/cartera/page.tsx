@@ -940,22 +940,22 @@ export default function CarteraPage() {
                               </td>
                               {/* Vendedor — solo primera fila */}
                               {esSupervisor && (
-                                <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d",textTransform:"capitalize"}}>
+                                <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d",textTransform:"capitalize",textAlign:"center"}}>
                                   {esPrimera ? (cartera.empleado?.nombre?.toLowerCase() || '—') : null}
                                 </td>
                               )}
                               {/* Factura */}
-                              <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",fontFamily:"monospace",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
+                              <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",fontFamily:"monospace",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d",textAlign:"center"}}>
                                 {d.numeroFactura ? `#${d.numeroFactura}` : d.numeroOrden ? `#${d.numeroOrden}` : '—'}
                               </td>
                               {/* Vencimiento */}
-                              <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d",textTransform:"capitalize"}}>
+                              <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d",textTransform:"capitalize",textAlign:"center"}}>
                                 {d.fechaVencimiento
                                   ? new Date(d.fechaVencimiento).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'America/Bogota'})
                                   : '—'}
                               </td>
                               {/* Saldo */}
-                              <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
+                              <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
                                 {fmt(Number(d.saldo))}
                               </td>
                               {/* Estado */}
