@@ -109,7 +109,6 @@ export default function CarteraPage() {
   const [lineasPago, setLineasPago] = useState<LineaPago[]>([crearLinea()])
   const [notasPago, setNotasPago] = useState('')
   const [guardandoPago, setGuardandoPago] = useState(false)
-  const [reciboPopup, setReciboPopup] = useState<string | null>(null)
   const fileInputRefs = useRef<Map<string, HTMLInputElement | null>>(new Map())
 
   useEffect(() => {
@@ -410,7 +409,7 @@ export default function CarteraPage() {
     }
     setGuardandoPago(false)
     if (ultimoId) {
-      if (ultimoToken) setReciboPopup('/recaudo/recibo?token=' + ultimoToken + (ultimoAnchoPapel === '58mm' ? '&fmt=58mm' : ''))
+      if (ultimoToken) window.open('/recaudo/recibo?token=' + ultimoToken + (ultimoAnchoPapel === '58mm' ? '&fmt=58mm' : ''), '_blank')
       setRecaudandoCartera(null)
       setLineasPago([crearLinea()])
       setNotasPago('')
@@ -453,7 +452,7 @@ export default function CarteraPage() {
     const data = await res.json()
     if (data.reciboToken) {
       const fmt = data.anchoPapel === '58mm' ? '&fmt=58mm' : ''
-      setReciboPopup(`/recaudo/recibo?token=${data.reciboToken}${fmt}`)
+      window.open(`/recaudo/recibo?token=${data.reciboToken}${fmt}`, '_blank')
     } else {
       alert('Error al generar enlace del recibo')
     }
@@ -1265,21 +1264,6 @@ export default function CarteraPage() {
         )}
       </div>)}
 
-
-      {/* Modal Recibo de caja */}
-      {reciboPopup && (
-        <div className="fixed inset-0 bg-black/95 z-[60] flex items-center justify-center p-4"
-          onClick={() => setReciboPopup(null)}>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden w-full max-w-sm md:max-w-lg"
-            style={{ maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
-              <span className="text-white text-sm font-semibold">🖨️ Recibo de caja</span>
-              <button onClick={() => setReciboPopup(null)} className="text-white text-lg">✕</button>
-            </div>
-            <iframe src={reciboPopup} className="w-full" style={{ height: '70vh', border: 'none' }} />
-          </div>
-        </div>
-      )}
 
       {/* Modal Recaudar */}
       {recaudandoCartera && (

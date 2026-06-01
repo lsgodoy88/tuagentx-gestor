@@ -32,14 +32,6 @@ const nextConfig: NextConfig = {
           { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://challenges.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://api.anthropic.com https://serviceuptres.cloud wss:; frame-ancestors 'none';" },
         ],
       },
-      {
-        // Recibo de caja — permitir iframe desde mismo origen
-        source: "/recaudo/recibo",
-        headers: [
-          { key: "X-Frame-Options", value: "SAMEORIGIN" },
-          { key: "Content-Security-Policy", value: "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'self';" },
-        ],
-      },
     ];
   },
 };
