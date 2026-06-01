@@ -6,7 +6,7 @@ import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { DIAS } from '@/lib/constants'
 import { checkPermiso } from '@/lib/permisos'
-const TarjetaVisita = dynamic(() => import('@/components/TarjetaVisita'), { ssr: false })
+const MapaHistorialCliente = dynamic(() => import('@/components/MapaHistorialCliente'), { ssr: false })
 
 function hoySufijo() {
   const now = new Date(Date.now() - 5 * 60 * 60 * 1000)
@@ -43,6 +43,18 @@ export default function RutasPage() {
   const [visPage, setVisPage] = useState(1)
   const [visTotal, setVisTotal] = useState(0)
   const VIS_LIMIT = 15
+  const [visSugerencias, setVisSugerencias] = useState<any[]>([])
+  const [visShowSug, setVisShowSug] = useState(false)
+  const visSugRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const [visSelectedGps, setVisSelectedGps] = useState<{lat:number,lng:number}|null>(null)
+  const visClientesUnicos = [...new Set(visitas.map((v:any) => v.clienteId).filter(Boolean))]
+  const visClienteEspecifico = visClientesUnicos.length === 1 && visitas.length > 0
+
+  async function buscarClientesVis(q: string) {
+    if (q.length < 2) { setVisSugerencias([]); return }
+    const res = await fetch(`/api/clientes?q=${encodeURIComponent(q)}&limit=8`).then(r => r.json())
+    setVisSugerencias(Array.isArray(res?.clientes) ? res.clientes : Array.isArray(res) ? res : [])
+  }
 
   async function buscarVisitas(p?: number) {
     const pg = p ?? visPage
@@ -394,45 +406,63 @@ export default function RutasPage() {
               </div>
             </div>
           </div>
-          <p className="text-zinc-500 text-xs">{visTotal || visitas.length} resultado{(visTotal || visitas.length) !== 1 ? 's' : ''}</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-            {visitas.map((v: any) => (
-              <div key={v.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-                <div className="flex items-center gap-3">
-                  <span className="text-lg flex-shrink-0">
-                    {v.tipo === 'venta' ? '💰' : v.tipo === 'cobro' ? '💵' : v.tipo === 'entrega' ? '📦' : '👁️'}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-medium truncate">{v.cliente?.nombre}</p>
-                    <p className="text-zinc-500 text-xs capitalize">{v.tipo} · {v.empleado?.nombre} · {new Date(v.createdAt).toLocaleDateString('es-CO', {day:'numeric', month:'short', year:'numeric', timeZone: 'America/Bogota'})}</p>
-                  </div>
-                  <div className="flex gap-1 flex-shrink-0">
-                    <button onClick={() => setVisDetalle(visDetalle === v.id ? null : v.id)}
-                      className="text-zinc-400 text-xs bg-zinc-800 px-2 py-1 rounded-lg hover:bg-zinc-700">
-                      {visDetalle === v.id ? 'Ocultar' : 'Ver'}
-                    </button>
-                    {v.lat && (
-                      <a href={"https://www.google.com/maps?q=" + v.lat + "," + v.lng}
-                        target="_blank" className="text-emerald-400 text-xs bg-emerald-500/10 px-2 py-1 rounded-lg">
-                        📍
-                      </a>
-                    )}
-                  </div>
+          {visitas.length > 0 && <p className="text-zinc-500 text-xs">Mostrando {visitas.length}{visTotal > visitas.length ? ' de '+visTotal : ''} visitas</p>}
+          {visLoading ? (
+            <div className="space-y-2">{Array.from({length:4}).map((_,i)=><div key={i} className="animate-pulse bg-zinc-900 border border-zinc-800 rounded-2xl h-16"/>)}</div>
+          ) : visitas.length === 0 ? (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
+              <p className="text-zinc-400 text-sm">Sin visitas para los filtros seleccionados</p>
+            </div>
+          ) : (
+            <div className={visClienteEspecifico ? "hidden md:flex gap-4 items-start" : ""}>
+              <div className={visClienteEspecifico ? "flex-1 min-w-0 space-y-2" : "space-y-2"}>
+                {(() => {
+                  const TIPO_ICON: Record<string,string> = {venta:'💰',cobro:'💵',recaudo:'💵',entrega:'📦'}
+                  const groups: Record<string, any[]> = {}
+                  visitas.forEach((v:any) => {
+                    const key = v.clienteId || 'sin-cliente'
+                    if (!groups[key]) groups[key] = []
+                    groups[key].push(v)
+                  })
+                  return Object.entries(groups).map(([key, gVisitas]) => {
+                    const cli = gVisitas[0]?.cliente
+                    const conGps = gVisitas.find((v:any) => v.lat)
+                    const mapsUrl = conGps ? `https://www.google.com/maps?q=${conGps.lat},${conGps.lng}` : cli?.maps || null
+                    return (
+                      <div key={key} className="rounded-2xl overflow-hidden" style={{background:'#1e243a',border:'1px solid #1e3a5f'}}>
+                        <div className="flex items-center gap-3 px-4 py-2.5 border-b border-zinc-800">
+                          <span className="text-white text-sm font-medium flex-1 min-w-0 truncate">{cli?.nombre || 'Sin cliente'}</span>
+                          {cli?.direccion && <span className="text-zinc-500 text-xs hidden md:block truncate max-w-[200px] flex-shrink-0">{cli.direccion}</span>}
+                          {mapsUrl && <a href={mapsUrl} target="_blank" rel="noreferrer" className="flex-shrink-0 text-zinc-400 hover:text-emerald-400 text-xs transition-colors">🗺️</a>}
+                        </div>
+                        {gVisitas.map((v:any, i:number) => {
+                          const fecha = new Date(v.createdAt).toLocaleDateString('es-CO',{day:'numeric',month:'short',timeZone:'America/Bogota'})
+                          const hora = new Date(v.createdAt).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'})
+                          return (
+                            <div key={v.id} className="flex items-center gap-3 px-4 py-2" style={{borderBottom: i < gVisitas.length-1 ? '1px solid #1e2a3d' : 'none'}}>
+                              <span className="text-sm flex-shrink-0">{TIPO_ICON[v.tipo]||'👁️'}</span>
+                              <span className="text-zinc-300 text-xs capitalize flex-shrink-0" style={{minWidth:56}}>{v.tipo}</span>
+                              <span className="text-zinc-400 text-xs flex-shrink-0 hidden md:inline">{v.empleado?.nombre}</span>
+                              <span className="text-zinc-600 text-xs flex-shrink-0 hidden md:inline">·</span>
+                              <span className="text-zinc-400 text-xs flex-shrink-0">{fecha} · {hora}</span>
+                              <span className="flex-1"/>
+                              {v.monto ? <span className="text-emerald-400 text-xs font-medium flex-shrink-0">${Number(v.monto).toLocaleString('es-CO')}</span> : null}
+                              {v.lat && <button onClick={()=>setVisSelectedGps({lat:v.lat,lng:v.lng})} className="text-zinc-500 hover:text-emerald-400 flex-shrink-0 ml-1 border-none bg-transparent cursor-pointer" style={{fontSize:14,padding:0}} title="Ver en mapa">📍</button>}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )
+                  })
+                })()}
+              </div>
+              {visClienteEspecifico && visitas.some((v:any) => v.lat) && (
+                <div className="hidden md:block flex-shrink-0" style={{width:420,height:520,position:'sticky',top:16}}>
+                  <MapaHistorialCliente visitas={visitas} selected={visSelectedGps} />
                 </div>
-                {visDetalle === v.id && (
-                  <div className="mt-3">
-                    <TarjetaVisita visita={v} mostrarEmpleado={true} />
-                  </div>
-                )}
-              </div>
-            ))}
-            {visitas.length === 0 && !visLoading && (
-              <div className="col-span-full bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
-                <p className="text-3xl mb-2">📋</p>
-                <p className="text-zinc-400 text-sm">Sin visitas para los filtros seleccionados</p>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )}
           {visTotal > VIS_LIMIT && (
             <div className="flex items-center justify-between">
               <span className="text-zinc-500 text-xs">{(visPage-1)*VIS_LIMIT+1}–{Math.min(visPage*VIS_LIMIT, visTotal)} de {visTotal}</span>
