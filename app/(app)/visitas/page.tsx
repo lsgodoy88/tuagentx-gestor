@@ -39,6 +39,9 @@ export default function VisitasPage() {
   const [urlParamsApplied, setUrlParamsApplied] = useState(false)
   const [selectedGps, setSelectedGps] = useState<{lat:number,lng:number}|null>(null)
   const clienteEspecifico = !!searchParams.get('q')
+  const [sugerencias, setSugerencias] = useState<any[]>([])
+  const [showSug, setShowSug] = useState(false)
+  const sugRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   useEffect(() => {
     if (!session || urlParamsApplied) return
     const tabParam = searchParams.get('tab')
@@ -79,6 +82,12 @@ export default function VisitasPage() {
     setVisitasHoy(Array.isArray(visRes) ? visRes : [])
     setTurno(turRes)
     setPuedeCapturarGps(meRes?.puedeCapturarGps === true)
+  }
+
+  async function buscarClientes(q: string) {
+    if (q.length < 2) { setSugerencias([]); return }
+    const res = await fetch(`/api/clientes?q=${encodeURIComponent(q)}&limit=8`).then(r => r.json())
+    setSugerencias(Array.isArray(res?.clientes) ? res.clientes : Array.isArray(res) ? res : [])
   }
 
   async function loadHistorial(q: string, fecha: string, cursor: string | null = null) {
@@ -191,15 +200,37 @@ export default function VisitasPage() {
         {/* Controles historial — solo desktop cuando tab historial */}
         {tab === 'historial' && (
           <div className="hidden md:flex gap-2 items-center flex-shrink-0">
+            <div style={{position:'relative'}}>
             <input value={buscarHistorial} onChange={e => {
               const q = e.target.value
               setBuscarHistorial(q)
               setFechaHistorial('')
               clearTimeout(debounceRef.current)
-              debounceRef.current = setTimeout(() => loadHistorial(q, '', null), 500)
+              clearTimeout(sugRef.current)
+              sugRef.current = setTimeout(() => { buscarClientes(q); setShowSug(true) }, 300)
             }}
               placeholder="Buscar cliente..."
-              style={{ background:'#1e243a', border:'1px solid #1e3a5f', borderRadius:10, padding:'7px 14px', color:'white', fontSize:12, outline:'none', width:160 }} />
+              autoComplete="off"
+              onFocus={() => { if (buscarHistorial.length >= 2) setShowSug(true) }}
+              onBlur={() => setTimeout(() => setShowSug(false), 200)}
+              style={{ background:'#1e243a', border:'1px solid #1e3a5f', borderRadius:10, padding:'7px 14px', color:'white', fontSize:12, outline:'none', width:200 }} />
+            {showSug && sugerencias.length > 0 && (
+              <div style={{position:'absolute',top:'100%',left:0,zIndex:50,background:'#1e243a',border:'1px solid #1e3a5f',borderRadius:10,minWidth:240,marginTop:4,overflow:'hidden'}}>
+                {sugerencias.map((cl:any) => (
+                  <button key={cl.id} onMouseDown={() => {
+                    setShowSug(false); setSugerencias([])
+                    setBuscarHistorial(cl.nit || cl.nombre)
+                    loadHistorial(cl.nit || cl.nombre, '', null)
+                  }} style={{width:'100%',textAlign:'left',padding:'8px 14px',background:'none',border:'none',borderBottom:'1px solid #1e3a5f',color:'white',fontSize:12,cursor:'pointer'}}
+                    onMouseEnter={e=>(e.currentTarget.style.background='#0f2540')}
+                    onMouseLeave={e=>(e.currentTarget.style.background='none')}>
+                    <span style={{fontWeight:500}}>{cl.nombre}</span>
+                    {cl.nit && <span style={{color:'#6b7280',marginLeft:6}}>{cl.nit}</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+            </div>
             <div className="relative flex-shrink-0">
               <input type="date" value={fechaHistorial} onChange={e => {
                 const f = e.target.value
