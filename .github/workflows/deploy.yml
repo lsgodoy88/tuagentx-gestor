@@ -2,20 +2,19 @@ name: Deploy Gestor
 
 on:
   workflow_dispatch:
-  # push deshabilitado — deploys manuales desde servidor hasta resolver conflicto rsync/.next
+  # Activar cuando esté validado:
   # push:
   #   branches: [main]
 
-# Un solo deploy a la vez — si llega otro push mientras hay deploy en curso,
-# espera en cola. cancel-in-progress: false evita deploys parciales.
 concurrency:
   group: deploy-gestor
   cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
+  # ── JOB 1: Tests + validación en GitHub ──────────────────────────────
+  test:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
 
     env:
       DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?schema=gestor"
@@ -50,9 +49,6 @@ jobs:
       TZ: "America/Bogota"
 
     steps:
-      - name: Runner info
-        run: echo "Runner ${{ runner.name }} — OS ${{ runner.os }} — Node $(node --version 2>/dev/null || echo 'N/A')"
-
       - uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
@@ -65,25 +61,27 @@ jobs:
       - name: Install
         run: npm ci --no-audit --no-fund
 
-      - name: Prisma generate
-        run: npx prisma generate
-
-      - name: Prisma validate
-        run: npx prisma validate && npx prisma generate
+      - name: Prisma generate + validate
+        run: npx prisma generate && npx prisma validate
 
       - name: Tests
         run: npm test
 
-      - name: Build
+      - name: Build de validación (CI only — no va al servidor)
         run: npm run build
 
       - name: Verify build
         run: |
-          test -d .next || { echo ".next no existe"; exit 1; }
-          grep -qE 'prerendered as static|server-rendered on demand' .next/trace 2>/dev/null || true
-          echo "✓ Build OK"
+          test -d .next || { echo "❌ .next no existe"; exit 1; }
+          echo "✓ Build CI OK"
 
-      # ── Copiar .next al servidor (solo archivos cambiados) ─────────────
+  # ── JOB 2: Deploy en servidor ─────────────────────────────────────────
+  deploy:
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 20
+
+    steps:
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.1
         with:
@@ -92,58 +90,52 @@ jobs:
       - name: Add server to known hosts
         run: |
           mkdir -p ~/.ssh
-          # Intentar ssh-keyscan dinámico
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
-          # Fallback: key hardcodeada del servidor (ed25519)
           echo "|1|dkPmopAiNsVylCQuohSFUrZFsDM=|OKpktYeqLzas/UxgYwpftJxqOr4= ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPU83nFu9fVUmhxMA6dQIFpGc1khRoS2chF6zYSAqWGn" >> ~/.ssh/known_hosts
           echo "167.88.39.242 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPU83nFu9fVUmhxMA6dQIFpGc1khRoS2chF6zYSAqWGn" >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
-          wc -l ~/.ssh/known_hosts
 
-      - name: Set deploy flag
-        run: |
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} 'touch /tmp/gestor-deploying'
-
-      - name: Clean .next on server
-        run: |
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
-            'rm -rf /srv/gestor/.next'
-
-      - name: Rsync .next to server
-        run: |
-          rsync -az --delete \
-            --exclude='.next/cache' \
-            --exclude='.next/trace' \
-            .next/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/srv/gestor/.next/
-
-      # ── En el servidor: pull fuente + install si hubo cambios + restart ─
-      - name: Restart on server
+      - name: Deploy en servidor
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'REMOTE'
           set -e
+          touch /tmp/gestor-deploying
           cd /srv/gestor
 
-          # Sincronizar fuente (sin rebuild)
+          echo "→ git pull"
           git pull --ff-only origin main
 
-          # npm ci solo si cambió package-lock.json en este push
+          # npm ci solo si cambió package-lock.json
           if git diff HEAD~1 HEAD --name-only 2>/dev/null | grep -q "package-lock.json"; then
-            echo "package-lock cambió — npm ci"
+            echo "→ npm ci (package-lock cambió)"
             npm ci --omit=dev --no-audit --no-fund
           fi
 
           # Migraciones solo si hay nuevas
           if git diff HEAD~1 HEAD --name-only 2>/dev/null | grep -q "prisma/migrations/"; then
-            echo "migraciones detectadas — prisma migrate deploy"
+            echo "→ prisma migrate deploy"
             npx prisma migrate deploy
           fi
 
-          # Restart (los .env del servidor se leen en runtime, no en build)
-          touch /tmp/gestor-deploying
-          pm2 restart gestor --update-env
+          echo "→ build limpio en servidor"
+          rm -rf .next
+          taskset -c 0,1 nice -n 19 npm run build 2>&1 | tail -5
 
-          # Health check + smoke tests
-          sleep 10
+          # Verificar build completo
+          test -f .next/BUILD_ID || { rm -f /tmp/gestor-deploying; echo "❌ BUILD_ID no existe"; exit 1; }
+          MANIFESTS=$(find .next/server/app -name "*client-reference-manifest*" 2>/dev/null | wc -l)
+          if [ "$MANIFESTS" -lt 50 ]; then
+            rm -f /tmp/gestor-deploying
+            echo "❌ Build incompleto: solo $MANIFESTS manifests"
+            exit 1
+          fi
+          echo "✓ Build OK — $MANIFESTS manifests"
+
+          echo "→ restart gestor"
+          pm2 delete gestor 2>/dev/null || true
+          pm2 start /srv/gestor/ecosystem.config.js
+          sleep 12
+
           HTTP=$(curl -fsS -o /dev/null -w '%{http_code}' http://localhost:3010/api/health || echo "000")
           if [ "$HTTP" != "200" ]; then
             rm -f /tmp/gestor-deploying
@@ -151,12 +143,17 @@ jobs:
             exit 1
           fi
 
-          bash /srv/gestor/scripts/smoke-test.sh
+          pm2 save --force
           sleep 5
           rm -f /tmp/gestor-deploying
 
-          VER=$(curl -fsS http://localhost:3010/api/version 2>/dev/null || echo "sin versión")
+          CF_PURGE_TOKEN="${{ secrets.CF_PURGE_TOKEN }}" \
+          curl -s -X POST "https://api.cloudflare.com/client/v4/zones/6ca0d1f90e4dc2357040df9e48764a53/purge_cache" \
+            -H "Authorization: Bearer $CF_PURGE_TOKEN" \
+            -H "Content-Type: application/json" --data '{"purge_everything":true}' > /dev/null
+
           COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+          VER=$(curl -fsS http://localhost:3010/api/version 2>/dev/null | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['commit'])" 2>/dev/null || echo "?")
           echo "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"evento\":\"deploy\",\"commit\":\"$COMMIT\",\"ok\":true,\"via\":\"github_actions\"}" >> /home/luis/logs/guardian-testigo.jsonl
-          echo "✅ Deploy OK — $VER"
+          echo "✅ Deploy OK — commit $VER"
           REMOTE

@@ -2972,6 +2972,7 @@ model InciGuardian {
   fechaInicio     DateTime  @default(now())
   fechaResolucion DateTime?
   empresaId       String?                  // si aplica a una empresa específica
+  proyecto        String    @default("Gestor")
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
