@@ -87,6 +87,7 @@ export default function CarteraPage() {
 
   const [carteras, setCarteras] = useState<any[]>([])
   const [pagos, setPagos] = useState<PagoListado[]>([])
+  const [loadingPagos, setLoadingPagos] = useState(false)
   const [metas, setMetas] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [offline, setOffline] = useState(false)
@@ -195,6 +196,17 @@ export default function CarteraPage() {
     setPagos(r2.pagos || [])
     setMetas(r3.metas || [])
     setLoading(false); setLoadingBusqueda(false)
+  }
+
+  async function cargarPagos(mes = mesPagos, anio = anioPagos, vendedorId = vendedorPagoId) {
+    setLoadingPagos(true)
+    try {
+      const r = await fetch(`/api/recaudos?limit=500&mes=${mes}&anio=${anio}${vendedorId ? '&vendedorId='+vendedorId : ''}`)
+        .then(r => r.json()).catch(() => ({ pagos: [] }))
+      setPagos(r.pagos || [])
+    } finally {
+      setLoadingPagos(false)
+    }
   }
 
   async function cargarMas() {
@@ -1025,6 +1037,16 @@ export default function CarteraPage() {
             value={`${anioPagos}-${String(mesPagos).padStart(2,'0')}`}
             onChange={v => { const [a,m] = v.split('-'); const anio=Number(a), mes=Number(m); setAnioPagos(anio); setMesPagos(mes); try { sessionStorage.setItem('cartera_mesPagos', String(mes)); sessionStorage.setItem('cartera_anioPagos', String(anio)) } catch {} }}
           />
+          <button
+            onClick={() => cargarPagos(mesPagos, anioPagos, vendedorPagoId)}
+            disabled={loadingPagos}
+            title="Buscar pagos del mes"
+            style={{flexShrink:0, width:36, height:36, borderRadius:10, border:'1px solid rgba(59,130,246,0.35)', background:'rgba(30,42,61,0.90)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color: loadingPagos ? '#4b5563' : '#93c5fd', transition:'background 0.15s'}}>
+            {loadingPagos
+              ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="animate-spin"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
+              : <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2.2"/><line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/></svg>
+            }
+          </button>
           {isAdmin && (
             <select
               value={vendedorPagoId}
