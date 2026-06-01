@@ -11,7 +11,7 @@ export default function ReportesPage() {
   const [fecha, setFecha] = useState(new Date().toISOString().split('T')[0])
   const [empleadoId, setEmpleadoId] = useState('')
   const [loading, setLoading] = useState(false)
-  const [tab, setTab] = useState<'dia' | 'ranking' | 'recaudos'>('dia')
+  const [tab, setTab] = useState<'dia' | 'recaudos'>('dia')
   const [periodoRanking, setPeriodoRanking] = useState<'semana' | 'mes'>('semana')
   const [ranking, setRanking] = useState<any[]>([])
 
@@ -54,52 +54,12 @@ export default function ReportesPage() {
           className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tab === 'dia' ? 'tab-active' : 'text-white hover:text-white'}`}>
           📊 Por día
         </button>
-        <button onClick={() => setTab('ranking')}
-          className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tab === 'ranking' ? 'tab-active' : 'text-white hover:text-white'}`}>
-          🏆 Ranking
-        </button>
         <button onClick={() => setTab('recaudos')}
           className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tab === 'recaudos' ? 'tab-active' : 'text-white hover:text-white'}`}>
           💰 Recaudos
         </button>
       </div>
 
-      {tab === 'ranking' && (
-        <div className="space-y-4">
-          <div className="flex gap-2">
-            <button onClick={() => setPeriodoRanking('semana')}
-              className={"flex-1 py-2 rounded-xl text-sm font-semibold border transition-all " + (periodoRanking === 'semana' ? "bg-emerald-600 border-emerald-500 text-white" : "bg-zinc-900 border-zinc-800 text-zinc-400")}>
-              Esta semana
-            </button>
-            <button onClick={() => setPeriodoRanking('mes')}
-              className={"flex-1 py-2 rounded-xl text-sm font-semibold border transition-all " + (periodoRanking === 'mes' ? "bg-emerald-600 border-emerald-500 text-white" : "bg-zinc-900 border-zinc-800 text-zinc-400")}>
-              Este mes
-            </button>
-          </div>
-          <div className="space-y-2">
-            {ranking.map((r: any, i: number) => (
-              <div key={r.empleadoId} className="border border-zinc-800 rounded-2xl p-4 flex items-center gap-4" style={{background:"#1e243a"}}>
-                <div className={"w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 " + (i === 0 ? "bg-yellow-500 text-black" : i === 1 ? "bg-zinc-400 text-black" : i === 2 ? "bg-amber-700 text-white" : "bg-zinc-700 text-white")}>
-                  {i + 1}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-white font-semibold">{r.nombre}</p>
-                  <p className="text-zinc-500 text-xs capitalize">{r.rol}</p>
-                </div>
-                <div className="text-right flex-shrink-0">
-                  <p className="text-emerald-400 font-bold">${Number(r.totalVentas || 0).toLocaleString('es-CO')}</p>
-                  <p className="text-zinc-500 text-xs">{r.totalVisitas} visitas</p>
-                </div>
-              </div>
-            ))}
-            {ranking.length === 0 && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
-                <p className="text-zinc-500 text-sm">Sin datos para este periodo</p>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {tab === 'dia' && (
         <>
