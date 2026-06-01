@@ -930,36 +930,36 @@ export default function CarteraPage() {
                             <tr key={`${cartera.id}-${di}`}
                               style={{background:'#141c2e', borderBottom: separador}}>
                               {/* Cliente — solo primera fila del grupo */}
-                              <td className="px-4 py-3 max-w-[180px]">
+                              <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",maxWidth:180,overflow:"hidden",borderBottom:"1px solid #1e2a3d"}}>
                                 {esPrimera ? (
                                   <div className="flex items-center gap-2">
                                     <span style={{width:8,height:8,borderRadius:'50%',background:ESTADO_COLOR[estadoPrincipal(cartera.porEstado)]||'#6366f1',flexShrink:0,boxShadow:`0 0 5px ${ESTADO_COLOR[estadoPrincipal(cartera.porEstado)]||'#6366f1'}`}} />
-                                    <span style={{color:"white",fontWeight:400,fontSize:12,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textTransform:"capitalize"}}>{cartera.cliente?.nombre || '—'}</span>
+                                    <span style={{color:"white",fontWeight:500,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textTransform:"capitalize"}}>{cartera.cliente?.nombre || '—'}</span>
                                   </div>
                                 ) : null}
                               </td>
                               {/* Vendedor — solo primera fila */}
                               {esSupervisor && (
-                                <td className="px-4 py-3 whitespace-nowrap text-xs text-zinc-400">
+                                <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"rgba(255,255,255,0.6)",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d",textTransform:"capitalize"}}>
                                   {esPrimera ? (cartera.empleado?.nombre || '—') : null}
                                 </td>
                               )}
                               {/* Factura */}
-                              <td className="px-4 py-3 font-mono whitespace-nowrap text-xs text-zinc-300">
+                              <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",fontFamily:"monospace",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
                                 {d.numeroFactura ? `#${d.numeroFactura}` : d.numeroOrden ? `#${d.numeroOrden}` : '—'}
                               </td>
                               {/* Vencimiento */}
-                              <td className="px-4 py-3 whitespace-nowrap text-xs text-zinc-400">
+                              <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"rgba(255,255,255,0.6)",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d",textTransform:"capitalize"}}>
                                 {d.fechaVencimiento
                                   ? new Date(d.fechaVencimiento).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'America/Bogota'})
                                   : '—'}
                               </td>
                               {/* Saldo */}
-                              <td className="px-4 py-3 text-right font-semibold whitespace-nowrap" style={{color:'#fde68a'}}>
+                              <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"#fde68a",textAlign:"right",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
                                 {fmt(Number(d.saldo))}
                               </td>
                               {/* Estado */}
-                              <td className="px-4 py-3 text-center whitespace-nowrap">
+                              <td style={{padding:"8px 10px",textAlign:"center",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
                                 <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
                                   style={{background:`${color}22`,color,border:`1px solid ${color}55`}}>
                                   <span style={{width:6,height:6,borderRadius:'50%',background:color,display:'inline-block'}} />
@@ -967,7 +967,7 @@ export default function CarteraPage() {
                                 </span>
                               </td>
                               {/* Acciones — solo primera fila */}
-                              <td className="px-4 py-3 text-center whitespace-nowrap">
+                              <td style={{padding:"8px 10px",textAlign:"center",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
                                 {esPrimera && Number(cartera.saldoPendiente) > 0 ? (
                                   <div className="flex items-center justify-center gap-2">
                                     <button onClick={() => abrirRecaudar(cartera)}
