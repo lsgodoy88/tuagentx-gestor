@@ -902,7 +902,7 @@ export default function CarteraPage() {
                         {(['Cliente','Vendedor','Factura','Vencimiento','Saldo','Estado','Acciones'] as const).map((label,i) => {
                           if (label==='Vendedor' && !(user?.role==='empresa'||user?.role==='supervisor')) return null
                           return (
-                            <th key={label} style={{padding:'7px 10px',fontSize:14,fontWeight:500,color:'white',textAlign:i>=4?'right' as const:'left' as const,userSelect:'none' as const,position:'relative' as const,whiteSpace:'nowrap' as const,overflow:'hidden' as const,borderRight:'1px solid #1e2a3d'}}>
+                            <th key={label} style={{padding:'7px 10px',fontSize:14,fontWeight:500,color:'white',textAlign:'center' as const,userSelect:'none' as const,position:'relative' as const,whiteSpace:'nowrap' as const,overflow:'hidden' as const,borderRight:'1px solid #1e2a3d'}}>
                               {label}
                               <div onMouseDown={e=>onCpcResize(e,i)} style={{position:'absolute',right:0,top:0,bottom:0,width:6,cursor:'col-resize',background:'transparent'}} />
                             </th>
