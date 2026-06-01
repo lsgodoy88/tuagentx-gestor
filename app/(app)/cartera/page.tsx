@@ -1010,7 +1010,7 @@ export default function CarteraPage() {
 
           {hayMas && (
             <button onClick={cargarMas} disabled={cargandoMas} data-loading={cargandoMas}
-              className={`w-full bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 text-sm font-semibold py-3 rounded-xl transition-colors ${(cargandoMas) ? 'btn-shimmer' : ''}`}>
+              style={{background:"#1e2a3d",border:"1px solid #1e3a5f",borderRadius:10,padding:"6px 18px",color:"white",fontSize:13,fontWeight:500,cursor:"pointer"}}>
               {cargandoMas ? 'Cargando...' : 'Cargar más'}
             </button>
           )}

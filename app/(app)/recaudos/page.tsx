@@ -460,20 +460,20 @@ export default function RecaudosPage() {
       {/* Filtros — una línea, ancho completo */}
       <div style={{display:'flex',gap:8,width:'100%',alignItems:'stretch'}}>
         {/* 25% — Efectivo */}
-        <div style={{flex:'0 0 25%',background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',display:'flex',alignItems:'center',justifyContent:'center',padding:'8px 12px',minWidth:0}}>
+        <div style={{flex:'0 0 25%',background:'#1e2a3d',border:'1px solid #1e3a5f',borderRadius:'0.75rem',display:'flex',alignItems:'center',justifyContent:'center',padding:'8px 12px',minWidth:0}}>
           <span style={{fontSize:12,fontWeight:700,color:'#34d399',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
             {resumen.efectivo > 0 ? `💵 ${fmtMonto(resumen.efectivo)}` : '💵 $0'}
           </span>
         </div>
         {/* 25% — Transferencias */}
-        <div style={{flex:'0 0 25%',background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',display:'flex',alignItems:'center',justifyContent:'center',padding:'8px 12px',minWidth:0}}>
+        <div style={{flex:'0 0 25%',background:'#1e2a3d',border:'1px solid #1e3a5f',borderRadius:'0.75rem',display:'flex',alignItems:'center',justifyContent:'center',padding:'8px 12px',minWidth:0}}>
           <span style={{fontSize:12,fontWeight:700,color:'#60a5fa',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
             {resumen.transferencia > 0 ? `📲 ${fmtMonto(resumen.transferencia)}` : '📲 $0'}
           </span>
         </div>
         {/* Vendedor — flex restante */}
         {isAdmin && (
-          <div style={{flex:1,background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',minWidth:0,overflow:'hidden'}}>
+          <div style={{flex:1,background:'#1e2a3d',border:'1px solid #1e3a5f',borderRadius:'0.75rem',minWidth:0,overflow:'hidden'}}>
             <select
               value={vendedorId}
               onChange={e => setVendedorId(e.target.value)}
@@ -493,7 +493,7 @@ export default function RecaudosPage() {
               try { fechaInputRef.current?.showPicker?.() } catch {}
               fechaInputRef.current?.click()
             }}
-            style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'8px 14px',cursor:'pointer',display:'flex',alignItems:'center',gap:6,height:40,boxSizing:'border-box',outline:'none',position:'relative'}}>
+            style={{background:'#1e2a3d',border:'1px solid #1e3a5f',borderRadius:'0.75rem',padding:'8px 14px',cursor:'pointer',display:'flex',alignItems:'center',gap:6,height:40,boxSizing:'border-box',outline:'none',position:'relative'}}>
             <span style={{fontSize:18,lineHeight:1}}>📅</span>
             {fecha && <span style={{fontSize:10,fontWeight:700,color:'white'}}>{fmtFechaBtn(fecha)} ✕</span>}
           </button>
@@ -509,7 +509,7 @@ export default function RecaudosPage() {
         {tab === 'pendiente' && <button
           onClick={() => haySeleccion ? validarSeleccionados() : validarTodos()}
           disabled={validando}
-          style={{flexShrink:0,background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'8px 16px',fontSize:12,fontWeight:700,color:validando?'rgba(255,255,255,0.4)':'white',cursor:validando?'not-allowed':'pointer',whiteSpace:'nowrap'}}>
+          style={{flexShrink:0,background:'#1e2a3d',border:'1px solid #1e3a5f',borderRadius:'0.75rem',padding:'8px 16px',fontSize:12,fontWeight:700,color:validando?'rgba(255,255,255,0.4)':'white',cursor:validando?'not-allowed':'pointer',whiteSpace:'nowrap'}}>
           {validando ? '⏳ Validando...' : `🔍 Validar${haySeleccion ? ` (${seleccionados.size})` : ''}`}
         </button>}
       </div>
@@ -659,7 +659,7 @@ export default function RecaudosPage() {
           <button
             onClick={() => setPage(p => p - 1)}
             disabled={page === 0}
-            style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'6px 14px',fontSize:12,fontWeight:700,color:page===0?'rgba(255,255,255,0.25)':'white',cursor:page===0?'not-allowed':'pointer'}}>
+            style={{background:'#1e2a3d',border:'1px solid #1e3a5f',borderRadius:'0.75rem',padding:'6px 14px',fontSize:12,fontWeight:700,color:page===0?'rgba(255,255,255,0.25)':'white',cursor:page===0?'not-allowed':'pointer'}}>
             ← Anterior
           </button>
           <span style={{fontSize:12,color:'rgba(255,255,255,0.6)',minWidth:90,textAlign:'center'}}>
@@ -672,7 +672,7 @@ export default function RecaudosPage() {
               setPage(nextPage)
             }}
             disabled={(page >= totalPages - 1 && !hasMore) || loadingMore}
-            style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'6px 14px',fontSize:12,fontWeight:700,color:(page>=totalPages-1&&!hasMore)?'rgba(255,255,255,0.25)':'white',cursor:(page>=totalPages-1&&!hasMore)?'not-allowed':'pointer'}}>
+            style={{background:'#1e2a3d',border:'1px solid #1e3a5f',borderRadius:'0.75rem',padding:'6px 14px',fontSize:12,fontWeight:700,color:(page>=totalPages-1&&!hasMore)?'rgba(255,255,255,0.25)':'white',cursor:(page>=totalPages-1&&!hasMore)?'not-allowed':'pointer'}}>
             {loadingMore ? '...' : 'Siguiente →'}
           </button>
         </div>

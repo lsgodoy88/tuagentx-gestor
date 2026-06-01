@@ -466,7 +466,7 @@ export default function ClientesPage() {
             clientesFiltrados.length > 0 && (
               <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,paddingTop:8}}>
                 <button onClick={() => setPage(p => p - 1)} disabled={page === 0}
-                  style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'6px 16px',fontSize:12,fontWeight:700,color:page===0?'rgba(255,255,255,0.25)':'white',cursor:page===0?'not-allowed':'pointer'}}>
+                  style={{background:'#1e2a3d',border:'1px solid #1e3a5f',borderRadius:'0.75rem',padding:'6px 16px',fontSize:12,fontWeight:700,color:page===0?'rgba(255,255,255,0.25)':'white',cursor:page===0?'not-allowed':'pointer'}}>
                   ← Anterior
                 </button>
                 <span style={{fontSize:12,color:'rgba(255,255,255,0.6)',minWidth:90,textAlign:'center'}}>
@@ -479,7 +479,7 @@ export default function ClientesPage() {
                     setPage(nextPage)
                   }}
                   disabled={(page >= totalPages - 1 && !hasMore) || loadingMore}
-                  style={{background:'rgba(15,15,22,0.60)',border:'1px solid rgba(59,130,246,0.40)',borderRadius:'0.75rem',padding:'6px 16px',fontSize:12,fontWeight:700,color:(page>=totalPages-1&&!hasMore)?'rgba(255,255,255,0.25)':'white',cursor:(page>=totalPages-1&&!hasMore)?'not-allowed':'pointer'}}>
+                  style={{background:'#1e2a3d',border:'1px solid #1e3a5f',borderRadius:'0.75rem',padding:'6px 16px',fontSize:12,fontWeight:700,color:(page>=totalPages-1&&!hasMore)?'rgba(255,255,255,0.25)':'white',cursor:(page>=totalPages-1&&!hasMore)?'not-allowed':'pointer'}}>
                   {loadingMore ? '...' : 'Siguiente →'}
                 </button>
                 <span style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginLeft:4}}>{clientesFiltrados.length} clientes</span>
@@ -489,7 +489,7 @@ export default function ClientesPage() {
             /* ── Cargar más mobile ── */
             hasMore && (
               <button onClick={() => loadClientes(buscar, nextCursor)} disabled={loadingMore}
-                className="w-full mt-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-zinc-300 text-sm font-medium py-3 rounded-2xl border border-zinc-700 transition-colors">
+                style={{background:"#1e2a3d",border:"1px solid #1e3a5f",borderRadius:10,padding:"6px 18px",color:"white",fontSize:13,fontWeight:500,cursor:"pointer"}}>
                 {loadingMore ? 'Cargando...' : `Cargar más (${clientes.length} cargados)`}
               </button>
             )
