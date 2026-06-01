@@ -105,19 +105,33 @@ export default function VisitasPage() {
 
   function CardVisita({ v }: { v: any }) {
     const TIPO_ICON: Record<string, string> = { venta: '💰', cobro: '💵', recaudo: '💵', entrega: '📦' }
+    const fecha = new Date(v.createdAt).toLocaleDateString('es-CO', {day:'numeric', month:'short', timeZone: 'America/Bogota'})
+    const hora  = new Date(v.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})
+    const mapsUrl = v.lat ? `https://www.google.com/maps?q=${v.lat},${v.lng}` : v.cliente?.maps || null
     return (
-      <button onClick={() => setVisitaModal(v)}
-        className="w-full text-left border border-zinc-800 rounded-2xl p-4 hover:border-blue-500/40 transition-colors"
-        style={{background:"#1e243a"}}>
-        <div className="flex items-center gap-3">
-          <span className="text-lg flex-shrink-0">{TIPO_ICON[v.tipo] || '👁️'}</span>
-          <div className="flex-1 min-w-0">
-            <p className="text-white text-sm font-medium truncate">{v.cliente?.nombre || 'Sin cliente'}</p>
-            <p className="text-zinc-500 text-xs capitalize">{v.tipo} · {new Date(v.createdAt).toLocaleDateString('es-CO', {day:'numeric', month:'short', timeZone: 'America/Bogota'})} · {new Date(v.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})}</p>
+      <div className="rounded-2xl overflow-hidden" style={{background:"#1e243a", border:"1px solid #1e3a5f"}}>
+        {/* Encabezado — cliente */}
+        <div className="flex items-start justify-between gap-2 px-4 py-3 border-b border-zinc-800">
+          <div className="min-w-0">
+            <p className="text-white text-sm font-semibold truncate">{v.cliente?.nombre || 'Sin cliente'}</p>
+            {v.cliente?.direccion && <p className="text-zinc-400 text-xs truncate mt-0.5">{v.cliente.direccion}</p>}
           </div>
-          {v.lat && <span className="text-emerald-400 text-xs flex-shrink-0">📍</span>}
+          {mapsUrl && (
+            <a href={mapsUrl} target="_blank" rel="noreferrer"
+              className="flex-shrink-0 text-lg" title="Ver en Maps">🗺️</a>
+          )}
         </div>
-      </button>
+        {/* Contenido — tipo, fecha, hora */}
+        <div className="flex items-center gap-2 px-4 py-2.5">
+          <span className="text-base flex-shrink-0">{TIPO_ICON[v.tipo] || '👁️'}</span>
+          <span className="text-zinc-300 text-xs capitalize">{v.tipo}</span>
+          <span className="text-zinc-600 text-xs">·</span>
+          <span className="text-zinc-400 text-xs">{fecha}</span>
+          <span className="text-zinc-600 text-xs">·</span>
+          <span className="text-zinc-400 text-xs">{hora}</span>
+          {v.monto ? <><span className="text-zinc-600 text-xs ml-auto">·</span><span className="text-emerald-400 text-xs font-semibold ml-1">${Number(v.monto).toLocaleString('es-CO')}</span></> : null}
+        </div>
+      </div>
     )
   }
 
@@ -318,65 +332,7 @@ export default function VisitasPage() {
         />
       )}
 
-      {/* Modal detalle visita */}
-      {visitaModal && (
-        <div className="fixed inset-0 z-[999] flex items-center justify-center p-4" style={{background:'rgba(0,0,0,0.7)'}}
-          onClick={() => setVisitaModal(null)}>
-          <div className="w-full max-w-md rounded-2xl overflow-hidden" style={{background:'#1e243a', border:'1px solid #1e3a5f'}}
-            onClick={e => e.stopPropagation()}>
-            {/* Header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">
-                  {visitaModal.tipo === 'venta' ? '💰' : visitaModal.tipo === 'cobro' || visitaModal.tipo === 'recaudo' ? '💵' : visitaModal.tipo === 'entrega' ? '📦' : '👁️'}
-                </span>
-                <span className="text-white font-semibold capitalize">{visitaModal.tipo}</span>
-              </div>
-              <button onClick={() => setVisitaModal(null)} className="text-zinc-400 hover:text-white text-xl">×</button>
-            </div>
-            {/* Cliente info */}
-            <div className="px-4 py-3 space-y-1 border-b border-zinc-800">
-              <p className="text-white font-semibold">{visitaModal.cliente?.nombre || 'Sin cliente'}</p>
-              {visitaModal.cliente?.nit && <p className="text-zinc-400 text-xs">NIT: {visitaModal.cliente.nit}</p>}
-              {visitaModal.cliente?.direccion && <p className="text-zinc-400 text-xs">📍 {visitaModal.cliente.direccion}</p>}
-              {visitaModal.lat && (
-                <a href={`https://www.google.com/maps?q=${visitaModal.lat},${visitaModal.lng}`}
-                  target="_blank" rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-emerald-400 text-xs bg-emerald-500/10 px-2 py-1 rounded-lg border border-emerald-500/20 mt-1">
-                  🗺️ Ver en Maps
-                </a>
-              )}
-              {visitaModal.cliente?.maps && (
-                <a href={visitaModal.cliente.maps} target="_blank" rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-blue-400 text-xs bg-blue-500/10 px-2 py-1 rounded-lg border border-blue-500/20 mt-1 ml-2">
-                  📌 Ubicación guardada
-                </a>
-              )}
-            </div>
-            {/* Fecha hora + datos */}
-            <div className="px-4 py-3 space-y-1 border-b border-zinc-800">
-              <p className="text-zinc-400 text-xs">📅 {new Date(visitaModal.createdAt).toLocaleDateString('es-CO', {weekday:'long', day:'numeric', month:'long', year:'numeric', timeZone: 'America/Bogota'})}</p>
-              <p className="text-zinc-400 text-xs">🕐 {new Date(visitaModal.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})}</p>
-              {visitaModal.monto && <p className="text-emerald-400 text-sm font-semibold">${Number(visitaModal.monto).toLocaleString('es-CO')}</p>}
-              {visitaModal.factura && <p className="text-blue-400 text-xs">Factura: {visitaModal.factura}</p>}
-              {visitaModal.nota && <p className="text-zinc-400 text-xs italic">{visitaModal.nota}</p>}
-              {visitaModal.empleado && <p className="text-zinc-500 text-xs">Vendedor: {visitaModal.empleado.nombre}</p>}
-            </div>
-            {/* Mini mapa */}
-            {visitaModal.lat && (
-              <div style={{height:180, overflow:'hidden'}}>
-                <iframe
-                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${visitaModal.lng-0.002},${visitaModal.lat-0.002},${visitaModal.lng+0.002},${visitaModal.lat+0.002}&layer=mapnik&marker=${visitaModal.lat},${visitaModal.lng}`}
-                  style={{width:'100%', height:'100%', border:'none'}}
-                  loading="lazy"
-                />
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-      {firmaVer && (
+            {firmaVer && (
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 p-4">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 w-full max-w-md space-y-3">
             <div className="flex items-center justify-between">
