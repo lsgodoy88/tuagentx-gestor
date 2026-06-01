@@ -94,7 +94,7 @@ export default function VisitasPage() {
 
   // Cargar historial al abrir tab
   useEffect(() => {
-    if (tab === 'historial' && historial.length === 0) {
+    if (tab === 'historial' && historial.length === 0 && !searchParams.get('q')) {
       loadHistorial('', '', null)
     }
   }, [tab])
