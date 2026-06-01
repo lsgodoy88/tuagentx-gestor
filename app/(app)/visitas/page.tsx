@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { fetchApi } from '@/lib/fetchApi'
 import dynamic from 'next/dynamic'
@@ -31,6 +32,17 @@ export default function VisitasPage() {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
   const [tab, setTab] = useState<'mapa' | 'nueva' | 'historial'>('mapa')
+  const searchParams = useSearchParams()
+
+  // Activar tab historial y prellenar búsqueda desde URL
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    const qParam = searchParams.get('q')
+    if (tabParam === 'historial') {
+      setTab('historial')
+      if (qParam) setBuscarHistorial(qParam)
+    }
+  }, [])
 
   // Firma viewer
   const [firmaVer, setFirmaVer] = useState<any>(null)
