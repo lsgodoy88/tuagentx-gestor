@@ -859,7 +859,7 @@ export default function CarteraPage() {
         <div className="space-y-3">
 
           {/* MÓVIL — cards colapsables (sin cambios) */}
-          <div className="lg:hidden">
+          <div className="md:hidden">
             {filtradas.map((c: any) => (
               <CarteraCard
                 key={c.id}
@@ -880,7 +880,7 @@ export default function CarteraPage() {
           </div>
 
           {/* DESKTOP — tabla plana una fila por deuda */}
-          <div className="hidden lg:block">
+          <div className="hidden md:block">
             {filtradas.length === 0 ? (
               <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-10 text-center">
                 <p className="text-3xl mb-2">📋</p>
