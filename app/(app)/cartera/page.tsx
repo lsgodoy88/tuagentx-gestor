@@ -955,7 +955,7 @@ export default function CarteraPage() {
                                   : '—'}
                               </td>
                               {/* Saldo */}
-                              <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"#fde68a",textAlign:"right",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
+                              <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
                                 {fmt(Number(d.saldo))}
                               </td>
                               {/* Estado */}
@@ -971,9 +971,9 @@ export default function CarteraPage() {
                                 {esPrimera && Number(cartera.saldoPendiente) > 0 ? (
                                   <div className="flex items-center justify-center gap-2">
                                     <button onClick={() => abrirRecaudar(cartera)}
-                                      className="flex items-center gap-1 text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors"
+                                      className="flex items-center justify-center px-2 py-1.5 rounded-lg transition-colors"
                                       style={{background:'linear-gradient(135deg,#1d4ed8,#3b82f6)',color:'#fff'}}>
-                                      💳 Recaudar
+                                      💳
                                     </button>
                                     <button onClick={() => abrirWhatsApp(cartera)}
                                       className="flex items-center justify-center p-1.5 rounded-lg transition-colors"
