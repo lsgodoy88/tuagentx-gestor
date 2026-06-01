@@ -59,15 +59,7 @@ function getClienteColumns(ctx: {
               style={{ fontSize: 16, lineHeight: 1, textDecoration: 'none' }}>📞</a>
             <a href={`https://wa.me/57${tel}`} target="_blank" rel="noreferrer" title="WhatsApp"
               style={{ fontSize: 16, lineHeight: 1, textDecoration: 'none' }}>💬</a>
-            {ctx.puedeEditar && (
-              <button onClick={e => {
-                e.stopPropagation()
-                ctx.setEditando(c)
-                ctx.setEditForm({ nombre: c.nombre, nombreComercial: c.nombreComercial||'', direccion: c.direccion||'', telefono: c.telefono||'', ciudad: c.ciudad||'', nit: c.nit||'', listaId: c.listaId||'', apiId: c.apiId||'', maps: c.maps||'' })
-                if (ctx.colombiaData.length === 0) fetch('/colombia.json').then(r => r.json()).then(d => ctx.setColombiaData(d))
-              }}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 0, lineHeight: 1 }} title="Editar">✏️</button>
-            )}
+
             <button onClick={e => { e.stopPropagation(); ctx.router.push(`/visitas-admin?clienteId=${c.id}`) }}
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, padding: 0, lineHeight: 1 }} title="Historial">📋</button>
             {(ctx.rol === 'vendedor') && (
