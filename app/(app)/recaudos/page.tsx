@@ -451,7 +451,7 @@ export default function RecaudosPage() {
       <div className="flex gap-1 tab-pills rounded-xl p-1">
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key as any)}
-            className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tab === t.key ? 'tab-active' : 'text-white hover:text-white'}`}>
+            className={`flex-1 py-2 text-base font-semibold transition-colors text-center ${tab === t.key ? 'tab-active' : 'text-white hover:text-white'}`}>
             {t.label}
           </button>
         ))}
@@ -461,13 +461,13 @@ export default function RecaudosPage() {
       <div style={{display:'flex',gap:8,width:'100%',alignItems:'stretch'}}>
         {/* 25% — Efectivo */}
         <div style={{flex:'0 0 25%',background:'#1e2a3d',border:'1px solid #1e3a5f',borderRadius:'0.75rem',display:'flex',alignItems:'center',justifyContent:'center',padding:'8px 12px',minWidth:0}}>
-          <span style={{fontSize:12,fontWeight:700,color:'#34d399',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+          <span style={{fontSize:15,fontWeight:700,color:'#34d399',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
             {resumen.efectivo > 0 ? `💵 ${fmtMonto(resumen.efectivo)}` : '💵 $0'}
           </span>
         </div>
         {/* 25% — Transferencias */}
         <div style={{flex:'0 0 25%',background:'#1e2a3d',border:'1px solid #1e3a5f',borderRadius:'0.75rem',display:'flex',alignItems:'center',justifyContent:'center',padding:'8px 12px',minWidth:0}}>
-          <span style={{fontSize:12,fontWeight:700,color:'#60a5fa',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
+          <span style={{fontSize:15,fontWeight:700,color:'#60a5fa',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
             {resumen.transferencia > 0 ? `📲 ${fmtMonto(resumen.transferencia)}` : '📲 $0'}
           </span>
         </div>
