@@ -225,8 +225,8 @@ export default function TrazabilidadPage() {
   }
 
   useEffect(() => {
-    setIsDesktop(window.innerWidth >= 1024)
-    const handler = () => setIsDesktop(window.innerWidth >= 1024)
+    setIsDesktop(window.innerWidth >= 768)
+    const handler = () => setIsDesktop(window.innerWidth >= 768)
     window.addEventListener('resize', handler)
     return () => window.removeEventListener('resize', handler)
   }, [])
