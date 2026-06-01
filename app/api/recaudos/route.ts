@@ -109,18 +109,22 @@ async function hidratarSync(pagos: any[], empresaId: string) {
   const cliMap = new Map(clientes.map((c: any) => [c.apiId, c]))
   return pagos.map((p: any) => {
     if (p.carteraId) return p
+    // Facturas aplicadas a este pago (todas sus PagoCarteraDeuda)
+    const _facturas = apps
+      .filter((a: any) => a.pagoId === p.id && a.numeroFactura != null)
+      .map((a: any) => ({ numeroFactura: a.numeroFactura, montoAplicado: a.montoAplicado }))
     // Prioridad: datos congelados en PagoCartera
     if (p.clienteApiId) {
       const cli: any = cliMap.get(p.clienteApiId)
-      if (cli) return { ...p, cliente: { id: cli.id, nombre: cli.nombre, nit: cli.nit, telefono: cli.telefono } }
+      if (cli) return { ...p, _facturas, cliente: { id: cli.id, nombre: cli.nombre, nit: cli.nit, telefono: cli.telefono } }
       // Sin cliente en BD pero con nombre congelado
-      if (p.clienteNombre) return { ...p, cliente: { nombre: p.clienteNombre } }
+      if (p.clienteNombre) return { ...p, _facturas, cliente: { nombre: p.clienteNombre } }
     }
     // Fallback pagos viejos
     const fa = firstApp.get(p.id)
-    if (!fa) return p
+    if (!fa) return { ...p, _facturas }
     const sd: any = sdMap.get(fa.syncDeudaId)
     const cli: any = sd ? cliMap.get(sd.clienteApiId) : null
-    return { ...p, cliente: cli ? { id: cli.id, nombre: cli.nombre, nit: cli.nit, telefono: cli.telefono } : null }
+    return { ...p, _facturas, cliente: cli ? { id: cli.id, nombre: cli.nombre, nit: cli.nit, telefono: cli.telefono } : null }
   })
 }

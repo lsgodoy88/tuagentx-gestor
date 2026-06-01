@@ -128,16 +128,19 @@ jobs:
           fi
 
           # Restart (los .env del servidor se leen en runtime, no en build)
+          touch /tmp/gestor-deploying
           pm2 restart gestor --update-env
 
           # Health check + smoke tests
           sleep 4
           HTTP=$(curl -fsS -o /dev/null -w '%{http_code}' http://localhost:3010/api/health || echo "000")
           if [ "$HTTP" != "200" ]; then
+            rm -f /tmp/gestor-deploying
             echo "❌ Health check falló: HTTP $HTTP"
             exit 1
           fi
 
+          rm -f /tmp/gestor-deploying
           bash /srv/gestor/scripts/smoke-test.sh
 
           VER=$(curl -fsS http://localhost:3010/api/version 2>/dev/null || echo "sin versión")

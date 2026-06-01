@@ -1,4 +1,5 @@
 'use client'
+import React from 'react'
 import DataTable, { ColDef } from '@/components/DataTable'
 import { mesBogota, anioBogota, esDelMesBogota } from '@/lib/fechas'
 import { useEffect, useState, useRef, useCallback } from 'react'
@@ -1120,38 +1121,60 @@ export default function CarteraPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((p: any, i: number) => (
-                      <tr key={p.id}
-                        style={{background: i%2===0 ? '#141c2e' : '#141c2e', borderBottom:'1px solid #1e2a3d'}}>
-                        <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
-                          {new Date(p.createdAt).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'America/Bogota'})}
-                        </td>
-                        <td className="px-4 py-3 whitespace-nowrap">
-                          <button onClick={() => abrirRecibo(p.id)}
-                            className="flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors font-mono">
-                            🖨️ {p.numeroRecibo || '—'}
-                          </button>
-                        </td>
-                        <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",fontFamily:"monospace",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
-                          {p.numeroFactura ? `#${p.numeroFactura}` : '—'}
-                        </td>
-                        <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",maxWidth:160,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
-                          {p.clienteNombre || p.cartera?.cliente?.nombre || p.Cartera?.Cliente?.nombre || '—'}
-                        </td>
-                        <td className="px-4 py-3 text-right text-emerald-400 font-semibold whitespace-nowrap">
-                          {p._efectivo > 0 ? fmt(p._efectivo) : '—'}
-                        </td>
-                        <td className="px-4 py-3 text-right text-blue-400 font-semibold whitespace-nowrap">
-                          {p._transf > 0 ? fmt(p._transf) : '—'}
-                        </td>
-                        <td className="px-4 py-3 text-right text-amber-400 whitespace-nowrap">
-                          {p._desc > 0 ? fmt(p._desc) : '—'}
-                        </td>
-                        <td className="px-4 py-3 text-right text-zinc-300 whitespace-nowrap">
-                          {p._nuevoSaldo !== null ? fmt(p._nuevoSaldo) : '—'}
-                        </td>
-                      </tr>
-                    ))}
+                    {rows.map((p: any, i: number) => {
+                      const facturas: any[] = Array.isArray(p._facturas) && p._facturas.length > 0
+                        ? p._facturas
+                        : p.numeroFactura ? [{ numeroFactura: p.numeroFactura }] : []
+                      const primeraFact = facturas[0]
+                      const subFacturas = facturas.slice(1)
+                      const tdBase: React.CSSProperties = { padding:"8px 10px", fontSize:14, fontWeight:500, color:"white", whiteSpace:"nowrap", borderBottom: subFacturas.length > 0 ? 'none' : '1px solid #1e2a3d' }
+                      const tdSub: React.CSSProperties  = { padding:"2px 10px 8px", fontSize:13, fontFamily:"monospace", color:"rgba(147,197,253,0.6)", whiteSpace:"nowrap", borderBottom:'1px solid #1e2a3d' }
+                      return (
+                        <React.Fragment key={p.id}>
+                          <tr style={{background:'#141c2e'}}>
+                            <td style={tdBase}>
+                              {new Date(p.createdAt).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit',year:'2-digit',timeZone:'America/Bogota'})}
+                            </td>
+                            <td style={{...tdBase, padding:"8px 10px"}} className="whitespace-nowrap">
+                              <button onClick={() => abrirRecibo(p.id)}
+                                className="flex items-center gap-1 text-blue-400 hover:text-blue-300 transition-colors font-mono">
+                                🖨️ {p.numeroRecibo || '—'}
+                              </button>
+                            </td>
+                            <td style={{...tdBase, fontFamily:"monospace"}}>
+                              {primeraFact ? `#${primeraFact.numeroFactura}` : '—'}
+                            </td>
+                            <td style={{...tdBase, maxWidth:160, overflow:"hidden", textOverflow:"ellipsis"}}>
+                              {p.clienteNombre || p.cartera?.cliente?.nombre || p.Cartera?.Cliente?.nombre || '—'}
+                            </td>
+                            <td className="px-4 py-3 text-right text-emerald-400 font-semibold whitespace-nowrap" style={{borderBottom: subFacturas.length > 0 ? 'none' : '1px solid #1e2a3d'}}>
+                              {p._efectivo > 0 ? fmt(p._efectivo) : '—'}
+                            </td>
+                            <td className="px-4 py-3 text-right text-blue-400 font-semibold whitespace-nowrap" style={{borderBottom: subFacturas.length > 0 ? 'none' : '1px solid #1e2a3d'}}>
+                              {p._transf > 0 ? fmt(p._transf) : '—'}
+                            </td>
+                            <td className="px-4 py-3 text-right text-amber-400 whitespace-nowrap" style={{borderBottom: subFacturas.length > 0 ? 'none' : '1px solid #1e2a3d'}}>
+                              {p._desc > 0 ? fmt(p._desc) : '—'}
+                            </td>
+                            <td className="px-4 py-3 text-right text-zinc-300 whitespace-nowrap" style={{borderBottom: subFacturas.length > 0 ? 'none' : '1px solid #1e2a3d'}}>
+                              {p._nuevoSaldo !== null ? fmt(p._nuevoSaldo) : '—'}
+                            </td>
+                          </tr>
+                          {subFacturas.map((sf: any, si: number) => (
+                            <tr key={`${p.id}-sf-${si}`} style={{background:'#141c2e'}}>
+                              <td style={{...tdSub, borderBottom: si < subFacturas.length - 1 ? 'none' : '1px solid #1e2a3d'}}></td>
+                              <td style={{...tdSub, borderBottom: si < subFacturas.length - 1 ? 'none' : '1px solid #1e2a3d'}}></td>
+                              <td style={{...tdSub, borderBottom: si < subFacturas.length - 1 ? 'none' : '1px solid #1e2a3d'}}>↳ #{sf.numeroFactura}</td>
+                              <td style={{...tdSub, borderBottom: si < subFacturas.length - 1 ? 'none' : '1px solid #1e2a3d'}}></td>
+                              <td style={{...tdSub, borderBottom: si < subFacturas.length - 1 ? 'none' : '1px solid #1e2a3d'}}></td>
+                              <td style={{...tdSub, borderBottom: si < subFacturas.length - 1 ? 'none' : '1px solid #1e2a3d'}}></td>
+                              <td style={{...tdSub, borderBottom: si < subFacturas.length - 1 ? 'none' : '1px solid #1e2a3d'}}></td>
+                              <td style={{...tdSub, borderBottom: si < subFacturas.length - 1 ? 'none' : '1px solid #1e2a3d'}}></td>
+                            </tr>
+                          ))}
+                        </React.Fragment>
+                      )
+                    })}
                   </tbody>
                   {/* Totales */}
                   <tfoot>
