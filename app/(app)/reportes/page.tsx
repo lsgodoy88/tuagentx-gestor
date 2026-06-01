@@ -78,7 +78,7 @@ export default function ReportesPage() {
           </div>
           <div className="space-y-2">
             {ranking.map((r: any, i: number) => (
-              <div key={r.empleadoId} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 flex items-center gap-4">
+              <div key={r.empleadoId} className="border border-zinc-800 rounded-2xl p-4 flex items-center gap-4" style={{background:"#1e243a"}}>
                 <div className={"w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm flex-shrink-0 " + (i === 0 ? "bg-yellow-500 text-black" : i === 1 ? "bg-zinc-400 text-black" : i === 2 ? "bg-amber-700 text-white" : "bg-zinc-700 text-white")}>
                   {i + 1}
                 </div>
@@ -124,7 +124,7 @@ export default function ReportesPage() {
           { label: 'Cobros', value: datos.totales.cobros || 0, icon: '💵', sub: fmt(datos.totales.montoCobros || 0) },
           { label: 'Entregas', value: datos.totales.entregas || 0, icon: '📦', sub: null },
         ].map(s => (
-          <div key={s.label} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+          <div key={s.label} className="border border-zinc-800 rounded-2xl p-4" style={{background:"#1e243a"}}>
             <div className="text-2xl mb-2">{s.icon}</div>
             <div className="text-2xl font-bold text-white">{s.value}</div>
             <div className="text-zinc-400 text-xs">{s.label}</div>
@@ -140,7 +140,7 @@ export default function ReportesPage() {
           {datos.resumenPorEmpleado
             .sort((a: any, b: any) => b.total - a.total)
             .map((r: any) => (
-              <div key={r.empleado.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+              <div key={r.empleado.id} className="border border-zinc-800 rounded-2xl p-4" style={{background:"#1e243a"}}>
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-9 h-9 bg-zinc-700 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0">
                     {r.empleado.nombre[0].toUpperCase()}
@@ -269,7 +269,7 @@ function TabRecaudos() {
   return (
     <div className="space-y-3">
       {/* Filtros */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3 space-y-2">
+      <div className="border border-zinc-800 rounded-xl p-3 space-y-2" style={{background:"#1e243a"}}>
         <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="text-zinc-500 text-xs">Mes</label>
@@ -307,12 +307,12 @@ function TabRecaudos() {
       {/* Totales */}
       {data?.totales && (
         <div className="grid grid-cols-2 gap-2">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+          <div className="border border-zinc-800 rounded-xl p-3" style={{background:"#1e243a"}}>
             <p className="text-zinc-500 text-xs">Total recaudado</p>
             <p className="text-emerald-400 font-bold text-lg">{fmtMoney(data.totales.totalRecaudado)}</p>
             <p className="text-zinc-500 text-xs">{data.totales.cantidad} pagos</p>
           </div>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-3">
+          <div className="border border-zinc-800 rounded-xl p-3" style={{background:"#1e243a"}}>
             <p className="text-zinc-500 text-xs">Descuentos</p>
             <p className="text-orange-400 font-bold text-lg">{fmtMoney(data.totales.totalDescuento)}</p>
           </div>
