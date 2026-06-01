@@ -52,6 +52,8 @@ export default function VisitasPage() {
       if (qParam) {
         setBuscarHistorial(qParam)
         loadHistorial(qParam, '', null)
+        // Limpiar q de la URL para evitar que el autocomplete se dispare
+        window.history.replaceState(null, '', '/visitas?tab=historial')
       }
       setUrlParamsApplied(true)
     }
