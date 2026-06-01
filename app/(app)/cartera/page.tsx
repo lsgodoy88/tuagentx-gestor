@@ -1031,8 +1031,8 @@ export default function CarteraPage() {
       {/* PAGOS */}
       {tab === 'pagos' && (<div key='tab-pagos' className='fade-up space-y-3'>
 
-        {/* Filtros: mes + vendedor (admin) */}
-        <div className="flex flex-wrap items-center gap-2">
+        {/* Filtros: mes + botón + buscador en una línea */}
+        <div className="flex items-center gap-2">
           <SelectorMes
             value={`${anioPagos}-${String(mesPagos).padStart(2,'0')}`}
             onChange={v => { const [a,m] = v.split('-'); const anio=Number(a), mes=Number(m); setAnioPagos(anio); setMesPagos(mes); try { sessionStorage.setItem('cartera_mesPagos', String(mes)); sessionStorage.setItem('cartera_anioPagos', String(anio)) } catch {} }}
@@ -1047,18 +1047,7 @@ export default function CarteraPage() {
               : <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2.2"/><line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/></svg>
             }
           </button>
-          {isAdmin && (
-            <select
-              value={vendedorPagoId}
-              onChange={e => setVendedorPagoId(e.target.value)}
-              className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-blue-500">
-              <option value="">Todos los vendedores</option>
-              {vendedores.map((v: any) => (
-                <option key={v.id} value={v.id}>{v.nombre}</option>
-              ))}
-            </select>
-          )}
-          <div className="relative flex-1 min-w-[160px] max-w-[280px]">
+          <div className="relative flex-1">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm pointer-events-none">🔍</span>
             <input
               type="text"
@@ -1073,6 +1062,17 @@ export default function CarteraPage() {
             )}
           </div>
         </div>
+        {isAdmin && (
+          <select
+            value={vendedorPagoId}
+            onChange={e => setVendedorPagoId(e.target.value)}
+            className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-blue-500 w-full">
+            <option value="">Todos los vendedores</option>
+            {vendedores.map((v: any) => (
+              <option key={v.id} value={v.id}>{v.nombre}</option>
+            ))}
+          </select>
+        )}
 
         {/* Tabla scroll horizontal — funciona en móvil y desktop */}
         {pagos.length === 0 ? (
