@@ -75,7 +75,7 @@ body {
   border-color: #1e2a3d !important;
 }
 [class*="bg-zinc-800/60"][class*="border"][class*="zinc-700"] {
-  background: #08081c !important;
+  background: #1e243a !important;
   border-color: var(--border-blue) !important;
 }
 
@@ -400,7 +400,7 @@ body {
 
 /* bg-zinc-950 barra inferior de acciones */
 .bg-zinc-950 {
-  background-color: #06060c !important;
+  background-color: #1e243a !important;
   border-top: 1px solid #1e2a3d !important;
 }
 
@@ -534,7 +534,7 @@ button:active:not(:disabled) {
 /* ── Tab activo — visible sobre glass ──────────────────────────────── */
 /* El contenedor de tabs pills: fondo semitransparente */
 .tab-pills {
-  background: rgba(30,36,58,0.99) !important;
+  background: #1e243a !important;
   border: 1px solid rgba(59,130,246,0.30) !important;
   border-radius: 0.75rem !important;
 }

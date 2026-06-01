@@ -450,7 +450,7 @@ export default function TrazabilidadPage() {
 
             const isSeleccionada = ordenSeleccionada?.id === orden.id
             return (
-              <div key={orden.id} className={`rounded-2xl overflow-hidden transition-all`} style={{background:'#09091f',border:isSeleccionada?'1px solid rgba(59,130,246,0.60)':'1px solid rgba(59,130,246,0.25)',borderRadius:14}}>
+              <div key={orden.id} className={`rounded-2xl overflow-hidden transition-all`} style={{background:'#1e243a',border:isSeleccionada?'1px solid rgba(59,130,246,0.60)':'1px solid rgba(59,130,246,0.25)',borderRadius:14}}>
                 {/* Header — siempre visible, clickeable */}
                 <div onClick={() => toggleExpandido(orden.id, orden)} className="flex items-center gap-2 p-3 cursor-pointer hover:bg-zinc-800/50 transition-colors">
                   <span className="text-zinc-400 font-mono text-xs flex-shrink-0">#{orden.numeroFactura || orden.numeroOrden}</span>

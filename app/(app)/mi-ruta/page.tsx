@@ -347,7 +347,7 @@ export default function MiRutaPage() {
           <div className="space-y-2">
             <p className="text-zinc-500 text-xs font-semibold">RUTAS ANTERIORES</p>
             {historial.map((r: any) => (
-              <div key={r.id} style={{background:"#060a24"}} className="border border-emerald-500/40 rounded-2xl p-4">
+              <div key={r.id} style={{background:"#1e243a"}} className="border border-emerald-500/40 rounded-2xl p-4">
                 <p className="text-emerald-400/70 font-bold">{r.nombre}</p>
                 <p className="text-zinc-500 text-xs mt-1">🏪 {r.clientes.length} clientes asignados</p>
                 {r.clientes.filter((rc: any) => rc.cliente.ubicacionReal).length > 0 && (

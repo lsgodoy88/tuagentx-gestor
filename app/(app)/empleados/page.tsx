@@ -297,12 +297,12 @@ export default function EmpleadosPage() {
               {subTabRutas === 'hoy' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {turnosHoy.length === 0 ? (
-                    <div style={{ background:"#0a0a20", border:"1px solid rgba(59,130,246,0.20)", borderRadius:16, padding:40, textAlign:"center" }}>
+                    <div style={{ background:"#1e243a", border:"1px solid rgba(59,130,246,0.20)", borderRadius:16, padding:40, textAlign:"center" }}>
                       <p className="text-3xl mb-2">😴</p>
                       <p className="text-zinc-400">Sin turnos activos hoy</p>
                     </div>
                   ) : turnosHoy.map((t: any) => (
-                    <div key={t.id} style={{ background:"#0a0a20", border:`1px solid ${t.activo ? "rgba(59,130,246,0.40)" : "#0f2540"}`, borderRadius:16, padding:16 }} className={`space-y-3`}>
+                    <div key={t.id} style={{ background:"#1e243a", border:`1px solid ${t.activo ? "rgba(59,130,246,0.40)" : "#0f2540"}`, borderRadius:16, padding:16 }} className={`space-y-3`}>
                       {/* Header */}
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
@@ -365,11 +365,11 @@ export default function EmpleadosPage() {
               {subTabRutas === 'historial' && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {turnosHistorial.length === 0 ? (
-                    <div style={{ background:"#0a0a20", border:"1px solid rgba(59,130,246,0.20)", borderRadius:16, padding:40, textAlign:"center" }}>
+                    <div style={{ background:"#1e243a", border:"1px solid rgba(59,130,246,0.20)", borderRadius:16, padding:40, textAlign:"center" }}>
                       <p className="text-zinc-400">Sin historial en los últimos 30 días</p>
                     </div>
                   ) : turnosHistorial.map((t: any) => (
-                    <div key={t.id} style={{ background:"#0a0a20", border:"1px solid rgba(59,130,246,0.20)", borderRadius:16, padding:16 }}>
+                    <div key={t.id} style={{ background:"#1e243a", border:"1px solid rgba(59,130,246,0.20)", borderRadius:16, padding:16 }}>
                       {/* Header */}
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
@@ -836,7 +836,7 @@ export default function EmpleadosPage() {
               value={metasEmpleadoId}
               onChange={e => { setMetasEmpleadoId(e.target.value); cargarMetas(e.target.value, metasAnio) }}
               className="flex-1 min-w-[180px] rounded-xl px-3 py-2 text-sm text-white outline-none"
-              style={{background:'#0a0a20',border:'1px solid rgba(59,130,246,0.35)'}}>
+              style={{background:'#1e243a',border:'1px solid rgba(59,130,246,0.35)'}}>
               <option value="">— Seleccionar vendedor —</option>
               {empleados.filter((e: any) => e.rol === 'vendedor' && e.activo).map((e: any) => (
                 <option key={e.id} value={e.id}>{e.nombre}</option>
@@ -846,14 +846,14 @@ export default function EmpleadosPage() {
               value={metasAnio}
               onChange={e => { const a = parseInt(e.target.value); setMetasAnio(a); cargarMetas(metasEmpleadoId, a) }}
               className="rounded-xl px-3 py-2 text-sm text-white outline-none"
-              style={{background:'#0a0a20',border:'1px solid rgba(59,130,246,0.35)'}}>
+              style={{background:'#1e243a',border:'1px solid rgba(59,130,246,0.35)'}}>
               {[metasAnio - 1, metasAnio, metasAnio + 1].map(a => <option key={a} value={a}>{a}</option>)}
             </select>
           </div>
 
           {/* Tabla 12 meses */}
           {metasEmpleadoId && (
-            <div className="rounded-2xl overflow-hidden" style={{background:'#0a0a20',border:'1px solid rgba(59,130,246,0.25)'}}>
+            <div className="rounded-2xl overflow-hidden" style={{background:'#1e243a',border:'1px solid rgba(59,130,246,0.25)'}}>
               {/* Header */}
               <div className="grid grid-cols-3 gap-0 px-4 py-3 border-b" style={{borderColor:'rgba(59,130,246,0.20)'}}>
                 <p className="text-zinc-500 text-xs font-bold uppercase tracking-widest">Mes</p>
@@ -881,7 +881,7 @@ export default function EmpleadosPage() {
                           onBlur={e => { if (e.target.value) setMetasEdit(p => ({...p, [mes]: {...p[mes], recaudo: fmtMeta(e.target.value)}})) }}
                           placeholder="Sin meta"
                           className="w-full rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-zinc-600 outline-none transition-colors focus:border-blue-500/60"
-                          style={{background:'#0f0f1a',border:'1px solid rgba(59,130,246,0.20)'}}
+                          style={{background:'#1e243a',border:'1px solid rgba(59,130,246,0.20)'}}
                         />
                       </div>
                       <div className="pr-1">
@@ -893,7 +893,7 @@ export default function EmpleadosPage() {
                           onBlur={e => { if (e.target.value) setMetasEdit(p => ({...p, [mes]: {...p[mes], venta: fmtMeta(e.target.value)}})) }}
                           placeholder="Sin meta"
                           className="w-full rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-zinc-600 outline-none transition-colors focus:border-blue-500/60"
-                          style={{background:'#0f0f1a',border:'1px solid rgba(59,130,246,0.20)'}}
+                          style={{background:'#1e243a',border:'1px solid rgba(59,130,246,0.20)'}}
                         />
                       </div>
                     </div>
@@ -914,7 +914,7 @@ export default function EmpleadosPage() {
           )}
           {!metasEmpleadoId && (
             <div className="rounded-2xl p-8 text-center text-zinc-500 text-sm"
-              style={{background:'#0a0a20',border:'1px solid rgba(59,130,246,0.25)'}}>
+              style={{background:'#1e243a',border:'1px solid rgba(59,130,246,0.25)'}}>
               Selecciona un vendedor para ver y editar sus metas
             </div>
           )}

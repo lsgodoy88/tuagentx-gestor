@@ -362,7 +362,7 @@ export default function RutasFijasPage() {
                             ? Math.round((new Date(item.salida.createdAt).getTime() - new Date(item.entrada.createdAt).getTime()) / 60000)
                             : null
                           return (
-                            <div key={item.cliente.id} className="rounded-2xl p-4 space-y-2" style={{background:"#000000",border:"1px solid rgba(59,130,246,0.45)"}}>
+                            <div key={item.cliente.id} className="rounded-2xl p-4 space-y-2" style={{background:"#1e243a",border:"1px solid rgba(59,130,246,0.45)"}}>
                               <p className="text-white font-semibold">{item.cliente.nombre}</p>
                               {item.cliente.nombreComercial && <p className="text-zinc-400 text-sm">{item.cliente.nombreComercial}</p>}
                                 {(() => {
@@ -552,7 +552,7 @@ export default function RutasFijasPage() {
                               const esRep = clientesRepetidos.has(rc.clienteId) && clientesPrimerDia[rc.clienteId] !== diaNum
                               const bCol = pct === null ? 'bg-zinc-600' : pct >= 100 ? 'bg-blue-500' : pct >= 70 ? 'bg-cyan-500' : pct >= 40 ? 'bg-yellow-500' : 'bg-red-500'
                               return (
-                                <div key={rc.id} className="rounded-xl px-3 py-2.5 space-y-1" style={{background:"#000000",border:"1px solid rgba(59,130,246,0.45)"}}>
+                                <div key={rc.id} className="rounded-xl px-3 py-2.5 space-y-1" style={{background:"#1e243a",border:"1px solid rgba(59,130,246,0.45)"}}>
                                   {/* Nombre + GPS — toque para expandir acciones */}
                                   <div className="flex items-center gap-2 cursor-pointer active:opacity-70"
                                     onClick={() => setExpandedCliente(expandedCliente === rc.id ? null : rc.id)}>
