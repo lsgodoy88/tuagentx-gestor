@@ -368,7 +368,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <button
           className="hidden md:flex fixed top-1/2 left-0 -translate-y-1/2 z-20 items-center justify-center"
           onClick={() => setPinned(p => !p)}
-          style={{width:16,height:48,background:'#1e243a',borderRadius:'0 8px 8px 0',border:'1px solid rgba(255,255,255,0.10)',borderLeft:'none',cursor:'pointer',color:'white',fontSize:10}}>
+          style={{width:20,height:80,background:'#1e243a',borderRadius:'0 10px 10px 0',border:'1px solid rgba(59,130,246,0.25)',borderLeft:'none',cursor:'pointer',color:'#7aa2c8',fontSize:16,fontWeight:'bold',letterSpacing:0}}>
           ›
         </button>
       )}
