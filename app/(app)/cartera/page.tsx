@@ -936,14 +936,14 @@ export default function CarteraPage() {
                                 {esPrimera ? (
                                   <div className="flex items-center gap-2">
                                     <span style={{width:8,height:8,borderRadius:'50%',background:ESTADO_COLOR[estadoPrincipal(cartera.porEstado)]||'#6366f1',flexShrink:0,boxShadow:`0 0 5px ${ESTADO_COLOR[estadoPrincipal(cartera.porEstado)]||'#6366f1'}`}} />
-                                    <span style={{color:"white",fontWeight:500,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",textTransform:"capitalize"}}>{cartera.cliente?.nombre?.toLowerCase() || '—'}</span>
+                                    <span style={{color:"white",fontWeight:500,fontSize:14,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{cartera.cliente?.nombre || '—'}</span>
                                   </div>
                                 ) : null}
                               </td>
                               {/* Vendedor — solo primera fila */}
                               {esSupervisor && (
                                 <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d",textAlign:"center"}}>
-                                  {esPrimera ? (cartera.empleado?.nombre?.toLowerCase() || '—') : null}
+                                  {esPrimera ? (cartera.empleado?.nombre || '—') : null}
                                 </td>
                               )}
                               {/* Factura */}
