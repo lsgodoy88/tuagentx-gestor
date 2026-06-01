@@ -597,7 +597,7 @@ export default function CarteraPage() {
               <select
                 value={mesSel}
                 onChange={e => setMesSel(Number(e.target.value))}
-                style={{ background: '#1e243a', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '12px', padding: '10px 14px' }}
+                style={{ background: '#060a24', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '12px', padding: '10px 14px' }}
                 className="text-white text-sm outline-none focus:border-emerald-500 flex-1"
               >
                 {['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].map((nombre, i) => (
@@ -607,7 +607,7 @@ export default function CarteraPage() {
               <select
                 value={anioSel}
                 onChange={e => setAnioSel(Number(e.target.value))}
-                style={{ background: '#1e243a', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '12px', padding: '10px 14px' }}
+                style={{ background: '#060a24', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '12px', padding: '10px 14px' }}
                 className="text-white text-sm outline-none focus:border-emerald-500"
               >
                 {[2024, 2025, 2026].map(a => (
@@ -616,7 +616,7 @@ export default function CarteraPage() {
               </select>
               <button
                 onClick={() => { setMesAnalisis(mesSel); setAnioAnalisis(anioSel) }}
-                style={{ background: '#1e243a', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '12px', padding: '10px 14px' }}
+                style={{ background: '#060a24', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '12px', padding: '10px 14px' }}
                 className="text-white text-lg hover:border-emerald-500 transition-colors"
                 title="Aplicar filtro"
               >
@@ -666,22 +666,22 @@ export default function CarteraPage() {
 
             {/* KPIs */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className={`rounded-2xl p-4 hover-lift fade-up stagger-1 ${loadingBusqueda ? 'loading-border' : ''}`} style={{background:"#1e243a",border:"1px solid rgba(59,130,246,0.25)"}}>
+              <div className={`rounded-2xl p-4 hover-lift fade-up stagger-1 ${loadingBusqueda ? 'loading-border' : ''}`} style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.25)"}}>
                 <p className="text-zinc-500 text-xs mb-1 uppercase tracking-wide font-bold">Cartera total</p>
                 <p className="text-white font-bold text-lg">$<CountUp end={Math.round(totalCartera)} /></p>
                 <p className="text-zinc-600 text-xs mt-1"><CountUp end={totalReal ? totalReal.clientes : carteras.length} /> clientes</p>
               </div>
-              <div className={`rounded-2xl p-4 hover-lift fade-up stagger-2 ${loadingBusqueda ? 'loading-border-red' : ''}`} style={{background:"#1e243a",border:"1px solid rgba(59,130,246,0.25)"}}>
+              <div className={`rounded-2xl p-4 hover-lift fade-up stagger-2 ${loadingBusqueda ? 'loading-border-red' : ''}`} style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.25)"}}>
                 <p className="text-zinc-500 text-xs mb-1 uppercase tracking-wide font-bold">Pendiente</p>
                 <p className="text-red-400 font-bold text-lg flex items-center gap-2">$<CountUp end={Math.round(totalPend)} />{totalPend > 0 && <LiveDot color="red" />}</p>
                 <p className="text-zinc-600 text-xs mt-1">{totalCartera > 0 ? Math.round((totalPend/totalCartera)*100) : 0}% sin cobrar</p>
               </div>
-              <div className={`rounded-2xl p-4 hover-lift fade-up stagger-3 ${loadingBusqueda ? 'loading-border-emerald' : ''}`} style={{background:"#1e243a",border:"1px solid rgba(59,130,246,0.25)"}}>
+              <div className={`rounded-2xl p-4 hover-lift fade-up stagger-3 ${loadingBusqueda ? 'loading-border-emerald' : ''}`} style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.25)"}}>
                 <p className="text-zinc-500 text-xs mb-1 uppercase tracking-wide font-bold">Recaudado</p>
                 <p className="text-emerald-400 font-bold text-lg">$<CountUp end={Math.round(totalMes)} /></p>
                 <p className="text-zinc-600 text-xs mt-1">{pagosMes.length} pagos · {variacion >= 0 ? '+' : ''}{variacion}% vs ant.</p>
               </div>
-              <div className={`rounded-2xl p-4 hover-lift fade-up stagger-4 ${loadingBusqueda ? 'loading-border-amber' : ''}`} style={{background:"#1e243a",border:"1px solid rgba(59,130,246,0.25)"}}>
+              <div className={`rounded-2xl p-4 hover-lift fade-up stagger-4 ${loadingBusqueda ? 'loading-border-amber' : ''}`} style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.25)"}}>
                 <p className="text-zinc-500 text-xs mb-1 uppercase tracking-wide font-bold">Descuentos</p>
                 <p className="text-orange-400 font-bold text-lg">$<CountUp end={Math.round(totalDescMes)} /></p>
                 <p className="text-zinc-600 text-xs mt-1">aplicados este mes</p>
@@ -691,7 +691,7 @@ export default function CarteraPage() {
             {/* Estadísticas — grid 3 col desktop */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Estado de cartera con barras */}
-            <div style={{background:"#1e243a",border:"1px solid rgba(59,130,246,0.25)",borderRadius:16,padding:16}}>
+            <div style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.25)",borderRadius:16,padding:16}}>
               <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-3">Estado de cartera</p>
               <div className="space-y-2.5">
                 {([
@@ -721,7 +721,7 @@ export default function CarteraPage() {
 
             {/* Vista por vendedor — solo admin/supervisor */}
             {esAdmin && vendedoresMes.length > 0 && (
-              <div className="md:col-span-2" style={{background:"#1e243a",border:"1px solid rgba(59,130,246,0.25)",borderRadius:16,padding:16}}>
+              <div className="md:col-span-2" style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.25)",borderRadius:16,padding:16}}>
                 <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-3">👥 Por vendedor</p>
                 <div className="space-y-5">
                   {vendedoresMes.sort((a: any, b: any) => b.monto - a.monto).map((v: any) => {

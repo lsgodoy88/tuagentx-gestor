@@ -1136,7 +1136,7 @@ export default function OrdenesPage() {
               responsive={true}
             />
           </div>
-          <div style={{background:"#1e243a"}} className="px-6 pb-8 pt-4 flex items-center justify-between">
+          <div style={{background:"#060a24"}} className="px-6 pb-8 pt-4 flex items-center justify-between">
             <button onClick={descartarRecorte}
               className="w-16 h-16 rounded-2xl bg-zinc-800 border border-zinc-600 text-white text-xs flex flex-col items-center justify-center gap-1">
               <span className="text-lg">🗑️</span>

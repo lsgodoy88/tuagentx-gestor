@@ -166,7 +166,7 @@ export default function VisitasPage() {
               debounceRef.current = setTimeout(() => loadHistorial(q, '', null), 500)
             }}
               placeholder="Buscar cliente..."
-              style={{ background:'#1e243a', border:'1px solid #1e3a5f', borderRadius:10, padding:'7px 14px', color:'white', fontSize:12, outline:'none', width:160 }} />
+              style={{ background:'#060a24', border:'1px solid #1e3a5f', borderRadius:10, padding:'7px 14px', color:'white', fontSize:12, outline:'none', width:160 }} />
             <div className="relative flex-shrink-0">
               <input type="date" value={fechaHistorial} onChange={e => {
                 const f = e.target.value
@@ -250,7 +250,7 @@ export default function VisitasPage() {
               debounceRef.current = setTimeout(() => loadHistorial(q, '', null), 500)
             }}
               placeholder="Buscar cliente..."
-              style={{ flex:1, background:'#1e243a', border:'1px solid #1e3a5f', borderRadius:10, padding:'10px 14px', color:'white', fontSize:13, outline:'none' }} />
+              style={{ flex:1, background:'#060a24', border:'1px solid #1e3a5f', borderRadius:10, padding:'10px 14px', color:'white', fontSize:13, outline:'none' }} />
             <div className="relative flex-shrink-0">
               <input type="date" value={fechaHistorial} onChange={e => {
                 const f = e.target.value

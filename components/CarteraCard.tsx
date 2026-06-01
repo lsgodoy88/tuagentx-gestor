@@ -74,7 +74,7 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onWhatsA
     <div
       onClick={() => setOpen(o => !o)}
       style={{
-        background: variant === 'modal' ? '#475569' : '#1e243a',
+        background: variant === 'modal' ? '#475569' : '#060a24',
         border: `1px solid ${open ? 'rgba(59,130,246,0.40)' : 'rgba(59,130,246,0.25)'}`,
         borderRadius: 14,
         padding: '10px 12px',
@@ -132,7 +132,7 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onWhatsA
               {deudas.map((d, i) => (
                 <div key={i} style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  background: '#1e243a', border: '1px solid #0f2540', borderRadius: 8, padding: '5px 8px',
+                  background: '#060a24', border: '1px solid #0f2540', borderRadius: 8, padding: '5px 8px',
                 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ fontSize: 12, color: '#ffffff' }}>
