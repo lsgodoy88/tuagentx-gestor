@@ -116,7 +116,7 @@ export default function DataTable<T>({
 
   // ── Render ─────────────────────────────────────────────────────
   return (
-    <div style={{ width: '100%', overflowX: 'auto', border: '1px solid #1e3a5f', borderRadius: 12, overflow: 'hidden' }}>
+    <div style={{ width: '100%', border: '1px solid #1e3a5f', borderRadius: 12, overflow: 'hidden' }}><div style={{ overflowX: 'auto' }}>
       <table style={{
         tableLayout: 'fixed',
         width: totalW,
@@ -212,7 +212,7 @@ export default function DataTable<T>({
                 {/* Fila principal */}
                 <tr
                   onClick={() => onRowClick?.(row)}
-                  style={{ background: ROW_BG, cursor: onRowClick ? 'pointer' : 'default' }}
+                  style={{ background: ROW_BG, cursor: onRowClick ? 'pointer' : 'default' }} onMouseEnter={onRowClick ? (e:any)=>{e.currentTarget.style.background='#1a2d4a'} : undefined} onMouseLeave={onRowClick ? (e:any)=>{e.currentTarget.style.background=ROW_BG} : undefined}
                 >
                   {/* Checkbox */}
                   {showCheckbox && <td style={{ ...TD, borderLeft: ROW_BORDER, borderTop: ROW_BORDER, borderBottom: isMulti ? 'none' : ROW_BORDER, borderRight: 'none' }}>
@@ -277,6 +277,6 @@ export default function DataTable<T>({
       <style>{`
         @keyframes pulse { 0%,100%{opacity:.4} 50%{opacity:.8} }
       `}</style>
-    </div>
+    </div></div>
   )
 }
