@@ -171,7 +171,7 @@ export default function CarteraPage() {
     try {
       ;[r1, r2, r3] = await Promise.all([
         fetch(url).then(r => r.json()),
-        fetch('/api/recaudos?limit=500').then(r => r.json()).catch(() => ({ pagos: [] })),
+        fetch(`/api/recaudos?limit=500&mes=${mesPagos}&anio=${anioPagos}${vendedorPagoId ? '&vendedorId='+vendedorPagoId : ''}`).then(r => r.json()).catch(() => ({ pagos: [] })),
         fetch('/api/cartera/metas').then(r => r.json()).catch(() => ({ metas: [] })),
       ])
       if (!q && r1.carteras) {
