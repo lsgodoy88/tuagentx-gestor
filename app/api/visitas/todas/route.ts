@@ -33,7 +33,12 @@ export async function GET(req: NextRequest) {
   }
 
   if (q) {
-    where.cliente = { nombre: { contains: q, mode: 'insensitive' } }
+    where.cliente = {
+      OR: [
+        { nombre: { contains: q, mode: 'insensitive' } },
+        { nit: { contains: q, mode: 'insensitive' } },
+      ]
+    }
   }
 
   const select = {
