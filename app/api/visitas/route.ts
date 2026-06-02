@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { nowBogota, fechaHoyBogota } from '@/lib/fechas'
+import { invalidateKeys } from '@/lib/cache'
 import { subirFirma } from '@/lib/r2'
 import { audit } from '@/lib/audit'
 import { distanciaMetros } from '@/lib/gps'
@@ -149,5 +150,10 @@ export async function POST(req: NextRequest) {
     await audit('GPS_FUERA_RANGO', user.email, `Empleado a ${alertaDistancia}m del cliente ${cli?.nombre || clienteId}`, user.id, user.empresaId)
   }
   await audit('VISITA_REGISTRADA', user.email, `Tipo: ${tipo} | Cliente: ${clienteId} | Libre: ${esLibre}`, user.id, user.empresaId)
+  // Invalidar caché de stats afectados por esta visita
+  await invalidateKeys(
+    `g:${user.empresaId}:stats:${fechaHoyBogota()}`,
+    `g:v:${user.id}:${fechaHoyBogota()}`
+  )
   return NextResponse.json({ ok: true, visita, alertaDistancia })
 }

@@ -6,6 +6,8 @@ import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
 import { generarReciboToken } from '@/lib/recibos'
 import { calcularEstado } from '@/lib/cartera'
+import { invalidateKeys } from '@/lib/cache'
+import { fechaHoyBogota } from '@/lib/fechas'
 import { getConsecutivo } from '@/lib/consecutivo' 
 
 export async function POST(req: NextRequest) {
@@ -182,6 +184,13 @@ export async function POST(req: NextRequest) {
     const { actualizarCache } = await import('@/lib/integracion/sync')
     await actualizarCache(new Set([clienteApiId]), integracion.id, empresaId)
   }
+
+  // Invalidar caché afectado por el nuevo pago
+  await invalidateKeys(
+    `g:${empresaId}:stats:${fechaHoyBogota()}`,
+    `g:${empresaId}:cartera:resumen:${fechaHoyBogota()}`,
+    `g:v:${user.id}:${fechaHoyBogota()}`
+  )
 
   return NextResponse.json({ pago, anchoPapel } satisfies PagoSyncResponse)
 }

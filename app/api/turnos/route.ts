@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { nowBogota } from '@/lib/fechas'
+import { nowBogota, fechaHoyBogota } from '@/lib/fechas'
+import { invalidateKeys } from '@/lib/cache'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -51,6 +52,7 @@ export async function POST(req: NextRequest) {
       })
     })
     await audit('TURNO_INICIADO', user.email, `Turno: ${turno.id}`, user.id, user.empresaId)
+    await invalidateKeys(`g:${user.empresaId}:stats:${fechaHoyBogota()}`, `g:v:${user.id}:${fechaHoyBogota()}`)
     return NextResponse.json({ ok: true, turno })
   }
 
@@ -60,6 +62,7 @@ export async function POST(req: NextRequest) {
       data: { activo: false, fin: new Date(), latFin: lat || null, lngFin: lng || null } // new Date() = UTC real
     })
     await audit('TURNO_CERRADO', user.email, `Turno cerrado`, user.id, user.empresaId)
+    await invalidateKeys(`g:${user.empresaId}:stats:${fechaHoyBogota()}`, `g:v:${user.id}:${fechaHoyBogota()}`)
     return NextResponse.json({ ok: true })
   }
 
