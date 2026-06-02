@@ -29,9 +29,11 @@ export async function POST(req: NextRequest) {
     WHERE activo = true
       AND ("autoAbrirTurno" = true OR "autoCerrarTurno" = true)`
 
-  const ahoraBog   = ahoraBogota()
-  const horaActMin = ahoraBog.getHours() * 60 + ahoraBog.getMinutes()
-  const diaSemana  = ahoraBog.getDay()
+  // ahoraBogota() devuelve Date con timestamp desplazado pero getHours/getDay usan TZ local (UTC)
+  // Usar toLocaleString para obtener hora y día correctos en Bogotá
+  const nowBog     = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
+  const horaActMin = nowBog.getHours() * 60 + nowBog.getMinutes()
+  const diaSemana  = nowBog.getDay()
   const hoyStr     = fechaBogotaStr()
 
   let turnosAbiertos = 0
