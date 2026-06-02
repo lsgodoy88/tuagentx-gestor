@@ -21,7 +21,7 @@ export function useNetwork() {
     try {
       const ctrl = new AbortController()
       const id = setTimeout(() => ctrl.abort(), PING_TIMEOUT)
-      const res = await fetch('/api/health', {
+      const res = await fetch('/api/ping', {
         signal: ctrl.signal,
         cache: 'no-store',
         headers: { 'x-ping': '1' },

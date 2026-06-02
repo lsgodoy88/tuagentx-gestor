@@ -72,6 +72,7 @@ export default function CarteraPage() {
   const [vendedores, setVendedores] = useState<any[]>([])
   const [vendedorPagoId, setVendedorPagoId] = useState('')
   const [busquedaPagos, setBusquedaPagos] = useState('')
+  const [filtroDia, setFiltroDia] = useState(() => { try { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) } catch { return '' } })
   const [mesPagos, setMesPagos] = useState(() => {
     try { const v = sessionStorage.getItem('cartera_mesPagos'); return v ? parseInt(v) : mesBogota() } catch { return mesBogota() }
   })
@@ -1048,6 +1049,23 @@ export default function CarteraPage() {
               : <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2.2"/><line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/></svg>
             }
           </button>
+          {/* Filtro día */}
+          <div style={{position:'relative', flexShrink:0}}>
+            <button
+              onClick={() => setFiltroDia(filtroDia ? '' : new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }))}
+              title={filtroDia ? 'Limpiar filtro día' : 'Filtrar por día'}
+              style={{width:36, height:36, borderRadius:10, border: filtroDia ? '1px solid rgba(59,130,246,0.70)' : '1px solid rgba(59,130,246,0.35)', background: filtroDia ? 'rgba(37,99,235,0.25)' : 'rgba(30,42,61,0.90)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color: filtroDia ? '#93c5fd' : '#6b7280', transition:'all 0.15s'}}>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2"/><line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2"/></svg>
+            </button>
+            {filtroDia && (
+              <input
+                type="date"
+                value={filtroDia}
+                onChange={e => setFiltroDia(e.target.value)}
+                style={{position:'absolute', top:40, right:0, zIndex:50, background:'#0d1220', border:'1px solid rgba(59,130,246,0.50)', borderRadius:8, color:'white', padding:'4px 8px', fontSize:13, outline:'none', cursor:'pointer'}}
+              />
+            )}
+          </div>
           <div className="relative flex-1">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm pointer-events-none">🔍</span>
             <input
@@ -1084,15 +1102,21 @@ export default function CarteraPage() {
         ) : (() => {
           // Pre-calcular totales
           let totEfectivo = 0, totTransf = 0, totDesc = 0
-          const pagosFiltrados = busquedaPagos.trim()
+          const _pagosBase = filtroDia
             ? pagos.filter((p: any) => {
+                const fecha = new Date(p.createdAt).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
+                return fecha === filtroDia
+              })
+            : pagos
+          const pagosFiltrados = busquedaPagos.trim()
+            ? _pagosBase.filter((p: any) => {
                 const q = busquedaPagos.toLowerCase()
                 const cliente = (p.clienteNombre || p.cartera?.cliente?.nombre || '').toLowerCase()
                 const factura = String(p.numeroFactura || '').toLowerCase()
                 const recibo  = String(p.numeroRecibo || '').toLowerCase()
                 return cliente.includes(q) || factura.includes(q) || recibo.includes(q)
               })
-            : pagos
+            : _pagosBase
 
           const rows = pagosFiltrados.map((p: any) => {
             const lineas: any[] = Array.isArray(p.lineasPago) ? p.lineasPago : []
@@ -1100,7 +1124,9 @@ export default function CarteraPage() {
             const transf    = lineas.filter(l => l.metodoPago !== 'efectivo' && l.metodoPago).reduce((s, l) => s + Number(l.monto || 0), 0) || ((!p.lineasPago && (p.metodoPago || p.metodopago) !== 'efectivo') ? Number(p.monto) : 0)
             const desc      = Number(p.descuento || 0)
             const saldoAnt  = Number(p.saldoAnterior || 0)
-            const nuevoSaldo = saldoAnt > 0 ? saldoAnt - Number(p.monto) - desc : null
+            const nuevoSaldo = p.reciboPago?.saldoNuevo != null
+              ? Number(p.reciboPago.saldoNuevo)
+              : saldoAnt > 0 ? saldoAnt - Number(p.monto) - desc : null
             totEfectivo += efectivo; totTransf += transf; totDesc += desc
             return { ...p, _efectivo: efectivo, _transf: transf, _desc: desc, _nuevoSaldo: nuevoSaldo }
           })

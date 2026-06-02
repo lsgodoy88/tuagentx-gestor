@@ -28,6 +28,39 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'TOKEN_EXPIRADO', pagoId: pago.id }, { status: 410 })
   }
 
+  // ── Snapshot inmutable (recibos nuevos) ──────────────────────────
+  if ((pago as any).reciboPago) {
+    const snap = (pago as any).reciboPago as any
+    const normalized = {
+      ...pago,
+      metodoPago: pago.metodopago,
+      consecutivo: pago.numeroRecibo,
+      empleado: pago.Empleado,
+      cartera: {
+        _modo: 'snapshot',
+        empresa: snap.empresa ? {
+          ...snap.empresa,
+          // compatibilidad con vista que lee configRecibos.anchoPapel
+          configRecibos: {
+            anchoPapel: snap.empresa.anchoPapel || '80mm',
+            prefijo:    snap.empresa.prefijo    || 'REC',
+            nit:        snap.empresa.nit        || null,
+            telefono:   snap.empresa.telefono   || null,
+            direccion:  snap.empresa.direccion  || null,
+            logo:       snap.empresa.logo       || null,
+          },
+        } : null,
+        cliente:         snap.cliente,
+        DetalleCartera:  snap.detalles || [],
+        saldoAnterior:   snap.saldoAnterior,
+        saldoPendiente:  snap.saldoNuevo,
+        valorFacturasPagadas: (snap.detalles || []).reduce((s: number, d: any) => s + (d.valorFactura || 0), 0),
+      },
+    }
+    return NextResponse.json({ pago: normalized })
+  }
+
+  // ── Fallback live (recibos viejos sin snapshot) ───────────────────
   let carteraData: any = null
   if (pago.Cartera) {
     carteraData = {

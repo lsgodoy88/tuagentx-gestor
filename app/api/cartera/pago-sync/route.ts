@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
 
   const cliente = await prisma.cliente.findFirst({
     where: { apiId: clienteApiId, empresaId },
-    select: { id: true, nombre: true }
+    select: { id: true, nombre: true, nit: true, telefono: true, direccion: true }
   })
   if (!cliente) return NextResponse.json({ error: 'Cliente no encontrado' }, { status: 404 })
 
@@ -42,7 +42,7 @@ export async function POST(req: NextRequest) {
 
   const empresa = await prisma.empresa.findUnique({
     where: { id: empresaId },
-    select: { configRecibos: true }
+    select: { nombre: true, telefono: true, configRecibos: true }
   })
   const anchoPapel = (empresa as any)?.configRecibos?.anchoPapel || '80mm'
 
@@ -118,6 +118,44 @@ export async function POST(req: NextRequest) {
     .filter((d: any) => aplicaciones.some(a => a.syncDeudaId === d.id))
     .reduce((s: number, d: any) => s + Number(d.valor || d.saldo), 0)
 
+  // Snapshot inmutable del recibo — todo lo que necesita el PDF sin tocar BD al reabrir
+  const reciboPago = {
+    empresa: {
+      nombre:       (empresa as any)?.nombre                        || null,
+      nit:          (empresa as any)?.configRecibos?.nit            || null,
+      telefono:     (empresa as any)?.configRecibos?.telefono       || (empresa as any)?.telefono || null,
+      direccion:    (empresa as any)?.configRecibos?.direccion      || null,
+      logo:         (empresa as any)?.configRecibos?.logo           || null,
+      anchoPapel:   (empresa as any)?.configRecibos?.anchoPapel     || '80mm',
+      prefijo:      (empresa as any)?.configRecibos?.prefijo        || 'REC',
+    },
+    cliente: {
+      nombre:    cliente?.nombre    || null,
+      nit:       (cliente as any)?.nit       || null,
+      telefono:  (cliente as any)?.telefono  || null,
+      direccion: (cliente as any)?.direccion || null,
+    },
+    vendedor: vendedorNom || null,
+    detalles: aplicaciones.map(a => {
+      const d = deudas.find((x: any) => x.id === a.syncDeudaId)
+      const saldoAntes = d ? Number(d.saldo) : 0
+      return {
+        numeroFactura:  a.numeroFactura,
+        montoAplicado:  a.montoAplicado,
+        valorFactura:   d ? Number(d.valor || d.saldo) : 0,
+        saldoAntes,
+        saldoDespues:   Math.max(0, saldoAntes - a.montoAplicado),
+      }
+    }),
+    saldoAnterior: saldoAnteriorTotal > 0 ? saldoAnteriorTotal : null,
+    saldoNuevo:    Math.max(0, saldoAnteriorTotal - totalAplicado),
+    monto:         montoNum,
+    descuento:     descuentoNum,
+    metodoPago:    metodoPagoFinal,
+    lineasPago:    lineasValidas.length > 0 ? lineasValidas : null,
+    fechaPago:     new Date().toISOString(),
+  }
+
   // Transacción: crear pago + actualizar saldos atómicamente
   // Si otra request modifica el saldo entre medio, esta falla y se reintenta
   const pago = await (prisma as any).$transaction(async (tx: any) => {
@@ -140,6 +178,7 @@ export async function POST(req: NextRequest) {
         reciboToken,
         tokenExpira,
         ...(aplicaciones.length > 0 ? { syncDeudaId: aplicaciones[0].syncDeudaId } : {}),
+        reciboPago,
         ...(lineasValidas.length === 0 && ['transferencia', 'nequi', 'banco'].includes(metodoPago) && voucherKey ? {
           voucherKey,
           voucherDatosIA: voucherDatosIA ?? undefined,

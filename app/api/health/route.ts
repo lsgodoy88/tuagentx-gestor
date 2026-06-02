@@ -51,7 +51,7 @@ export async function GET() {
     if (ultimaSync?.ultimaSync) {
       const horasDesdeSync = Math.floor((Date.now() - new Date(ultimaSync.ultimaSync).getTime()) / 1000 / 3600)
       checks.lastSync = { hours: horasDesdeSync, ok: horasDesdeSync < 26 }
-      if (horasDesdeSync >= 26) healthy = false
+      // lastSync es estado de negocio — no rompe healthy
     }
   } catch (e: any) {
     checks.lastSync = { ok: false, error: e.message }
