@@ -107,7 +107,7 @@ function calcResumen(lista: Pago[]) {
   return { efectivo, transferencia }
 }
 
-async function abrirRecibo(pagoId: string, setReciboPopup: (url: string | null) => void) {
+async function abrirRecibo(pagoId: string) {
   const res  = await fetch('/api/cartera/recibo-token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -116,13 +116,13 @@ async function abrirRecibo(pagoId: string, setReciboPopup: (url: string | null) 
   const data = await res.json()
   if (data.reciboToken) {
     const fmt = data.anchoPapel === '58mm' ? '&fmt=58mm' : ''
-    setReciboPopup('/recaudo/recibo?token=' + data.reciboToken + fmt)
+    window.open('/recaudo/recibo?token=' + data.reciboToken + fmt, '_blank')
   }
 }
 
 // ── Columnas DataTable ───────────────────────────────────────────
 function getColumns(ctx: {
-  onReciboPopup: (url: string | null) => void
+  _unused?: never
   onLightbox:    (url: string) => void
   voucherUrls:   Record<string, string>
   cargarVoucherUrl: (id: string, key: string) => void
@@ -142,7 +142,7 @@ function getColumns(ctx: {
       render: p => (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
           <button
-            onClick={e => { e.stopPropagation(); abrirRecibo(p.id, ctx.onReciboPopup) }}
+            onClick={e => { e.stopPropagation(); abrirRecibo(p.id) }}
             style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 13, padding: 0, lineHeight: 1 }}
             title="Ver recibo">🖨️</button>
           {p.voucherKey && ctx.voucherUrls[p.id] && (
@@ -264,7 +264,6 @@ export default function RecaudosPage() {
   const [validadoTodos,       setValidadoTodos]       = useState(false)
   const [validadoSel,         setValidadoSel]         = useState(false)
   const [isDesktop,           setIsDesktop]           = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : false)
-  const [reciboPopup,         setReciboPopup]         = useState<string | null>(null)
   const [validaciones,        setValidaciones]        = useState<Record<string,{valido:boolean,motivo:string,saldoUptres:number|null}>>({})
   const [validando,           setValidando]           = useState(false)
   const fechaInputRef = useRef<HTMLInputElement>(null)
@@ -442,7 +441,7 @@ export default function RecaudosPage() {
   }
   if (!isAdmin) return null
 
-  const cols = getColumns({ onReciboPopup: setReciboPopup, onLightbox: setLightboxUrl, voucherUrls, cargarVoucherUrl })
+  const cols = getColumns({  onLightbox: setLightboxUrl, voucherUrls, cargarVoucherUrl })
 
   return (
     <div className="space-y-4 pb-28 max-w-7xl mx-auto">
@@ -701,19 +700,7 @@ export default function RecaudosPage() {
         </div>
       )}
 
-      {reciboPopup && (
-        <div className="fixed inset-0 bg-black/95 z-50 flex items-center justify-center p-4"
-          onClick={() => setReciboPopup(null)}>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden w-full max-w-sm md:max-w-lg"
-            style={{ maxHeight: '90vh' }} onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
-              <span className="text-white text-sm font-semibold">🖨️ Recibo de caja</span>
-              <button onClick={() => setReciboPopup(null)} className="text-white text-lg">✕</button>
-            </div>
-            <iframe src={reciboPopup} className="w-full" style={{ height: '70vh', border: 'none' }} />
-          </div>
-        </div>
-      )}
+
 
       {/* Lightbox voucher */}
       {lightboxUrl && (
