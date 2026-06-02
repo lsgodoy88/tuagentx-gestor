@@ -62,8 +62,11 @@ describe('GET /api/health', () => {
     })
   })
 
-  describe('sync vieja → 503 unhealthy (umbral 26h)', () => {
-    it('ultimaSync hace 30h → healthy false, status 503', async () => {
+  describe('sync vieja — estado de negocio, no rompe healthy', () => {
+    // lastSync es informativo — el endpoint siempre devuelve healthy:true si la DB responde
+    // Ver: app/api/health/route.ts línea 54 "lastSync es estado de negocio — no rompe healthy"
+
+    it('ultimaSync hace 30h → healthy true, lastSync.ok false', async () => {
       vi.mocked(prisma.$queryRaw).mockResolvedValue([{ '?column?': 1 }] as any)
       const hace30h = new Date(Date.now() - 30 * 3600 * 1000)
       vi.mocked((prisma as any).integracion.findFirst).mockResolvedValue({ ultimaSync: hace30h })
@@ -71,23 +74,24 @@ describe('GET /api/health', () => {
       const res = await GET()
       const body = await res.json()
 
-      expect(res.status).toBe(503)
-      expect(body.healthy).toBe(false)
+      expect(res.status).toBe(200)
+      expect(body.healthy).toBe(true)
       expect(body.checks.lastSync.ok).toBe(false)
       expect(body.checks.lastSync.hours).toBe(30)
     })
 
-    it('límite exacto 26h → unhealthy (>=26)', async () => {
+    it('límite exacto 26h → healthy true, lastSync.ok false (>=26)', async () => {
       vi.mocked(prisma.$queryRaw).mockResolvedValue([{ '?column?': 1 }] as any)
       const hace26h = new Date(Date.now() - 26 * 3600 * 1000)
       vi.mocked((prisma as any).integracion.findFirst).mockResolvedValue({ ultimaSync: hace26h })
 
       const res = await GET()
       const body = await res.json()
-      expect(body.healthy).toBe(false)
+      expect(body.healthy).toBe(true)
+      expect(body.checks.lastSync.ok).toBe(false)
     })
 
-    it('límite seguro 25h → healthy true', async () => {
+    it('límite seguro 25h → healthy true, lastSync.ok true', async () => {
       vi.mocked(prisma.$queryRaw).mockResolvedValue([{ '?column?': 1 }] as any)
       const hace25h = new Date(Date.now() - 25 * 3600 * 1000)
       vi.mocked((prisma as any).integracion.findFirst).mockResolvedValue({ ultimaSync: hace25h })
@@ -95,6 +99,7 @@ describe('GET /api/health', () => {
       const res = await GET()
       const body = await res.json()
       expect(body.healthy).toBe(true)
+      expect(body.checks.lastSync.ok).toBe(true)
     })
   })
 
