@@ -91,9 +91,10 @@ if git diff --name-only "$PREV_COMMIT" "$NEW_COMMIT" | grep -q '^prisma/migratio
   npx prisma migrate deploy >> "$LOG" 2>&1
 fi
 
-# ─── Restart ──────────────────────────────────────────────────────────────
-log "pm2 restart $PM2_NAME"
-pm2 restart "$PM2_NAME" --update-env >> "$LOG" 2>&1
+# ─── Restart — siempre via ecosystem para que loadEnv() lea .env servidor ──
+log "pm2 delete+start $PM2_NAME via ecosystem"
+pm2 delete "$PM2_NAME" 2>/dev/null || true
+pm2 start /srv/gestor/ecosystem.config.js --only "$PM2_NAME" >> "$LOG" 2>&1
 
 # ─── Verificación post-restart ────────────────────────────────────────────
 sleep 3
