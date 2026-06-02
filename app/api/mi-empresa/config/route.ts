@@ -9,7 +9,7 @@ export async function PATCH(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
   const body = await req.json()
-  const { horaInicioRuta, horaFinRuta, autoCrearRuta, autoCerrarRuta, diasCrearRuta, diasCerrarRuta, ciudadEntregaLocal, diasHistorialBodega, bodegaPuedeEnviar } = body
+  const { horaInicioRuta, horaFinRuta, autoCrearRuta, autoCerrarRuta, diasCrearRuta, diasCerrarRuta, ciudadEntregaLocal, diasHistorialBodega, bodegaPuedeEnviar, autoAbrirTurno, autoCerrarTurno } = body
   // bodega y supervisor solo pueden cambiar diasHistorialBodega
   if (user.role !== 'empresa') {
     if (!['bodega', 'supervisor'].includes(user.role)) return NextResponse.json({ error: 'Solo empresa' }, { status: 403 })
@@ -33,13 +33,15 @@ export async function PATCH(req: NextRequest) {
   const rows = await prisma.$queryRaw<[{
     horaInicioRuta: string; horaFinRuta: string; autoCrearRuta: boolean; autoCerrarRuta: boolean;
     diasCrearRuta: string; diasCerrarRuta: string; ciudadEntregaLocal: string | null;
-    diasHistorialBodega: number; bodegaPuedeEnviar: boolean
+    diasHistorialBodega: number; bodegaPuedeEnviar: boolean;
+    autoAbrirTurno: boolean; autoCerrarTurno: boolean
   }]>`
     SELECT "horaInicioRuta", "horaFinRuta", "autoCrearRuta", "autoCerrarRuta",
-           "diasCrearRuta", "diasCerrarRuta", "ciudadEntregaLocal", "diasHistorialBodega", "bodegaPuedeEnviar"
+           "diasCrearRuta", "diasCerrarRuta", "ciudadEntregaLocal", "diasHistorialBodega", "bodegaPuedeEnviar",
+           "autoAbrirTurno", "autoCerrarTurno"
     FROM gestor."Empresa" WHERE id = ${user.id} LIMIT 1
   `
-  const cur = rows[0] ?? { horaInicioRuta: '07:00', horaFinRuta: '21:00', autoCrearRuta: false, autoCerrarRuta: false, diasCrearRuta: '0,1,2,3,4', diasCerrarRuta: '0,1,2,3,4', ciudadEntregaLocal: null, diasHistorialBodega: 7, bodegaPuedeEnviar: false }
+  const cur = rows[0] ?? { horaInicioRuta: '07:00', horaFinRuta: '21:00', autoCrearRuta: false, autoCerrarRuta: false, diasCrearRuta: '0,1,2,3,4', diasCerrarRuta: '0,1,2,3,4', ciudadEntregaLocal: null, diasHistorialBodega: 7, bodegaPuedeEnviar: false, autoAbrirTurno: false, autoCerrarTurno: false }
 
   const finalHoraInicio        = horaInicioRuta    !== undefined ? horaInicioRuta   : cur.horaInicioRuta
   const finalHoraFin           = horaFinRuta       !== undefined ? horaFinRuta      : cur.horaFinRuta
@@ -50,6 +52,8 @@ export async function PATCH(req: NextRequest) {
   const finalCiudad            = 'ciudadEntregaLocal'  in body  ? ciudadEntregaLocal   : cur.ciudadEntregaLocal
   const finalDiasBodega        = diasHistorialBodega !== undefined ? Number(diasHistorialBodega) : cur.diasHistorialBodega
   const finalBodegaPuedeEnviar = bodegaPuedeEnviar !== undefined ? Boolean(bodegaPuedeEnviar)   : cur.bodegaPuedeEnviar
+  const finalAutoAbrirTurno    = autoAbrirTurno   !== undefined ? Boolean(autoAbrirTurno)    : cur.autoAbrirTurno ?? false
+  const finalAutoCerrarTurno   = autoCerrarTurno  !== undefined ? Boolean(autoCerrarTurno)   : cur.autoCerrarTurno ?? false
 
   await prisma.$executeRaw`
     UPDATE gestor."Empresa"
@@ -61,7 +65,9 @@ export async function PATCH(req: NextRequest) {
         "diasCerrarRuta"      = ${finalDiasCerrar},
         "ciudadEntregaLocal"  = ${finalCiudad},
         "diasHistorialBodega" = ${finalDiasBodega},
-        "bodegaPuedeEnviar"   = ${finalBodegaPuedeEnviar}
+        "bodegaPuedeEnviar"   = ${finalBodegaPuedeEnviar},
+        "autoAbrirTurno"     = ${finalAutoAbrirTurno},
+        "autoCerrarTurno"    = ${finalAutoCerrarTurno}
     WHERE id = ${getEmpresaId(user)}
   `
 
@@ -81,8 +87,8 @@ export async function GET(req: NextRequest) {
     diasHistorialBodega: number; bodegaPuedeEnviar: boolean
   }]>`
     SELECT "horaInicioRuta", "horaFinRuta", "autoCrearRuta", "autoCerrarRuta", "diasCrearRuta", "diasCerrarRuta",
-           "ciudadEntregaLocal", "diasHistorialBodega", "bodegaPuedeEnviar"
+           "ciudadEntregaLocal", "diasHistorialBodega", "bodegaPuedeEnviar", "autoAbrirTurno", "autoCerrarTurno"
     FROM gestor."Empresa" WHERE id = ${empresaId} LIMIT 1
   `
-  return NextResponse.json(rows[0] ?? { horaInicioRuta: '07:00', horaFinRuta: '21:00', autoCrearRuta: false, autoCerrarRuta: false, diasCrearRuta: '0,1,2,3,4', diasCerrarRuta: '0,1,2,3,4', ciudadEntregaLocal: null, diasHistorialBodega: 7, bodegaPuedeEnviar: false })
+  return NextResponse.json(rows[0] ?? { horaInicioRuta: '07:00', horaFinRuta: '21:00', autoCrearRuta: false, autoCerrarRuta: false, diasCrearRuta: '0,1,2,3,4', diasCerrarRuta: '0,1,2,3,4', ciudadEntregaLocal: null, diasHistorialBodega: 7, bodegaPuedeEnviar: false, autoAbrirTurno: false, autoCerrarTurno: false })
 }

@@ -43,6 +43,13 @@ export const rutasDiaWorker = new Worker(
     console.log(`[rutas-dia] ${job.name} iniciado ${new Date().toISOString()}`)
     const result = await callEndpoint('/api/rutas/procesar-dia')
     console.log(`[rutas-dia] ${job.name} resultado:`, JSON.stringify(result))
+    // Turnos vendedores/supervisores — misma ventana horaria
+    try {
+      const turnos = await callEndpoint('/api/turnos/procesar-dia')
+      console.log(`[rutas-dia] turnos resultado:`, JSON.stringify(turnos))
+    } catch (e: any) {
+      console.error(`[rutas-dia] turnos error:`, e.message)
+    }
     return result
   },
   { connection: REDIS, concurrency: 1 },

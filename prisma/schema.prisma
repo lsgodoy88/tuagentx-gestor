@@ -28,6 +28,8 @@ model Empresa {
   horaFinRuta         String             @default("20:00")
   autoCrearRuta       Boolean            @default(false)
   autoCerrarRuta      Boolean            @default(false)
+  autoAbrirTurno      Boolean            @default(false)
+  autoCerrarTurno     Boolean            @default(false)
   diasCrearRuta       String             @default("0,1,2,3,4")
   diasCerrarRuta      String             @default("0,1,2,3,4")
   ciudadEntregaLocal  String?
@@ -430,6 +432,7 @@ model PagoCartera {
   clienteNombre  String?            // Congelado al momento del pago
   valorFactura   Decimal?           @db.Decimal(14, 2) // Valor original
   vendedorNombre String?            // Congelado al momento del pago
+  reciboPago     Json?              // Snapshot completo al momento del pago (only-insert)
   lineasPago     Json?
   latCobro       Float?
   lngCobro       Float?

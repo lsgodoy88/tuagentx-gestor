@@ -98,6 +98,8 @@ export default function ConfiguracionPage() {
   const [horaFin, setHoraFin] = useState('21:00')
   const [autoCrearRuta, setAutoCrearRuta] = useState(false)
   const [autoCerrarRuta, setAutoCerrarRuta] = useState(false)
+  const [autoAbrirTurno, setAutoAbrirTurno] = useState(false)
+  const [autoCerrarTurno, setAutoCerrarTurno] = useState(false)
   const [diasCrear, setDiasCrear] = useState<number[]>([0, 1, 2, 3, 4])
   const [diasCerrar, setDiasCerrar] = useState<number[]>([0, 1, 2, 3, 4])
   const [msgRutas, setMsgRutas] = useState('')
@@ -230,6 +232,8 @@ export default function ConfiguracionPage() {
         if (d.horaFinRuta) setHoraFin(d.horaFinRuta)
         setAutoCrearRuta(d.autoCrearRuta ?? false)
         setAutoCerrarRuta(d.autoCerrarRuta ?? false)
+        setAutoAbrirTurno(d.autoAbrirTurno ?? false)
+        setAutoCerrarTurno(d.autoCerrarTurno ?? false)
         if (d.diasCrearRuta) setDiasCrear(d.diasCrearRuta.split(',').map(Number))
         if (d.diasCerrarRuta) setDiasCerrar(d.diasCerrarRuta.split(',').map(Number))
         setCiudadEntregaLocal(d.ciudadEntregaLocal ?? '')
@@ -286,6 +290,7 @@ export default function ConfiguracionPage() {
       body: JSON.stringify({
         horaInicioRuta: horaInicio, horaFinRuta: horaFin,
         autoCrearRuta, autoCerrarRuta,
+        autoAbrirTurno, autoCerrarTurno,
         diasCrearRuta: diasCrear.join(','), diasCerrarRuta: diasCerrar.join(','),
         ciudadEntregaLocal: ciudadEntregaLocal || null,
         diasHistorialBodega, bodegaPuedeEnviar,
@@ -748,6 +753,34 @@ export default function ConfiguracionPage() {
                 </div>
               </div>
             )}
+
+            <hr className="border-zinc-800 my-3" />
+
+            <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide mb-3">Turnos — Vendedores y Supervisores</p>
+
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <p className="text-white text-sm">Auto-abrir turno diario</p>
+                <p className="text-zinc-500 text-xs">Abre turno automáticamente a la hora de inicio (sin GPS)</p>
+              </div>
+              <button onClick={() => setAutoAbrirTurno(p => !p)}
+                className={`relative w-11 h-6 rounded-full transition-colors ${autoAbrirTurno ? 'bg-blue-600' : 'bg-zinc-700'}`}>
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${autoAbrirTurno ? 'translate-x-5' : ''}`} />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <p className="text-white text-sm">Auto-cerrar turno diario</p>
+                <p className="text-zinc-500 text-xs">Cierra turnos activos automáticamente a la hora de fin</p>
+              </div>
+              <button onClick={() => setAutoCerrarTurno(p => !p)}
+                className={`relative w-11 h-6 rounded-full transition-colors ${autoCerrarTurno ? 'bg-blue-600' : 'bg-zinc-700'}`}>
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${autoCerrarTurno ? 'translate-x-5' : ''}`} />
+              </button>
+            </div>
+
+            <p className="text-zinc-600 text-xs mt-1 mb-3">Usa las mismas horas y días configurados arriba para Entregas.</p>
 
             <hr className="border-zinc-800 my-3" />
 
