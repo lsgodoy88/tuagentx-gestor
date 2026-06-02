@@ -95,6 +95,8 @@ jobs:
           chmod 600 ~/.ssh/known_hosts
 
       - name: Deploy en servidor
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'REMOTE'
           set -e
@@ -154,5 +156,11 @@ jobs:
           COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
           VER=$(curl -fsS http://localhost:3010/api/version 2>/dev/null | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['commit'])" 2>/dev/null || echo "?")
           echo "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"evento\":\"deploy\",\"commit\":\"$COMMIT\",\"ok\":true,\"via\":\"github_actions\"}" >> /home/luis/logs/guardian-testigo.jsonl
-          echo "✅ Deploy OK — commit $VER"
+          echo "→ warm-up caché Redis..."
+          WARMUP=$(curl -s -X POST "http://localhost:3010/api/cache/warmup" \
+            -H "x-cron-secret: $CRON_SECRET" \
+            -H "Content-Type: application/json" 2>/dev/null || echo '{}')
+          echo "Warm-up: $WARMUP"
+
+          echo "✅ Deploy OK — commit $VER" 
           REMOTE
