@@ -52,13 +52,13 @@ async function main() {
     { name: 'audit-diario', data: {} },
   )
   console.log('  audit      -> audit-diario (0 6 * * * UTC = 1am Bogota)')
-  // Contexto: 03:00 UTC = 10pm Bogota
-  await contextoQueue.upsertJobScheduler(
-    'generar-contexto',
-    { pattern: '0 3 * * *' },
-    { name: 'generar-contexto', data: {} },
-  )
-  console.log('  contexto      -> generar-contexto (0 3 * * * UTC = 10pm Bogota)')
+  // Contexto: DESACTIVADO — contexto se mantiene manual via Google Drive
+  // await contextoQueue.upsertJobScheduler(
+  //   'generar-contexto',
+  //   { pattern: '0 3 * * *' },
+  //   { name: 'generar-contexto', data: {} },
+  // )
+  console.log('  contexto      -> DESACTIVADO (manual via Drive)')
   // bodega-sync-diario ELIMINADO — absorbido por sync-delta
 
   // Mantenimiento: 14:00 UTC = 9am Bogota
@@ -74,10 +74,10 @@ async function main() {
 
   // sync-nocturno: 8:00 UTC = 3:00 Bogotá
   // Completo domingos 3am Bogotá — huérfanas + CarteraCache
-  await syncNocturnoQueue.upsertJobScheduler('sync-nocturno-semanal', { pattern: '0 8 * * 0' }, { name: 'sync-nocturno-semanal', data: { modo: 'completo' } })
-  // Delta deudas nuevas lunes-sábado 3am Bogotá — solo insert nuevas, sin cache
-  await syncNocturnoQueue.upsertJobScheduler('sync-nocturno-delta', { pattern: '0 8 * * 1-6' }, { name: 'sync-nocturno-delta', data: { modo: 'delta' } })
-  console.log('  sync-nocturno → completo domingos / delta lun-sab (0 8 UTC = 3am Bogotá)')
+  await syncNocturnoQueue.upsertJobScheduler('sync-nocturno-semanal', { pattern: '0 7 * * 0' }, { name: 'sync-nocturno-semanal', data: { modo: 'completo' } })
+  // Delta deudas nuevas lunes-sábado 2am Bogotá — solo insert nuevas, sin cache
+  await syncNocturnoQueue.upsertJobScheduler('sync-nocturno-delta', { pattern: '0 7 * * 1-6' }, { name: 'sync-nocturno-delta', data: { modo: 'delta' } })
+  console.log('  sync-nocturno → completo domingos / delta lun-sab (0 7 UTC = 2am Bogotá)')
 
   console.log('[gestor-worker] Workers online. Esperando jobs...')
 
