@@ -106,6 +106,8 @@ export interface VentasLiveResult {
 export interface TurnoActivo {
   id: string
   inicio: string
+  inicioBogota?: string | null
+  finBogota?: string | null
   pausado: boolean
   pausaInicio: string | null
   pausaMotivo: string | null

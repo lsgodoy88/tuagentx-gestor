@@ -108,18 +108,26 @@ export default function DashboardVendedor({ user }: { user: any }) {
   // ── Timer turno ─────────────────────────────────────────────────────────
   useEffect(() => {
     if (!turno) return
+    // Usar inicioBogota (HH:mm) si existe — reconstruir timestamp correcto en Bogotá
+    const getInicioMs = () => {
+      if (turno.inicioBogota) {
+        const [hh, mm] = turno.inicioBogota.split(':').map(Number)
+        const ahoraBog = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
+        ahoraBog.setHours(hh, mm, 0, 0)
+        // Si la hora reconstruida es futura, el turno inició ayer
+        if (ahoraBog.getTime() > Date.now()) ahoraBog.setDate(ahoraBog.getDate() - 1)
+        return ahoraBog.getTime()
+      }
+      return new Date(turno.inicio).getTime()
+    }
     const calcTiempo = () => {
-      const inicio = new Date(turno.inicio)
-      const ahora  = new Date() // UTC real — turno.inicio ahora se guarda como UTC real
-      const diff   = Math.max(0, Math.floor((ahora.getTime() - inicio.getTime()) / 1000))
+      const diff = Math.max(0, Math.floor((Date.now() - getInicioMs()) / 1000))
       const h = Math.floor(diff / 3600), m = Math.floor((diff % 3600) / 60), s = diff % 60
       return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0')
     }
     setTiempoTurno(calcTiempo())
     const interval = setInterval(() => {
-      const inicio = new Date(turno.inicio)
-      const ahora  = new Date() // UTC real
-      const diff   = Math.max(0, Math.floor((ahora.getTime() - inicio.getTime()) / 1000))
+      const diff = Math.max(0, Math.floor((Date.now() - getInicioMs()) / 1000))
       const h = Math.floor(diff / 3600), m = Math.floor((diff % 3600) / 60), s = diff % 60
       setTiempoTurno(String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0'))
       if (turno.pausado && turno.pausaInicio && turno.pausaDuracionMin) {

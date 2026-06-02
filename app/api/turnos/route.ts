@@ -16,7 +16,7 @@ export async function GET() {
   // Turno activo del empleado
   const turno = await prisma.turno.findFirst({
     where: { empleadoId: user.id, activo: true },
-    select: { id: true, empleadoId: true, inicio: true, fin: true, activo: true, pausado: true, pausaInicio: true, pausaDuracionMin: true, pausaMotivo: true, latInicio: true, lngInicio: true, latFin: true, lngFin: true }
+    select: { id: true, empleadoId: true, inicio: true, fin: true, inicioBogota: true, finBogota: true, activo: true, pausado: true, pausaInicio: true, pausaDuracionMin: true, pausaMotivo: true, latInicio: true, lngInicio: true, latFin: true, lngFin: true }
   })
   return NextResponse.json(turno || null)
   } catch (err: any) {
@@ -38,13 +38,14 @@ export async function POST(req: NextRequest) {
       // Cerrar cualquier turno activo previo
       await tx.turno.updateMany({
         where: { empleadoId: user.id, activo: true },
-        data: { activo: false, fin: new Date() } // new Date() = UTC real
+        data: { activo: false, fin: new Date(), finBogota: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Bogota' }) }
       })
       return tx.turno.create({
         data: {
           id: nuevoId,
           empleadoId: user.id,
-          inicio: new Date(),   // new Date() = UTC real (nowBogota restaba 5h incorrectamente)
+          inicio: new Date(),
+          inicioBogota: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Bogota' }),
           latInicio: lat || null,
           lngInicio: lng || null,
           activo: true,
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest) {
   if (accion === 'cerrar') {
     await prisma.turno.updateMany({
       where: { empleadoId: user.id, activo: true },
-      data: { activo: false, fin: new Date(), latFin: lat || null, lngFin: lng || null } // new Date() = UTC real
+      data: { activo: false, fin: new Date(), finBogota: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Bogota' }), latFin: lat || null, lngFin: lng || null }
     })
     await audit('TURNO_CERRADO', user.email, `Turno cerrado`, user.id, user.empresaId)
     await invalidateKeys(`g:${user.empresaId}:stats:${fechaHoyBogota()}`, `g:v:${user.id}:${fechaHoyBogota()}`)

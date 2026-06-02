@@ -26,8 +26,8 @@ export async function GET() {
     return {
       id: t.id,
       fecha: fechaBogota,
-      inicio: inicio.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' }),
-      fin: fin ? fin.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' }) : null,
+      inicio: (t as any).inicioBogota || inicio.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' }),
+      fin: (t as any).finBogota || (fin ? fin.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' }) : null),
       duracion: duracionMs ? `${h}h ${m}m` : null,
       pausaMotivo: t.pausaMotivo || null,
       pausaDuracionMin: t.pausaDuracionMin || null,

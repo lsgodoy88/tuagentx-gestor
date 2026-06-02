@@ -173,6 +173,8 @@ model Turno {
   pausaInicio      DateTime?
   pausaMotivo      String?
   pausaDuracionMin Int?
+  inicioBogota     String?
+  finBogota        String?
   empleado         Empleado  @relation(fields: [empleadoId], references: [id])
   visitas          Visita[]
 

@@ -73,10 +73,10 @@ export async function POST(req: NextRequest) {
         await prisma.$transaction(async (tx) => {
           await tx.turno.updateMany({
             where: { empleadoId: emp.id, activo: true },
-            data: { activo: false, fin: new Date() }
+            data: { activo: false, fin: new Date(), finBogota: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Bogota' }) }
           })
           await tx.turno.create({
-            data: { id: crypto.randomUUID(), empleadoId: emp.id, inicio: new Date(), activo: true }
+            data: { id: crypto.randomUUID(), empleadoId: emp.id, inicio: new Date(), inicioBogota: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Bogota' }), activo: true }
           })
         })
         await audit('TURNO_AUTO_ABIERTO', emp.email,
@@ -103,7 +103,7 @@ export async function POST(req: NextRequest) {
       for (const turno of turnosActivos) {
         await prisma.turno.update({
           where: { id: turno.id },
-          data: { activo: false, fin: new Date() }
+          data: { activo: false, fin: new Date(), finBogota: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Bogota' }) }
         })
         const emp = empleados.find(e => e.id === turno.empleadoId)
         await audit('TURNO_AUTO_CERRADO', emp?.email ?? turno.empleadoId,
