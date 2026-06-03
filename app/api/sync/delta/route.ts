@@ -423,6 +423,11 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
       if (saldosActualizados > 0) {
         await invalidatePattern('g:*:cartera:*')
         await invalidatePattern('g:v:*')
+        // Reconstruir CarteraCache para que vendedor vea saldo actualizado inmediatamente
+        await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3010'}/api/cartera/sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-cron-secret': process.env.CRON_SECRET || '' },
+        }).catch(() => {/* no bloquear si falla */})
       }
     }
   } catch (err: any) {
