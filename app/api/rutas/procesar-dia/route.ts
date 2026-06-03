@@ -45,9 +45,10 @@ export async function POST(req: NextRequest) {
     const finMin = horaEnMinutos(empresa.horaFinRuta)
 
     // ── CIERRE ──────────────────────────────────────────────────────────────
+    // Incluye rutas de días anteriores sin cerrar (huérfanas por fallos de cron)
     if (!esSesionEmpresa && horaActualMin >= finMin && empresa.autoCerrarRuta) {
       const rutasHoy = await prisma.ruta.findMany({
-        where: { empresaId: empresa.id, cerrada: false, fecha: { gte: inicioDiaBogota(hoyStr), lte: finDiaBogota(hoyStr) } },
+        where: { empresaId: empresa.id, cerrada: false, fecha: { lte: finDiaBogota(hoyStr) } },
         include: { empleados: { select: { empleadoId: true } }, clientes: { select: { clienteId: true, rutaId: true } } }
       })
 
