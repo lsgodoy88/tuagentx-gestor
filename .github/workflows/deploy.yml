@@ -60,7 +60,7 @@ jobs:
       - name: Tests
         run: npm test
 
-  # ── JOB 2: Build + subir .next/ a R2 + trigger webhook ───────────────
+  # ── JOB 2: Build + R2 + webhook ───────────────────────────────────────
   deploy:
     runs-on: ubuntu-latest
     needs: test
@@ -102,12 +102,16 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
+
       - name: Install
         run: npm ci --no-audit --no-fund
+
       - name: Prisma generate
         run: npx prisma generate
+
       - name: Build
         run: npm run build
+
       - name: Verify build
         run: |
           test -f .next/BUILD_ID || { echo "❌ BUILD_ID no existe"; exit 1; }
@@ -119,47 +123,28 @@ jobs:
         run: |
           COMMIT=$(git rev-parse --short HEAD)
           BUILD_KEY="deploys/gestor-${COMMIT}.tar.gz"
-          echo "BUILD_KEY=$BUILD_KEY" >> $GITHUB_ENV
-          echo "COMMIT=$COMMIT" >> $GITHUB_ENV
+          echo "BUILD_KEY=${BUILD_KEY}" >> $GITHUB_ENV
+          echo "COMMIT=${COMMIT}" >> $GITHUB_ENV
 
-          # Empaquetar sin cache ni trace
           tar -czf /tmp/next-build.tar.gz \
             --exclude='.next/cache' \
             --exclude='.next/trace' \
             .next/
 
-          # Subir a R2 — pasar vars explícitamente al script Python
           pip install boto3 -q
-          BUILD_KEY="$BUILD_KEY" python3 - << 'PYEOF'
-import boto3, os
-s3 = boto3.client(
-    's3',
-    endpoint_url=os.environ['R2_ENDPOINT'],
-    aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
-    aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'],
-    region_name='auto',
-)
-build_key = os.environ['BUILD_KEY']
-s3.upload_file('/tmp/next-build.tar.gz', os.environ['R2_BUCKET'], build_key)
-print(f"✓ Subido a R2: {build_key}")
-PYEOF
+          BUILD_KEY="${BUILD_KEY}" python3 scripts/upload-r2.py
 
       - name: Trigger webhook en servidor
         run: |
-          PAYLOAD="{\"commit\":\"$COMMIT\",\"buildKey\":\"$BUILD_KEY\"}"
-          SIGNATURE="sha256=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "${{ secrets.WEBHOOK_SECRET }}" | awk '{print $2}')"
+          PAYLOAD="{\"commit\":\"${COMMIT}\",\"buildKey\":\"${BUILD_KEY}\"}"
+          SIGNATURE="sha256=$(echo -n "${PAYLOAD}" | openssl dgst -sha256 -hmac "${{ secrets.WEBHOOK_SECRET }}" | awk '{print $2}')"
 
           HTTP=$(curl -s -o /tmp/webhook-resp.txt -w '%{http_code}' \
             -X POST "https://gestor.tuagentx.com/api/deploy/webhook" \
             -H "Content-Type: application/json" \
-            -H "x-deploy-signature: $SIGNATURE" \
-            -d "$PAYLOAD")
+            -H "x-deploy-signature: ${SIGNATURE}" \
+            -d "${PAYLOAD}")
 
-          cat /tmp/webhook-resp.txt
-          echo ""
-
-          if [ "$HTTP" != "202" ]; then
-            echo "❌ Webhook falló: HTTP $HTTP"
-            exit 1
-          fi
+          cat /tmp/webhook-resp.txt && echo ""
+          [ "$HTTP" = "202" ] || { echo "❌ Webhook falló: HTTP $HTTP"; exit 1; }
           echo "✓ Webhook aceptado — deploy corriendo en servidor"
