@@ -134,6 +134,9 @@ jobs:
           pip install boto3 -q
           BUILD_KEY="${BUILD_KEY}" python3 scripts/upload-r2.py
 
+      - name: Limpiar builds viejos en R2 (retener ultimos 10)
+        run: python3 scripts/cleanup-r2.py
+
       - name: Trigger webhook en servidor
         run: |
           PAYLOAD="{\"commit\":\"${COMMIT}\",\"buildKey\":\"${BUILD_KEY}\"}"
