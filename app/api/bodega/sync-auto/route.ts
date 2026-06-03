@@ -41,7 +41,9 @@ async function syncEmpresa(empresaIdConIntegracion: string, origenVinculadaId: s
   const desdeTs = desde.getTime()
   const ordenesFiltradas = ordenes.filter((o: any) => {
     const fc = o.fCreado ? new Date(o.fCreado as string).getTime() : 0
-    return fc >= desdeTs
+    const fi = o.invoicedAt ? new Date(o.invoicedAt as string).getTime() : 0
+    // Incluir si fue creada O facturada después de la última sync
+    return fc >= desdeTs || fi >= desdeTs
   })
 
     // Insert-only: traer una vez, guardar, nunca sobreescribir
