@@ -14,7 +14,6 @@ jobs:
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
     env:
       DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?schema=gestor"
       NEXTAUTH_SECRET: "ci-secret"
@@ -46,32 +45,26 @@ jobs:
       TURNSTILE_SITE_KEY_MASTER: "ci"
       TURNSTILE_SECRET_KEY_MASTER: "ci"
       TZ: "America/Bogota"
-
     steps:
       - uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
-
       - uses: actions/setup-node@v4.3.0
         with:
           node-version: '20'
           cache: 'npm'
-
       - name: Install
         run: npm ci --no-audit --no-fund
-
       - name: Prisma generate + validate
         run: npx prisma generate && npx prisma validate
-
       - name: Tests
         run: npm test
 
-  # ── JOB 2: Build en runner + Deploy al servidor ───────────────────────
+  # ── JOB 2: Build + subir .next/ a R2 + trigger webhook ───────────────
   deploy:
     runs-on: ubuntu-latest
     needs: test
     timeout-minutes: 20
-
     env:
       DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?schema=gestor"
       NEXTAUTH_SECRET: "ci-secret"
@@ -90,11 +83,11 @@ jobs:
       VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
       VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
       VAPID_EMAIL: "mailto:ci@tuagentx.com"
-      R2_ACCOUNT_ID: "ci"
-      R2_ACCESS_KEY_ID: "ci"
-      R2_SECRET_ACCESS_KEY: "ci"
-      R2_BUCKET: "ci"
-      R2_ENDPOINT: "https://ci.r2.cloudflarestorage.com"
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET: ${{ secrets.R2_BUCKET }}
+      R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
       TURNSTILE_SITE_KEY_GESTOR: "ci"
       TURNSTILE_SECRET_KEY_GESTOR: "ci"
       NEXT_PUBLIC_TURNSTILE_SITE_KEY_GESTOR: "ci"
@@ -103,113 +96,69 @@ jobs:
       TURNSTILE_SITE_KEY_MASTER: "ci"
       TURNSTILE_SECRET_KEY_MASTER: "ci"
       TZ: "America/Bogota"
-
     steps:
       - uses: actions/checkout@v4.2.2
-
       - uses: actions/setup-node@v4.3.0
         with:
           node-version: '20'
           cache: 'npm'
-
       - name: Install
         run: npm ci --no-audit --no-fund
-
       - name: Prisma generate
         run: npx prisma generate
-
       - name: Build
         run: npm run build
-
       - name: Verify build
         run: |
           test -f .next/BUILD_ID || { echo "❌ BUILD_ID no existe"; exit 1; }
           MANIFESTS=$(find .next/server/app -name "*client-reference-manifest*" 2>/dev/null | wc -l)
-          if [ "$MANIFESTS" -lt 50 ]; then
-            echo "❌ Build incompleto: solo $MANIFESTS manifests"
-            exit 1
-          fi
+          [ "$MANIFESTS" -lt 50 ] && { echo "❌ Build incompleto: $MANIFESTS manifests"; exit 1; }
           echo "✓ Build OK — $MANIFESTS manifests, BUILD_ID: $(cat .next/BUILD_ID)"
 
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.9.1
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-
-      - name: Add server to known hosts
+      - name: Empaquetar .next/ y subir a R2
         run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
-          echo "167.88.39.242 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPU83nFu9fVUmhxMA6dQIFpGc1khRoS2chF6zYSAqWGn" >> ~/.ssh/known_hosts
-          chmod 600 ~/.ssh/known_hosts
+          COMMIT=$(git rev-parse --short HEAD)
+          BUILD_KEY="deploys/gestor-${COMMIT}.tar.gz"
+          echo "BUILD_KEY=$BUILD_KEY" >> $GITHUB_ENV
+          echo "COMMIT=$COMMIT" >> $GITHUB_ENV
 
-      - name: rsync .next al servidor
+          # Empaquetar sin cache ni trace
+          tar -czf /tmp/next-build.tar.gz \
+            --exclude='.next/cache' \
+            --exclude='.next/trace' \
+            .next/
+
+          # Subir a R2
+          pip install boto3 -q
+          python3 - << PYEOF
+          import boto3, os
+          s3 = boto3.client(
+              's3',
+              endpoint_url=os.environ['R2_ENDPOINT'],
+              aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
+              aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'],
+              region_name='auto',
+          )
+          s3.upload_file('/tmp/next-build.tar.gz', os.environ['R2_BUCKET'], os.environ['BUILD_KEY'])
+          print(f"✓ Subido a R2: {os.environ['BUILD_KEY']}")
+          PYEOF
+
+      - name: Trigger webhook en servidor
         run: |
-          # Reintentos por timeouts intermitentes de Hostinger
-          for i in 1 2 3; do
-            rsync -az --delete \
-              --exclude='cache' \
-              --exclude='trace' \
-              -e "ssh -o ConnectTimeout=30 -o ServerAliveInterval=10" \
-              .next/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/srv/gestor/.next/ && break
-            echo "rsync intento $i falló — reintentando en 20s..."
-            sleep 20
-          done
+          PAYLOAD="{\"commit\":\"$COMMIT\",\"buildKey\":\"$BUILD_KEY\"}"
+          SIGNATURE="sha256=$(echo -n "$PAYLOAD" | openssl dgst -sha256 -hmac "${{ secrets.WEBHOOK_SECRET }}" | awk '{print $2}')"
 
-      - name: Deploy en servidor
-        env:
-          CF_PURGE_TOKEN: ${{ secrets.CF_PURGE_TOKEN }}
-        run: |
-          ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'REMOTE'
-          set -e
-          touch /tmp/gestor-deploying
-          cd /srv/gestor
+          HTTP=$(curl -s -o /tmp/webhook-resp.txt -w '%{http_code}' \
+            -X POST "https://gestor.tuagentx.com/api/deploy/webhook" \
+            -H "Content-Type: application/json" \
+            -H "x-deploy-signature: $SIGNATURE" \
+            -d "$PAYLOAD")
 
-          echo "→ git pull"
-          git pull --ff-only origin main
+          cat /tmp/webhook-resp.txt
+          echo ""
 
-          # npm ci solo si cambió package-lock.json
-          if git diff HEAD~1 HEAD --name-only 2>/dev/null | grep -q "package-lock.json"; then
-            echo "→ npm ci (package-lock cambió)"
-            npm ci --omit=dev --no-audit --no-fund
-          fi
-
-          # Migraciones solo si hay nuevas
-          if git diff HEAD~1 HEAD --name-only 2>/dev/null | grep -q "prisma/migrations/"; then
-            echo "→ prisma migrate deploy"
-            npx prisma migrate deploy
-          fi
-
-          test -f .next/BUILD_ID || { rm -f /tmp/gestor-deploying; echo "❌ BUILD_ID no existe"; exit 1; }
-          echo "✓ .next recibido — BUILD_ID: $(cat .next/BUILD_ID)"
-
-          echo "→ restart gestor"
-          pm2 delete gestor 2>/dev/null || true
-          pm2 start /srv/gestor/ecosystem.config.js
-          sleep 12
-
-          HTTP=$(curl -fsS -o /dev/null -w '%{http_code}' http://localhost:3010/api/health || echo "000")
-          if [ "$HTTP" != "200" ]; then
-            rm -f /tmp/gestor-deploying
-            echo "❌ Health check falló: HTTP $HTTP"
+          if [ "$HTTP" != "202" ]; then
+            echo "❌ Webhook falló: HTTP $HTTP"
             exit 1
           fi
-
-          pm2 save --force
-          sleep 3
-          rm -f /tmp/gestor-deploying
-
-          CF_TOKEN=$(grep CF_PURGE_TOKEN /srv/gestor/.env 2>/dev/null | cut -d= -f2 | tr -d '"' || echo "")
-          [ -n "$CF_TOKEN" ] && curl -s -X POST "https://api.cloudflare.com/client/v4/zones/6ca0d1f90e4dc2357040df9e48764a53/purge_cache" \
-            -H "Authorization: Bearer $CF_TOKEN" \
-            -H "Content-Type: application/json" --data '{"purge_everything":true}' > /dev/null
-
-          CRON_VAL=$(grep CRON_SECRET /srv/gestor/.env | cut -d= -f2 | tr -d '"')
-          curl -s -X POST "http://localhost:3010/api/cache/warmup" \
-            -H "x-cron-secret: $CRON_VAL" \
-            -H "Content-Type: application/json" > /dev/null 2>&1 || true
-
-          VER=$(curl -fsS http://localhost:3010/api/version 2>/dev/null | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['commit'])" 2>/dev/null || echo "?")
-          echo "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"evento\":\"deploy\",\"commit\":\"$VER\",\"ok\":true,\"via\":\"github_actions\"}" >> /home/luis/logs/guardian-testigo.jsonl
-          echo "✅ Deploy OK — commit $VER"
-          REMOTE
+          echo "✓ Webhook aceptado — deploy corriendo en servidor"

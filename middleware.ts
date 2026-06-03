@@ -6,6 +6,7 @@ const ALLOWED_COUNTRIES = ['CO', 'US', 'XX'] // XX = desconocido (desarrollo loc
 
 // Rutas que NO requieren geo-bloqueo (webhooks, APIs públicas)
 const BYPASS_PATHS = [
+  '/api/deploy/webhook',
   '/api/cartera/recibo-publico',
   '/api/health',
   '/api/version',
