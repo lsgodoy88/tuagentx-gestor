@@ -139,12 +139,23 @@ jobs:
           PAYLOAD="{\"commit\":\"${COMMIT}\",\"buildKey\":\"${BUILD_KEY}\"}"
           SIGNATURE="sha256=$(echo -n "${PAYLOAD}" | openssl dgst -sha256 -hmac "${{ secrets.WEBHOOK_SECRET }}" | awk '{print $2}')"
 
-          HTTP=$(curl -s -o /tmp/webhook-resp.txt -w '%{http_code}' \
-            -X POST "https://gestor.tuagentx.com/api/deploy/webhook" \
-            -H "Content-Type: application/json" \
-            -H "x-deploy-signature: ${SIGNATURE}" \
-            -d "${PAYLOAD}")
+          for i in 1 2 3; do
+            HTTP=$(curl -s -o /tmp/webhook-resp.txt -w '%{http_code}' --max-time 15 \
+              -X POST "https://gestor.tuagentx.com/api/deploy/webhook" \
+              -H "Content-Type: application/json" \
+              -H "x-deploy-signature: ${SIGNATURE}" \
+              -d "${PAYLOAD}")
 
-          cat /tmp/webhook-resp.txt && echo ""
-          [ "$HTTP" = "202" ] || { echo "❌ Webhook falló: HTTP $HTTP"; exit 1; }
-          echo "✓ Webhook aceptado — deploy corriendo en servidor"
+            cat /tmp/webhook-resp.txt && echo ""
+
+            if [ "$HTTP" = "202" ]; then
+              echo "Webhook aceptado (intento $i) — deploy corriendo en servidor"
+              exit 0
+            fi
+
+            echo "Intento $i fallo (HTTP $HTTP) — reintentando en 30s..."
+            sleep 30
+          done
+
+          echo "Webhook fallo tras 3 intentos"
+          exit 1
