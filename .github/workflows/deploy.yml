@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # ── JOB 1: Tests + validación en GitHub ──────────────────────────────
+  # ── JOB 1: Tests + validación ─────────────────────────────────────────
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -66,21 +66,96 @@ jobs:
       - name: Tests
         run: npm test
 
-      - name: Build de validación (CI only — no va al servidor)
-        run: npm run build
-
-      - name: Verify build
-        run: |
-          test -d .next || { echo "❌ .next no existe"; exit 1; }
-          echo "✓ Build CI OK"
-
-  # ── JOB 2: Deploy en servidor ─────────────────────────────────────────
-  deploy:
+  # ── JOB 2: Build en runner de GitHub ─────────────────────────────────
+  build:
     runs-on: ubuntu-latest
     needs: test
     timeout-minutes: 20
 
+    env:
+      DATABASE_URL: "postgresql://ci:ci@localhost:5432/ci?schema=gestor"
+      NEXTAUTH_SECRET: "ci-secret"
+      NEXTAUTH_URL: "https://gestor.tuagentx.com"
+      NEXTAUTH_TRUST_HOST: "true"
+      REDIS_URL: "redis://localhost:6379"
+      DEPLOY_ENV: "production"
+      DEPLOY_BRANCH: "main"
+      OPENAI_API_KEY: "sk-ci-dummy"
+      ANTHROPIC_API_KEY: "sk-ant-ci-dummy"
+      EVOLUTION_API_URL: "http://localhost:8080"
+      EVOLUTION_API_KEY: "ci-dummy"
+      MASTER_API_SECRET: "ci-dummy"
+      UPTRES_SECRET: "ci-dummy-32-bytes-padding-xxxxx"
+      CRON_SECRET: "ci-dummy"
+      VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+      VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+      VAPID_EMAIL: "mailto:ci@tuagentx.com"
+      R2_ACCOUNT_ID: "ci"
+      R2_ACCESS_KEY_ID: "ci"
+      R2_SECRET_ACCESS_KEY: "ci"
+      R2_BUCKET: "ci"
+      R2_ENDPOINT: "https://ci.r2.cloudflarestorage.com"
+      TURNSTILE_SITE_KEY_GESTOR: "ci"
+      TURNSTILE_SECRET_KEY_GESTOR: "ci"
+      NEXT_PUBLIC_TURNSTILE_SITE_KEY_GESTOR: "ci"
+      TURNSTILE_SITE_KEY_CRM: "ci"
+      TURNSTILE_SECRET_KEY_CRM: "ci"
+      TURNSTILE_SITE_KEY_MASTER: "ci"
+      TURNSTILE_SECRET_KEY_MASTER: "ci"
+      TZ: "America/Bogota"
+
     steps:
+      - uses: actions/checkout@v4.2.2
+
+      - uses: actions/setup-node@v4.3.0
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install
+        run: npm ci --no-audit --no-fund
+
+      - name: Prisma generate
+        run: npx prisma generate
+
+      - name: Build
+        run: npm run build
+
+      - name: Verify build
+        run: |
+          test -f .next/BUILD_ID || { echo "❌ BUILD_ID no existe"; exit 1; }
+          MANIFESTS=$(find .next/server/app -name "*client-reference-manifest*" 2>/dev/null | wc -l)
+          if [ "$MANIFESTS" -lt 50 ]; then
+            echo "❌ Build incompleto: solo $MANIFESTS manifests"
+            exit 1
+          fi
+          echo "✓ Build OK — $MANIFESTS manifests"
+
+      - name: Upload .next artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: next-build
+          path: |
+            .next/
+            !.next/cache
+            !.next/trace
+          retention-days: 1
+
+  # ── JOB 3: Deploy al servidor ─────────────────────────────────────────
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4.2.2
+
+      - name: Download .next artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: next-build
+          path: .next/
+
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.1
         with:
@@ -90,13 +165,17 @@ jobs:
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts 2>/dev/null || true
-          echo "|1|dkPmopAiNsVylCQuohSFUrZFsDM=|OKpktYeqLzas/UxgYwpftJxqOr4= ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPU83nFu9fVUmhxMA6dQIFpGc1khRoS2chF6zYSAqWGn" >> ~/.ssh/known_hosts
           echo "167.88.39.242 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPU83nFu9fVUmhxMA6dQIFpGc1khRoS2chF6zYSAqWGn" >> ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
+      - name: rsync .next al servidor
+        run: |
+          rsync -az --delete \
+            --exclude='cache' \
+            --exclude='trace' \
+            .next/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/srv/gestor/.next/
+
       - name: Deploy en servidor
-        env:
-          CRON_SECRET: ${{ secrets.CRON_SECRET }}
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'REMOTE'
           set -e
@@ -118,19 +197,9 @@ jobs:
             npx prisma migrate deploy
           fi
 
-          echo "→ build limpio en servidor"
-          rm -rf .next
-          taskset -c 0,1 nice -n 19 npm run build 2>&1 | tail -5
-
-          # Verificar build completo
-          test -f .next/BUILD_ID || { rm -f /tmp/gestor-deploying; echo "❌ BUILD_ID no existe"; exit 1; }
-          MANIFESTS=$(find .next/server/app -name "*client-reference-manifest*" 2>/dev/null | wc -l)
-          if [ "$MANIFESTS" -lt 50 ]; then
-            rm -f /tmp/gestor-deploying
-            echo "❌ Build incompleto: solo $MANIFESTS manifests"
-            exit 1
-          fi
-          echo "✓ Build OK — $MANIFESTS manifests"
+          # Verificar que llegó el build
+          test -f .next/BUILD_ID || { rm -f /tmp/gestor-deploying; echo "❌ BUILD_ID no existe en servidor"; exit 1; }
+          echo "✓ .next recibido — BUILD_ID: $(cat .next/BUILD_ID)"
 
           echo "→ restart gestor"
           pm2 delete gestor 2>/dev/null || true
@@ -145,23 +214,22 @@ jobs:
           fi
 
           pm2 save --force
-          sleep 5
+          sleep 3
           rm -f /tmp/gestor-deploying
 
-          CF_PURGE_TOKEN="${{ secrets.CF_PURGE_TOKEN }}" \
           curl -s -X POST "https://api.cloudflare.com/client/v4/zones/6ca0d1f90e4dc2357040df9e48764a53/purge_cache" \
             -H "Authorization: Bearer $CF_PURGE_TOKEN" \
             -H "Content-Type: application/json" --data '{"purge_everything":true}' > /dev/null
 
-          COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
-          VER=$(curl -fsS http://localhost:3010/api/version 2>/dev/null | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['commit'])" 2>/dev/null || echo "?")
-          echo "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"evento\":\"deploy\",\"commit\":\"$COMMIT\",\"ok\":true,\"via\":\"github_actions\"}" >> /home/luis/logs/guardian-testigo.jsonl
-          echo "→ warm-up caché Redis..."
           CRON_VAL=$(grep CRON_SECRET /srv/gestor/.env | cut -d= -f2 | tr -d '"')
-          WARMUP=$(curl -s -X POST "http://localhost:3010/api/cache/warmup" \
+          curl -s -X POST "http://localhost:3010/api/cache/warmup" \
             -H "x-cron-secret: $CRON_VAL" \
-            -H "Content-Type: application/json" 2>/dev/null || echo '{}')
-          echo "Warm-up: $WARMUP"
+            -H "Content-Type: application/json" > /dev/null 2>&1 || true
 
-          echo "✅ Deploy OK — commit $VER" 
+          VER=$(curl -fsS http://localhost:3010/api/version 2>/dev/null | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['commit'])" 2>/dev/null || echo "?")
+          echo "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"evento\":\"deploy\",\"commit\":\"$VER\",\"ok\":true,\"via\":\"github_actions\"}" >> /home/luis/logs/guardian-testigo.jsonl
+
+          echo "✅ Deploy OK — commit $VER"
           REMOTE
+        env:
+          CF_PURGE_TOKEN: ${{ secrets.CF_PURGE_TOKEN }}
