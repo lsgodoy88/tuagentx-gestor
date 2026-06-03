@@ -59,11 +59,10 @@ export async function GET(req: NextRequest) {
   // 4. Redis ping
   try {
     const t = Date.now()
-    const { createClient } = await import('redis')
-    const client = createClient({ url: process.env.REDIS_URL })
-    await client.connect()
+    const Redis = (await import('ioredis')).default
+    const client = new Redis(process.env.REDIS_URL!)
     await client.ping()
-    await client.disconnect()
+    client.disconnect()
     results['redis'] = { ok: true, ms: Date.now() - t }
   } catch (e: any) {
     results['redis'] = { ok: false, ms: 0, detalle: e.message }
