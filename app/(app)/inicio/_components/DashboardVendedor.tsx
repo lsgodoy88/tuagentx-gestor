@@ -587,9 +587,9 @@ export default function DashboardVendedor({ user }: { user: any }) {
         </div>
         <div style={{borderRadius:16,overflow:'hidden'}}>
           <CardCountAdmin stagger={4} icon="💰" label="Recaudo"
-            primary={<CountUp end={Math.round((statsVendedor.recaudo?.mes || 0) + (statsVendedor.recaudo?.descuentosMes || 0))} prefix="$" />}
+            primary={<CountUp end={Math.round(statsVendedor.recaudo?.mes || 0)} prefix="$" />}
             secondary={statsVendedor.recaudo?.meta > 0 ? `$${Math.round(statsVendedor.recaudo.meta).toLocaleString('es-CO')}` : '—'}
-            primaryLabel="Recaudo+Descuento" secondaryLabel="Meta" primaryColor="text-blue-400" />
+            primaryLabel="mes" secondaryLabel="meta" primaryColor="text-blue-400" />
         </div>
           </div>
         )}
