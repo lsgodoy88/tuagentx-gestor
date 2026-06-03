@@ -128,20 +128,21 @@ jobs:
             --exclude='.next/trace' \
             .next/
 
-          # Subir a R2
+          # Subir a R2 — pasar vars explícitamente al script Python
           pip install boto3 -q
-          python3 - << PYEOF
-          import boto3, os
-          s3 = boto3.client(
-              's3',
-              endpoint_url=os.environ['R2_ENDPOINT'],
-              aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
-              aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'],
-              region_name='auto',
-          )
-          s3.upload_file('/tmp/next-build.tar.gz', os.environ['R2_BUCKET'], os.environ['BUILD_KEY'])
-          print(f"✓ Subido a R2: {os.environ['BUILD_KEY']}")
-          PYEOF
+          BUILD_KEY="$BUILD_KEY" python3 - << 'PYEOF'
+import boto3, os
+s3 = boto3.client(
+    's3',
+    endpoint_url=os.environ['R2_ENDPOINT'],
+    aws_access_key_id=os.environ['R2_ACCESS_KEY_ID'],
+    aws_secret_access_key=os.environ['R2_SECRET_ACCESS_KEY'],
+    region_name='auto',
+)
+build_key = os.environ['BUILD_KEY']
+s3.upload_file('/tmp/next-build.tar.gz', os.environ['R2_BUCKET'], build_key)
+print(f"✓ Subido a R2: {build_key}")
+PYEOF
 
       - name: Trigger webhook en servidor
         run: |
