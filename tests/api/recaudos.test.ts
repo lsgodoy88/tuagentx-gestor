@@ -115,21 +115,21 @@ describe('GET /api/recaudos — lista de pagos (admin only)', () => {
       setupHappyPath()
     })
 
-    it('default: page 1, limit 15, sin cursor → response con {pagos, total, page, pages}', async () => {
+    it('default: page 1, limit 500 (sin paginación), sin cursor → response con {pagos, total, page, pages}', async () => {
       vi.mocked(prisma.pagoCartera.count).mockResolvedValue(50)
       const res = await GET(makeReq())
       const body = await res.json()
       expect(body.page).toBe(1)
-      expect(body.pages).toBe(4) // ceil(50/15)
+      expect(body.pages).toBe(1) // ceil(50/500) = 1
       expect(body.total).toBe(50)
       expect(body.nextCursor).toBeUndefined() // modo offset
     })
 
-    it('page=3 → skip = (3-1)*15 = 30', async () => {
+    it('page=3 → skip = (3-1)*500 = 1000', async () => {
       await GET(makeReq({ page: '3' }))
       const args = vi.mocked(prisma.pagoCartera.findMany).mock.calls[0][0] as any
-      expect(args.skip).toBe(30)
-      expect(args.take).toBe(15)
+      expect(args.skip).toBe(1000)
+      expect(args.take).toBe(500)
     })
 
     it('page inválido (string no numérico o 0) → page=1', async () => {
@@ -139,20 +139,21 @@ describe('GET /api/recaudos — lista de pagos (admin only)', () => {
     })
 
     it('cursor presente → modo cursor (take=limit+1, no skip offset)', async () => {
+      // Mock con 501 items para simular hasMore (limit=500, take=501)
       vi.mocked(prisma.pagoCartera.findMany).mockResolvedValue([
-        ...Array(16).fill(0).map((_, i) => ({ id: `p${i}` })),
+        ...Array(501).fill(0).map((_, i) => ({ id: `p${i}` })),
       ] as any)
 
       const res = await GET(makeReq({ cursor: 'p-cursor' }))
       const body = await res.json()
       const args = vi.mocked(prisma.pagoCartera.findMany).mock.calls[0][0] as any
 
-      expect(args.take).toBe(16) // limit + 1 para detectar hasMore
+      expect(args.take).toBe(501) // limit + 1 para detectar hasMore
       expect(args.cursor).toEqual({ id: 'p-cursor' })
       expect(args.skip).toBe(1) // skip el cursor mismo
       expect(body.hasMore).toBe(true)
-      expect(body.nextCursor).toBe('p14') // último de los primeros 15
-      expect(body.pagos).toHaveLength(15) // se descartó el extra
+      expect(body.nextCursor).toBe('p499') // último de los primeros 500
+      expect(body.pagos).toHaveLength(500) // se descartó el extra
     })
 
     it('cursor presente + menos resultados que limit → hasMore=false, nextCursor=null', async () => {
@@ -172,7 +173,7 @@ describe('GET /api/recaudos — lista de pagos (admin only)', () => {
       const args = vi.mocked(prisma.pagoCartera.findMany).mock.calls[0][0] as any
       expect(args.cursor).toBeUndefined()
       expect(args.skip).toBeUndefined()
-      expect(args.take).toBe(16)
+      expect(args.take).toBe(501)
     })
   })
 
