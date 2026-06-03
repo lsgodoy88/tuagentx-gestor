@@ -377,6 +377,13 @@ export async function POST(req: NextRequest) {
       try {
         const r = await ejecutarDelta(integ, logs, 'cron', undefined, true)
         resultados.push({ empresaId: integ.empresaId, ok: true, ...r })
+        // Reconstruir CarteraCache tras delta para que vendedores vean deudas nuevas inmediatamente
+        if (r.deudas > 0) {
+          await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3010'}/api/cartera/sync`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-cron-secret': process.env.CRON_SECRET || '' },
+          }).catch(() => {/* no bloquear si falla */})
+        }
       } catch (err: any) {
         resultados.push({ empresaId: integ.empresaId, ok: false, error: err.message })
       }
