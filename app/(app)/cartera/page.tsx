@@ -73,6 +73,7 @@ export default function CarteraPage() {
   const [vendedorPagoId, setVendedorPagoId] = useState('')
   const [busquedaPagos, setBusquedaPagos] = useState('')
   const [filtroDia, setFiltroDia] = useState(() => { try { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) } catch { return '' } })
+  const [pickerDiaAbierto, setPickerDiaAbierto] = useState(false)
   const [mesPagos, setMesPagos] = useState(() => {
     try { const v = sessionStorage.getItem('cartera_mesPagos'); return v ? parseInt(v) : mesBogota() } catch { return mesBogota() }
   })
@@ -281,6 +282,17 @@ export default function CarteraPage() {
   useEffect(() => {
     try { localStorage.setItem(CPC_STORAGE, JSON.stringify(cpcWidths)) } catch {}
   }, [cpcWidths])
+
+  // Cerrar picker día al hacer click fuera
+  useEffect(() => {
+    if (!pickerDiaAbierto) return
+    const handler = (e: MouseEvent) => {
+      const t = e.target as HTMLElement
+      if (!t.closest('[data-picker-dia]')) setPickerDiaAbierto(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [pickerDiaAbierto])
   const cpcResizing = useRef<{ci:number;sx:number;sw:number}|null>(null)
   const onCpcResize = useCallback((e: React.MouseEvent, ci: number) => {
     e.preventDefault(); e.stopPropagation()
@@ -1049,21 +1061,84 @@ export default function CarteraPage() {
               : <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2.2"/><line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/></svg>
             }
           </button>
-          {/* Filtro día */}
-          <div style={{position:'relative', flexShrink:0}}>
+          {/* Filtro día — picker desplegable con día visible en botón */}
+          <div data-picker-dia style={{position:'relative', flexShrink:0}}>
             <button
-              onClick={() => setFiltroDia(filtroDia ? '' : new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }))}
-              title={filtroDia ? 'Limpiar filtro día' : 'Filtrar por día'}
-              style={{width:36, height:36, borderRadius:10, border: filtroDia ? '1px solid rgba(59,130,246,0.70)' : '1px solid rgba(59,130,246,0.35)', background: filtroDia ? 'rgba(37,99,235,0.25)' : 'rgba(30,42,61,0.90)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color: filtroDia ? '#93c5fd' : '#6b7280', transition:'all 0.15s'}}>
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2"/><line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2"/></svg>
+              onClick={() => setPickerDiaAbierto(v => !v)}
+              title="Filtrar por día"
+              style={{
+                display:'flex', alignItems:'center', gap:5,
+                padding:'0 10px', height:36, borderRadius:10,
+                border: filtroDia ? '1px solid rgba(59,130,246,0.70)' : '1px solid rgba(59,130,246,0.35)',
+                background: filtroDia ? 'rgba(37,99,235,0.20)' : 'rgba(15,20,40,0.90)',
+                cursor:'pointer', color: filtroDia ? '#bfdbfe' : '#93c5fd',
+                transition:'all 0.15s', flexShrink:0,
+              }}>
+              {/* Ícono calendario */}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" style={{flexShrink:0}}>
+                <rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" strokeWidth="2"/>
+                <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2"/>
+              </svg>
+              {/* Día seleccionado */}
+              <span style={{fontSize:13, fontWeight:700, lineHeight:1, letterSpacing:'-0.02em'}}>
+                {filtroDia ? Number(filtroDia.split('-')[2]) : new Date().toLocaleDateString('en-CA',{timeZone:'America/Bogota'}).split('-')[2].replace(/^0/,'')}
+              </span>
+              {/* Punto indicador filtro activo */}
+              {filtroDia && <span style={{width:5,height:5,borderRadius:'50%',background:'#3b82f6',flexShrink:0}}/>}
             </button>
-            {filtroDia && (
-              <input
-                type="date"
-                value={filtroDia}
-                onChange={e => setFiltroDia(e.target.value)}
-                style={{position:'absolute', top:40, right:0, zIndex:50, background:'#0d1220', border:'1px solid rgba(59,130,246,0.50)', borderRadius:8, color:'white', padding:'4px 8px', fontSize:13, outline:'none', cursor:'pointer'}}
-              />
+
+            {/* Picker desplegable */}
+            {pickerDiaAbierto && (
+              <div style={{
+                position:'absolute', top:'calc(100% + 6px)', right:0, zIndex:100,
+                background:'rgba(8,12,30,0.98)', border:'1px solid rgba(59,130,246,0.35)',
+                borderRadius:14, padding:14, width:220,
+                boxShadow:'0 16px 40px rgba(0,0,0,0.6)',
+              }}>
+                {/* Header */}
+                <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10}}>
+                  <span style={{fontSize:11, letterSpacing:'0.10em', color:'#475569', textTransform:'uppercase'}}>Filtrar día</span>
+                  <button
+                    onClick={() => { setFiltroDia(''); setPickerDiaAbierto(false) }}
+                    style={{fontSize:10, color:'#3b82f6', cursor:'pointer', background:'none', border:'none', padding:'2px 6px', borderRadius:6}}>
+                    Limpiar
+                  </button>
+                </div>
+                {/* Input date */}
+                <input
+                  type="date"
+                  value={filtroDia || new Date().toLocaleDateString('en-CA',{timeZone:'America/Bogota'})}
+                  onChange={e => { setFiltroDia(e.target.value); setPickerDiaAbierto(false) }}
+                  style={{
+                    width:'100%', background:'rgba(15,20,40,0.90)',
+                    border:'1px solid rgba(59,130,246,0.30)', borderRadius:10,
+                    color:'white', padding:'8px 10px', fontSize:13,
+                    outline:'none', cursor:'pointer', marginBottom:10,
+                    fontFamily:'inherit',
+                  }}
+                />
+                {/* Shortcuts */}
+                <div style={{display:'flex', gap:5, flexWrap:'wrap'}}>
+                  {[
+                    { label:'Hoy', val: new Date().toLocaleDateString('en-CA',{timeZone:'America/Bogota'}) },
+                    { label:'Ayer', val: new Date(Date.now()-86400000).toLocaleDateString('en-CA',{timeZone:'America/Bogota'}) },
+                  ].map(s => (
+                    <button key={s.label}
+                      onClick={() => { setFiltroDia(s.val); setPickerDiaAbierto(false) }}
+                      style={{
+                        fontSize:11, padding:'4px 9px', borderRadius:8,
+                        border: filtroDia === s.val ? '1px solid rgba(59,130,246,0.65)' : '1px solid rgba(59,130,246,0.22)',
+                        background: filtroDia === s.val ? 'rgba(37,99,235,0.18)' : 'rgba(15,20,40,0.60)',
+                        color: filtroDia === s.val ? '#93c5fd' : '#94a3b8',
+                        cursor:'pointer', fontWeight: filtroDia === s.val ? 600 : 400,
+                      }}>
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
           <div className="relative flex-1">
