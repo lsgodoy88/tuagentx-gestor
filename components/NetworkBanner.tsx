@@ -15,17 +15,16 @@ export function NetworkBanner() {
 
   return (
     <>
-      {/* Borde pantalla palpitante */}
-      <div className="fixed inset-0 z-[9998] pointer-events-none rounded-none"
-        style={{
-          boxShadow: 'inset 0 0 0 2px rgba(239,68,68,0)',
-          animation: 'networkBorderPulse 2s ease-in-out infinite',
-        }}
-      />
+      {/* Borde arriba */}
+      <div className="fixed top-0 left-0 right-0 z-[9998] pointer-events-none"
+        style={{ height: '5px', animation: 'networkBorderPulse 2s ease-in-out infinite' }} />
+      {/* Borde abajo */}
+      <div className="fixed bottom-0 left-0 right-0 z-[9998] pointer-events-none"
+        style={{ height: '5px', animation: 'networkBorderPulse 2s ease-in-out infinite' }} />
       <style>{`
         @keyframes networkBorderPulse {
-          0%,100% { box-shadow: inset 0 0 0 2px rgba(239,68,68,0.0); }
-          50%      { box-shadow: inset 0 0 0 2px rgba(239,68,68,0.6); }
+          0%,100% { background: rgba(239,68,68,0.0); }
+          50%      { background: rgba(239,68,68,0.75); }
         }
       `}</style>
 
