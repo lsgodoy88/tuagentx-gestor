@@ -14,6 +14,21 @@ export function NetworkBanner() {
     : 'Sin conexión'
 
   return (
+    <>
+      {/* Borde pantalla palpitante */}
+      <div className="fixed inset-0 z-[9998] pointer-events-none rounded-none"
+        style={{
+          boxShadow: 'inset 0 0 0 2px rgba(239,68,68,0)',
+          animation: 'networkBorderPulse 2s ease-in-out infinite',
+        }}
+      />
+      <style>{`
+        @keyframes networkBorderPulse {
+          0%,100% { box-shadow: inset 0 0 0 2px rgba(239,68,68,0.0); }
+          50%      { box-shadow: inset 0 0 0 2px rgba(239,68,68,0.6); }
+        }
+      `}</style>
+
     <div
       title={label}
       aria-label={label}
@@ -52,5 +67,6 @@ export function NetworkBanner() {
         {label}
       </div>
     </div>
+    </>
   )
 }
