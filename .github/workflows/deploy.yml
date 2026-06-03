@@ -10,7 +10,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # ── JOB 1: Tests + validación ─────────────────────────────────────────
+  # ── JOB 1: Tests ──────────────────────────────────────────────────────
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -66,8 +66,8 @@ jobs:
       - name: Tests
         run: npm test
 
-  # ── JOB 2: Build en runner de GitHub ─────────────────────────────────
-  build:
+  # ── JOB 2: Build en runner + Deploy al servidor ───────────────────────
+  deploy:
     runs-on: ubuntu-latest
     needs: test
     timeout-minutes: 20
@@ -129,32 +129,7 @@ jobs:
             echo "❌ Build incompleto: solo $MANIFESTS manifests"
             exit 1
           fi
-          echo "✓ Build OK — $MANIFESTS manifests"
-
-      - name: Upload .next artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: next-build
-          path: |
-            .next/
-            !.next/cache
-            !.next/trace
-          retention-days: 1
-
-  # ── JOB 3: Deploy al servidor ─────────────────────────────────────────
-  deploy:
-    runs-on: ubuntu-latest
-    needs: build
-    timeout-minutes: 10
-
-    steps:
-      - uses: actions/checkout@v4.2.2
-
-      - name: Download .next artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: next-build
-          path: .next/
+          echo "✓ Build OK — $MANIFESTS manifests, BUILD_ID: $(cat .next/BUILD_ID)"
 
       - name: Setup SSH
         uses: webfactory/ssh-agent@v0.9.1
@@ -176,6 +151,8 @@ jobs:
             .next/ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/srv/gestor/.next/
 
       - name: Deploy en servidor
+        env:
+          CF_PURGE_TOKEN: ${{ secrets.CF_PURGE_TOKEN }}
         run: |
           ssh ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} << 'REMOTE'
           set -e
@@ -197,8 +174,7 @@ jobs:
             npx prisma migrate deploy
           fi
 
-          # Verificar que llegó el build
-          test -f .next/BUILD_ID || { rm -f /tmp/gestor-deploying; echo "❌ BUILD_ID no existe en servidor"; exit 1; }
+          test -f .next/BUILD_ID || { rm -f /tmp/gestor-deploying; echo "❌ BUILD_ID no existe"; exit 1; }
           echo "✓ .next recibido — BUILD_ID: $(cat .next/BUILD_ID)"
 
           echo "→ restart gestor"
@@ -217,8 +193,9 @@ jobs:
           sleep 3
           rm -f /tmp/gestor-deploying
 
-          curl -s -X POST "https://api.cloudflare.com/client/v4/zones/6ca0d1f90e4dc2357040df9e48764a53/purge_cache" \
-            -H "Authorization: Bearer $CF_PURGE_TOKEN" \
+          CF_TOKEN=$(grep CF_PURGE_TOKEN /srv/gestor/.env 2>/dev/null | cut -d= -f2 | tr -d '"' || echo "")
+          [ -n "$CF_TOKEN" ] && curl -s -X POST "https://api.cloudflare.com/client/v4/zones/6ca0d1f90e4dc2357040df9e48764a53/purge_cache" \
+            -H "Authorization: Bearer $CF_TOKEN" \
             -H "Content-Type: application/json" --data '{"purge_everything":true}' > /dev/null
 
           CRON_VAL=$(grep CRON_SECRET /srv/gestor/.env | cut -d= -f2 | tr -d '"')
@@ -228,8 +205,5 @@ jobs:
 
           VER=$(curl -fsS http://localhost:3010/api/version 2>/dev/null | python3 -c "import sys,json;d=json.load(sys.stdin);print(d['commit'])" 2>/dev/null || echo "?")
           echo "{\"ts\":\"$(date -u +%Y-%m-%dT%H:%M:%SZ)\",\"evento\":\"deploy\",\"commit\":\"$VER\",\"ok\":true,\"via\":\"github_actions\"}" >> /home/luis/logs/guardian-testigo.jsonl
-
           echo "✅ Deploy OK — commit $VER"
           REMOTE
-        env:
-          CF_PURGE_TOKEN: ${{ secrets.CF_PURGE_TOKEN }}
