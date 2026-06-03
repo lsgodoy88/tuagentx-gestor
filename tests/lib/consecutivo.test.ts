@@ -16,6 +16,10 @@ function mockTx(empleado: any) {
       findUnique: vi.fn().mockResolvedValue(empleado),
       update: vi.fn().mockResolvedValue({}),
     },
+    // Mock colisión — sin colisiones por defecto
+    pagoCartera: {
+      findFirst: vi.fn().mockResolvedValue(null),
+    },
   }
   vi.mocked(prisma.$transaction).mockImplementation(async (cb: any) => cb(tx))
   return tx
@@ -185,7 +189,8 @@ describe('lib/consecutivo — getConsecutivo', () => {
 
     it('empleado no encontrado → throw', async () => {
       vi.mocked(prisma.$transaction).mockImplementation(async (cb: any) => cb({
-        empleado: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() }
+        empleado: { findUnique: vi.fn().mockResolvedValue(null), update: vi.fn() },
+        pagoCartera: { findFirst: vi.fn().mockResolvedValue(null) }
       }))
       await expect(getConsecutivo('e-no-existe')).rejects.toThrow(/no encontrado/i)
     })

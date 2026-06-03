@@ -38,6 +38,18 @@ export async function getConsecutivo(empleadoId: string): Promise<string> {
     // Prefijo: explícito en empleado > explícito empresa > iniciales del empleado
     const prefijo = cfg.prefijo || inicialesEmpleado
 
+    // Verificar colisión — protege contra inserciones manuales en BD
+    // que no pasaron por getConsecutivo y dejaron el contador desactualizado
+    let recibo = `${prefijo}${anio}${mes}${String(consecutivoActual).padStart(3, '0')}`
+    let intentos = 0
+    while (intentos < 50) {
+      const existe = await tx.pagoCartera.findFirst({ where: { numeroRecibo: recibo } })
+      if (!existe) break
+      consecutivoActual += 1
+      recibo = `${prefijo}${anio}${mes}${String(consecutivoActual).padStart(3, '0')}`
+      intentos++
+    }
+
     await tx.empleado.update({
       where: { id: empleadoId },
       data: {
@@ -49,7 +61,7 @@ export async function getConsecutivo(empleadoId: string): Promise<string> {
       },
     })
 
-    return `${prefijo}${anio}${mes}${String(consecutivoActual).padStart(3, '0')}`
+    return recibo
   })
 
   return numero
