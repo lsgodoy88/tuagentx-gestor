@@ -51,6 +51,42 @@ check "Auth comisiones" "/api/comisiones"              "401"  "error\|autori"
 check "Recibo inválido" "/api/cartera/recibo-publico?token=invalido" "400 404" ""
 check "OSRM sin params" "/api/osrm-route"              "400 401 405" ""
 
+
+# ── Smoke test interno autenticado ───────────────────────────────────────
+echo ""
+echo "→ Smoke test autenticado..."
+
+CRON_VAL=$(grep "^CRON_SECRET=" /srv/gestor/.env | cut -d= -f2 | tr -d '"')
+
+SMOKE_RESP=$(curl -s --max-time 20   -H "x-cron-secret: $CRON_VAL"   "http://localhost:3010/api/smoke/test")
+
+SMOKE_OK=$(echo "$SMOKE_RESP" | python3 -c "import sys,json;d=json.load(sys.stdin);print('ok' if d.get('ok') else 'fail')" 2>/dev/null)
+SMOKE_MS=$(echo "$SMOKE_RESP" | python3 -c "import sys,json;d=json.load(sys.stdin);print(d.get('totalMs','?'))" 2>/dev/null)
+
+if [ "$SMOKE_OK" = "ok" ]; then
+  PASS=$((PASS+1))
+  echo "  ✅ Smoke test autenticado OK (${SMOKE_MS}ms)"
+  # Mostrar detalle de cada check
+  echo "$SMOKE_RESP" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+for k,v in d.get('checks',{}).items():
+    icon='✅' if v['ok'] else '❌'
+    det=v.get('detalle','')
+    print(f'     {icon} {k}: {v["ms"]}ms {det}')
+" 2>/dev/null
+else
+  FAIL=$((FAIL+1))
+  ERRORS="$ERRORS\n  ❌ Smoke test autenticado falló"
+  echo "$SMOKE_RESP" | python3 -c "
+import sys,json
+d=json.load(sys.stdin)
+for k,v in d.get('checks',{}).items():
+    if not v['ok']:
+        print(f'     ❌ {k}: {v.get("detalle","error")}')
+" 2>/dev/null
+fi
+
 echo ""
 echo "Resultado: $PASS OK | $FAIL FALLIDOS"
 if [ $FAIL -gt 0 ]; then
