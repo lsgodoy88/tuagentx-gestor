@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { invalidatePattern } from '@/lib/cache'
 // UTC → Bogotá (UTC-5)
 function toBogota(d: Date | null): Date | null {
   return d ? new Date(d.getTime() - 5 * 60 * 60 * 1000) : null
@@ -207,6 +208,10 @@ export async function POST(req: NextRequest) {
   // Contar total de órdenes procesadas
   const totalOrdenes = resultados.reduce((a: number, r: any) => a + (r.insertadas || 0), 0)
   await testigo({ evento: 'sync_bodega', ok: true, ordenes_nuevas: totalOrdenes, total: totalOrdenes, ms: 0 })
+
+  // Invalidar cache de vendedores para que vean órdenes nuevas inmediatamente
+  const totalNuevas = resultados.reduce((a: number, r: any) => a + (r.nuevas || 0), 0)
+  if (totalNuevas > 0) await invalidatePattern('g:v:*')
 
   return NextResponse.json({ ok: true, resultados })
 }
