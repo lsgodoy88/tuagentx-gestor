@@ -7,7 +7,7 @@ import { getEmpresaId } from '@/lib/auth-helpers'
 import { generarReciboToken } from '@/lib/recibos'
 import { calcularEstado } from '@/lib/cartera'
 import { invalidateKeys } from '@/lib/cache'
-import { fechaHoyBogota } from '@/lib/fechas'
+import { fechaHoyBogota, nowBogota } from '@/lib/fechas'
 import { getConsecutivo } from '@/lib/consecutivo' 
 
 export async function POST(req: NextRequest) {
@@ -208,6 +208,32 @@ export async function POST(req: NextRequest) {
       await tx.syncDeuda.update({
         where: { id: a.syncDeudaId },
         data: { saldo: nuevoSaldo, abono: nuevoAbono, condition: nuevoSaldo > 0 }
+      })
+    }
+
+    // ── Visita tipo recaudo — mismo patrón que /api/visitas ────────────────
+    const turnoActivo = await tx.turno.findFirst({
+      where: { empleadoId: empId, activo: true },
+      select: { id: true }
+    })
+    const clienteInterno = await tx.cliente.findFirst({
+      where: { apiId: clienteApiId, empresaId },
+      select: { id: true }
+    })
+    if (clienteInterno) {
+      await tx.visita.create({
+        data: {
+          empleadoId: empId,
+          clienteId:  clienteInterno.id,
+          turnoId:    turnoActivo?.id || null,
+          lat:        lat  != null ? Number(lat)  : null,
+          lng:        lng  != null ? Number(lng)  : null,
+          tipo:       'recaudo',
+          monto:      montoNum,
+          nota:       pagoCreado.numeroRecibo || null,
+          factura:    aplicaciones[0]?.numeroFactura != null ? String(aplicaciones[0].numeroFactura) : null,
+          fechaBogota: nowBogota(),
+        }
       })
     }
 

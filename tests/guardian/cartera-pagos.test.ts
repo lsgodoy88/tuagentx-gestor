@@ -30,6 +30,7 @@ vi.mock('@/lib/prisma', () => {
     pagoCartera:{ create: vi.fn() },
     syncDeuda:  { findMany: vi.fn(), findUnique: vi.fn().mockResolvedValue({ saldo: 0, abono: 0 }), update: vi.fn() },
     visita:     { create: vi.fn() },
+    turno:      { findFirst: vi.fn().mockResolvedValue({ id: 'turno-1' }) },
     $transaction: vi.fn(async (ops: any) =>
       typeof ops === 'function' ? ops(m) : Promise.all(ops)
     ),

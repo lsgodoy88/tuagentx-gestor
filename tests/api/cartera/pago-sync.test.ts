@@ -37,7 +37,13 @@ const makeReq = (body: any) => new NextRequest('http://localhost/api/cartera/pag
 })
 
 function mockTx(txMocks: any) {
-  vi.mocked((prisma as any).$transaction).mockImplementation(async (cb: any) => cb(txMocks))
+  // Defaults para modelos agregados — visita, turno, cliente dentro de tx
+  const defaults = {
+    turno:   { findFirst: vi.fn().mockResolvedValue({ id: 'turno-1' }) },
+    visita:  { create:    vi.fn().mockResolvedValue({}) },
+    cliente: { findFirst: vi.fn().mockResolvedValue({ id: 'c1' }) },
+  }
+  vi.mocked((prisma as any).$transaction).mockImplementation(async (cb: any) => cb({ ...defaults, ...txMocks }))
 }
 
 function setupHappyPath() {
