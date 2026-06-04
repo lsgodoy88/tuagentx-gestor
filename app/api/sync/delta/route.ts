@@ -39,6 +39,8 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   const ordenes = await adapter.fetchVentas(desde)
   // #3 fix: si no hay órdenes, avanzar ultimaSyncBodega a now() — el delta corrió OK
   // Solo no avanzar si el fetch falló (error), no si vino vacío legitimamente
+  const erroresParciales: string[] = []
+
   if (!ordenes.length) {
     await prisma.empresa.update({ where: { id: destino }, data: { ultimaSyncBodega: new Date() } })
     try {
@@ -57,6 +59,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
           clientesNuevos: 0,
           deudasNuevasDelta: 0,
           comprasSincronizadas: 0,
+          reconciliadas: 0,
         }
       })
     } catch {}
@@ -147,7 +150,6 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   // Solo trae clientes creados/modificados en UpTres desde la última introducción
   // Protegido: insert-only por apiId, no sobreescribe datos locales existentes
   let clientesNuevos = 0
-  const erroresParciales: string[] = []
   try {
     const maxClienteBogota = await (prisma as any).cliente.findFirst({
       where: { empresaId: destino, creadoEnBogota: { not: null } },
@@ -360,22 +362,27 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   // Evita perder órdenes con timestamp reciente en UpTres
   const proximoDesde = new Date(Date.now() - 30 * 60 * 1000)
 
-  await prisma.$transaction(async (tx: any) => {
-    // Upsert por origenId+empresaId — evita duplicados, nunca actualiza si ya existe
-    if (toCreate.length) {
-      for (const orden of toCreate) {
-        if (!orden.origenId) continue
-        await tx.ordenDespacho.upsert({
-          where: { origenId_empresaId: { origenId: orden.origenId, empresaId: orden.empresaId } },
-          create: orden,
-          update: {}, // insert-only: si ya existe no toca nada
-        })
+  try {
+    await prisma.$transaction(async (tx: any) => {
+      // Upsert por origenId+empresaId — evita duplicados, nunca actualiza si ya existe
+      if (toCreate.length) {
+        for (const orden of toCreate) {
+          if (!orden.origenId) continue
+          await tx.ordenDespacho.upsert({
+            where: { origenId_empresaId: { origenId: orden.origenId, empresaId: orden.empresaId } },
+            create: orden,
+            update: {}, // insert-only: si ya existe no toca nada
+          })
+        }
       }
-    }
-    if (canceladasIds.length) await tx.ordenDespacho.updateMany({ where: { origenId: { in: canceladasIds }, empresaId: destino }, data: { isActiva: false } })
-    if (deudaToCreate.length) await tx.syncDeuda.createMany({ data: deudaToCreate, skipDuplicates: true })
-    await tx.empresa.update({ where: { id: destino }, data: { ultimaSyncBodega: proximoDesde } })
-  }, { timeout: 30000 })
+      if (canceladasIds.length) await tx.ordenDespacho.updateMany({ where: { origenId: { in: canceladasIds }, empresaId: destino }, data: { isActiva: false } })
+      if (deudaToCreate.length) await tx.syncDeuda.createMany({ data: deudaToCreate, skipDuplicates: true })
+      await tx.empresa.update({ where: { id: destino }, data: { ultimaSyncBodega: proximoDesde } })
+    }, { timeout: 30000 })
+  } catch (err: any) {
+    console.error('[delta] insert-ordenes error:', err.message)
+    erroresParciales.push('insert-ordenes: ' + err.message)
+  }
 
   // Invalida Redis solo si hubo cambios reales
   if (toCreate.length || deudaToCreate.length || clientesNuevos || deudasNuevasDelta) {
@@ -556,6 +563,7 @@ export async function POST(req: NextRequest) {
             clientesNuevos: 0,
             deudasNuevasDelta: 0,
             comprasSincronizadas: 0,
+            errores: JSON.stringify([err.message]),
           }
         })
       } catch {}
