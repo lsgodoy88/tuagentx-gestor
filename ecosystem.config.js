@@ -1,20 +1,34 @@
-const fs = require('fs')
+const fs   = require('fs')
 const path = require('path')
 
-// Leer .env del servidor — secrets nunca van en git
+// Única fuente de verdad — todo desde .env
+// Si una var requerida está vacía, el proceso falla rápido al arrancar
 function loadEnv() {
   try {
-    const envPath = path.join(__dirname, '.env')
     return Object.fromEntries(
-      fs.readFileSync(envPath, 'utf8')
+      fs.readFileSync(path.join(__dirname, '.env'), 'utf8')
         .split('\n')
-        .filter(l => l.includes('=') && !l.startsWith('#'))
-        .map(l => { const i = l.indexOf('='); return [l.slice(0,i).trim(), l.slice(i+1).trim().replace(/^"|"$/g,'')] })
+        .filter(l => l.includes('=') && !l.startsWith('#') && l.trim())
+        .map(l => {
+          const i = l.indexOf('=')
+          return [l.slice(0, i).trim(), l.slice(i + 1).trim().replace(/^"|"$/g, '')]
+        })
     )
-  } catch { return {} }
+  } catch (e) {
+    console.error('[ecosystem] ERROR: no se pudo leer .env:', e.message)
+    return {}
+  }
 }
 
-const serverEnv = loadEnv()
+const env = loadEnv()
+
+// Vars requeridas — falla rápido si alguna está vacía
+const REQUIRED = ['DATABASE_URL', 'NEXTAUTH_SECRET', 'NEXTAUTH_URL', 'REDIS_URL', 'CRON_SECRET', 'WEBHOOK_SECRET']
+const missing = REQUIRED.filter(k => !env[k])
+if (missing.length > 0) {
+  console.error('[ecosystem] FATAL: vars faltantes en .env:', missing.join(', '))
+  process.exit(1)
+}
 
 module.exports = {
   apps: [{
@@ -23,13 +37,14 @@ module.exports = {
     args: 'start -p 3010',
     cwd: '/srv/gestor',
     env: {
-      DATABASE_URL: 'postgresql://evolution:evolutionpass@127.0.0.1:5432/evolution?schema=gestor&options=-c%20timezone%3DUTC',
-      NEXTAUTH_URL: 'https://gestor.tuagentx.com',
-      NEXTAUTH_TRUST_HOST: 'true',
-      REDIS_URL: 'redis://:7wzadPIuzVn84WkSfPUoOAIlb0PKCZK@127.0.0.1:6379',
-      // Secrets desde .env — nunca hardcodeados en git
-      NEXTAUTH_SECRET: serverEnv.NEXTAUTH_SECRET || '',
-      CRON_SECRET: serverEnv.CRON_SECRET || '',
+      NODE_ENV:           'production',
+      DATABASE_URL:       env.DATABASE_URL,
+      NEXTAUTH_SECRET:    env.NEXTAUTH_SECRET,
+      NEXTAUTH_URL:       env.NEXTAUTH_URL,
+      NEXTAUTH_TRUST_HOST: env.NEXTAUTH_TRUST_HOST || 'true',
+      REDIS_URL:          env.REDIS_URL,
+      CRON_SECRET:        env.CRON_SECRET,
+      WEBHOOK_SECRET:     env.WEBHOOK_SECRET,
     }
   }]
 }
