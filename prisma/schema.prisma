@@ -2820,6 +2820,7 @@ model SyncLog {
   empresaId            String?
   empleadosActualizados Int      @default(0) // vendedores con datos actualizados desde UpTres
   saldosActualizados    Int      @default(0) // deudas con saldo actualizado vía receivableAt
+  reconciliadas         Int      @default(0) // órdenes sin facturar actualizadas por reconciliador
   integracion          Integracion @relation(fields: [integracionId], references: [id])
 
   @@index([integracionId])
