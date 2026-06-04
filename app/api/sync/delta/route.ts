@@ -147,6 +147,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   // Solo trae clientes creados/modificados en UpTres desde la última introducción
   // Protegido: insert-only por apiId, no sobreescribe datos locales existentes
   let clientesNuevos = 0
+  const erroresParciales: string[] = []
   try {
     const maxClienteBogota = await (prisma as any).cliente.findFirst({
       where: { empresaId: destino, creadoEnBogota: { not: null } },
@@ -192,6 +193,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   } catch (err: any) {
     // No romper el flujo principal si clientes falla
     console.error('[delta] clientes error:', err.message)
+    erroresParciales.push('clientes: ' + err.message)
   }
 
   // ── Empleados — actualizar datos de vendedores existentes ───────────────
@@ -231,6 +233,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     }
   } catch (err: any) {
     console.error('[delta] empleados error:', err.message)
+    erroresParciales.push('empleados: ' + err.message)
   }
 
   // ── Deudas nuevas (desde MAX createdAtBogota en SyncDeuda) ──────────────────
@@ -288,6 +291,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   } catch (err: any) {
     // No romper el flujo principal si deudas falla
     console.error('[delta] deudas error:', err.message)
+    erroresParciales.push('deudas: ' + err.message)
   }
 
   // ── Transacción ───────────────────────────────────────────────────────────
@@ -432,6 +436,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     }
   } catch (err: any) {
     console.error('[delta] delta-saldos error:', err.message)
+    erroresParciales.push('delta-saldos: ' + err.message)
   }
 
   const duracionMs = Date.now() - inicioTs
@@ -466,6 +471,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     }
   } catch (e: any) {
     console.error('[delta] reconciliador error:', e.message)
+    erroresParciales.push('reconciliador: ' + e.message)
   }
 
   // ── SyncLog — registro del ciclo delta ──────────────────────────────────
@@ -479,7 +485,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
         inicio: new Date(inicioTs),
         fin: new Date(),
         duracionMs,
-        estado: 'ok',
+        estado: erroresParciales.length > 0 ? 'parcial' : 'ok',
         disparadoPor: 'cron',
         ordenesNuevas: toCreate.length,
         deudasSincronizadas: deudaToCreate.length,
@@ -490,6 +496,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
         ...(empleadosActualizados ? { empleadosActualizados } : {}),
         ...(saldosActualizados ? { saldosActualizados } : {}),
         ...(reconciliadas ? { reconciliadas } : {}),
+        ...(erroresParciales.length > 0 ? { errores: JSON.stringify(erroresParciales) } : {}),
       }
     })
   } catch (logErr: any) {
