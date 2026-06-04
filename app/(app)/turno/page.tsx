@@ -1,24 +1,15 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 
 export default function TurnoPage() {
   const router = useRouter()
-  const [turno, setTurno] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const [turno, setTurno]         = useState<any>(null)
+  const [loading, setLoading]     = useState(true)
   const [accionando, setAccionando] = useState(false)
-  const [historial, setHistorial] = useState<any[]>([])
-  const [fechaTurno, setFechaTurno] = useState('')
-  const [loadingHistorial, setLoadingHistorial] = useState(false)
 
-  useEffect(() => { loadTurno(); loadHistorial() }, [])
-
-  async function loadHistorial() {
-    setLoadingHistorial(true)
-    const res = await fetch('/api/turnos/historial').then(r => r.json())
-    setHistorial(Array.isArray(res) ? res : [])
-    setLoadingHistorial(false)
-  }
+  useEffect(() => { loadTurno() }, [])
 
   async function loadTurno() {
     const res = await fetch('/api/turnos')
@@ -94,75 +85,50 @@ export default function TurnoPage() {
       <div className="shimmer h-8 w-1/3 rounded-xl" />
       <div className="shimmer h-40 rounded-2xl" />
       <div className="shimmer h-12 rounded-2xl" />
-      <div className="shimmer h-12 rounded-2xl" />
     </div>
   )
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 pb-24 md:pb-0">
-<div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-3">
-        <div className="flex items-center justify-between">
-          <p className="text-white font-bold">Historial de turnos</p>
-          <div className="relative">
-            <input type="date" value={fechaTurno} onChange={e => setFechaTurno(e.target.value)}
-              className="absolute inset-0 opacity-0 cursor-pointer w-full" />
-            <div className={"flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition-colors " + (fechaTurno ? "bg-emerald-600 border-emerald-500 text-white" : "bg-zinc-800 border-zinc-700 text-zinc-400")}>
-              <span>📅</span>
-              {fechaTurno ? new Date(fechaTurno + 'T12:00:00Z').toLocaleDateString('es-CO', {day:'numeric', month:'short', timeZone: 'America/Bogota'}) : 'Filtrar fecha'}
-              {fechaTurno && <button onClick={e => { e.stopPropagation(); setFechaTurno('') }} className="ml-1 text-white/70 hover:text-white">×</button>}
+    <div className="max-w-xl mx-auto space-y-4 pb-24 md:pb-0 p-4">
+
+      {/* Card turno activo */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4 space-y-4">
+        <p className="text-white font-bold text-base">⏱ Turno</p>
+
+        {turno ? (
+          <>
+            <div className="text-center space-y-1">
+              <p className="text-emerald-400 text-3xl font-bold font-mono">{duracion(turno.inicio)}</p>
+              <p className="text-zinc-500 text-xs">
+                Iniciado {turno.inicioBogota || new Date(turno.inicio).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })}
+              </p>
+              {turno.pausado && (
+                <span className="inline-block bg-amber-500/20 text-amber-400 text-xs px-3 py-1 rounded-full">⏸ En pausa — {turno.pausaMotivo}</span>
+              )}
             </div>
-          </div>
-        </div>
-        {loadingHistorial && <p className="text-zinc-500 text-sm text-center py-4">Cargando...</p>}
-        {!loadingHistorial && (() => {
-          const filtrados = fechaTurno ? historial.filter(t => t.fecha === fechaTurno) : historial.slice(0, 10)
-          if (filtrados.length === 0) return <p className="text-zinc-500 text-sm text-center py-4">{fechaTurno ? 'Sin turnos para esta fecha' : 'Sin historial'}</p>
-          return (
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="border-b border-zinc-700">
-                    <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left"}}>Fecha</th>
-                    <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>Inicio</th>
-                    <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>Cierre</th>
-                    <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>Duración</th>
-                    <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>Pausa</th>
-                    <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>Efectivo</th>
-                    <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>GPS</th>
-                  </tr>
-                </thead>
-                <tbody className="space-y-1">
-                  {filtrados.map((t) => (
-                    <tr key={t.id} className="border-b border-zinc-800">
-                      <td className="text-zinc-400 py-2 pr-2">{new Date(t.fecha + 'T12:00:00Z').toLocaleDateString('es-CO', {day:'numeric', month:'short', timeZone: 'America/Bogota'})}</td>
-                      <td className="text-white text-center py-2">
-                        {t.gpsInicio
-                          ? <a href={"https://www.google.com/maps?q=" + t.latInicio + "," + t.lngInicio} target="_blank" className="text-emerald-400 underline">{t.inicio}</a>
-                          : t.inicio}
-                      </td>
-                      <td className="text-white text-center py-2">
-                        {t.fin
-                          ? t.gpsFin
-                            ? <a href={"https://www.google.com/maps?q=" + t.latFin + "," + t.lngFin} target="_blank" className="text-emerald-400 underline">{t.fin}</a>
-                            : t.fin
-                          : <span className="text-zinc-600">—</span>}
-                      </td>
-                      <td className="text-zinc-300 text-center py-2">{t.duracion || '—'}</td>
-                      <td className="text-center py-2">
-                        {t.pausaMotivo ? <span className="text-amber-400 text-xs">⏸️ {t.pausaMotivo} {t.pausaDuracionMin}min</span> : <span className="text-zinc-600">—</span>}
-                      </td>
-                      <td className="text-emerald-400 text-center py-2 font-semibold">{t.tiempoEfectivo || t.duracion || "—"}</td>
-                      <td className="text-center py-2">
-                        {t.gpsInicio && t.gpsFin ? <span className="text-emerald-400">✓✓</span> : t.gpsInicio ? <span className="text-yellow-400">✓</span> : <span className="text-zinc-600">—</span>}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )
-        })()}
+            <button onClick={cerrarTurno} disabled={accionando}
+              className="w-full py-3 rounded-xl bg-red-600 hover:bg-red-700 text-white font-semibold text-sm transition-colors disabled:opacity-50">
+              {accionando ? 'Cerrando...' : '🔴 Cerrar turno'}
+            </button>
+          </>
+        ) : (
+          <>
+            <p className="text-zinc-500 text-sm text-center">No tienes un turno activo</p>
+            <button onClick={iniciarTurno} disabled={accionando}
+              className="w-full py-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm transition-colors disabled:opacity-50">
+              {accionando ? 'Iniciando...' : '🟢 Iniciar turno'}
+            </button>
+          </>
+        )}
       </div>
+
+      {/* Botón historial */}
+      <Link href="/historial-turnos"
+        className="flex items-center justify-between w-full bg-zinc-900 border border-zinc-800 rounded-2xl p-4 text-white hover:bg-zinc-800 transition-colors">
+        <span className="font-semibold text-sm">📋 Ver historial de turnos</span>
+        <span className="text-zinc-500">›</span>
+      </Link>
+
     </div>
   )
 }
