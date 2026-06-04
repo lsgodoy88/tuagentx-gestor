@@ -228,7 +228,7 @@ export async function POST(req: NextRequest) {
           turnoId:    turnoActivo?.id || null,
           lat:        lat  != null ? Number(lat)  : null,
           lng:        lng  != null ? Number(lng)  : null,
-          tipo:       'recaudo',
+          tipo:       'cobro',
           monto:      montoNum,
           nota:       pagoCreado.numeroRecibo || null,
           factura:    aplicaciones[0]?.numeroFactura != null ? String(aplicaciones[0].numeroFactura) : null,
