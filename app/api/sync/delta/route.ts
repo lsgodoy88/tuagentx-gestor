@@ -532,6 +532,26 @@ export async function POST(req: NextRequest) {
       }
     } catch (err: any) {
       resultados.push({ empresaId: intg.empresaId, error: err.message })
+      // Registrar error crítico en SyncLog
+      try {
+        await (prisma as any).syncLog.create({
+          data: {
+            integracionId: intg.id,
+            empresaId: intg.empresaId,
+            tipo: 'delta',
+            inicio: new Date(),
+            fin: new Date(),
+            duracionMs: 0,
+            estado: 'error',
+            disparadoPor: 'cron',
+            ordenesNuevas: 0,
+            deudasSincronizadas: 0,
+            clientesNuevos: 0,
+            deudasNuevasDelta: 0,
+            comprasSincronizadas: 0,
+          }
+        })
+      } catch {}
     }
   }
 
