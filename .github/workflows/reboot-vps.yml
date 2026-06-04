@@ -1,0 +1,29 @@
+name: Reboot VPS
+
+on:
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: 'Motivo del reboot'
+        required: false
+        default: 'steal sostenido'
+
+jobs:
+  reboot:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Reboot VPS via Hostinger API
+        run: |
+          echo "Iniciando reboot VPS 979619 — motivo: ${{ github.event.inputs.reason }}"
+          HTTP=$(curl -s -o /tmp/resp.json -w '%{http_code}' \
+            -X POST "https://api.hostinger.com/api/vps/v1/virtual-machines/979619/restart" \
+            -H "Authorization: Bearer ${{ secrets.HOSTINGER_API_TOKEN }}" \
+            -H "Content-Type: application/json")
+          cat /tmp/resp.json
+          echo ""
+          if [ "$HTTP" -ge 200 ] && [ "$HTTP" -lt 300 ]; then
+            echo "✅ Reboot iniciado — HTTP $HTTP"
+          else
+            echo "❌ Reboot falló — HTTP $HTTP"
+            exit 1
+          fi
