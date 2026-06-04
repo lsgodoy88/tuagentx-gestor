@@ -329,7 +329,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
         invoicedAt: d.data.invoicedAt && d.data.invoicedAt > '2001' ? d.data.invoicedAt : null,
         total: d.data.total,
       }
-    } catch { return null }
+    } catch (e) { return null }
   }
 
   async fetchVentas(desde?: Date, customerId?: string): Promise<VentaExterna[]> {
