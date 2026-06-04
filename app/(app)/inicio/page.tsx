@@ -121,18 +121,25 @@ function DashboardPageInner() {
   const CACHE_KEY = 'inicio_cache'
   const CACHE_TTL = 10 * 60 * 1000 // 10 minutos
 
+  const CACHE_TTL_CONTADORES = 2 * 60 * 1000   // bodega: 2min
+  const CACHE_TTL_INTEGRACION = 5 * 60 * 1000  // integracion: 5min
+  const CACHE_TTL_PRECIOS = 30 * 60 * 1000     // precios: 30min
+
   function getCached() {
     try {
       const raw = sessionStorage.getItem(CACHE_KEY)
       if (!raw) return null
       const { ts, data } = JSON.parse(raw)
       if (Date.now() - ts > CACHE_TTL) { sessionStorage.removeItem(CACHE_KEY); return null }
-      return data
+      return { ...data, ts }
     } catch { return null }
   }
 
-  function setCached(data: any) {
-    try { sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data })) } catch {}
+  function setCached(patch: Record<string, any>) {
+    try {
+      const prev = getCached() || {}
+      sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: { ...prev, ...patch } }))
+    } catch {}
   }
 
   function vieneDelLogin() {
@@ -199,7 +206,13 @@ function DashboardPageInner() {
     if (!user) return
     if (user.role === 'vendedor') return // DashboardVendedor maneja sus propios effects
     if (user.role === 'superadmin') {
-      fetch('/api/precios').then(r => r.json()).then(d => setResumenFinanciero(d))
+      // Precios — cache 30min, casi estático
+      const cachedPrecios = getCached()
+      if (cachedPrecios?.resumenFinanciero && (Date.now() - (cachedPrecios.ts||0)) < CACHE_TTL_PRECIOS) {
+        setResumenFinanciero(cachedPrecios.resumenFinanciero)
+      } else {
+        fetch('/api/precios').then(r => r.json()).then(d => { setResumenFinanciero(d); setCached({ resumenFinanciero: d }) })
+      }
       return
     }
     if (isImpulsadora) { router.push('/impulsadora'); return }
@@ -225,31 +238,24 @@ function DashboardPageInner() {
         // Si viene del login o no hay cache → carga fresca
         // Si navega de vuelta desde otro módulo → usa cache sin re-fetch
         const cached = getCached()
-        if (cached && !vieneDelLogin()) {
-          // Restaurar desde cache — sin peticiones
-          if (cached.statsVendedor) { setStatsVendedor(cached.statsVendedor); lastPulseTs.current = cached.ts || 0 }
+        const desdLogin = vieneDelLogin()
+        if (cached && !desdLogin) {
+          // Mostrar inmediatamente desde cache
+          if (cached.statsVendedor)  { setStatsVendedor(cached.statsVendedor); lastPulseTs.current = cached.ts || 0 }
           if (cached.resumenCartera) setResumenCartera(cached.resumenCartera)
           setLoadingStats(false)
           setVendedorStatsLoading(false)
-        } else {
-          // Carga fresca — login o cache expirado
+        }
+        // Refrescar en background si expiró o viene del login
+        const debeRefrescar = desdLogin || !cached?.statsVendedor || (Date.now() - (cached?.ts||0)) > CACHE_TTL
+        if (debeRefrescar) {
           setLoadingStats(true)
           fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null).then(stats => {
-            if (stats && !stats.error) {
-              setStatsVendedor(stats)
-              lastPulseTs.current = Date.now()
-              // Guardar en cache para navegaciones posteriores
-              setCached({ statsVendedor: stats, ts: Date.now() })
-            }
+            if (stats && !stats.error) { setStatsVendedor(stats); lastPulseTs.current = Date.now(); setCached({ statsVendedor: stats }) }
             setVendedorStatsLoading(false)
           })
           fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null).then(cartera => {
-            if (cartera) {
-              setResumenCartera(cartera)
-              // Actualizar cache con cartera
-              const cached2 = getCached()
-              if (cached2) setCached({ ...cached2, resumenCartera: cartera })
-            }
+            if (cartera) { setResumenCartera(cartera); setCached({ resumenCartera: cartera }) }
             setLoadingStats(false)
           })
         }
@@ -264,10 +270,22 @@ function DashboardPageInner() {
       if (isEmpresa || isSupervisor || isBodega) adminFetches.push(fetch('/api/bodega/contadores').then(r => r.json()).catch(() => null))
       adminFetches.push(fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null))
 
+      // Mostrar desde cache inmediatamente si existe
+      const cachedAdmin = getCached()
+      if (cachedAdmin && !vieneDelLogin()) {
+        if (cachedAdmin.stats) setStats(cachedAdmin.stats)
+        if (cachedAdmin.bodegaStats) setBodegaStats(cachedAdmin.bodegaStats)
+        if (cachedAdmin.resumenCartera) setResumenCartera(cachedAdmin.resumenCartera)
+      }
+      // Siempre refrescar en background
       Promise.all(adminFetches).then(([stats, integracion, bodega, cartera]) => {
-        if (stats) setStats(stats)
-        if (bodega) setBodegaStats({ pendientes: bodega.pendientes ?? 0, alistados: bodega.alistados ?? 0, entregados: bodega.entregados ?? 0 })
-        if (cartera) setResumenCartera(cartera)
+        if (stats) { setStats(stats); setCached({ stats }) }
+        if (bodega) {
+          const b = { pendientes: bodega.pendientes ?? 0, alistados: bodega.alistados ?? 0, entregados: bodega.entregados ?? 0 }
+          setBodegaStats(b)
+          setCached({ bodegaStats: b })
+        }
+        if (cartera) { setResumenCartera(cartera); setCached({ resumenCartera: cartera }) }
       })
     }
   }, [user])
