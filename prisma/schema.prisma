@@ -2798,7 +2798,7 @@ model SyncDeuda {
 
 model SyncLog {
   id                   String      @id @default(cuid())
-  integracionId        String
+  integracionId        String?
   inicio               DateTime
   fin                  DateTime?
   clientesActualizados Int         @default(0)
@@ -2821,7 +2821,7 @@ model SyncLog {
   empleadosActualizados Int      @default(0) // vendedores con datos actualizados desde UpTres
   saldosActualizados    Int      @default(0) // deudas con saldo actualizado vía receivableAt
   reconciliadas         Int      @default(0) // órdenes sin facturar actualizadas por reconciliador
-  integracion          Integracion @relation(fields: [integracionId], references: [id])
+  integracion          Integracion? @relation(fields: [integracionId], references: [id])
 
   @@index([integracionId])
   @@index([empresaId, createdAt])

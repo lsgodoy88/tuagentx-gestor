@@ -33,6 +33,22 @@ async function callEndpoint(path: string, body?: Record<string, unknown>) {
   return json
 }
 
+
+async function cronYaEjecuto(tipo: string, ventanaMs = 2 * 60 * 60 * 1000): Promise<string | null> {
+  try {
+    const res = await fetch(`${BASE_URL}/api/cron/last-run?tipo=${tipo}`, {
+      headers: { 'x-cron-secret': SECRET },
+    })
+    if (!res.ok) return null
+    const data = await res.json() as { ok: boolean; id?: string; createdAt?: string }
+    if (!data.ok || !data.createdAt) return null
+    const age = Date.now() - new Date(data.createdAt).getTime()
+    return age < ventanaMs ? (data.id ?? 'ok') : null
+  } catch {
+    return null
+  }
+}
+
 // ── Queue: rutas-dia ─────────────────────────────────────────────────────────
 
 export const rutasDiaQueue = new Queue('rutas-dia', { connection: REDIS, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 60000 }, removeOnComplete: 50, removeOnFail: 100 } })
@@ -40,6 +56,8 @@ export const rutasDiaQueue = new Queue('rutas-dia', { connection: REDIS, default
 export const rutasDiaWorker = new Worker(
   'rutas-dia',
   async (job) => {
+    const skip = await cronYaEjecuto('rutas-dia')
+    if (skip) { console.log(`[rutas-dia] skip — cron ejecutó OK (${skip})`); return { skip: true } }
     console.log(`[rutas-dia] ${job.name} iniciado ${new Date().toISOString()}`)
     const result = await callEndpoint('/api/rutas/procesar-dia')
     console.log(`[rutas-dia] ${job.name} resultado:`, JSON.stringify(result))
@@ -66,6 +84,8 @@ export const integracionQueue = new Queue('integracion', { connection: REDIS, de
 export const integracionWorker = new Worker(
   'integracion',
   async (job) => {
+    const skip = await cronYaEjecuto('integracion')
+    if (skip) { console.log(`[integracion] skip — cron ejecutó OK (${skip})`); return { skip: true } }
     console.log(`[integracion] ${job.name} iniciado ${new Date().toISOString()}`)
     const result = await callEndpoint('/api/integracion/sync', { tipo: 'delta' })
     console.log(`[integracion] ${job.name} resultado:`, JSON.stringify(result))
@@ -182,6 +202,8 @@ export const syncDeltaQueue = new Queue('sync-delta', { connection: REDIS, defau
 export const syncDeltaWorker = new Worker(
   'sync-delta',
   async (job) => {
+    const skip = await cronYaEjecuto('delta', 35 * 60 * 1000)
+    if (skip) { console.log(`[sync-delta] skip — cron ejecutó OK (${skip})`); return { skip: true } }
     console.log(`[sync-delta] iniciado ${new Date().toISOString()}`)
     const result = await callEndpoint('/api/sync/delta')
     console.log('[sync-delta] resultado:', JSON.stringify(result))
@@ -198,6 +220,8 @@ export const syncNocturnoQueue = new Queue('sync-nocturno', { connection: REDIS,
 export const syncNocturnoWorker = new Worker(
   'sync-nocturno',
   async (job) => {
+    const skip = await cronYaEjecuto('nocturno')
+    if (skip) { console.log(`[sync-nocturno] skip — cron ejecutó OK (${skip})`); return { skip: true } }
     const modo = job.data?.modo ?? 'completo'
     console.log(`[sync-nocturno] iniciado modo=${modo} ${new Date().toISOString()}`)
     const result = await callEndpoint(`/api/sync/nocturno?modo=${modo}`)

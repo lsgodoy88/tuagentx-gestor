@@ -169,5 +169,19 @@ export async function POST(req: NextRequest) {
     procesadas++
   }
 
+  // ── SyncLog ──────────────────────────────────────────────────────────────
+  try {
+    await prisma.syncLog.create({
+      data: {
+        inicio: new Date(),
+        fin: new Date(),
+        tipo: 'rutas-dia',
+        estado: 'ok',
+        disparadoPor: esCron ? 'cron' : 'manual',
+        empresaId: empresaIdFiltro ?? undefined,
+      },
+    })
+  } catch {}
+
   return NextResponse.json({ ok: true, procesadas, rutasCreadas, rutasCerradas, rezagosMigrados })
 }

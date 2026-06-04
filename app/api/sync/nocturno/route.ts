@@ -229,6 +229,23 @@ export async function POST(req: NextRequest) {
   }
 
   // ── SyncLog — retención indefinida (65MB/año, vital para auditoría) ──────
+  const integracionesMap = Object.fromEntries(integraciones.map((i: any) => [i.empresaId, i.id]))
+  await Promise.allSettled(
+    resultados.map((r: any) =>
+      prisma.syncLog.create({
+        data: {
+          integracionId: integracionesMap[r.empresaId] ?? 'system',
+          inicio: new Date(),
+          fin: new Date(),
+          tipo: 'nocturno',
+          estado: r.error ? 'error' : 'ok',
+          disparadoPor: 'cron',
+          empresaId: r.empresaId,
+          errores: r.error ? { message: r.error } : undefined,
+        },
+      })
+    )
+  )
 
   return NextResponse.json({ ok: true, resultados })
 }
