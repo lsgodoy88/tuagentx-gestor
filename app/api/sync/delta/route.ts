@@ -436,33 +436,6 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
 
   const duracionMs = Date.now() - inicioTs
 
-  // ── SyncLog — registro del ciclo delta ──────────────────────────────────
-  // Retención 30 días — limpieza nocturna en sync-nocturno
-  try {
-    await (prisma as any).syncLog.create({
-      data: {
-        integracionId,
-        empresaId: destino,
-        tipo: 'delta',
-        inicio: new Date(inicioTs),
-        fin: new Date(),
-        duracionMs,
-        estado: 'ok',
-        disparadoPor: 'cron',
-        ordenesNuevas: toCreate.length,
-        deudasSincronizadas: deudaToCreate.length,
-        clientesNuevos,
-        deudasNuevasDelta,
-        comprasSincronizadas: ordenes.length,
-        // Campos extendidos — cast a any por schema dinámico
-        ...(empleadosActualizados ? { empleadosActualizados } : {}),
-        ...(saldosActualizados ? { saldosActualizados } : {}),
-      }
-    })
-  } catch (logErr: any) {
-    console.error('[delta] syncLog insert error:', logErr.message)
-  }
-
   // ── Reconciliador: actualizar órdenes sin facturar ─────────────────────────
   let reconciliadas = 0
   try {
@@ -493,6 +466,34 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     }
   } catch (e: any) {
     console.error('[delta] reconciliador error:', e.message)
+  }
+
+  // ── SyncLog — registro del ciclo delta ──────────────────────────────────
+  // Retención 30 días — limpieza nocturna en sync-nocturno
+  try {
+    await (prisma as any).syncLog.create({
+      data: {
+        integracionId,
+        empresaId: destino,
+        tipo: 'delta',
+        inicio: new Date(inicioTs),
+        fin: new Date(),
+        duracionMs,
+        estado: 'ok',
+        disparadoPor: 'cron',
+        ordenesNuevas: toCreate.length,
+        deudasSincronizadas: deudaToCreate.length,
+        clientesNuevos,
+        deudasNuevasDelta,
+        comprasSincronizadas: ordenes.length,
+        // Campos extendidos — cast a any por schema dinámico
+        ...(empleadosActualizados ? { empleadosActualizados } : {}),
+        ...(saldosActualizados ? { saldosActualizados } : {}),
+        ...(reconciliadas ? { reconciliadas } : {}),
+      }
+    })
+  } catch (logErr: any) {
+    console.error('[delta] syncLog insert error:', logErr.message)
   }
 
   return { empresaId: destino, ordenes: ordenes.length, nuevasOrdenes: toCreate.length, nuevasDeudas: deudaToCreate.length, clientesNuevos, deudasNuevasDelta, empleadosActualizados, saldosActualizados, reconciliadas }
