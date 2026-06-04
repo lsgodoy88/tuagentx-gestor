@@ -315,6 +315,23 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     })
   }
 
+  async fetchOrdenPorId(origenId: string): Promise<{ isInvoiced: boolean; invoiceNumber: string | null; invoicedAt: string | null; total: string } | null> {
+    await this.getToken()
+    const fields = 'id,orderNumber,invoiceNumber,isInvoiced,invoicedAt,total'
+    try {
+      const res = await fetch(`${BASE}/ordenes/${origenId}?fields=${fields}`, { headers: this.headers })
+      if (!res.ok) return null
+      const d = await res.json()
+      if (!d.ok || !d.data) return null
+      return {
+        isInvoiced: d.data.isInvoiced === true,
+        invoiceNumber: d.data.invoiceNumber ? String(d.data.invoiceNumber) : null,
+        invoicedAt: d.data.invoicedAt && d.data.invoicedAt > '2001' ? d.data.invoicedAt : null,
+        total: d.data.total,
+      }
+    } catch { return null }
+  }
+
   async fetchVentas(desde?: Date, customerId?: string): Promise<VentaExterna[]> {
     const baseParams: Record<string, string> = {
       fields: 'id,orderNumber,invoiceNumber,isInvoiced,invoicedAt,customerId,employeeId,total,discount,balance,paymentType,paymentMethod,isDelivered,isShipped,isCompleted,amountItems,comment,createdAt,updatedAt,cityId,address,phone,items',

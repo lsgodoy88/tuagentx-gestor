@@ -463,7 +463,39 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     console.error('[delta] syncLog insert error:', logErr.message)
   }
 
-  return { empresaId: destino, ordenes: ordenes.length, nuevasOrdenes: toCreate.length, nuevasDeudas: deudaToCreate.length, clientesNuevos, deudasNuevasDelta, empleadosActualizados, saldosActualizados }
+  // ── Reconciliador: actualizar órdenes sin facturar ─────────────────────────
+  let reconciliadas = 0
+  try {
+    const sinFacturar = await prisma.ordenDespacho.findMany({
+      where: { empresaId: destino, isFacturada: false, isActiva: true, origenId: { not: null } },
+      select: { id: true, origenId: true },
+    })
+    if (sinFacturar.length > 0) {
+      for (const orden of sinFacturar) {
+        const uptres = await adapter.fetchOrdenPorId(orden.origenId!)
+        if (uptres?.isInvoiced && uptres.invoiceNumber) {
+          await prisma.ordenDespacho.update({
+            where: { id: orden.id },
+            data: {
+              isFacturada: true,
+              numeroFactura: uptres.invoiceNumber,
+              fechaFactura: uptres.invoicedAt ? new Date(uptres.invoicedAt) : null,
+              totalOrden: uptres.total ? parseFloat(uptres.total) : undefined,
+            },
+          })
+          reconciliadas++
+        }
+      }
+      if (reconciliadas > 0) {
+        await invalidatePattern('g:v:*')
+        console.log(`[delta] reconciliadas ${reconciliadas} órdenes facturadas`)
+      }
+    }
+  } catch (e: any) {
+    console.error('[delta] reconciliador error:', e.message)
+  }
+
+  return { empresaId: destino, ordenes: ordenes.length, nuevasOrdenes: toCreate.length, nuevasDeudas: deudaToCreate.length, clientesNuevos, deudasNuevasDelta, empleadosActualizados, saldosActualizados, reconciliadas }
 }
 
 export async function POST(req: NextRequest) {
