@@ -2987,3 +2987,24 @@ model InciGuardian {
   @@index([fechaInicio])
   @@map("InciGuardian")
 }
+
+
+model LogsGestor {
+  id          String   @id @default(cuid())
+  tipo        String   // incidente | cambio | mejora
+  titulo      String
+  descripcion String?
+  causaRaiz   String?
+  solucion    String?
+  archivos    String[] @default([])
+  commit      String?
+  severidad   String?  // critico | alto | medio | bajo
+  empresaId   String?
+  resueltaEl  DateTime?
+  creadoEl    DateTime @default(now())
+
+  @@index([tipo])
+  @@index([creadoEl])
+  @@index([empresaId])
+  @@map("LogsGestor")
+}
