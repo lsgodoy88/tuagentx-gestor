@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { enviarPushEmpleados } from '@/lib/push'
 import { getServerSession } from 'next-auth'
+import { invalidatePattern } from '@/lib/cache'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN_BODEGA } from '@/lib/auth-helpers'
@@ -163,5 +164,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     } catch {}
   }
 
+  // Invalidar cache de stats — una entrega afecta los contadores de órdenes
+  await invalidatePattern(`g:${empresaId}:stats:*`)
   return NextResponse.json({ orden: updated, rutaAsignada, repartidorNombre })
 }

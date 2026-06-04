@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import { invalidateKeys } from '@/lib/cache'
+import { fechaHoyBogota } from '@/lib/fechas'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN } from '@/lib/auth-helpers'
@@ -52,5 +54,10 @@ export async function POST(
     },
   })
 
+  await invalidateKeys(
+    `g:${empresaId}:stats:${fechaHoyBogota()}`,
+    `g:${empresaId}:cartera:resumen:${fechaHoyBogota()}`,
+    `g:v:${pago.empleadoId ?? ''}:${fechaHoyBogota()}`
+  )
   return NextResponse.json({ ok: true, envioEstado, envioRef })
 }

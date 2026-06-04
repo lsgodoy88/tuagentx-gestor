@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
+import { invalidateKeys } from '@/lib/cache'
+import { fechaHoyBogota } from '@/lib/fechas'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
@@ -107,6 +109,8 @@ export async function POST(req: NextRequest) {
 
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const user = session.user as any
+  const empId = getEmpresaId(user)
   const { impulsadoraId, clienteId, tipo, monto, nota } = await req.json()
   if (!impulsadoraId || !clienteId || !monto) return NextResponse.json({ error: 'Faltan datos' }, { status: 400 })
   const visita = await prisma.visita.create({
@@ -120,6 +124,10 @@ export async function POST(req: NextRequest) {
       fechaBogota: nowBogota(),
     }
   })
+  await invalidateKeys(
+    `g:${empId}:stats:${fechaHoyBogota()}`,
+    `g:v:${impulsadoraId}:${fechaHoyBogota()}`
+  )
   return NextResponse.json({ ok: true, visita })
   } catch (err: any) {
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
