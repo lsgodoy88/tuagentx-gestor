@@ -316,7 +316,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
   }
 
   async fetchOrdenPorId(origenId: string): Promise<{ isInvoiced: boolean; invoiceNumber: string | null; invoicedAt: string | null; total: string } | null> {
-    await this.getToken()
+    await this.login()
     const fields = 'id,orderNumber,invoiceNumber,isInvoiced,invoicedAt,total'
     try {
       const res = await fetch(`${BASE}/ordenes/${origenId}?fields=${fields}`, { headers: this.headers })
