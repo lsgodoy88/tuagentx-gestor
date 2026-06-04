@@ -153,6 +153,16 @@ export default function DashboardVendedor({ user }: { user: any }) {
   }, [turno])
 
   // ── Carga inicial ────────────────────────────────────────────────────────
+  // Prefetch silencioso — 3s después del primer render, carga modales en background
+  useEffect(() => {
+    const t = setTimeout(() => {
+      import('@/components/ModalRecaudo').catch(() => {})
+      import('@/components/ModalVisita').catch(() => {})
+      import('@/components/CarteraCard').catch(() => {})
+    }, 3000)
+    return () => clearTimeout(t)
+  }, [])
+
   useEffect(() => {
     if (!user) return
     // Prioridad 1 — turno + me (UI visible de inmediato)

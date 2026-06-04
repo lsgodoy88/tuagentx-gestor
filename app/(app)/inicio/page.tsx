@@ -162,6 +162,18 @@ function DashboardPageInner() {
   const isEmpresa = user?.role === 'empresa'
   const isSupervisor = user?.role === 'supervisor'
   const isBodega = user?.role === 'bodega'
+  // Prefetch silencioso — 3s después del primer render
+  useEffect(() => {
+    const t = setTimeout(() => {
+      import('@/components/ModalRecaudo').catch(() => {})
+      import('@/components/ModalVisita').catch(() => {})
+      import('@/components/CarteraCard').catch(() => {})
+      import('@/components/EntregaCard').catch(() => {})
+      import('@/components/FirmaCanvas').catch(() => {})
+    }, 3000)
+    return () => clearTimeout(t)
+  }, [])
+
   useEffect(() => {
     if (!turno) return
 
