@@ -213,7 +213,7 @@ export default function ModalRecaudo({
                   facturasSeleccionadas.includes(d.id) && d.estado !== 'pagada'
                 )
                 if (factsSelec.length === 0) return null
-                const hayDescuento = factsSelec.some((d: any) => descuentosPorFactura[d.syncDeudaId || d.id])
+                const hayDescuento = factsSelec.some((d: any) => (d.syncDeudaId || d.id) in descuentosPorFactura)
                 return (
                   <div className="space-y-2">
                     {hayDescuento ? (
