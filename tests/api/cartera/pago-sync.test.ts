@@ -189,11 +189,13 @@ describe('POST /api/cartera/pago-sync', () => {
       const pagoCreate = vi.fn().mockResolvedValue({ id: 'p1' })
       mockTx({ pagoCartera: { create: pagoCreate }, syncDeuda: { findUnique: vi.fn(), update: vi.fn() } })
 
+      // Descuento ahora viene en el body, no en cada línea
       await POST(makeReq({
         clienteApiId: 'erp-c1', monto: 999,
+        descuento: 5,
         lineasPago: [
-          { metodoPago: 'efectivo', monto: 60, descuento: 5 },
-          { metodoPago: 'nequi',    monto: 40, descuento: 0 },
+          { metodoPago: 'efectivo', monto: 60 },
+          { metodoPago: 'nequi',    monto: 40 },
         ],
       }))
 

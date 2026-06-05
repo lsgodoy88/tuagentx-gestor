@@ -59,9 +59,8 @@ export async function POST(req: NextRequest) {
   const montoNum = lineasValidas.length > 0
     ? lineasValidas.reduce((s: number, l: any) => s + l.monto, 0)
     : Number(monto)
-  const descuentoNum = lineasValidas.length > 0
-    ? lineasValidas.reduce((s: number, l: any) => s + l.descuento, 0)
-    : Number(descuento)
+  // Descuento siempre desde el body — ya no vive en cada línea de pago
+  const descuentoNum = Number(descuento) || 0
 
   // Validación de input
   if (!Number.isFinite(montoNum) || montoNum < 0) {
