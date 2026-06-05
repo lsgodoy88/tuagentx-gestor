@@ -217,27 +217,28 @@ export default function ModalRecaudo({
                 return (
                   <div className="space-y-2">
                     {hayDescuento ? (
-                      <div className="bg-zinc-500/40 border border-orange-500/25 rounded-xl p-4 space-y-3">
-                        <p className="text-zinc-300 text-sm font-semibold uppercase tracking-wide">Descuentos</p>
+                      <div className="bg-zinc-500/40 border border-blue-500/25 rounded-xl p-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-zinc-300 text-sm font-semibold uppercase tracking-wide">Descuento comercial</span>
+                          <button
+                            onClick={() => onSetDescuentosPorFactura(() => ({}))}
+                            className="text-zinc-500 hover:text-red-400 text-sm">✕</button>
+                        </div>
                         {factsSelec.map((d: any) => {
                           const key = d.syncDeudaId || d.id
                           return (
-                            <div key={key} className="flex items-center gap-3">
-                              <span className="text-zinc-400 text-sm flex-shrink-0 w-24">Fact. #{d.numeroFactura}</span>
+                            <div key={key} className="space-y-1.5">
+                              <label className="text-zinc-300 text-sm font-semibold block">Fact. #{d.numeroFactura}</label>
                               <InputMoneda
                                 value={descuentosPorFactura[key] || ''}
                                 placeholder="0"
                                 prefix=""
                                 onChange={val => onSetDescuentosPorFactura(prev => ({ ...prev, [key]: val }))}
+                                className="w-full bg-blue-950/40 border border-blue-500/30 rounded-xl pr-4 py-2.5 text-white text-sm outline-none focus:border-blue-400"
                               />
                             </div>
                           )
                         })}
-                        <button
-                          onClick={() => onSetDescuentosPorFactura(() => ({}))}
-                          className="text-zinc-500 hover:text-red-400 text-xs">
-                          ✕ Quitar descuentos
-                        </button>
                       </div>
                     ) : (
                       <button
@@ -246,7 +247,7 @@ export default function ModalRecaudo({
                           factsSelec.forEach((d: any) => { inicial[d.syncDeudaId || d.id] = '' })
                           onSetDescuentosPorFactura(() => inicial)
                         }}
-                        className="w-full bg-zinc-500/30 border border-dashed border-orange-400/30 hover:border-orange-300 text-zinc-400 hover:text-orange-300 text-sm py-2.5 rounded-xl transition-colors">
+                        className="w-full bg-zinc-500/30 border border-dashed border-zinc-400/40 hover:border-zinc-300 text-zinc-300 hover:text-white text-sm py-2.5 rounded-xl transition-colors">
                         ＋ Agregar descuento
                       </button>
                     )}
