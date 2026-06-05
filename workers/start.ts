@@ -15,7 +15,7 @@ try {
   }
 } catch { /* .env no encontrado — usar variables de entorno del proceso */ }
 
-import { rutasDiaQueue, integracionQueue, rutasDiaWorker, integracionWorker, entregasWorker, auditQueue, auditWorker, contextoQueue, contextoWorker, mantenimientoQueue, mantenimientoWorker, bodegaSyncQueue, bodegaSyncWorker, syncDeltaWorker, syncNocturnoQueue, syncNocturnoWorker } from './index'
+import { rutasDiaQueue, integracionQueue, rutasDiaWorker, integracionWorker, entregasWorker, auditQueue, auditWorker, contextoQueue, contextoWorker, mantenimientoQueue, mantenimientoWorker, bodegaSyncQueue, bodegaSyncWorker, syncDeltaQueue, syncDeltaWorker, syncNocturnoQueue, syncNocturnoWorker } from './index'
 
 async function main() {
   // ── Registrar jobs repetitivos ────────────────────────────────────────────
@@ -70,7 +70,15 @@ async function main() {
   console.log('  mantenimiento -> mantenimiento-diario (0 14 * * * UTC = 9am Bogota)')
   // sync-delta: manejado por crontab Linux (*/30 13-21 * * 1-6)
   // Más confiable que BullMQ — sobrevive reinicios del worker y de Redis
-  console.log('  sync-delta  → crontab OS (*/30 13-21 UTC = 8am-4:30pm Bogotá, L-S)')
+  // sync-delta watchdog: 5 min después del cron — fallback si el cron falló
+  // UTC: 5,35 13-23 = 8:05, 8:35... 6:05pm Bogotá lun-sab
+  // cronYaEjecuto('delta', 35min) en el worker hace skip si el cron corrió OK
+  await syncDeltaQueue.upsertJobScheduler(
+    'sync-delta-watchdog',
+    { pattern: '5,35 13-23 * * 1-6' },
+    { name: 'sync-delta-watchdog', data: {} },
+  )
+  console.log('  sync-delta  → crontab OS (*/30 8-18 Bogotá) + watchdog BullMQ (8:05, 8:35... L-S)')
 
   // sync-nocturno: 8:00 UTC = 3:00 Bogotá
   // Completo domingos 3am Bogotá — huérfanas + CarteraCache
