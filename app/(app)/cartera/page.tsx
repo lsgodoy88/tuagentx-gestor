@@ -22,8 +22,8 @@ const fmtShort = (n: number): string => {
   return '$' + Math.round(n).toLocaleString('es-CO')
 }
 
-type LineaPago = { id: string; metodoPago: 'efectivo' | 'transferencia'; monto: string; descuento: string; voucherKey: string | null; voucherDatosIA: any; cargandoVoucher: boolean }
-function crearLinea(): LineaPago { return { id: crypto.randomUUID(), metodoPago: 'efectivo', monto: '', descuento: '', voucherKey: null, voucherDatosIA: null, cargandoVoucher: false } }
+type LineaPago = { id: string; metodoPago: 'efectivo' | 'transferencia'; monto: string; voucherKey: string | null; voucherDatosIA: any; cargandoVoucher: boolean }
+function crearLinea(): LineaPago { return { id: crypto.randomUUID(), metodoPago: 'efectivo', monto: '', voucherKey: null, voucherDatosIA: null, cargandoVoucher: false } }
 
 const ESTADO_CONFIG: Record<string, { label: string; color: string; border: string; text: string }> = {
   critica:  { label: '⛔ Crítica',     color: 'bg-red-950/40',     border: 'border-red-700/60',    text: 'text-red-400' },
@@ -115,6 +115,7 @@ export default function CarteraPage() {
   const [loadingDetalle, setLoadingDetalle] = useState(false)
   const [facturasSeleccionadas, setFacturasSeleccionadas] = useState<string[]>([])
   const [lineasPago, setLineasPago] = useState<LineaPago[]>([crearLinea()])
+  const [descuentosPorFactura, setDescuentosPorFactura] = useState<Record<string,string>>({})
   const [notasPago, setNotasPago] = useState('')
   const [guardandoPago, setGuardandoPago] = useState(false)
   const fileInputRefs = useRef<Map<string, HTMLInputElement | null>>(new Map())
@@ -403,7 +404,6 @@ export default function CarteraPage() {
         voucherDatosIA: data.datosIA,
         cargandoVoucher: false,
         monto: data.datosIA?.valor ? String(Math.round(data.datosIA.valor)) : l.monto,
-        descuento: '0',
       } : l))
     } catch {
       alert('Error al procesar el comprobante')
@@ -428,7 +428,10 @@ export default function CarteraPage() {
           clienteApiId: detalleData.clienteApiId,
           integracionId: detalleData.integracionId,
           monto: Number(linea.monto || 0),
-          descuento: Number(linea.descuento || 0),
+          descuento: Object.values(descuentosPorFactura).reduce((s, v) => s + Number(v || 0), 0),
+          descuentosPorFactura: Object.fromEntries(
+            Object.entries(descuentosPorFactura).map(([k, v]) => [k, Number(v || 0)])
+          ),
           metodoPago: linea.metodoPago,
           notas: notasPago || undefined,
           ...(linea.voucherKey ? { voucherKey: linea.voucherKey, voucherDatosIA: linea.voucherDatosIA } : {}),
@@ -442,6 +445,7 @@ export default function CarteraPage() {
       if (ultimoToken) window.open('/recaudo/recibo?token=' + ultimoToken + (ultimoAnchoPapel === '58mm' ? '&fmt=58mm' : ''), '_blank')
       setRecaudandoCartera(null)
       setLineasPago([crearLinea()])
+      setDescuentosPorFactura({})
       setNotasPago('')
       cargarDatos()
     }
@@ -1427,6 +1431,8 @@ export default function CarteraPage() {
           onClose={() => setRecaudandoCartera(null)}
           onSetLineasPago={setLineasPago}
           onSetFacturasSeleccionadas={setFacturasSeleccionadas}
+          descuentosPorFactura={descuentosPorFactura}
+          onSetDescuentosPorFactura={setDescuentosPorFactura}
           onSubirVoucher={subirVoucherArchivo}
           onConfirmar={registrarPago}
           crearLinea={crearLinea}

@@ -121,6 +121,7 @@ function ReciboContent() {
         data.push(...Array.from(enc.encode(row(todasFacts.length === 1 ? 'Factura:' : 'Factura ' + (i+1) + ':', '#' + f.numeroFactura))))
         if (f.valorFactura != null) data.push(...Array.from(enc.encode(row('Valor:', fmt2(Number(f.valorFactura))))))
         if (f.saldoAntes != null) data.push(...Array.from(enc.encode(row('Saldo:', fmt2(Number(f.saldoAntes))))))
+        if (f.descuento != null && Number(f.descuento) > 0) data.push(...Array.from(enc.encode(row('Descuento:', fmt2(Number(f.descuento))))))
         if (f.fechaCreacion) {
           const d = new Date(f.fechaCreacion)
           const fs = String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear()
@@ -325,6 +326,7 @@ function ReciboContent() {
                 <div className="row"><span className="lbl b">{facts.length === 1 ? 'Factura:' : 'Factura ' + (i+1) + ':'}</span><span className="val b">#{f.numeroFactura}</span></div>
                 {f.valorFactura != null && <div className="row"><span className="lbl">Valor:</span><span className="val">{fmt(Number(f.valorFactura))}</span></div>}
                 {f.saldoAntes != null && <div className="row"><span className="lbl">Saldo:</span><span className="val">{fmt(Number(f.saldoAntes))}</span></div>}
+                {f.descuento != null && Number(f.descuento) > 0 && <div className="row"><span className="lbl" style={{color:'#059669'}}>Descuento:</span><span className="val" style={{color:'#059669'}}>{fmt(Number(f.descuento))}</span></div>}
                 {f.fechaCreacion && (() => {
                   const d = new Date(f.fechaCreacion)
                   return <div className="row"><span className="lbl">Fecha:</span><span className="val">{String(d.getDate()).padStart(2,'0')}/{String(d.getMonth()+1).padStart(2,'0')}/{d.getFullYear()}</span></div>

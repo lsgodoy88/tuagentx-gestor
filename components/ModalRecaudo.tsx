@@ -7,7 +7,6 @@ interface LineaPago {
   id: string
   metodoPago: 'efectivo' | 'transferencia'
   monto: string
-  descuento: string
   voucherKey: string | null
   voucherDatosIA: any
   cargandoVoucher: boolean
@@ -18,6 +17,8 @@ interface ModalRecaudoProps {
   detalleData: any
   loadingDetalle: boolean
   lineasPago: LineaPago[]
+  descuentosPorFactura: Record<string,string>
+  onSetDescuentosPorFactura: (fn: (prev: Record<string,string>) => Record<string,string>) => void
   facturasSeleccionadas: string[]
   procesando: boolean
   fmt: (n: number) => string
@@ -30,7 +31,7 @@ interface ModalRecaudoProps {
 }
 
 export default function ModalRecaudo({
-  cartera, detalleData, loadingDetalle, lineasPago, facturasSeleccionadas,
+  cartera, detalleData, loadingDetalle, lineasPago, facturasSeleccionadas, descuentosPorFactura, onSetDescuentosPorFactura,
   procesando, fmt, onClose, onSetLineasPago, onSetFacturasSeleccionadas,
   onSubirVoucher, onConfirmar, crearLinea,
 }: ModalRecaudoProps) {
@@ -150,19 +151,11 @@ export default function ModalRecaudo({
 
                     {/* Efectivo */}
                     {linea.metodoPago === 'efectivo' && (
-                      <div className="flex gap-3">
-                        <div className="flex-[6]">
-                          <label className="text-zinc-300 text-sm font-semibold block mb-1.5">Monto *</label>
-                          <InputMoneda value={linea.monto}
-                            onChange={val => onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, monto: val } : l))}
-                            className="w-full bg-blue-950/40 border border-blue-500/30 rounded-xl pr-4 py-2.5 text-white text-sm outline-none focus:border-blue-400" />
-                        </div>
-                        <div className="flex-[4]">
-                          <label className="text-zinc-300 text-sm font-semibold block mb-1.5">Descuento</label>
-                          <InputMoneda value={linea.descuento} placeholder="0" prefix=""
-                            onChange={val => onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, descuento: val } : l))}
-                            className="w-full bg-blue-950/40 border border-blue-500/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-blue-400" />
-                        </div>
+                      <div>
+                        <label className="text-zinc-300 text-sm font-semibold block mb-1.5">Monto *</label>
+                        <InputMoneda value={linea.monto}
+                          onChange={val => onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, monto: val } : l))}
+                          className="w-full bg-blue-950/40 border border-blue-500/30 rounded-xl pr-4 py-2.5 text-white text-sm outline-none focus:border-blue-400" />
                       </div>
                     )}
 
@@ -189,7 +182,7 @@ export default function ModalRecaudo({
                             <div className="flex items-center justify-between">
                               <span className="text-emerald-400 text-xs font-semibold">✅ Comprobante procesado</span>
                               <button onClick={() => onSetLineasPago(prev => prev.map(l =>
-                                l.id === linea.id ? { ...l, voucherKey: null, voucherDatosIA: null, monto: '', descuento: '' } : l
+                                l.id === linea.id ? { ...l, voucherKey: null, voucherDatosIA: null, monto: '' } : l
                               ))} className="text-zinc-500 hover:text-red-400 text-xs">✕ Quitar</button>
                             </div>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
@@ -207,12 +200,6 @@ export default function ModalRecaudo({
                               <InputMoneda value={linea.monto} readOnly onChange={() => {}}
                                 className="w-full bg-blue-950/30 border border-blue-500/20 rounded-xl pr-4 py-2.5 text-zinc-400 text-sm outline-none cursor-not-allowed" />
                             </div>
-                            <div className="flex-[4]">
-                              <label className="text-zinc-300 text-sm font-semibold block mb-1.5">Descuento</label>
-                              <InputMoneda value={linea.descuento} placeholder="0" prefix=""
-                                onChange={val => onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, descuento: val } : l))}
-                                className="w-full bg-blue-950/40 border border-blue-500/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-blue-400" />
-                            </div>
                           </div>
                         )}
                       </div>
@@ -226,11 +213,58 @@ export default function ModalRecaudo({
                 </button>
               </div>
 
+              {/* Descuentos por factura */}
+              {(() => {
+                const factsSelec = (detalleData?.DetalleCartera || []).filter((d: any) =>
+                  facturasSeleccionadas.includes(d.id) && d.estado !== 'pagada'
+                )
+                if (factsSelec.length === 0) return null
+                const hayDescuento = factsSelec.some((d: any) => descuentosPorFactura[d.syncDeudaId || d.id])
+                return (
+                  <div className="space-y-2">
+                    {hayDescuento ? (
+                      <div className="bg-zinc-500/40 border border-orange-500/25 rounded-xl p-4 space-y-3">
+                        <p className="text-zinc-300 text-sm font-semibold uppercase tracking-wide">Descuentos</p>
+                        {factsSelec.map((d: any) => {
+                          const key = d.syncDeudaId || d.id
+                          return (
+                            <div key={key} className="flex items-center gap-3">
+                              <span className="text-zinc-400 text-sm flex-shrink-0 w-24">Fact. #{d.numeroFactura}</span>
+                              <InputMoneda
+                                value={descuentosPorFactura[key] || ''}
+                                placeholder="0"
+                                prefix=""
+                                onChange={val => onSetDescuentosPorFactura(prev => ({ ...prev, [key]: val }))}
+                              />
+                            </div>
+                          )
+                        })}
+                        <button
+                          onClick={() => onSetDescuentosPorFactura(() => ({}))}
+                          className="text-zinc-500 hover:text-red-400 text-xs">
+                          ✕ Quitar descuentos
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => {
+                          const inicial: Record<string,string> = {}
+                          factsSelec.forEach((d: any) => { inicial[d.syncDeudaId || d.id] = '' })
+                          onSetDescuentosPorFactura(() => inicial)
+                        }}
+                        className="w-full bg-zinc-500/30 border border-dashed border-orange-400/30 hover:border-orange-300 text-zinc-400 hover:text-orange-300 text-sm py-2.5 rounded-xl transition-colors">
+                        ＋ Agregar descuento
+                      </button>
+                    )}
+                  </div>
+                )
+              })()}
+
               {/* Resumen */}
               {(() => {
                 const contables = lineasPago.filter(l => l.metodoPago === 'efectivo' || l.voucherDatosIA)
                 const totalPagado = contables.reduce((s, l) => s + Number(l.monto || 0), 0)
-                const totalDescuento = contables.reduce((s, l) => s + Number(l.descuento || 0), 0)
+                const totalDescuento = Object.values(descuentosPorFactura).reduce((s, v) => s + Number(v || 0), 0)
                 const saldoRestante = montoSeleccionado - totalPagado - totalDescuento
                 return (
                   <div className="bg-zinc-500/40 border border-blue-500/25 rounded-xl px-4 py-3 space-y-1.5">

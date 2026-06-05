@@ -39,12 +39,12 @@ const ModalRecaudo = dynamic(() => import('@/components/ModalRecaudo'), { ssr: f
 const EntregaCard = dynamic(() => import('@/components/EntregaCard'), { ssr: false })
 const DashboardVendedor = dynamic(() => import('./_components/DashboardVendedor'), { ssr: false })
 
-type LineaPago = { id: string; metodoPago: 'efectivo' | 'transferencia'; monto: string; descuento: string; voucherKey: string | null; voucherDatosIA: any; cargandoVoucher: boolean }
+type LineaPago = { id: string; metodoPago: 'efectivo' | 'transferencia'; monto: string; voucherKey: string | null; voucherDatosIA: any; cargandoVoucher: boolean }
 function genId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; return (c==='x'?r:(r&0x3|0x8)).toString(16) })
 }
-function crearLinea(): LineaPago { return { id: genId(), metodoPago: 'efectivo', monto: '', descuento: '', voucherKey: null, voucherDatosIA: null, cargandoVoucher: false } }
+function crearLinea(): LineaPago { return { id: genId(), metodoPago: 'efectivo', monto: '', voucherKey: null, voucherDatosIA: null, cargandoVoucher: false } }
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
 const fmtShort = (n: number): string => {
   if (n >= 1_000_000) return '$' + (n / 1_000_000).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' mill'
@@ -101,6 +101,7 @@ function DashboardPageInner() {
   const [loadingDetalle, setLoadingDetalle] = useState(false)
   const [facturasSeleccionadas, setFacturasSeleccionadas] = useState<string[]>([])
   const [lineasPago, setLineasPago] = useState<LineaPago[]>([crearLinea()])
+  const [descuentosPorFactura, setDescuentosPorFactura] = useState<Record<string,string>>({})
   const [notasPago, setNotasPago] = useState('')
   const [guardandoPago, setGuardandoPago] = useState(false)
   const fileInputRefs = useRef<Map<string, HTMLInputElement | null>>(new Map())
@@ -536,7 +537,7 @@ function DashboardPageInner() {
       const d = await res.json()
       setLineasPago(prev => prev.map(l => l.id === lineaId ? {
         ...l, voucherKey: d.key, voucherDatosIA: d.datosIA, cargandoVoucher: false,
-        monto: d.datosIA?.valor ? String(Math.round(d.datosIA.valor)) : l.monto, descuento: '0',
+        monto: d.datosIA?.valor ? String(Math.round(d.datosIA.valor)) : l.monto,
       } : l))
     } catch {
       alert('Error al procesar el comprobante')
@@ -565,12 +566,11 @@ function DashboardPageInner() {
       .map(l => ({
         metodoPago: l.metodoPago,
         monto: Number(l.monto || 0),
-        descuento: Number(l.descuento || 0),
         voucherKey: l.voucherKey || null,
         voucherDatosIA: l.voucherDatosIA || null,
       }))
     const montoTotal = lineasValidas.reduce((s, l) => s + l.monto, 0)
-    const descuentoTotal = lineasValidas.reduce((s, l) => s + l.descuento, 0)
+    const descuentoTotal = Object.values(descuentosPorFactura).reduce((s, v) => s + Number(v || 0), 0)
 
     const res = await fetch('/api/cartera/pago-sync', {
       method: 'POST',
@@ -580,6 +580,9 @@ function DashboardPageInner() {
         syncDeudaIds: facturasSeleccionadas,
         monto: montoTotal,
         descuento: descuentoTotal,
+        descuentosPorFactura: Object.fromEntries(
+          Object.entries(descuentosPorFactura).map(([k, v]) => [k, Number(v || 0)])
+        ),
         metodoPago: lineasValidas.length === 1 ? lineasValidas[0].metodoPago : 'mixto',
         notas: notasPago || undefined,
         lineasPago: lineasValidas,
@@ -592,6 +595,7 @@ function DashboardPageInner() {
     if (ultimoToken) window.open('/recaudo/recibo?token=' + ultimoToken, '_blank')
     setRecaudandoCartera(null)
     setLineasPago([crearLinea()])
+    setDescuentosPorFactura({})
     setNotasPago('')
   }
 
@@ -1544,9 +1548,11 @@ function DashboardPageInner() {
         facturasSeleccionadas={facturasSeleccionadas}
         procesando={guardandoPago}
         fmt={fmt}
-        onClose={() => { setRecaudandoCartera(null); setDetalleData(null); setLineasPago([crearLinea()]); setFacturasSeleccionadas([]) }}
+        onClose={() => { setRecaudandoCartera(null); setDetalleData(null); setLineasPago([crearLinea()]); setDescuentosPorFactura({}); setFacturasSeleccionadas([]) }}
         onSetLineasPago={setLineasPago}
         onSetFacturasSeleccionadas={setFacturasSeleccionadas}
+        descuentosPorFactura={descuentosPorFactura}
+        onSetDescuentosPorFactura={setDescuentosPorFactura}
         onSubirVoucher={subirVoucherArchivo}
         onConfirmar={registrarPago}
         crearLinea={crearLinea}

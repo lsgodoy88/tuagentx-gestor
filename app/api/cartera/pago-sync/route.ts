@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   const empleadoId = user.role === 'empresa' ? null : user.id
 
   const body = await req.json()
-  const { syncDeudaIds, clienteApiId, monto, descuento = 0, metodoPago = 'efectivo', notas, voucherKey, voucherDatosIA, lineasPago, lat, lng, gpsAccuracy } = body
+  const { syncDeudaIds, clienteApiId, monto, descuento = 0, descuentosPorFactura = {}, metodoPago = 'efectivo', notas, voucherKey, voucherDatosIA, lineasPago, lat, lng, gpsAccuracy } = body
 
   if (!clienteApiId || !monto) return NextResponse.json({ error: 'clienteApiId y monto requeridos' }, { status: 400 })
 
@@ -137,6 +137,7 @@ export async function POST(req: NextRequest) {
     },
     vendedor: vendedorNom || null,
     detalles: aplicaciones.map(a => {
+      const descFact = Number((descuentosPorFactura as Record<string,number>)[a.syncDeudaId] || 0)
       const d = deudas.find((x: any) => x.id === a.syncDeudaId)
       const saldoAntes = d ? Number(d.saldo) : 0
       return {
@@ -144,7 +145,8 @@ export async function POST(req: NextRequest) {
         montoAplicado:  a.montoAplicado,
         valorFactura:   d ? Number(d.valor || d.saldo) : 0,
         saldoAntes,
-        saldoDespues:   Math.max(0, saldoAntes - a.montoAplicado),
+        descuento:      descFact || null,
+        saldoDespues:   Math.max(0, saldoAntes - a.montoAplicado - descFact),
       }
     }),
     saldoAnterior: saldoAnteriorTotal > 0 ? saldoAnteriorTotal : null,
@@ -190,6 +192,7 @@ export async function POST(req: NextRequest) {
               numeroFactura: a.numeroFactura,
               externalId: a.externalId,
               montoAplicado: a.montoAplicado,
+              descuento: Number((descuentosPorFactura as Record<string,number>)[a.syncDeudaId] || 0) || null,
             }))
           }
         } : {}),

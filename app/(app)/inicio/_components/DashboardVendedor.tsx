@@ -15,12 +15,12 @@ const CarteraCard  = dynamic(() => import('@/components/CarteraCard'),  { ssr: f
 const ModalRecaudo = dynamic(() => import('@/components/ModalRecaudo'), { ssr: false })
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
-type LineaPago = { id: string; metodoPago: 'efectivo' | 'transferencia'; monto: string; descuento: string; voucherKey: string | null; voucherDatosIA: any; cargandoVoucher: boolean }
+type LineaPago = { id: string; metodoPago: 'efectivo' | 'transferencia'; monto: string; voucherKey: string | null; voucherDatosIA: any; cargandoVoucher: boolean }
 function genId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID()
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; return (c==='x'?r:(r&0x3|0x8)).toString(16) })
 }
-function crearLinea(): LineaPago { return { id: genId(), metodoPago: 'efectivo', monto: '', descuento: '', voucherKey: null, voucherDatosIA: null, cargandoVoucher: false } }
+function crearLinea(): LineaPago { return { id: genId(), metodoPago: 'efectivo', monto: '', voucherKey: null, voucherDatosIA: null, cargandoVoucher: false } }
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
 const RR_LIMIT = 10
 
@@ -107,6 +107,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
   const [loadingDetalle, setLoadingDetalle] = useState(false)
   const [facturasSeleccionadas, setFacturasSeleccionadas] = useState<string[]>([])
   const [lineasPago, setLineasPago]     = useState<LineaPago[]>([crearLinea()])
+  const [descuentosPorFactura, setDescuentosPorFactura] = useState<Record<string,string>>({})
   const [notasPago, setNotasPago]       = useState('')
   const [guardandoPago, setGuardandoPago] = useState(false)
   const fileInputRefs = useRef<Map<string, HTMLInputElement | null>>(new Map())
@@ -386,7 +387,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
       })
       const res = await fetch('/api/cartera/voucher', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archivoBase64, mimeType: file.type, pagoId: genId() }) })
       const d = await res.json()
-      setLineasPago(prev => prev.map(l => l.id === lineaId ? { ...l, voucherKey: d.key, voucherDatosIA: d.datosIA, cargandoVoucher: false, monto: d.datosIA?.valor ? String(Math.round(d.datosIA.valor)) : l.monto, descuento: '0' } : l))
+      setLineasPago(prev => prev.map(l => l.id === lineaId ? { ...l, voucherKey: d.key, voucherDatosIA: d.datosIA, cargandoVoucher: false, monto: d.datosIA?.valor ? String(Math.round(d.datosIA.valor)) : l.monto } : l))
     } catch { alert('Error al procesar el comprobante'); setLineasPago(prev => prev.map(l => l.id === lineaId ? { ...l, cargandoVoucher: false } : l)) }
   }
 
@@ -399,18 +400,18 @@ export default function DashboardVendedor({ user }: { user: any }) {
     else if (gpsRecaudo.estado === 'buscando') { const pp = await gpsRecaudo.obtener(); if (pp) gpsCoords = { lat: pp.lat, lng: pp.lng } }
     setGuardandoPago(true)
     let ultimoToken: string | null = null
-    const lineasValidas = lineasPago.filter(l => Number(l.monto||0) > 0).map(l => ({ metodoPago: l.metodoPago, monto: Number(l.monto||0), descuento: Number(l.descuento||0), voucherKey: l.voucherKey||null, voucherDatosIA: l.voucherDatosIA||null }))
+    const lineasValidas = lineasPago.filter(l => Number(l.monto||0) > 0).map(l => ({ metodoPago: l.metodoPago, monto: Number(l.monto||0), voucherKey: l.voucherKey||null, voucherDatosIA: l.voucherDatosIA||null }))
     const montoTotal = lineasValidas.reduce((s, l) => s + l.monto, 0)
-    const descuentoTotal = lineasValidas.reduce((s, l) => s + l.descuento, 0)
+    const descuentoTotal = Object.values(descuentosPorFactura).reduce((s, v) => s + Number(v || 0), 0)
     const res = await fetch('/api/cartera/pago-sync', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clienteApiId: detalleData.cliente?.apiId || detalleData.clienteApiId || detalleData.apiId, syncDeudaIds: facturasSeleccionadas, monto: montoTotal, descuento: descuentoTotal, metodoPago: lineasValidas.length === 1 ? lineasValidas[0].metodoPago : 'mixto', notas: notasPago||undefined, lineasPago: lineasValidas, ...(gpsCoords ? { lat: gpsCoords.lat, lng: gpsCoords.lng, gpsAccuracy: gpsRecaudo.pos?.accuracy ?? null } : {}) })
+      body: JSON.stringify({ clienteApiId: detalleData.cliente?.apiId || detalleData.clienteApiId || detalleData.apiId, syncDeudaIds: facturasSeleccionadas, monto: montoTotal, descuento: descuentoTotal, descuentosPorFactura: Object.fromEntries(Object.entries(descuentosPorFactura).map(([k,v]) => [k, Number(v||0)])), metodoPago: lineasValidas.length === 1 ? lineasValidas[0].metodoPago : 'mixto', notas: notasPago||undefined, lineasPago: lineasValidas, ...(gpsCoords ? { lat: gpsCoords.lat, lng: gpsCoords.lng, gpsAccuracy: gpsRecaudo.pos?.accuracy ?? null } : {}) })
     })
     const d = await res.json()
     if (d.pago?.reciboToken) ultimoToken = d.pago.reciboToken
     setGuardandoPago(false)
     if (ultimoToken) window.open('/recaudo/recibo?token=' + ultimoToken, '_blank')
-    setRecaudandoCartera(null); setLineasPago([crearLinea()]); setNotasPago('')
+    setRecaudandoCartera(null); setLineasPago([crearLinea()]); setDescuentosPorFactura({}); setNotasPago('')
   }
 
   // ── Derived ──────────────────────────────────────────────────────────────
@@ -803,8 +804,9 @@ export default function DashboardVendedor({ user }: { user: any }) {
           cartera={recaudandoCartera} detalleData={detalleData} loadingDetalle={loadingDetalle}
           lineasPago={lineasPago} facturasSeleccionadas={facturasSeleccionadas}
           procesando={guardandoPago} fmt={fmt}
-          onClose={() => { setRecaudandoCartera(null); setDetalleData(null); setLineasPago([crearLinea()]); setFacturasSeleccionadas([]) }}
+          onClose={() => { setRecaudandoCartera(null); setDetalleData(null); setLineasPago([crearLinea()]); setDescuentosPorFactura({}); setFacturasSeleccionadas([]) }}
           onSetLineasPago={setLineasPago} onSetFacturasSeleccionadas={setFacturasSeleccionadas}
+          descuentosPorFactura={descuentosPorFactura} onSetDescuentosPorFactura={setDescuentosPorFactura}
           onSubirVoucher={subirVoucherArchivo} onConfirmar={registrarPago} crearLinea={crearLinea}
         />
       )}

@@ -460,6 +460,7 @@ model PagoCarteraDeuda {
   numeroFactura Int?
   externalId    String?
   montoAplicado Decimal     @db.Decimal(14, 2)
+  descuento     Decimal?    @db.Decimal(10, 2)  // Descuento comercial por factura
   createdAt     DateTime    @default(now())
   PagoCartera   PagoCartera @relation(fields: [pagoId], references: [id], onDelete: Cascade)
 
