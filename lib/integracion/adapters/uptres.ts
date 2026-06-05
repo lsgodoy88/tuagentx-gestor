@@ -332,6 +332,52 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     } catch (e) { return null }
   }
 
+  // Trae una orden completa por origenId — campos suficientes para insertar en BD
+  // Usado por el reconciliador de consecutivos cuando detecta huecos
+  async fetchOrdenCompletaPorId(origenId: string): Promise<{
+    origenId: string
+    numeroOrden: string
+    numeroFactura: string | null
+    isFacturada: boolean
+    fechaFactura: string | null
+    totalOrden: number | null
+    balance: number | null
+    paymentType: string | null
+    paymentMethod: string | null
+    clienteApiId: string | null
+    clienteNit: string | null
+    clienteNombre: string | null
+    vendedorApiId: string | null
+    createdAt: string | null
+  } | null> {
+    await this.login()
+    const fields = 'id,orderNumber,invoiceNumber,isInvoiced,invoicedAt,total,balance,paymentType,paymentMethod,customerId,employeeId,createdAt,creditDay'
+    try {
+      const res = await fetch(`${BASE}/ordenes/${origenId}?fields=${fields}&expand=customer`, { headers: this.headers })
+      if (!res.ok) return null
+      const d = await res.json()
+      if (!d.ok || !d.data) return null
+      const o = d.data
+      const c = o.customer || {}
+      return {
+        origenId,
+        numeroOrden: String(o.orderNumber || ''),
+        numeroFactura: o.invoiceNumber ? String(o.invoiceNumber) : null,
+        isFacturada: o.isInvoiced === true,
+        fechaFactura: o.invoicedAt && o.invoicedAt > '2001' ? o.invoicedAt : null,
+        totalOrden: o.total ? parseFloat(o.total) : null,
+        balance: o.balance ? parseFloat(o.balance) : null,
+        paymentType: o.paymentType || null,
+        paymentMethod: o.paymentMethod || null,
+        clienteApiId: o.customerId || null,
+        clienteNit: c.document ? String(c.document) : null,
+        clienteNombre: c.firstName ? `${c.firstName} ${c.lastName || ''}`.trim() : null,
+        vendedorApiId: o.employeeId || null,
+        createdAt: o.createdAt || null,
+      }
+    } catch (e) { return null }
+  }
+
   async fetchVentas(desde?: Date, customerId?: string): Promise<VentaExterna[]> {
     const baseParams: Record<string, string> = {
       fields: 'id,orderNumber,invoiceNumber,isInvoiced,invoicedAt,customerId,employeeId,total,discount,balance,paymentType,paymentMethod,isDelivered,isShipped,isCompleted,amountItems,comment,createdAt,updatedAt,cityId,address,phone,items',
