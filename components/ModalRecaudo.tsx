@@ -207,13 +207,7 @@ export default function ModalRecaudo({
                   </div>
                 ))}
 
-                <button onClick={() => onSetLineasPago(prev => [...prev, crearLinea()])}
-                  className="w-full bg-zinc-500/30 border border-dashed border-zinc-400/40 hover:border-zinc-300 text-zinc-300 hover:text-white text-sm py-2.5 rounded-xl transition-colors">
-                  ＋ Agregar otro método
-                </button>
-              </div>
-
-              {/* Descuentos por factura */}
+              {/* Descuentos por factura — antes de agregar otro método */}
               {(() => {
                 const factsSelec = (detalleData?.DetalleCartera || []).filter((d: any) =>
                   facturasSeleccionadas.includes(d.id) && d.estado !== 'pagada'
@@ -259,6 +253,12 @@ export default function ModalRecaudo({
                   </div>
                 )
               })()}
+
+                <button onClick={() => onSetLineasPago(prev => [...prev, crearLinea()])}
+                  className="w-full bg-zinc-500/30 border border-dashed border-zinc-400/40 hover:border-zinc-300 text-zinc-300 hover:text-white text-sm py-2.5 rounded-xl transition-colors">
+                  ＋ Agregar otro método
+                </button>
+              </div>
 
               {/* Resumen */}
               {(() => {
