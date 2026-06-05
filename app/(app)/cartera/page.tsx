@@ -328,6 +328,7 @@ export default function CarteraPage() {
       // Convertir deudas sync a formato DetalleCartera
       const detallesNorm = (detalleCartera.deudas || []).map((d: any) => ({
         id: d.externalId,
+        syncDeudaId: d.id,   // id interno BD — necesario para descuentosPorFactura
         valorFactura: d.valor,
         abonos: d.valor - d.saldoReal,
         saldoPendiente: d.saldoReal,

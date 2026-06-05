@@ -448,6 +448,7 @@ function DashboardPageInner() {
       const { calcularEstado } = await import('@/lib/cartera')
       const detallesNorm = (detalleCartera.deudas || []).map((d: any) => ({
         id: d.externalId,
+        syncDeudaId: d.id,
         valorFactura: d.valor,
         abonos: d.valor - d.saldoReal,
         saldoPendiente: d.saldoReal,
@@ -500,7 +501,7 @@ function DashboardPageInner() {
           const fv = d.fechaVencimiento ? new Date(d.fechaVencimiento) : null
           const { estado, label, color } = calcularEstado(saldo, vf, ab, fv)
           return {
-            id: d.externalId, valorFactura: d.valor,
+            id: d.externalId, syncDeudaId: d.id, valorFactura: d.valor,
             abonos: d.valor - d.saldoReal, saldoPendiente: d.saldoReal,
             estado, estadoLabel: label, estadoColor: color,
             numeroFactura: d.numeroFactura || d.numeroOrden,

@@ -336,7 +336,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
     if (dc && (dc._modo === 'sync' || data._modo === 'sync')) {
       const { calcularEstado } = await import('@/lib/cartera')
       dc.DetalleCartera = (dc.deudas || []).map((d: any) => ({
-        id: d.externalId, valorFactura: d.valor, abonos: d.valor - d.saldoReal, saldoPendiente: d.saldoReal,
+        id: d.externalId, syncDeudaId: d.id, valorFactura: d.valor, abonos: d.valor - d.saldoReal, saldoPendiente: d.saldoReal,
         ...(() => {
           const saldo = Math.max(0, d.saldoReal), vf = Number(d.valor||0), ab = vf - saldo
           const fv = d.fechaVencimiento ? new Date(d.fechaVencimiento) : null
@@ -371,7 +371,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
           const saldo = Math.max(0, d.saldoReal), vf = Number(d.valor||0), ab = vf - saldo
           const fv = d.fechaVencimiento ? new Date(d.fechaVencimiento) : null
           const { estado, label, color } = calcularEstado(saldo, vf, ab, fv)
-          return { id: d.externalId, valorFactura: d.valor, abonos: d.valor - d.saldoReal, saldoPendiente: d.saldoReal, estado, estadoLabel: label, estadoColor: color, numeroFactura: d.numeroFactura || d.numeroOrden, fechaVencimiento: d.fechaVencimiento, _sync: true }
+          return { id: d.externalId, syncDeudaId: d.id, valorFactura: d.valor, abonos: d.valor - d.saldoReal, saldoPendiente: d.saldoReal, estado, estadoLabel: label, estadoColor: color, numeroFactura: d.numeroFactura || d.numeroOrden, fechaVencimiento: d.fechaVencimiento, _sync: true }
         })
       }
       setDetalleData(cartera); setLoadingDetalle(false)
