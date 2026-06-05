@@ -46,7 +46,7 @@ async function cronYaEjecuto(tipo: string, ventanaMs = 2 * 60 * 60 * 1000): Prom
     const age = Date.now() - new Date(data.createdAt).getTime()
     return age < ventanaMs ? (data.id ?? 'ok') : null
   } catch {
-    return null
+    return 'GESTOR_CAIDO' // skip — gestor no responde, sync también fallaría
   }
 }
 
