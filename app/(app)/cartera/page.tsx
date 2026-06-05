@@ -1276,14 +1276,14 @@ export default function CarteraPage() {
                                 <td style={{...tdSub, ...bSub, fontFamily:'monospace', color:'rgba(147,197,253,0.50)', fontSize:13}}>
                                   #{sf.numeroFactura}
                                 </td>
-                                <td style={{...tdSub, ...bSub, fontSize:13}}>
+                                <td style={{...tdSub, ...bSub}}>
                                   <span style={{marginRight:10}}>
-                                    <span style={{color:'#64748b', fontSize:11, marginRight:2}}>{metodo}</span>
+                                    <span style={{color:'#64748b', marginRight:2}}>{metodo}</span>
                                     <span style={{color:colorMetodo, fontWeight:600}}>{fmt(Number(sf.montoAplicado||0))}</span>
                                   </span>
                                   {Number(sf.descuento||0) > 0 && (
                                     <span>
-                                      <span style={{color:'#64748b', fontSize:11, marginRight:2}}>Desc.</span>
+                                      <span style={{color:'#64748b', marginRight:2}}>Desc.</span>
                                       <span style={{color:'#fbbf24', fontWeight:600}}>{fmt(Number(sf.descuento))}</span>
                                     </span>
                                   )}
