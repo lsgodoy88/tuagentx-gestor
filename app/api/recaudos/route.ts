@@ -113,7 +113,7 @@ async function hidratarSync(pagos: any[], empresaId: string) {
     // Facturas aplicadas a este pago (todas sus PagoCarteraDeuda)
     const _facturas = apps
       .filter((a: any) => a.pagoId === p.id && a.numeroFactura != null)
-      .map((a: any) => ({ numeroFactura: a.numeroFactura, montoAplicado: a.montoAplicado }))
+      .map((a: any) => ({ numeroFactura: a.numeroFactura, montoAplicado: a.montoAplicado, descuento: a.descuento ?? null }))
     // Prioridad: datos congelados en PagoCartera
     if (p.clienteApiId) {
       const cli: any = cliMap.get(p.clienteApiId)
