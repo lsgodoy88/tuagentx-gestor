@@ -459,11 +459,7 @@ export default function EmpleadosPage() {
               <div className="p-3 space-y-2">
                 {Array.from({ length: max }).map((_, i) => {
                   const emp = empRol[i]
-                  const bloqueadoPorSupervisor =
-                    modoEquipo === 'supervisores' &&
-                    !haySupervisor &&
-                    rc.id !== 'supervisor' &&
-                    !emp
+                  const bloqueadoPorSupervisor = false
                   return (
                     <div key={i} className={"flex items-center gap-3 px-3 py-2.5 rounded-xl " + (emp ? "bg-zinc-800" : "bg-zinc-900 border border-dashed border-zinc-700")}>
                       <div className={"w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 " + (emp ? "bg-emerald-500/20 text-emerald-400" : "bg-zinc-800 text-zinc-600")}>
