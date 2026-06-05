@@ -1233,7 +1233,9 @@ export default function CarteraPage() {
                       const primeraFact = facturas[0]
                       const subFacturas = facturas.slice(1)
                       const tdBase: React.CSSProperties = { padding:"8px 10px", fontSize:14, fontWeight:500, color:"white", whiteSpace:"nowrap", borderBottom: subFacturas.length > 0 ? 'none' : '1px solid #1e2a3d' }
-                      const tdSub: React.CSSProperties  = { padding:"2px 10px 8px", fontSize:13, fontFamily:"monospace", color:"rgba(147,197,253,0.6)", whiteSpace:"nowrap", borderBottom:'1px solid #1e2a3d' }
+                      const tdSub: React.CSSProperties  = { padding:"8px 10px", fontSize:14, fontWeight:500, color:"white", whiteSpace:"nowrap" }
+                      const metodo = p.metodopago === 'transferencia' ? 'Transf.' : p.metodopago === 'mixto' ? 'Mixto' : 'Efect.'
+                      const colorMetodo = p.metodopago === 'transferencia' ? '#60a5fa' : '#34d399'
                       return (
                         <React.Fragment key={p.id}>
                           <tr style={{background:'#141c2e'}}>
@@ -1265,18 +1267,34 @@ export default function CarteraPage() {
                               {p._nuevoSaldo !== null ? fmt(p._nuevoSaldo) : '—'}
                             </td>
                           </tr>
-                          {subFacturas.map((sf: any, si: number) => (
-                            <tr key={`${p.id}-sf-${si}`} style={{background:'#141c2e'}}>
-                              <td style={{...tdSub, borderBottom: si < subFacturas.length - 1 ? 'none' : '1px solid #1e2a3d'}}></td>
-                              <td style={{...tdSub, borderBottom: si < subFacturas.length - 1 ? 'none' : '1px solid #1e2a3d'}}></td>
-                              <td style={{...tdSub, borderBottom: si < subFacturas.length - 1 ? 'none' : '1px solid #1e2a3d'}}>↳ #{sf.numeroFactura}</td>
-                              <td style={{...tdSub, borderBottom: si < subFacturas.length - 1 ? 'none' : '1px solid #1e2a3d'}}></td>
-                              <td style={{...tdSub, borderBottom: si < subFacturas.length - 1 ? 'none' : '1px solid #1e2a3d'}}></td>
-                              <td style={{...tdSub, borderBottom: si < subFacturas.length - 1 ? 'none' : '1px solid #1e2a3d'}}></td>
-                              <td style={{...tdSub, borderBottom: si < subFacturas.length - 1 ? 'none' : '1px solid #1e2a3d'}}></td>
-                              <td style={{...tdSub, borderBottom: si < subFacturas.length - 1 ? 'none' : '1px solid #1e2a3d'}}></td>
-                            </tr>
-                          ))}
+                          {subFacturas.map((sf: any, si: number) => {
+                            const bSub = { borderBottom: si < subFacturas.length - 1 ? 'none' : '1px solid #1e2a3d' }
+                            return (
+                              <tr key={`${p.id}-sf-${si}`} style={{background:'#141c2e'}}>
+                                <td style={{...tdSub, ...bSub}}></td>
+                                <td style={{...tdSub, ...bSub}}></td>
+                                <td style={{...tdSub, ...bSub, fontFamily:'monospace', color:'rgba(147,197,253,0.50)', fontSize:13}}>
+                                  #{sf.numeroFactura}
+                                </td>
+                                <td style={{...tdSub, ...bSub, fontSize:13}}>
+                                  <span style={{marginRight:10}}>
+                                    <span style={{color:'#64748b', fontSize:11, marginRight:2}}>{metodo}</span>
+                                    <span style={{color:colorMetodo, fontWeight:600}}>{fmt(Number(sf.montoAplicado||0))}</span>
+                                  </span>
+                                  {Number(sf.descuento||0) > 0 && (
+                                    <span>
+                                      <span style={{color:'#64748b', fontSize:11, marginRight:2}}>Desc.</span>
+                                      <span style={{color:'#fbbf24', fontWeight:600}}>{fmt(Number(sf.descuento))}</span>
+                                    </span>
+                                  )}
+                                </td>
+                                <td style={{...tdSub, ...bSub}}></td>
+                                <td style={{...tdSub, ...bSub}}></td>
+                                <td style={{...tdSub, ...bSub}}></td>
+                                <td style={{...tdSub, ...bSub}}></td>
+                              </tr>
+                            )
+                          })}
                         </React.Fragment>
                       )
                     })}
