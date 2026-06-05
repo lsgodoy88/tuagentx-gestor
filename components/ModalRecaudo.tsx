@@ -234,7 +234,7 @@ export default function ModalRecaudo({
                                 placeholder="0"
                                 prefix=""
                                 onChange={val => onSetDescuentosPorFactura(prev => ({ ...prev, [key]: val }))}
-                                className="w-full bg-blue-950/40 border border-blue-500/30 rounded-xl pr-4 py-2.5 text-white text-sm outline-none focus:border-blue-400"
+                                className="w-full bg-blue-950/40 border border-blue-500/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-blue-400"
                               />
                             </div>
                           )
