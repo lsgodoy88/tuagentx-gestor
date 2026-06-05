@@ -60,7 +60,7 @@ export default function CarteraPage() {
   const esVendedor = user?.role === 'vendedor'
   const searchParamsCartera = useSearchParams()
   const [tab, setTab] = useState<'cartera' | 'clientes' | 'pagos' | 'comisiones'>(
-    (searchParamsCartera.get('tab') as any) || 'clientes'
+    (searchParamsCartera.get('tab') as any) || 'pagos'
   )
   const [isDesktopPagos, setIsDesktopPagos] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : false)
   const [mesAnalisis, setMesAnalisis] = useState(mesBogota())
@@ -471,8 +471,8 @@ export default function CarteraPage() {
   const isAdmin = ROLES_ADMIN.includes(user?.role)
 
   const tabs = [
-    { id: 'clientes', label: '📋 CPC' },
     { id: 'pagos', label: '💳 Pagos' },
+    { id: 'clientes', label: '📋 CPC' },
     { id: 'cartera', label: '📈 Cartera' },
     ...(isAdmin ? [{ id: 'comisiones', label: '💼 Bonus' }] : []),
   ] as const
