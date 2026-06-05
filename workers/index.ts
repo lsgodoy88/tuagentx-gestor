@@ -14,7 +14,8 @@ import { Worker, Queue, QueueEvents } from 'bullmq'
 
 const REDIS = { host: 'localhost', port: 6379, db: 1, password: '7wzadPIuzVn84WkSfPUoOAIlb0PKCZK' } // db1 = gestor
 const BASE_URL = 'http://localhost:3010'
-const SECRET = process.env.CRON_SECRET || ''
+// SECRET se lee dinámicamente en cada llamada — sobrevive rotación sin reiniciar worker
+function getSecret() { return process.env.CRON_SECRET || '' }
 
 async function callEndpoint(path: string, body?: Record<string, unknown>) {
   const url = `${BASE_URL}${path}`
@@ -22,7 +23,7 @@ async function callEndpoint(path: string, body?: Record<string, unknown>) {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'x-cron-secret': SECRET,
+      'x-cron-secret': getSecret(),
     },
     body: body ? JSON.stringify(body) : undefined,
   })
@@ -37,7 +38,7 @@ async function callEndpoint(path: string, body?: Record<string, unknown>) {
 async function cronYaEjecuto(tipo: string, ventanaMs = 2 * 60 * 60 * 1000): Promise<string | null> {
   try {
     const res = await fetch(`${BASE_URL}/api/cron/last-run?tipo=${tipo}`, {
-      headers: { 'x-cron-secret': SECRET },
+      headers: { 'x-cron-secret': getSecret() },
     })
     if (!res.ok) return null
     const data = await res.json() as { ok: boolean; id?: string; createdAt?: string }
@@ -73,8 +74,17 @@ export const rutasDiaWorker = new Worker(
   { connection: REDIS, concurrency: 1 },
 )
 
-rutasDiaWorker.on('failed', (job, err) => {
+rutasDiaWorker.on('failed', async (job, err) => {
   console.error(`[rutas-dia] ${job?.name} falló:`, err.message)
+  // Si agotó todos los intentos — reprogramar scheduler para que no desaparezca
+  if (job && (job.attemptsMade ?? 0) >= (job.opts?.attempts ?? 3)) {
+    console.warn(`[rutas-dia] ${job.name} agotó intentos — reprogramando scheduler`)
+    try {
+      await rutasDiaQueue.upsertJobScheduler('crear-rutas', { pattern: '0 13 * * *' }, { name: 'crear-rutas', data: {} })
+      await rutasDiaQueue.upsertJobScheduler('cerrar-rutas', { pattern: '0 1 * * *' }, { name: 'cerrar-rutas', data: {} })
+      console.log('[rutas-dia] scheduler reprogramado OK')
+    } catch (e: any) { console.error('[rutas-dia] error reprogramando scheduler:', e.message) }
+  }
 })
 
 // ── Queue: integracion ───────────────────────────────────────────────────────
@@ -94,8 +104,15 @@ export const integracionWorker = new Worker(
   { connection: REDIS, concurrency: 1 },
 )
 
-integracionWorker.on('failed', (job, err) => {
+integracionWorker.on('failed', async (job, err) => {
   console.error(`[integracion] ${job?.name} falló:`, err.message)
+  if (job && (job.attemptsMade ?? 0) >= (job.opts?.attempts ?? 3)) {
+    console.warn(`[integracion] ${job.name} agotó intentos — reprogramando scheduler`)
+    try {
+      await integracionQueue.upsertJobScheduler('delta-sync', { pattern: '0 10 * * *' }, { name: 'delta-sync', data: {} })
+      console.log('[integracion] scheduler reprogramado OK')
+    } catch (e: any) { console.error('[integracion] error reprogramando scheduler:', e.message) }
+  }
 })
 
 // ── Queue: entregas (on demand) ──────────────────────────────────────────────
