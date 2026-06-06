@@ -167,18 +167,10 @@ export default function ModalRecaudo({
                           onChange={e => { if (e.target.files?.[0]) onSubirVoucher(linea.id, e.target.files[0]) }} />
 
                         {!linea.voucherKey && !linea.cargandoVoucher && (
-                          <div className="space-y-2">
-                            <div>
-                              <label className="text-zinc-300 text-sm font-semibold block mb-1.5">Monto *</label>
-                              <InputMoneda value={linea.monto}
-                                onChange={val => onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, monto: val } : l))}
-                                className="w-full bg-blue-950/40 border border-blue-500/30 rounded-xl pr-4 py-2.5 text-white text-sm outline-none focus:border-blue-400" />
-                            </div>
-                            <button onClick={() => fileInputRefs.current.get(linea.id)?.click()}
-                              className="w-full bg-zinc-500/30 border border-dashed border-zinc-400/40 rounded-xl py-2.5 text-zinc-300 text-sm hover:text-white hover:border-zinc-300 transition-colors">
-                              📎 Adjuntar comprobante (opcional)
-                            </button>
-                          </div>
+                          <button onClick={() => fileInputRefs.current.get(linea.id)?.click()}
+                            className="w-full bg-zinc-500/30 border border-dashed border-zinc-400/40 rounded-xl py-2.5 text-zinc-300 text-sm hover:text-white hover:border-zinc-300 transition-colors">
+                            📎 Adjuntar comprobante
+                          </button>
                         )}
                         {linea.cargandoVoucher && (
                           <div className="bg-zinc-500/40 border border-blue-500/25 rounded-xl px-4 py-3 text-zinc-300 text-sm text-center animate-pulse">
@@ -271,7 +263,7 @@ export default function ModalRecaudo({
 
               {/* Resumen */}
               {(() => {
-                const contables = lineasPago.filter(l => Number(l.monto || 0) > 0)
+                const contables = lineasPago.filter(l => l.metodoPago === 'efectivo' || l.voucherDatosIA)
                 const totalPagado = contables.reduce((s, l) => s + Number(l.monto || 0), 0)
                 const totalDescuento = Object.values(descuentosPorFactura).reduce((s, v) => s + Number(v || 0), 0)
                 const saldoRestante = montoSeleccionado - totalPagado - totalDescuento
@@ -322,10 +314,21 @@ export default function ModalRecaudo({
               </div>
 
               {/* Botón confirmar */}
-              <button onClick={onConfirmar} disabled={procesando}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold py-3 rounded-xl text-sm transition-colors">
-                {procesando ? 'Procesando...' : '✅ Confirmar recaudo'}
-              </button>
+              {(() => {
+                const transferenciasSinVoucher = lineasPago.filter(l => l.metodoPago === 'transferencia' && !l.voucherDatosIA && !l.cargandoVoucher)
+                const hayTransferenciaSinVoucher = transferenciasSinVoucher.length > 0
+                return (
+                  <>
+                    {hayTransferenciaSinVoucher && (
+                      <p className="text-amber-400 text-xs text-center">📎 Adjunta el comprobante para continuar</p>
+                    )}
+                    <button onClick={onConfirmar} disabled={procesando || hayTransferenciaSinVoucher}
+                      className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl text-sm transition-colors">
+                      {procesando ? 'Procesando...' : '✅ Confirmar recaudo'}
+                    </button>
+                  </>
+                )
+              })()}
             </>
           )}
         </div>
