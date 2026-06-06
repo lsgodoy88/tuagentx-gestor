@@ -33,6 +33,12 @@ module.exports = {
     script: 'npx',
     args: 'tsx workers/start.ts',
     cwd: '/srv/gestor',
+    // Garantiza que el worker nunca quede caído
+    autorestart: true,       // reiniciar siempre si muere
+    max_restarts: 999,       // sin límite práctico de reinicios
+    min_uptime: '10s',       // considera estable si vive >10s
+    restart_delay: 5000,     // esperar 5s entre reinicios
+    watch: false,
     env: {
       NODE_ENV:    'production',
       DATABASE_URL: env.DATABASE_URL,
