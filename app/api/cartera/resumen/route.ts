@@ -23,8 +23,8 @@ export async function GET() {
 
   const empresaId = getEmpresaId(user)
   const scope = empleadoIdForzado ? `v:${empleadoIdForzado}` : 'admin'
-  const ahora2 = new Date()
-  const mesClave = `${ahora2.getFullYear()}-${ahora2.getMonth()}`
+  const ahora2 = nowBogota()
+  const mesClave = `${ahora2.getUTCFullYear()}-${ahora2.getUTCMonth()}`
   const cacheKey = `g:${empresaId}:cartera:${scope}:${mesClave}`
 
   const resumenData = await withCache(cacheKey, 300, async () => {

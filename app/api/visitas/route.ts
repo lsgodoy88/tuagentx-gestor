@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { nowBogota, fechaHoyBogota } from '@/lib/fechas'
+import { nowBogota, fechaHoyBogota, inicioDiaBogota, finDiaBogota } from '@/lib/fechas'
 import { invalidateKeys } from '@/lib/cache'
 import { subirFirma } from '@/lib/r2'
 import { audit } from '@/lib/audit'
@@ -13,8 +13,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
 
-  const hoy = new Date(Date.now() - 5*60*60*1000)
-  hoy.setHours(0, 0, 0, 0)
+  const hoy = inicioDiaBogota()
 
   const visitas = await prisma.visita.findMany({
     where: { empleadoId: user.id, createdAt: { gte: hoy } },
@@ -112,8 +111,8 @@ export async function POST(req: NextRequest) {
           cerrada: false,
           empleados: { some: { empleadoId: user.id } },
           fecha: {
-            gte: new Date(fechaHoy + 'T05:00:00.000Z'),
-            lte: new Date(fechaHoy + 'T05:00:00.000Z')
+            gte: inicioDiaBogota(),
+            lt:  finDiaBogota()
           }
         },
         select: { id: true, clientes: { select: { clienteId: true } } }

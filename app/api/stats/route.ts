@@ -19,8 +19,8 @@ export async function GET() {
 
   const stats = await withCache(cacheKey, 300, async () => {
   const hoy = inicioDiaBogota()
-  const hace7dias = new Date(Date.now() - 7 * 86400000)
-  const hace30dias = new Date(Date.now() - 30 * 86400000)
+  const hace7dias = haceNDiasBogota(7)
+  const hace30dias = haceNDiasBogota(30)
   const hace7meses = haceNMesesBogota(6)
 
   const mesActual = hoy.getMonth() + 1
