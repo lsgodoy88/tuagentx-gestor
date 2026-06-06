@@ -2885,6 +2885,9 @@ model OrdenDespacho {
   isCompleted       Boolean?
   amountItems       Int?
   origenVinculadaId String?
+  sincronizadoEn    DateTime?         // cuándo entró a BD via sync
+  origenSync        String?           // 'delta' | 'nocturno' | 'backfill' | 'manual' | 'recuperada'
+  reconciliadoEn    DateTime?         // cuándo se marcó isFacturada=true por reconciliador
   createdAt         DateTime          @default(now())
   empresaVinculada  EmpresaVinculada? @relation(fields: [origenVinculadaId], references: [id])
   updatedAt         DateTime          @updatedAt

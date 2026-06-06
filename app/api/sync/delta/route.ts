@@ -138,6 +138,8 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
       origenId,
       origenVinculadaId,
       estado: 'pendiente',
+      sincronizadoEn: new Date(),
+      origenSync: 'delta',
     }
   })
 
@@ -466,6 +468,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
               numeroFactura: uptres.invoiceNumber,
               fechaFactura: uptres.invoicedAt ? new Date(uptres.invoicedAt) : null,
               totalOrden: uptres.total ? parseFloat(uptres.total) : undefined,
+              reconciliadoEn: new Date(),
             },
           })
           reconciliadas++
@@ -479,6 +482,86 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   } catch (e: any) {
     console.error('[delta] reconciliador error:', e.message)
     erroresParciales.push('reconciliador: ' + e.message)
+  }
+
+  // ── Reconciliador de huecos en consecutivos ──────────────────────────────
+  // Si el ciclo trajo órdenes nuevas, verifica si hay huecos en el rango de
+  // numeroFactura del ciclo y los recupera via fetchVentas del mismo día
+  let huecosRecuperados = 0
+  if (toCreate.length >= 2) {
+    try {
+      const facturas = toCreate
+        .map((o: any) => parseInt(o.numeroFactura || '0'))
+        .filter((n: number) => n > 0)
+      if (facturas.length >= 2) {
+        const minF = Math.min(...facturas)
+        const maxF = Math.max(...facturas)
+        // Solo buscar huecos si el rango es razonable (< 50 consecutivos)
+        if (maxF - minF < 50) {
+          // Consecutivos esperados en el rango
+          const esperados = Array.from({ length: maxF - minF + 1 }, (_, i) => minF + i)
+          const llegaron = new Set(facturas)
+          const huecos = esperados.filter(n => !llegaron.has(n))
+          if (huecos.length > 0) {
+            console.log(`[delta] huecos detectados en rango [${minF}-${maxF}]: ${huecos.join(', ')}`)
+            // Buscar en UpTres con el rango del día del ciclo — una sola llamada
+            const hoy = new Date()
+            const ordenesHoy = await adapter.fetchVentas(new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()))
+            const porFactura = new Map<number, any>()
+            for (const o of ordenesHoy) {
+              const inv = parseInt(String((o as any).numeroFacturado || '0'))
+              if (inv > 0) porFactura.set(inv, o)
+            }
+            for (const hueco of huecos) {
+              const orden = porFactura.get(hueco)
+              if (orden) {
+                // Tenemos el origenId — traer orden completa e insertar
+                const origenId = String((orden as any).uid || (orden as any)._id)
+                const completa = await adapter.fetchOrdenCompletaPorId(origenId)
+                if (completa && completa.clienteNombre) {
+                  await prisma.ordenDespacho.upsert({
+                    where: { origenId_empresaId: { origenId, empresaId: destino } },
+                    create: {
+                      origenId,
+                      empresaId: destino,
+                      numeroOrden: completa.numeroOrden,
+                      numeroFactura: completa.numeroFactura || String(hueco),
+                      isFacturada: completa.isFacturada,
+                      fechaFactura: completa.fechaFactura ? new Date(completa.fechaFactura) : null,
+                      totalOrden: completa.totalOrden,
+                      balance: completa.balance,
+                      paymentType: completa.paymentType,
+                      paymentMethod: completa.paymentMethod,
+                      clienteApiId: completa.clienteApiId,
+                      clienteNit: completa.clienteNit || '',
+                      clienteNombre: completa.clienteNombre,
+                      vendedorApiId: completa.vendedorApiId,
+                      fechaOrden: completa.createdAt ? new Date(completa.createdAt) : new Date(),
+                      fechaOrdenBogota: completa.createdAt ? new Date(new Date(completa.createdAt).getTime() - 5*60*60*1000) : new Date(),
+                      origen: origenVinculadaId ? 'vinculada' : 'propia',
+                      origenVinculadaId,
+                      estado: 'pendiente',
+                      sincronizadoEn: new Date(),
+                      origenSync: 'recuperada',
+                    },
+                    update: {},
+                  })
+                  huecosRecuperados++
+                  console.log(`[delta] hueco recuperado: factura #${hueco} origenId:${origenId}`)
+                }
+              } else {
+                // No está en el fetch del día — puede ser del día anterior
+                // El próximo ciclo lo detectará con ventana ampliada si persiste
+                console.log(`[delta] hueco #${hueco} no encontrado en fetch del día — se revisará en próximo ciclo`)
+              }
+            }
+            if (huecosRecuperados > 0) await invalidatePattern('g:v:*')
+          }
+        }
+      }
+    } catch (e: any) {
+      console.error('[delta] reconciliador-huecos error:', e.message)
+    }
   }
 
   // ── SyncLog — registro del ciclo delta ──────────────────────────────────
@@ -510,7 +593,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     console.error('[delta] syncLog insert error:', logErr.message)
   }
 
-  return { empresaId: destino, ordenes: ordenes.length, nuevasOrdenes: toCreate.length, nuevasDeudas: deudaToCreate.length, clientesNuevos, deudasNuevasDelta, empleadosActualizados, saldosActualizados, reconciliadas }
+  return { empresaId: destino, ordenes: ordenes.length, nuevasOrdenes: toCreate.length, nuevasDeudas: deudaToCreate.length, clientesNuevos, deudasNuevasDelta, empleadosActualizados, saldosActualizados, reconciliadas, huecosRecuperados }
 }
 
 export async function POST(req: NextRequest) {
