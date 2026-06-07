@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from 'react'
 type PermisoEstado = 'verificando' | 'ok' | 'bloqueado'
 
 interface PermisosEstado {
-  gps:  boolean | null  // null = no aplica
+  gps:  boolean | null  // null = no aplica a este rol
   notif: boolean
 }
 
@@ -13,8 +13,26 @@ const ROLES_GPS = ['vendedor', 'entregas', 'impulsadora']
 
 // ── Helpers ──────────────────────────────────────────────────────
 
-/** Primera verificación: obtiene posición real — no confía en permission.state */
-async function verificarGpsReal(timeoutMs = 8000): Promise<boolean> {
+/**
+ * Verifica GPS vía Permissions API solamente — sin activar hardware.
+ * 'granted' → ok   'denied' → bloqueado   'prompt' → pendiente (necesita solicitud)
+ */
+async function estadoPermisoGps(): Promise<'granted' | 'denied' | 'prompt' | 'unsupported'> {
+  if (!navigator.geolocation) return 'unsupported'
+  if (!('permissions' in navigator)) return 'prompt' // fallback: pedir al usuario
+  try {
+    const r = await navigator.permissions.query({ name: 'geolocation' as PermissionName })
+    return r.state as 'granted' | 'denied' | 'prompt'
+  } catch {
+    return 'prompt'
+  }
+}
+
+/**
+ * Solicita GPS al usuario — activa hardware SOLO cuando el usuario toca el botón.
+ * No llamar en verificación automática.
+ */
+async function solicitarGps(timeoutMs = 12000): Promise<boolean> {
   if (!navigator.geolocation) return false
   return new Promise(resolve => {
     const t = setTimeout(() => resolve(false), timeoutMs)
@@ -26,8 +44,8 @@ async function verificarGpsReal(timeoutMs = 8000): Promise<boolean> {
   })
 }
 
-function verificarNotif(): boolean {
-  if (!('Notification' in window)) return true // browser sin soporte → no bloquear
+function notifOk(): boolean {
+  if (!('Notification' in window)) return true // sin soporte → no bloquear
   return Notification.permission === 'granted'
 }
 
@@ -43,13 +61,11 @@ export default function PermisosGuard({
   const [estado, setEstado]     = useState<PermisoEstado>('verificando')
   const [permisos, setPermisos] = useState<PermisosEstado>({ gps: null, notif: false })
   const [solicitando, setSolicitando] = useState(false)
-  // Ref para el listener de revocación — limpieza en unmount
   const gpsStatusRef = useRef<PermissionStatus | null>(null)
 
   useEffect(() => {
-    verificarTodo()
+    verificar()
     return () => {
-      // Limpiar listener nativo al desmontar
       if (gpsStatusRef.current) {
         gpsStatusRef.current.onchange = null
         gpsStatusRef.current = null
@@ -58,57 +74,70 @@ export default function PermisosGuard({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function verificarTodo() {
+  /**
+   * Verificación ligera — solo Permissions API y Notification.permission.
+   * Sin getCurrentPosition → sin activar GPS hardware → sin costo de batería.
+   */
+  async function verificar() {
     setEstado('verificando')
 
-    // GPS — posición real para la verificación inicial
     let gpsOk: boolean | null = necesitaGps ? false : null
-    if (necesitaGps) {
-      gpsOk = await verificarGpsReal()
 
-      // Suscribir al evento nativo de cambio de permiso (cero polling)
+    if (necesitaGps) {
+      const estado = await estadoPermisoGps()
+      gpsOk = estado === 'granted'
+
+      // Suscribir onchange — detección instantánea de revocación, sin polling
       if ('permissions' in navigator) {
         try {
-          const status = await navigator.permissions.query({ name: 'geolocation' as PermissionName })
-          gpsStatusRef.current = status
-          status.onchange = () => {
-            // El browser notifica instantáneamente si el usuario revoca el permiso
-            if (status.state !== 'granted') {
-              setPermisos(p => ({ ...p, gps: false }))
-              setEstado('bloqueado')
+          if (!gpsStatusRef.current) {
+            const status = await navigator.permissions.query({ name: 'geolocation' as PermissionName })
+            gpsStatusRef.current = status
+            status.onchange = () => {
+              if (status.state !== 'granted') {
+                setPermisos(p => ({ ...p, gps: false }))
+                setEstado('bloqueado')
+              }
             }
           }
-        } catch { /* browser sin soporte de permissions API */ }
+        } catch { /* sin soporte */ }
       }
     }
 
-    const notifOk = verificarNotif()
-    const nuevos: PermisosEstado = { gps: gpsOk, notif: notifOk }
-    setPermisos(nuevos)
-    setEstado((necesitaGps ? gpsOk === true : true) && notifOk ? 'ok' : 'bloqueado')
+    const ok = notifOk()
+    setPermisos({ gps: gpsOk, notif: ok })
+    setEstado((necesitaGps ? gpsOk === true : true) && ok ? 'ok' : 'bloqueado')
   }
 
-  // ── Solicitar permisos ────────────────────────────────────────
-  async function solicitarPermisos() {
+  /**
+   * Solicita permisos — se ejecuta SOLO cuando el usuario toca el botón.
+   * getCurrentPosition se activa aquí, nunca en verificación automática.
+   */
+  async function solicitar() {
     setSolicitando(true)
 
-    if (necesitaGps && permisos.gps !== true) {
-      const ok = await verificarGpsReal(12000)
+    // GPS — dispara diálogo del browser y activa hardware solo aquí
+    if (necesitaGps && !permisos.gps) {
+      const ok = await solicitarGps()
+      setPermisos(p => ({ ...p, gps: ok }))
       if (!ok) {
-        setPermisos(p => ({ ...p, gps: false }))
+        setSolicitando(false)
+        // Re-verificar estado del permiso para mostrar mensaje correcto
+        const estadoActual = await estadoPermisoGps()
+        setPermisos(p => ({ ...p, gps: estadoActual === 'granted' }))
         setSolicitando(false)
         return
       }
-      setPermisos(p => ({ ...p, gps: true }))
     }
 
+    // Notificaciones
     if (!permisos.notif && 'Notification' in window) {
       const r = await Notification.requestPermission()
       setPermisos(p => ({ ...p, notif: r === 'granted' }))
     }
 
     setSolicitando(false)
-    await verificarTodo()
+    await verificar()
   }
 
   // ── Render ────────────────────────────────────────────────────
@@ -166,7 +195,7 @@ export default function PermisosGuard({
         </div>
 
         <button
-          onClick={solicitarPermisos}
+          onClick={solicitar}
           disabled={solicitando}
           className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold py-3 rounded-xl transition-colors">
           {solicitando ? (
