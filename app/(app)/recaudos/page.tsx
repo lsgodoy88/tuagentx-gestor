@@ -182,7 +182,7 @@ function getColumns(ctx: {
     {
       key: 'metodo', label: 'Método', width: 110, minWidth: 70,
       render: p => {
-        const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 1
+        const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0
           ? (p as any).lineasPago : []
         return <span>{fmtMetodo(ls.length > 0 ? ls[0].metodoPago : p.metodopago)}</span>
       },
@@ -191,7 +191,7 @@ function getColumns(ctx: {
     {
       key: 'valor', label: 'Valor', width: 100, minWidth: 70,
       render: p => {
-        const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 1
+        const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0
           ? (p as any).lineasPago : []
         return <span style={{ color: '#93c5fd' }}>{fmtMonto(ls.length > 0 ? ls[0].monto : p.monto)}</span>
       },
@@ -200,7 +200,7 @@ function getColumns(ctx: {
     {
       key: 'descuento', label: 'Desc.', width: 90, minWidth: 60,
       render: p => {
-        const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 1
+        const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0
           ? (p as any).lineasPago : []
         const d = ls.length > 0 ? Number(ls[0].descuento || 0) : Number(p.descuento || 0)
         return <span style={{ color: d > 0 ? '#fdba74' : 'rgba(255,255,255,0.25)' }}>{d > 0 ? `-${fmtMonto(d)}` : '—'}</span>
@@ -213,7 +213,7 @@ function getColumns(ctx: {
     {
       key: 'total', label: 'Total', width: 110, minWidth: 70,
       render: p => {
-        const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 1
+        const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0
           ? (p as any).lineasPago : []
         const d = ls.length > 0 ? Number(ls[0].descuento || 0) : Number(p.descuento || 0)
         const v = ls.length > 0 ? Number(ls[0].monto || 0)     : Number(p.monto)

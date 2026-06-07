@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
   })
   const anchoPapel = (empresa as any)?.configRecibos?.anchoPapel || '80mm'
 
-  // Si vienen lineas (multi-metodo), agregamos
+  // Normalizar líneas — fuente única de método y monto
   const lineasValidas = Array.isArray(lineasPago)
     ? lineasPago.filter((l: any) => Number(l?.monto || 0) > 0).map((l: any) => ({
         metodoPago: l.metodoPago || 'efectivo',
@@ -76,8 +76,11 @@ export async function POST(req: NextRequest) {
   const montoNum = lineasValidas.length > 0
     ? lineasValidas.reduce((s: number, l: any) => s + l.monto, 0)
     : Number(monto)
-  // Descuento siempre desde el body — ya no vive en cada línea de pago
   const descuentoNum = Number(descuento) || 0
+  // Método derivado de líneas — no depende del campo redundante del body
+  const metodoPagoFinal = lineasValidas.length > 1
+    ? 'mixto'
+    : (lineasValidas[0]?.metodoPago || 'efectivo')
 
   // Validación de input
   if (!Number.isFinite(montoNum) || montoNum < 0) {
@@ -93,7 +96,6 @@ export async function POST(req: NextRequest) {
   if (notas && typeof notas === 'string' && notas.length > 1000) {
     return NextResponse.json({ error: 'Notas demasiado largas (máx 1000)' }, { status: 400 })
   }
-  const metodoPagoFinal = lineasValidas.length > 1 ? 'mixto' : (lineasValidas[0]?.metodoPago || metodoPago)
   const totalAplicado = montoNum + descuentoNum
 
   // Buscar deudas por externalId, ordenadas FIFO (más antigua primero)
@@ -209,10 +211,13 @@ export async function POST(req: NextRequest) {
         ...(idempotencyKey ? { idempotencyKey } : {}),
         ...(aplicaciones.length > 0 ? { syncDeudaId: aplicaciones[0].syncDeudaId } : {}),
         reciboPago,
-        ...(lineasValidas.length === 0 && ['transferencia', 'nequi', 'banco'].includes(metodoPago) && voucherKey ? {
-          voucherKey,
-          voucherDatosIA: voucherDatosIA ?? undefined,
-        } : {}),
+        // Persistir voucher en columna scalar — accesible sin parsear JSON
+        ...(() => {
+          const lv = lineasValidas.find((l: any) =>
+            ['transferencia', 'nequi', 'banco'].includes(l.metodoPago) && l.voucherKey
+          ) || (voucherKey && ['transferencia', 'nequi', 'banco'].includes(metodoPagoFinal) ? { voucherKey, voucherDatosIA } : null)
+          return lv ? { voucherKey: lv.voucherKey, voucherDatosIA: lv.voucherDatosIA ?? null } : {}
+        })(),
         ...(aplicaciones.length > 0 ? {
           Aplicaciones: {
             create: aplicaciones.map(a => ({
