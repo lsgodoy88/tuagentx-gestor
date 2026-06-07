@@ -264,6 +264,12 @@ export default function DashboardVendedor({ user }: { user: any }) {
     if (bloqueadoTurno) return
     setBloqueadoTurno(true)
     const ubicacion = await getUbicacion()
+    // GPS es obligatorio para iniciar turno — sin coordenadas no se registra
+    if (!ubicacion) {
+      alert('⚠️ No se pudo obtener tu ubicación GPS.\n\nVerifica que el GPS esté activado y que hayas dado permiso a este sitio.')
+      setBloqueadoTurno(false)
+      return
+    }
     const res = await fetchApi('/api/turnos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accion: 'iniciar', ...ubicacion }) })
     if (res?.ok) { setTurnoExpandido(false); setTurno(res.turno); setCached({ turno: res.turno }) }
     setBloqueadoTurno(false)
