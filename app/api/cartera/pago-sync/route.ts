@@ -7,6 +7,7 @@ import { getEmpresaId } from '@/lib/auth-helpers'
 import { generarReciboToken } from '@/lib/recibos'
 import { calcularEstado } from '@/lib/cartera'
 import { invalidateKeys } from '@/lib/cache'
+import { actualizarResumenVisita } from '@/lib/visitaResumen'
 import { fechaHoyBogota, nowBogota } from '@/lib/fechas'
 import { getConsecutivo } from '@/lib/consecutivo' 
 
@@ -303,6 +304,8 @@ export async function POST(req: NextRequest) {
     `g:${empresaId}:cartera:resumen:${fechaHoyBogota()}`,
     `g:v:${user.id}:${fechaHoyBogota()}`
   )
+
+  actualizarResumenVisita(user.id, { tipo: 'cobro', monto: montoNum }, fechaHoyBogota()).catch(() => {})
 
   return NextResponse.json({ pago, anchoPapel } satisfies PagoSyncResponse)
 }

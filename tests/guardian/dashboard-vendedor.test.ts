@@ -48,6 +48,7 @@ vi.mock('@/lib/prisma', () => {
     empleado:     { findUnique: vi.fn(), findMany: vi.fn(), count: vi.fn() },
     ordenDespacho:{ findMany: vi.fn(), aggregate: vi.fn(), count: vi.fn() },
     visita:       { findMany: vi.fn(), aggregate: vi.fn(), count: vi.fn() },
+    visitaResumen:{ findMany: vi.fn() },
     pagoCartera:  { aggregate: vi.fn() },
     metaVenta:    { findFirst: vi.fn() },
     metaRecaudo:  { findFirst: vi.fn() },
@@ -75,6 +76,7 @@ function setupBase() {
   vi.mocked((prisma as any).empleado.findUnique).mockResolvedValue({ apiId: CARLOS_API_ID })
   vi.mocked((prisma as any).empleado.findMany).mockResolvedValue([])
   vi.mocked((prisma as any).visita.findMany).mockResolvedValue([])
+  vi.mocked((prisma as any).visitaResumen.findMany).mockResolvedValue([])
   vi.mocked((prisma as any).visita.aggregate).mockResolvedValue({ _sum: { monto: null }, _count: { id: 0 } })
   vi.mocked((prisma as any).pagoCartera.aggregate).mockResolvedValue({ _sum: { monto: null, descuento: null }, _count: { id: 0 } })
   vi.mocked((prisma as any).metaVenta.findFirst).mockResolvedValue(null)

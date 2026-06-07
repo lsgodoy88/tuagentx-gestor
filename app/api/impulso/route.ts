@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { invalidateKeys } from '@/lib/cache'
+import { actualizarResumenVisita } from '@/lib/visitaResumen'
 import { fechaHoyBogota } from '@/lib/fechas'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -128,6 +129,7 @@ export async function POST(req: NextRequest) {
     `g:${empId}:stats:${fechaHoyBogota()}`,
     `g:v:${impulsadoraId}:${fechaHoyBogota()}`
   )
+  actualizarResumenVisita(impulsadoraId, { tipo: tipo || 'venta', monto: Number(monto) }, fechaHoyBogota()).catch(() => {})
   return NextResponse.json({ ok: true, visita })
   } catch (err: any) {
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })

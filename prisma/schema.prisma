@@ -102,6 +102,7 @@ model Empleado {
   supervisorAsignado  SupervisorVendedor[] @relation("VendedorSupervisor")
   turnos              Turno[]
   visitas             Visita[]
+  visitaResumenes     VisitaResumen[]
   ordenesAlistadas    OrdenDespacho[]      @relation("AlistadoPor")
   ordenesRepartidas   OrdenDespacho[]      @relation("RepartidorDespacho")
   comisionConfigs     ComisionConfig[]
@@ -213,6 +214,33 @@ model Visita {
   @@index([fechaBogota], map: "idx_visita_fechabogota")
   @@map("Visita")
   @@index([turnoId])
+}
+
+model VisitaResumen {
+  id            String   @id @default(cuid())
+  empleadoId    String
+  // 'dia' o 'mes'
+  granularidad  String
+  // 'dia'  → "2026-06-07"  (fecha exacta Bogotá)
+  // 'mes'  → "2026-06-01"  (primer día del mes)
+  fecha         String
+  // Conteos
+  total         Int      @default(0)
+  visitas       Int      @default(0)
+  ventas        Int      @default(0)
+  cobros        Int      @default(0)
+  entregas      Int      @default(0)
+  // Montos
+  montoVentas   Float    @default(0)
+  montoCobros   Float    @default(0)
+  // Control
+  actualizadoEn DateTime @updatedAt
+
+  empleado Empleado @relation(fields: [empleadoId], references: [id])
+
+  @@unique([empleadoId, granularidad, fecha])
+  @@index([empleadoId, granularidad, fecha])
+  @@map("VisitaResumen")
 }
 
 model Ruta {

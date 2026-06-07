@@ -47,11 +47,18 @@ export async function GET() {
   const miApiId: string | null = empleadoData?.apiId || null
 
   // ── Fase 2: queries paralelas ─────────────────────────────────────
-  const hace90dias = new Date(ahora)
-  hace90dias.setDate(hace90dias.getDate() - 90)
+  // Últimos 7 días + 6 meses como claves para el resumen
+  const diasKeys = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(ahora); d.setDate(d.getDate() - i)
+    return d.toISOString().split('T')[0]
+  })
+  const mesesKeys = Array.from({ length: 6 }, (_, i) => {
+    const d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1)
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`
+  })
 
   const [
-    todasVisitas,
+    resumenes,
     visitasAyer,
     ordenesHoy,
     ordenesMes,
@@ -60,15 +67,15 @@ export async function GET() {
     metaRecaudo,
     metaVentaRow,
   ] = await Promise.all([
-    // Visitas últimos 90 días
-    prisma.visita.findMany({
-      where: { empleadoId: user.id, createdAt: { gte: hace90dias } },
-      orderBy: { fechaBogota: 'asc' },
+    // Resúmenes precalculados — 7 días + 6 meses (13 filas max)
+    (prisma as any).visitaResumen.findMany({
+      where: {
+        empleadoId: user.id,
+        fecha: { in: [...diasKeys, ...mesesKeys] },
+      },
     }),
-    // Visitas de ayer
-    prisma.visita.findMany({
-      where: { empleadoId: user.id, fechaBogota: { gte: inicioAyer, lt: finAyer } },
-    }),
+    // Visitas de ayer — del resumen (se mantiene por compatibilidad de tipo)
+    Promise.resolve([]),
     // Órdenes hoy — desp por fechaOrden, fact por fechaFactura
     miApiId
       ? (prisma as any).ordenDespacho.findMany({
@@ -115,23 +122,20 @@ export async function GET() {
     }),
   ])
 
-  // ── Visitas hoy ───────────────────────────────────────────────────
-  const visitasHoy = todasVisitas.filter(v => {
-    const fv = v.fechaBogota
-      ? new Date(v.fechaBogota).toISOString().split('T')[0]
-      : new Date(new Date(v.createdAt).getTime() - 5*60*60*1000).toISOString().split('T')[0]
-    return fv === hoyStr
-  })
+  // ── Visitas hoy — desde resumen precalculado ──────────────────────
+  const byFecha = Object.fromEntries((resumenes as any[]).map((r: any) => [`${r.granularidad}:${r.fecha}`, r]))
+  const resHoy  = byFecha[`dia:${hoyStr}`]
+  const resAyer = byFecha[`dia:${diasKeys[1]}`]
 
   const hoy = {
-    total:       visitasHoy.length,
-    visitas:     visitasHoy.filter(v => v.tipo === 'visita').length,
-    ventas:      visitasHoy.filter(v => v.tipo === 'venta').length,
-    cobros:      visitasHoy.filter(v => v.tipo === 'cobro').length,
-    entregas:    visitasHoy.filter(v => v.tipo === 'entrega').length,
-    montoVentas: visitasHoy.filter(v => v.tipo === 'venta').reduce((a, v) => a + Number(v.monto || 0), 0),
-    montoCobros: visitasHoy.filter(v => v.tipo === 'cobro').reduce((a, v) => a + Number(v.monto || 0), 0),
-    ayer:        visitasAyer.length,
+    total:       resHoy?.total       ?? 0,
+    visitas:     resHoy?.visitas     ?? 0,
+    ventas:      resHoy?.ventas      ?? 0,
+    cobros:      resHoy?.cobros      ?? 0,
+    entregas:    resHoy?.entregas    ?? 0,
+    montoVentas: resHoy?.montoVentas ?? 0,
+    montoCobros: resHoy?.montoCobros ?? 0,
+    ayer:        resAyer?.total      ?? 0,
   }
 
   // ── Órdenes ───────────────────────────────────────────────────────
@@ -160,45 +164,31 @@ export async function GET() {
     meta:         Number((metaRecaudo as any)?.metaPesos           || 0),
   }
 
-  // ── Historial últimos 6 días ──────────────────────────────────────
-  const dias = []
-  for (let i = 5; i >= 0; i--) {
-    const d = haceNDiasBogota(i)
-    const dStr = d.toISOString().split('T')[0]
-    const vDia = todasVisitas.filter(v => {
-      const fv = v.fechaBogota
-        ? new Date(v.fechaBogota).toISOString().split('T')[0]
-        : new Date(new Date(v.createdAt).getTime() - 5*60*60*1000).toISOString().split('T')[0]
-      return fv === dStr
-    })
-    dias.push({
+  // ── Historial últimos 6 días — desde resumen ─────────────────────
+  const dias = Array.from({ length: 6 }, (_, i) => {
+    const dStr = diasKeys[5 - i]   // más antiguo → más reciente
+    const r = byFecha[`dia:${dStr}`]
+    return {
       fecha:       dStr,
       label:       new Date(dStr + 'T12:00:00Z').toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric' }),
-      total:       vDia.length,
-      montoVentas: vDia.filter(v => v.tipo === 'venta').reduce((a, v) => a + Number(v.monto || 0), 0),
-      montoCobros: vDia.filter(v => v.tipo === 'cobro').reduce((a, v) => a + Number(v.monto || 0), 0),
-    })
-  }
+      total:       r?.total       ?? 0,
+      montoVentas: r?.montoVentas ?? 0,
+      montoCobros: r?.montoCobros ?? 0,
+    }
+  })
 
-  // ── Historial últimos 6 meses ─────────────────────────────────────
-  const meses = []
-  for (let i = 5; i >= 0; i--) {
-    const d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1)
-    const anio = d.getFullYear()
-    const mes = d.getMonth()
-    const vMes = todasVisitas.filter(v => {
-      const fv = v.fechaBogota
-        ? new Date(v.fechaBogota)
-        : new Date(new Date(v.createdAt).getTime() - 5*60*60*1000)
-      return fv.getFullYear() === anio && fv.getMonth() === mes
-    })
-    meses.push({
+  // ── Historial últimos 6 meses — desde resumen ────────────────────
+  const meses = Array.from({ length: 6 }, (_, i) => {
+    const d    = new Date(ahora.getFullYear(), ahora.getMonth() - (5 - i), 1)
+    const key  = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-01`
+    const r    = byFecha[`mes:${key}`]
+    return {
       label:       d.toLocaleDateString('es-CO', { month: 'short' }).replace('.','') + ' ' + String(d.getFullYear()).slice(-2),
-      total:       vMes.length,
-      montoVentas: vMes.filter(v => v.tipo === 'venta').reduce((a, v) => a + Number(v.monto || 0), 0),
-      montoCobros: vMes.filter(v => v.tipo === 'cobro').reduce((a, v) => a + Number(v.monto || 0), 0),
-    })
-  }
+      total:       r?.total       ?? 0,
+      montoVentas: r?.montoVentas ?? 0,
+      montoCobros: r?.montoCobros ?? 0,
+    }
+  })
 
   // ── Impulsadoras ──────────────────────────────────────────────────
   const cumplimiento = await Promise.all(impulsadoras.map(async (imp) => {

@@ -6,6 +6,7 @@ import { nowBogota, fechaHoyBogota, inicioDiaBogota, finDiaBogota } from '@/lib/
 import { invalidateKeys } from '@/lib/cache'
 import { subirFirma } from '@/lib/r2'
 import { audit } from '@/lib/audit'
+import { actualizarResumenVisita } from '@/lib/visitaResumen'
 import { distanciaMetros } from '@/lib/gps'
 
 export async function GET() {
@@ -148,6 +149,10 @@ export async function POST(req: NextRequest) {
   if (alertaDistancia) {
     await audit('GPS_FUERA_RANGO', user.email, `Empleado a ${alertaDistancia}m del cliente ${cli?.nombre || clienteId}`, user.id, user.empresaId)
   }
+  // Actualizar resumen de visitas (best-effort)
+  const fechaBogotaStr = visita.fechaBogota ? new Date(visita.fechaBogota).toISOString().split('T')[0] : null
+  actualizarResumenVisita(user.id, { tipo: tipo || 'visita', monto }, fechaBogotaStr).catch(() => {})
+
   await audit('VISITA_REGISTRADA', user.email, `Tipo: ${tipo} | Cliente: ${clienteId} | Libre: ${esLibre}`, user.id, user.empresaId)
   // Invalidar caché de stats afectados por esta visita
   await invalidateKeys(
