@@ -331,6 +331,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
     const cartera = data.cartera
     if (cartera && Number(cartera.saldoTotal) > 0) {
       setModalRecaudoRapido(false)
+      setLineasPago([crearLinea()])  // reset antes de cargar — evita stale state de sesión anterior
       setRecaudandoCartera(cartera)
       setNotasPago('')
       cargarDetalleCartera({ ...cartera, clienteId: cliente.id })
@@ -727,7 +728,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
                   {!rrLoadingCartera && rrCartera.length === 0 && <p className="text-zinc-500 text-sm text-center py-6">Sin clientes con deuda activa</p>}
                   {!rrLoadingCartera && rrCartera.map((cartera: any) => (
                     <CarteraCard key={cartera.id||cartera.clienteId} cartera={cartera} rol={user?.role||'vendedor'} fmt={fmt}
-                      onRecaudar={(c: any) => { setModalRecaudoRapido(false); setRecaudandoCartera(c); cargarDetalleCartera(c) }}
+                      onRecaudar={(c: any) => { setModalRecaudoRapido(false); setLineasPago([crearLinea()]); setRecaudandoCartera(c); cargarDetalleCartera(c) }}
                       onWhatsApp={abrirWhatsApp} variant="modal" />
                   ))}
                 </>

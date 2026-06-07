@@ -79,9 +79,10 @@ export async function POST(req: NextRequest) {
     : Number(monto)
   const descuentoNum = Number(descuento) || 0
   // Método derivado de líneas — no depende del campo redundante del body
+  // Si no hay lineasPago en el body, usar metodoPago suelto como fallback (compat. cartera/page.tsx)
   const metodoPagoFinal = lineasValidas.length > 1
     ? 'mixto'
-    : (lineasValidas[0]?.metodoPago || 'efectivo')
+    : (lineasValidas[0]?.metodoPago || metodoPago || 'efectivo')
 
   // Validación de input
   if (!Number.isFinite(montoNum) || montoNum < 0) {
