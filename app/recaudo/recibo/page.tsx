@@ -2,7 +2,6 @@
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import html2canvas from 'html2canvas'
 
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
 const metodoLabel: Record<string, string> = {
@@ -210,6 +209,7 @@ function ReciboContent() {
     const ticket = document.querySelector('.ticket') as HTMLElement | null
     if (!ticket) return
     try {
+      const { default: html2canvas } = await import('html2canvas')
       const canvas = await html2canvas(ticket, { useCORS: true, scale: 2, backgroundColor: '#ffffff' })
       const blob = await new Promise<Blob>((resolve, reject) =>
         canvas.toBlob(b => b ? resolve(b) : reject(new Error('blob null')), 'image/png')
