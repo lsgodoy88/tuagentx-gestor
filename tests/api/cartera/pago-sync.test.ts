@@ -8,6 +8,7 @@ vi.mock('@/lib/prisma', () => ({
     empresa: { findUnique: vi.fn() },
     syncDeuda: { findMany: vi.fn() },
     integracion: { findFirst: vi.fn() },
+    pagoCartera: { findUnique: vi.fn().mockResolvedValue(null) },
     $transaction: vi.fn(),
   },
 }))
@@ -29,7 +30,7 @@ import { POST } from '@/app/api/cartera/pago-sync/route'
 import { prisma } from '@/lib/prisma'
 import { getServerSession } from 'next-auth'
 
-const VENDEDOR = { user: { id: 'usr-1', role: 'vendedor', empresaId: 'emp-1', email: 'v@x.com' } } as any
+const VENDEDOR = { user: { id: 'usr-1', role: 'vendedor', empresaId: 'emp-1', email: 'v@x.com', apiId: 'api-usr-1' } } as any
 const EMPRESA = { user: { id: 'emp-1', role: 'empresa', email: 'e@x.com' } } as any
 
 const makeReq = (body: any) => new NextRequest('http://localhost/api/cartera/pago-sync', {
@@ -39,9 +40,10 @@ const makeReq = (body: any) => new NextRequest('http://localhost/api/cartera/pag
 function mockTx(txMocks: any) {
   // Defaults para modelos agregados — visita, turno, cliente dentro de tx
   const defaults = {
-    turno:   { findFirst: vi.fn().mockResolvedValue({ id: 'turno-1' }) },
-    visita:  { create:    vi.fn().mockResolvedValue({}) },
-    cliente: { findFirst: vi.fn().mockResolvedValue({ id: 'c1' }) },
+    turno:       { findFirst: vi.fn().mockResolvedValue({ id: 'turno-1' }) },
+    visita:      { create:    vi.fn().mockResolvedValue({}) },
+    cliente:     { findFirst: vi.fn().mockResolvedValue({ id: 'c1' }) },
+    pagoCartera: { findUnique: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({ id: 'pago-1' }) },
   }
   vi.mocked((prisma as any).$transaction).mockImplementation(async (cb: any) => cb({ ...defaults, ...txMocks }))
 }
@@ -52,6 +54,12 @@ function setupHappyPath() {
   vi.mocked(prisma.empleado.findUnique).mockResolvedValue({ nombre: 'Vendedor X' } as any)
   vi.mocked(prisma.empresa.findUnique).mockResolvedValue({ configRecibos: { anchoPapel: '80mm' } } as any)
   vi.mocked((prisma as any).integracion.findFirst).mockResolvedValue(null)
+  // Por defecto: deuda asignada al vendedor (scope check pasa)
+  vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
+    { id: 'sd-default', externalId: 'ext-default', saldo: 100, abono: 0,
+      numeroFactura: 1, fechaVencimiento: new Date('2026-01-01'),
+      empleadoExternalId: 'api-usr-1' }
+  ])
 }
 
 describe('POST /api/cartera/pago-sync', () => {
@@ -130,6 +138,7 @@ describe('POST /api/cartera/pago-sync', () => {
       vi.mocked(prisma.cliente.findFirst).mockResolvedValue({ id: 'c1', nombre: 'X' } as any)
       vi.mocked(prisma.empresa.findUnique).mockResolvedValue({ configRecibos: {} } as any)
       vi.mocked((prisma as any).integracion.findFirst).mockResolvedValue(null)
+      // Rol empresa no tiene scope check de vendedor
       vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([])
       mockTx({ pagoCartera: { create: vi.fn().mockResolvedValue({ id: 'pago-1' }) }, syncDeuda: { findUnique: vi.fn(), update: vi.fn() } })
     })
@@ -156,6 +165,11 @@ describe('POST /api/cartera/pago-sync', () => {
     it('rol vendedor: usa user.id directamente', async () => {
       vi.mocked(getServerSession).mockResolvedValue(VENDEDOR)
       vi.mocked(prisma.empleado.findUnique).mockResolvedValue({ nombre: 'V' } as any)
+      // Scope vendedor: deuda debe tener empleadoExternalId = user.apiId
+      vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
+        { id: 'sd-1', externalId: 'ext-1', saldo: 100, abono: 0, numeroFactura: 1,
+          fechaVencimiento: new Date('2026-01-01'), empleadoExternalId: 'api-usr-1' }
+      ])
       const res = await POST(makeReq({ clienteApiId: 'erp-c1', monto: 100 }))
       expect(res.status).toBe(200)
       expect(prisma.empleado.findUnique).toHaveBeenCalledWith(
@@ -228,9 +242,9 @@ describe('POST /api/cartera/pago-sync', () => {
 
     it('pago $150 sobre 3 deudas → cubre 1ra ($50) + 2da ($100), no toca la 3ra', async () => {
       vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
-        { id: 'sd-1', externalId: 'ext-1', numeroFactura: 101, saldo: 50,  abono: 0, fechaVencimiento: new Date('2026-01-01') },
-        { id: 'sd-2', externalId: 'ext-2', numeroFactura: 102, saldo: 100, abono: 0, fechaVencimiento: new Date('2026-02-01') },
-        { id: 'sd-3', externalId: 'ext-3', numeroFactura: 103, saldo: 200, abono: 0, fechaVencimiento: new Date('2026-03-01') },
+        { id: 'sd-1', externalId: 'ext-1', numeroFactura: 101, saldo: 50,  abono: 0, fechaVencimiento: new Date('2026-01-01'), empleadoExternalId: 'api-usr-1' },
+        { id: 'sd-2', externalId: 'ext-2', numeroFactura: 102, saldo: 100, abono: 0, fechaVencimiento: new Date('2026-02-01'), empleadoExternalId: 'api-usr-1' },
+        { id: 'sd-3', externalId: 'ext-3', numeroFactura: 103, saldo: 200, abono: 0, fechaVencimiento: new Date('2026-03-01'), empleadoExternalId: 'api-usr-1' },
       ])
       const pagoCreate = vi.fn().mockResolvedValue({ id: 'p1' })
       const sdFindUnique = vi.fn()
@@ -250,7 +264,7 @@ describe('POST /api/cartera/pago-sync', () => {
 
     it('pago parcial: $30 sobre deuda de $100 → 1 aplicación de $30', async () => {
       vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
-        { id: 'sd-1', externalId: 'ext-1', numeroFactura: 101, saldo: 100, abono: 0, fechaVencimiento: new Date('2026-01-01') },
+        { id: 'sd-1', externalId: 'ext-1', numeroFactura: 101, saldo: 100, abono: 0, fechaVencimiento: new Date('2026-01-01'), empleadoExternalId: 'api-usr-1' },
       ])
       const pagoCreate = vi.fn().mockResolvedValue({ id: 'p1' })
       mockTx({ pagoCartera: { create: pagoCreate }, syncDeuda: { findUnique: vi.fn().mockResolvedValue({ saldo: 100, abono: 0 }), update: vi.fn() } })
@@ -264,8 +278,8 @@ describe('POST /api/cartera/pago-sync', () => {
 
     it('deuda con saldo=0 se skippea', async () => {
       vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
-        { id: 'sd-pagada', externalId: 'ext-1', saldo: 0, abono: 100, numeroFactura: 101, fechaVencimiento: new Date('2026-01-01') },
-        { id: 'sd-pendiente', externalId: 'ext-2', saldo: 80, abono: 0, numeroFactura: 102, fechaVencimiento: new Date('2026-02-01') },
+        { id: 'sd-pagada', externalId: 'ext-1', saldo: 0, abono: 100, numeroFactura: 101, fechaVencimiento: new Date('2026-01-01'), empleadoExternalId: 'api-usr-1' },
+        { id: 'sd-pendiente', externalId: 'ext-2', saldo: 80, abono: 0, numeroFactura: 102, fechaVencimiento: new Date('2026-02-01'), empleadoExternalId: 'api-usr-1' },
       ])
       const pagoCreate = vi.fn().mockResolvedValue({ id: 'p1' })
       mockTx({ pagoCartera: { create: pagoCreate }, syncDeuda: { findUnique: vi.fn().mockResolvedValue({ saldo: 80, abono: 0 }), update: vi.fn() } })
@@ -293,7 +307,7 @@ describe('POST /api/cartera/pago-sync', () => {
 
     it('aplicar $30 → sd.saldo: 100→70, abono: 0→30, condition: true', async () => {
       vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
-        { id: 'sd-1', externalId: 'ext-1', saldo: 100, abono: 0, numeroFactura: 101, fechaVencimiento: new Date('2026-01-01') },
+        { id: 'sd-1', externalId: 'ext-1', saldo: 100, abono: 0, numeroFactura: 101, fechaVencimiento: new Date('2026-01-01'), empleadoExternalId: 'api-usr-1' },
       ])
       const sdUpdate = vi.fn()
       mockTx({
@@ -311,7 +325,7 @@ describe('POST /api/cartera/pago-sync', () => {
 
     it('aplicar exacto: $100 sobre $100 → saldo=0, condition=false (deuda pagada)', async () => {
       vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
-        { id: 'sd-1', externalId: 'ext-1', saldo: 100, abono: 0, numeroFactura: 101, fechaVencimiento: new Date('2026-01-01') },
+        { id: 'sd-1', externalId: 'ext-1', saldo: 100, abono: 0, numeroFactura: 101, fechaVencimiento: new Date('2026-01-01'), empleadoExternalId: 'api-usr-1' },
       ])
       const sdUpdate = vi.fn()
       mockTx({
@@ -330,7 +344,7 @@ describe('POST /api/cartera/pago-sync', () => {
     it('relee saldo dentro de la transacción (anti race condition)', async () => {
       // Pre-tx el saldo era 100, pero dentro de la tx releemos: ahora es 80 (otro pago entró)
       vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
-        { id: 'sd-1', externalId: 'ext-1', saldo: 100, abono: 0, numeroFactura: 101, fechaVencimiento: new Date('2026-01-01') },
+        { id: 'sd-1', externalId: 'ext-1', saldo: 100, abono: 0, numeroFactura: 101, fechaVencimiento: new Date('2026-01-01'), empleadoExternalId: 'api-usr-1' },
       ])
       const sdUpdate = vi.fn()
       mockTx({

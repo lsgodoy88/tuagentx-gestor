@@ -107,11 +107,10 @@ export async function POST(req: NextRequest) {
       })
     : []
 
-  // Scope vendedor — solo puede pagar clientes asignados a él
-  if (user.role === 'vendedor') {
+  // Scope vendedor — si hay deudas seleccionadas, al menos una debe ser suya
+  if (user.role === 'vendedor' && deudas.length > 0) {
     const miApiId = (user as any).apiId || null
     if (!miApiId) return NextResponse.json({ error: 'Vendedor sin apiId en sesión' }, { status: 403 })
-    if (deudas.length === 0) return NextResponse.json({ error: 'Sin deudas válidas para este cliente' }, { status: 403 })
     const asignado = deudas.some((d: any) => d.empleadoExternalId === miApiId)
     if (!asignado) return NextResponse.json({ error: 'Sin permiso para cobrar este cliente' }, { status: 403 })
   }

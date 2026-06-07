@@ -27,7 +27,7 @@ vi.mock('@/lib/prisma', () => {
     empleado:   { findFirst: vi.fn(), findUnique: vi.fn() },
     empresa:    { findUnique: vi.fn() },
     integracion:{ findFirst: vi.fn() },
-    pagoCartera:{ create: vi.fn() },
+    pagoCartera:{ create: vi.fn(), findUnique: vi.fn().mockResolvedValue(null) },
     syncDeuda:  { findMany: vi.fn(), findUnique: vi.fn().mockResolvedValue({ saldo: 0, abono: 0 }), update: vi.fn() },
     visita:     { create: vi.fn() },
     turno:      { findFirst: vi.fn().mockResolvedValue({ id: 'turno-1' }) },
@@ -45,7 +45,7 @@ import { getServerSession } from 'next-auth'
 // ── Fixtures ──────────────────────────────────────────────────────
 
 const SESSION = {
-  user: { id: 'emp-1', role: 'vendedor', empresaId: 'emp-co-1', email: 'v@x.com' }
+  user: { id: 'emp-1', role: 'vendedor', empresaId: 'emp-co-1', email: 'v@x.com', apiId: 'api-emp-1' }
 } as any
 
 const makeReq = (body: any) => new NextRequest('http://localhost/api/cartera/pago-sync', {
@@ -85,8 +85,8 @@ describe('GUARDIÁN: Cartera — Pagos', () => {
     it('con deudas → saldoAnterior = suma de saldos ANTES de aplicar', async () => {
       setupBase()
 
-      const deuda1 = { id: 'sd-1', externalId: 'ext-1', saldo: 800000, valor: 1000000, abono: 200000 }
-      const deuda2 = { id: 'sd-2', externalId: 'ext-2', saldo: 300000, valor: 300000, abono: 0 }
+      const deuda1 = { id: 'sd-1', externalId: 'ext-1', saldo: 800000, valor: 1000000, abono: 200000, empleadoExternalId: 'api-emp-1' }
+      const deuda2 = { id: 'sd-2', externalId: 'ext-2', saldo: 300000, valor: 300000, abono: 0, empleadoExternalId: 'api-emp-1' }
 
       vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([deuda1, deuda2])
 
