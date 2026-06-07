@@ -1,11 +1,6 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
 
-function pad(n: number) { return String(n).padStart(2, '0') }
-function fmt(secs: number) {
-  const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60
-  return `${pad(h)}:${pad(m)}:${pad(s)}`
-}
 function getInicioMs(turno: { inicio: string; inicioBogota?: string | null }) {
   if (turno.inicioBogota) {
     const [hh, mm] = turno.inicioBogota.split(':').map(Number)
@@ -17,7 +12,15 @@ function getInicioMs(turno: { inicio: string; inicioBogota?: string | null }) {
   return new Date(turno.inicio).getTime()
 }
 
-// Re-render confinado aquí — el padre (811 líneas) no se toca cada segundo
+function fmtMinutos(ms: number) {
+  const totalMin = Math.max(0, Math.floor(ms / 60000))
+  const h = Math.floor(totalMin / 60)
+  const m = totalMin % 60
+  if (h === 0) return `${m}m`
+  return `${h}h ${m}m`
+}
+
+// Re-render cada 60s — no cada 1s
 export function TurnoTimer({
   turno,
   className = 'font-mono font-semibold text-emerald-400 text-sm tabular-nums',
@@ -25,23 +28,22 @@ export function TurnoTimer({
   turno: { inicio: string; inicioBogota?: string | null }
   className?: string
 }) {
-  const calc = useCallback(() => {
-    const diff = Math.max(0, Math.floor((Date.now() - getInicioMs(turno)) / 1000))
-    return fmt(diff)
-  }, [turno])
+  const calc = useCallback(() =>
+    fmtMinutos(Date.now() - getInicioMs(turno)),
+  [turno])
 
   const [display, setDisplay] = useState(calc)
 
   useEffect(() => {
     setDisplay(calc())
-    const id = setInterval(() => setDisplay(calc()), 1000)
+    const id = setInterval(() => setDisplay(calc()), 60000)
     return () => clearInterval(id)
   }, [calc])
 
   return <span className={className}>{display}</span>
 }
 
-// Monta solo en pausa — mismo aislamiento
+// Pausa — countdown en minutos, interval 60s
 export function PausaTimer({
   pausaInicio,
   pausaDuracionMin,
@@ -52,11 +54,10 @@ export function PausaTimer({
   onExpired: () => void
 }) {
   const calc = useCallback(() => {
-    const ini = new Date(pausaInicio).getTime()
-    const fin = ini + pausaDuracionMin * 60000
-    const ahora = Date.now()
-    const restante = Math.max(0, Math.floor((fin - ahora) / 1000))
-    return { restante: fmt(restante), expired: restante === 0 }
+    const fin = new Date(pausaInicio).getTime() + pausaDuracionMin * 60000
+    const restanteMs = fin - Date.now()
+    const restanteMin = Math.max(0, Math.ceil(restanteMs / 60000))
+    return { display: `${restanteMin}m`, expired: restanteMs <= 0 }
   }, [pausaInicio, pausaDuracionMin])
 
   const [state, setState] = useState(calc)
@@ -67,13 +68,13 @@ export function PausaTimer({
       const next = calc()
       setState(next)
       if (next.expired) { clearInterval(id); onExpired() }
-    }, 1000)
+    }, 60000)
     return () => clearInterval(id)
   }, [calc, onExpired])
 
   return (
     <span className="font-mono font-bold text-amber-400 text-lg flex-1 tabular-nums">
-      {state.restante}
+      {state.display}
     </span>
   )
 }
