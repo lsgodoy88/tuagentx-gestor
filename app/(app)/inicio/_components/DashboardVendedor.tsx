@@ -6,6 +6,7 @@ import { fetchApi } from '@/lib/fetchApi'
 import { useGpsEnDemanda } from '@/components/useGpsEnDemanda'
 import { estadoMasCritico } from '@/lib/cartera'
 import { CountUp, SkeletonCard, LoadingBorder } from '@/components/FX'
+import { TurnoTimer, PausaTimer } from '@/components/TurnoTimer'
 import type { VendedorStats, TurnoActivo } from '@/lib/types/vendedor'
 import { CardKPIGroup, CardSub, CardCountAdmin, CardCountAdminSkeleton } from '@/components/ui/cards'
 import dynamic from 'next/dynamic'
@@ -57,7 +58,6 @@ export default function DashboardVendedor({ user }: { user: any }) {
   // Turno
   const [turno, setTurno]               = useState<TurnoActivo | null>(null)
   const [cargandoTurno, setCargandoTurno] = useState(true)
-  const [tiempoTurno, setTiempoTurno]   = useState('')
   const [turnoExpandido, setTurnoExpandido] = useState(false)
   const [bloqueadoTurno, setBloqueadoTurno] = useState(false)
   const [mostrarPausa, setMostrarPausa] = useState(false)
@@ -65,8 +65,6 @@ export default function DashboardVendedor({ user }: { user: any }) {
   const [pausaMotivoCustom, setPausaMotivoCustom] = useState('')
   const [pausaDuracion, setPausaDuracion] = useState(60)
   const [pausaDuracionCustom, setPausaDuracionCustom] = useState(false)
-  const [tiempoPausa, setTiempoPausa]   = useState('')
-  const [pausaCountdown, setPausaCountdown] = useState('')
 
   // Stats
   const [statsVendedor, setStatsVendedor] = useState<VendedorStats | null>(null)
@@ -113,54 +111,17 @@ export default function DashboardVendedor({ user }: { user: any }) {
   const fileInputRefs = useRef<Map<string, HTMLInputElement | null>>(new Map())
 
   // ── Timer turno ─────────────────────────────────────────────────────────
-  useEffect(() => {
-    if (!turno) return
-    // Usar inicioBogota (HH:mm) si existe — reconstruir timestamp correcto en Bogotá
-    const getInicioMs = () => {
-      if (turno.inicioBogota) {
-        const [hh, mm] = turno.inicioBogota.split(':').map(Number)
-        const ahoraBog = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
-        ahoraBog.setHours(hh, mm, 0, 0)
-        // Si la hora reconstruida es futura, el turno inició ayer
-        if (ahoraBog.getTime() > Date.now()) ahoraBog.setDate(ahoraBog.getDate() - 1)
-        return ahoraBog.getTime()
-      }
-      return new Date(turno.inicio).getTime()
-    }
-    const calcTiempo = () => {
-      const diff = Math.max(0, Math.floor((Date.now() - getInicioMs()) / 1000))
-      const h = Math.floor(diff / 3600), m = Math.floor((diff % 3600) / 60), s = diff % 60
-      return String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0')
-    }
-    setTiempoTurno(calcTiempo())
-    const interval = setInterval(() => {
-      const diff = Math.max(0, Math.floor((Date.now() - getInicioMs()) / 1000))
-      const h = Math.floor(diff / 3600), m = Math.floor((diff % 3600) / 60), s = diff % 60
-      setTiempoTurno(String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0'))
-      if (turno.pausado && turno.pausaInicio && turno.pausaDuracionMin) {
-        const pausaIni = new Date(turno.pausaInicio).getTime()
-        const pausaFin = pausaIni + turno.pausaDuracionMin * 60000
-        const ahora2   = Date.now()
-        const transcurrido = Math.floor((ahora2 - pausaIni) / 1000)
-        const restante = Math.max(0, Math.floor((pausaFin - ahora2) / 1000))
-        const tp_m = Math.floor(transcurrido / 60), tp_s = transcurrido % 60
-        setTiempoPausa(String(tp_m).padStart(2,'0') + ':' + String(tp_s).padStart(2,'0'))
-        const r_m = Math.floor(restante / 60), r_s = restante % 60
-        setPausaCountdown(String(r_m).padStart(2,'0') + ':' + String(r_s).padStart(2,'0'))
-        if (restante === 0) reanudarTurno()
-      }
-    }, 1000)
-    return () => clearInterval(interval)
-  }, [turno])
+  // Timer del turno — manejado por TurnoTimer/PausaTimer (componentes aislados)
 
   // ── Carga inicial ────────────────────────────────────────────────────────
-  // Prefetch silencioso — 3s después del primer render, carga modales en background
+  // Prefetch silencioso — 8s después del primer render, carga modales en background
+  // (3s competía con fetches de datos aún en curso en mobile lento)
   useEffect(() => {
     const t = setTimeout(() => {
       import('@/components/ModalRecaudo').catch(() => {})
       import('@/components/ModalVisita').catch(() => {})
       import('@/components/CarteraCard').catch(() => {})
-    }, 3000)
+    }, 8000)
     return () => clearTimeout(t)
   }, [])
 
@@ -263,7 +224,9 @@ export default function DashboardVendedor({ user }: { user: any }) {
   async function iniciarTurno() {
     if (bloqueadoTurno) return
     setBloqueadoTurno(true)
+    setObteniendoGps(true)
     const ubicacion = await getUbicacion()
+    setObteniendoGps(false)
     // GPS es obligatorio para iniciar turno — sin coordenadas no se registra
     if (!ubicacion) {
       alert('⚠️ No se pudo obtener tu ubicación GPS.\n\nVerifica que el GPS esté activado y que hayas dado permiso a este sitio.')
@@ -457,7 +420,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
                   <span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 live-ping" />
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400" />
                 </span>
-                <span className="font-mono font-bold text-amber-400 text-lg flex-1 tabular-nums">{pausaCountdown}</span>
+                {turno.pausaInicio && turno.pausaDuracionMin ? <PausaTimer pausaInicio={turno.pausaInicio} pausaDuracionMin={turno.pausaDuracionMin} onExpired={reanudarTurno} /> : <span className="font-mono font-bold text-amber-400 text-lg flex-1 tabular-nums">--:--</span>}
                 <span className="text-zinc-500 text-xs">⏸ {turno.pausaMotivo}</span>
                 <span className={`text-zinc-600 text-[10px] ${turnoExpandido ? 'rotate-180' : ''}`}>▼</span>
               </button>
@@ -484,7 +447,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
                     <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 live-ping" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                   </span>
-                  <span className="font-mono font-semibold text-emerald-400 text-sm tabular-nums">{tiempoTurno}</span>
+                  <TurnoTimer turno={turno} />
                   <span className="w-7 h-7 flex items-center justify-center bg-zinc-800 rounded-lg text-xs"
                     onClick={e => { e.stopPropagation(); setMostrarPausa(m => !m); setTurnoExpandido(true) }}>⏸</span>
                   <span className={`text-zinc-600 text-[10px] ${turnoExpandido ? 'rotate-180' : ''}`}>▼</span>
@@ -495,7 +458,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
                   <div className="px-4 pb-4 pt-3 space-y-3">
                     <div className="grid grid-cols-2 gap-2">
                       <div className="rounded-lg p-2" style={{background:'rgba(148,160,185,0.28)',border:'1px solid rgba(148,180,255,0.25)'}}><p className="text-zinc-500 text-xs">Hora inicio</p><p className="text-sm font-bold text-white">{new Date(turno.inicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",timeZone:'America/Bogota'})}</p></div>
-                      <div className="rounded-lg p-2" style={{background:'rgba(148,160,185,0.28)',border:'1px solid rgba(148,180,255,0.25)'}}><p className="text-zinc-500 text-xs">Contador</p><p className="text-emerald-400 font-mono font-bold">{tiempoTurno}</p></div>
+                      <div className="rounded-lg p-2" style={{background:'rgba(148,160,185,0.28)',border:'1px solid rgba(148,180,255,0.25)'}}><p className="text-zinc-500 text-xs">Contador</p><TurnoTimer turno={turno} className="text-emerald-400 font-mono font-bold" /></div>
                     </div>
                     <button onClick={cerrarTurno} className="w-full bg-red-600 text-white text-sm font-bold py-2.5 rounded-xl">{bloqueadoTurno ? "..." : "Cerrar turno"}</button>
                     <div className="flex gap-2">
@@ -524,7 +487,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
           ) : (
             <div style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:16,overflow:"hidden"}}>
               <div className="flex items-center justify-between gap-2 px-3 py-2.5">
-                <button onClick={iniciarTurno} className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors">⚡ Iniciar turno</button>
+                <button onClick={iniciarTurno} disabled={bloqueadoTurno || obteniendoGps} className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors">{obteniendoGps ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Buscando GPS...</> : <>⚡ Iniciar turno</>}</button>
                 <a href="/historial-turnos" className="flex items-center gap-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold px-3 py-2 rounded-xl flex-shrink-0">📅</a>
               </div>
             </div>
