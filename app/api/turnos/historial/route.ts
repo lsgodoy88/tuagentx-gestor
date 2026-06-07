@@ -1,22 +1,36 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
 
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
 
+  const { searchParams } = new URL(req.url)
+  const cursor = searchParams.get('cursor') || null
+  const DIAS = 15
+  const desde = new Date(Date.now() - DIAS * 24 * 60 * 60 * 1000)
+
   const turnos = await prisma.turno.findMany({
-    where: { empleadoId: user.id, activo: false },
+    where: {
+      empleadoId: user.id,
+      activo: false,
+      inicio: { gte: desde },
+    },
     orderBy: { inicio: 'desc' },
-    take: 60,
+    take: 50 + 1,
+    ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
   })
 
-  const data = turnos.map(t => {
+  const hasMore = turnos.length > 50
+  const page = hasMore ? turnos.slice(0, 50) : turnos
+  const nextCursor = hasMore ? page[page.length - 1].id : null
+
+  const data = page.map(t => {
     const inicio = new Date(t.inicio)
     const fin = t.fin ? new Date(t.fin) : null
     const duracionMs = fin ? fin.getTime() - inicio.getTime() : null
@@ -41,7 +55,7 @@ export async function GET() {
     }
   })
 
-  return NextResponse.json(data)
+  return NextResponse.json({ turnos: data, nextCursor, hasMore })
   } catch (err: any) {
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   }
