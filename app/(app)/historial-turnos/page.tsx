@@ -4,63 +4,113 @@ import { useRouter } from 'next/navigation'
 
 export default function HistorialTurnosPage() {
   const router = useRouter()
-  const [turnos, setTurnos] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
+  const [turnos, setTurnos]       = useState<any[]>([])
+  const [loading, setLoading]     = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
-  const [nextCursor, setNextCursor] = useState<string | null>(null)
-  const [hasMore, setHasMore] = useState(false)
+  const [nextCursor, setNextCursor]   = useState<string | null>(null)
+  const [hasMore, setHasMore]         = useState(false)
+  const [fecha, setFecha]             = useState<string>('')
+  const [mostrarPicker, setMostrarPicker] = useState(false)
 
-  const load = useCallback(async (cursor?: string) => {
-    const url = '/api/turnos/historial' + (cursor ? `?cursor=${cursor}` : '')
-    const res = await fetch(url)
+  const fetchTurnos = useCallback(async (cursor?: string, fechaParam?: string) => {
+    const params = new URLSearchParams()
+    if (cursor)     params.set('cursor', cursor)
+    if (fechaParam) params.set('fecha', fechaParam)
+    const res = await fetch('/api/turnos/historial?' + params.toString())
     const d = await res.json()
     const list = Array.isArray(d.turnos) ? d.turnos : Array.isArray(d) ? d : []
     return { list, nextCursor: d.nextCursor ?? null, hasMore: d.hasMore ?? false }
   }, [])
 
-  useEffect(() => {
-    load().then(({ list, nextCursor, hasMore }) => {
-      setTurnos(list)
-      setNextCursor(nextCursor)
-      setHasMore(hasMore)
-      setLoading(false)
-    }).catch(() => setLoading(false))
-  }, [load])
+  const reload = useCallback(async (fechaParam?: string) => {
+    setLoading(true)
+    const { list, nextCursor, hasMore } = await fetchTurnos(undefined, fechaParam).catch(() => ({ list: [], nextCursor: null, hasMore: false }))
+    setTurnos(list)
+    setNextCursor(nextCursor)
+    setHasMore(hasMore)
+    setLoading(false)
+  }, [fetchTurnos])
+
+  useEffect(() => { reload() }, [reload])
 
   async function loadMore() {
     if (!nextCursor || loadingMore) return
     setLoadingMore(true)
-    const { list, nextCursor: nc, hasMore: hm } = await load(nextCursor)
+    const { list, nextCursor: nc, hasMore: hm } = await fetchTurnos(nextCursor, fecha || undefined)
     setTurnos(prev => [...prev, ...list])
     setNextCursor(nc)
     setHasMore(hm)
     setLoadingMore(false)
   }
 
+  function aplicarFecha(f: string) {
+    setFecha(f)
+    setMostrarPicker(false)
+    reload(f || undefined)
+  }
+
+  function limpiarFecha() {
+    setFecha('')
+    setMostrarPicker(false)
+    reload(undefined)
+  }
+
+  const titulo = fecha
+    ? `📋 ${fecha}`
+    : '📋 Últimos 7 días'
+
   return (
     <div className="w-full pb-24 md:pb-0">
 
-      <div className="flex items-center gap-3 px-3 py-3 border-b border-zinc-800">
+      {/* Header */}
+      <div className="flex items-center gap-2 px-3 py-3 border-b border-zinc-800">
         <button onClick={() => router.back()}
-          className="text-zinc-400 hover:text-white transition-colors text-lg leading-none">‹</button>
-        <h1 className="text-white font-bold text-sm">📋 Historial de turnos · últimos 15 días</h1>
+          className="text-zinc-400 hover:text-white transition-colors text-lg leading-none flex-shrink-0">‹</button>
+        <span className="text-white font-bold text-sm flex-1 truncate">{titulo}</span>
+        {fecha && (
+          <button onClick={limpiarFecha}
+            className="text-zinc-500 hover:text-white text-xs px-2 py-1 rounded-lg bg-zinc-800 flex-shrink-0">
+            ✕
+          </button>
+        )}
+        <button onClick={() => setMostrarPicker(p => !p)}
+          className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-500 transition-colors">
+          📅
+        </button>
       </div>
 
+      {/* Date picker dropdown */}
+      {mostrarPicker && (
+        <div className="px-3 py-2 border-b border-zinc-800 bg-zinc-900">
+          <input
+            type="date"
+            defaultValue={fecha}
+            max={new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]}
+            onChange={e => e.target.value && aplicarFecha(e.target.value)}
+            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
+            autoFocus
+          />
+        </div>
+      )}
+
+      {/* Tabla */}
       {loading && (
         <div className="space-y-px">
-          {[...Array(8)].map((_, i) => <div key={i} className="shimmer h-9 w-full" />)}
+          {[...Array(6)].map((_, i) => <div key={i} className="shimmer h-9 w-full" />)}
         </div>
       )}
 
       {!loading && turnos.length === 0 && (
         <div className="p-6 text-center">
-          <p className="text-zinc-500 text-sm">Sin turnos en los últimos 15 días</p>
+          <p className="text-zinc-500 text-sm">
+            {fecha ? `Sin turnos el ${fecha}` : 'Sin turnos en los últimos 7 días'}
+          </p>
         </div>
       )}
 
       {!loading && turnos.length > 0 && (
         <div className="overflow-x-auto">
-          <table className="w-full text-xs min-w-[560px]">
+          <table className="w-full text-xs min-w-[520px]">
             <thead>
               <tr style={{background:'#0d1220',borderBottom:'1px solid #1e2a3d'}}>
                 {['Fecha','Inicio','Fin','Duración','Pausa'].map(h => (
@@ -113,7 +163,7 @@ export default function HistorialTurnosPage() {
         <div className="px-3 py-3">
           <button onClick={loadMore} disabled={loadingMore}
             className="w-full py-2.5 rounded-xl bg-zinc-800 border border-zinc-700 text-zinc-400 text-xs font-semibold disabled:opacity-50">
-            {loadingMore ? 'Cargando...' : '↓ Cargar más turnos'}
+            {loadingMore ? 'Cargando...' : '↓ Cargar más'}
           </button>
         </div>
       )}

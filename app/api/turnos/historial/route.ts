@@ -12,14 +12,24 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url)
   const cursor = searchParams.get('cursor') || null
-  const DIAS = 15
-  const desde = new Date(Date.now() - DIAS * 24 * 60 * 60 * 1000)
+  const fechaFiltro = searchParams.get('fecha') || null // YYYY-MM-DD Bogotá
+
+  let inicioWhere: any
+  if (fechaFiltro) {
+    // Día completo en Bogotá = UTC+5 (inicio 05:00 UTC del día, fin 05:00 UTC día siguiente)
+    const desdeFecha = new Date(`${fechaFiltro}T05:00:00.000Z`)
+    const hastaFecha = new Date(desdeFecha.getTime() + 24 * 60 * 60 * 1000)
+    inicioWhere = { gte: desdeFecha, lt: hastaFecha }
+  } else {
+    const desde = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+    inicioWhere = { gte: desde }
+  }
 
   const turnos = await prisma.turno.findMany({
     where: {
       empleadoId: user.id,
       activo: false,
-      inicio: { gte: desde },
+      inicio: inicioWhere,
     },
     orderBy: { inicio: 'desc' },
     take: 50 + 1,
