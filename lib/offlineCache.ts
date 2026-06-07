@@ -7,7 +7,7 @@
  *   cacheAge('mi-ruta')                 // minutos desde el guardado
  */
 
-const PREFIX = 'txa_cache_'
+const PREFIX = 'txa_v2_'
 const MAX_AGE_MS = 24 * 60 * 60 * 1000  // 24h — después se ignora
 
 export interface CacheEntry<T> {
