@@ -13,6 +13,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter()
   const pathname = usePathname()
 
+  // Limpiar localStorage de versiones anteriores (txa_cache_ → txa_v2_)
+  useEffect(() => {
+    try {
+      Object.keys(localStorage)
+        .filter(k => k.startsWith('txa_cache_'))
+        .forEach(k => localStorage.removeItem(k))
+    } catch {}
+  }, [])
+
   useEffect(() => {
     const titles: Record<string, string> = {
       '/inicio':        'Inicio',
