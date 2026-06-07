@@ -13,18 +13,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter()
   const pathname = usePathname()
 
-  // Migración one-shot: limpiar cache viejo (txa_cache_*) y forzar refresco de recaudos/pagos
-  useEffect(() => {
-    try {
-      if (!localStorage.getItem('txa_migrated_v3')) {
-        Object.keys(localStorage)
-          .filter(k => k.startsWith('txa_cache_') || k.startsWith('txa_v2_recaudos') || k.startsWith('txa_v2_cartera'))
-          .forEach(k => localStorage.removeItem(k))
-        localStorage.setItem('txa_migrated_v3', '1')
-      }
-    } catch {}
-  }, [])
-
   useEffect(() => {
     const titles: Record<string, string> = {
       '/inicio':        'Inicio',
