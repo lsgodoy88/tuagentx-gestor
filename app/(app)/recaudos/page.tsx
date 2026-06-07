@@ -28,7 +28,6 @@ type Pago = {
   numeroFactura: number | null
   Cartera: {
     Cliente: { id: string; nombre: string; nit: string | null; telefono: string | null }
-    DetalleCartera?: { numeroFactura: string | null }[]
   }
   Empleado: { id: string; nombre: string; rol: string }
 }
@@ -162,7 +161,7 @@ function getColumns(ctx: {
       key: 'factura', label: 'Factura', width: 80, minWidth: 50,
       render: p => (
         <span style={{ fontFamily: 'monospace' }}>
-          {p.numeroFactura || p.Cartera?.DetalleCartera?.[0]?.numeroFactura || '—'}
+          {p.numeroFactura || '—'}
         </span>
       ),
     },

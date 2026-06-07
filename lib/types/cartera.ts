@@ -76,7 +76,7 @@ export interface ReciboCarteraData {
   /** Saldo anterior al pago (congelado o calculado) */
   saldoAnterior: number
   valorFacturasPagadas: number
-  _modo: 'sync' | 'legacy'
+  _modo: 'sync'
 }
 
 export interface ReciboNormalizado extends PagoCartera {
