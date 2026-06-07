@@ -94,8 +94,7 @@ export async function POST(req: NextRequest) {
       const turnosActivos = await prisma.turno.findMany({
         where: {
           empleadoId: { in: empIds },
-          activo: true,
-          inicio: { gte: inicioDiaBogota(hoyStr), lte: finDiaBogota(hoyStr) }
+          activo: true
         },
         select: { id: true, empleadoId: true }
       })
