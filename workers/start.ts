@@ -15,7 +15,7 @@ try {
   }
 } catch { /* .env no encontrado — usar variables de entorno del proceso */ }
 
-import { rutasDiaQueue, integracionQueue, rutasDiaWorker, integracionWorker, entregasWorker, auditQueue, auditWorker, contextoQueue, contextoWorker, mantenimientoQueue, mantenimientoWorker, bodegaSyncQueue, bodegaSyncWorker, syncDeltaQueue, syncDeltaWorker, syncNocturnoQueue, syncNocturnoWorker } from './index'
+import { rutasDiaQueue, integracionQueue, rutasDiaWorker, integracionWorker, auditQueue, auditWorker, mantenimientoQueue, mantenimientoWorker, syncDeltaQueue, syncDeltaWorker, syncNocturnoQueue, syncNocturnoWorker } from './index'
 
 async function main() {
   // ── Registrar jobs repetitivos ────────────────────────────────────────────
@@ -52,14 +52,7 @@ async function main() {
     { name: 'audit-diario', data: {} },
   )
   console.log('  audit      -> audit-diario (0 6 * * * UTC = 1am Bogota)')
-  // Contexto: DESACTIVADO — contexto se mantiene manual via Google Drive
-  // await contextoQueue.upsertJobScheduler(
-  //   'generar-contexto',
-  //   { pattern: '0 3 * * *' },
-  //   { name: 'generar-contexto', data: {} },
-  // )
-  console.log('  contexto      -> DESACTIVADO (manual via Drive)')
-  // bodega-sync-diario ELIMINADO — absorbido por sync-delta
+
 
   // Mantenimiento: 14:00 UTC = 9am Bogota
   await mantenimientoQueue.upsertJobScheduler(
@@ -95,11 +88,8 @@ async function main() {
     await Promise.all([
       rutasDiaWorker.close(),
       integracionWorker.close(),
-      entregasWorker.close(),
       auditWorker.close(),
-      contextoWorker.close(),
       mantenimientoWorker.close(),
-      bodegaSyncWorker.close(),
       syncDeltaWorker.close(),
       syncNocturnoWorker.close(),
     ])
