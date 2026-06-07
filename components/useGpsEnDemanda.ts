@@ -12,15 +12,18 @@ export function useGpsEnDemanda() {
   const [intento, setIntento] = useState(0)
   const [pos, setPos] = useState<GpsPos | null>(null)
   const corriendoRef = useRef(false)
-  const cancelarRef = useRef(false)
+  const cancelarRef  = useRef(false)
+  // Ref espejo de pos — siempre tiene el valor actual aunque obtener() esté en un closure viejo
+  const posRef = useRef<GpsPos | null>(null)
 
   const iniciar = useCallback(async () => {
     if (corriendoRef.current) return
     corriendoRef.current = true
-    cancelarRef.current = false
+    cancelarRef.current  = false
     setEstado('buscando')
     setIntento(0)
     setPos(null)
+    posRef.current = null
 
     for (let i = 1; i <= MAX_INTENTOS; i++) {
       if (cancelarRef.current) { corriendoRef.current = false; return }
@@ -28,6 +31,7 @@ export function useGpsEnDemanda() {
       const p = await obtenerGpsAlto()
       if (cancelarRef.current) { corriendoRef.current = false; return }
       if (p) {
+        posRef.current = p        // ← actualizar ref ANTES de setPos
         setPos(p)
         setEstado('ok')
         corriendoRef.current = false
@@ -42,32 +46,34 @@ export function useGpsEnDemanda() {
   }, [])
 
   const reset = useCallback(() => {
-    cancelarRef.current = true
+    cancelarRef.current  = true
     corriendoRef.current = false
+    posRef.current       = null
     setEstado('inactivo')
     setIntento(0)
     setPos(null)
   }, [])
 
-  // Devuelve la posicion si esta lista. Si esta buscando, espera. Si fallo, devuelve null.
+  // Devuelve la posición si ya está lista.
+  // Si está buscando, espera hasta que termine y lee posRef (no el closure de pos).
+  // Si falló o inactivo, intenta un ciclo más.
   const obtener = useCallback(async (): Promise<GpsPos | null> => {
-    if (estado === 'ok' && pos) return pos
+    if (estado === 'ok' && posRef.current) return posRef.current
     if (estado === 'inactivo' || estado === 'fallido') {
-      // Disparar intento sincronico final
       await iniciar()
     }
-    // Esperar al final del proceso si esta buscando
+    // Esperar a que corriendoRef quede en false y leer posRef actualizado
     return await new Promise<GpsPos | null>(resolve => {
       const check = () => {
         if (!corriendoRef.current) {
-          resolve(pos)
+          resolve(posRef.current)    // ← ref, no closure de pos
         } else {
           setTimeout(check, 200)
         }
       }
       check()
     })
-  }, [estado, pos, iniciar])
+  }, [estado, iniciar])
 
   return { estado, intento, pos, iniciar, reset, obtener, MAX_INTENTOS }
 }
