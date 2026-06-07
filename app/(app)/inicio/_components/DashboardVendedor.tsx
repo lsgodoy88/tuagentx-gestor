@@ -332,22 +332,20 @@ export default function DashboardVendedor({ user }: { user: any }) {
     const data = await res.json()
     setLoadingDetalle(false)
     const dc = data.cartera
-    if (dc) dc._modo = data._modo
-    if (dc && (dc._modo === 'sync' || data._modo === 'sync')) {
-      const { calcularEstado } = await import('@/lib/cartera')
-      dc.DetalleCartera = (dc.deudas || []).map((d: any) => ({
-        id: d.externalId, syncDeudaId: d.id, valorFactura: d.valor, abonos: d.valor - d.saldoReal, saldoPendiente: d.saldoReal,
-        ...(() => {
-          const saldo = Math.max(0, d.saldoReal), vf = Number(d.valor||0), ab = vf - saldo
-          const fv = d.fechaVencimiento ? new Date(d.fechaVencimiento) : null
-          const { estado, label, color } = calcularEstado(saldo, vf, ab, fv)
-          return { estado, estadoLabel: label, estadoColor: color }
-        })(),
-        numeroFactura: d.numeroFactura || d.numeroOrden, fechaVencimiento: d.fechaVencimiento, _sync: true,
-      }))
-    }
+    if (!dc) { setDetalleData(null); return }
+    const { calcularEstado } = await import('@/lib/cartera')
+    dc.DetalleCartera = (dc.deudas || []).map((d: any) => ({
+      id: d.externalId, syncDeudaId: d.id, valorFactura: d.valor, abonos: d.valor - d.saldoReal, saldoPendiente: d.saldoReal,
+      ...(() => {
+        const saldo = Math.max(0, d.saldoReal), vf = Number(d.valor||0), ab = vf - saldo
+        const fv = d.fechaVencimiento ? new Date(d.fechaVencimiento) : null
+        const { estado, label, color } = calcularEstado(saldo, vf, ab, fv)
+        return { estado, estadoLabel: label, estadoColor: color }
+      })(),
+      numeroFactura: d.numeroFactura || d.numeroOrden, fechaVencimiento: d.fechaVencimiento, _sync: true,
+    }))
     setDetalleData(dc)
-    const pendientes = (dc?.DetalleCartera || []).filter((d: any) => d.estado !== 'pagada').sort((a: any, b: any) => {
+    const pendientes = (dc.DetalleCartera || []).filter((d: any) => d.estado !== 'pagada').sort((a: any, b: any) => {
       const fa = a.fechaVencimiento ? new Date(a.fechaVencimiento).getTime() : Infinity
       const fb = b.fechaVencimiento ? new Date(b.fechaVencimiento).getTime() : Infinity
       return fa - fb
@@ -362,20 +360,11 @@ export default function DashboardVendedor({ user }: { user: any }) {
     const data = await res.json()
     setRrVerificando(false)
     const cartera = data.cartera
-    if (cartera && Number(cartera.saldoPendiente) > 0) {
-      setModalRecaudoRapido(false); setRecaudandoCartera(cartera)
-      setLineasPago([crearLinea()]); setNotasPago(''); setFacturasSeleccionadas([])
-      if (cartera._modo === 'sync' && cartera.deudas) {
-        const { calcularEstado } = await import('@/lib/cartera')
-        cartera.DetalleCartera = (cartera.deudas || []).map((d: any) => {
-          const saldo = Math.max(0, d.saldoReal), vf = Number(d.valor||0), ab = vf - saldo
-          const fv = d.fechaVencimiento ? new Date(d.fechaVencimiento) : null
-          const { estado, label, color } = calcularEstado(saldo, vf, ab, fv)
-          return { id: d.externalId, syncDeudaId: d.id, valorFactura: d.valor, abonos: d.valor - d.saldoReal, saldoPendiente: d.saldoReal, estado, estadoLabel: label, estadoColor: color, numeroFactura: d.numeroFactura || d.numeroOrden, fechaVencimiento: d.fechaVencimiento, _sync: true }
-        })
-      }
-      setDetalleData(cartera); setLoadingDetalle(false)
-      setFacturasSeleccionadas((cartera.DetalleCartera || []).filter((d: any) => d.estado !== 'pagada').map((d: any) => d.id).slice(0, 1))
+    if (cartera && Number(cartera.saldoTotal) > 0) {
+      setModalRecaudoRapido(false)
+      setRecaudandoCartera(cartera)
+      setNotasPago('')
+      cargarDetalleCartera({ ...cartera, clienteId: cliente.id })
     } else { setRrSinDeuda(true) }
   }
 

@@ -83,48 +83,6 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
     })
   }
 
-  // ── MODO MANUAL ──
-  const carteraWhere: any = { clienteId, empresaId }
-  if (user.role === 'vendedor') carteraWhere.empleadoId = user.id
-
-  const cartera = await prisma.cartera.findFirst({
-    where: carteraWhere,
-    include: {
-      Cliente: { select: { id: true, nombre: true, nit: true, telefono: true, ciudad: true } },
-      Empleado: { select: { id: true, nombre: true } },
-      DetalleCartera: { orderBy: { createdAt: 'asc' } },
-      PagoCartera: {
-        orderBy: { createdAt: 'desc' },
-        include: { Empleado: { select: { id: true, nombre: true } } }
-      },
-    }
-  })
-
-  if (!cartera) return NextResponse.json({ cartera: null,
- })
-
-  const detalles = (cartera.DetalleCartera as any[]).map((d: any) => {
-    const vf = Number(d.valorFactura ?? d.valor)
-    const ab = Number(d.abonos ?? 0)
-    const saldo = Math.max(0, vf - ab)
-    const { estado, label, color } = calcularEstado(saldo, vf, ab, d.fechaVencimiento ?? null)
-    return { ...d, saldoPendiente: saldo, estado, estadoLabel: label, estadoColor: color }
-  })
-
-  const pagos = (cartera.PagoCartera as any[]).map((p: any) => ({
-    ...p,
-    empleado: p.Empleado,
-    metodoPago: p.metodopago,
-  }))
-
-  return NextResponse.json({
-    cartera: {
-      ...cartera,
-      _sincronizado: false,
-      cliente: cartera.Cliente,
-      empleado: cartera.Empleado,
-      DetalleCartera: detalles,
-      PagoCartera: pagos,
-    },
-  })
+  // Cliente sin integración activa
+  return NextResponse.json({ cartera: null, _motivo: 'sin integracion activa' })
 }

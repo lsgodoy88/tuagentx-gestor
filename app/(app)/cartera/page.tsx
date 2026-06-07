@@ -323,36 +323,32 @@ export default function CarteraPage() {
     const res = await fetch(`/api/cartera/${cartera.clienteId}`)
     const data = await res.json()
     setLoadingDetalle(false)
-    const detalleCartera = data.cartera
-    if (detalleCartera && (detalleCartera._modo === 'sync' || data._modo === 'sync')) {
-      // Convertir deudas sync a formato DetalleCartera
-      const detallesNorm = (detalleCartera.deudas || []).map((d: any) => ({
-        id: d.externalId,
-        syncDeudaId: d.id,   // id interno BD — necesario para descuentosPorFactura
-        valorFactura: d.valor,
-        abonos: d.valor - d.saldoReal,
-        saldoPendiente: d.saldoReal,
-        ...(() => {
-          const saldo = Math.max(0, d.saldoReal)
-          const vf = Number(d.valor || 0)
-          const ab = vf - saldo
-          const fv = d.fechaVencimiento ? new Date(d.fechaVencimiento) : null
-          const { estado, label, color } = calcularEstado(saldo, vf, ab, fv)
-          return { estado, estadoLabel: label, estadoColor: color }
-        })(),
-        numeroFactura: d.numeroFactura || d.numeroOrden,
-        fechaVencimiento: d.fechaVencimiento,
-        concepto: null,
-        _sync: true,
-      }))
-      detalleCartera.DetalleCartera = detallesNorm
-    }
-    setDetalleData(detalleCartera)
-    const pendientes = (detalleCartera?.DetalleCartera || [])
+    const dc = data.cartera
+    if (!dc) { setDetalleData(null); return }
+    dc.DetalleCartera = (dc.deudas || []).map((d: any) => ({
+      id: d.externalId,
+      syncDeudaId: d.id,
+      valorFactura: d.valor,
+      abonos: d.valor - d.saldoReal,
+      saldoPendiente: d.saldoReal,
+      ...(() => {
+        const saldo = Math.max(0, d.saldoReal)
+        const vf = Number(d.valor || 0)
+        const ab = vf - saldo
+        const fv = d.fechaVencimiento ? new Date(d.fechaVencimiento) : null
+        const { estado, label, color } = calcularEstado(saldo, vf, ab, fv)
+        return { estado, estadoLabel: label, estadoColor: color }
+      })(),
+      numeroFactura: d.numeroFactura || d.numeroOrden,
+      fechaVencimiento: d.fechaVencimiento,
+      concepto: null,
+      _sync: true,
+    }))
+    setDetalleData(dc)
+    const pendientes = (dc.DetalleCartera || [])
       .filter((d: any) => d.estado !== 'pagada')
       .sort((a: any, b: any) => { const fa = a.fechaVencimiento ? new Date(a.fechaVencimiento).getTime() : Infinity; const fb = b.fechaVencimiento ? new Date(b.fechaVencimiento).getTime() : Infinity; return fa - fb })
-    const masAntigua = pendientes[0]?.id ? [pendientes[0].id] : []
-    setFacturasSeleccionadas(masAntigua)
+    setFacturasSeleccionadas(pendientes[0]?.id ? [pendientes[0].id] : [])
     setLineasPago([crearLinea()])
   }
 

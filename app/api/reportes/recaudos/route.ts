@@ -98,17 +98,6 @@ export async function GET(req: NextRequest) {
   const cliSyncMap: Record<string, string> = {}
   clientesSync.forEach(c => { if (c.apiId) cliSyncMap[c.apiId] = c.nombre })
 
-  // Cartera DetalleCartera para modo manual — valor de la deuda
-  const carteraIds = pagos.filter((p: any) => p.carteraId && !p.syncDeudaId).map((p: any) => p.carteraId)
-  const detalles = carteraIds.length > 0
-    ? await (prisma as any).detalleCartera.findMany({
-        where: { carteraId: { in: carteraIds } },
-        select: { carteraId: true, valorFactura: true, numeroFactura: true }
-      })
-    : []
-  const detMap: Record<string, any> = {}
-  detalles.forEach((d: any) => { detMap[d.carteraId] = d })
-
   // Renovar tokens expirados — admin puede ver recibos viejos
   const ahora = new Date(Date.now() - 5*60*60*1000)
   const expirados = pagos.filter((p: any) =>
@@ -138,11 +127,6 @@ export async function GET(req: NextRequest) {
         factura = factura ?? sd.numeroFactura ?? null
       } else if (p.Cartera?.Cliente?.nombre) {
         if (!cliente) cliente = p.Cartera.Cliente.nombre
-        const det = detMap[p.carteraId]
-        if (det) {
-          if (venta === null) venta = Number(det.valorFactura) || null
-          factura = factura ?? det.numeroFactura ?? null
-        }
       }
     }
 
