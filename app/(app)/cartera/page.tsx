@@ -417,9 +417,10 @@ export default function CarteraPage() {
     let ultimoToken: string | null = null
     let ultimoAnchoPapel: string = '80mm'
     for (const linea of lineasPago) {
+      const idempotencyKey = crypto.randomUUID()
       const res = await fetch('/api/cartera/pago-sync', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-Idempotency-Key': idempotencyKey },
         body: JSON.stringify({
           syncDeudaIds: facturasSeleccionadas,
           clienteApiId: detalleData.clienteApiId,

@@ -17,6 +17,23 @@ export async function POST(req: NextRequest) {
   const empresaId = getEmpresaId(user)
   const empleadoId = user.role === 'empresa' ? null : user.id
 
+  const idempotencyKey = req.headers.get('X-Idempotency-Key') || null
+
+  // Deduplicación — si ya existe un pago con este key, retornarlo sin crear otro
+  if (idempotencyKey) {
+    const existing = await (prisma as any).pagoCartera.findUnique({
+      where: { idempotencyKey }
+    })
+    if (existing) {
+      const empresa = await prisma.empresa.findUnique({
+        where: { id: empresaId },
+        select: { configRecibos: true }
+      })
+      const anchoPapel = (empresa as any)?.configRecibos?.anchoPapel || '80mm'
+      return NextResponse.json({ pago: existing, anchoPapel, _idempotent: true })
+    }
+  }
+
   const body = await req.json()
   const { syncDeudaIds, clienteApiId, monto, descuento = 0, descuentosPorFactura = {}, metodoPago = 'efectivo', notas, voucherKey, voucherDatosIA, lineasPago, lat, lng, gpsAccuracy } = body
 
@@ -159,7 +176,9 @@ export async function POST(req: NextRequest) {
 
   // Transacción: crear pago + actualizar saldos atómicamente
   // Si otra request modifica el saldo entre medio, esta falla y se reintenta
-  const pago = await (prisma as any).$transaction(async (tx: any) => {
+  let pago: any
+  try {
+  pago = await (prisma as any).$transaction(async (tx: any) => {
     const pagoCreado = await tx.pagoCartera.create({
       data: {
         empleadoId: empId,
@@ -178,6 +197,7 @@ export async function POST(req: NextRequest) {
         numeroRecibo,
         reciboToken,
         tokenExpira,
+        ...(idempotencyKey ? { idempotencyKey } : {}),
         ...(aplicaciones.length > 0 ? { syncDeudaId: aplicaciones[0].syncDeudaId } : {}),
         reciboPago,
         ...(lineasValidas.length === 0 && ['transferencia', 'nequi', 'banco'].includes(metodoPago) && voucherKey ? {
@@ -241,6 +261,18 @@ export async function POST(req: NextRequest) {
 
     return pagoCreado
   }, { isolationLevel: 'Serializable', timeout: 10000 })
+  } catch (txErr: any) {
+    // Unique constraint en idempotencyKey — request duplicado llegó en paralelo
+    if (txErr?.code === 'P2002' && txErr?.meta?.target?.includes('idempotencyKey') && idempotencyKey) {
+      const existing = await (prisma as any).pagoCartera.findUnique({ where: { idempotencyKey } })
+      if (existing) {
+        const empresa2 = await prisma.empresa.findUnique({ where: { id: empresaId }, select: { configRecibos: true } })
+        const anchoPapel2 = (empresa2 as any)?.configRecibos?.anchoPapel || '80mm'
+        return NextResponse.json({ pago: existing, anchoPapel: anchoPapel2, _idempotent: true })
+      }
+    }
+    throw txErr
+  }
 
   // Repoblar cache del cliente
   const integracion = await (prisma as any).integracion.findFirst({

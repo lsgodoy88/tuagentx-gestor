@@ -440,6 +440,7 @@ model PagoCartera {
   lngCobro       Float?
   gpsAccuracy    Float?
   syncDeudaId    String?
+  idempotencyKey String?            @unique
   envioEstado    String             @default("pendiente")
   envioFecha     DateTime?
   envioRef       String?

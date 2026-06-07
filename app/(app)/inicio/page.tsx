@@ -533,6 +533,7 @@ function DashboardPageInner() {
 
     setGuardandoPago(true)
     let ultimoToken: string | null = null
+    const idempotencyKey = crypto.randomUUID()
     const lineasValidas = lineasPago
       .filter(l => Number(l.monto || 0) > 0)
       .map(l => ({
@@ -546,7 +547,7 @@ function DashboardPageInner() {
 
     const res = await fetch('/api/cartera/pago-sync', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Idempotency-Key': idempotencyKey },
       body: JSON.stringify({
         clienteApiId: detalleData.cliente?.apiId || detalleData.clienteApiId || detalleData.apiId,
         syncDeudaIds: facturasSeleccionadas,

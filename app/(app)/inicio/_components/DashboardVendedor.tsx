@@ -389,11 +389,12 @@ export default function DashboardVendedor({ user }: { user: any }) {
     else if (gpsRecaudo.estado === 'buscando') { const pp = await gpsRecaudo.obtener(); if (pp) gpsCoords = { lat: pp.lat, lng: pp.lng } }
     setGuardandoPago(true)
     let ultimoToken: string | null = null
+    const idempotencyKey = crypto.randomUUID()
     const lineasValidas = lineasPago.filter(l => Number(l.monto||0) > 0).map(l => ({ metodoPago: l.metodoPago, monto: Number(l.monto||0), voucherKey: l.voucherKey||null, voucherDatosIA: l.voucherDatosIA||null }))
     const montoTotal = lineasValidas.reduce((s, l) => s + l.monto, 0)
     const descuentoTotal = Object.values(descuentosPorFactura).reduce((s, v) => s + Number(v || 0), 0)
     const res = await fetch('/api/cartera/pago-sync', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Idempotency-Key': idempotencyKey },
       body: JSON.stringify({ clienteApiId: detalleData.cliente?.apiId || detalleData.clienteApiId || detalleData.apiId, syncDeudaIds: facturasSeleccionadas, monto: montoTotal, descuento: descuentoTotal, descuentosPorFactura: Object.fromEntries(Object.entries(descuentosPorFactura).map(([k,v]) => [k, Number(v||0)])), metodoPago: lineasValidas.length === 1 ? lineasValidas[0].metodoPago : 'mixto', notas: notasPago||undefined, lineasPago: lineasValidas, ...(gpsCoords ? { lat: gpsCoords.lat, lng: gpsCoords.lng, gpsAccuracy: gpsRecaudo.pos?.accuracy ?? null } : {}) })
     })
     const d = await res.json()
