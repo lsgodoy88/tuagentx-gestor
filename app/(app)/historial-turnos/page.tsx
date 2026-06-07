@@ -10,7 +10,7 @@ export default function HistorialTurnosPage() {
   const [nextCursor, setNextCursor]   = useState<string | null>(null)
   const [hasMore, setHasMore]         = useState(false)
   const [fecha, setFecha]             = useState<string>('')
-  const [mostrarPicker, setMostrarPicker] = useState(false)
+
 
   const fetchTurnos = useCallback(async (cursor?: string, fechaParam?: string) => {
     const params = new URLSearchParams()
@@ -45,13 +45,11 @@ export default function HistorialTurnosPage() {
 
   function aplicarFecha(f: string) {
     setFecha(f)
-    setMostrarPicker(false)
     reload(f || undefined)
   }
 
   function limpiarFecha() {
     setFecha('')
-    setMostrarPicker(false)
     reload(undefined)
   }
 
@@ -74,30 +72,21 @@ export default function HistorialTurnosPage() {
           </button>
         )}
         <button onClick={() => {
-            setMostrarPicker(p => !p)
-            setTimeout(() => {
-              const el = document.getElementById('historial-date-picker') as HTMLInputElement | null
-              if (el) { try { el.showPicker() } catch { el.focus() } }
-            }, 50)
+            const el = document.getElementById('historial-date-picker') as HTMLInputElement | null
+            if (el) { try { el.showPicker() } catch { el.click() } }
           }}
           className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-500 transition-colors">
           📅
         </button>
+        <input
+          id="historial-date-picker"
+          type="date"
+          value={fecha}
+          max={new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]}
+          onChange={e => aplicarFecha(e.target.value)}
+          style={{position:'absolute',opacity:0,pointerEvents:'none',width:0,height:0}}
+        />
       </div>
-
-      {/* Date picker */}
-      {mostrarPicker && (
-        <div className="px-3 py-2 border-b border-zinc-800 bg-zinc-900">
-          <input
-            id="historial-date-picker"
-            type="date"
-            defaultValue={fecha}
-            max={new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]}
-            onChange={e => e.target.value && aplicarFecha(e.target.value)}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
-          />
-        </div>
-      )}
 
       {/* Tabla */}
       {loading && (
