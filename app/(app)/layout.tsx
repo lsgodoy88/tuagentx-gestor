@@ -13,12 +13,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter()
   const pathname = usePathname()
 
-  // Limpiar localStorage de versiones anteriores (txa_cache_ → txa_v2_)
+  // Migración one-shot: limpiar keys txa_cache_* (prefix viejo) → se ejecuta solo una vez
   useEffect(() => {
     try {
-      Object.keys(localStorage)
-        .filter(k => k.startsWith('txa_cache_'))
-        .forEach(k => localStorage.removeItem(k))
+      if (!localStorage.getItem('txa_migrated_v2')) {
+        Object.keys(localStorage)
+          .filter(k => k.startsWith('txa_cache_'))
+          .forEach(k => localStorage.removeItem(k))
+        localStorage.setItem('txa_migrated_v2', '1')
+      }
     } catch {}
   }, [])
 
