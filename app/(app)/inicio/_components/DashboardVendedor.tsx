@@ -463,7 +463,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
                   </div>
                   <div className="flex gap-2">
                     <button onClick={reanudarTurno} className="flex-1 bg-zinc-800 border border-emerald-500/30 text-emerald-400 text-sm font-semibold py-2.5 rounded-xl">▶️ Reanudar</button>
-                    <a href="/turno" className="flex-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1">📅 Historial</a>
+                    <a href="/historial-turnos" className="flex-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1">📅 Historial</a>
                   </div>
                 </div>
               )}
@@ -494,7 +494,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
                     <button onClick={cerrarTurno} className="w-full bg-red-600 text-white text-sm font-bold py-2.5 rounded-xl">{bloqueadoTurno ? "..." : "Cerrar turno"}</button>
                     <div className="flex gap-2">
                       <button onClick={() => setMostrarPausa(m => !m)} className={"flex-1 text-sm font-semibold py-2.5 rounded-xl border " + (mostrarPausa ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-zinc-800 border-zinc-700 text-zinc-400")}>⏸️ Pausar</button>
-                      <a href="/turno" className="flex-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1">📅 Historial</a>
+                      <a href="/historial-turnos" className="flex-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1">📅 Historial</a>
                     </div>
                     {mostrarPausa && (
                       <div className="bg-black/30 rounded-xl p-3 border border-zinc-700">
