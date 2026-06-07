@@ -73,22 +73,28 @@ export default function HistorialTurnosPage() {
             ✕
           </button>
         )}
-        <button onClick={() => setMostrarPicker(p => !p)}
+        <button onClick={() => {
+            setMostrarPicker(p => !p)
+            setTimeout(() => {
+              const el = document.getElementById('historial-date-picker') as HTMLInputElement | null
+              if (el) { try { el.showPicker() } catch { el.focus() } }
+            }, 50)
+          }}
           className="flex-shrink-0 w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-500 transition-colors">
           📅
         </button>
       </div>
 
-      {/* Date picker dropdown */}
+      {/* Date picker */}
       {mostrarPicker && (
         <div className="px-3 py-2 border-b border-zinc-800 bg-zinc-900">
           <input
+            id="historial-date-picker"
             type="date"
             defaultValue={fecha}
             max={new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]}
             onChange={e => e.target.value && aplicarFecha(e.target.value)}
             className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-white outline-none focus:border-blue-500"
-            autoFocus
           />
         </div>
       )}
