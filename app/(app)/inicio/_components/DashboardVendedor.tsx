@@ -407,9 +407,21 @@ export default function DashboardVendedor({ user }: { user: any }) {
   return (
     <div className="space-y-3 pb-20">
 
-      {/* Turno — layout fijo, datos llegan con SkVal */}
+      {/* Bienvenido — solo cuando no hay turno y ya cargó */}
+      {!turno && !cargandoTurno && (
+        <h1 className="text-2xl font-bold text-white px-1">Bienvenido, {user?.name?.split(' ')[0]}</h1>
+      )}
+
+      {/* Turno — skeleton exacto mientras carga (misma altura que el pill) */}
       <div className="space-y-4">
-          {turno?.pausado ? (
+          {cargandoTurno ? (
+            <div style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:16,overflow:'hidden'}}>
+              <div className="flex items-center gap-2 px-3 py-2.5">
+                <div className="flex-1 h-8 rounded-xl bg-zinc-700/50" />
+                <div className="w-10 h-8 rounded-xl bg-zinc-700/50 flex-shrink-0" />
+              </div>
+            </div>
+          ) : turno?.pausado ? (
             <div style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:16,overflow:"hidden"}}>
               <button onClick={() => setTurnoExpandido(e => !e)} className="w-full flex items-center gap-3 px-4 py-3 text-left">
                 <span className="relative inline-flex h-2.5 w-2.5 flex-shrink-0">
@@ -483,7 +495,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
           ) : (
             <div style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:16,overflow:"hidden"}}>
               <div className="flex items-center justify-between gap-2 px-3 py-2.5">
-                <button onClick={iniciarTurno} disabled={cargandoTurno || bloqueadoTurno || obteniendoGps} className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors">{cargandoTurno ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : obteniendoGps ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Buscando GPS...</> : <>⚡ Iniciar turno</>}</button>
+                <button onClick={iniciarTurno} disabled={bloqueadoTurno || obteniendoGps} className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors">{obteniendoGps ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Buscando GPS...</> : <>⚡ Iniciar turno</>}</button>
                 <a href="/historial-turnos" className="flex items-center gap-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold px-3 py-2 rounded-xl flex-shrink-0">📅</a>
               </div>
             </div>
@@ -535,8 +547,8 @@ export default function DashboardVendedor({ user }: { user: any }) {
         </div>
 
 
-      {/* Stats — siempre visibles, SkVal mientras cargan */}
-      <div className="space-y-4">
+      {/* Stats — solo cuando turno ya cargó, evita que aparezcan antes que el turno */}
+      {!cargandoTurno && <div className="space-y-4">
         <div className="space-y-3">
         <CardKPIGroup cols={2}>
           <CardCountAdmin stagger={1} icon="👁️" label="Visitas"
@@ -562,9 +574,9 @@ export default function DashboardVendedor({ user }: { user: any }) {
         </div>
         </div>
 
-        {/* Impulsos */}
-        {statsVendedor && (statsVendedor.cumplimiento?.length ?? 0) > 0 && (() => {
-          const tieneAlerta = statsVendedor.cumplimiento.some((imp: any) => imp.alerta)
+        {/* Impulsos — botón siempre visible */}
+        {(() => {
+          const tieneAlerta = statsVendedor?.cumplimiento?.some((imp: any) => imp.alerta) ?? false
           return (
         <div>
           <button onClick={() => setMostrarImpulsadoras(v => !v)}
@@ -574,7 +586,11 @@ export default function DashboardVendedor({ user }: { user: any }) {
           </button>
           {mostrarImpulsadoras && (
             <div className="mt-2 space-y-3 bg-zinc-900 border border-zinc-800 rounded-2xl p-3">
-          {statsVendedor.cumplimiento.map((imp: any) => {
+          {!statsVendedor ? (
+            <>{[0,1].map(i => <div key={i} className="h-16 rounded-xl bg-zinc-800/60" />)}</>
+          ) : (statsVendedor.cumplimiento?.length ?? 0) === 0 ? (
+            <p className="text-zinc-500 text-xs text-center py-2">Sin impulsadoras asignadas</p>
+          ) : statsVendedor.cumplimiento.map((imp: any) => {
             const diasSemana = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
             const diaHoy = diasSemana[new Date().getDay()]
             return (
@@ -618,7 +634,12 @@ export default function DashboardVendedor({ user }: { user: any }) {
           <span className="text-white font-semibold text-sm">📊 Estadísticas</span>
           <span className="text-zinc-500 text-xs">{mostrarEstadisticasVendedor ? '▲ Ocultar' : '▼ Ver'}</span>
         </button>
-        {mostrarEstadisticasVendedor && !loadingStats && statsVendedor && (
+        {mostrarEstadisticasVendedor && (!statsVendedor ? (
+          <div className="space-y-3">
+            <div className="h-24 rounded-2xl bg-zinc-900 border border-zinc-800" />
+            <div className="h-24 rounded-2xl bg-zinc-900 border border-zinc-800" />
+          </div>
+        ) : (
           <div className="space-y-4">
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
           <p className="text-white font-bold mb-3">Últimos 6 días</p>
@@ -661,9 +682,9 @@ export default function DashboardVendedor({ user }: { user: any }) {
           </div>
         </div>
           </div>
-        )}
+        ))}
 
-      </div>
+      </div>}
 
       {/* ── Modales ── */}
       <ModalVisita
