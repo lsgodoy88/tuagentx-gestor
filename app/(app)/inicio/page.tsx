@@ -38,6 +38,7 @@ const CarteraCard = dynamic(() => import('@/components/CarteraCard'), { ssr: fal
 const ModalRecaudo = dynamic(() => import('@/components/ModalRecaudo'), { ssr: false })
 const EntregaCard = dynamic(() => import('@/components/EntregaCard'), { ssr: false })
 const DashboardVendedor = dynamic(() => import('./_components/DashboardVendedor'), { ssr: false })
+const DashboardBodega    = dynamic(() => import('./_components/DashboardBodega'),    { ssr: false })
 
 type LineaPago = { id: string; metodoPago: 'efectivo' | 'transferencia'; monto: string; voucherKey: string | null; voucherDatosIA: any; cargandoVoucher: boolean }
 function genId(): string {
@@ -574,10 +575,10 @@ function DashboardPageInner() {
 
 
 
-  // ── Early return para vendedor ──────────────────────────────────────────
-  if (user?.role === 'vendedor') {
-    return <DashboardVendedor user={user} />
-  }
+  // ── Router de roles — early return antes de montar código de otros roles ──
+  if (user?.role === 'vendedor')    return <DashboardVendedor user={user} />
+  if (user?.role === 'bodega')      return <DashboardBodega user={user} />
+  if (user?.role === 'impulsadora') { router.push('/impulsadora'); return null }
 
   const clientesConGps = clientesOrdenados.filter((c: any) => c.ubicacionReal).length
   const totalClientes = clientesOrdenados.length
@@ -928,21 +929,7 @@ function DashboardPageInner() {
           ) : null}
         </div>
       )}
-      {isBodega && (
-        <div className="rounded-2xl p-4 card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-white font-semibold text-sm">📦 Órdenes bodega hoy</h3>
-            <a href="/ordenes" className="text-emerald-400 text-xs">Ver órdenes →</a>
-          </div>
-          {bodegaStats ? (
-            <div className="grid grid-cols-3 gap-2">
-              <div className="text-center fade-up stagger-1"><p className="text-2xl font-bold text-amber-400 flex items-center justify-center gap-1.5"><CountUp end={bodegaStats.pendientes} />{bodegaStats.pendientes > 0 && <LiveDot color="amber" />}</p><p className="text-zinc-500 text-xs">🟡 Pendientes</p></div>
-              <div className="text-center fade-up stagger-2"><p className="text-2xl font-bold text-emerald-400"><CountUp end={bodegaStats.alistados} /></p><p className="text-zinc-500 text-xs">🟢 Alistados</p></div>
-              <div className="text-center fade-up stagger-3"><p className="text-2xl font-bold text-blue-400"><CountUp end={bodegaStats.entregados} /></p><p className="text-zinc-500 text-xs">✅ Entregados</p></div>
-            </div>
-          ) : <p className="text-zinc-500 text-xs text-center">Cargando...</p>}
-        </div>
-      )}
+      {/* bodega → DashboardBodega (componente separado) */}
       {isEmpleado && cargandoTurno && (
         <div className="rounded-2xl px-4 py-3 animate-pulse" style={{background:'rgba(148,160,185,0.22)',border:'1px solid rgba(148,180,255,0.25)',height:48}} />
       )}
