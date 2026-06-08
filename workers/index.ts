@@ -11,6 +11,7 @@ try {
   }
 } catch {}
 import { Worker, Queue, QueueEvents } from 'bullmq'
+import { runSyncNocturno } from '../lib/jobs/sync-nocturno'
 
 const REDIS = { host: 'localhost', port: 6379, db: 1, password: '7wzadPIuzVn84WkSfPUoOAIlb0PKCZK' } // db1 = gestor
 const BASE_URL = 'http://localhost:3010'
@@ -186,9 +187,10 @@ export const syncNocturnoWorker = new Worker(
     if (skip) { console.log(`[sync-nocturno] skip — cron ejecutó OK (${skip})`); return { skip: true } }
     const modo = job.data?.modo ?? 'completo'
     console.log(`[sync-nocturno] iniciado modo=${modo} ${new Date().toISOString()}`)
-    const result = await callEndpoint(`/api/sync/nocturno?modo=${modo}`)
-    console.log('[sync-nocturno] resultado:', JSON.stringify(result))
-    return result
+    // Directo a BD — sin depender de gestor HTTP
+    const resultados = await runSyncNocturno({ modo: modo as 'completo' | 'delta' })
+    console.log('[sync-nocturno] resultado:', JSON.stringify(resultados))
+    return { ok: true, resultados }
   },
   { connection: REDIS, concurrency: 1 }
 )
