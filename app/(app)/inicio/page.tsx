@@ -987,7 +987,7 @@ function DashboardPageInner() {
       )}
       {/* bodega → DashboardBodega (componente separado) */}
       {isEmpleado && cargandoTurno && (
-        <div className="rounded-2xl px-4 py-3 animate-pulse" style={{background:'rgba(148,160,185,0.22)',border:'1px solid rgba(148,180,255,0.25)',height:48}} />
+        <div className="rounded-2xl px-4 py-3" style={{background:'rgba(148,160,185,0.22)',border:'1px solid rgba(148,180,255,0.25)',height:48}} />
       )}
       {isEmpleado && !cargandoTurno && (
         <div className="space-y-4">
@@ -1293,7 +1293,7 @@ function DashboardPageInner() {
                               <CardSub key={imp.id} alerta={imp.alerta} className="p-3">
                                 <div className="flex items-center justify-between mb-2">
                                   <div className="flex items-center gap-2">
-                                    <div className={"w-2 h-2 rounded-full " + (imp.turnoActivo ? "bg-emerald-500 animate-pulse" : "bg-zinc-600")} />
+                                    <div className={"w-2 h-2 rounded-full " + (imp.turnoActivo ? "bg-emerald-500" : "bg-zinc-600")} />
                                     <p className="text-white text-sm font-medium">{imp.nombre}</p>
                                   </div>
                                   <div className="flex items-center gap-2">
@@ -1517,7 +1517,7 @@ function DashboardPageInner() {
               </>
             ) : rrVerificando ? (
               <div className="py-8 text-center">
-                <p className="text-zinc-400 text-sm animate-pulse">Verificando deuda de {rrCliente.nombre}...</p>
+                <p className="text-zinc-400 text-sm">Verificando deuda de {rrCliente.nombre}...</p>
               </div>
             ) : rrSinDeuda ? (
               <div className="space-y-4">
