@@ -37,10 +37,51 @@ const ModalVisita = dynamic(() => import('@/components/ModalVisita'), { ssr: fal
 const CarteraCard = dynamic(() => import('@/components/CarteraCard'), { ssr: false })
 const ModalRecaudo = dynamic(() => import('@/components/ModalRecaudo'), { ssr: false })
 const EntregaCard = dynamic(() => import('@/components/EntregaCard'), { ssr: false })
-const DashboardVendedor = dynamic(() => import('./_components/DashboardVendedor'), { ssr: false })
-const DashboardBodega    = dynamic(() => import('./_components/DashboardBodega'),    { ssr: false })
-const DashboardEntregas  = dynamic(() => import('./_components/DashboardEntregas'),  { ssr: false })
-const DashboardAdmin     = dynamic(() => import('./_components/DashboardAdmin'),     { ssr: false })
+const DashboardVendedor = dynamic(() => import('./_components/DashboardVendedor'), {
+  ssr: false,
+  loading: () => (
+    <div className="space-y-3 pb-20">
+      {/* Pill turno */}
+      <div className="animate-pulse rounded-2xl" style={{height:44,background:'rgba(148,160,185,0.15)',border:'1px solid rgba(148,180,255,0.12)'}} />
+      {/* 4 cards stats */}
+      <div className="grid grid-cols-2 gap-3">
+        {[0,1].map(i => <div key={i} className="animate-pulse rounded-2xl" style={{height:110,background:'rgba(148,160,185,0.12)',border:'1px solid rgba(148,180,255,0.10)'}} />)}
+      </div>
+      <div className="animate-pulse rounded-2xl" style={{height:80,background:'rgba(148,160,185,0.12)'}} />
+      <div className="animate-pulse rounded-2xl" style={{height:80,background:'rgba(148,160,185,0.12)'}} />
+    </div>
+  )
+})
+const DashboardBodega    = dynamic(() => import('./_components/DashboardBodega'), {
+  ssr: false,
+  loading: () => (
+    <div className="space-y-3 pb-20">
+      <div className="animate-pulse rounded-2xl" style={{height:44,background:'rgba(148,160,185,0.15)',border:'1px solid rgba(148,180,255,0.12)'}} />
+      <div className="animate-pulse rounded-2xl" style={{height:96,background:'rgba(148,160,185,0.12)'}} />
+      <div className="animate-pulse rounded-2xl" style={{height:96,background:'rgba(148,160,185,0.12)'}} />
+    </div>
+  )
+})
+const DashboardEntregas  = dynamic(() => import('./_components/DashboardEntregas'), {
+  ssr: false,
+  loading: () => (
+    <div className="space-y-3 pb-20">
+      <div className="animate-pulse rounded-2xl" style={{height:44,background:'rgba(148,160,185,0.15)',border:'1px solid rgba(148,180,255,0.12)'}} />
+      <div className="animate-pulse rounded-2xl" style={{height:96,background:'rgba(148,160,185,0.12)'}} />
+      <div className="animate-pulse rounded-2xl" style={{height:96,background:'rgba(148,160,185,0.12)'}} />
+    </div>
+  )
+})
+const DashboardAdmin     = dynamic(() => import('./_components/DashboardAdmin'), {
+  ssr: false,
+  loading: () => (
+    <div className="space-y-3 pb-20">
+      <div className="animate-pulse rounded-2xl" style={{height:44,background:'rgba(148,160,185,0.15)',border:'1px solid rgba(148,180,255,0.12)'}} />
+      <div className="animate-pulse rounded-2xl" style={{height:96,background:'rgba(148,160,185,0.12)'}} />
+      <div className="animate-pulse rounded-2xl" style={{height:96,background:'rgba(148,160,185,0.12)'}} />
+    </div>
+  )
+})
 
 type LineaPago = { id: string; metodoPago: 'efectivo' | 'transferencia'; monto: string; voucherKey: string | null; voucherDatosIA: any; cargandoVoucher: boolean }
 function genId(): string {
