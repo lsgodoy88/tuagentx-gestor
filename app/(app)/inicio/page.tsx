@@ -39,6 +39,7 @@ const ModalRecaudo = dynamic(() => import('@/components/ModalRecaudo'), { ssr: f
 const EntregaCard = dynamic(() => import('@/components/EntregaCard'), { ssr: false })
 const DashboardVendedor = dynamic(() => import('./_components/DashboardVendedor'), { ssr: false })
 const DashboardBodega    = dynamic(() => import('./_components/DashboardBodega'),    { ssr: false })
+const DashboardEntregas  = dynamic(() => import('./_components/DashboardEntregas'),  { ssr: false })
 
 type LineaPago = { id: string; metodoPago: 'efectivo' | 'transferencia'; monto: string; voucherKey: string | null; voucherDatosIA: any; cargandoVoucher: boolean }
 function genId(): string {
@@ -579,6 +580,7 @@ function DashboardPageInner() {
   if (user?.role === 'vendedor')    return <DashboardVendedor user={user} />
   if (user?.role === 'bodega')      return <DashboardBodega user={user} />
   if (user?.role === 'impulsadora') { router.push('/impulsadora'); return null }
+  if (user?.role === 'entregas')     return <DashboardEntregas user={user} />
 
   const clientesConGps = clientesOrdenados.filter((c: any) => c.ubicacionReal).length
   const totalClientes = clientesOrdenados.length
