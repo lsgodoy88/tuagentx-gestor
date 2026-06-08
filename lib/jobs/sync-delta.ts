@@ -202,9 +202,8 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   } catch (err: any) { console.error('[delta] insert-ordenes error:', err.message); erroresParciales.push('insert-ordenes: ' + err.message) }
 
   if (toCreate.length || deudaToCreate.length || clientesNuevos || deudasNuevasDelta) {
-    await invalidatePattern('g:v:*')
-    await invalidatePattern('g:*:stats:*')
-    await invalidatePattern('g:*:cartera:*')
+    // Invalidación quirúrgica — solo la empresa afectada
+    await invalidatePattern(`g:${destino}:*`)
   }
 
   // Delta saldos
@@ -225,8 +224,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
       }
       saldosActualizados = toUpdateSaldo.length
       if (saldosActualizados > 0) {
-        await invalidatePattern('g:*:cartera:*')
-        await invalidatePattern('g:v:*')
+        await invalidatePattern(`g:${destino}:*`)
       }
     }
   } catch (err: any) { console.error('[delta] delta-saldos error:', err.message); erroresParciales.push('delta-saldos: ' + err.message) }
@@ -244,7 +242,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
         reconciliadas++
       }
     }
-    if (reconciliadas > 0) await invalidatePattern('g:v:*')
+    if (reconciliadas > 0) await invalidatePattern(`g:${destino}:*`)
   } catch (e: any) { console.error('[delta] reconciliador error:', e.message); erroresParciales.push('reconciliador: ' + e.message) }
 
   // Reconciliador huecos
@@ -274,7 +272,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
                 }
               }
             }
-            if (huecosRecuperados > 0) await invalidatePattern('g:v:*')
+            if (huecosRecuperados > 0) await invalidatePattern(`g:${destino}:*`)
           }
         }
       }

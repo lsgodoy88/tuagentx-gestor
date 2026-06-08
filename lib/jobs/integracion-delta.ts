@@ -4,6 +4,7 @@
  * Sin dependencia de gestor HTTP
  */
 import { prisma } from '@/lib/prisma'
+import { invalidatePattern } from '@/lib/cache'
 import { crearAdaptador, sincronizarDeudas, actualizarCache, marcarZombis, refrescarDeudasConPagosPendientes } from '@/lib/integracion/sync'
 import { decrypt } from '@/lib/crypto-uptres'
 import { recalcularVentasMesImpulsos } from '@/lib/integracion/venta-mes'
@@ -61,6 +62,9 @@ async function ejecutarDeltaParaIntegracion(integ: any, incluirImpulsos = true) 
   const clienteApiIds = new Set<string>((deudas as any[]).map((d: any) => d.cliente?.uid || d.clienteApiId).filter(Boolean))
   await actualizarCache(clienteApiIds, integ.id, empresaId)
   T(`actualizarCache`, _t)
+
+  // Invalidación quirúrgica — solo la empresa afectada
+  await invalidatePattern(`g:${empresaId}:*`)
 
   // Actualizar ultimaSync
   await (prisma as any).integracion.update({

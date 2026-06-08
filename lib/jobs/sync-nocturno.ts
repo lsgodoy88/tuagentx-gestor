@@ -207,9 +207,8 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
         ? await reconstruirCartera(intg.id, intg.empresaId)
         : 0
 
-      await invalidatePattern('g:v:*')
-      await invalidatePattern('g:*:stats:*')
-      await invalidatePattern('g:*:cartera:*')
+      // Nocturno invalida todo — corre 1 vez/día, datos masivos
+      await invalidatePattern('g:*')
 
       resultados.push({ empresaId: intg.empresaId, deudas: deudas.length, insertadas: toInsert.length, actualizadas: toUpdate.length, clientesCache: clientesActualizados })
     } catch (err: any) {
