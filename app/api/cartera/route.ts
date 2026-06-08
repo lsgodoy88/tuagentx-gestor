@@ -155,23 +155,17 @@ export async function GET(req: NextRequest) {
   if (integracion) {
     // Leer desde CarteraCache
     const where: any = { integracionId: integracion.id, saldoPendiente: { gt: 0 } }
+    let miApiId: string | null = null
     if (user.role === 'vendedor') {
-      // En modo sync: filtrar por empleadoExternalId (apiId del empleado)
       // apiId viene en el JWT desde el login; fallback a BD para sesiones antiguas
-      let miApiId = (user as any).apiId || null
+      miApiId = (user as any).apiId || null
       if (!miApiId) {
         const emp = await (prisma as any).empleado.findUnique({ where: { id: user.id }, select: { apiId: true } })
         miApiId = emp?.apiId || null
       }
-      if (miApiId) {
-        const deudasEmpleado = await (prisma as any).syncDeuda.findMany({
-          where: { integracionId: integracion.id, empleadoExternalId: miApiId, condition: true },
-          select: { clienteApiId: true }
-        })
-        const clienteApiIds = [...new Set(deudasEmpleado.map((d: any) => d.clienteApiId))]
-        where.clienteApiId = { in: clienteApiIds }
-      } else {
-        where.clienteId = { in: [] }
+      if (!miApiId) {
+        // Sin apiId → cartera vacía
+        return NextResponse.json({ carteras: [], total: 0, page, pages: 0, totalSaldoPendiente: 0, totalSaldoTotal: 0, _integracion: { id: integracion.id, nombre: integracion.nombre } })
       }
     }
     if (q) {
@@ -179,6 +173,71 @@ export async function GET(req: NextRequest) {
         { nombre: { contains: q, mode: 'insensitive' } },
         { nit: { contains: q, mode: 'insensitive' } },
       ]
+    }
+
+    // Para vendedor: un solo queryRaw con subquery — sin traer filas a Node.js
+    if (miApiId) {
+      const searchWhere = q ? `AND (cc.nombre ILIKE $4 OR cc.nit ILIKE $4)` : ''
+      const qParam = q ? `%${q}%` : null
+
+      type Row = { id: string, clienteapiid: string, nombre: string, nit: string, telefono: string, saldopendiente: string, saldototal: string, porestado: any, deudas: any, empleadonombre: string, ultimaactualizacion: string, total_count: string, sum_pendiente: string, sum_total: string }
+
+      const rows: Row[] = q
+        ? await prisma.$queryRaw`
+            SELECT cc.*, COUNT(*) OVER() AS total_count,
+              SUM(cc."saldoPendiente") OVER() AS sum_pendiente,
+              SUM(cc."saldoTotal") OVER() AS sum_total
+            FROM gestor."CarteraCache" cc
+            WHERE cc."integracionId" = ${integracion.id}
+              AND cc."saldoPendiente" > 0
+              AND cc."clienteApiId" IN (
+                SELECT DISTINCT "clienteApiId" FROM gestor."SyncDeuda"
+                WHERE "integracionId" = ${integracion.id}
+                  AND "empleadoExternalId" = ${miApiId}
+                  AND condition = true
+              )
+              AND (cc.nombre ILIKE ${`%${q}%`} OR cc.nit ILIKE ${`%${q}%`})
+            ORDER BY cc.nombre ASC
+            LIMIT ${limit} OFFSET ${skip}`
+        : await prisma.$queryRaw`
+            SELECT cc.*, COUNT(*) OVER() AS total_count,
+              SUM(cc."saldoPendiente") OVER() AS sum_pendiente,
+              SUM(cc."saldoTotal") OVER() AS sum_total
+            FROM gestor."CarteraCache" cc
+            WHERE cc."integracionId" = ${integracion.id}
+              AND cc."saldoPendiente" > 0
+              AND cc."clienteApiId" IN (
+                SELECT DISTINCT "clienteApiId" FROM gestor."SyncDeuda"
+                WHERE "integracionId" = ${integracion.id}
+                  AND "empleadoExternalId" = ${miApiId}
+                  AND condition = true
+              )
+            ORDER BY cc.nombre ASC
+            LIMIT ${limit} OFFSET ${skip}`
+
+      const total = rows.length > 0 ? Number(rows[0].total_count) : 0
+      const totalSaldoPendiente = rows.length > 0 ? Number(rows[0].sum_pendiente) : 0
+      const totalSaldoTotal = rows.length > 0 ? Number(rows[0].sum_total) : 0
+
+      const carteras = rows.map((c: any) => ({
+        id: c.clienteId || c.clienteApiId,
+        clienteId: c.clienteId,
+        _sincronizado: true,
+        saldoPendiente: Number(c.saldoPendiente),
+        saldoTotal: Number(c.saldoTotal),
+        porEstado: c.porEstado,
+        ultimaActualizacion: c.ultimaActualizacion,
+        cliente: { id: c.clienteId, nombre: c.nombre, nit: c.nit, telefono: c.telefono, apiId: c.clienteApiId },
+        empleado: c.empleadoNombre ? { nombre: c.empleadoNombre } : null,
+        DetalleCartera: (c.deudas as any[] || []).map((d: any) => {
+          const vf = Number(d.valor || 0), ab = Number(d.abono || 0), saldo = Math.max(0, vf - ab)
+          const { estado, label, color } = calcularEstado(saldo, vf, ab, d.fechaVencimiento ? new Date(d.fechaVencimiento) : null)
+          return { ...d, valorFactura: vf, abonos: ab, saldoPendiente: saldo, estado, estadoLabel: label, estadoColor: color }
+        }),
+        PagoCartera: [],
+      }))
+
+      return NextResponse.json({ carteras, total, page, pages: Math.ceil(total / limit), totalSaldoPendiente, totalSaldoTotal, _integracion: { id: integracion.id, nombre: integracion.nombre } })
     }
 
     const [caches, total, agg] = await Promise.all([
