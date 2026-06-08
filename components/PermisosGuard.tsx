@@ -141,14 +141,9 @@ export default function PermisosGuard({
   }
 
   // ── Render ────────────────────────────────────────────────────
-  if (estado === 'verificando') return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-zinc-600 border-t-emerald-400 rounded-full animate-spin" />
-        <p className="text-zinc-400 text-sm">Verificando permisos...</p>
-      </div>
-    </div>
-  )
+  // Mientras verifica — mostrar children directamente, sin bloquear
+  // Solo bloquear si hay problema real (estado === 'bloqueado')
+  if (estado === 'verificando') return <>{children}</>
 
   if (estado === 'bloqueado') return (
     <div className="fixed inset-0 bg-zinc-950 flex items-center justify-center p-4 z-50">
