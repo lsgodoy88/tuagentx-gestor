@@ -407,12 +407,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
   return (
     <div className="space-y-3 pb-20">
 
-      {/* Bienvenido — solo cuando no hay turno y ya cargó */}
-      {!turno && !cargandoTurno && (
-        <h1 className="text-2xl font-bold text-white px-1">Bienvenido, {user?.name?.split(' ')[0]}</h1>
-      )}
-
-      {/* Turno — siempre montado, skeleton inline mientras carga */}
+      {/* Turno — layout fijo, datos llegan con SkVal */}
       <div className="space-y-4">
           {turno?.pausado ? (
             <div style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:16,overflow:"hidden"}}>
@@ -488,7 +483,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
           ) : (
             <div style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:16,overflow:"hidden"}}>
               <div className="flex items-center justify-between gap-2 px-3 py-2.5">
-                <button onClick={iniciarTurno} disabled={bloqueadoTurno || obteniendoGps} className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors">{obteniendoGps ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Buscando GPS...</> : <>⚡ Iniciar turno</>}</button>
+                <button onClick={iniciarTurno} disabled={cargandoTurno || bloqueadoTurno || obteniendoGps} className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors">{cargandoTurno ? <span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : obteniendoGps ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Buscando GPS...</> : <>⚡ Iniciar turno</>}</button>
                 <a href="/historial-turnos" className="flex items-center gap-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold px-3 py-2 rounded-xl flex-shrink-0">📅</a>
               </div>
             </div>
@@ -540,8 +535,8 @@ export default function DashboardVendedor({ user }: { user: any }) {
         </div>
 
 
-      {/* Stats — solo cuando turno ya cargó, evita que aparezcan antes que el turno */}
-      {!cargandoTurno && <div className="space-y-4">
+      {/* Stats — siempre visibles, SkVal mientras cargan */}
+      <div className="space-y-4">
         <div className="space-y-3">
         <CardKPIGroup cols={2}>
           <CardCountAdmin stagger={1} icon="👁️" label="Visitas"
@@ -668,7 +663,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
           </div>
         )}
 
-      </div>}
+      </div>
 
       {/* ── Modales ── */}
       <ModalVisita
