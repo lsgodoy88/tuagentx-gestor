@@ -38,35 +38,46 @@ export async function GET() {
   let clientes = 0
 
   if (integracion) {
-    const where: any = { integracionId: integracion.id, saldoPendiente: { gt: 0 } }
-
     if (empleadoIdForzado) {
-      // vendedor: filtrar por su apiId
+      // vendedor: JOIN directo en BD — sin traer filas a Node.js
       const emp = await (prisma as any).empleado.findUnique({
         where: { id: empleadoIdForzado },
         select: { apiId: true }
       })
       const miApiId = emp?.apiId || null
       if (miApiId) {
-        const deudasEmpleado = await (prisma as any).syncDeuda.findMany({
-          where: { integracionId: integracion.id, empleadoExternalId: miApiId, condition: true },
-          select: { clienteApiId: true }
-        })
-        const clienteApiIds = [...new Set(deudasEmpleado.map((d: any) => d.clienteApiId))]
-        where.clienteApiId = { in: clienteApiIds }
-      } else {
-        where.clienteId = { in: [] }
+        // Un solo query con subquery — 0 filas en memoria
+        const rows: any[] = await prisma.$queryRaw`
+          SELECT
+            COALESCE(SUM(cc."saldoTotal"), 0)     AS "totalCartera",
+            COALESCE(SUM(cc."saldoPendiente"), 0)  AS "totalPendiente",
+            COUNT(cc."clienteApiId")::int           AS clientes
+          FROM gestor."CarteraCache" cc
+          WHERE cc."integracionId" = ${integracion.id}
+            AND cc."saldoPendiente" > 0
+            AND cc."clienteApiId" IN (
+              SELECT DISTINCT sd."clienteApiId"
+              FROM gestor."SyncDeuda" sd
+              WHERE sd."integracionId" = ${integracion.id}
+                AND sd."empleadoExternalId" = ${miApiId}
+                AND sd.condition = true
+            )`
+        totalCartera   = Number(rows[0]?.totalCartera   || 0)
+        totalPendiente = Number(rows[0]?.totalPendiente || 0)
+        clientes       = Number(rows[0]?.clientes       || 0)
       }
+      // si no tiene apiId → totales en 0 (sin cartera asignada)
+    } else {
+      // admin/empresa: aggregate directo sin JOIN
+      const agg = await (prisma as any).carteraCache.aggregate({
+        where: { integracionId: integracion.id, saldoPendiente: { gt: 0 } },
+        _sum: { saldoPendiente: true, saldoTotal: true },
+        _count: { clienteId: true }
+      })
+      totalCartera   = Number(agg._sum.saldoTotal    || 0)
+      totalPendiente = Number(agg._sum.saldoPendiente || 0)
+      clientes       = Number(agg._count.clienteId    || 0)
     }
-
-    const agg = await (prisma as any).carteraCache.aggregate({
-      where,
-      _sum: { saldoPendiente: true, saldoTotal: true },
-      _count: { clienteId: true }
-    })
-    totalCartera  = Number(agg._sum.saldoTotal    || 0)
-    totalPendiente = Number(agg._sum.saldoPendiente || 0)
-    clientes       = Number(agg._count.clienteId    || 0)
   } else {
     // Modo manual
     const whereC: any = { empresaId }
