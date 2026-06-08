@@ -6,6 +6,7 @@ import { getEmpresaId, ROLES_ADMIN_VENDEDOR, ROLES_ADMIN } from '@/lib/auth-help
 import { crearAdaptador, sincronizarDeudas, actualizarCache, marcarZombis, refrescarDeudasConPagosPendientes } from '@/lib/integracion/sync'
 import { decrypt } from '@/lib/crypto-uptres'
 import { recalcularVentasMesImpulsos } from '@/lib/integracion/venta-mes'
+import { runIntegracionDelta } from '@/lib/jobs/integracion-delta'
 
 function resolverConfig(config: any): Record<string, string> {
   return {
@@ -368,26 +369,8 @@ export async function POST(req: NextRequest) {
   // ── Cron — delta automático sobre todas las integraciones ──
   if (isCron) {
     if (tipo !== 'delta') return NextResponse.json({ error: 'Cron solo acepta tipo delta' }, { status: 400 })
-    const integraciones = await (prisma as any).integracion.findMany({
-      where: { tipo: 'uptres', activa: true }
-    })
-    const resultados = []
-    for (const integ of integraciones) {
-      const logs: string[] = []
-      try {
-        const r = await ejecutarDelta(integ, logs, 'cron', undefined, true)
-        resultados.push({ empresaId: integ.empresaId, ok: true, ...r })
-        // Reconstruir CarteraCache tras delta para que vendedores vean deudas nuevas inmediatamente
-        if (r.deudas > 0) {
-          await fetch(`${process.env.NEXTAUTH_URL || 'http://localhost:3010'}/api/cartera/sync`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'x-cron-secret': process.env.CRON_SECRET || '' },
-          }).catch(() => {/* no bloquear si falla */})
-        }
-      } catch (err: any) {
-        resultados.push({ empresaId: integ.empresaId, ok: false, error: err.message })
-      }
-    }
+    // Directo a BD — sin depender de gestor HTTP
+    const resultados = await runIntegracionDelta()
     return NextResponse.json({ ok: true, resultados })
   }
 

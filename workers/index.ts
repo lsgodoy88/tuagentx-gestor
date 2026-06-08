@@ -12,6 +12,8 @@ try {
 } catch {}
 import { Worker, Queue, QueueEvents } from 'bullmq'
 import { runSyncNocturno } from '../lib/jobs/sync-nocturno'
+import { runSyncDelta } from '../lib/jobs/sync-delta'
+import { runIntegracionDelta } from '../lib/jobs/integracion-delta'
 
 const REDIS = { host: 'localhost', port: 6379, db: 1, password: '7wzadPIuzVn84WkSfPUoOAIlb0PKCZK' } // db1 = gestor
 const BASE_URL = 'http://localhost:3010'
@@ -98,9 +100,10 @@ export const integracionWorker = new Worker(
     const skip = await cronYaEjecuto('integracion')
     if (skip) { console.log(`[integracion] skip — cron ejecutó OK (${skip})`); return { skip: true } }
     console.log(`[integracion] ${job.name} iniciado ${new Date().toISOString()}`)
-    const result = await callEndpoint('/api/integracion/sync', { tipo: 'delta' })
-    console.log(`[integracion] ${job.name} resultado:`, JSON.stringify(result))
-    return result
+    // Directo a BD — sin depender de gestor HTTP
+    const resultados = await runIntegracionDelta()
+    console.log(`[integracion] ${job.name} resultado:`, JSON.stringify(resultados))
+    return { ok: true, resultados }
   },
   { connection: REDIS, concurrency: 1 },
 )
@@ -168,9 +171,10 @@ export const syncDeltaWorker = new Worker(
     const skip = await cronYaEjecuto('delta', 35 * 60 * 1000)
     if (skip) { console.log(`[sync-delta] skip — cron ejecutó OK (${skip})`); return { skip: true } }
     console.log(`[sync-delta] iniciado ${new Date().toISOString()}`)
-    const result = await callEndpoint('/api/sync/delta')
-    console.log('[sync-delta] resultado:', JSON.stringify(result))
-    return result
+    // Directo a BD — sin depender de gestor HTTP
+    const resultados = await runSyncDelta()
+    console.log('[sync-delta] resultado:', JSON.stringify(resultados))
+    return { ok: true, resultados }
   },
   { connection: REDIS, concurrency: 1 }
 )
