@@ -7,7 +7,6 @@ import { useGpsEnDemanda } from '@/components/useGpsEnDemanda'
 import { estadoMasCritico } from '@/lib/cartera'
 import { CountUp, SkeletonCard, LoadingBorder } from '@/components/FX'
 import { TurnoTimer, PausaTimer } from '@/components/TurnoTimer'
-import { saveSnapshot, loadSnapshot, type DashboardSnapshot } from '@/lib/dashboardSnapshot'
 import type { VendedorStats, TurnoActivo } from '@/lib/types/vendedor'
 import { CardKPIGroup, CardSub, CardCountAdmin, CardCountAdminSkeleton } from '@/components/ui/cards'
 import dynamic from 'next/dynamic'
@@ -59,11 +58,11 @@ function vieneDelLogin() {
 }
 
 // ── Componente ───────────────────────────────────────────────────────────────
-export default function DashboardVendedor({ user, _snapshot }: { user: any, _snapshot?: DashboardSnapshot | null }) {
+export default function DashboardVendedor({ user }: { user: any }) {
   const router = useRouter()
 
   // Turno
-  const [turno, setTurno]               = useState<TurnoActivo | null>(_snapshot?.turno || null)
+  const [turno, setTurno]               = useState<TurnoActivo | null>(null)
   const [cargandoTurno, setCargandoTurno] = useState(true)
   const [turnoExpandido, setTurnoExpandido] = useState(false)
   const [bloqueadoTurno, setBloqueadoTurno] = useState(false)
@@ -74,12 +73,12 @@ export default function DashboardVendedor({ user, _snapshot }: { user: any, _sna
   const [pausaDuracionCustom, setPausaDuracionCustom] = useState(false)
 
   // Stats
-  const [statsVendedor, setStatsVendedor] = useState<VendedorStats | null>(_snapshot?.statsVendedor || null)
+  const [statsVendedor, setStatsVendedor] = useState<VendedorStats | null>(null)
   const [vendedorStatsLoading, setVendedorStatsLoading] = useState(true)
   const [loadingStats, setLoadingStats] = useState(false)
   const [mostrarEstadisticasVendedor, setMostrarEstadisticasVendedor] = useState(false)
   const [mostrarImpulsadoras, setMostrarImpulsadoras] = useState(false)
-  const [resumenCartera, setResumenCartera] = useState<any>(_snapshot?.resumenCartera || null)
+  const [resumenCartera, setResumenCartera] = useState<any>(null)
   const lastPulseTs = useRef<number>(0)
 
   // Ruta
@@ -140,7 +139,7 @@ export default function DashboardVendedor({ user, _snapshot }: { user: any, _sna
       fetch('/api/me').then(r => r.json()),
     ]).then(([t, me]) => {
       setTurno(t)
-      if (t) { setCached({ turno: t }); saveSnapshot({ turno: t }) }
+      if (t) setCached({ turno: t })
       setCargandoTurno(false)
       if (!t) setTurnoExpandido(false)
       setPuedeCapturarGps(me?.puedeCapturarGps === true)
@@ -181,13 +180,12 @@ export default function DashboardVendedor({ user, _snapshot }: { user: any, _sna
         setStatsVendedor(stats)
         lastPulseTs.current = Date.now()
         setCached({ statsVendedor: stats })
-        saveSnapshot({ statsVendedor: stats })
       }
       setVendedorStatsLoading(false)
       if (debeRefrescarStats) setLoadingStats(false)
     })
     fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null).then(cartera => {
-      if (cartera) { setResumenCartera(cartera); setCached({ resumenCartera: cartera }); saveSnapshot({ resumenCartera: cartera }) }
+      if (cartera) { setResumenCartera(cartera); setCached({ resumenCartera: cartera }) }
       if (debeRefrescarStats) setLoadingStats(false)
     })
   }, [user])
