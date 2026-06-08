@@ -26,7 +26,7 @@ function crearLinea(): LineaPago { return { id: genId(), metodoPago: 'efectivo',
 // Skeleton inline — muestra placeholder mientras el dato es null/undefined
 function SkVal({ v, w = 'w-16', h = 'h-4' }: { v: any, w?: string, h?: string }) {
   if (v !== null && v !== undefined) return <>{v}</>
-  return <span className={`inline-block ${w} ${h} rounded bg-zinc-700/60 animate-pulse align-middle`} />
+  return <span className={`inline-block ${w} ${h} rounded bg-zinc-700/60 align-middle`} />
 }
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
 const RR_LIMIT = 10
@@ -425,10 +425,10 @@ export default function DashboardVendedor({ user }: { user: any }) {
             <div style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:16,overflow:"hidden"}}>
               <button onClick={() => setTurnoExpandido(e => !e)} className="w-full flex items-center gap-3 px-4 py-3 text-left">
                 <span className="relative inline-flex h-2.5 w-2.5 flex-shrink-0">
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75 live-ping" />
+                  
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400" />
                 </span>
-                {turno.pausaInicio && turno.pausaDuracionMin ? <PausaTimer pausaInicio={turno.pausaInicio} pausaDuracionMin={turno.pausaDuracionMin} onExpired={reanudarTurno} /> : <span className="font-mono font-bold text-amber-400 text-lg flex-1 tabular-nums">--:--</span>}
+                {turno.pausaInicio && turno.pausaDuracionMin ? <span className="font-mono font-bold text-amber-400 text-lg flex-1 tabular-nums">⏸</span> : <span className="font-mono font-bold text-amber-400 text-lg flex-1 tabular-nums">--:--</span>}
                 <span className="text-zinc-500 text-xs">⏸ {turno.pausaMotivo}</span>
                 <span className={`text-zinc-600 text-[10px] ${turnoExpandido ? 'rotate-180' : ''}`}>▼</span>
               </button>
@@ -452,10 +452,10 @@ export default function DashboardVendedor({ user }: { user: any }) {
                   style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderBottom:turnoExpandido?"none":undefined,borderRadius:turnoExpandido?"16px 16px 0 0":"16px"}}
                   onClick={() => setTurnoExpandido(e => !e)}>
                   <span className="relative inline-flex h-2 w-2 flex-shrink-0">
-                    <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 live-ping" />
+                    
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                   </span>
-                  <TurnoTimer turno={turno} />
+                  <span className="font-mono font-semibold text-emerald-400 text-sm tabular-nums">{turno?.inicioBogota || '--:--'}</span>
                   <span className="w-7 h-7 flex items-center justify-center bg-zinc-800 rounded-lg text-xs"
                     onClick={e => { e.stopPropagation(); setMostrarPausa(m => !m); setTurnoExpandido(true) }}>⏸</span>
                   <span className={`text-zinc-600 text-[10px] ${turnoExpandido ? 'rotate-180' : ''}`}>▼</span>
@@ -466,7 +466,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
                   <div className="px-4 pb-4 pt-3 space-y-3">
                     <div className="grid grid-cols-2 gap-2">
                       <div className="rounded-lg p-2" style={{background:'rgba(148,160,185,0.28)',border:'1px solid rgba(148,180,255,0.25)'}}><p className="text-zinc-500 text-xs">Hora inicio</p><p className="text-sm font-bold text-white">{new Date(turno.inicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",timeZone:'America/Bogota'})}</p></div>
-                      <div className="rounded-lg p-2" style={{background:'rgba(148,160,185,0.28)',border:'1px solid rgba(148,180,255,0.25)'}}><p className="text-zinc-500 text-xs">Contador</p><TurnoTimer turno={turno} className="text-emerald-400 font-mono font-bold" /></div>
+                      <div className="rounded-lg p-2" style={{background:'rgba(148,160,185,0.28)',border:'1px solid rgba(148,180,255,0.25)'}}><p className="text-zinc-500 text-xs">Contador</p><span className="text-emerald-400 font-mono font-bold">{turno?.inicioBogota || '--:--'}</span></div>
                     </div>
                     <button onClick={cerrarTurno} className="w-full bg-red-600 text-white text-sm font-bold py-2.5 rounded-xl">{bloqueadoTurno ? "..." : "Cerrar turno"}</button>
                     <div className="flex gap-2">
@@ -495,7 +495,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
           ) : (
             <div style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:16,overflow:"hidden"}}>
               <div className="flex items-center justify-between gap-2 px-3 py-2.5">
-                <button onClick={iniciarTurno} disabled={bloqueadoTurno || obteniendoGps} className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors">{obteniendoGps ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Buscando GPS...</> : <>⚡ Iniciar turno</>}</button>
+                <button onClick={iniciarTurno} disabled={bloqueadoTurno || obteniendoGps} className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors">{obteniendoGps ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full" /> Buscando GPS...</> : <>⚡ Iniciar turno</>}</button>
                 <a href="/historial-turnos" className="flex items-center gap-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold px-3 py-2 rounded-xl flex-shrink-0">📅</a>
               </div>
             </div>
@@ -534,7 +534,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
                   <div className="flex items-center gap-1.5"><span className="text-2xl font-black text-zinc-400 tabular-nums">{totalClientes - ejecutadosRuta}</span><span className="text-zinc-500 text-xs leading-tight">pendientes</span></div>
                 </div>
                 <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style={{width: totalClientes > 0 ? (ejecutadosRuta/totalClientes*100) + '%' : '0%'}} />
+                  <div className="bg-emerald-500 h-1.5 rounded-full " style={{width: totalClientes > 0 ? (ejecutadosRuta/totalClientes*100) + '%' : '0%'}} />
                 </div>
               </div>
               <div className="flex border-t border-zinc-800">
@@ -552,24 +552,24 @@ export default function DashboardVendedor({ user }: { user: any }) {
         <div className="space-y-3">
         <CardKPIGroup cols={2}>
           <CardCountAdmin stagger={1} icon="👁️" label="Visitas"
-            primary={<SkVal v={statsVendedor ? <CountUp end={statsVendedor.hoy.total || 0} /> : null} w="w-8" />}
-            secondary={<SkVal v={statsVendedor ? <CountUp end={statsVendedor.hoy.ayer || 0} /> : null} w="w-6" h="h-3" />}
+            primary={statsVendedor ? (statsVendedor.hoy.total||0).toLocaleString('es-CO') : '—'}
+            secondary={statsVendedor ? (statsVendedor.hoy.ayer||0).toLocaleString('es-CO') : '—'}
             primaryLabel="hoy" secondaryLabel="ayer" primaryColor="text-white" />
           <CardCountAdmin stagger={2} icon="📦" label="Órdenes"
-            primary={<SkVal v={statsVendedor ? <CountUp end={statsVendedor.ordenes?.despHoy || 0} /> : null} w="w-8" />}
-            secondary={<SkVal v={statsVendedor ? <CountUp end={statsVendedor.ordenes?.factHoy || 0} /> : null} w="w-6" h="h-3" />}
+            primary={statsVendedor ? (statsVendedor.ordenes?.despHoy||0).toLocaleString('es-CO') : '—'}
+            secondary={statsVendedor ? (statsVendedor.ordenes?.factHoy||0).toLocaleString('es-CO') : '—'}
             primaryLabel="desp hoy" secondaryLabel="fact hoy" primaryColor="text-amber-400" />
         </CardKPIGroup>
         <div className="relative" style={{borderRadius:16,overflow:'hidden'}}>
           <CardCountAdmin stagger={3} icon="💼" label="Ventas"
-            primary={<SkVal v={statsVendedor ? <CountUp end={Math.round(statsVendedor.ordenes?.montoMes || 0)} prefix="$" /> : null} w="w-20" />}
-            secondary={<SkVal v={statsVendedor ? (statsVendedor.ordenes?.metaVentaMes > 0 ? <CountUp end={Math.round(statsVendedor.ordenes.metaVentaMes)} prefix="$" /> : '—') : null} w="w-16" h="h-3" />}
+            primary={statsVendedor ? '$'+(Math.round(statsVendedor.ordenes?.montoMes||0)).toLocaleString('es-CO') : '—'}
+            secondary={statsVendedor ? (statsVendedor.ordenes?.metaVentaMes > 0 ? '$'+Math.round(statsVendedor.ordenes.metaVentaMes).toLocaleString('es-CO') : '—') : '—'}
             primaryLabel="mes" secondaryLabel="meta" primaryColor="text-emerald-400" />
         </div>
         <div style={{borderRadius:16,overflow:'hidden'}}>
           <CardCountAdmin stagger={4} icon="💰" label="Recaudo"
-            primary={<SkVal v={statsVendedor ? <CountUp end={Math.round(statsVendedor.recaudo?.mes || 0)} prefix="$" /> : null} w="w-20" />}
-            secondary={<SkVal v={statsVendedor ? (statsVendedor.recaudo?.meta > 0 ? `$${Math.round(statsVendedor.recaudo.meta).toLocaleString('es-CO')}` : '—') : null} w="w-16" h="h-3" />}
+            primary={statsVendedor ? '$'+(Math.round(statsVendedor.recaudo?.mes||0)).toLocaleString('es-CO') : '—'}
+            secondary={statsVendedor ? (statsVendedor.recaudo?.meta > 0 ? '$'+Math.round(statsVendedor.recaudo.meta).toLocaleString('es-CO') : '—') : '—'}
             primaryLabel="mes" secondaryLabel="meta" primaryColor="text-blue-400" />
         </div>
         </div>
@@ -587,7 +587,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
           {mostrarImpulsadoras && (
             <div className="mt-2 space-y-3 bg-zinc-900 border border-zinc-800 rounded-2xl p-3">
           {!statsVendedor ? (
-            <>{[0,1].map(i => <div key={i} className="h-16 rounded-xl bg-zinc-800/60" />)}</>
+            <>{[0,1].map(i => <div key={i} className="h-16 rounded-xl bg-zinc-800/40" />)}</>
           ) : (statsVendedor.cumplimiento?.length ?? 0) === 0 ? (
             <p className="text-zinc-500 text-xs text-center py-2">Sin impulsadoras asignadas</p>
           ) : statsVendedor.cumplimiento.map((imp: any) => {
@@ -597,7 +597,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
           <CardSub key={imp.id} alerta={imp.alerta} className="p-3">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
-                <div className={"w-2 h-2 rounded-full " + (imp.turnoActivo ? "bg-emerald-500 animate-pulse" : "bg-zinc-600")} />
+                <div className={"w-2 h-2 rounded-full " + (imp.turnoActivo ? "bg-emerald-500" : "bg-zinc-600")} />
                 <p className="text-white text-sm font-medium">{imp.nombre}</p>
               </div>
               <div className="flex items-center gap-2">
@@ -610,7 +610,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
                 <div>
                   <p className="text-zinc-400 text-xs mb-1">hoy {diaHoy}: {imp.visitados}/{imp.totalPuntos} puntos</p>
                   <div className="w-full rounded-full h-1.5 overflow-hidden" style={{background:"rgba(59,130,246,0.15)"}}>
-                    <div className={"h-1.5 rounded-full transition-all " + (imp.pct >= 80 ? "bg-emerald-500" : imp.pct >= 50 ? "bg-yellow-500" : "bg-red-500")} style={{width:(imp.pct||0)+'%'}} />
+                    <div className={"h-1.5 rounded-full " + (imp.pct >= 80 ? "bg-emerald-500" : imp.pct >= 50 ? "bg-yellow-500" : "bg-red-500")} style={{width:(imp.pct||0)+'%'}} />
                   </div>
                 </div>
                 {imp.puntoActual && <div style={{background:"rgba(148,160,185,0.28)",border:"1px solid rgba(148,180,255,0.35)",borderRadius:8,padding:"8px 12px"}}><p className="text-zinc-400 text-xs">📍 Está en:</p><p className="text-emerald-400 text-sm font-medium">{imp.puntoActual.nombre}</p>{imp.puntoActual.nombreComercial && <p className="text-zinc-500 text-xs">{imp.puntoActual.nombreComercial}</p>}</div>}
@@ -652,7 +652,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
           {statsVendedor.dias.slice().reverse().map((d: any) => (
             <div key={d.fecha} className="flex items-center gap-1">
           <p className="text-zinc-400 text-xs w-14 flex-shrink-0 capitalize">{d.label}</p>
-          <div className="flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden"><div className="bg-emerald-500 h-2 rounded-full transition-all" style={{width: d.total > 0 ? Math.min(100,d.total*10)+'%' : '0%'}} /></div>
+          <div className="flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden"><div className="bg-emerald-500 h-2 rounded-full" style={{width: d.total > 0 ? Math.min(100,d.total*10)+'%' : '0%'}} /></div>
           <p className="text-white text-xs w-6 text-right">{d.total}</p>
           <p className="text-emerald-400 text-xs w-16 text-right">{d.montoVentas > 0 ? '$'+d.montoVentas.toLocaleString('es-CO') : '—'}</p>
           <p className="text-blue-400 text-xs w-16 text-right">{d.montoCobros > 0 ? '$'+d.montoCobros.toLocaleString('es-CO') : '—'}</p>
@@ -672,7 +672,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
           {statsVendedor.meses.slice().reverse().map((m: any) => (
             <div key={m.label} className="flex items-center gap-1">
           <p className="text-zinc-400 text-xs w-14 flex-shrink-0 capitalize">{m.label}</p>
-          <div className="flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden"><div className="bg-blue-500 h-2 rounded-full transition-all" style={{width: m.total > 0 ? Math.min(100,m.total*2)+'%' : '0%'}} /></div>
+          <div className="flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden"><div className="bg-blue-500 h-2 rounded-full" style={{width: m.total > 0 ? Math.min(100,m.total*2)+'%' : '0%'}} /></div>
           <p className="text-white text-xs w-6 text-right">{m.total}</p>
           <p className="text-emerald-400 text-xs w-16 text-right">{m.montoVentas > 0 ? '$'+m.montoVentas.toLocaleString('es-CO') : '—'}</p>
           <p className="text-blue-400 text-xs w-16 text-right">{m.montoCobros > 0 ? '$'+m.montoCobros.toLocaleString('es-CO') : '—'}</p>
@@ -732,7 +732,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
                     placeholder="Buscar cliente con deuda..." autoFocus
                     className="w-full rounded-xl px-4 py-2.5 text-white text-sm outline-none placeholder:text-zinc-400"
                     style={{background:"rgba(30,41,59,0.80)",border:"1px solid rgba(59,130,246,0.35)"}} />
-                  {rrLoadingCartera && <div className="space-y-2">{Array.from({length:3}).map((_,i) => <div key={i} className="shimmer rounded-xl h-16"/>)}</div>}
+                  {rrLoadingCartera && <div className="space-y-2">{Array.from({length:3}).map((_,i) => <div key={i} className="rounded-xl h-16 bg-zinc-800/40"/>)}</div>}
                   {!rrLoadingCartera && rrCartera.length === 0 && <p className="text-zinc-500 text-sm text-center py-6">Sin clientes con deuda activa</p>}
                   {!rrLoadingCartera && rrCartera.map((cartera: any) => (
                     <CarteraCard key={cartera.id||cartera.clienteId} cartera={cartera} rol={user?.role||'vendedor'} fmt={fmt}
@@ -741,7 +741,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
                   ))}
                 </>
               ) : rrVerificando ? (
-                <div className="py-8 text-center"><p className="text-zinc-400 text-sm animate-pulse">Verificando deuda de {rrCliente.nombre}...</p></div>
+                <div className="py-8 text-center"><p className="text-zinc-400 text-sm">Verificando deuda de {rrCliente.nombre}...</p></div>
               ) : rrSinDeuda ? (
                 <div className="space-y-4">
                   <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-center">
