@@ -14,6 +14,7 @@ import { Worker, Queue, QueueEvents } from 'bullmq'
 import { runSyncNocturno } from '../lib/jobs/sync-nocturno'
 import { runSyncDelta } from '../lib/jobs/sync-delta'
 import { runIntegracionDelta } from '../lib/jobs/integracion-delta'
+import { runRutasDia, runTurnosDia } from '../lib/jobs/rutas-dia'
 
 const REDIS = { host: 'localhost', port: 6379, db: 1, password: '7wzadPIuzVn84WkSfPUoOAIlb0PKCZK' } // db1 = gestor
 const BASE_URL = 'http://localhost:3010'
@@ -63,11 +64,12 @@ export const rutasDiaWorker = new Worker(
     const skip = await cronYaEjecuto('rutas-dia')
     if (skip) { console.log(`[rutas-dia] skip — cron ejecutó OK (${skip})`); return { skip: true } }
     console.log(`[rutas-dia] ${job.name} iniciado ${new Date().toISOString()}`)
-    const result = await callEndpoint('/api/rutas/procesar-dia')
+    // Directo a BD — sin depender de gestor HTTP
+    const result = await runRutasDia()
     console.log(`[rutas-dia] ${job.name} resultado:`, JSON.stringify(result))
     // Turnos vendedores/supervisores — misma ventana horaria
     try {
-      const turnos = await callEndpoint('/api/turnos/procesar-dia')
+      const turnos = await runTurnosDia()
       console.log(`[rutas-dia] turnos resultado:`, JSON.stringify(turnos))
     } catch (e: any) {
       console.error(`[rutas-dia] turnos error:`, e.message)
