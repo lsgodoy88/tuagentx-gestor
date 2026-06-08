@@ -22,6 +22,12 @@ function genId(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => { const r = Math.random()*16|0; return (c==='x'?r:(r&0x3|0x8)).toString(16) })
 }
 function crearLinea(): LineaPago { return { id: genId(), metodoPago: 'efectivo', monto: '', voucherKey: null, voucherDatosIA: null, cargandoVoucher: false } }
+
+// Skeleton inline — muestra placeholder mientras el dato es null/undefined
+function SkVal({ v, w = 'w-16', h = 'h-4' }: { v: any, w?: string, h?: string }) {
+  if (v !== null && v !== undefined) return <>{v}</>
+  return <span className={`inline-block ${w} ${h} rounded bg-zinc-700/60 animate-pulse align-middle`} />
+}
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
 const RR_LIMIT = 10
 
@@ -401,19 +407,13 @@ export default function DashboardVendedor({ user }: { user: any }) {
   return (
     <div className="space-y-3 pb-20">
 
-      {/* Bienvenido — solo cuando no hay turno */}
+      {/* Bienvenido — solo cuando no hay turno y ya cargó */}
       {!turno && !cargandoTurno && (
         <h1 className="text-2xl font-bold text-white px-1">Bienvenido, {user?.name?.split(' ')[0]}</h1>
       )}
 
-      {/* Skeleton turno */}
-      {cargandoTurno && (
-        <div className="rounded-2xl px-4 py-3 animate-pulse" style={{background:'rgba(148,160,185,0.22)',border:'1px solid rgba(148,180,255,0.25)',height:48}} />
-      )}
-
-      {/* Turno */}
-      {!cargandoTurno && (
-        <div className="space-y-4">
+      {/* Turno — siempre montado, skeleton inline mientras carga */}
+      <div className="space-y-4">
           {turno?.pausado ? (
             <div style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:16,overflow:"hidden"}}>
               <button onClick={() => setTurnoExpandido(e => !e)} className="w-full flex items-center gap-3 px-4 py-3 text-left">
@@ -538,43 +538,34 @@ export default function DashboardVendedor({ user }: { user: any }) {
             </div>
           )}
         </div>
-      )}
 
 
-      {/* Stats — independiente: visibles desde el primer render */}
+      {/* Stats — siempre montadas, SkVal mientras cargan */}
       <div className="space-y-4">
-        {vendedorStatsLoading && (
-          <div className="space-y-3">
-        <CardKPIGroup cols={2}><CardCountAdminSkeleton /><CardCountAdminSkeleton /></CardKPIGroup>
-        <CardCountAdminSkeleton compact /><CardCountAdminSkeleton compact />
-          </div>
-        )}
-        {!vendedorStatsLoading && statsVendedor && (
-          <div className="space-y-3">
+        <div className="space-y-3">
         <CardKPIGroup cols={2}>
           <CardCountAdmin stagger={1} icon="👁️" label="Visitas"
-            primary={<CountUp end={statsVendedor.hoy.total || 0} />}
-            secondary={<CountUp end={statsVendedor.hoy.ayer || 0} />}
+            primary={<SkVal v={statsVendedor ? <CountUp end={statsVendedor.hoy.total || 0} /> : null} w="w-8" />}
+            secondary={<SkVal v={statsVendedor ? <CountUp end={statsVendedor.hoy.ayer || 0} /> : null} w="w-6" h="h-3" />}
             primaryLabel="hoy" secondaryLabel="ayer" primaryColor="text-white" />
           <CardCountAdmin stagger={2} icon="📦" label="Órdenes"
-            primary={<CountUp end={statsVendedor.ordenes?.despHoy || 0} />}
-            secondary={<CountUp end={statsVendedor.ordenes?.factHoy || 0} />}
+            primary={<SkVal v={statsVendedor ? <CountUp end={statsVendedor.ordenes?.despHoy || 0} /> : null} w="w-8" />}
+            secondary={<SkVal v={statsVendedor ? <CountUp end={statsVendedor.ordenes?.factHoy || 0} /> : null} w="w-6" h="h-3" />}
             primaryLabel="desp hoy" secondaryLabel="fact hoy" primaryColor="text-amber-400" />
         </CardKPIGroup>
         <div className="relative" style={{borderRadius:16,overflow:'hidden'}}>
           <CardCountAdmin stagger={3} icon="💼" label="Ventas"
-            primary={<CountUp end={Math.round(statsVendedor.ordenes?.montoMes || 0)} prefix="$" />}
-            secondary={statsVendedor.ordenes?.metaVentaMes > 0 ? <CountUp end={Math.round(statsVendedor.ordenes.metaVentaMes)} prefix="$" /> : '—'}
+            primary={<SkVal v={statsVendedor ? <CountUp end={Math.round(statsVendedor.ordenes?.montoMes || 0)} prefix="$" /> : null} w="w-20" />}
+            secondary={<SkVal v={statsVendedor ? (statsVendedor.ordenes?.metaVentaMes > 0 ? <CountUp end={Math.round(statsVendedor.ordenes.metaVentaMes)} prefix="$" /> : '—') : null} w="w-16" h="h-3" />}
             primaryLabel="mes" secondaryLabel="meta" primaryColor="text-emerald-400" />
         </div>
         <div style={{borderRadius:16,overflow:'hidden'}}>
           <CardCountAdmin stagger={4} icon="💰" label="Recaudo"
-            primary={<CountUp end={Math.round(statsVendedor.recaudo?.mes || 0)} prefix="$" />}
-            secondary={statsVendedor.recaudo?.meta > 0 ? `$${Math.round(statsVendedor.recaudo.meta).toLocaleString('es-CO')}` : '—'}
+            primary={<SkVal v={statsVendedor ? <CountUp end={Math.round(statsVendedor.recaudo?.mes || 0)} prefix="$" /> : null} w="w-20" />}
+            secondary={<SkVal v={statsVendedor ? (statsVendedor.recaudo?.meta > 0 ? `$${Math.round(statsVendedor.recaudo.meta).toLocaleString('es-CO')}` : '—') : null} w="w-16" h="h-3" />}
             primaryLabel="mes" secondaryLabel="meta" primaryColor="text-blue-400" />
         </div>
-          </div>
-        )}
+        </div>
 
         {/* Impulsos */}
         {statsVendedor && (statsVendedor.cumplimiento?.length ?? 0) > 0 && (() => {
