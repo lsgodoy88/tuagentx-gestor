@@ -540,8 +540,8 @@ export default function DashboardVendedor({ user }: { user: any }) {
         </div>
 
 
-      {/* Stats — siempre montadas, SkVal mientras cargan */}
-      <div className="space-y-4">
+      {/* Stats — solo cuando turno ya cargó, evita que aparezcan antes que el turno */}
+      {!cargandoTurno && <div className="space-y-4">
         <div className="space-y-3">
         <CardKPIGroup cols={2}>
           <CardCountAdmin stagger={1} icon="👁️" label="Visitas"
@@ -667,7 +667,8 @@ export default function DashboardVendedor({ user }: { user: any }) {
         </div>
           </div>
         )}
-      </div>
+
+      </div>}
 
       {/* ── Modales ── */}
       <ModalVisita
