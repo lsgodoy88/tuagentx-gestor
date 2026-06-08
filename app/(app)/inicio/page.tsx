@@ -19,6 +19,7 @@ class ErrorBoundary extends React.Component<{children: React.ReactNode},{err:any
 import { fetchApi, errorMsg } from '@/lib/fetchApi'
 import InputMoneda from '@/components/InputMoneda'
 import { useSession } from 'next-auth/react'
+import { loadSnapshot } from '@/lib/dashboardSnapshot'
 import { useGpsEnDemanda } from '@/components/useGpsEnDemanda'
 import { GpsIndicator } from '@/components/GpsIndicator'
 import { estadoMasCritico } from '@/lib/cartera'
@@ -619,17 +620,21 @@ function DashboardPageInner() {
 
 
   // ── Router de roles — early return antes de montar código de otros roles ──
-  // Si sesión no hidratada aún → skeleton, evita montar DashboardPageInner temporalmente
-  if (!user) return (
-    <div className="space-y-3 pb-20">
-      <div className="animate-pulse rounded-2xl" style={{height:44,background:'rgba(148,160,185,0.15)',border:'1px solid rgba(148,180,255,0.12)'}} />
-      <div className="grid grid-cols-2 gap-3">
-        {[0,1].map(i => <div key={i} className="animate-pulse rounded-2xl" style={{height:110,background:'rgba(148,160,185,0.12)',border:'1px solid rgba(148,180,255,0.10)'}} />)}
+  // Si sesión no hidratada — mostrar snapshot del último render inmediatamente
+  if (!user) {
+    const snap = typeof window !== 'undefined' ? loadSnapshot() : null
+    if (snap) return <DashboardVendedor user={null} _snapshot={snap} />
+    return (
+      <div className="space-y-3 pb-20">
+        <div className="rounded-2xl" style={{height:44,background:'rgba(148,160,185,0.10)',border:'1px solid rgba(148,180,255,0.08)'}} />
+        <div className="grid grid-cols-2 gap-3">
+          {[0,1].map(i => <div key={i} className="rounded-2xl" style={{height:110,background:'rgba(148,160,185,0.08)'}} />)}
+        </div>
+        <div className="rounded-2xl" style={{height:80,background:'rgba(148,160,185,0.08)'}} />
+        <div className="rounded-2xl" style={{height:80,background:'rgba(148,160,185,0.08)'}} />
       </div>
-      <div className="animate-pulse rounded-2xl" style={{height:80,background:'rgba(148,160,185,0.12)'}} />
-      <div className="animate-pulse rounded-2xl" style={{height:80,background:'rgba(148,160,185,0.12)'}} />
-    </div>
-  )
+    )
+  }
   if (user.role === 'vendedor')    return <DashboardVendedor user={user} />
   if (user.role === 'bodega')      return <DashboardBodega user={user} />
   if (user.role === 'impulsadora') { router.push('/impulsadora'); return null }

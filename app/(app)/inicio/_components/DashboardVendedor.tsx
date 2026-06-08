@@ -7,6 +7,7 @@ import { useGpsEnDemanda } from '@/components/useGpsEnDemanda'
 import { estadoMasCritico } from '@/lib/cartera'
 import { CountUp, SkeletonCard, LoadingBorder } from '@/components/FX'
 import { TurnoTimer, PausaTimer } from '@/components/TurnoTimer'
+import { saveSnapshot, loadSnapshot, type DashboardSnapshot } from '@/lib/dashboardSnapshot'
 import type { VendedorStats, TurnoActivo } from '@/lib/types/vendedor'
 import { CardKPIGroup, CardSub, CardCountAdmin, CardCountAdminSkeleton } from '@/components/ui/cards'
 import dynamic from 'next/dynamic'
@@ -58,11 +59,11 @@ function vieneDelLogin() {
 }
 
 // ── Componente ───────────────────────────────────────────────────────────────
-export default function DashboardVendedor({ user }: { user: any }) {
+export default function DashboardVendedor({ user, _snapshot }: { user: any, _snapshot?: DashboardSnapshot | null }) {
   const router = useRouter()
 
   // Turno
-  const [turno, setTurno]               = useState<TurnoActivo | null>(null)
+  const [turno, setTurno]               = useState<TurnoActivo | null>(_snapshot?.turno || null)
   const [cargandoTurno, setCargandoTurno] = useState(true)
   const [turnoExpandido, setTurnoExpandido] = useState(false)
   const [bloqueadoTurno, setBloqueadoTurno] = useState(false)
@@ -73,12 +74,12 @@ export default function DashboardVendedor({ user }: { user: any }) {
   const [pausaDuracionCustom, setPausaDuracionCustom] = useState(false)
 
   // Stats
-  const [statsVendedor, setStatsVendedor] = useState<VendedorStats | null>(null)
+  const [statsVendedor, setStatsVendedor] = useState<VendedorStats | null>(_snapshot?.statsVendedor || null)
   const [vendedorStatsLoading, setVendedorStatsLoading] = useState(true)
   const [loadingStats, setLoadingStats] = useState(false)
   const [mostrarEstadisticasVendedor, setMostrarEstadisticasVendedor] = useState(false)
   const [mostrarImpulsadoras, setMostrarImpulsadoras] = useState(false)
-  const [resumenCartera, setResumenCartera] = useState<any>(null)
+  const [resumenCartera, setResumenCartera] = useState<any>(_snapshot?.resumenCartera || null)
   const lastPulseTs = useRef<number>(0)
 
   // Ruta
@@ -139,7 +140,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
       fetch('/api/me').then(r => r.json()),
     ]).then(([t, me]) => {
       setTurno(t)
-      if (t) setCached({ turno: t })
+      if (t) { setCached({ turno: t }); saveSnapshot({ turno: t }) }
       setCargandoTurno(false)
       if (!t) setTurnoExpandido(false)
       setPuedeCapturarGps(me?.puedeCapturarGps === true)
@@ -180,12 +181,13 @@ export default function DashboardVendedor({ user }: { user: any }) {
         setStatsVendedor(stats)
         lastPulseTs.current = Date.now()
         setCached({ statsVendedor: stats })
+        saveSnapshot({ statsVendedor: stats })
       }
       setVendedorStatsLoading(false)
       if (debeRefrescarStats) setLoadingStats(false)
     })
     fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null).then(cartera => {
-      if (cartera) { setResumenCartera(cartera); setCached({ resumenCartera: cartera }) }
+      if (cartera) { setResumenCartera(cartera); setCached({ resumenCartera: cartera }); saveSnapshot({ resumenCartera: cartera }) }
       if (debeRefrescarStats) setLoadingStats(false)
     })
   }, [user])
@@ -428,7 +430,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
                   
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-400" />
                 </span>
-                {turno.pausaInicio && turno.pausaDuracionMin ? <span className="font-mono font-bold text-amber-400 text-lg flex-1 tabular-nums">⏸</span> : <span className="font-mono font-bold text-amber-400 text-lg flex-1 tabular-nums">--:--</span>}
+                {turno.pausaInicio && turno.pausaDuracionMin ? <PausaTimer pausaInicio={turno.pausaInicio} pausaDuracionMin={turno.pausaDuracionMin} onExpired={reanudarTurno} /> : <span className="font-mono font-bold text-amber-400 text-lg flex-1 tabular-nums">--:--</span>}
                 <span className="text-zinc-500 text-xs">⏸ {turno.pausaMotivo}</span>
                 <span className={`text-zinc-600 text-[10px] ${turnoExpandido ? 'rotate-180' : ''}`}>▼</span>
               </button>
@@ -452,10 +454,10 @@ export default function DashboardVendedor({ user }: { user: any }) {
                   style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderBottom:turnoExpandido?"none":undefined,borderRadius:turnoExpandido?"16px 16px 0 0":"16px"}}
                   onClick={() => setTurnoExpandido(e => !e)}>
                   <span className="relative inline-flex h-2 w-2 flex-shrink-0">
-                    
+                    <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 live-ping" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                   </span>
-                  <span className="font-mono font-semibold text-emerald-400 text-sm tabular-nums">{turno?.inicioBogota || '--:--'}</span>
+                  <TurnoTimer turno={turno} />
                   <span className="w-7 h-7 flex items-center justify-center bg-zinc-800 rounded-lg text-xs"
                     onClick={e => { e.stopPropagation(); setMostrarPausa(m => !m); setTurnoExpandido(true) }}>⏸</span>
                   <span className={`text-zinc-600 text-[10px] ${turnoExpandido ? 'rotate-180' : ''}`}>▼</span>
@@ -466,7 +468,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
                   <div className="px-4 pb-4 pt-3 space-y-3">
                     <div className="grid grid-cols-2 gap-2">
                       <div className="rounded-lg p-2" style={{background:'rgba(148,160,185,0.28)',border:'1px solid rgba(148,180,255,0.25)'}}><p className="text-zinc-500 text-xs">Hora inicio</p><p className="text-sm font-bold text-white">{new Date(turno.inicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",timeZone:'America/Bogota'})}</p></div>
-                      <div className="rounded-lg p-2" style={{background:'rgba(148,160,185,0.28)',border:'1px solid rgba(148,180,255,0.25)'}}><p className="text-zinc-500 text-xs">Contador</p><span className="text-emerald-400 font-mono font-bold">{turno?.inicioBogota || '--:--'}</span></div>
+                      <div className="rounded-lg p-2" style={{background:'rgba(148,160,185,0.28)',border:'1px solid rgba(148,180,255,0.25)'}}><p className="text-zinc-500 text-xs">Contador</p><TurnoTimer turno={turno} className="text-emerald-400 font-mono font-bold" /></div>
                     </div>
                     <button onClick={cerrarTurno} className="w-full bg-red-600 text-white text-sm font-bold py-2.5 rounded-xl">{bloqueadoTurno ? "..." : "Cerrar turno"}</button>
                     <div className="flex gap-2">
@@ -552,23 +554,23 @@ export default function DashboardVendedor({ user }: { user: any }) {
         <div className="space-y-3">
         <CardKPIGroup cols={2}>
           <CardCountAdmin stagger={1} icon="👁️" label="Visitas"
-            primary={statsVendedor ? (statsVendedor.hoy.total||0).toLocaleString('es-CO') : '—'}
-            secondary={statsVendedor ? (statsVendedor.hoy.ayer||0).toLocaleString('es-CO') : '—'}
+            primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={statsVendedor.hoy.total||0} /> : '—'}</span>}
+            secondary={statsVendedor ? <CountUp end={statsVendedor.hoy.ayer||0} /> : '—'}
             primaryLabel="hoy" secondaryLabel="ayer" primaryColor="text-white" />
           <CardCountAdmin stagger={2} icon="📦" label="Órdenes"
-            primary={statsVendedor ? (statsVendedor.ordenes?.despHoy||0).toLocaleString('es-CO') : '—'}
-            secondary={statsVendedor ? (statsVendedor.ordenes?.factHoy||0).toLocaleString('es-CO') : '—'}
+            primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={statsVendedor.ordenes?.despHoy||0} /> : '—'}</span>}
+            secondary={statsVendedor ? <CountUp end={statsVendedor.ordenes?.factHoy||0} /> : '—'}
             primaryLabel="desp hoy" secondaryLabel="fact hoy" primaryColor="text-amber-400" />
         </CardKPIGroup>
         <div className="relative" style={{borderRadius:16,overflow:'hidden'}}>
           <CardCountAdmin stagger={3} icon="💼" label="Ventas"
-            primary={statsVendedor ? '$'+(Math.round(statsVendedor.ordenes?.montoMes||0)).toLocaleString('es-CO') : '—'}
+            primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={Math.round(statsVendedor.ordenes?.montoMes||0)} prefix='$' /> : '—'}</span>}
             secondary={statsVendedor ? (statsVendedor.ordenes?.metaVentaMes > 0 ? '$'+Math.round(statsVendedor.ordenes.metaVentaMes).toLocaleString('es-CO') : '—') : '—'}
             primaryLabel="mes" secondaryLabel="meta" primaryColor="text-emerald-400" />
         </div>
         <div style={{borderRadius:16,overflow:'hidden'}}>
           <CardCountAdmin stagger={4} icon="💰" label="Recaudo"
-            primary={statsVendedor ? '$'+(Math.round(statsVendedor.recaudo?.mes||0)).toLocaleString('es-CO') : '—'}
+            primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={Math.round(statsVendedor.recaudo?.mes||0)} prefix='$' /> : '—'}</span>}
             secondary={statsVendedor ? (statsVendedor.recaudo?.meta > 0 ? '$'+Math.round(statsVendedor.recaudo.meta).toLocaleString('es-CO') : '—') : '—'}
             primaryLabel="mes" secondaryLabel="meta" primaryColor="text-blue-400" />
         </div>

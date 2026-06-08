@@ -647,3 +647,12 @@ input[type="date"] { appearance: none; -webkit-appearance: none; }
   }
 }
 
+
+/* ── fade-in-data — efecto lazy up solo en datos cuando llegan ── */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-in-data {
+  animation: fade-in-up 0.25s ease-out both;
+}
