@@ -15,7 +15,7 @@ try {
   }
 } catch { /* .env no encontrado — usar variables de entorno del proceso */ }
 
-import { rutasDiaQueue, integracionQueue, rutasDiaWorker, integracionWorker, auditQueue, auditWorker, mantenimientoQueue, mantenimientoWorker, syncDeltaQueue, syncDeltaWorker, syncNocturnoQueue, syncNocturnoWorker } from './index'
+import { rutasDiaQueue, integracionQueue, rutasDiaWorker, integracionWorker, mantenimientoQueue, mantenimientoWorker, syncDeltaQueue, syncDeltaWorker, syncNocturnoQueue, syncNocturnoWorker } from './index'
 
 async function main() {
   // ── Registrar jobs repetitivos ────────────────────────────────────────────
@@ -46,12 +46,7 @@ async function main() {
   console.log('  rutas-dia  → cerrar-rutas (0 1  * * * UTC = 8pm Bogotá)')
   console.log('  integracion → delta-sync  (0 10 * * * UTC = 5am Bogotá)')
   // Audit: 06:00 UTC = 1:00 Bogota
-  await auditQueue.upsertJobScheduler(
-    'audit-diario',
-    { pattern: '0 6 * * *' },
-    { name: 'audit-diario', data: {} },
-  )
-  console.log('  audit      -> audit-diario (0 6 * * * UTC = 1am Bogota)')
+  // audit-diario → manejado por master-worker
 
 
   // Mantenimiento: 14:00 UTC = 9am Bogota
@@ -88,7 +83,7 @@ async function main() {
     await Promise.all([
       rutasDiaWorker.close(),
       integracionWorker.close(),
-      auditWorker.close(),
+      // auditWorker → master-worker
       mantenimientoWorker.close(),
       syncDeltaWorker.close(),
       syncNocturnoWorker.close(),

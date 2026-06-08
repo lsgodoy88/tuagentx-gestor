@@ -123,27 +123,7 @@ integracionWorker.on('failed', async (job, err) => {
 
 
 
-// ── Queue: audit (noche) ─────────────────────────────────────────────────────
-export const auditQueue = new Queue('audit', { connection: REDIS, defaultJobOptions: { attempts: 3, backoff: { type: 'exponential', delay: 60000 }, removeOnComplete: 50, removeOnFail: 100 } })
-export const auditWorker = new Worker(
-  'audit',
-  async (job) => {
-    console.log(`[audit] ${job.name} iniciado ${new Date().toISOString()}`)
-    const res = await fetch('http://localhost:3020/api/audit/reporte', {
-      method: 'POST',
-      headers: { 'x-audit-secret': process.env.AUDIT_SECRET ?? '' },
-      signal: AbortSignal.timeout(120000),
-    })
-    const result = await res.json()
-    console.log(`[audit] ${job.name} resultado:`, JSON.stringify(result))
-    return result
-  },
-  { connection: REDIS, concurrency: 1 },
-)
-auditWorker.on('failed', (job, err) => {
-  console.error(`[audit] ${job?.name} falló:`, err.message)
-})
-
+// audit movido a master-worker (/srv/master/workers/index.js)
 
 
 // ── Queue: mantenimiento (diario) ────────────────────────────────────────────
