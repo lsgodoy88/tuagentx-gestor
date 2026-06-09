@@ -209,8 +209,9 @@ export async function actualizarCache(
   const apiIdsArr = [...clienteApiIds]
 
   // Traer deudas activas de los clientes afectados
+  // Incluir condition=false si aún tienen saldo pendiente (UpTres las cerró pero no se cobró)
   const deudas = await (prisma as any).syncDeuda.findMany({
-    where: { integracionId, clienteApiId: { in: apiIdsArr }, condition: true }
+    where: { integracionId, clienteApiId: { in: apiIdsArr }, saldo: { gt: 0 } }
   })
 
   // Traer clientes
