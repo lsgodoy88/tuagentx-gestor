@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 import { invalidatePattern } from '@/lib/cache'
+import { reconstruirCartera } from '@/lib/jobs/sync-nocturno'
 import { notificarWA } from '@/lib/notificaciones'
 import fs from 'fs'
 import path from 'path'
@@ -202,7 +203,8 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   } catch (err: any) { console.error('[delta] insert-ordenes error:', err.message); erroresParciales.push('insert-ordenes: ' + err.message) }
 
   if (toCreate.length || deudaToCreate.length || clientesNuevos || deudasNuevasDelta) {
-    // Invalidación quirúrgica — solo la empresa afectada
+    // Reconstruir CarteraCache incremental — clientes nuevos visibles sin esperar nocturno
+    try { await reconstruirCartera(integracionId, destino) } catch (e: any) { erroresParciales.push('cache: ' + e.message) }
     await invalidatePattern(`g:${destino}:*`)
   }
 
@@ -224,6 +226,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
       }
       saldosActualizados = toUpdateSaldo.length
       if (saldosActualizados > 0) {
+        try { await reconstruirCartera(integracionId, destino) } catch {}
         await invalidatePattern(`g:${destino}:*`)
       }
     }
