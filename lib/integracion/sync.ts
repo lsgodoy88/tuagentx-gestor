@@ -22,7 +22,7 @@ export async function sincronizarDeudas(
 
   // 2. Calcular operaciones en memoria
   const toCreate: any[] = []
-  const toUpdateSaldo: Array<{ externalId: string, saldo: number, saldoAnterior: number, condicionUpTres: boolean }> = []
+  const toUpdateSaldo: Array<{ externalId: string, saldo: number, saldoAnterior: number, condicionUpTres: boolean, fechaVencimiento?: Date | null }> = []
   const toDeactivate: string[] = []
 
   for (const o of deudas) {
@@ -44,7 +44,13 @@ export async function sincronizarDeudas(
 
     if (mapaExistentes.has(externalId)) {
       // Ya existe — solo actualizar saldo
-      toUpdateSaldo.push({ externalId, saldo, saldoAnterior: mapaExistentes.get(externalId) ?? saldo, condicionUpTres })
+      const fvenc = (() => {
+        if (o.fPago) return new Date(o.fPago)
+        const dias = parseInt(String(o.dias || '0'))
+        if (dias > 0 && o.fCreado) { const f = new Date(o.fCreado); f.setDate(f.getDate() + dias); return f }
+        return null
+      })()
+      toUpdateSaldo.push({ externalId, saldo, saldoAnterior: mapaExistentes.get(externalId) ?? saldo, condicionUpTres, fechaVencimiento: fvenc })
     } else {
       // Nueva — insertar completa
       const fechaVenc = (() => {
@@ -86,7 +92,11 @@ export async function sincronizarDeudas(
     for (const u of toUpdateSaldo) {
       await tx.syncDeuda.updateMany({
         where: { integracionId, externalId: u.externalId },
-        data: { saldo: u.saldo, saldoAnterior: u.saldoAnterior, condition: u.condicionUpTres, condicionUpTres: u.condicionUpTres }
+        data: {
+          saldo: u.saldo, saldoAnterior: u.saldoAnterior,
+          condition: u.condicionUpTres, condicionUpTres: u.condicionUpTres,
+          ...(u.fechaVencimiento ? { fechaVencimiento: u.fechaVencimiento } : {})
+        }
       })
     }
     if (toDeactivate.length > 0) {
