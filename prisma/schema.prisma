@@ -2782,6 +2782,7 @@ model SyncCompra {
   fechaVencimiento   DateTime?
   nameciudad         String?
   condition          Boolean     @default(true)
+  condicionUpTres    Boolean?    @default(true)
   data               Json? // JSON crudo completo del externo
   modificadoEn       DateTime? // fModificado del externo para delta sync
   sincronizadoEl     DateTime    @default(now())
@@ -2808,6 +2809,7 @@ model SyncDeuda {
   diasCredito        Int?
   fechaVencimiento   DateTime?
   condition          Boolean     @default(true)
+  condicionUpTres    Boolean?    @default(true)
   data               Json? // JSON crudo completo del externo
   modificadoEn       DateTime?
   externalUpdatedAt  DateTime? // updatedAt de UpTres — señal de cambio en origen

@@ -22,7 +22,7 @@ export async function sincronizarDeudas(
 
   // 2. Calcular operaciones en memoria
   const toCreate: any[] = []
-  const toUpdateSaldo: Array<{ externalId: string, saldo: number, saldoAnterior: number }> = []
+  const toUpdateSaldo: Array<{ externalId: string, saldo: number, saldoAnterior: number, condicionUpTres: boolean }> = []
   const toDeactivate: string[] = []
 
   for (const o of deudas) {
@@ -31,17 +31,20 @@ export async function sincronizarDeudas(
     if (!externalId || !clienteUid) continue
 
     const saldo = parseFloat(o.vSaldo as string || '0')
-    const activo = (o.condition === true || o.condition === undefined) && saldo > 0
+    // Activo si: condition=true con saldo, O condition=false pero tiene saldo (cerrada con deuda pendiente en UpTres)
+    const condicionUpTres = (o as any).condicionUpTres !== false
+    const activo = saldo > 0  // Si tiene saldo, siempre sincronizar
     clienteApiIds.add(clienteUid)
 
     if (!activo) {
-      if (mapaExistentes.has(externalId)) toDeactivate.push(externalId)
-      continue
+      // Solo desactivar si saldo=0 (pagada completamente)
+      if (saldo === 0 && mapaExistentes.has(externalId)) toDeactivate.push(externalId)
+      if (saldo === 0) continue
     }
 
     if (mapaExistentes.has(externalId)) {
       // Ya existe — solo actualizar saldo
-      toUpdateSaldo.push({ externalId, saldo, saldoAnterior: mapaExistentes.get(externalId) ?? saldo })
+      toUpdateSaldo.push({ externalId, saldo, saldoAnterior: mapaExistentes.get(externalId) ?? saldo, condicionUpTres })
     } else {
       // Nueva — insertar completa
       const fechaVenc = (() => {
@@ -66,7 +69,8 @@ export async function sincronizarDeudas(
         abono: parseFloat(o.vAbono as string || '0'),
         diasCredito: parseInt(o.dias as string || '0'),
         fechaVencimiento: fechaVenc,
-        condition: true,
+        condition: condicionUpTres,
+        condicionUpTres,
         modificadoEn: o.fModificado ? new Date(o.fModificado) : null,
         externalUpdatedAt: o.fModificado ? new Date(o.fModificado) : null,
         data: o,
@@ -82,7 +86,7 @@ export async function sincronizarDeudas(
     for (const u of toUpdateSaldo) {
       await tx.syncDeuda.updateMany({
         where: { integracionId, externalId: u.externalId },
-        data: { saldo: u.saldo, saldoAnterior: u.saldoAnterior }
+        data: { saldo: u.saldo, saldoAnterior: u.saldoAnterior, condition: u.condicionUpTres, condicionUpTres: u.condicionUpTres }
       })
     }
     if (toDeactivate.length > 0) {

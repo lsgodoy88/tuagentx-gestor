@@ -12,7 +12,7 @@ import { calcularEstado } from '@/lib/cartera'
 // ── Reconstruir CarteraCache ─────────────────────────────────────────────────
 async function reconstruirCartera(integracionId: string, empresaId: string) {
   const deudas = await (prisma as any).syncDeuda.findMany({
-    where: { integracionId, condition: true }
+    where: { integracionId, saldo: { gt: 0 } }  // Incluye condition=false con saldo pendiente
   })
 
   const apiIds = [...new Set(deudas.map((d: any) => d.clienteApiId))]
