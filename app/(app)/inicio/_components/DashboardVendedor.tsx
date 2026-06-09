@@ -274,6 +274,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
   function abrirModalRecaudoRapido() {
     setModalRecaudoRapido(true)
     setRrBuscarCartera(''); setRrCliente(null); setRrSinDeuda(false); setRrCartera([])
+    rrLoadCartera('') // Cargar todos los clientes al abrir
   }
   function abrirWhatsApp(cartera: any) {
     const telefono = (cartera.cliente?.celular || cartera.cliente?.telefono || cartera.telefono || cartera.celular || '').replace(/\D/g, '')
