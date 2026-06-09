@@ -215,27 +215,38 @@ export async function GET(req: NextRequest) {
             ORDER BY cc.nombre ASC
             LIMIT ${limit} OFFSET ${skip}`
 
-      const total = rows.length > 0 ? Number(rows[0].total_count) : 0
-      const totalSaldoPendiente = rows.length > 0 ? Number(rows[0].sum_pendiente) : 0
-      const totalSaldoTotal = rows.length > 0 ? Number(rows[0].sum_total) : 0
+      // window functions también vienen en minúsculas desde $queryRaw
+      const total = rows.length > 0 ? Number(rows[0].total_count ?? rows[0]['total_count'] ?? 0) : 0
+      const totalSaldoPendiente = rows.length > 0 ? Number(rows[0].sum_pendiente ?? rows[0]['sum_pendiente'] ?? 0) : 0
+      const totalSaldoTotal = rows.length > 0 ? Number(rows[0].sum_total ?? rows[0]['sum_total'] ?? 0) : 0
 
-      const carteras = rows.map((c: any) => ({
-        id: c.clienteId || c.clienteApiId,
-        clienteId: c.clienteId,
-        _sincronizado: true,
-        saldoPendiente: Number(c.saldoPendiente),
-        saldoTotal: Number(c.saldoTotal),
-        porEstado: c.porEstado,
-        ultimaActualizacion: c.ultimaActualizacion,
-        cliente: { id: c.clienteId, nombre: c.nombre, nit: c.nit, telefono: c.telefono, apiId: c.clienteApiId },
-        empleado: c.empleadoNombre ? { nombre: c.empleadoNombre } : null,
-        DetalleCartera: (c.deudas as any[] || []).map((d: any) => {
-          const vf = Number(d.valor || 0), ab = Number(d.abono || 0), saldo = Math.max(0, vf - ab)
-          const { estado, label, color } = calcularEstado(saldo, vf, ab, d.fechaVencimiento ? new Date(d.fechaVencimiento) : null)
-          return { ...d, valorFactura: vf, abonos: ab, saldoPendiente: saldo, estado, estadoLabel: label, estadoColor: color }
-        }),
-        PagoCartera: [],
-      }))
+      // $queryRaw devuelve columnas en minúsculas — leer con lowercase
+      const carteras = rows.map((c: any) => {
+        const clienteId    = c.clienteid    || c.clienteId    || null
+        const clienteApiId = c.clienteapiid || c.clienteApiId || null
+        const saldoPend    = Number(c.saldopendiente ?? c.saldoPendiente ?? 0)
+        const saldoTot     = Number(c.saldototal     ?? c.saldoTotal     ?? 0)
+        const porEstado    = c.porestado    || c.porEstado    || {}
+        const deudas       = c.deudas || []
+        const empleadoNombre = c.empleadonombre || c.empleadoNombre || null
+        return {
+          id: clienteId || clienteApiId,
+          clienteId,
+          _sincronizado: true,
+          saldoPendiente: saldoPend,
+          saldoTotal: saldoTot,
+          porEstado,
+          ultimaActualizacion: c.ultimaactualizacion || c.ultimaActualizacion,
+          cliente: { id: clienteId, nombre: c.nombre, nit: c.nit, telefono: c.telefono, apiId: clienteApiId },
+          empleado: empleadoNombre ? { nombre: empleadoNombre } : null,
+          DetalleCartera: (deudas as any[]).map((d: any) => {
+            const vf = Number(d.valor || 0), ab = Number(d.abono || 0), saldo = Math.max(0, vf - ab)
+            const { estado, label, color } = calcularEstado(saldo, vf, ab, d.fechaVencimiento ? new Date(d.fechaVencimiento) : null)
+            return { ...d, valorFactura: vf, abonos: ab, saldoPendiente: saldo, estado, estadoLabel: label, estadoColor: color }
+          }),
+          PagoCartera: [],
+        }
+      })
 
       return NextResponse.json({ carteras, total, page, pages: Math.ceil(total / limit), totalSaldoPendiente, totalSaldoTotal, _integracion: { id: integracion.id, nombre: integracion.nombre } })
     }
