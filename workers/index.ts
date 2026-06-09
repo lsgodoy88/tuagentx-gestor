@@ -64,12 +64,12 @@ export const rutasDiaWorker = new Worker(
     const skip = await cronYaEjecuto('rutas-dia')
     if (skip) { console.log(`[rutas-dia] skip — cron ejecutó OK (${skip})`); return { skip: true } }
     console.log(`[rutas-dia] ${job.name} iniciado ${new Date().toISOString()}`)
-    // Directo a BD — sin depender de gestor HTTP
-    const result = await runRutasDia()
+    // Directo a BD — forzar=true: cron siempre crea sin verificar ventana horaria
+    const result = await runRutasDia(null, true)
     console.log(`[rutas-dia] ${job.name} resultado:`, JSON.stringify(result))
-    // Turnos vendedores/supervisores — misma ventana horaria
+    // Turnos vendedores/supervisores
     try {
-      const turnos = await runTurnosDia()
+      const turnos = await runTurnosDia(true)
       console.log(`[rutas-dia] turnos resultado:`, JSON.stringify(turnos))
     } catch (e: any) {
       console.error(`[rutas-dia] turnos error:`, e.message)

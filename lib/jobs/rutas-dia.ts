@@ -18,7 +18,7 @@ function horaEnMinutos(hora: string): number {
 }
 
 // ── runRutasDia — abre y cierra rutas de entrega ─────────────────────────────
-export async function runRutasDia(empresaIdFiltro?: string | null): Promise<{
+export async function runRutasDia(empresaIdFiltro?: string | null, forzar = false): Promise<{
   procesadas: number
   rutasCreadas: number
   rutasCerradas: number
@@ -80,7 +80,7 @@ export async function runRutasDia(empresaIdFiltro?: string | null): Promise<{
     }
 
     // ── APERTURA ──────────────────────────────────────────────────────────
-    if (empresaIdFiltro || (horaActualMin >= inicioMin && horaActualMin < inicioMin + 60 && empresa.autoCrearRuta)) {
+    if (forzar || empresaIdFiltro || (horaActualMin >= inicioMin && horaActualMin < inicioMin + 60 && empresa.autoCrearRuta)) {
       const empleados = await prisma.empleado.findMany({
         where: { empresaId: empresa.id, activo: true, rol: 'entregas' }
       })
@@ -167,7 +167,7 @@ export async function runRutasDia(empresaIdFiltro?: string | null): Promise<{
 }
 
 // ── runTurnosDia — abre y cierra turnos de vendedores/supervisores ───────────
-export async function runTurnosDia(): Promise<{
+export async function runTurnosDia(forzar = false): Promise<{
   empresasProcesadas: number
   turnosAbiertos: number
   turnosCerrados: number
@@ -210,7 +210,7 @@ export async function runTurnosDia(): Promise<{
     const empIds = empleados.map(e => e.id)
 
     // APERTURA
-    if (empresa.autoAbrirTurno && diasAbrir.includes(diaSemana) && horaActMin >= inicioMin && horaActMin < inicioMin + 60) {
+    if (empresa.autoAbrirTurno && (forzar || (diasAbrir.includes(diaSemana) && horaActMin >= inicioMin && horaActMin < inicioMin + 60))) {
       const conTurnoActivo = await prisma.turno.findMany({
         where: { empleadoId: { in: empIds }, activo: true },
         select: { empleadoId: true }
