@@ -156,21 +156,27 @@ export class UpTresAdapter implements AdaptadorIntegracion {
   }
 
   async fetchDeudas(desde?: Date): Promise<DeudaExterna[]> {
-    const params: Record<string, string> = {
-      fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt',
-      includeTotal: 'false',
-    }
+    const fields = 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt'
+    const params: Record<string, string> = { fields, includeTotal: 'false' }
+
     if (desde) {
       // Delta: solo las creadas desde la ultima sync (UpTres filtra por createdAt)
-      // IMPORTANTE: 'to' en UpTres es EXCLUSIVO — usar mañana para incluir órdenes de hoy
       params.from = desde.toISOString().split('T')[0]
       const manana = new Date(); manana.setDate(manana.getDate() + 1)
       params.to = manana.toISOString().split('T')[0]
+      // Delta: solo activas
+      const data = await this.fetchAll('cartera', params)
+      return this._mapearDeudas(data)
     }
-    // Sin desde: trae TODAS las activas (sync completo). condition=true ya filtra.
-    const data = await this.fetchAll('cartera', params)
+
+    // Sync completo: traer TODAS — condition=true y condition=false con balance>0
+    // Una sola llamada con fetchAllSinCondition — no hay doble llamada
+    const data = await this.fetchAllSinCondition('cartera', params)
+    return this._mapearDeudas(data)
+  }
+
+  private _mapearDeudas(data: any[]): DeudaExterna[] {
     return data.map((o: any) => {
-      // Usar fPago directo de UpTres, o calcular desde createdAt + creditDay
       let fPago: string | null = o.paidAt || null
       if (!fPago && o.creditDay && o.createdAt) {
         const dias = parseInt(o.creditDay || '0')
@@ -196,6 +202,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
         receivableAt: o.receivableAt || null,
         cliente: { uid: o.customerId },
         empleado: { uid: o.employeeId },
+        condicionUpTres: o._condicionUpTres !== false,
       }
     })
   }

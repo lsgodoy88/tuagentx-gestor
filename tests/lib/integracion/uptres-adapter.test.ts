@@ -297,7 +297,9 @@ describe('lib/integracion/adapters/uptres — UpTresAdapter', () => {
       const a = new UpTresAdapter('k', 's')
       await a.login()
       await a.fetchDeudas()
-      expect(capturedUrl).toContain('condition=true')
+      // Sync completo usa fetchAllSinCondition — sin filtro condition (trae todas)
+      expect(capturedUrl).not.toContain('condition=true')
+      expect(capturedUrl).toContain('fields=')
     })
   })
 
