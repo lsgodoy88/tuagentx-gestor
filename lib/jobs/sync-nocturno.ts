@@ -32,9 +32,27 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
   empleados.forEach((e: any) => { empleadoMap[e.apiId] = e.nombre })
 
   const deudasIds = deudas.map((d: any) => d.id)
-  // Saldo tomado directamente de SyncDeuda (fuente: UpTres)
-  // No se descuentan pagos locales — UpTres es la fuente de verdad del saldo
+  // Descontar pagos locales recientes (últimas 48h) que UpTres aún no ha reflejado
+  // Solo aplica si el pago es más reciente que el último sync de UpTres (externalUpdatedAt)
+  const hace48h = new Date(Date.now() - 48 * 60 * 60 * 1000)
+  const pagosLocales = await (prisma as any).pagoCartera.findMany({
+    where: { syncDeudaId: { in: deudasIds }, createdAt: { gte: hace48h } },
+    select: { syncDeudaId: true, monto: true, descuento: true, createdAt: true }
+  })
   const pagosMap: Record<string, number> = {}
+  const deudaUpdatedAtMap: Record<string, Date> = {}
+  for (const d of deudas) {
+    if (d.externalUpdatedAt) deudaUpdatedAtMap[d.id] = new Date(d.externalUpdatedAt)
+  }
+  pagosLocales.forEach((p: any) => {
+    if (!p.syncDeudaId) return
+    const externalUpdatedAt = deudaUpdatedAtMap[p.syncDeudaId]
+    const pagoFecha = new Date(p.createdAt)
+    // Solo descontar si UpTres no ha sincronizado después del pago
+    if (!externalUpdatedAt || pagoFecha > externalUpdatedAt) {
+      pagosMap[p.syncDeudaId] = (pagosMap[p.syncDeudaId] || 0) + Number(p.monto) + Number(p.descuento || 0)
+    }
+  })
 
   const porCliente: Record<string, any[]> = {}
   for (const d of deudas) {
@@ -64,7 +82,9 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
     })
 
     const deudasDetalle = deudasOrdenadas.map((d: any) => {
-      const saldoReal = Number(d.saldo)
+      const saldoSync = Number(d.saldo)
+      const pagosLocal = pagosMap[d.id] || 0
+      const saldoReal = Math.max(0, saldoSync - pagosLocal)
       const valor = Number(d.valor)
       const { estado } = calcularEstado(saldoReal, valor, Number(d.abono), d.fechaVencimiento)
       porEstado[estado] = (porEstado[estado] || 0) + saldoReal
