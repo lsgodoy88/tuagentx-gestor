@@ -56,17 +56,9 @@ async function main() {
     { name: 'mantenimiento-diario', data: {} },
   )
   console.log('  mantenimiento -> mantenimiento-diario (0 14 * * * UTC = 9am Bogota)')
-  // sync-delta: manejado por crontab Linux (*/30 13-21 * * 1-6)
-  // Más confiable que BullMQ — sobrevive reinicios del worker y de Redis
-  // sync-delta watchdog: 5 min después del cron — fallback si el cron falló
-  // UTC: 5,35 13-23 = 8:05, 8:35... 6:05pm Bogotá lun-sab
-  // cronYaEjecuto('delta', 35min) en el worker hace skip si el cron corrió OK
-  await syncDeltaQueue.upsertJobScheduler(
-    'sync-delta-watchdog',
-    { pattern: '5,35 13-23 * * 1-6' },
-    { name: 'sync-delta-watchdog', data: {} },
-  )
-  console.log('  sync-delta  → crontab OS (*/30 8-18 Bogotá) + watchdog BullMQ (8:05, 8:35... L-S)')
+  // sync-delta: manejado por Guardián (watchdog inteligente basado en SyncLog)
+  // BullMQ watchdog eliminado — causaba ejecuciones paralelas que descuadraban cartera
+  console.log('  sync-delta  → Guardián (watchdog SyncLog cada 5min)')
 
   // sync-nocturno: 8:00 UTC = 3:00 Bogotá
   // Completo domingos 3am Bogotá — huérfanas + CarteraCache
