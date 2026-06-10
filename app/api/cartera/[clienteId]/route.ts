@@ -39,6 +39,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
 
     // Para cada deuda calcular saldo real con lógica inteligente
     const deudasEnriquecidas = await Promise.all(deudas.map(async (d: any) => {
+      const hace48h = new Date(Date.now() - 48 * 60 * 60 * 1000)
       const pagosLocales = await (prisma as any).pagoCartera.findMany({
         where: { syncDeudaId: d.id },
         orderBy: { createdAt: 'desc' },
@@ -47,21 +48,22 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
 
       const totalPagosLocales = pagosLocales.reduce((s: number, p: any) => s + Number(p.monto), 0)
 
-      const saldoSync = Number(d.saldo)
-      const saldoAnterior = Number(d.saldoAnterior ?? d.saldo)
-      const saldoCambio = Math.abs(saldoSync - saldoAnterior) > 0.01
+      // Solo descontar pagos de las últimas 48h que UpTres aún no refleja
+      const externalUpdatedAt = d.externalUpdatedAt ? new Date(d.externalUpdatedAt) : null
+      const pagosRecientes = pagosLocales.filter((p: any) => {
+        const pagoFecha = new Date(p.createdAt)
+        return pagoFecha >= hace48h && (!externalUpdatedAt || pagoFecha > externalUpdatedAt)
+      })
+      const totalPagosRecientes = pagosRecientes.reduce((s: number, p: any) => s + Number(p.monto), 0)
 
-      // Si UpTres actualizó el saldo → usar directo, limpiar pagos locales pendientes
-      // Si no cambió → restar pagos locales no reflejados
-      const saldoReal = saldoCambio
-        ? saldoSync
-        : Math.max(0, saldoSync - totalPagosLocales)
+      const saldoSync = Number(d.saldo)
+      const saldoReal = Math.max(0, saldoSync - totalPagosRecientes)
 
       return {
         ...d,
         saldoReal,
         saldoSync,
-        saldoCambioEnSync: saldoCambio,
+        saldoCambioEnSync: false,
         pagosLocales: pagosLocales.map((p: any) => ({ ...p, empleado: p.Empleado })),
         totalPagosLocales,
       }
