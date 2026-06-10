@@ -256,7 +256,7 @@ describe('CONTRATO fetchDeudasEmpleado → /cartera/empleado/:id', () => {
     await a.login()
     await a.fetchDeudasEmpleado('emp-1')
     // 3 llamadas: 2 para condition=true (con cursor), 1 para condition=false (vacía)
-    expect(llamadas).toBe(3)
+    expect(llamadas).toBe(2) // 1 con datos+cursor, 1 vacía que corta el loop
     expect(urls[1]).toContain('cursorDate=')
     expect(urls[1]).toContain('cursorId=d1')
   })

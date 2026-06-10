@@ -4,7 +4,7 @@ import { calcularEstado } from '@/lib/cartera'
 
 async function poblarCarteraCache(integracionId: string, empresaId: string) {
   const deudas = await (prisma as any).syncDeuda.findMany({
-    where: { integracionId, saldo: { gt: 0 } } // incluye condition=false con saldo
+    where: { integracionId, condition: true }
   })
 
   const apiIds = [...new Set(deudas.map((d: any) => d.clienteApiId))]

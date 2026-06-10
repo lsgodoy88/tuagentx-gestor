@@ -194,7 +194,7 @@ export async function GET(req: NextRequest) {
                 SELECT DISTINCT "clienteApiId" FROM gestor."SyncDeuda"
                 WHERE "integracionId" = ${integracion.id}
                   AND "empleadoExternalId" = ${miApiId}
-                  AND saldo > 0
+                  AND condition = true
               )
               AND (cc.nombre ILIKE ${`%${q}%`} OR cc.nit ILIKE ${`%${q}%`})
             ORDER BY cc.nombre ASC
@@ -210,7 +210,7 @@ export async function GET(req: NextRequest) {
                 SELECT DISTINCT "clienteApiId" FROM gestor."SyncDeuda"
                 WHERE "integracionId" = ${integracion.id}
                   AND "empleadoExternalId" = ${miApiId}
-                  AND saldo > 0
+                  AND condition = true
               )
             ORDER BY cc.nombre ASC
             LIMIT ${limit} OFFSET ${skip}`

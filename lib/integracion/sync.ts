@@ -31,15 +31,13 @@ export async function sincronizarDeudas(
     if (!externalId || !clienteUid) continue
 
     const saldo = parseFloat(o.vSaldo as string || '0')
-    // Activo si: condition=true con saldo, O condition=false pero tiene saldo (cerrada con deuda pendiente en UpTres)
     const condicionUpTres = (o as any).condicionUpTres !== false
-    const activo = saldo > 0  // Si tiene saldo, siempre sincronizar
+    const activo = (o.condition === true || o.condition === undefined) && saldo > 0
     clienteApiIds.add(clienteUid)
 
     if (!activo) {
-      // Solo desactivar si saldo=0 (pagada completamente)
-      if (saldo === 0 && mapaExistentes.has(externalId)) toDeactivate.push(externalId)
-      if (saldo === 0) continue
+      if (mapaExistentes.has(externalId)) toDeactivate.push(externalId)
+      continue
     }
 
     if (mapaExistentes.has(externalId)) {

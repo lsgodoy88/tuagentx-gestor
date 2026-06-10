@@ -60,7 +60,7 @@ export async function GET() {
               FROM gestor."SyncDeuda" sd
               WHERE sd."integracionId" = ${integracion.id}
                 AND sd."empleadoExternalId" = ${miApiId}
-                AND sd.saldo > 0  -- incluye condition=false con saldo pendiente
+                AND sd.condition = true
             )`
         totalCartera   = Number(rows[0]?.totalCartera   || 0)
         totalPendiente = Number(rows[0]?.totalPendiente || 0)

@@ -232,11 +232,9 @@ export class UpTresAdapter implements AdaptadorIntegracion {
   }
 
   async fetchDeudasEmpleado(empleadoApiId: string): Promise<DeudaExterna[]> {
-    // Trae deudas activas (condition=true) Y cerradas con saldo (condition=false, balance>0)
+    // Solo deudas activas en UpTres (condition=true)
     const fields = 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt'
     const todas: any[] = []
-
-    // Paginación para condition=true
     let cursorDate: string | null = null
     let cursorId: string | null = null
     while (true) {
@@ -245,23 +243,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       const res = await fetch(`${BASE}/cartera/empleado/${empleadoApiId}?${p.toString()}`, { headers: this.headers })
       const d = await res.json()
       if (!d.ok || !Array.isArray(d.data) || d.data.length === 0) break
-      todas.push(...d.data.map((o: any) => ({ ...o, _condicionUpTres: true })))
-      if (!d.nextCursor?.cursorDate || !d.nextCursor?.cursorId) break
-      cursorDate = d.nextCursor.cursorDate
-      cursorId = d.nextCursor.cursorId
-    }
-
-    // Paginación para condition=false con balance > 0
-    cursorDate = null; cursorId = null
-    while (true) {
-      const p = new URLSearchParams({ limit: '100', condition: 'false', includeTotal: 'false', fields })
-      if (cursorDate && cursorId) { p.set('cursorDate', cursorDate); p.set('cursorId', cursorId) }
-      const res = await fetch(`${BASE}/cartera/empleado/${empleadoApiId}?${p.toString()}`, { headers: this.headers })
-      const d = await res.json()
-      if (!d.ok || !Array.isArray(d.data) || d.data.length === 0) break
-      // Solo las que tienen saldo real pendiente
-      const conSaldo = d.data.filter((o: any) => parseFloat(o.balance || '0') > 0)
-      todas.push(...conSaldo.map((o: any) => ({ ...o, _condicionUpTres: false })))
+      todas.push(...d.data)
       if (!d.nextCursor?.cursorDate || !d.nextCursor?.cursorId) break
       cursorDate = d.nextCursor.cursorDate
       cursorId = d.nextCursor.cursorId

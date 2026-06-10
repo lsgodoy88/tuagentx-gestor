@@ -33,7 +33,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
     // Lee directo de SyncDeuda — el nocturno y el delta mantienen los datos frescos
     // Buscar todas las deudas de este cliente en SyncDeuda
     const deudas = await (prisma as any).syncDeuda.findMany({
-      where: { integracionId: integracion.id, clienteApiId: cliente.apiId, saldo: { gt: 0 } }, // incluye condition=false con saldo pendiente
+      where: { integracionId: integracion.id, clienteApiId: cliente.apiId, condition: true },
       orderBy: [{ fechaVencimiento: { sort: 'asc', nulls: 'last' } }]
     })
 

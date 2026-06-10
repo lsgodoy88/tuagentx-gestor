@@ -109,7 +109,7 @@ describe('lib/integracion/sync — sincronizarDeudas', () => {
     expect((prisma as any).syncDeuda.createMany).toHaveBeenCalled()
   })
 
-  it('deuda condition=false con saldo>0 → se actualiza con condicionUpTres=false (saldo pendiente real)', async () => {
+  it('deuda inactiva (condition=false) → updateMany condition=false, NO createMany', async () => {
     vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
       { externalId: 'ext-1', saldo: 100 }
     ])
@@ -120,11 +120,9 @@ describe('lib/integracion/sync — sincronizarDeudas', () => {
         vAbono: '0', condition: false, numeroOrden: 1, numeroFacturado: 1, dias: '0' }
     ], INT_ID, EMP_ID)
 
-    // Con saldo>0 — ahora se actualiza el saldo, NO se desactiva (condicionUpTres=false pero activa)
     const calls = vi.mocked((prisma as any).syncDeuda.updateMany).mock.calls
-    const update = calls.find((c: any) => c[0]?.where?.externalId === 'ext-1')
-    expect(update).toBeDefined()
-    expect(update[0].data.saldo).toBe(100)
+    const deactivate = calls.find((c: any) => c[0]?.data?.condition === false)
+    expect(deactivate).toBeDefined()
   })
 
   it('deuda con saldo=0 también se trata como inactiva', async () => {
