@@ -100,14 +100,21 @@ export async function POST(req: NextRequest) {
   }
   const totalAplicado = montoNum + descuentoNum
 
-  // Buscar deudas por externalId, ordenadas FIFO (más antigua primero)
+  // Obtener integracionId de la empresa para buscar deudas sin externalIds
+  const integracionRow = await (prisma as any).integracion.findFirst({
+    where: { empresaId, activa: true },
+    select: { id: true }
+  })
+  const integracionIdActual = integracionRow?.id || null
+
+  // Buscar deudas por externalId — si no vienen, buscar todas las activas del cliente (FIFO)
   const externalIds = Array.isArray(syncDeudaIds) ? syncDeudaIds : []
-  const deudas = externalIds.length > 0
-    ? await (prisma as any).syncDeuda.findMany({
-        where: { externalId: { in: externalIds }, clienteApiId },
-        orderBy: [{ fechaVencimiento: 'asc' }, { numeroFactura: 'asc' }],
-      })
-    : []
+  const deudas = await (prisma as any).syncDeuda.findMany({
+    where: externalIds.length > 0
+      ? { externalId: { in: externalIds }, clienteApiId }
+      : { clienteApiId, ...(integracionIdActual ? { integracionId: integracionIdActual } : {}), condition: true, saldo: { gt: 0 } },
+    orderBy: [{ fechaVencimiento: 'asc' }, { numeroFactura: 'asc' }],
+  })
 
   // Scope vendedor — si hay deudas seleccionadas, al menos una debe ser suya
   if (user.role === 'vendedor' && deudas.length > 0) {

@@ -291,14 +291,22 @@ describe('POST /api/cartera/pago-sync', () => {
       expect(aplicaciones[0].externalId).toBe('ext-2')
     })
 
-    it('sin syncDeudaIds → pago sin aplicaciones (anticipo)', async () => {
+    it('sin syncDeudaIds → busca deudas activas del cliente y aplica FIFO', async () => {
+      // Nuevo comportamiento: sin syncDeudaIds → busca automáticamente deudas activas
+      vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
+        { id: 'sd-1', externalId: 'ext-1', saldo: 100, abono: 0, numeroFactura: 101, fechaVencimiento: new Date('2026-01-01'), empleadoExternalId: 'api-usr-1' },
+      ])
       const pagoCreate = vi.fn().mockResolvedValue({ id: 'p1' })
-      mockTx({ pagoCartera: { create: pagoCreate }, syncDeuda: { findUnique: vi.fn(), update: vi.fn() } })
+      mockTx({
+        pagoCartera: { create: pagoCreate },
+        syncDeuda: { findUnique: vi.fn().mockResolvedValue({ saldo: 100, abono: 0 }), update: vi.fn() },
+      })
 
       await POST(makeReq({ clienteApiId: 'erp-c1', monto: 50 }))
 
+      // Debe haber aplicado la deuda encontrada automáticamente
       const data = pagoCreate.mock.calls[0][0].data
-      expect(data.Aplicaciones).toBeUndefined()
+      expect(data.Aplicaciones?.create?.length).toBeGreaterThan(0)
     })
   })
 
