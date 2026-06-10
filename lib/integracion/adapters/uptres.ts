@@ -156,22 +156,18 @@ export class UpTresAdapter implements AdaptadorIntegracion {
   }
 
   async fetchDeudas(desde?: Date): Promise<DeudaExterna[]> {
-    const fields = 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt'
-    const params: Record<string, string> = { fields, includeTotal: 'false' }
-
+    const params: Record<string, string> = {
+      fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt',
+      includeTotal: 'false',
+    }
     if (desde) {
       // Delta: solo las creadas desde la ultima sync (UpTres filtra por createdAt)
       params.from = desde.toISOString().split('T')[0]
       const manana = new Date(); manana.setDate(manana.getDate() + 1)
       params.to = manana.toISOString().split('T')[0]
-      // Delta: solo activas
-      const data = await this.fetchAll('cartera', params)
-      return this._mapearDeudas(data)
     }
-
-    // Sync completo: traer TODAS — condition=true y condition=false con balance>0
-    // Una sola llamada con fetchAllSinCondition — no hay doble llamada
-    const data = await this.fetchAllSinCondition('cartera', params)
+    // condition=true via fetchAll (default) — solo deudas activas en UpTres
+    const data = await this.fetchAll('cartera', params)
     return this._mapearDeudas(data)
   }
 
