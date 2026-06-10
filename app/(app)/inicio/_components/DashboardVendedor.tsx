@@ -406,15 +406,15 @@ export default function DashboardVendedor({ user }: { user: any }) {
 
   // ── JSX ──────────────────────────────────────────────────────────────────
   return (
-    <div className="pb-20 md:pb-6 md:grid md:grid-cols-3 md:gap-5 md:items-start">
+    <div className="space-y-3 pb-20 md:max-w-2xl md:mx-auto">
 
       {/* Bienvenido — solo cuando no hay turno y ya cargó */}
       {!turno && !cargandoTurno && (
-        <h1 className="text-2xl font-bold text-white px-1 md:hidden">Bienvenido, {user?.name?.split(' ')[0]}</h1>
+        <h1 className="text-2xl font-bold text-white px-1">Bienvenido, {user?.name?.split(' ')[0]}</h1>
       )}
 
-      {/* Turno + Ruta — col 1 desktop */}
-      <div className="space-y-4 md:col-start-1 md:col-span-1 md:bg-[#060a24] md:border md:border-blue-500/20 md:rounded-2xl md:p-4">
+      {/* Turno — skeleton exacto mientras carga (misma altura que el pill) */}
+      <div className="space-y-4">
           {cargandoTurno ? (
             <div style={{background:'#060a24',border:'1px solid rgba(59,130,246,0.20)',borderRadius:16,overflow:'hidden'}}>
               <div className="flex items-center gap-2 px-3 py-2.5">
@@ -548,12 +548,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
         </div>
 
 
-      {/* Stats — col 2-3 desktop */}
-      <div className="md:col-start-2 md:col-span-2 space-y-4">
-      {/* Bienvenido desktop */}
-      {!turno && !cargandoTurno && (
-        <h1 className="hidden md:block text-xl font-bold text-white">Bienvenido, {user?.name?.split(' ')[0]}</h1>
-      )}
+      {/* Stats — solo cuando turno ya cargó, evita que aparezcan antes que el turno */}
       {!cargandoTurno && <div className="space-y-4">
         <div className="space-y-3">
         <CardKPIGroup cols={2}>
@@ -691,7 +686,6 @@ export default function DashboardVendedor({ user }: { user: any }) {
         ))}
 
       </div>}
-      </div>{/* /stats-col */}
 
       {/* ── Modales ── */}
       <ModalVisita
