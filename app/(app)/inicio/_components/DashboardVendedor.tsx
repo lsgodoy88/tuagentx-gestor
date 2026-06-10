@@ -406,7 +406,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
 
   // ── JSX ──────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-3 pb-20 md:max-w-2xl md:mx-auto">
+    <div className="space-y-3 pb-20">
 
       {/* Bienvenido — solo cuando no hay turno y ya cargó */}
       {!turno && !cargandoTurno && (
