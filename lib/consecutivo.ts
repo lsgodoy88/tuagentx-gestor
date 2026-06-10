@@ -6,6 +6,8 @@ export async function getConsecutivo(empleadoId: string): Promise<string> {
   const anio = String(now.getFullYear()).slice(-2)
   const mmaa = `${mes}${anio}`
 
+  // Serializable isolation — serializa transacciones concurrentes del consecutivo
+  // Evita gaps cuando dos pagos simultáneos generan consecutivos al mismo tiempo
   const numero = await prisma.$transaction(async (tx) => {
     const empleado = await tx.empleado.findUnique({
       where: { id: empleadoId },
@@ -62,7 +64,7 @@ export async function getConsecutivo(empleadoId: string): Promise<string> {
     })
 
     return recibo
-  })
+  }, { isolationLevel: 'Serializable', timeout: 10000 })
 
   return numero
 }

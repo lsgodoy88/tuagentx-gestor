@@ -119,6 +119,7 @@ export default function CarteraPage() {
   const [notasPago, setNotasPago] = useState('')
   const [guardandoPago, setGuardandoPago] = useState(false)
   const fileInputRefs = useRef<Map<string, HTMLInputElement | null>>(new Map())
+  const guardandoPagoRef = useRef(false) // ref síncrono — bloquea doble tap antes del re-render
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login')
@@ -410,8 +411,10 @@ export default function CarteraPage() {
 
   async function registrarPago() {
     if (!detalleData) return
+    if (guardandoPagoRef.current) return // bloqueo síncrono contra doble tap
     const total = lineasPago.reduce((s, l) => s + Number(l.monto || 0), 0)
     if (total === 0) return
+    guardandoPagoRef.current = true
     setGuardandoPago(true)
     let ultimoId: string | null = null
     let ultimoToken: string | null = null
@@ -438,6 +441,7 @@ export default function CarteraPage() {
       const data = await res.json()
       if (data.pago) { ultimoId = data.pago.id; ultimoToken = data.pago.reciboToken || null; if (data.anchoPapel) ultimoAnchoPapel = data.anchoPapel }
     }
+    guardandoPagoRef.current = false
     setGuardandoPago(false)
     if (ultimoId) {
       if (ultimoToken) window.open('/recaudo/recibo?token=' + ultimoToken + (ultimoAnchoPapel === '58mm' ? '&fmt=58mm' : ''), '_blank')
