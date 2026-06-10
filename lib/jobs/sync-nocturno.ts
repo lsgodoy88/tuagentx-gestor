@@ -190,7 +190,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
         await Promise.all(chunk.map((u: any) =>
           (prisma as any).syncDeuda.update({
             where: { integracionId_externalId: { integracionId: intg.id, externalId: u.externalId } },
-            data: { saldo: u.saldo, valor: u.valor, externalUpdatedAt: u.externalUpdatedAt, receivableAt: u.receivableAt, sincronizadoEl: new Date(), data: u.data }
+            data: { saldo: u.saldo, valor: u.valor, condition: u.saldo > 0, externalUpdatedAt: u.externalUpdatedAt, receivableAt: u.receivableAt, sincronizadoEl: new Date(), data: u.data }
           })
         ))
       }
