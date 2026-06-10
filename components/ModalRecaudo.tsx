@@ -317,12 +317,14 @@ export default function ModalRecaudo({
               {(() => {
                 const transferenciasSinVoucher = lineasPago.filter(l => l.metodoPago === 'transferencia' && !l.voucherDatosIA && !l.cargandoVoucher)
                 const hayTransferenciaSinVoucher = transferenciasSinVoucher.length > 0
+                const totalMonto = lineasPago.reduce((s, l) => s + Number(l.monto || 0), 0)
+                const sinMonto = totalMonto <= 0
                 return (
                   <>
                     {hayTransferenciaSinVoucher && (
                       <p className="text-amber-400 text-xs text-center">📎 Adjunta el comprobante para continuar</p>
                     )}
-                    <button onClick={onConfirmar} disabled={procesando || hayTransferenciaSinVoucher}
+                    <button onClick={onConfirmar} disabled={procesando || hayTransferenciaSinVoucher || sinMonto}
                       className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl text-sm transition-colors">
                       {procesando ? 'Procesando...' : '✅ Confirmar recaudo'}
                     </button>
