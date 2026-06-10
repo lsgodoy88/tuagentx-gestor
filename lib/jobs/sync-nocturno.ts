@@ -32,23 +32,9 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
   empleados.forEach((e: any) => { empleadoMap[e.apiId] = e.nombre })
 
   const deudasIds = deudas.map((d: any) => d.id)
-  const pagosLocales = await (prisma as any).pagoCartera.findMany({
-    where: { syncDeudaId: { in: deudasIds } },
-    select: { syncDeudaId: true, monto: true, descuento: true, createdAt: true }
-  })
+  // Saldo tomado directamente de SyncDeuda (fuente: UpTres)
+  // No se descuentan pagos locales — UpTres es la fuente de verdad del saldo
   const pagosMap: Record<string, number> = {}
-  const deudaUpdatedAtMap: Record<string, Date> = {}
-  for (const d of deudas) {
-    if (d.externalUpdatedAt) deudaUpdatedAtMap[d.id] = new Date(d.externalUpdatedAt)
-  }
-  pagosLocales.forEach((p: any) => {
-    if (!p.syncDeudaId) return
-    const externalUpdatedAt = deudaUpdatedAtMap[p.syncDeudaId]
-    const pagoFecha = new Date(p.createdAt)
-    if (!externalUpdatedAt || pagoFecha > externalUpdatedAt) {
-      pagosMap[p.syncDeudaId] = (pagosMap[p.syncDeudaId] || 0) + Number(p.monto) + Number(p.descuento || 0)
-    }
-  })
 
   const porCliente: Record<string, any[]> = {}
   for (const d of deudas) {
@@ -78,9 +64,7 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
     })
 
     const deudasDetalle = deudasOrdenadas.map((d: any) => {
-      const saldoSync = Number(d.saldo)
-      const pagosLocal = pagosMap[d.id] || 0
-      const saldoReal = Math.max(0, saldoSync - pagosLocal)
+      const saldoReal = Number(d.saldo)
       const valor = Number(d.valor)
       const { estado } = calcularEstado(saldoReal, valor, Number(d.abono), d.fechaVencimiento)
       porEstado[estado] = (porEstado[estado] || 0) + saldoReal
