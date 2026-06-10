@@ -406,24 +406,24 @@ export default function DashboardVendedor({ user }: { user: any }) {
 
   // ── JSX ──────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-3 pb-20">
+    <div className="pb-20 md:pb-6 md:grid md:grid-cols-3 md:gap-5 md:items-start">
 
       {/* Bienvenido — solo cuando no hay turno y ya cargó */}
       {!turno && !cargandoTurno && (
-        <h1 className="text-2xl font-bold text-white px-1">Bienvenido, {user?.name?.split(' ')[0]}</h1>
+        <h1 className="text-2xl font-bold text-white px-1 md:hidden">Bienvenido, {user?.name?.split(' ')[0]}</h1>
       )}
 
-      {/* Turno — skeleton exacto mientras carga (misma altura que el pill) */}
-      <div className="space-y-4">
+      {/* Turno + Ruta — col 1 desktop */}
+      <div className="space-y-4 md:col-start-1 md:col-span-1 md:bg-[#060a24] md:border md:border-blue-500/20 md:rounded-2xl md:p-4">
           {cargandoTurno ? (
-            <div style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:16,overflow:'hidden'}}>
+            <div style={{background:'#060a24',border:'1px solid rgba(59,130,246,0.20)',borderRadius:16,overflow:'hidden'}}>
               <div className="flex items-center gap-2 px-3 py-2.5">
                 <div className="flex-1 h-8 rounded-xl bg-zinc-700/50" />
                 <div className="w-10 h-8 rounded-xl bg-zinc-700/50 flex-shrink-0" />
               </div>
             </div>
           ) : turno?.pausado ? (
-            <div style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:16,overflow:"hidden"}}>
+            <div style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.20)",borderRadius:16,overflow:"hidden"}}>
               <button onClick={() => setTurnoExpandido(e => !e)} className="w-full flex items-center gap-3 px-4 py-3 text-left">
                 <span className="relative inline-flex h-2.5 w-2.5 flex-shrink-0">
                   
@@ -450,7 +450,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
             <div className="w-full">
               <div className="flex justify-center">
                 <div className="inline-flex items-center gap-2 px-4 py-2 cursor-pointer"
-                  style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderBottom:turnoExpandido?"none":undefined,borderRadius:turnoExpandido?"16px 16px 0 0":"16px"}}
+                  style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.25)",borderBottom:turnoExpandido?"none":undefined,borderRadius:turnoExpandido?"16px 16px 0 0":"16px"}}
                   onClick={() => setTurnoExpandido(e => !e)}>
                   <span className="relative inline-flex h-2 w-2 flex-shrink-0">
                     <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 live-ping" />
@@ -463,7 +463,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
                 </div>
               </div>
               {turnoExpandido && (
-                <div className="w-full" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderTop:"1px solid rgba(16,185,129,0.12)",borderRadius:"0 0 16px 16px"}}>
+                <div className="w-full" style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.20)",borderTop:"1px solid rgba(16,185,129,0.20)",borderRadius:"0 0 16px 16px"}}>
                   <div className="px-4 pb-4 pt-3 space-y-3">
                     <div className="grid grid-cols-2 gap-2">
                       <div className="rounded-lg p-2" style={{background:'rgba(148,160,185,0.28)',border:'1px solid rgba(148,180,255,0.25)'}}><p className="text-zinc-500 text-xs">Hora inicio</p><p className="text-sm font-bold text-white">{new Date(turno.inicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",timeZone:'America/Bogota'})}</p></div>
@@ -494,7 +494,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
               )}
             </div>
           ) : (
-            <div style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:16,overflow:"hidden"}}>
+            <div style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.20)",borderRadius:16,overflow:"hidden"}}>
               <div className="flex items-center justify-between gap-2 px-3 py-2.5">
                 <button onClick={iniciarTurno} disabled={bloqueadoTurno || obteniendoGps} className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors">{obteniendoGps ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full" /> Buscando GPS...</> : <>⚡ Iniciar turno</>}</button>
                 <a href="/historial-turnos" className="flex items-center gap-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold px-3 py-2 rounded-xl flex-shrink-0">📅</a>
@@ -514,7 +514,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
                 <button key={b.tipo}
                   onClick={() => b.tipo === 'cobro' ? abrirModalRecaudoRapido() : abrirModalVisita(b.tipo)}
                   className="flex-1 text-white font-semibold py-2.5 rounded-xl text-sm flex flex-col items-center gap-1"
-                  style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.14)'}}>
+                  style={{background:'#060a24',border:'1px solid rgba(59,130,246,0.20)'}}>
                   <span className="text-lg">{b.icon}</span>
                   <span>{b.label}</span>
                 </button>
@@ -524,7 +524,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
 
           {/* Ruta del día */}
           {ruta && totalClientes > 0 && !rutaCompletada && (
-            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)"}}>
+            <div className="rounded-2xl overflow-hidden" style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.25)"}}>
               <div className="px-4 pt-4 pb-3">
                 <p className="text-zinc-400 text-xs font-semibold tracking-wide mb-1 truncate">{ruta.nombre}</p>
                 <div className="flex items-center gap-3 mb-2">
@@ -548,7 +548,12 @@ export default function DashboardVendedor({ user }: { user: any }) {
         </div>
 
 
-      {/* Stats — solo cuando turno ya cargó, evita que aparezcan antes que el turno */}
+      {/* Stats — col 2-3 desktop */}
+      <div className="md:col-start-2 md:col-span-2 space-y-4">
+      {/* Bienvenido desktop */}
+      {!turno && !cargandoTurno && (
+        <h1 className="hidden md:block text-xl font-bold text-white">Bienvenido, {user?.name?.split(' ')[0]}</h1>
+      )}
       {!cargandoTurno && <div className="space-y-4">
         <div className="space-y-3">
         <CardKPIGroup cols={2}>
@@ -581,7 +586,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
           return (
         <div>
           <button onClick={() => setMostrarImpulsadoras(v => !v)}
-            style={{background:'rgba(255,255,255,0.05)',border:`1px solid ${tieneAlerta ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.12)'}`,borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
+            style={{background:'#060a24',border:`1px solid ${tieneAlerta ? 'rgba(239,68,68,0.4)' : 'rgba(59,130,246,0.20)'}`,borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
             <span className="text-white font-semibold text-sm">⚡ Impulsos{tieneAlerta && <span className="ml-2 text-red-400 text-xs font-bold">● Alerta</span>}</span>
             <span className="text-zinc-500 text-xs">{mostrarImpulsadoras ? '▲ Ocultar' : '▼ Ver'}</span>
           </button>
@@ -631,7 +636,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
 
         {/* Estadísticas */}
         <button onClick={() => setMostrarEstadisticasVendedor(v => !v)}
-          style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
+          style={{background:'#060a24',border:'1px solid rgba(59,130,246,0.20)',borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
           <span className="text-white font-semibold text-sm">📊 Estadísticas</span>
           <span className="text-zinc-500 text-xs">{mostrarEstadisticasVendedor ? '▲ Ocultar' : '▼ Ver'}</span>
         </button>
@@ -686,6 +691,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
         ))}
 
       </div>}
+      </div>{/* /stats-col */}
 
       {/* ── Modales ── */}
       <ModalVisita
