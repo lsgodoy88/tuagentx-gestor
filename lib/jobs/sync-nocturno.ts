@@ -13,7 +13,7 @@ import { actualizarDeudasInactivas } from '@/lib/integracion/sync'
 // ── Reconstruir CarteraCache ─────────────────────────────────────────────────
 export async function reconstruirCartera(integracionId: string, empresaId: string) {
   const deudas = await (prisma as any).syncDeuda.findMany({
-    where: { integracionId, condition: true }
+    where: { integracionId, saldo: { gt: 0 } }
   })
 
   const apiIds = [...new Set(deudas.map((d: any) => d.clienteApiId))]
