@@ -66,8 +66,8 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
     // Pagos enviados (validados por admin) por syncDeudaId
     const pagosEnviadosRaw = await (prisma as any).pagoCartera.findMany({
       where: { syncDeudaId: { in: deudasOrdenadas.map((d: any) => d.id) }, envioEstado: 'enviado' },
-      select: { syncDeudaId: true, monto: true, reciboPago: true },
-      orderBy: { createdAt: 'asc' }
+      select: { syncDeudaId: true, monto: true, reciboPago: true, envioVariacion: true },
+      orderBy: { envioFecha: 'asc' }
     })
     const pagosEnviadosDetalleMap: Record<string, any[]> = {}
     for (const p of pagosEnviadosRaw) {
@@ -84,8 +84,12 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
       let saldoReal = saldoUptres
       if (pagosEnviadosDeuda.length > 0) {
         const totalEnviado = pagosEnviadosDeuda.reduce((s: number, p: any) => s + Number(p.monto), 0)
-        const saldoAnterior = Number(pagosEnviadosDeuda[0]?.reciboPago?.saldoAnterior ?? saldoUptres + totalEnviado)
-        const saldoEsperado = saldoAnterior - totalEnviado
+        const base = Number(
+          pagosEnviadosDeuda[0]?.envioVariacion?.saldoBaseEnvio ??
+          pagosEnviadosDeuda[0]?.reciboPago?.saldoAnterior ??
+          saldoUptres + totalEnviado
+        )
+        const saldoEsperado = base - totalEnviado
         if (saldoUptres <= saldoEsperado + 1) {
           saldoReal = saldoUptres
         } else {

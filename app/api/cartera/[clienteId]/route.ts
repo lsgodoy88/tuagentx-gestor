@@ -48,15 +48,21 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
       // Descontar pagos enviados solo si UpTres aún no los refleja
       const pagosEnviadosDeuda = await (prisma as any).pagoCartera.findMany({
         where: { syncDeudaId: d.id, envioEstado: 'enviado' },
-        select: { monto: true, reciboPago: true }
+        select: { monto: true, reciboPago: true, envioVariacion: true },
+        orderBy: { envioFecha: 'asc' }
       })
       const saldoUptres = Number(d.saldo)
       let saldoReal = saldoUptres
       if (pagosEnviadosDeuda.length > 0) {
         const totalEnviado = pagosEnviadosDeuda.reduce((s: number, p: any) => s + Number(p.monto), 0)
-        // saldoAnterior del primer pago enviado (el más viejo) como referencia
-        const saldoAnterior = Number(pagosEnviadosDeuda[0]?.reciboPago?.saldoAnterior ?? saldoUptres + totalEnviado)
-        const saldoEsperado = saldoAnterior - totalEnviado
+        // Base fresca: saldo UpTres capturado AL MOMENTO del envío (envioVariacion.saldoBaseEnvio)
+        // Fallback: reciboPago.saldoAnterior (pagos viejos sin base de envío)
+        const base = Number(
+          pagosEnviadosDeuda[0]?.envioVariacion?.saldoBaseEnvio ??
+          pagosEnviadosDeuda[0]?.reciboPago?.saldoAnterior ??
+          saldoUptres + totalEnviado
+        )
+        const saldoEsperado = base - totalEnviado
         // Si UpTres ya actualizó (saldo <= esperado) → no descontar
         if (saldoUptres <= saldoEsperado + 1) {
           saldoReal = saldoUptres

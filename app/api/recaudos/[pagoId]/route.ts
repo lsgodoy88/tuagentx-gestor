@@ -41,7 +41,16 @@ export async function POST(
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
-  // Simulated external API response
+  // Capturar saldo UpTres AL MOMENTO del envío — base fresca para el descuento
+  let saldoBaseEnvio: number | null = null
+  if (pago.syncDeudaId) {
+    const deuda = await (prisma as any).syncDeuda.findUnique({
+      where: { id: pago.syncDeudaId },
+      select: { saldo: true }
+    })
+    if (deuda) saldoBaseEnvio = Number(deuda.saldo)
+  }
+
   const envioRef = `REF-${Date.now()}`
   const envioEstado = 'enviado'
 
@@ -51,6 +60,7 @@ export async function POST(
       envioEstado,
       envioFecha: new Date(),
       envioRef,
+      envioVariacion: { saldoBaseEnvio },
     },
   })
 
