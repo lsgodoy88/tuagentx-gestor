@@ -79,39 +79,56 @@ describe('lib/integracion/sync — actualizarCache', () => {
     expect(args.create.empleadoNombre).toBe('Vendedor A')
   })
 
-  it('saldoReal = saldoSync - pagosLocal (pagos no confrontados)', async () => {
+  it('pago enviado, UpTres sin actualizar → se resta del saldo', async () => {
     vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
-      baseDeuda({ id: 'sd-1', saldo: 100, externalUpdatedAt: new Date('2026-05-01') }),
+      baseDeuda({ id: 'sd-1', saldo: 100 }),
     ])
     vi.mocked((prisma as any).cliente.findMany).mockResolvedValue([
       { id: 'c1', apiId: 'api-c1', nombre: 'X', nit: '900' },
     ])
     vi.mocked((prisma as any).empleado.findMany).mockResolvedValue([])
-    // Pago local DESPUÉS de externalUpdatedAt → debe restarse del saldo
+    // Pago enviado de 30 — saldoAnterior=100 → esperado=70, UpTres dice 100 → no actualizó → restar
     vi.mocked((prisma as any).pagoCartera.findMany).mockResolvedValue([
-      { syncDeudaId: 'sd-1', monto: 30, descuento: 5, createdAt: new Date('2026-05-10') },
+      { syncDeudaId: 'sd-1', monto: 30, reciboPago: { saldoAnterior: 100 } },
     ])
 
     await actualizarCache(new Set(['api-c1']), INT_ID, EMP_ID)
 
     const args = vi.mocked((prisma as any).carteraCache.upsert).mock.calls[0][0]
-    // saldoReal = max(0, 100 - 35) = 65
-    expect(args.create.saldoPendiente).toBe(65)
-    expect(args.create.deudas[0].saldo).toBe(65)
+    // saldoReal = max(0, 100 - 30) = 70
+    expect(args.create.saldoPendiente).toBe(70)
+    expect(args.create.deudas[0].saldo).toBe(70)
   })
 
-  it('pago local ANTES de externalUpdatedAt → NO se resta (ya confrontado por UpTres)', async () => {
+  it('pago enviado, UpTres YA actualizó → no se resta (sin doble descuento)', async () => {
     vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
-      baseDeuda({ id: 'sd-1', saldo: 100, externalUpdatedAt: new Date('2026-05-15') }),
+      baseDeuda({ id: 'sd-1', saldo: 70 }),
     ])
     vi.mocked((prisma as any).cliente.findMany).mockResolvedValue([
       { id: 'c1', apiId: 'api-c1', nombre: 'X', nit: '900' },
     ])
     vi.mocked((prisma as any).empleado.findMany).mockResolvedValue([])
-    // Pago ANTES → UpTres ya lo confrontó → saldo=100 ya refleja eso
+    // saldoAnterior=100, enviado=30 → esperado=70, UpTres dice 70 → ya actualizó → no restar
     vi.mocked((prisma as any).pagoCartera.findMany).mockResolvedValue([
-      { syncDeudaId: 'sd-1', monto: 30, descuento: 0, createdAt: new Date('2026-05-10') },
+      { syncDeudaId: 'sd-1', monto: 30, reciboPago: { saldoAnterior: 100 } },
     ])
+
+    await actualizarCache(new Set(['api-c1']), INT_ID, EMP_ID)
+
+    const args = vi.mocked((prisma as any).carteraCache.upsert).mock.calls[0][0]
+    expect(args.create.saldoPendiente).toBe(70) // no doble descuento
+  })
+
+  it('pago pendiente (no enviado) → NO se resta del saldo', async () => {
+    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
+      baseDeuda({ id: 'sd-1', saldo: 100 }),
+    ])
+    vi.mocked((prisma as any).cliente.findMany).mockResolvedValue([
+      { id: 'c1', apiId: 'api-c1', nombre: 'X', nit: '900' },
+    ])
+    vi.mocked((prisma as any).empleado.findMany).mockResolvedValue([])
+    // El query filtra envioEstado='enviado' → pagos pendientes no llegan
+    vi.mocked((prisma as any).pagoCartera.findMany).mockResolvedValue([])
 
     await actualizarCache(new Set(['api-c1']), INT_ID, EMP_ID)
 
@@ -119,23 +136,24 @@ describe('lib/integracion/sync — actualizarCache', () => {
     expect(args.create.saldoPendiente).toBe(100) // no se resta el pago
   })
 
-  it('saldoReal nunca negativo (max 0)', async () => {
+  it('saldoReal nunca negativo (max 0) — cliente sin saldo se elimina del cache', async () => {
     vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
-      baseDeuda({ saldo: 50 }),
+      baseDeuda({ id: 'sd-1', saldo: 50 }),
     ])
     vi.mocked((prisma as any).cliente.findMany).mockResolvedValue([
       { id: 'c1', apiId: 'api-c1', nombre: 'X', nit: '900' },
     ])
     vi.mocked((prisma as any).empleado.findMany).mockResolvedValue([])
-    // Pago local LOCAL es MÁS que el saldo (sobrepago no confrontado)
+    // Pago enviado MAYOR que el saldo — saldoAnterior=50, enviado=100 → esperado=-50, UpTres dice 50 → restar → max(0, -50)=0
     vi.mocked((prisma as any).pagoCartera.findMany).mockResolvedValue([
-      { syncDeudaId: 'sd-1', monto: 100, descuento: 0, createdAt: new Date('2099-01-01') },
+      { syncDeudaId: 'sd-1', monto: 100, reciboPago: { saldoAnterior: 50 } },
     ])
 
     await actualizarCache(new Set(['api-c1']), INT_ID, EMP_ID)
 
-    const args = vi.mocked((prisma as any).carteraCache.upsert).mock.calls[0][0]
-    expect(args.create.saldoPendiente).toBe(0) // no negativo
+    // saldoPendiente=0 → cliente se elimina del cache, no se upserta
+    expect(vi.mocked((prisma as any).carteraCache.upsert)).not.toHaveBeenCalled()
+    expect(vi.mocked((prisma as any).carteraCache.deleteMany)).toHaveBeenCalled()
   })
 
   it('empleadoPrincipal = el más frecuente entre las deudas del cliente', async () => {

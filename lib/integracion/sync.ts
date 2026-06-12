@@ -229,27 +229,20 @@ export async function actualizarCache(
   const empleadoMap: Record<string, string> = {}
   empleados.forEach((e: any) => { empleadoMap[e.apiId] = e.nombre })
 
-  // Traer pagos locales
+  // Pagos enviados (validados por admin) por syncDeudaId — misma lógica que reconstruirCartera
   const deudasIds = deudas.map((d: any) => d.id)
-  const pagosLocales = await (prisma as any).pagoCartera.findMany({
-    where: { syncDeudaId: { in: deudasIds } },
-    select: { syncDeudaId: true, monto: true, descuento: true, createdAt: true }
+  const pagosEnviadosRaw = await (prisma as any).pagoCartera.findMany({
+    where: { syncDeudaId: { in: deudasIds }, envioEstado: 'enviado' },
+    select: { syncDeudaId: true, monto: true, reciboPago: true },
+    orderBy: { createdAt: 'asc' }
   })
-  // Mapa externalUpdatedAt por deuda
-  const deudaUpdMap: Record<string, Date> = {}
-  for (const d of deudas) {
-    if (d.externalUpdatedAt) deudaUpdMap[d.id] = new Date(d.externalUpdatedAt)
-  }
-  // Solo contar pagos posteriores al último updatedAt de UpTres
-  const pagosMap: Record<string, number> = {}
-  pagosLocales.forEach((p: any) => {
-    if (!p.syncDeudaId) return
-    const extUpd = deudaUpdMap[p.syncDeudaId]
-    const pagoFecha = new Date(p.createdAt)
-    if (!extUpd || pagoFecha > extUpd) {
-      pagosMap[p.syncDeudaId] = (pagosMap[p.syncDeudaId] || 0) + Number(p.monto) + Number(p.descuento || 0)
+  const pagosEnviadosDetalleMap: Record<string, any[]> = {}
+  for (const p of pagosEnviadosRaw) {
+    if (p.syncDeudaId) {
+      if (!pagosEnviadosDetalleMap[p.syncDeudaId]) pagosEnviadosDetalleMap[p.syncDeudaId] = []
+      pagosEnviadosDetalleMap[p.syncDeudaId].push(p)
     }
-  })
+  }
 
   // Agrupar por cliente
   const porCliente: Record<string, any[]> = {}
@@ -285,9 +278,20 @@ export async function actualizarCache(
     let saldoPendiente = 0
 
     const deudasDetalle = deudasCliente.map((d: any) => {
-      const saldoSync = Number(d.saldo)
-      const pagosLocal = pagosMap[d.id] || 0
-      const saldoReal = Math.max(0, saldoSync - pagosLocal)
+      // Descontar pagos enviados solo si UpTres aún no los refleja
+      const saldoUptres = Number(d.saldo)
+      const pagosEnviadosDeuda = pagosEnviadosDetalleMap[d.id] || []
+      let saldoReal = saldoUptres
+      if (pagosEnviadosDeuda.length > 0) {
+        const totalEnviado = pagosEnviadosDeuda.reduce((s: number, p: any) => s + Number(p.monto), 0)
+        const saldoAnterior = Number(pagosEnviadosDeuda[0]?.reciboPago?.saldoAnterior ?? saldoUptres + totalEnviado)
+        const saldoEsperado = saldoAnterior - totalEnviado
+        if (saldoUptres <= saldoEsperado + 1) {
+          saldoReal = saldoUptres
+        } else {
+          saldoReal = Math.max(0, saldoUptres - totalEnviado)
+        }
+      }
 
       const valor = Number(d.valor)
       const { estado } = calcularEstado(saldoReal, valor, Number(d.abono), d.fechaVencimiento)
@@ -309,6 +313,14 @@ export async function actualizarCache(
         estado,
       }
     })
+
+    // No incluir clientes sin saldo pendiente real
+    if (saldoPendiente <= 0) {
+      await (prisma as any).carteraCache.deleteMany({
+        where: { integracionId, clienteApiId: apiId }
+      })
+      continue
+    }
 
     await (prisma as any).carteraCache.upsert({
       where: { integracionId_clienteApiId: { integracionId, clienteApiId: apiId } },
