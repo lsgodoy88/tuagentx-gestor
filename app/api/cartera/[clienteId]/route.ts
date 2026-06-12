@@ -39,33 +39,39 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
 
     // Para cada deuda calcular saldo real con lógica inteligente
     const deudasEnriquecidas = await Promise.all(deudas.map(async (d: any) => {
-      const hace48h = new Date(Date.now() - 48 * 60 * 60 * 1000)
       const pagosLocales = await (prisma as any).pagoCartera.findMany({
         where: { syncDeudaId: d.id },
         orderBy: { createdAt: 'desc' },
         include: { Empleado: { select: { id: true, nombre: true } } }
       })
 
-      const totalPagosLocales = pagosLocales.reduce((s: number, p: any) => s + Number(p.monto), 0)
-
-      // Solo descontar pagos de las últimas 48h que UpTres aún no refleja
-      const externalUpdatedAt = d.externalUpdatedAt ? new Date(d.externalUpdatedAt) : null
-      const pagosRecientes = pagosLocales.filter((p: any) => {
-        const pagoFecha = new Date(p.createdAt)
-        return pagoFecha >= hace48h && (!externalUpdatedAt || pagoFecha > externalUpdatedAt)
+      // Descontar pagos enviados solo si UpTres aún no los refleja
+      const pagosEnviadosDeuda = await (prisma as any).pagoCartera.findMany({
+        where: { syncDeudaId: d.id, envioEstado: 'enviado' },
+        select: { monto: true, reciboPago: true }
       })
-      const totalPagosRecientes = pagosRecientes.reduce((s: number, p: any) => s + Number(p.monto), 0)
-
-      const saldoSync = Number(d.saldo)
-      const saldoReal = Math.max(0, saldoSync - totalPagosRecientes)
+      const saldoUptres = Number(d.saldo)
+      let saldoReal = saldoUptres
+      if (pagosEnviadosDeuda.length > 0) {
+        const totalEnviado = pagosEnviadosDeuda.reduce((s: number, p: any) => s + Number(p.monto), 0)
+        // saldoAnterior del primer pago enviado (el más viejo) como referencia
+        const saldoAnterior = Number(pagosEnviadosDeuda[0]?.reciboPago?.saldoAnterior ?? saldoUptres + totalEnviado)
+        const saldoEsperado = saldoAnterior - totalEnviado
+        // Si UpTres ya actualizó (saldo <= esperado) → no descontar
+        if (saldoUptres <= saldoEsperado + 1) {
+          saldoReal = saldoUptres
+        } else {
+          saldoReal = Math.max(0, saldoUptres - totalEnviado)
+        }
+      }
 
       return {
         ...d,
         saldoReal,
-        saldoSync,
+        saldoSync: saldoReal,
         saldoCambioEnSync: false,
         pagosLocales: pagosLocales.map((p: any) => ({ ...p, empleado: p.Empleado })),
-        totalPagosLocales,
+        totalPagosLocales: pagosLocales.reduce((s: number, p: any) => s + Number(p.monto), 0),
       }
     }))
 

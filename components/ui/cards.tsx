@@ -48,17 +48,20 @@ interface CardCountAdminProps {
   secondaryLabel: string
   primaryColor?: string
   compact?: boolean
+  onClick?: () => void
 }
 export function CardCountAdmin({
   icon, label, primary, secondary,
   primaryLabel, secondaryLabel,
   primaryColor = 'text-white',
   compact = false,
+  onClick,
 }: CardCountAdminProps) {
   return (
     <div
       className="rounded-2xl flex flex-col items-center justify-center min-h-[110px]"
-      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 14, padding: '10px 12px' } as CSSProperties}
+      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 14, padding: '10px 12px', cursor: onClick ? 'pointer' : 'default' } as CSSProperties}
+      onClick={onClick}
     >
       <div className="flex items-center justify-center gap-1.5 mb-2">
         <span className="text-base">{icon}</span>

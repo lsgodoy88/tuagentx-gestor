@@ -552,11 +552,11 @@ export default function DashboardVendedor({ user }: { user: any }) {
       {!cargandoTurno && <div className="space-y-4">
         <div className="space-y-3">
         <CardKPIGroup cols={2}>
-          <CardCountAdmin stagger={1} icon="👁️" label="Visitas"
+          <CardCountAdmin stagger={1} icon="👁️" label="Visitas" onClick={() => router.push('/visitas')}
             primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={statsVendedor.hoy.total||0} /> : '—'}</span>}
             secondary={statsVendedor ? <CountUp end={statsVendedor.hoy.ayer||0} /> : '—'}
             primaryLabel="hoy" secondaryLabel="ayer" primaryColor="text-white" />
-          <CardCountAdmin stagger={2} icon="📦" label="Órdenes"
+          <CardCountAdmin stagger={2} icon="📦" label="Órdenes" onClick={() => router.push('/trazabilidad')}
             primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={statsVendedor.ordenes?.despHoy||0} /> : '—'}</span>}
             secondary={statsVendedor ? <CountUp end={statsVendedor.ordenes?.factHoy||0} /> : '—'}
             primaryLabel="desp hoy" secondaryLabel="fact hoy" primaryColor="text-amber-400" />
@@ -568,7 +568,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
             primaryLabel="mes" secondaryLabel="meta" primaryColor="text-emerald-400" />
         </div>
         <div style={{borderRadius:16,overflow:'hidden'}}>
-          <CardCountAdmin stagger={4} icon="💰" label="Recaudo"
+          <CardCountAdmin stagger={4} icon="💰" label="Recaudo" onClick={() => router.push('/cartera')}
             primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={Math.round(statsVendedor.recaudo?.mes||0)} prefix='$' /> : '—'}</span>}
             secondary={statsVendedor ? (statsVendedor.recaudo?.meta > 0 ? '$'+Math.round(statsVendedor.recaudo.meta).toLocaleString('es-CO') : '—') : '—'}
             primaryLabel="mes" secondaryLabel="meta" primaryColor="text-blue-400" />

@@ -279,40 +279,51 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     })
   }
 
+  async fetchDeudasClienteInactivas(clienteId: string): Promise<DeudaExterna[]> {
+    // Igual que fetchDeudasCliente pero con condition=false — para actualizar saldos desactualizados
+    const res = await fetch(
+      `${BASE}/cartera/cliente/${clienteId}?fields=id,orderNumber,invoiceNumber,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt&condition=false`,
+      { headers: this.headers }
+    )
+    const d = await res.json()
+    return (d.data || []).map((o: any) => this._mapDeudaExterna(o))
+  }
+
   async fetchDeudasCliente(clienteId: string): Promise<DeudaExterna[]> {
     const res = await fetch(
       `${BASE}/cartera/cliente/${clienteId}?fields=id,orderNumber,invoiceNumber,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt&condition=true`,
       { headers: this.headers }
     )
     const d = await res.json()
-    return (d.data || []).map((o: any) => {
-      // fPago directo de UpTres, o calcular desde createdAt + creditDay
-      let fPago: string | null = o.paidAt || null
-      if (!fPago && o.creditDay && o.createdAt) {
-        const dias = parseInt(o.creditDay || '0')
-        if (dias > 0) {
-          const fecha = new Date(o.createdAt)
-          fecha.setDate(fecha.getDate() + dias)
-          fPago = fecha.toISOString()
-        }
+    return (d.data || []).map((o: any) => this._mapDeudaExterna(o, clienteId))
+  }
+
+  private _mapDeudaExterna(o: any, clienteId?: string): DeudaExterna {
+    let fPago: string | null = o.paidAt || null
+    if (!fPago && o.creditDay && o.createdAt) {
+      const dias = parseInt(o.creditDay || '0')
+      if (dias > 0) {
+        const fecha = new Date(o.createdAt)
+        fecha.setDate(fecha.getDate() + dias)
+        fPago = fecha.toISOString()
       }
-      return {
-        uid: o.id,
-        _id: o.id,
-        numeroOrden: o.orderNumber,
-        numeroFacturado: o.invoiceNumber || null,
-        vTotal: o.total,
-        vSaldo: o.balance,
-        dias: o.creditDay || '0',
-        mediopago: o.paymentType,
-        fCreado: o.createdAt,
-        fPago: fPago ?? undefined,
-        fModificado: o.updatedAt,
-        receivableAt: o.receivableAt || null,
-        cliente: { uid: clienteId },
-        empleado: { uid: null },
-      }
-    })
+    }
+    return {
+      uid: o.id,
+      _id: o.id,
+      numeroOrden: o.orderNumber,
+      numeroFacturado: o.invoiceNumber || null,
+      vTotal: o.total,
+      vSaldo: o.balance,
+      dias: o.creditDay || '0',
+      mediopago: o.paymentType,
+      fCreado: o.createdAt,
+      fPago: fPago ?? undefined,
+      fModificado: o.updatedAt,
+      receivableAt: o.receivableAt || null,
+      cliente: { uid: clienteId || o.customerId || '' },
+      empleado: { uid: o.employeeId || null },
+    }
   }
 
   async fetchOrdenPorId(origenId: string): Promise<{ isInvoiced: boolean; invoiceNumber: string | null; invoicedAt: string | null; total: string } | null> {

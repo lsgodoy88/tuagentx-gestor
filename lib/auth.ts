@@ -4,6 +4,12 @@ import bcrypt from 'bcryptjs'
 import { prisma } from './prisma'
 
 export const authOptions: NextAuthOptions = {
+  cookies: {
+    sessionToken: {
+      name: 'staging-next-auth.session-token',
+      options: { httpOnly: true, sameSite: 'lax', path: '/', secure: true }
+    }
+  },
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -95,7 +101,7 @@ export const authOptions: NextAuthOptions = {
       return session
     },
   },
-  pages: { signIn: '/login' },
+  pages: { signIn: '/login', signOut: '/login' },
   session: { strategy: 'jwt', maxAge: 12 * 60 * 60, updateAge: 60 * 60 },
   secret: process.env.NEXTAUTH_SECRET,
 }

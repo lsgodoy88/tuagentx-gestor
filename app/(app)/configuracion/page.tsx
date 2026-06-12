@@ -1508,7 +1508,7 @@ export default function ConfiguracionPage() {
           <p className="text-white text-sm font-medium">Sesión activa</p>
           <p className="text-zinc-500 text-xs">{user?.email}</p>
         </div>
-        <button onClick={() => signOut({ callbackUrl: '/login' })}
+        <button onClick={() => signOut({ redirect: false }).then(() => { window.location.href = '/login' })}
           className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 font-semibold px-4 py-2 rounded-xl text-sm transition-colors">
           Cerrar sesión
         </button>

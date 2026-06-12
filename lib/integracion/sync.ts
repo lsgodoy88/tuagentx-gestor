@@ -349,3 +349,65 @@ export async function actualizarCache(
     })
   }
 }
+
+
+/**
+ * actualizarDeudasInactivas — nocturno completo
+ * Para deudas condition=false con saldo>0 en BD,
+ * consulta UpTres con condition=false y actualiza el saldo real.
+ * Si UpTres devuelve balance=0 o no las incluye → marca saldo=0, condition=false.
+ */
+export async function actualizarDeudasInactivas(
+  adapter: UpTresAdapter,
+  integracionId: string
+): Promise<number> {
+  // Traer deudas condition=false con saldo>0 agrupadas por clienteApiId
+  const deudas = await (prisma as any).syncDeuda.findMany({
+    where: { integracionId, condition: false, saldo: { gt: 0 } },
+    select: { id: true, externalId: true, clienteApiId: true, saldo: true, numeroFactura: true }
+  })
+
+  if (!deudas.length) return 0
+
+  // Agrupar por clienteApiId para hacer una sola llamada por cliente
+  const porCliente: Record<string, any[]> = {}
+  for (const d of deudas) {
+    if (!porCliente[d.clienteApiId]) porCliente[d.clienteApiId] = []
+    porCliente[d.clienteApiId].push(d)
+  }
+
+  let actualizadas = 0
+
+  for (const [clienteApiId, deudasCliente] of Object.entries(porCliente)) {
+    try {
+      // Consultar UpTres con condition=false para este cliente
+      const deudasUptres = await adapter.fetchDeudasClienteInactivas(clienteApiId)
+      const mapaUptres: Record<string, any> = {}
+      for (const d of deudasUptres) {
+        mapaUptres[d.uid] = d
+      }
+
+      for (const deuda of deudasCliente) {
+        const uptres = mapaUptres[deuda.externalId]
+        const nuevoSaldo = uptres ? parseFloat(String(uptres.vSaldo || 0)) : 0
+
+        if (Math.abs(nuevoSaldo - deuda.saldo) > 0.01) {
+          await (prisma as any).syncDeuda.update({
+            where: { id: deuda.id },
+            data: {
+              saldo: nuevoSaldo,
+              condition: nuevoSaldo > 0,
+              externalUpdatedAt: new Date(),
+            }
+          })
+          actualizadas++
+        }
+      }
+    } catch {
+      // Si falla un cliente, continuar con los demás
+      continue
+    }
+  }
+
+  return actualizadas
+}

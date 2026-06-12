@@ -8,6 +8,7 @@ import { invalidatePattern } from '@/lib/cache'
 import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 import { calcularEstado } from '@/lib/cartera'
+import { actualizarDeudasInactivas } from '@/lib/integracion/sync'
 
 // ── Reconstruir CarteraCache ─────────────────────────────────────────────────
 export async function reconstruirCartera(integracionId: string, empresaId: string) {
@@ -32,27 +33,8 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
   empleados.forEach((e: any) => { empleadoMap[e.apiId] = e.nombre })
 
   const deudasIds = deudas.map((d: any) => d.id)
-  // Descontar pagos locales recientes (últimas 48h) que UpTres aún no ha reflejado
-  // Solo aplica si el pago es más reciente que el último sync de UpTres (externalUpdatedAt)
-  const hace48h = new Date(Date.now() - 48 * 60 * 60 * 1000)
-  const pagosLocales = await (prisma as any).pagoCartera.findMany({
-    where: { syncDeudaId: { in: deudasIds }, createdAt: { gte: hace48h } },
-    select: { syncDeudaId: true, monto: true, descuento: true, createdAt: true }
-  })
+  // Saldo directo de UpTres — actualizarDeudasInactivas ya corrige los saldos reales
   const pagosMap: Record<string, number> = {}
-  const deudaUpdatedAtMap: Record<string, Date> = {}
-  for (const d of deudas) {
-    if (d.externalUpdatedAt) deudaUpdatedAtMap[d.id] = new Date(d.externalUpdatedAt)
-  }
-  pagosLocales.forEach((p: any) => {
-    if (!p.syncDeudaId) return
-    const externalUpdatedAt = deudaUpdatedAtMap[p.syncDeudaId]
-    const pagoFecha = new Date(p.createdAt)
-    // Solo descontar si UpTres no ha sincronizado después del pago
-    if (!externalUpdatedAt || pagoFecha > externalUpdatedAt) {
-      pagosMap[p.syncDeudaId] = (pagosMap[p.syncDeudaId] || 0) + Number(p.monto) + Number(p.descuento || 0)
-    }
-  })
 
   const porCliente: Record<string, any[]> = {}
   for (const d of deudas) {
@@ -81,10 +63,35 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
       return fa - fb
     })
 
+    // Pagos enviados (validados por admin) por syncDeudaId
+    const pagosEnviadosRaw = await (prisma as any).pagoCartera.findMany({
+      where: { syncDeudaId: { in: deudasOrdenadas.map((d: any) => d.id) }, envioEstado: 'enviado' },
+      select: { syncDeudaId: true, monto: true, reciboPago: true },
+      orderBy: { createdAt: 'asc' }
+    })
+    const pagosEnviadosDetalleMap: Record<string, any[]> = {}
+    for (const p of pagosEnviadosRaw) {
+      if (p.syncDeudaId) {
+        if (!pagosEnviadosDetalleMap[p.syncDeudaId]) pagosEnviadosDetalleMap[p.syncDeudaId] = []
+        pagosEnviadosDetalleMap[p.syncDeudaId].push(p)
+      }
+    }
+
     const deudasDetalle = deudasOrdenadas.map((d: any) => {
-      const saldoSync = Number(d.saldo)
-      const pagosLocal = pagosMap[d.id] || 0
-      const saldoReal = Math.max(0, saldoSync - pagosLocal)
+      // Descontar pagos enviados solo si UpTres aún no los refleja
+      const saldoUptres = Number(d.saldo)
+      const pagosEnviadosDeuda = pagosEnviadosDetalleMap[d.id] || []
+      let saldoReal = saldoUptres
+      if (pagosEnviadosDeuda.length > 0) {
+        const totalEnviado = pagosEnviadosDeuda.reduce((s: number, p: any) => s + Number(p.monto), 0)
+        const saldoAnterior = Number(pagosEnviadosDeuda[0]?.reciboPago?.saldoAnterior ?? saldoUptres + totalEnviado)
+        const saldoEsperado = saldoAnterior - totalEnviado
+        if (saldoUptres <= saldoEsperado + 1) {
+          saldoReal = saldoUptres
+        } else {
+          saldoReal = Math.max(0, saldoUptres - totalEnviado)
+        }
+      }
       const valor = Number(d.valor)
       const { estado } = calcularEstado(saldoReal, valor, Number(d.abono), d.fechaVencimiento)
       porEstado[estado] = (porEstado[estado] || 0) + saldoReal
@@ -205,6 +212,8 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
           where: { integracionId: intg.id, condition: true, externalId: { notIn: Array.from(externalIdsActivos) } },
           data: { condition: false, sincronizadoEl: new Date() }
         })
+        // Actualizar saldos reales de deudas condition=false consultando UpTres
+        await actualizarDeudasInactivas(adapter, intg.id)
       }
 
       const clientesActualizados = modo === 'completo'
