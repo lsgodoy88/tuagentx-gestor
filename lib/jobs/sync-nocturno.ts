@@ -100,12 +100,21 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
       return { id: d.id, externalId: d.externalId, numeroOrden: d.numeroOrden, numeroFactura: d.numeroFactura, valor, saldo: saldoReal, abono: Number(d.abono), diasCredito: d.diasCredito, fechaVencimiento: d.fechaVencimiento, estado }
     })
 
+    // No incluir clientes sin saldo pendiente real
+    if (saldoPendiente <= 0) continue
+
     await (prisma as any).carteraCache.upsert({
       where: { integracionId_clienteApiId: { integracionId, clienteApiId: apiId } },
       create: { id: `cc-${integracionId}-${apiId}`, empresaId, integracionId, clienteId: cliente.id, clienteApiId: apiId, nombre: cliente.nombre, nit: cliente.nit, telefono: cliente.telefono, ciudad: cliente.ciudad, empleadoExternalId: empleadoPrincipal, empleadoNombre: empleadoPrincipal ? (empleadoMap[empleadoPrincipal] ?? null) : null, saldoTotal, saldoPendiente, porEstado, deudas: deudasDetalle, totalDeudas: deudasDetalle.length, ultimaActualizacion: ahora },
       update: { clienteId: cliente.id, nombre: cliente.nombre, nit: cliente.nit, telefono: cliente.telefono, ciudad: cliente.ciudad, empleadoExternalId: empleadoPrincipal, empleadoNombre: empleadoPrincipal ? (empleadoMap[empleadoPrincipal] ?? null) : null, saldoTotal, saldoPendiente, porEstado, deudas: deudasDetalle, totalDeudas: deudasDetalle.length, ultimaActualizacion: ahora }
     })
   }
+
+  // Limpiar cache con saldo=0 (deudas ya pagadas)
+  await (prisma as any).carteraCache.deleteMany({
+    where: { integracionId, saldoPendiente: { lte: 0 } }
+  })
+
   return Object.keys(porCliente).length
 }
 
