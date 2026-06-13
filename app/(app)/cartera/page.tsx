@@ -322,7 +322,7 @@ export default function CarteraPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tipo: 'cliente', clienteApiId: cartera.clienteApiId })
       })
-      await loadData()
+      await cargarDatos()
     } catch {}
   }
 
