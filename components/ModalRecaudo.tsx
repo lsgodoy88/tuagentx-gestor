@@ -197,7 +197,7 @@ export default function ModalRecaudo({
                           <div className="flex gap-3">
                             <div className="flex-[6]">
                               <label className="text-zinc-300 text-sm font-semibold block mb-1.5">Monto (IA)</label>
-                              <InputMoneda value={linea.monto} readOnly onChange={() => {}}
+                              <InputMoneda value={linea.monto} onChange={val => onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, monto: val } : l))}
                                 className="w-full bg-blue-950/30 border border-blue-500/20 rounded-xl pr-4 py-2.5 text-zinc-400 text-sm outline-none cursor-not-allowed" />
                             </div>
                           </div>
