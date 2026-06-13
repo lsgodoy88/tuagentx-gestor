@@ -166,27 +166,41 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onSync, 
           {/* Botones recaudar + WhatsApp */}
           {Number(c.saldoPendiente) > 0 && (
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-              <button
-                onClick={async e => {
-                  e.stopPropagation()
-                  if (syncing) return
-                  setSyncing(true)
-                  await onSync?.(c)
-                  setSyncing(false)
-                  setSynced(true)
-                  setTimeout(() => setSynced(false), 3000)
-                }}
-                disabled={syncing}
-                style={{
-                  flex: 1,
-                  background: synced ? 'linear-gradient(135deg, #065f46, #10b981)' : syncing ? '#374151' : 'linear-gradient(135deg, #065f46, #10b981)',
-                  color: '#fff', border: 'none', borderRadius: 10,
-                  padding: '8px 0', fontSize: 13, fontWeight: 600, cursor: syncing ? 'not-allowed' : 'pointer',
-                  transition: 'background 0.3s',
-                }}
-              >
-                {synced ? '✅ Actualizado' : syncing ? '⏳ Sincronizando...' : '🔄 Sync UpTres'}
-              </button>
+              {onRecaudar ? (
+                <button
+                  onClick={e => { e.stopPropagation(); onRecaudar?.(c) }}
+                  style={{
+                    flex: 1,
+                    background: 'linear-gradient(135deg, #1d4ed8, #3b82f6)',
+                    color: '#fff', border: 'none', borderRadius: 10,
+                    padding: '8px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  }}
+                >
+                  💳 Recaudar
+                </button>
+              ) : (
+                <button
+                  onClick={async e => {
+                    e.stopPropagation()
+                    if (syncing) return
+                    setSyncing(true)
+                    await onSync?.(c)
+                    setSyncing(false)
+                    setSynced(true)
+                    setTimeout(() => setSynced(false), 3000)
+                  }}
+                  disabled={syncing}
+                  style={{
+                    flex: 1,
+                    background: synced ? 'linear-gradient(135deg, #065f46, #10b981)' : syncing ? '#374151' : 'linear-gradient(135deg, #065f46, #10b981)',
+                    color: '#fff', border: 'none', borderRadius: 10,
+                    padding: '8px 0', fontSize: 13, fontWeight: 600, cursor: syncing ? 'not-allowed' : 'pointer',
+                    transition: 'background 0.3s',
+                  }}
+                >
+                  {synced ? '✅ Actualizado' : syncing ? '⏳ Sincronizando...' : '🔄 Sync UpTres'}
+                </button>
+              )}
               <button
                 onClick={e => { e.stopPropagation(); onWhatsApp?.(c) }}
                 title="Enviar recordatorio por WhatsApp"
