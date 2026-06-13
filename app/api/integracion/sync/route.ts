@@ -420,7 +420,7 @@ export async function POST(req: NextRequest) {
       const { clienteApiId } = body
       if (!clienteApiId) return NextResponse.json({ error: 'clienteApiId requerido' }, { status: 400 })
       const config = resolverConfig(integracion.config)
-      const adapter = crearAdaptador(integracion.tipo, config)
+      const adapter = crearAdaptador(integracion.tipo, config) as any
       await adapter.login()
       const deudas = await adapter.fetchDeudasCliente(clienteApiId)
       const deudasInactivas = await adapter.fetchDeudasClienteInactivas(clienteApiId)
