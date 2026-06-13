@@ -62,6 +62,8 @@ function estadoPrincipal(porEstado: any): string {
 
 export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onSync, onWhatsApp, variant = 'lista' }: CarteraCardProps) {
   const [open, setOpen] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [synced, setSynced] = useState(false)
   const esSupervisor = rol === 'empresa' || rol === 'supervisor'
   const estado = estadoPrincipal(c.porEstado)
   const color = c.empresaVinculada?.color || ESTADO_COLOR[estado] || '#6366f1'
@@ -165,15 +167,25 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onSync, 
           {Number(c.saldoPendiente) > 0 && (
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               <button
-                onClick={e => { e.stopPropagation(); onSync?.(c) }}
+                onClick={async e => {
+                  e.stopPropagation()
+                  if (syncing) return
+                  setSyncing(true)
+                  await onSync?.(c)
+                  setSyncing(false)
+                  setSynced(true)
+                  setTimeout(() => setSynced(false), 3000)
+                }}
+                disabled={syncing}
                 style={{
                   flex: 1,
-                  background: 'linear-gradient(135deg, #065f46, #10b981)',
+                  background: synced ? 'linear-gradient(135deg, #065f46, #10b981)' : syncing ? '#374151' : 'linear-gradient(135deg, #065f46, #10b981)',
                   color: '#fff', border: 'none', borderRadius: 10,
-                  padding: '8px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                  padding: '8px 0', fontSize: 13, fontWeight: 600, cursor: syncing ? 'not-allowed' : 'pointer',
+                  transition: 'background 0.3s',
                 }}
               >
-                🔄 Sync UpTres
+                {synced ? '✅ Actualizado' : syncing ? '⏳ Sincronizando...' : '🔄 Sync UpTres'}
               </button>
               <button
                 onClick={e => { e.stopPropagation(); onWhatsApp?.(c) }}

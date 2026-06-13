@@ -1022,9 +1022,9 @@ export default function CarteraPage() {
                               <td style={{padding:"8px 10px",textAlign:"center",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d"}}>
                                 {esPrimera && Number(cartera.saldoPendiente) > 0 ? (
                                   <div className="flex items-center justify-center gap-2">
-                                    <button onClick={() => abrirRecaudar(cartera)}
+                                    <button onClick={() => syncCliente(cartera)} id={'sync-'+cartera.id} title="Sync UpTres"
                                       style={{background:'none',border:'none',cursor:'pointer',fontSize:18,padding:'2px 4px'}}>
-                                      💳
+                                      🔄
                                     </button>
                                     <button onClick={() => abrirWhatsApp(cartera)}
                                       className="flex items-center justify-center p-1.5 rounded-lg transition-colors"
