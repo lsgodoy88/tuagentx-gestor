@@ -13,7 +13,7 @@ import { actualizarDeudasInactivas } from '@/lib/integracion/sync'
 // ── Reconstruir CarteraCache ─────────────────────────────────────────────────
 export async function reconstruirCartera(integracionId: string, empresaId: string) {
   const deudas = await (prisma as any).syncDeuda.findMany({
-    where: { integracionId, saldo: { gt: 0 } }
+    where: { integracionId, saldo: { gt: 0 } } // condition removido — saldo > 0 es fuente de verdad
   })
 
   const apiIds = [...new Set(deudas.map((d: any) => d.clienteApiId))]
@@ -221,10 +221,14 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
 
       if (modo === 'completo') {
         const externalIdsActivos = new Set(externalIds)
-        await (prisma as any).syncDeuda.updateMany({
-          where: { integracionId: intg.id, condition: true, externalId: { notIn: Array.from(externalIdsActivos) } },
-          data: { condition: false, sincronizadoEl: new Date() }
-        })
+        // Guard: si UpTres devolvió menos de 100 deudas, no marcar masivamente como inactivas
+        const totalActivas = await (prisma as any).syncDeuda.count({ where: { integracionId: intg.id, condition: true } })
+        if (externalIds.length >= 100 || externalIds.length >= totalActivas * 0.5) {
+          await (prisma as any).syncDeuda.updateMany({
+            where: { integracionId: intg.id, condition: true, externalId: { notIn: Array.from(externalIdsActivos) } },
+            data: { condition: false, sincronizadoEl: new Date() }
+          })
+        }
         // Actualizar saldos reales de deudas condition=false consultando UpTres
         await actualizarDeudasInactivas(adapter, intg.id)
       }
