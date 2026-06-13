@@ -313,6 +313,19 @@ export default function CarteraPage() {
   // --- Importar ---
 
 
+  // --- Sync UpTres individual ---
+  async function syncCliente(cartera: any) {
+    if (!cartera?.clienteApiId) return
+    try {
+      await fetch('/api/integracion/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo: 'cliente', clienteApiId: cartera.clienteApiId })
+      })
+      await loadData()
+    } catch {}
+  }
+
   // --- Recaudar ---
   async function abrirRecaudar(cartera: any) {
     setRecaudandoCartera(cartera)
@@ -903,6 +916,7 @@ export default function CarteraPage() {
                 rol={user?.role}
                 fmt={fmt}
                 onRecaudar={() => abrirRecaudar(c)}
+                onSync={() => syncCliente(c)}
                 onWhatsApp={() => abrirWhatsApp(c)}
                 variant="lista"
               />

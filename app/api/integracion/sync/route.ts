@@ -416,8 +416,21 @@ export async function POST(req: NextRequest) {
       const r = await ejecutarInicial(integracion, adapter, empresaId, logs)
       return NextResponse.json({ ok: true, logs, ...r })
 
+    } else if (tipo === 'cliente') {
+      const { clienteApiId } = body
+      if (!clienteApiId) return NextResponse.json({ error: 'clienteApiId requerido' }, { status: 400 })
+      const config = resolverConfig(integracion.config)
+      const adapter = crearAdaptador(integracion.tipo, config)
+      await adapter.login()
+      const deudas = await adapter.fetchDeudasCliente(clienteApiId)
+      const deudasInactivas = await adapter.fetchDeudasClienteInactivas(clienteApiId)
+      const todasDeudas = [...deudas, ...deudasInactivas]
+      if (todasDeudas.length > 0) await sincronizarDeudas(todasDeudas, integracion.id, empresaId)
+      await actualizarCache(new Set([clienteApiId]), integracion.id, empresaId)
+      return NextResponse.json({ ok: true, deudas: todasDeudas.length })
+
     } else {
-      return NextResponse.json({ error: 'Tipo no válido. Usar: delta | inicial' }, { status: 400 })
+      return NextResponse.json({ error: 'Tipo no válido. Usar: delta | inicial | cliente' }, { status: 400 })
     }
   } catch (err: any) {
     logs.push(`ERROR: ${err.message}`)

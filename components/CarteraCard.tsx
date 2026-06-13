@@ -19,6 +19,7 @@ interface CarteraCardProps {
   rol: string
   fmt: (n: number) => string
   onRecaudar?: (cartera?: any) => void
+  onSync?: (cartera?: any) => void
   onWhatsApp?: (cartera?: any) => void
   variant?: 'lista' | 'modal'
 }
@@ -59,7 +60,7 @@ function estadoPrincipal(porEstado: any): string {
   return 'pendiente'
 }
 
-export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onWhatsApp, variant = 'lista' }: CarteraCardProps) {
+export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onSync, onWhatsApp, variant = 'lista' }: CarteraCardProps) {
   const [open, setOpen] = useState(false)
   const esSupervisor = rol === 'empresa' || rol === 'supervisor'
   const estado = estadoPrincipal(c.porEstado)
@@ -164,15 +165,15 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onWhatsA
           {Number(c.saldoPendiente) > 0 && (
             <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
               <button
-                onClick={e => { e.stopPropagation(); onRecaudar?.(c) }}
+                onClick={e => { e.stopPropagation(); onSync?.(c) }}
                 style={{
                   flex: 1,
-                  background: 'linear-gradient(135deg, #1d4ed8, #3b82f6)',
+                  background: 'linear-gradient(135deg, #065f46, #10b981)',
                   color: '#fff', border: 'none', borderRadius: 10,
                   padding: '8px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer',
                 }}
               >
-                💳 Recaudar
+                🔄 Sync UpTres
               </button>
               <button
                 onClick={e => { e.stopPropagation(); onWhatsApp?.(c) }}
