@@ -9,6 +9,7 @@ import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 import { calcularEstado } from '@/lib/cartera'
 import { actualizarDeudasInactivas } from '@/lib/integracion/sync'
+import { calcularSaldoReal } from '@/lib/cartera-utils'
 
 // ── Reconstruir CarteraCache ─────────────────────────────────────────────────
 export async function reconstruirCartera(integracionId: string, empresaId: string) {
@@ -31,10 +32,6 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
   })
   const empleadoMap: Record<string, string> = {}
   empleados.forEach((e: any) => { empleadoMap[e.apiId] = e.nombre })
-
-  const deudasIds = deudas.map((d: any) => d.id)
-  // Saldo directo de UpTres — actualizarDeudasInactivas ya corrige los saldos reales
-  const pagosMap: Record<string, number> = {}
 
   const porCliente: Record<string, any[]> = {}
   for (const d of deudas) {
@@ -78,24 +75,9 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
     }
 
     const deudasDetalle = deudasOrdenadas.map((d: any) => {
-      // Descontar pagos enviados solo si UpTres aún no los refleja
       const saldoUptres = Number(d.saldo)
       const pagosEnviadosDeuda = pagosEnviadosDetalleMap[d.id] || []
-      let saldoReal = saldoUptres
-      if (pagosEnviadosDeuda.length > 0) {
-        const totalEnviado = pagosEnviadosDeuda.reduce((s: number, p: any) => s + Number(p.monto), 0)
-        const base = Number(
-          pagosEnviadosDeuda[0]?.envioVariacion?.saldoBaseEnvio ??
-          pagosEnviadosDeuda[0]?.reciboPago?.saldoAnterior ??
-          saldoUptres + totalEnviado
-        )
-        const saldoEsperado = base - totalEnviado
-        if (saldoUptres <= saldoEsperado + 1) {
-          saldoReal = saldoUptres
-        } else {
-          saldoReal = Math.max(0, saldoUptres - totalEnviado)
-        }
-      }
+      const saldoReal = calcularSaldoReal(saldoUptres, pagosEnviadosDeuda)
       const valor = Number(d.valor)
       const { estado } = calcularEstado(saldoReal, valor, Number(d.abono), d.fechaVencimiento)
       porEstado[estado] = (porEstado[estado] || 0) + saldoReal

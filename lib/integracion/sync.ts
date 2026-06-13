@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { calcularEstado } from '@/lib/cartera'
+import { calcularSaldoReal } from '@/lib/cartera-utils'
 import type { AdaptadorIntegracion, DeudaExterna } from './types'
 import { UpTresAdapter } from './adapters/uptres'
 
@@ -281,21 +282,7 @@ export async function actualizarCache(
       // Descontar pagos enviados solo si UpTres aún no los refleja
       const saldoUptres = Number(d.saldo)
       const pagosEnviadosDeuda = pagosEnviadosDetalleMap[d.id] || []
-      let saldoReal = saldoUptres
-      if (pagosEnviadosDeuda.length > 0) {
-        const totalEnviado = pagosEnviadosDeuda.reduce((s: number, p: any) => s + Number(p.monto), 0)
-        const base = Number(
-          pagosEnviadosDeuda[0]?.envioVariacion?.saldoBaseEnvio ??
-          pagosEnviadosDeuda[0]?.reciboPago?.saldoAnterior ??
-          saldoUptres + totalEnviado
-        )
-        const saldoEsperado = base - totalEnviado
-        if (saldoUptres <= saldoEsperado + 1) {
-          saldoReal = saldoUptres
-        } else {
-          saldoReal = Math.max(0, saldoUptres - totalEnviado)
-        }
-      }
+      const saldoReal = calcularSaldoReal(saldoUptres, pagosEnviadosDeuda)
 
       const valor = Number(d.valor)
       const { estado } = calcularEstado(saldoReal, valor, Number(d.abono), d.fechaVencimiento)
