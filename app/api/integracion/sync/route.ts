@@ -419,6 +419,18 @@ export async function POST(req: NextRequest) {
     } else if (tipo === 'cliente') {
       const { clienteApiId } = body
       if (!clienteApiId) return NextResponse.json({ error: 'clienteApiId requerido' }, { status: 400 })
+      // Vendedor: verificar que el cliente le pertenece
+      const esAdminCliente = ROLES_ADMIN.includes(user.role)
+      if (!esAdminCliente) {
+        const empleado = await (prisma as any).empleado.findFirst({
+          where: { id: user.id, empresaId }, select: { apiId: true }
+        })
+        if (!empleado?.apiId) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
+        const enCartera = await (prisma as any).carteraCache.findFirst({
+          where: { integracionId: integracion.id, clienteApiId, empleadoExternalId: empleado.apiId }
+        })
+        if (!enCartera) return NextResponse.json({ error: 'Cliente no pertenece a tu cartera' }, { status: 403 })
+      }
       const config = resolverConfig(integracion.config)
       const adapter = crearAdaptador(integracion.tipo, config) as any
       await adapter.login()
