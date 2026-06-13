@@ -86,20 +86,31 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     let cursorDate: string | null = null
     let cursorId: string | null = null
     let pagina = 0
-    const MAX_PAGINAS = 200 // guardia anti-loop infinito — 200 × 100 = 20k registros
+    const MAX_PAGINAS = 200
+    const MAX_REINTENTOS = 3
     while (pagina++ < MAX_PAGINAS) {
       const p = new URLSearchParams({ limit: '100', condition: 'true', ...extraParams })
       if (cursorDate && cursorId) {
         p.set('cursorDate', cursorDate)
         p.set('cursorId', cursorId)
       }
-      const controller = new AbortController()
-      const timer = setTimeout(() => controller.abort(), 30000)
-      const res = await fetch(`${BASE}/${endpoint}?${p.toString()}`, { headers: this.headers, signal: controller.signal })
-      clearTimeout(timer)
-      const text = await res.text()
-      if (!text) break
-      const d = JSON.parse(text)
+      let texto = ''
+      let exitoso = false
+      for (let intento = 0; intento < MAX_REINTENTOS; intento++) {
+        try {
+          const controller = new AbortController()
+          const timer = setTimeout(() => controller.abort(), 30000)
+          const res = await fetch(`${BASE}/${endpoint}?${p.toString()}`, { headers: this.headers, signal: controller.signal })
+          clearTimeout(timer)
+          texto = await res.text()
+          exitoso = true
+          break
+        } catch {
+          if (intento < MAX_REINTENTOS - 1) await new Promise(r => setTimeout(r, 2000 * (intento + 1)))
+        }
+      }
+      if (!exitoso || !texto) break
+      const d = JSON.parse(texto)
       if (!d.ok || !Array.isArray(d.data) || d.data.length === 0) break
       todos.push(...d.data)
       if (!d.nextCursor?.cursorDate || !d.nextCursor?.cursorId) break

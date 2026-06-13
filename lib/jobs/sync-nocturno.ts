@@ -223,7 +223,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
         const externalIdsActivos = new Set(externalIds)
         // Guard: si UpTres devolvió menos de 100 deudas, no marcar masivamente como inactivas
         const totalActivas = await (prisma as any).syncDeuda.count({ where: { integracionId: intg.id, condition: true } })
-        if (externalIds.length >= 100 || externalIds.length >= totalActivas * 0.5) {
+        if (externalIds.length >= 100 || externalIds.length >= totalActivas * 0.7) {
           await (prisma as any).syncDeuda.updateMany({
             where: { integracionId: intg.id, condition: true, externalId: { notIn: Array.from(externalIdsActivos) } },
             data: { condition: false, sincronizadoEl: new Date() }
