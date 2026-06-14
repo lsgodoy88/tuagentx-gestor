@@ -35,9 +35,10 @@ export async function GET() {
   const user = session.user as any
 
   const ruta = await prisma.ruta.findFirst({
-    where: { empleados: { some: { empleadoId: user.id } } },
+    where: { empleados: { some: { empleadoId: user.id } }, cerrada: false },
+    orderBy: { fecha: 'desc' },
     select: {
-      id: true, cerrada: true, nombre: true, createdAt: true,
+      id: true, cerrada: true, nombre: true, createdAt: true, fecha: true,
       clientes: {
         select: {
           id: true, clienteId: true, orden: true, notas: true,

@@ -40,13 +40,14 @@ interface Props {
   distanciaLejos?: boolean
   extraData?: Record<string, any>
   facturaPreset?: string
+  empresaOrigen?: string
 }
 
 export default function ModalVisita({
   open, onClose, onRegistrado,
   clienteInicial, tipoForzado,
   puedeCapturarGps = false,
-  titulo, extraData = {}, distanciaLejos, facturaPreset
+  titulo, extraData = {}, distanciaLejos, facturaPreset, empresaOrigen
 }: Props) {
   const [cliente, setCliente] = useState<Cliente | null>(clienteInicial || null)
   const gpsDemand = useGpsEnDemanda()
@@ -315,7 +316,7 @@ export default function ModalVisita({
                 {facturaPreset ? (
                   <div className="rounded-xl px-4 py-2.5 flex items-center gap-2" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                     <span className="text-lg">📦</span>
-                    <span className="text-white text-sm font-semibold">Factura: #{facturaPreset}</span>
+                    <span className="text-white text-sm font-semibold">{empresaOrigen ? `${empresaOrigen}: #${facturaPreset}` : `Factura: #${facturaPreset}`}</span>
                   </div>
                 ) : (
                   <input value={factura} onChange={e => setFactura(e.target.value)}

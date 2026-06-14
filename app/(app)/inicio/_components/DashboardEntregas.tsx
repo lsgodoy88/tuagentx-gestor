@@ -2,6 +2,9 @@
 import { useEffect, useState, useCallback } from 'react'
 import { fetchApi } from '@/lib/fetchApi'
 import dynamic from 'next/dynamic'
+import Link from 'next/link'
+import SaludoBlock from '@/components/SaludoBlock'
+import TurnoBlock from '@/components/TurnoBlock'
 
 const ModalVisita  = dynamic(() => import('@/components/ModalVisita'),  { ssr: false })
 const EntregaCard  = dynamic(() => import('@/components/EntregaCard'),  { ssr: false })
@@ -38,9 +41,13 @@ export default function DashboardEntregas({ user }: { user: any }) {
 
   const cargarRuta = useCallback(async () => {
     const hoy = new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]
-    const [r, v] = await Promise.all([
-      fetch('/api/rutas/mi-ruta').then(r => r.json()).catch(() => null),
-      fetch('/api/visitas/todas?fecha=' + hoy).then(r => r.json()).catch(() => null),
+    const r = await fetch('/api/rutas/mi-ruta').then(r => r.json()).catch(() => null)
+    const fechaVisitas = r?.fecha
+      ? new Date(new Date(r.fecha).getTime() - 5*60*60*1000).toISOString().split('T')[0]
+      : hoy
+    const [, v] = await Promise.all([
+      Promise.resolve(r),
+      fetch('/api/visitas/todas?fecha=' + fechaVisitas).then(r => r.json()).catch(() => null),
     ])
     if (r) {
       setRuta(r)
@@ -51,8 +58,8 @@ export default function DashboardEntregas({ user }: { user: any }) {
         orden: rc.orden,
         notas: rc.notas || null,
         ordenDespachoId: rc.ordenDespachoId || null,
-        numeroFactura: rc.numeroFactura || null,
-        empresaOrigen: rc.empresaOrigen || null,
+        numeroFactura: rc.numeroFactura || (() => { const m = (rc.notas||'').match(/#(\d+)/); return m ? m[1] : null })(),
+        empresaOrigen: rc.empresaOrigen || (() => { const m = (rc.notas||'').match(/^Bodega\/([^#]+)/); return m ? m[1].trim() : null })(),
         alistadoPor: rc.alistadoPor || null,
         asignadoEn: rc.asignadoEn || null,
         ordenCreadaEl: rc.ordenCreadaEl || null,
@@ -105,60 +112,41 @@ export default function DashboardEntregas({ user }: { user: any }) {
 
   return (
     <div className="space-y-3 pb-20">
-      {!turno && !cargandoTurno && (
-        <h1 className="text-2xl font-bold text-white px-1">Bienvenido, {user?.name?.split(' ')[0]}</h1>
-      )}
-
-      {/* Turno */}
-      {cargandoTurno && (
-        <div className="rounded-2xl px-4 py-3 animate-pulse" style={{ background: 'rgba(148,160,185,0.22)', border: '1px solid rgba(148,180,255,0.25)', height: 48 }} />
-      )}
-      {!cargandoTurno && (
-        <div style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, overflow: 'hidden' }}>
-          {turno ? (
-            <div className="flex items-center justify-between px-3 py-2.5 gap-2">
-              <div className="flex items-center gap-2">
-                <span className="relative inline-flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 live-ping" />
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                </span>
-                <span className="text-emerald-400 text-sm font-semibold">Turno activo</span>
-              </div>
-              <button onClick={cerrarTurno} disabled={bloqueadoTurno}
-                className="bg-red-600 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg">
-                {bloqueadoTurno ? '...' : 'Cerrar turno'}
-              </button>
-            </div>
-          ) : (
-            <div className="px-3 py-2.5">
-              <button onClick={iniciarTurno} disabled={bloqueadoTurno || obteniendoGps}
-                className="w-full flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors">
-                {obteniendoGps
-                  ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" /> Buscando GPS...</>
-                  : <>⚡ Iniciar turno</>}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
+      {!turno && !cargandoTurno && <SaludoBlock nombre={user?.name} />}
+      <TurnoBlock
+        turno={turno}
+        cargando={cargandoTurno}
+        bloqueado={bloqueadoTurno}
+        obteniendoGps={obteniendoGps}
+        onIniciar={iniciarTurno}
+        onCerrar={cerrarTurno}
+      />
 
       {/* Ruta del día */}
       {ruta && totalClientes > 0 && (
-        <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)' }}>
-          <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
-            <p className="text-white font-bold">📦 Ruta de hoy</p>
-            <span className="text-zinc-400 text-xs">{ejecutadosRuta}/{totalClientes} entregas</span>
+        <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.25)' }}>
+          <div className="px-4 py-3 border-b border-white/20 flex items-center justify-between">
+            <Link href="/mapa-ruta" className="text-white font-bold hover:text-emerald-400 transition-colors">📦 Ruta de hoy →</Link>
+            <span className="text-white text-sm font-semibold">{ejecutadosRuta}/{totalClientes} entregas</span>
           </div>
-          <div className="divide-y divide-zinc-800">
-            {clientesOrdenados.slice().sort((a, b) => a.orden - b.orden).map(c => {
-              const entregado = ordenesEntregadas.has(c.ordenDespachoId) ||
-                visitasRuta.some(v => {
+          <div className="divide-y divide-white/20">
+            {clientesOrdenados.slice().sort((a, b) => {
+              const eA = ordenesEntregadas.has(a.ordenDespachoId) || visitasRuta.some(v => v.clienteId === a.id)
+              const eB = ordenesEntregadas.has(b.ordenDespachoId) || visitasRuta.some(v => v.clienteId === b.id)
+              if (eA !== eB) return eA ? 1 : -1
+              return a.orden - b.orden
+            }).map(c => {
+              const visitaEntrega = visitasRuta.find(v => {
                   if (v.clienteId !== c.id) return false
                   const fv = v.fechaBogota
                     ? new Date(v.fechaBogota).toISOString().split('T')[0]
                     : new Date(new Date(v.createdAt).getTime() - 5*60*60*1000).toISOString().split('T')[0]
                   return fv === fechaRuta
                 })
+              const entregado = ordenesEntregadas.has(c.ordenDespachoId) || !!visitaEntrega
+              const horaEntrega = visitaEntrega?.fechaBogota
+                ? new Date(visitaEntrega.fechaBogota).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' })
+                : null
               return (
                 <EntregaCard
                   key={c.id}
@@ -169,6 +157,7 @@ export default function DashboardEntregas({ user }: { user: any }) {
                   asignadoEn={c.asignadoEn || c.ordenCreadaEl}
                   rezago={c.rezago === true}
                   entregado={entregado}
+                  horaEntrega={horaEntrega}
                   turnoActivo={!!turno}
                   onEntregar={() => {
                     setClienteModal(c)
@@ -202,6 +191,7 @@ export default function DashboardEntregas({ user }: { user: any }) {
         open={!!clienteModal}
         onClose={() => setClienteModal(null)}
         facturaPreset={clienteModal?.numeroFactura || undefined}
+        empresaOrigen={clienteModal?.empresaOrigen || undefined}
         onRegistrado={() => {
           if (clienteModal?.ordenDespachoId) setOrdenesEntregadas(prev => new Set([...prev, clienteModal.ordenDespachoId]))
           cargarRuta()
@@ -213,6 +203,14 @@ export default function DashboardEntregas({ user }: { user: any }) {
         titulo="📦 Registrar entrega"
         extraData={clienteModal?.ordenDespachoId ? { ordenDespachoId: clienteModal.ordenDespachoId } : {}}
       />
+      {/* Card Rutas */}
+      <Link href="/rutas-entregas"
+        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 16, display: 'block', padding: '12px 16px' }}>
+        <div className="flex items-center justify-between">
+          <span className="text-white font-semibold">📋 Mis Rutas</span>
+          <span className="text-zinc-400 text-sm">→</span>
+        </div>
+      </Link>
     </div>
   )
 }

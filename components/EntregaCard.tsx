@@ -17,13 +17,14 @@ interface EntregaCardProps {
   asignadoEn?: string | null
   rezago?: boolean
   entregado?: boolean
+  horaEntrega?: string | null
   onEntregar?: () => void
   turnoActivo?: boolean
 }
 
 export default function EntregaCard({
   cliente, numeroFactura, empresaOrigen,
-  rezago, entregado, onEntregar, turnoActivo
+  rezago, entregado, horaEntrega, onEntregar, turnoActivo
 }: EntregaCardProps) {
   const lat = cliente.lat || cliente.latTmp
   const lng = cliente.lng || cliente.lngTmp
@@ -33,38 +34,21 @@ export default function EntregaCard({
     : numeroFactura ? `#${numeroFactura}` : null
 
   return (
-    <div className={`px-4 py-3 space-y-1.5 ${
-      entregado ? 'opacity-40' : rezago ? 'border-l-2 border-amber-500 bg-amber-500/5' : ''
-    }`}>
+    <div className={`px-4 py-3 ${rezago && !entregado ? 'border-l-2 border-amber-500 bg-amber-500/5' : ''}`}>
 
-      {/* L1 — nombre + botón Entregar */}
-      <div className="flex items-center justify-between gap-3">
-        <p className={`font-bold text-sm leading-snug flex-1 ${
-          entregado ? 'line-through text-zinc-500' : rezago ? 'text-amber-200' : 'text-white'
-        }`}>
+      {/* L1 — nombre */}
+      <div className="flex items-center justify-between gap-3 mb-1">
+        <p className={`font-bold text-base leading-snug flex-1 ${rezago ? 'text-white' : 'text-white'}`}>
           {cliente.nombre}
           {rezago && !entregado && (
-            <span className="ml-2 text-[10px] font-bold text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded align-middle">
-              rezago
-            </span>
+            <span className="ml-2 text-[10px] font-bold text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded align-middle">rezago</span>
           )}
         </p>
-        {!entregado && turnoActivo && onEntregar && (
-          <button onClick={onEntregar}
-            className={`flex-shrink-0 text-white text-xs font-semibold px-4 py-1.5 rounded-lg ${
-              rezago ? 'bg-amber-500 hover:bg-amber-400' : 'bg-emerald-600 hover:bg-emerald-500'
-            }`}>
-            Entregar
-          </button>
-        )}
-        {entregado && (
-          <span className="text-emerald-400 text-xs flex-shrink-0 font-semibold">✓ Listo</span>
-        )}
       </div>
 
-      {/* L2 — dirección + Maps */}
+      {/* L2 — dirección */}
       {cliente.direccion && (
-        <p className="text-zinc-500 text-xs flex items-center gap-1.5">
+        <p className="text-white text-sm flex items-center gap-1.5 mb-1">
           <span>📍</span>
           <span className="flex-1 truncate uppercase">
             {cliente.direccion}{cliente.ciudad ? ` ${cliente.ciudad}` : ''}
@@ -79,25 +63,34 @@ export default function EntregaCard({
         </p>
       )}
 
-      {/* L3 — bodega/factura */}
-      {notaBodega && (
-        <p className="text-zinc-400 text-xs flex items-center gap-1.5">
-          <span>📦</span>
-          <span>{notaBodega}</span>
-        </p>
-      )}
-
-      {/* L4 — teléfono */}
-      {cliente.telefono && (
-        <p className="text-xs flex items-center gap-1.5">
-          <span>📞</span>
-          <a href={`tel:${cliente.telefono}`}
-            onClick={e => e.stopPropagation()}
-            className="text-blue-400 hover:text-blue-300">
-            {cliente.telefono}
-          </a>
-        </p>
-      )}
+      {/* L3+L4 — bodega/teléfono + botón/check derecha */}
+      <div className="flex items-end justify-between gap-2">
+        <div className="flex-1 min-w-0 space-y-0.5">
+          {notaBodega && (
+            <p className="text-white text-sm flex items-center gap-1.5">
+              <span>📦</span><span className="truncate">{notaBodega}</span>
+            </p>
+          )}
+          {cliente.telefono && (
+            <p className="text-sm flex items-center gap-1.5">
+              <span>📞</span>
+              <a href={`tel:${cliente.telefono}`} onClick={e => e.stopPropagation()} className="text-white">
+                {cliente.telefono}
+              </a>
+            </p>
+          )}
+        </div>
+        {entregado ? (
+          <div className="flex flex-col items-center flex-shrink-0 gap-0.5">
+            {horaEntrega && <span className="text-emerald-400 text-xs font-semibold">{horaEntrega}</span>}
+          </div>
+        ) : turnoActivo && onEntregar ? (
+          <button onClick={onEntregar}
+            className={`flex-shrink-0 text-white text-xs font-semibold px-4 py-1.5 rounded-lg ${rezago ? 'bg-amber-500 hover:bg-amber-400' : 'bg-emerald-600 hover:bg-emerald-500'}`}>
+            Entregar
+          </button>
+        ) : null}
+      </div>
 
     </div>
   )

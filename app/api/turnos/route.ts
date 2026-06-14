@@ -4,6 +4,7 @@ import { invalidateKeys } from '@/lib/cache'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { runRutasDia } from '@/lib/jobs/rutas-dia'
 import { audit } from '@/lib/audit'
 
 export async function GET() {
@@ -53,6 +54,29 @@ export async function POST(req: NextRequest) {
       })
     })
     await audit('TURNO_INICIADO', user.email, `Turno: ${turno.id}`, user.id, user.empresaId)
+    // Crear o reabrir ruta del día si es rol entregas
+    if (user.role === 'entregas') {
+      ;(async () => {
+        try {
+          const hoyStr = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
+          const rutaHoy = await prisma.ruta.findFirst({
+            where: {
+              empleados: { some: { empleadoId: user.id } },
+              fecha: {
+                gte: new Date(hoyStr + 'T05:00:00.000Z'),
+                lte: new Date(hoyStr + 'T28:59:59.999Z'),
+              }
+            },
+            orderBy: { fecha: 'desc' }
+          })
+          if (rutaHoy && rutaHoy.cerrada) {
+            await prisma.ruta.update({ where: { id: rutaHoy.id }, data: { cerrada: false, cerradaEl: null } })
+          } else if (!rutaHoy) {
+            await runRutasDia(user.empresaId, true)
+          }
+        } catch {}
+      })()
+    }
     await invalidateKeys(`g:${user.empresaId}:stats:${fechaHoyBogota()}`, `g:v:${user.id}:${fechaHoyBogota()}`)
     return NextResponse.json({ ok: true, turno })
   }
@@ -87,9 +111,11 @@ export async function POST(req: NextRequest) {
         const ms = Date.now() - new Date(turnoActivo.pausaInicio).getTime()
         duracionRealMin = Math.round(ms / 60000)
       }
+      const pausaFinTs = new Date()
+      const pausaFinBog = pausaFinTs.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Bogota' })
       await tx.turno.update({
         where: { id: turnoActivo.id },
-        data: { pausado: false, pausaInicio: null, pausaDuracionMin: duracionRealMin }
+        data: { pausado: false, pausaInicio: null, pausaDuracionMin: duracionRealMin, pausaFin: pausaFinTs, pausaFinBogota: pausaFinBog }
         // pausaMotivo se conserva — no se borra
       })
     })

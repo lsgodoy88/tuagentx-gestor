@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { CountUp, LiveDot } from '@/components/FX'
+import SaludoBlock from '@/components/SaludoBlock'
 
 export default function DashboardBodega({ user }: { user: any }) {
   const [stats, setStats] = useState<{ pendientes: number; alistados: number; entregados: number } | null>(null)
@@ -18,9 +19,9 @@ export default function DashboardBodega({ user }: { user: any }) {
 
   return (
     <div className="space-y-4 pb-20">
-      <h1 className="text-2xl font-bold text-white px-1">Bienvenido, {user?.name?.split(' ')[0]}</h1>
+      <SaludoBlock nombre={user?.name} />
 
-      <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}>
+      <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.25)' }}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-white font-semibold text-sm">📦 Órdenes bodega hoy</h3>
           <a href="/ordenes" className="text-emerald-400 text-xs">Ver órdenes →</a>
@@ -57,7 +58,7 @@ export default function DashboardBodega({ user }: { user: any }) {
 
       <a href="/ordenes"
         className="block w-full text-center py-3 rounded-xl text-white font-semibold text-sm"
-        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)' }}>
+        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.25)' }}>
         📋 Ver todas las órdenes
       </a>
     </div>
