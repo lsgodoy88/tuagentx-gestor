@@ -109,9 +109,20 @@ export class UpTresAdapter implements AdaptadorIntegracion {
           if (intento < MAX_REINTENTOS - 1) await new Promise(r => setTimeout(r, 2000 * (intento + 1)))
         }
       }
-      if (!exitoso || !texto) break
-      const d = JSON.parse(texto)
-      if (!d.ok || !Array.isArray(d.data) || d.data.length === 0) break
+      if (!exitoso || !texto) {
+        if (pagina === 1) throw new Error(`UpTres no respondió tras ${MAX_REINTENTOS} reintentos — endpoint: ${endpoint}`)
+        break
+      }
+      let d: any
+      try { d = JSON.parse(texto) } catch { 
+        if (pagina === 1) throw new Error(`UpTres respuesta inválida (no JSON) — endpoint: ${endpoint}`)
+        break
+      }
+      if (!d.ok) {
+        if (pagina === 1) throw new Error(`UpTres error — ${d.msg || d.message || 'sin mensaje'} — endpoint: ${endpoint}`)
+        break
+      }
+      if (!Array.isArray(d.data) || d.data.length === 0) break
       todos.push(...d.data)
       if (!d.nextCursor?.cursorDate || !d.nextCursor?.cursorId) break
       cursorDate = d.nextCursor.cursorDate

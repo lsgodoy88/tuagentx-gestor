@@ -205,11 +205,16 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
         const externalIdsActivos = new Set(externalIds)
         // Guard: si UpTres devolvió menos de 100 deudas, no marcar masivamente como inactivas
         const totalActivas = await (prisma as any).syncDeuda.count({ where: { integracionId: intg.id, condition: true } })
-        if (externalIds.length >= 100 || externalIds.length >= totalActivas * 0.7) {
+        // Guard doble: mínimo 100 deudas absolutas Y al menos 50% del histórico activo
+        // Evita marcar masivamente como inactivas si UpTres devuelve pocos resultados
+        const umbralSeguro = Math.max(100, Math.floor(totalActivas * 0.5))
+        if (externalIds.length >= umbralSeguro) {
           await (prisma as any).syncDeuda.updateMany({
             where: { integracionId: intg.id, condition: true, externalId: { notIn: Array.from(externalIdsActivos) } },
             data: { condition: false, sincronizadoEl: new Date() }
           })
+        } else {
+          console.warn(`[sync-nocturno] Guard activado — UpTres devolvió ${externalIds.length} deudas, umbral seguro ${umbralSeguro} — NO se marcan inactivas`)
         }
         // Actualizar saldos reales de deudas condition=false consultando UpTres
         await actualizarDeudasInactivas(adapter, intg.id)
@@ -224,6 +229,21 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
 
       resultados.push({ empresaId: intg.empresaId, deudas: deudas.length, insertadas: toInsert.length, actualizadas: toUpdate.length, clientesCache: clientesActualizados })
     } catch (err: any) {
+      console.error(`[sync-nocturno] Error integracion ${intg.id}:`, err.message)
+      // Guardar error en SyncLog para visibilidad
+      try {
+        await (prisma as any).syncLog.create({
+          data: {
+            integracionId: intg.id,
+            inicio: new Date(),
+            fin: new Date(),
+            disparadoPor: 'cron',
+            tipo: 'nocturno',
+            estado: 'error',
+            errores: [{ mensaje: err.message, ts: new Date().toISOString() }],
+          }
+        })
+      } catch {}
       resultados.push({ empresaId: intg.empresaId, error: err.message })
     }
   }
