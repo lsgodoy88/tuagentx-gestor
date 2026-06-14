@@ -493,6 +493,21 @@ export default function ConfiguracionPage() {
     // éxito permanente
   }
 
+  const [sincronizandoNocturno, setSincronizandoNocturno] = useState(false)
+
+  async function syncNocturno() {
+    setSincronizandoNocturno(true); setMsgSync('')
+    const res = await fetch('/api/sync/nocturno', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+    const data = await res.json()
+    setSincronizandoNocturno(false)
+    if (data.ok) {
+      const r = data.resultados?.[0]
+      setMsgSync(`✅ Nocturno: ${r?.deudas ?? 0} deudas · ${r?.clientesCache ?? 0} clientes cache`)
+    } else {
+      setMsgSync(data.error || 'Error en sync nocturno')
+    }
+  }
+
   async function syncDelta() {
     setSincronizando(true); setMsgSync('')
     const res = await fetch('/api/integracion/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tipo: 'delta' }) })
@@ -902,9 +917,13 @@ export default function ConfiguracionPage() {
                         </div>
                       )}
                       <div className="flex gap-2 flex-wrap">
-                        <button onClick={syncDelta} disabled={sincronizando}
-                          className={`bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/20 font-semibold px-4 py-2 rounded-xl text-sm transition-colors ${(sincronizando) ? 'btn-shimmer' : ''}`}>
+                        <button onClick={syncDelta} disabled={sincronizando || sincronizandoNocturno}
+                          className={`bg-violet-600/20 hover:bg-violet-600/30 text-violet-300 border border-violet-500/20 font-semibold px-4 py-2 rounded-xl text-sm transition-colors ${sincronizando ? 'btn-shimmer' : ''}`}>
                           {sincronizando ? 'Sincronizando...' : '🔄 Sync'}
+                        </button>
+                        <button onClick={syncNocturno} disabled={sincronizando || sincronizandoNocturno}
+                          className={`bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 font-semibold px-4 py-2 rounded-xl text-sm transition-colors ${sincronizandoNocturno ? 'btn-shimmer' : ''}`}>
+                          {sincronizandoNocturno ? 'Sincronizando...' : '🌙 Sync Nocturno'}
                         </button>
                         <button onClick={desconectarERP}
                           className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 font-semibold px-4 py-2 rounded-xl text-sm">

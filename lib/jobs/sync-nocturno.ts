@@ -14,7 +14,7 @@ import { calcularSaldoReal } from '@/lib/cartera-utils'
 // ── Reconstruir CarteraCache ─────────────────────────────────────────────────
 export async function reconstruirCartera(integracionId: string, empresaId: string) {
   const deudas = await (prisma as any).syncDeuda.findMany({
-    where: { integracionId, saldo: { gt: 0 } } // condition removido — saldo > 0 es fuente de verdad
+    where: { integracionId, condition: true, saldo: { gt: 0 } } // condition=true (UpTres activa) AND saldo>0
   })
 
   const apiIds = [...new Set(deudas.map((d: any) => d.clienteApiId))]
@@ -177,7 +177,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
             valor,
             saldo,
             diasCredito: d.dias ? parseInt(String(d.dias)) : null,
-            condition: true,
+            condition: Boolean(d.condicionUpTres !== false), // condition real de UpTres
             data: d as any,
             externalUpdatedAt,
             receivableAt,
@@ -196,7 +196,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
         await Promise.all(chunk.map((u: any) =>
           (prisma as any).syncDeuda.update({
             where: { integracionId_externalId: { integracionId: intg.id, externalId: u.externalId } },
-            data: { saldo: u.saldo, valor: u.valor, condition: u.saldo > 0, externalUpdatedAt: u.externalUpdatedAt, receivableAt: u.receivableAt, sincronizadoEl: new Date(), data: u.data }
+            data: { saldo: u.saldo, valor: u.valor, condition: Boolean(u.data?.condicionUpTres !== false), externalUpdatedAt: u.externalUpdatedAt, receivableAt: u.receivableAt, sincronizadoEl: new Date(), data: u.data }
           })
         ))
       }
@@ -216,8 +216,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
         } else {
           console.warn(`[sync-nocturno] Guard activado — UpTres devolvió ${externalIds.length} deudas, umbral seguro ${umbralSeguro} — NO se marcan inactivas`)
         }
-        // Actualizar saldos reales de deudas condition=false consultando UpTres
-        await actualizarDeudasInactivas(adapter, intg.id)
+        // actualizarDeudasInactivas eliminado — ahora traemos todo de UpTres sin filtro
       }
 
       const clientesActualizados = modo === 'completo'
@@ -261,6 +260,8 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
           estado: r.error ? 'error' : 'ok',
           disparadoPor: 'cron',
           empresaId: r.empresaId,
+          deudasSincronizadas: r.deudas ?? 0,
+          clientesActualizados: r.clientesCache ?? 0,
           errores: r.error ? { message: r.error } : undefined,
         },
       })

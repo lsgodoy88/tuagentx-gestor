@@ -89,7 +89,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     const MAX_PAGINAS = 200
     const MAX_REINTENTOS = 3
     while (pagina++ < MAX_PAGINAS) {
-      const p = new URLSearchParams({ limit: '100', condition: 'true', ...extraParams })
+      const p = new URLSearchParams({ limit: '100', ...extraParams })
       if (cursorDate && cursorId) {
         p.set('cursorDate', cursorDate)
         p.set('cursorId', cursorId)
@@ -188,7 +188,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       const manana = new Date(); manana.setDate(manana.getDate() + 1)
       params.to = manana.toISOString().split('T')[0]
     }
-    // condition=true via fetchAll (default) — solo deudas activas en UpTres
+    // Sin filtro condition — traemos todo y filtramos internamente por saldo > 0
     const data = await this.fetchAll('cartera', params)
     return this._mapearDeudas(data)
   }
