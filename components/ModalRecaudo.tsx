@@ -177,6 +177,11 @@ export default function ModalRecaudo({
                             Analizando comprobante con IA...
                           </div>
                         )}
+                        {linea.voucherKey && !linea.voucherDatosIA && !linea.cargandoVoucher && (
+                          <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3 text-amber-400 text-xs text-center">
+                            ⚠️ No se pudo leer el comprobante — ingresa el monto manualmente
+                          </div>
+                        )}
                         {linea.voucherDatosIA && !linea.cargandoVoucher && (
                           <div className="bg-zinc-500/40 border border-emerald-400/30 rounded-xl px-4 py-3 space-y-2.5">
                             <div className="flex items-center justify-between">
@@ -197,7 +202,7 @@ export default function ModalRecaudo({
                           <div className="flex gap-3">
                             <div className="flex-[6]">
                               <label className="text-zinc-300 text-sm font-semibold block mb-1.5">Monto (IA)</label>
-                              <InputMoneda value={linea.monto} onChange={val => onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, monto: val } : l))}
+                              <InputMoneda value={linea.monto} readOnly onChange={() => {}}
                                 className="w-full bg-blue-950/30 border border-blue-500/20 rounded-xl pr-4 py-2.5 text-zinc-400 text-sm outline-none cursor-not-allowed" />
                             </div>
                           </div>

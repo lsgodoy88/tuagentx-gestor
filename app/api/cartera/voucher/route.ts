@@ -13,10 +13,15 @@ const execFileAsync = promisify(execFile)
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 const PROMPT_EXTRACCION =
-  'Extrae del comprobante de pago: valor numérico total transferido (sin símbolos), fecha de la transacción (formato YYYY-MM-DD), nombre del banco o entidad emisora, y número de referencia o transacción. ' +
-  'Responde ÚNICAMENTE con JSON válido, sin texto adicional: {"valor": number, "fecha": "YYYY-MM-DD", "banco": "string", "referencia": "string"}'
+  'Eres un extractor de datos de comprobantes de pago colombianos. El comprobante puede ser digital (Nequi, Daviplata, PSE, transferencia bancaria) o físico (recibo de papel, corresponsal bancario, Wompi, etc.). ' +
+  'Extrae: (1) valor numérico total consignado/transferido — IMPORTANTE: los puntos son separadores de miles en Colombia (ej: 1.240.000 = un millón doscientos cuarenta mil), devuelve el número completo sin truncar; ' +
+  '(2) fecha y hora de la transacción en formato YYYY-MM-DD HH:mm:ss, si no hay hora usa 00:00:00; ' +
+  '(3) origen: entidad o banco que envía el dinero; ' +
+  '(4) destino: entidad, cuenta o titular que recibe el dinero; ' +
+  '(5) número de referencia, recibo o transacción. ' +
+  'Si no encuentras un campo devuelve null. Responde ÚNICAMENTE con JSON válido sin texto adicional: {"valor": number, "fecha": "YYYY-MM-DD HH:mm:ss", "banco": "string", "origen": "string", "destino": "string", "referencia": "string"}'
 
-type DatosIA = { valor: number | null; fecha: string | null; banco: string | null; referencia: string | null }
+type DatosIA = { valor: number | null; fecha: string | null; banco: string | null; origen: string | null; destino: string | null; referencia: string | null }
 
 async function pdfPrimerarPaginaAJpg(pdfBase64: string): Promise<string> {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -39,8 +44,8 @@ async function pdfPrimerarPaginaAJpg(pdfBase64: string): Promise<string> {
     const imgBuffer = readFileSync(join(tmpdir(), archivos[0]))
 
     const compressed: Buffer = await sharp(imgBuffer)
-      .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality: 82 })
+      .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 88 })
       .toBuffer()
 
     return compressed.toString('base64')
@@ -78,17 +83,17 @@ export async function POST(req: NextRequest) {
     imagenBase64 = base64Data
   }
 
-  let datosIA: DatosIA = { valor: null, fecha: null, banco: null, referencia: null }
+  let datosIA: DatosIA = { valor: null, fecha: null, banco: null, origen: null, destino: null, referencia: null }
   try {
     const dataUrl = `data:image/jpeg;base64,${imagenBase64}`
     const msg = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
+      model: 'gpt-4o',
       max_tokens: 256,
       messages: [
         {
           role: 'user',
           content: [
-            { type: 'image_url', image_url: { url: dataUrl } },
+            { type: 'image_url', image_url: { url: dataUrl, detail: 'high' } },
             { type: 'text', text: PROMPT_EXTRACCION },
           ],
         },

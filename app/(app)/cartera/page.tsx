@@ -408,6 +408,11 @@ export default function CarteraPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ archivoBase64, mimeType: file.type, pagoId: tempId }),
       })
+      if (!res.ok) {
+        const txt = await res.text()
+        console.error('[voucher] HTTP', res.status, txt)
+        throw new Error(`HTTP ${res.status}: ${txt}`)
+      }
       const data = await res.json()
       setLineasPago(prev => prev.map(l => l.id === lineaId ? {
         ...l,
@@ -416,7 +421,8 @@ export default function CarteraPage() {
         cargandoVoucher: false,
         monto: data.datosIA?.valor ? String(Math.round(data.datosIA.valor)) : l.monto,
       } : l))
-    } catch {
+    } catch (err) {
+      console.error('[voucher] catch:', err)
       alert('Error al procesar el comprobante')
       setLineasPago(prev => prev.map(l => l.id === lineaId ? { ...l, cargandoVoucher: false } : l))
     }
