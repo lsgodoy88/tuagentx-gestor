@@ -3045,3 +3045,72 @@ model LogsGestor {
   @@index([empresaId])
   @@map("LogsGestor")
 }
+
+model SaldoEfectivo {
+  id                 String   @id @default(cuid())
+  empresaId          String
+  fecha              DateTime
+  concepto           String
+  ingreso            Decimal? @db.Decimal(15, 2)
+  egreso             Decimal? @db.Decimal(15, 2)
+  orden              Int      @default(0)
+  categoria          String?
+  relacionTexto      String?
+  relacionArchivoKey String?
+  fechaBogota        DateTime? @db.Date()
+  creadoEl           DateTime @default(now())
+  actualizadoEl      DateTime @updatedAt
+
+  @@index([empresaId, fechaBogota])
+  @@map("SaldoEfectivo")
+}
+
+model SaldoBancos {
+  id                 String   @id @default(cuid())
+  empresaId          String
+  fecha              DateTime
+  concepto           String
+  ingreso            Decimal? @db.Decimal(15, 2)
+  egreso             Decimal? @db.Decimal(15, 2)
+  orden              Int      @default(0)
+  categoria          String?
+  relacionTexto      String?
+  relacionArchivoKey String?
+  fechaBogota        DateTime? @db.Date()
+  creadoEl           DateTime @default(now())
+  actualizadoEl      DateTime @updatedAt
+
+  @@index([empresaId, fechaBogota])
+  @@map("SaldoBancos")
+}
+
+model SaldoOtros {
+  id                 String   @id @default(cuid())
+  empresaId          String
+  fecha              DateTime
+  concepto           String
+  ingreso            Decimal? @db.Decimal(15, 2)
+  egreso             Decimal? @db.Decimal(15, 2)
+  orden              Int      @default(0)
+  categoria          String?
+  relacionTexto      String?
+  relacionArchivoKey String?
+  fechaBogota        DateTime? @db.Date()
+  creadoEl           DateTime @default(now())
+  actualizadoEl      DateTime @updatedAt
+
+  @@index([empresaId, fechaBogota])
+  @@map("SaldoOtros")
+}
+
+model SaldoConfig {
+  id          String   @id @default(cuid())
+  empresaId   String
+  tipo        String   // ingreso | egreso
+  nombre      String
+  orden       Int      @default(0)
+  creadoEl    DateTime @default(now())
+
+  @@index([empresaId, tipo])
+  @@map("SaldoConfig")
+}

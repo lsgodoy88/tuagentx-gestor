@@ -126,6 +126,12 @@ export async function marcarZombis(
   })
   const zombis = localesActivas.filter((sd: any) => !externalIdsVivas.has(sd.externalId))
   if (zombis.length === 0) return 0
+  // Guard anti-wipe: si el set de vivas es muy pequeño vs activas locales, no marcar
+  const umbralSeguro = Math.max(100, Math.floor(localesActivas.length * 0.5))
+  if (externalIdsVivas.size < umbralSeguro) {
+    console.warn(`[marcarZombis] Guard activado — vivas=${externalIdsVivas.size} < umbral=${umbralSeguro} (activas=${localesActivas.length}) — NO se marcan zombis`)
+    return 0
+  }
   // Transacción: marcar todos los zombis de una vez o ninguno
   await prisma.$transaction(async (tx: any) => {
     await tx.syncDeuda.updateMany({
