@@ -110,17 +110,14 @@ export class UpTresAdapter implements AdaptadorIntegracion {
         }
       }
       if (!exitoso || !texto) {
-        if (pagina === 1) throw new Error(`UpTres no respondió tras ${MAX_REINTENTOS} reintentos — endpoint: ${endpoint}`)
-        break
+        throw new Error(`UpTres no respondió tras ${MAX_REINTENTOS} reintentos — endpoint: ${endpoint}`)
       }
       let d: any
       try { d = JSON.parse(texto) } catch { 
-        if (pagina === 1) throw new Error(`UpTres respuesta inválida (no JSON) — endpoint: ${endpoint}`)
-        break
+        throw new Error(`UpTres respuesta inválida (no JSON) — endpoint: ${endpoint}`)
       }
       if (!d.ok) {
-        if (pagina === 1) throw new Error(`UpTres error — ${d.msg || d.message || 'sin mensaje'} — endpoint: ${endpoint}`)
-        break
+        throw new Error(`UpTres error — ${d.msg || d.message || 'sin mensaje'} — endpoint: ${endpoint}`)
       }
       if (!Array.isArray(d.data) || d.data.length === 0) break
       todos.push(...d.data)
