@@ -250,7 +250,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
 
   // Reconciliador huecos
   let huecosRecuperados = 0
-  if (toCreate.length >= 2) {
+  if (true) { // Reconciliador siempre corre — detecta huecos independiente de órdenes nuevas
     try {
       const facturas = toCreate.map((o: any) => parseInt(o.numeroFactura || '0')).filter((n: number) => n > 0)
       if (facturas.length >= 2) {
