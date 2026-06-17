@@ -203,20 +203,11 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
 
       if (modo === 'completo') {
         const externalIdsActivos = new Set(externalIds)
-        // Guard: si UpTres devolvió menos de 100 deudas, no marcar masivamente como inactivas
-        const totalActivas = await (prisma as any).syncDeuda.count({ where: { integracionId: intg.id, condition: true } })
-        // Guard doble: mínimo 100 deudas absolutas Y al menos 50% del histórico activo
-        // Evita marcar masivamente como inactivas si UpTres devuelve pocos resultados
-        const umbralSeguro = Math.max(100, Math.floor(totalActivas * 0.5))
-        if (externalIds.length >= umbralSeguro) {
-          await (prisma as any).syncDeuda.updateMany({
-            where: { integracionId: intg.id, condition: true, externalId: { notIn: Array.from(externalIdsActivos) } },
-            data: { condition: false, sincronizadoEl: new Date() }
-          })
-        } else {
-          console.warn(`[sync-nocturno] Guard activado — UpTres devolvió ${externalIds.length} deudas, umbral seguro ${umbralSeguro} — NO se marcan inactivas`)
-        }
-        // actualizarDeudasInactivas eliminado — ahora traemos todo de UpTres sin filtro
+        // fetchAll trae todo sin filtro condition — seguro marcar masivamente
+        await (prisma as any).syncDeuda.updateMany({
+          where: { integracionId: intg.id, condition: true, externalId: { notIn: Array.from(externalIdsActivos) } },
+          data: { condition: false, sincronizadoEl: new Date() }
+        })
       }
 
       const clientesActualizados = modo === 'completo'
