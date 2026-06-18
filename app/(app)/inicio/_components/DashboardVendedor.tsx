@@ -738,7 +738,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
                   {!rrLoadingCartera && rrCartera.length === 0 && <p className="text-zinc-500 text-sm text-center py-6">Sin clientes con deuda activa</p>}
                   {!rrLoadingCartera && rrCartera.map((cartera: any) => (
                     <CarteraCard key={cartera.id||cartera.clienteId} cartera={cartera} rol={user?.role||'vendedor'} fmt={fmt}
-                      onRecaudar={(c: any) => { setModalRecaudoRapido(false); setLineasPago([crearLinea()]); setRecaudandoCartera(c); cargarDetalleCartera(c) }}
+                      onRecaudar={(c: any) => { setModalRecaudoRapido(false); setLineasPago([crearLinea()]); setRecaudandoCartera(c); cargarDetalleCartera({ ...c, clienteId: c.clienteId || c.cliente?.id || c.id }) }}
                       onWhatsApp={abrirWhatsApp} variant="modal" />
                   ))}
                 </>
