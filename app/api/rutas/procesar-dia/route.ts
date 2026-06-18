@@ -19,6 +19,8 @@ export async function POST(req: NextRequest) {
     if (user.role === 'empresa') empresaIdFiltro = user.id
   }
 
-  const result = await runRutasDia(empresaIdFiltro)
+  const body = await req.json().catch(() => ({}))
+  const forzar = body.forzar === true || body.accion === 'criar' || esCron
+  const result = await runRutasDia(empresaIdFiltro, forzar)
   return NextResponse.json({ ok: true, ...result })
 }

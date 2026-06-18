@@ -58,6 +58,7 @@ model Empresa {
   despachoLogs        DespachoLog[]       @relation("DespachoLogEmpresa")
   comisionConfigs     ComisionConfig[]
   comisionCalculos    ComisionCalculo[]
+  egresos             Egreso[]
 }
 
 model Empleado {
@@ -3113,4 +3114,29 @@ model SaldoConfig {
 
   @@index([empresaId, tipo])
   @@map("SaldoConfig")
+}
+
+model Egreso {
+  id          String   @id @default(cuid())
+  empresaId   String
+  categoria   String   // nomina | gastos_varios | gastos_fijos | proveedores
+  fecha       DateTime
+  concepto    String
+  valor       Decimal  @default(0)
+  retencion   Decimal  @default(0)
+  abonoPago   Decimal  @default(0)
+  descuento   Decimal  @default(0)
+  saldo       Decimal  @default(0)
+  fechaPago   DateTime?
+  medioPago   String?  // BANCO | NEQUI | EFECTIVO | etc
+  estado      String   @default("pendiente") // pendiente | ok
+  autorizado  Boolean  @default(false)
+  mes         Int
+  anio        Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  empresa     Empresa  @relation(fields: [empresaId], references: [id])
+
+  @@index([empresaId, categoria, anio, mes])
+  @@map("Egreso")
 }

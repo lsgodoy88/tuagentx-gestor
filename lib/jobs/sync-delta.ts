@@ -305,7 +305,16 @@ export async function runSyncDelta(): Promise<any[]> {
       const vinculadas = await (prisma as any).empresaVinculada.findMany({ where: { empresaId: intg.empresaId, activa: true }, select: { id: true, nombre: true, empresaClienteId: true } })
       for (const v of vinculadas) {
         try {
-          const rv = await deltaEmpresa(v.empresaClienteId, intg.id, config.apiKey, apiSecret, v.id, intg.empresaId)
+          // Usar credenciales propias de la empresa vinculada si tiene integración
+          const intgVinculada = await (prisma as any).integracion.findFirst({
+            where: { empresaId: v.empresaClienteId, tipo: 'uptres', activa: true },
+            select: { id: true, config: true }
+          })
+          const cfgV = intgVinculada?.config as any
+          const apiKeyV = cfgV?.apiKey || config.apiKey
+          const apiSecretV = cfgV?.apiSecret ? decrypt(cfgV.apiSecret, process.env.UPTRES_SECRET!) : apiSecret
+          const intgIdV = intgVinculada?.id || intg.id
+          const rv = await deltaEmpresa(v.empresaClienteId, intgIdV, apiKeyV, apiSecretV, v.id, intg.empresaId)
           resultados.push({ ...rv, vinculada: v.nombre })
         } catch (err: any) { resultados.push({ vinculada: v.nombre, error: err.message }) }
       }

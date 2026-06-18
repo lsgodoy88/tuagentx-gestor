@@ -361,10 +361,11 @@ export default function DashboardVendedor({ user }: { user: any }) {
     if (!detalleData) return
     const total = lineasPago.reduce((s, l) => s + Number(l.monto || 0), 0)
     if (total === 0) return
+    if (guardandoPago) return  // prevenir doble tap
+    setGuardandoPago(true)
     let gpsCoords: { lat: number; lng: number } | null = null
     if (gpsRecaudo.estado === 'ok' && gpsRecaudo.pos) gpsCoords = { lat: gpsRecaudo.pos.lat, lng: gpsRecaudo.pos.lng }
     else if (gpsRecaudo.estado === 'buscando') { const pp = await gpsRecaudo.obtener(); if (pp) gpsCoords = { lat: pp.lat, lng: pp.lng } }
-    setGuardandoPago(true)
     let ultimoToken: string | null = null
     const idempotencyKey = crypto.randomUUID()
     const lineasValidas = lineasPago.filter(l => Number(l.monto||0) > 0).map(l => ({ metodoPago: l.metodoPago, monto: Number(l.monto||0), voucherKey: l.voucherKey||null, voucherDatosIA: l.voucherDatosIA||null }))

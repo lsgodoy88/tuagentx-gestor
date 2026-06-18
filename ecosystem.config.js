@@ -32,9 +32,12 @@ if (missing.length > 0) {
 
 module.exports = {
   apps: [{
-    name: 'gestor',
+    name: 'gestor-staging',
+    max_restarts: 10,
+    restart_delay: 3000,
+    min_uptime: '10s',
     script: 'node_modules/next/dist/bin/next',
-    args: 'start -p 3010',
+    args: 'start -p 3011',
     cwd: '/srv/gestor',
     env: {
       NODE_ENV:           'production',

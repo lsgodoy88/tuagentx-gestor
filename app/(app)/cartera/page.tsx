@@ -315,12 +315,13 @@ export default function CarteraPage() {
 
   // --- Sync UpTres individual ---
   async function syncCliente(cartera: any) {
-    if (!cartera?.clienteApiId) return
+    const clienteApiId = cartera?.cliente?.apiId || cartera?.clienteApiId
+    if (!clienteApiId) return
     try {
       await fetch('/api/integracion/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tipo: 'cliente', clienteApiId: cartera.clienteApiId })
+        body: JSON.stringify({ tipo: 'cliente', clienteApiId })
       })
       await cargarDatos()
     } catch {}

@@ -1,5 +1,6 @@
 'use client'
 import ModalEscaner from '@/components/ModalEscaner'
+import { SyncIcon } from '@/components/SyncIcon'
 import { nowBogota } from '@/lib/fechas'
 import FirmaCanvas from '@/components/FirmaCanvas'
 import { useSession } from 'next-auth/react'
@@ -545,6 +546,21 @@ export default function OrdenesPage() {
       })
     }, [tabActivo, pendientes, alistados, despachados, busqueda, ciudadFiltro])
 
+  async function syncOrdenes() {
+    setSyncing(true); setMsgSync('')
+    try {
+      const res = await fetch('/api/sync/delta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
+      const data = await res.json()
+      const nuevas = data.resultados?.reduce((s: number, r: any) => s + (r.nuevasOrdenes || 0), 0) || 0
+      setMsgSync(`✅ ${nuevas} nueva${nuevas !== 1 ? 's' : ''}`)
+      await cargarDatos()
+    } catch { setMsgSync('❌ Error') }
+    finally {
+      setSyncing(false)
+      setTimeout(() => setMsgSync(''), 5000)
+    }
+  }
+
   async function ejecutarBusqueda() {
     if (!busqueda.trim() || busqueda.length < 1) { setBusquedaRemota([]); return }
     // Siempre buscar en API — ignora el filtro de días, busca toda la BD
@@ -603,7 +619,16 @@ export default function OrdenesPage() {
           style={{width: '10%'}}>
           {buscandoRemoto ? '⏳' : '🔍'}
         </button>
+        <button onClick={syncOrdenes} disabled={syncing}
+          className={`flex items-center gap-1 bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 disabled:opacity-40 text-blue-400 rounded-xl text-sm px-2 py-2 flex-shrink-0 transition-colors ${syncing ? 'btn-shimmer' : ''}`}>
+          <SyncIcon spinning={syncing} className="w-4 h-4" />
+        </button>
       </div>
+      {msgSync && (
+        <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-3 py-2 text-emerald-400 text-xs text-center">
+          {msgSync}
+        </div>
+      )}
 
       {/* Sub-tabs + toolbar */}
       <div className="space-y-2">
@@ -970,12 +995,7 @@ export default function OrdenesPage() {
           {cargandoMasTab ? 'Cargando...' : 'Cargar más'}
         </button>
       )}
-      {hayMasPorTab[tabActivo] && (
-        <button onClick={cargarMasTab} disabled={cargandoMasTab}
-          className="w-full bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-semibold py-3 rounded-2xl hover:text-white disabled:opacity-40 transition-colors">
-          {cargandoMasTab ? 'Cargando...' : `Cargar más`}
-        </button>
-      )}
+
 
       {/* Barra selección masiva */}
       {modoSeleccion && (

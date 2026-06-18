@@ -158,7 +158,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const navGroups = [
     {
       items: [
-        { href: '/inicio', label: 'Inicio', icon: '⚡' },
+        ...(user?.role !== 'impulsadora' ? [{ href: '/inicio', label: 'Inicio', icon: '🏠' }] : []),
         ...(isSuperAdmin ? [
           { href: '/empresas',  label: 'Empresas', icon: '🏢' },
           { href: '/monitor',   label: 'Control',  icon: '📡' },
@@ -218,7 +218,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // ── Nav items móvil (drawer) ─────────────────────────────────────
   const navMovil: { href: string; label: string; icon: string }[] = [
-    { href: '/inicio', label: 'Inicio', icon: '⚡' },
+    ...(user?.role !== 'impulsadora' ? [{ href: '/inicio', label: 'Inicio', icon: '🏠' }] : []),
     ...(isSuperAdmin ? [
       { href: '/empresas',  label: 'Empresas', icon: '🏢' },
       { href: '/monitor',   label: 'Control',  icon: '📡' },
@@ -436,9 +436,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div style={{width:40,height:4,background:'rgba(59,130,246,0.4)',borderRadius:2}} />
         </div>
 
-        {/* Grid 4 columnas */}
-        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,marginBottom:10}}>
-          {navMovil.slice(0, 8).map(item => {
+        {/* Grid 4 columnas — scroll vertical */}
+        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,marginBottom:10,maxHeight:'55vh',overflowY:'auto'}}>
+          {navMovil.map(item => {
             const isAct = pathname === item.href
             return (
               <Link key={item.href} href={item.href}

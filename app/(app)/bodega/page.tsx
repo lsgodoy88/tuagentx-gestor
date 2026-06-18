@@ -337,10 +337,14 @@ export default function BodegaPage() {
               ))}
             </select>
           )}
-          {/* Contador */}
+          {/* Contador + Sync */}
           <div className="flex items-center justify-between gap-2">
-            <p className="text-zinc-300 text-xs">{despachos.length} orden{despachos.length !== 1 ? 'es' : ''}</p>
-            {msgSync && <span className="text-xs text-emerald-400">{msgSync}</span>}
+            <p className="text-zinc-300 text-xs">{despachos.length} orden{despachos.length !== 1 ? 'es' : ''}{msgSync && <span className="ml-2 text-emerald-400">{msgSync}</span>}</p>
+            <button onClick={sync} disabled={syncing}
+              className={`flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-300 border border-zinc-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors ${syncing ? 'btn-shimmer' : ''}`}>
+              <SyncIcon spinning={syncing} className="w-3.5 h-3.5 text-blue-400" />
+              {syncing ? '...' : 'Sync'}
+            </button>
           </div>
 
           {despachos.length === 0 ? (
