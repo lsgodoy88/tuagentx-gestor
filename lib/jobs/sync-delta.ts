@@ -203,8 +203,11 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   } catch (err: any) { console.error('[delta] insert-ordenes error:', err.message); erroresParciales.push('insert-ordenes: ' + err.message) }
 
   if (toCreate.length || deudaToCreate.length || clientesNuevos || deudasNuevasDelta) {
-    // Reconstruir CarteraCache incremental — clientes nuevos visibles sin esperar nocturno
-    try { await reconstruirCartera(integracionId, destino) } catch (e: any) { erroresParciales.push('cache: ' + e.message) }
+    // Reconstruir CarteraCache — usar integración propia del destino (vinculada tiene la suya)
+    try {
+      const intgDestino = await (prisma as any).integracion.findFirst({ where: { empresaId: destino, tipo: 'uptres', activa: true }, select: { id: true } })
+      await reconstruirCartera(intgDestino?.id || integracionId, destino)
+    } catch (e: any) { erroresParciales.push('cache: ' + e.message) }
     await invalidatePattern(`g:${destino}:*`)
   }
 
@@ -226,7 +229,10 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
       }
       saldosActualizados = toUpdateSaldo.length
       if (saldosActualizados > 0) {
-        try { await reconstruirCartera(integracionId, destino) } catch {}
+        try {
+          const intgDestino2 = await (prisma as any).integracion.findFirst({ where: { empresaId: destino, tipo: 'uptres', activa: true }, select: { id: true } })
+          await reconstruirCartera(intgDestino2?.id || integracionId, destino)
+        } catch {}
         await invalidatePattern(`g:${destino}:*`)
       }
     }
