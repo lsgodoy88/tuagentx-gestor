@@ -523,9 +523,9 @@ export default function RutasFijasPage() {
                               <div className={`h-full rounded-full ${pctTotal! >= 100 ? 'bg-blue-500' : pctTotal! >= 70 ? 'bg-cyan-500' : pctTotal! >= 40 ? 'bg-yellow-500' : 'bg-red-500'}`}
                                 style={{width: Math.min(pctTotal! || 0, 100) + '%'}} />
                             </div>
-                          ) : !rutaDia ? (
-                            <span className="text-zinc-600 text-xs flex-1">Sin asignar</span>
-                          ) : <div className="flex-1" />}
+                          ) : (
+                            <div className="flex-1" />
+                          )}
                           {/* Acciones */}
                           <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
                             {rutaDia ? (
