@@ -228,7 +228,8 @@ export default function RutasFijasPage() {
   }
   function esDiaAbierto(empId: string, diaNum: number) {
     const v = diaAbiertoEmp[empId]
-    return v === undefined ? diaNum === 1 : v === diaNum
+    const hoyBogota = new Date(Date.now() - 5 * 60 * 60 * 1000).getDay() // 0=domingo..6=sabado, coincide con diaSemana
+    return v === undefined ? diaNum === hoyBogota : v === diaNum
   }
   function rutasDeEmpleado(empId: string) {
     return rutasFijas.filter(r => r.empleados.some((re: any) => re.empleadoId === empId))
