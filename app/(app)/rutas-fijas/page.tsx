@@ -42,7 +42,7 @@ export default function RutasFijasPage() {
   const [pageCli, setPageCli] = useState(1)
   const [totalCli, setTotalCli] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [diaAbiertoEmp, setDiaAbiertoEmp] = useState<Record<string, number>>({})
+  const [diasAbiertosEmp, setDiasAbiertosEmp] = useState<Record<string, Set<number>>>({})
   const [tab, setTab] = useState<'historial'|'rutas'>('rutas')
   const [modalVerRuta, setModalVerRuta] = useState<{emp: any, dia: number, ruta: any}|null>(null)
   const [bottomSheet, setBottomSheet] = useState<{rc: any, rutaId: string}|null>(null)
@@ -224,12 +224,20 @@ export default function RutasFijasPage() {
   }
 
   function abrirDiaAcordeon(empId: string, diaNum: number) {
-    setDiaAbiertoEmp(prev => ({ ...prev, [empId]: prev[empId] === diaNum ? -1 : diaNum }))
+    setDiasAbiertosEmp(prev => {
+      const hoyBogota = new Date(Date.now() - 5 * 60 * 60 * 1000).getDay()
+      // Si nunca se ha tocado nada para este empleado, partir del estado implícito (solo hoy abierto)
+      const setActual = new Set(prev[empId] || [hoyBogota])
+      if (setActual.has(diaNum)) setActual.delete(diaNum)
+      else setActual.add(diaNum)
+      return { ...prev, [empId]: setActual }
+    })
   }
   function esDiaAbierto(empId: string, diaNum: number) {
-    const v = diaAbiertoEmp[empId]
+    const setActual = diasAbiertosEmp[empId]
     const hoyBogota = new Date(Date.now() - 5 * 60 * 60 * 1000).getDay() // 0=domingo..6=sabado, coincide con diaSemana
-    return v === undefined ? diaNum === hoyBogota : v === diaNum
+    if (setActual === undefined) return diaNum === hoyBogota
+    return setActual.has(diaNum)
   }
   function rutasDeEmpleado(empId: string) {
     return rutasFijas.filter(r => r.empleados.some((re: any) => re.empleadoId === empId))
@@ -450,7 +458,7 @@ export default function RutasFijasPage() {
             })
             const rutasEmp = rutasDeEmpleado(emp.id)
             return (
-              <div key={emp.id} className="rounded-2xl overflow-hidden" style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.35)"}}>
+              <div key={emp.id} className="rounded-2xl overflow-hidden" style={{background:"rgba(30,36,58,0.99)",border:"1px solid rgba(59,130,246,0.35)"}}>
                 {(() => {
                     const metaPorCliente: Record<string, number> = {}
                     const ventaPorCliente: Record<string, number> = {}
@@ -464,29 +472,30 @@ export default function RutasFijasPage() {
                     const pctColor = pct === null ? '' : pct >= 100 ? 'text-emerald-400' : pct >= 70 ? 'text-yellow-400' : 'text-red-400'
                     const barColor = pct === null ? '' : pct >= 100 ? 'bg-blue-500' : pct >= 70 ? 'bg-cyan-500' : pct >= 40 ? 'bg-yellow-500' : 'bg-red-500'
                     return (
-                      <div className="p-4 border-b border-zinc-800 space-y-3">
-                        {/* Nombre */}
+                      <div className="p-4 border-b border-zinc-800 space-y-2">
+                        {/* Nombre + barra inline */}
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 bg-zinc-700 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 text-sm">{emp.nombre[0]}</div>
                           <div className="flex-1 min-w-0">
                             <p className="text-white font-semibold truncate">{emp.nombre}</p>
-                            <p className="text-zinc-500 text-xs">{rutasEmp.length} {rutasEmp.length === 1 ? 'día configurado' : 'días configurados'}</p>
+                            {totalMeta > 0 ? (
+                              <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden mt-1">
+                                <div className={`h-full rounded-full transition-all ${barColor}`}
+                                  style={{width: Math.min(pct || 0, 100) + '%'}} />
+                              </div>
+                            ) : (
+                              <p className="text-zinc-500 text-xs">{rutasEmp.length} {rutasEmp.length === 1 ? 'día configurado' : 'días configurados'}</p>
+                            )}
                           </div>
                           {pct !== null && (
                             <span className={`text-base font-bold flex-shrink-0 ${pctColor}`}>{pct}%</span>
                           )}
                         </div>
-                        {/* Barra + cifras */}
+                        {/* Cifras */}
                         {totalMeta > 0 && (
-                          <div className="space-y-1.5">
-                            <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-                              <div className={`h-full rounded-full transition-all ${barColor}`}
-                                style={{width: Math.min(pct || 0, 100) + '%'}} />
-                            </div>
-                            <div className="flex justify-between text-sm">
-                              <span className="text-zinc-500">Meta <span className="text-white font-bold">${totalMeta.toLocaleString('es-CO')}</span></span>
-                              <span className="text-zinc-500">Venta <span className={totalVenta > 0 ? `font-bold ${pctColor}` : 'text-zinc-600'}>${totalVenta.toLocaleString('es-CO')}</span></span>
-                            </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-zinc-500">Meta <span className="text-white font-bold">${totalMeta.toLocaleString('es-CO')}</span></span>
+                            <span className="text-zinc-500">Venta <span className={totalVenta > 0 ? `font-bold ${pctColor}` : 'text-zinc-600'}>${totalVenta.toLocaleString('es-CO')}</span></span>
                           </div>
                         )}
                       </div>
@@ -501,23 +510,22 @@ export default function RutasFijasPage() {
                                         const logradoTotal = rutaDia ? rutaDia.clientes.reduce((a: number, rc: any) => a + (ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || ventasHoy[rc.clienteId] || 0), 0) : 0
                     const pctTotal = metaTotal > 0 ? Math.round((logradoTotal / metaTotal) * 100) : null
                     return (
-                      <div key={diaNum} className={rutaDia ? 'border border-blue-500/40 rounded-xl overflow-hidden' : 'rounded-xl'} style={rutaDia ? {background:'rgba(30,36,58,0.99)'} : {}}>
+                      <div key={diaNum} className="border border-blue-500/40 rounded-xl overflow-hidden" style={{background:'#060a24'}}>
                         {/* Header del día — tap para colapsar */}
                         <div
                           className={"flex items-center gap-3 px-3 py-2.5 " + (rutaDia ? 'cursor-pointer hover:bg-zinc-700/30 transition-colors' : '')}
                           onClick={() => rutaDia && abrirDiaAcordeon(emp.id, diaNum)}>
                           {/* Día */}
                           <span className={"text-sm font-bold w-[72px] flex-shrink-0 " + (rutaDia ? 'text-white' : 'text-zinc-600')}>{dia}</span>
-                          {/* Info */}
-                          <div className="flex-1 min-w-0">
-                            {rutaDia ? (
-                              <div className="flex items-center gap-2 flex-wrap">
-
-                              </div>
-                            ) : (
-                              <span className="text-zinc-600 text-xs">Sin asignar</span>
-                            )}
-                          </div>
+                          {/* Barra progreso — inline junto al día */}
+                          {rutaDia && metaTotal > 0 ? (
+                            <div className="flex-1 min-w-0 h-1.5 bg-zinc-700 rounded-full overflow-hidden">
+                              <div className={`h-full rounded-full ${pctTotal! >= 100 ? 'bg-blue-500' : pctTotal! >= 70 ? 'bg-cyan-500' : pctTotal! >= 40 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                style={{width: Math.min(pctTotal! || 0, 100) + '%'}} />
+                            </div>
+                          ) : !rutaDia ? (
+                            <span className="text-zinc-600 text-xs flex-1">Sin asignar</span>
+                          ) : <div className="flex-1" />}
                           {/* Acciones */}
                           <div className="flex items-center gap-1.5 flex-shrink-0" onClick={e => e.stopPropagation()}>
                             {rutaDia ? (
@@ -526,7 +534,7 @@ export default function RutasFijasPage() {
                                   <button onClick={(e) => { e.stopPropagation(); setModalVerRuta({emp, dia: diaNum, ruta: rutaDia}) }}
                                     className="text-zinc-400 text-xs bg-zinc-700/60 hover:bg-zinc-600 px-2.5 py-1 rounded-lg transition-colors">Ver</button>
                                 )}
-                                <span className="text-zinc-600 text-xs">{esOculto ? '▶' : '▼'}</span>
+                                <span onClick={() => abrirDiaAcordeon(emp.id, diaNum)} className="text-zinc-600 text-xs cursor-pointer px-1">{esOculto ? '▶' : '▼'}</span>
                               </>
                             ) : !esImpulsadora && puedeAsignar ? (
                               <button onClick={() => abrirDia(emp, diaNum)}
@@ -534,15 +542,6 @@ export default function RutasFijasPage() {
                             ) : null}
                           </div>
                         </div>
-                        {/* Barra progreso total del día */}
-                        {rutaDia && metaTotal > 0 && logradoTotal > 0 && (
-                          <div className="px-3 pb-2">
-                            <div className="h-1 bg-zinc-700 rounded-full overflow-hidden">
-                              <div className={`h-full rounded-full ${pctTotal! >= 100 ? 'bg-blue-500' : pctTotal! >= 70 ? 'bg-cyan-500' : pctTotal! >= 40 ? 'bg-yellow-500' : 'bg-red-500'}`}
-                                style={{width: Math.min(pctTotal! || 0, 100) + '%'}} />
-                            </div>
-                          </div>
-                        )}
                         {/* Lista clientes */}
                         {rutaDia && !esOculto && (
                           <div className="px-2 pb-2 space-y-1">
@@ -553,7 +552,7 @@ export default function RutasFijasPage() {
                               const esRep = clientesRepetidos.has(rc.clienteId) && clientesPrimerDia[rc.clienteId] !== diaNum
                               const bCol = pct === null ? 'bg-zinc-600' : pct >= 100 ? 'bg-blue-500' : pct >= 70 ? 'bg-cyan-500' : pct >= 40 ? 'bg-yellow-500' : 'bg-red-500'
                               return (
-                                <div key={rc.id} className="rounded-xl px-3 py-2.5 space-y-1" style={{background:"rgba(30,36,58,0.99)",border:"1px solid rgba(59,130,246,0.35)"}}>
+                                <div key={rc.id} className="rounded-xl px-3 py-2.5 space-y-1" style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.35)"}}>
                                   {/* Nombre + GPS — toque para expandir acciones */}
                                   <div className="flex items-center gap-2 cursor-pointer active:opacity-70"
                                     onClick={() => setExpandedCliente(expandedCliente === rc.id ? null : rc.id)}>
