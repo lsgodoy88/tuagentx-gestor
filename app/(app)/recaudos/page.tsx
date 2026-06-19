@@ -251,6 +251,9 @@ export default function RecaudosPage() {
   const [loadingMore,         setLoadingMore]         = useState(false)
   const [page,                setPage]                = useState(0)
   const [vendedorId,          setVendedorId]          = useState('')
+  const [marcadoEliminar,     setMarcadoEliminar]     = useState<string | null>(null)
+  const [eliminando,          setEliminando]          = useState(false)
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [vendedores,          setVendedores]          = useState<Vendedor[]>([])
   const [enviando,            setEnviando]            = useState<Set<string>>(new Set())
   const [enviandoTodos,       setEnviandoTodos]       = useState(false)
@@ -352,6 +355,26 @@ export default function RecaudosPage() {
     window.addEventListener('resize', check)
     return () => window.removeEventListener('resize', check)
   }, [])
+
+  function iniciarLongPress(pagoId: string) {
+    longPressTimer.current = setTimeout(() => setMarcadoEliminar(pagoId), 600)
+  }
+  function cancelarLongPress() {
+    if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
+  }
+  async function eliminarPago(pagoId: string) {
+    setEliminando(true)
+    try {
+      const res = await fetch(`/api/recaudos/${pagoId}`, { method: 'DELETE' })
+      const data = await res.json()
+      if (data.ok) {
+        setPagos(prev => prev.filter(p => p.id !== pagoId))
+        setMarcadoEliminar(null)
+      }
+    } finally {
+      setEliminando(false)
+    }
+  }
 
   async function enviarPago(pagoId: string) {
     setEnviando(prev => new Set(prev).add(pagoId))
@@ -558,9 +581,28 @@ export default function RecaudosPage() {
                   <div key={pago.id}>
                     {/* Fila contraída */}
                     <div
-                      onClick={() => toggleAbierto(pago.id, pago.voucherKey)}
-                      style={{ background: '#060a24' }}
-                      className={`border ${tieneVariacion ? 'border-red-500/40' : seleccionado ? 'border-blue-500/60' : 'border-zinc-800'} ${abierto ? 'rounded-t-[10px]' : 'rounded-[10px]'} px-[11px] py-[9px] flex items-center gap-2 cursor-pointer select-none`}>
+                      onClick={() => { if (marcadoEliminar === pago.id) return; toggleAbierto(pago.id, pago.voucherKey) }}
+                      onTouchStart={() => iniciarLongPress(pago.id)}
+                      onTouchEnd={cancelarLongPress}
+                      onTouchMove={cancelarLongPress}
+                      onMouseDown={() => iniciarLongPress(pago.id)}
+                      onMouseUp={cancelarLongPress}
+                      onMouseLeave={cancelarLongPress}
+                      style={{ background: '#060a24', position: 'relative' }}
+                      className={`border ${marcadoEliminar === pago.id ? 'border-red-500' : tieneVariacion ? 'border-red-500/40' : seleccionado ? 'border-blue-500/60' : 'border-zinc-800'} ${abierto ? 'rounded-t-[10px]' : 'rounded-[10px]'} px-[11px] py-[9px] flex items-center gap-2 cursor-pointer select-none`}>
+                      {marcadoEliminar === pago.id && (
+                        <div onClick={e => e.stopPropagation()}
+                          className="absolute -top-3 right-2 flex items-center gap-1.5 z-10">
+                          <button onClick={() => eliminarPago(pago.id)} disabled={eliminando}
+                            className="bg-red-600 hover:bg-red-500 disabled:opacity-50 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow-lg flex items-center gap-1">
+                            🗑️ {eliminando ? 'Eliminando...' : 'Eliminar'}
+                          </button>
+                          <button onClick={() => setMarcadoEliminar(null)}
+                            className="bg-zinc-700 hover:bg-zinc-600 text-white text-xs font-bold px-2 py-1.5 rounded-lg shadow-lg">
+                            ✕
+                          </button>
+                        </div>
+                      )}
                       {/* Checkbox */}
                       <div onClick={e => { e.stopPropagation(); toggleSeleccion(pago.id) }}
                         className="flex-shrink-0 w-5 h-5 flex items-center justify-center">

@@ -71,3 +71,75 @@ export async function POST(
   )
   return NextResponse.json({ ok: true, envioEstado, envioRef })
 }
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ pagoId: string }> }
+) {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const user = session.user as any
+
+  if (!ROLES_ADMIN.includes(user.role)) {
+    return NextResponse.json({ error: 'Solo administradores pueden eliminar recibos' }, { status: 403 })
+  }
+
+  const { pagoId } = await params
+
+  const pago = await prisma.pagoCartera.findUnique({
+    where: { id: pagoId },
+    include: {
+      Cartera: { select: { empresaId: true } },
+      Empleado: { select: { id: true, empresaId: true, configRecibos: true } },
+    },
+  })
+  if (!pago) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
+  const empresaId = getEmpresaId(user)
+  const pagoEmpresaId = pago.Cartera?.empresaId ?? pago.Empleado?.empresaId
+  if (pagoEmpresaId !== empresaId) {
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  }
+
+  const numeroRecibo = pago.numeroRecibo
+
+  await prisma.$transaction(async (tx) => {
+    await tx.pagoCartera.delete({ where: { id: pagoId } })
+
+    // Si el recibo eliminado es el último consecutivo generado del empleado en el mes
+    // actual, decrementar el contador para que el siguiente pago reutilice el número.
+    if (pago.empleadoId && numeroRecibo) {
+      const emp = await tx.empleado.findUnique({
+        where: { id: pago.empleadoId },
+        select: { configRecibos: true }
+      })
+      const cfg: any = emp?.configRecibos ?? {}
+      const now = new Date()
+      const mes = String(now.getMonth() + 1).padStart(2, '0')
+      const anio = String(now.getFullYear()).slice(-2)
+      const mmaa = `${mes}${anio}`
+
+      if (cfg.consecutivoMes === mmaa) {
+        // El sufijo numérico del recibo eliminado
+        const match = numeroRecibo.match(/(\d{3})$/)
+        const numEliminado = match ? parseInt(match[1], 10) : null
+        if (numEliminado !== null && numEliminado === Number(cfg.consecutivoActual)) {
+          await tx.empleado.update({
+            where: { id: pago.empleadoId },
+            data: {
+              configRecibos: { ...cfg, consecutivoActual: numEliminado - 1 } as any
+            }
+          })
+        }
+      }
+    }
+  })
+
+  await invalidateKeys(
+    `g:${empresaId}:stats:${fechaHoyBogota()}`,
+    `g:${empresaId}:cartera:resumen:${fechaHoyBogota()}`,
+    `g:v:${pago.empleadoId ?? ''}:${fechaHoyBogota()}`
+  )
+
+  return NextResponse.json({ ok: true, eliminado: numeroRecibo })
+}
