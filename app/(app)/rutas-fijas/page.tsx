@@ -450,7 +450,7 @@ export default function RutasFijasPage() {
             })
             const rutasEmp = rutasDeEmpleado(emp.id)
             return (
-              <div key={emp.id} className="border border-zinc-800 rounded-2xl overflow-hidden" style={{background:"#060a24"}}>
+              <div key={emp.id} className="rounded-2xl overflow-hidden" style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.35)"}}>
                 {(() => {
                     const metaPorCliente: Record<string, number> = {}
                     const ventaPorCliente: Record<string, number> = {}
@@ -553,7 +553,7 @@ export default function RutasFijasPage() {
                               const esRep = clientesRepetidos.has(rc.clienteId) && clientesPrimerDia[rc.clienteId] !== diaNum
                               const bCol = pct === null ? 'bg-zinc-600' : pct >= 100 ? 'bg-blue-500' : pct >= 70 ? 'bg-cyan-500' : pct >= 40 ? 'bg-yellow-500' : 'bg-red-500'
                               return (
-                                <div key={rc.id} className="rounded-xl px-3 py-2.5 space-y-1" style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.45)"}}>
+                                <div key={rc.id} className="rounded-xl px-3 py-2.5 space-y-1" style={{background:"rgba(30,36,58,0.99)",border:"1px solid rgba(59,130,246,0.35)"}}>
                                   {/* Nombre + GPS — toque para expandir acciones */}
                                   <div className="flex items-center gap-2 cursor-pointer active:opacity-70"
                                     onClick={() => setExpandedCliente(expandedCliente === rc.id ? null : rc.id)}>
