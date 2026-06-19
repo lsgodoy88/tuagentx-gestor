@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
         isActiva: true,
         fechaFactura: { gte: meses[meses.length - 1].inicio }
       },
-      select: { clienteApiId: true, fechaFactura: true, amountItems: true }
+      select: { clienteApiId: true, fechaFactura: true, balance: true }
     })
 
     // Agrupar por clienteId + mes
@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
       const key = `${clienteId}::${mes}`
       if (!mapa.has(key)) mapa.set(key, { clienteId, mes, total: 0, count: 0 })
       const e = mapa.get(key)!
-      e.total += Number(o.amountItems || 0)
+      e.total += Number(o.balance || 0)
       e.count += 1
     }
 
