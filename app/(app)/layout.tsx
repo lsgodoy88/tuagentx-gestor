@@ -457,6 +457,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Link>
             )
           })}
+          <a href="/recibo-manual.html" target="_blank" rel="noopener noreferrer"
+            style={{
+              display:'flex',flexDirection:'column',alignItems:'center',gap:4,
+              padding:'10px 4px',borderRadius:14,textDecoration:'none',
+              background:'rgba(63,63,70,0.55)',
+              border:'1px solid rgba(59,130,246,0.12)',
+            }}>
+            <span style={{fontSize:20}}>🖨️</span>
+            <span style={{fontSize:12,color:'#ffffff',fontWeight:400}}>
+              Recibo
+            </span>
+          </a>
         </div>
 
         {/* Divider */}

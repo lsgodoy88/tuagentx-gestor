@@ -12,26 +12,24 @@ export async function GET(req: NextRequest) {
   const empresaId = getEmpresaId(user)
   if (!empresaId) return NextResponse.json({ error: 'Sin empresa' }, { status: 400 })
 
-  // Solo empresa o supervisor
-  if (user.role !== 'empresa' && user.role !== 'supervisor') {
-    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
-  }
-
   const empresa = await prisma.empresa.findUnique({
     where: { id: empresaId },
-    select: { configRecibos: true },
+    select: { configRecibos: true, nombre: true },
   })
 
   const cfg: any = empresa?.configRecibos ?? {}
+  const esGestor = user.role === 'empresa' || user.role === 'supervisor'
   return NextResponse.json({
+    nombre: empresa?.nombre ?? null,
     anchoPapel: cfg.anchoPapel ?? '80mm',
     prefijo: cfg.prefijo ?? 'REC',
     logo: cfg.logo ?? null,
     nit: cfg.nit ?? null,
     direccion: cfg.direccion ?? null,
     telefono: cfg.telefono ?? null,
-    urlApi: cfg.urlApi ?? null,
-    tokenApi: cfg.tokenApi ?? null,
+    // urlApi/tokenApi son credenciales sensibles — solo visibles para empresa/supervisor
+    urlApi: esGestor ? (cfg.urlApi ?? null) : null,
+    tokenApi: esGestor ? (cfg.tokenApi ?? null) : null,
   })
 }
 

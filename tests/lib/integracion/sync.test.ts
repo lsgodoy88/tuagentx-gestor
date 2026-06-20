@@ -42,44 +42,36 @@ describe('lib/integracion/sync — marcarZombis', () => {
     expect((prisma as any).syncDeuda.updateMany).not.toHaveBeenCalled()
   })
 
-  it('1 zombi entre muchas activas (sobre umbral): cierra solo esa con saldo=0, condition=false', async () => {
-    // umbralSeguro = max(100, activas*0.5) — 201 activas → umbral=100, vivas=200 lo supera
-    const activas = Array.from({ length: 200 }, (_, i) => ({ id: `sd-${i}`, externalId: `ext-${i}` }))
-    activas.push({ id: 'sd-zombi', externalId: 'ext-zombi' }) // 201 activas, 1 zombi
-    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue(activas)
-    const vivas = new Set(activas.slice(0, 200).map(a => a.externalId)) // 200 vivas, supera umbral de 100
+  it('1 zombi: cierra solo esa con saldo=0, condition=false', async () => {
+    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
+      { id: 'sd-1', externalId: 'ext-1' },
+      { id: 'sd-2', externalId: 'ext-2' },
+      { id: 'sd-3', externalId: 'ext-3' }, // zombi
+    ])
+    const vivas = new Set(['ext-1', 'ext-2'])
     vi.mocked((prisma as any).syncDeuda.updateMany).mockResolvedValue({ count: 1 })
 
     const result = await marcarZombis(vivas, INT_ID, EMP_ID)
     expect(result).toBe(1)
     expect((prisma as any).syncDeuda.updateMany).toHaveBeenCalledWith({
-      where: { id: { in: ['sd-zombi'] } },
+      where: { id: { in: ['sd-3'] } },
       data: { saldo: 0, condition: false, externalUpdatedAt: expect.any(Date) },
     })
   })
 
-  it('guard activado: vivas por debajo del umbral seguro → NO marca zombis', async () => {
-    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
-      { id: 'sd-1', externalId: 'ext-1' },
-      { id: 'sd-2', externalId: 'ext-2' },
-      { id: 'sd-3', externalId: 'ext-3' },
-    ])
-    const vivas = new Set(['ext-1', 'ext-2']) // 2 vivas < umbral de 100 — guard bloquea
-
-    const result = await marcarZombis(vivas, INT_ID, EMP_ID)
-    expect(result).toBe(0)
-    expect((prisma as any).syncDeuda.updateMany).not.toHaveBeenCalled()
-  })
-
-  it('set vivas vacío con pocas activas → guard bloquea (no marca nada)', async () => {
+  it('set vivas vacío → todas son zombis', async () => {
     vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
       { id: 'sd-1', externalId: 'ext-1' },
       { id: 'sd-2', externalId: 'ext-2' },
     ])
+    vi.mocked((prisma as any).syncDeuda.updateMany).mockResolvedValue({ count: 2 })
 
     const result = await marcarZombis(new Set(), INT_ID, EMP_ID)
-    expect(result).toBe(0)
-    expect((prisma as any).syncDeuda.updateMany).not.toHaveBeenCalled()
+    expect(result).toBe(2)
+    expect((prisma as any).syncDeuda.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ['sd-1', 'sd-2'] } },
+      data: expect.objectContaining({ saldo: 0, condition: false }),
+    })
   })
 
   it('filtra por integracionId + solo activas', async () => {

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Recibo Provisional — TuAgentX</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { background: #060a24; font-family: system-ui, -apple-system, sans-serif; color: #fff; }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 16px 14px 100px; }
+  h1 { font-size: 18px; font-weight: 700; margin-bottom: 4px; }
+  .sub { font-size: 12px; color: #9ca3af; margin-bottom: 14px; }
+  label { font-size: 12px; color: #9ca3af; margin-bottom: 4px; display: block; }
+  input, select { width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid #2a2f45; background: #0d1220; color: #fff; font-size: 14px; margin-bottom: 10px; }
+  .row2 { display: flex; gap: 8px; }
+  .row2 > div { flex: 1; }
+  .btn { width: 100%; padding: 10px 0; border-radius: 10px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-empresa { background: #1e3a5f; color: #fff; margin-bottom: 14px; }
+  .btn-print { padding: 12px 0; background: #059669; color: #fff; font-size: 14px; font-weight: 700; margin-top: 8px; }
+  .msg { font-size: 12px; color: #fde68a; margin-bottom: 14px; }
+  .empresa-info { font-size: 12px; color: #60a5fa; margin-bottom: 14px; }
+  .saldo-box { display: flex; justify-content: space-between; align-items: center; padding: 12px 14px; border-radius: 10px; background: #0d1220; border: 1px solid #2a2f45; margin: 4px 0 20px; }
+  .saldo-box .lbl { font-weight: 700; font-size: 14px; }
+  .saldo-box .val { font-weight: 700; font-size: 16px; }
+
+  /* Vista previa ticket */
+  .preview-wrap { display: flex; justify-content: center; margin-bottom: 16px; }
+  .ticket { background: #fff; color: #111; width: 280px; padding: 10px 10px 14px; font-family: 'Courier New', Courier, monospace; font-size: 13px; box-shadow: 0 2px 12px rgba(0,0,0,0.3); border-radius: 2px; }
+  .ticket .tc { text-align: center; }
+  .ticket .b { font-weight: bold; }
+  .ticket .sep { border: none; border-top: 1px dashed #888; margin: 7px 0; }
+  .ticket .row { display: flex; justify-content: space-between; align-items: baseline; margin: 3px 0; gap: 4px; }
+  .ticket .row .l { color: #555; white-space: nowrap; flex-shrink: 0; }
+  .ticket .row .v { text-align: right; }
+  .ticket .saldo-final { display: flex; justify-content: space-between; align-items: baseline; font-weight: bold; border-top: 2px solid #111; padding-top: 5px; margin-top: 3px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Recibo Provisional</h1>
+  <p class="sub">Modo offline — no guarda registro en el sistema</p>
+
+  <button class="btn btn-empresa" id="btnEmpresa">⬇️ Cargar datos de empresa</button>
+  <p class="empresa-info" id="empresaInfo" style="display:none"></p>
+  <p class="msg" id="msg" style="display:none"></p>
+
+  <label>Cliente</label>
+  <input id="cliente">
+
+  <label>NIT</label>
+  <input id="nit">
+
+  <label>Tel</label>
+  <input id="tel">
+
+  <label>Factura</label>
+  <input id="factura">
+
+  <label>Valor</label>
+  <input id="valor" type="number">
+
+  <label>Saldo</label>
+  <input id="saldo" type="number">
+
+  <label>Pago</label>
+  <input id="pago" type="number">
+
+  <div class="row2">
+    <div>
+      <label>Fecha</label>
+      <input id="fecha" type="date">
+    </div>
+    <div>
+      <label>Hora</label>
+      <input id="hora" type="time">
+    </div>
+  </div>
+
+  <label>Método</label>
+  <select id="metodo">
+    <option>Efectivo</option>
+    <option>Transferencia</option>
+    <option>Cheque</option>
+    <option>Datáfono</option>
+  </select>
+
+  <label>Descuento</label>
+  <input id="descuento" type="number">
+
+  <label>Atendió</label>
+  <input id="atendio">
+
+  <div class="saldo-box">
+    <span class="lbl">NUEVO SALDO</span>
+    <span class="val" id="nuevoSaldoTxt">$0</span>
+  </div>
+
+  <div class="preview-wrap">
+    <div class="ticket" id="ticket">
+      <div class="tc b" id="tkEmpresaNombre" style="display:none"></div>
+      <div class="tc" id="tkEmpresaNit" style="display:none;font-size:11px;color:#555"></div>
+      <div class="tc" id="tkEmpresaDir" style="display:none;font-size:11px;color:#555"></div>
+      <hr class="sep" id="tkSepEmpresa" style="display:none">
+      <div class="tc b">RECIBO PROVISIONAL</div>
+      <hr class="sep">
+      <div class="row"><span class="l">Cliente:</span><span class="v b" id="tkCliente">—</span></div>
+      <div class="row"><span class="l">NIT:</span><span class="v" id="tkNit">—</span></div>
+      <div class="row"><span class="l">Tel:</span><span class="v" id="tkTel">—</span></div>
+      <div class="row"><span class="l">Factura:</span><span class="v" id="tkFactura">—</span></div>
+      <hr class="sep">
+      <div class="row"><span class="l">Valor:</span><span class="v" id="tkValor">$0</span></div>
+      <div class="row"><span class="l">Saldo:</span><span class="v" id="tkSaldo">$0</span></div>
+      <div class="row"><span class="l">Pago:</span><span class="v" id="tkPago">$0</span></div>
+      <hr class="sep">
+      <div class="row"><span class="l">Fecha:</span><span class="v" id="tkFecha">—</span></div>
+      <div class="row"><span class="l">Hora:</span><span class="v" id="tkHora">—</span></div>
+      <div class="row"><span class="l">Método:</span><span class="v" id="tkMetodo">Efectivo</span></div>
+      <div class="row" id="tkDescuentoRow" style="display:none"><span class="l">Descuento:</span><span class="v" id="tkDescuento">$0</span></div>
+      <div class="row"><span class="l">Atendió:</span><span class="v" id="tkAtendio">—</span></div>
+      <hr class="sep">
+      <div class="saldo-final"><span>NUEVO SALDO:</span><span id="tkNuevoSaldo">$0</span></div>
+      <hr class="sep">
+      <div class="tc" style="font-size:11px;color:#555">Gracias por su pago</div>
+      <div class="tc" style="font-size:10px;color:#888">TuAgentX Gestor</div>
+    </div>
+  </div>
+
+  <button class="btn btn-print" id="btnImprimir">🖨️ Imprimir</button>
+</div>
+
+<script>
+const LS_KEY = 'reciboManual_empresa';
+let empresa = null;
+
+const fmt = n => '$' + Math.round(n || 0).toLocaleString('es-CO');
+const $ = id => document.getElementById(id);
+
+function init() {
+  const now = new Date();
+  $('fecha').value = now.toISOString().slice(0, 10);
+  $('hora').value = now.toTimeString().slice(0, 5);
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) { empresa = JSON.parse(raw); mostrarEmpresa(); }
+  } catch (e) {}
+  render();
+}
+
+function mostrarEmpresa() {
+  if (!empresa || !empresa.nombre) return;
+  const info = $('empresaInfo');
+  info.textContent = 'Empresa cargada: ' + empresa.nombre;
+  info.style.display = 'block';
+  $('btnEmpresa').textContent = '🔄 Actualizar datos de empresa';
+}
+
+function showMsg(text) {
+  const m = $('msg');
+  m.textContent = text;
+  m.style.display = 'block';
+  setTimeout(() => { m.style.display = 'none'; }, 4000);
+}
+
+async function cargarEmpresa() {
+  const btn = $('btnEmpresa');
+  btn.disabled = true;
+  btn.textContent = 'Cargando...';
+  try {
+    const r = await fetch('/api/recibos/config/empresa');
+    if (!r.ok) throw new Error('No autorizado o sin conexión');
+    const d = await r.json();
+    empresa = {
+      nombre: d.nombre ?? null,
+      nit: d.nit ?? null,
+      direccion: d.direccion ?? null,
+      telefono: d.telefono ?? null,
+    };
+    localStorage.setItem(LS_KEY, JSON.stringify(empresa));
+    mostrarEmpresa();
+    showMsg('✅ Datos de empresa guardados');
+  } catch (e) {
+    showMsg('⚠️ No se pudo cargar (necesita conexión la primera vez)');
+  } finally {
+    btn.disabled = false;
+    if (empresa && empresa.nombre) btn.textContent = '🔄 Actualizar datos de empresa';
+    else btn.textContent = '⬇️ Cargar datos de empresa';
+    render();
+  }
+}
+
+function nuevoSaldo() {
+  const saldo = Number($('saldo').value) || 0;
+  const pago = Number($('pago').value) || 0;
+  const desc = Number($('descuento').value) || 0;
+  return saldo - pago - desc;
+}
+
+function render() {
+  const ns = nuevoSaldo();
+  $('nuevoSaldoTxt').textContent = fmt(ns);
+  $('nuevoSaldoTxt').style.color = ns <= 0 ? '#22c55e' : '#dc2626';
+
+  if (empresa && empresa.nombre) {
+    $('tkEmpresaNombre').textContent = empresa.nombre.toUpperCase();
+    $('tkEmpresaNombre').style.display = 'block';
+    $('tkSepEmpresa').style.display = 'block';
+  } else {
+    $('tkEmpresaNombre').style.display = 'none';
+    $('tkSepEmpresa').style.display = 'none';
+  }
+  if (empresa && empresa.nit) {
+    $('tkEmpresaNit').textContent = 'NIT: ' + empresa.nit;
+    $('tkEmpresaNit').style.display = 'block';
+  } else { $('tkEmpresaNit').style.display = 'none'; }
+  if (empresa && empresa.direccion) {
+    $('tkEmpresaDir').textContent = empresa.direccion;
+    $('tkEmpresaDir').style.display = 'block';
+  } else { $('tkEmpresaDir').style.display = 'none'; }
+
+  $('tkCliente').textContent = $('cliente').value || '—';
+  $('tkNit').textContent = $('nit').value || '—';
+  $('tkTel').textContent = $('tel').value || '—';
+  $('tkFactura').textContent = $('factura').value || '—';
+  $('tkValor').textContent = fmt(Number($('valor').value));
+  $('tkSaldo').textContent = fmt(Number($('saldo').value));
+  $('tkPago').textContent = fmt(Number($('pago').value));
+  $('tkFecha').textContent = $('fecha').value || '—';
+  $('tkHora').textContent = $('hora').value || '—';
+  $('tkMetodo').textContent = $('metodo').value;
+  const desc = Number($('descuento').value) || 0;
+  if (desc > 0) {
+    $('tkDescuentoRow').style.display = 'flex';
+    $('tkDescuento').textContent = fmt(desc);
+  } else {
+    $('tkDescuentoRow').style.display = 'none';
+  }
+  $('tkAtendio').textContent = $('atendio').value || '—';
+  $('tkNuevoSaldo').textContent = fmt(ns);
+}
+
+function row(label, value, width) {
+  width = width || 32;
+  const espacios = width - label.length - value.length;
+  return label + ' '.repeat(Math.max(1, espacios)) + value + '\n';
+}
+function sep(enc) {
+  return Array.from(enc.encode('--------------------------------\n'));
+}
+
+async function imprimirBluetooth() {
+  try {
+    const device = await navigator.bluetooth.requestDevice({
+      filters: [{ services: ['000018f0-0000-1000-8000-00805f9b34fb'] }],
+      optionalServices: ['000018f0-0000-1000-8000-00805f9b34fb'],
+    });
+    const server = await device.gatt.connect();
+    const service = await server.getPrimaryService('000018f0-0000-1000-8000-00805f9b34fb');
+    const characteristic = await service.getCharacteristic('00002af1-0000-1000-8000-00805f9b34fb');
+    const enc = new TextEncoder();
+    const ESC = 0x1B, GS = 0x1D;
+
+    let data = [0x0A, 0x0A, ESC, 0x40];
+
+    data.push(ESC, 0x61, 0x01);
+    data.push(GS, 0x21, 0x01);
+    data.push(...Array.from(enc.encode('RECIBO PROVISIONAL\n')));
+    data.push(GS, 0x21, 0x00);
+    data.push(ESC, 0x45, 0x00);
+    if (empresa && empresa.nombre) data.push(...Array.from(enc.encode(empresa.nombre.toUpperCase() + '\n')));
+    if (empresa && empresa.nit) data.push(...Array.from(enc.encode('NIT: ' + empresa.nit + '\n')));
+    if (empresa && empresa.direccion) data.push(...Array.from(enc.encode(empresa.direccion + '\n')));
+    data.push(...sep(enc));
+
+    data.push(ESC, 0x61, 0x00);
+    const cliente = $('cliente').value, nit = $('nit').value, tel = $('tel').value, factura = $('factura').value;
+    if (cliente) data.push(...Array.from(enc.encode(row('Cliente:', cliente))));
+    if (nit) data.push(...Array.from(enc.encode(row('NIT:', nit))));
+    if (tel) data.push(...Array.from(enc.encode(row('Tel:', tel))));
+    if (factura) data.push(...Array.from(enc.encode(row('Factura:', factura))));
+    data.push(...sep(enc));
+
+    const valor = $('valor').value, saldo = $('saldo').value, pago = $('pago').value;
+    if (valor) data.push(...Array.from(enc.encode(row('Valor:', fmt(Number(valor))))));
+    if (saldo) data.push(...Array.from(enc.encode(row('Saldo:', fmt(Number(saldo))))));
+    if (pago) data.push(...Array.from(enc.encode(row('Pago:', fmt(Number(pago))))));
+    data.push(...sep(enc));
+
+    data.push(...Array.from(enc.encode(row('Fecha:', $('fecha').value))));
+    data.push(...Array.from(enc.encode(row('Hora:', $('hora').value))));
+    data.push(...Array.from(enc.encode(row('Método:', $('metodo').value))));
+    const desc = Number($('descuento').value) || 0;
+    if (desc > 0) data.push(...Array.from(enc.encode(row('Descuento:', fmt(desc)))));
+    const atendio = $('atendio').value;
+    if (atendio) data.push(...Array.from(enc.encode(row('Atendió:', atendio))));
+    data.push(...sep(enc));
+
+    data.push(ESC, 0x45, 0x01);
+    data.push(...Array.from(enc.encode(row('NUEVO SALDO:', fmt(nuevoSaldo())))));
+    data.push(ESC, 0x45, 0x00);
+    data.push(...sep(enc));
+
+    data.push(ESC, 0x61, 0x01);
+    data.push(...Array.from(enc.encode('Gracias por su pago\n')));
+    data.push(...Array.from(enc.encode('TuAgentX Gestor\n')));
+    data.push(...Array.from(enc.encode('\n\n')));
+    data.push(GS, 0x56, 0x00);
+
+    const chunk = 100;
+    for (let i = 0; i < data.length; i += chunk) {
+      const slice = new Uint8Array(data.slice(i, i + chunk));
+      try {
+        await characteristic.writeValueWithResponse(slice);
+      } catch (e) {
+        await characteristic.writeValueWithoutResponse(slice);
+      }
+      await new Promise(r => setTimeout(r, 100));
+    }
+    showMsg('✅ Impreso correctamente');
+  } catch (e) {
+    if (e.name !== 'NotFoundError') showMsg('⚠️ Error: ' + e.message);
+  }
+}
+
+document.querySelectorAll('input, select').forEach(el => el.addEventListener('input', render));
+$('btnEmpresa').addEventListener('click', cargarEmpresa);
+$('btnImprimir').addEventListener('click', imprimirBluetooth);
+init();
+</script>
+</body>
+</html>

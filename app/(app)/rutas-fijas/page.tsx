@@ -3,7 +3,7 @@ import dynamic from 'next/dynamic'
 import TabsNav from '@/components/TabsNav'
 import SelectorMes from '@/components/SelectorMes'
 const CumplimientoTabla = dynamic(() => import('@/components/CumplimientoTabla'), { ssr: false })
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { checkPermiso } from '@/lib/permisos'
@@ -119,6 +119,7 @@ export default function RutasFijasPage() {
   const [fechaHistorial, setFechaHistorial] = useState(new Date().toISOString().split('T')[0])
   const [historialData, setHistorialData] = useState<any>({ visitas: [], impulsadoras: [], alertas: [] })
   const [loadingHistorial, setLoadingHistorial] = useState(false)
+  const historialReqId = useRef(0)
   const LIMIT_CLI = 10
   const esImpulsadora = user?.role === 'impulsadora'
   const esVendedor = user?.role === 'vendedor'
@@ -206,10 +207,12 @@ export default function RutasFijasPage() {
   }
 
   async function loadHistorial() {
+    const miPeticion = ++historialReqId.current
     setLoadingHistorial(true)
     if (esImpulsadora) {
       const res = await fetch('/api/visitas/todas')
       const visitas = await res.json()
+      if (miPeticion !== historialReqId.current) return
       const filtradas = (Array.isArray(visitas) ? visitas : []).filter((v: any) => {
         const fv = v.fechaBogota ? v.fechaBogota.split('T')[0] : new Date(new Date(v.createdAt).getTime() - 5*60*60*1000).toISOString().split('T')[0]
         return fv === fechaHistorial && (v.tipo === 'entrada' || v.tipo === 'salida')
@@ -218,9 +221,10 @@ export default function RutasFijasPage() {
     } else {
       const res = await fetch('/api/visitas/impulsos?fecha=' + fechaHistorial)
       const data = await res.json()
+      if (miPeticion !== historialReqId.current) return
       setHistorialData(data)
     }
-    setLoadingHistorial(false)
+    if (miPeticion === historialReqId.current) setLoadingHistorial(false)
   }
 
   function abrirDiaAcordeon(empId: string, diaNum: number) {

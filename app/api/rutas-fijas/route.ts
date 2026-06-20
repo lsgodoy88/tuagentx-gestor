@@ -5,6 +5,8 @@ import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
 
 import { DIAS } from '@/lib/constants'
+import { fechaHoyBogota } from '@/lib/fechas'
+import { invalidateKeys } from '@/lib/cache'
 
 export async function GET() {
   try {
@@ -124,6 +126,9 @@ export async function POST(req: NextRequest) {
       clientes: { select: { id: true, clienteId: true, orden: true, metaVenta: true, cliente: { select: { id: true, nombre: true, nombreComercial: true, lat: true, lng: true, latTmp: true, lngTmp: true, ubicacionReal: true, direccion: true } } }, orderBy: { orden: 'asc' } }
     }
   })
+  const hoyStr = fechaHoyBogota()
+  await invalidateKeys(...(empleadoIds || []).map((id: string) => `g:v:${id}:${hoyStr}`))
+
   return NextResponse.json({ ok: true, ruta })
   } catch (err: any) {
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
@@ -136,11 +141,14 @@ export async function DELETE(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const { id } = await req.json()
+  const empleadosAfectados = await prisma.rutaFijaEmpleado.findMany({ where: { rutaFijaId: id }, select: { empleadoId: true } })
   await prisma.$transaction([
     prisma.rutaFijaEmpleado.deleteMany({ where: { rutaFijaId: id } }),
     prisma.rutaFijaCliente.deleteMany({ where: { rutaFijaId: id } }),
     prisma.rutaFija.delete({ where: { id } }),
   ])
+  const hoyStr = fechaHoyBogota()
+  await invalidateKeys(...empleadosAfectados.map((e: any) => `g:v:${e.empleadoId}:${hoyStr}`))
   return NextResponse.json({ ok: true })
   } catch (err: any) {
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
