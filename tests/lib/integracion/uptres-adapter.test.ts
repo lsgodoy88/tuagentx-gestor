@@ -183,15 +183,14 @@ describe('lib/integracion/adapters/uptres — UpTresAdapter', () => {
       expect(clientes.map(c => c.uid)).toEqual(['c1', 'c2', 'c3'])
     })
 
-    it('respuesta sin ok=true → corta el loop sin throw', async () => {
+    it('respuesta sin ok=true → lanza excepción (evita retornos parciales silenciosos)', async () => {
       global.fetch = mockFetch((url) => {
         if (url.includes('/auth/api')) return { ok: true, token: 'tok' }
         return { ok: false, msg: 'error temporal' }
       })
       const a = new UpTresAdapter('k', 's')
       await a.login()
-      const clientes = await a.fetchClientes()
-      expect(clientes).toEqual([])
+      await expect(a.fetchClientes()).rejects.toThrow('error temporal')
     })
   })
 
@@ -287,7 +286,7 @@ describe('lib/integracion/adapters/uptres — UpTresAdapter', () => {
       expect(capturedUrl).toContain('to=')
     })
 
-    it('condition=true por default en fetchAll', async () => {
+    it('sin filtro condition en URL — trae todo, filtra por saldo internamente', async () => {
       let capturedUrl = ''
       global.fetch = mockFetch((url) => {
         if (url.includes('/auth/api')) return { ok: true, token: 'tok' }
@@ -297,8 +296,8 @@ describe('lib/integracion/adapters/uptres — UpTresAdapter', () => {
       const a = new UpTresAdapter('k', 's')
       await a.login()
       await a.fetchDeudas()
-      // Sync completo usa fetchAll con condition=true (solo activas)
-      expect(capturedUrl).toContain('condition=true')
+      // fetchDeudas ya no filtra por condition en la URL — trae todo (activas y cerradas)
+      expect(capturedUrl).not.toContain('condition=')
     })
   })
 
@@ -405,7 +404,7 @@ describe('lib/integracion/adapters/uptres — UpTresAdapter', () => {
       expect(ventas[0].clienteNombreApi).toBeNull()
     })
 
-    it('sin desde explícito → desde 90 días atrás (ventana móvil)', async () => {
+    it('sin desde explícito → desde 10 días atrás (ventana fija, cubre facturas creadas antes y facturadas hoy)', async () => {
       vi.useFakeTimers()
       vi.setSystemTime(new Date('2026-05-12T00:00:00Z'))
       let capturedUrl = ''
@@ -417,8 +416,9 @@ describe('lib/integracion/adapters/uptres — UpTresAdapter', () => {
       const a = new UpTresAdapter('k', 's')
       await a.login()
       await a.fetchVentas()
-      // 90 días antes del 2026-05-12 ≈ 2026-02-11
-      expect(capturedUrl).toContain('from=2026-02-11')
+      // 10 días antes del 2026-05-12 = 2026-05-02; to = mañana (2026-05-13)
+      expect(capturedUrl).toContain('from=2026-05-02')
+      expect(capturedUrl).toContain('to=2026-05-13')
       vi.useRealTimers()
     })
 
