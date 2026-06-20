@@ -922,7 +922,6 @@ export default function CarteraPage() {
                 cartera={c}
                 rol={user?.role}
                 fmt={fmt}
-                onRecaudar={() => abrirRecaudar(c)}
                 onSync={() => syncCliente(c)}
                 onWhatsApp={() => abrirWhatsApp(c)}
                 variant="lista"
