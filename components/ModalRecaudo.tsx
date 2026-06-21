@@ -37,10 +37,20 @@ export default function ModalRecaudo({
 }: ModalRecaudoProps) {
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map())
   const [notasOpen, setNotasOpen] = React.useState(false)
+  const [confirmadoSobrepago, setConfirmadoSobrepago] = React.useState(false)
 
   const montoSeleccionado = (detalleData?.DetalleCartera || [])
     .filter((d: any) => facturasSeleccionadas.includes(d.id))
     .reduce((s: number, d: any) => s + Math.max(0, Number(d.valorFactura ?? d.valor) - Number(d.abonos ?? 0)), 0)
+
+  const totalPagadoActual = lineasPago
+    .filter(l => l.metodoPago === 'efectivo' || l.voucherDatosIA)
+    .reduce((s, l) => s + Number(l.monto || 0), 0)
+  const totalDescuentoActual = Object.values(descuentosPorFactura).reduce((s, v) => s + Number(v || 0), 0)
+  const saldoRestanteActual = montoSeleccionado - totalPagadoActual - totalDescuentoActual
+  const haySobrepago = saldoRestanteActual < 1000
+
+  React.useEffect(() => { setConfirmadoSobrepago(false) }, [lineasPago, descuentosPorFactura, facturasSeleccionadas])
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 px-2" style={{background:"#0f1729"}}>
@@ -298,7 +308,9 @@ export default function ModalRecaudo({
                       </div>
                       <div className="flex justify-between items-center font-bold">
                         <span className="text-white">Saldo restante</span>
-                        <span className={saldoRestante <= 0 ? 'text-emerald-400' : 'text-amber-400'}>{fmt(Math.max(0, saldoRestante))}</span>
+                        <span className={saldoRestante < 1000 ? 'text-orange-400' : 'text-amber-400'}>
+                          {saldoRestante < 0 ? `-${fmt(Math.abs(saldoRestante))}` : fmt(saldoRestante)}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -324,15 +336,23 @@ export default function ModalRecaudo({
                 const hayTransferenciaSinVoucher = transferenciasSinVoucher.length > 0
                 const totalMonto = lineasPago.reduce((s, l) => s + Number(l.monto || 0), 0)
                 const sinMonto = totalMonto <= 0
+                const pedirConfirmacionSobrepago = haySobrepago && !confirmadoSobrepago
                 return (
                   <>
                     {hayTransferenciaSinVoucher && (
                       <p className="text-amber-400 text-xs text-center">📎 Adjunta el comprobante para continuar</p>
                     )}
-                    <button onClick={onConfirmar} disabled={procesando || hayTransferenciaSinVoucher || sinMonto}
-                      className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl text-sm transition-colors">
-                      {procesando ? 'Procesando...' : '✅ Confirmar recaudo'}
-                    </button>
+                    {pedirConfirmacionSobrepago ? (
+                      <button onClick={() => setConfirmadoSobrepago(true)} disabled={procesando || hayTransferenciaSinVoucher || sinMonto}
+                        className="w-full bg-orange-600 hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl text-sm transition-colors">
+                        ⚠️ Confirmar saldo
+                      </button>
+                    ) : (
+                      <button onClick={onConfirmar} disabled={procesando || hayTransferenciaSinVoucher || sinMonto}
+                        className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl text-sm transition-colors">
+                        {procesando ? 'Procesando...' : '✅ Confirmar recaudo'}
+                      </button>
+                    )}
                   </>
                 )
               })()}

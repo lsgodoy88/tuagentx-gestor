@@ -102,8 +102,26 @@ export async function DELETE(
   }
 
   const numeroRecibo = pago.numeroRecibo
+  const yaRecibido = pago.envioEstado === 'recibido'
 
   await prisma.$transaction(async (tx) => {
+    // Revertir el monto en SyncDeuda — el pago deja de existir, su descuento tambien.
+    // Si ya estaba 'recibido' (UpTres lo certifico), se revierte igual en local
+    // pero requiere correccion manual en UpTres tambien (advertencia en la respuesta).
+    if (pago.syncDeudaId) {
+      const sd = await tx.syncDeuda.findUnique({
+        where: { id: pago.syncDeudaId },
+        select: { saldo: true, valor: true }
+      })
+      if (sd) {
+        const saldoRevertido = Math.min(Number(sd.valor), Number(sd.saldo) + Number(pago.monto))
+        await tx.syncDeuda.update({
+          where: { id: pago.syncDeudaId },
+          data: { saldo: saldoRevertido, condition: saldoRevertido > 0 }
+        })
+      }
+    }
+
     await tx.pagoCartera.delete({ where: { id: pagoId } })
 
     // Si el recibo eliminado es el último consecutivo generado del empleado en el mes
@@ -141,5 +159,9 @@ export async function DELETE(
     `g:v:${pago.empleadoId ?? ''}:${fechaHoyBogota()}`
   )
 
-  return NextResponse.json({ ok: true, eliminado: numeroRecibo })
+  return NextResponse.json({
+    ok: true,
+    eliminado: numeroRecibo,
+    ...(yaRecibido ? { advertencia: 'Este pago ya estaba confirmado por UpTres. El saldo se revirtio en el sistema local, pero debes corregirlo tambien directamente en UpTres.' } : {})
+  })
 }

@@ -1,6 +1,5 @@
 import { prisma } from '@/lib/prisma'
 import { calcularEstado } from '@/lib/cartera'
-import { calcularSaldoReal } from '@/lib/cartera-utils'
 import type { AdaptadorIntegracion, DeudaExterna } from './types'
 import { UpTresAdapter } from './adapters/uptres'
 
@@ -236,21 +235,6 @@ export async function actualizarCache(
   const empleadoMap: Record<string, string> = {}
   empleados.forEach((e: any) => { empleadoMap[e.apiId] = e.nombre })
 
-  // Pagos enviados (validados por admin) por syncDeudaId — misma lógica que reconstruirCartera
-  const deudasIds = deudas.map((d: any) => d.id)
-  const pagosEnviadosRaw = await (prisma as any).pagoCartera.findMany({
-    where: { syncDeudaId: { in: deudasIds }, envioEstado: 'enviado' },
-    select: { syncDeudaId: true, monto: true, reciboPago: true, envioVariacion: true },
-    orderBy: { envioFecha: 'asc' }
-  })
-  const pagosEnviadosDetalleMap: Record<string, any[]> = {}
-  for (const p of pagosEnviadosRaw) {
-    if (p.syncDeudaId) {
-      if (!pagosEnviadosDetalleMap[p.syncDeudaId]) pagosEnviadosDetalleMap[p.syncDeudaId] = []
-      pagosEnviadosDetalleMap[p.syncDeudaId].push(p)
-    }
-  }
-
   // Agrupar por cliente
   const porCliente: Record<string, any[]> = {}
   for (const d of deudas) {
@@ -285,11 +269,9 @@ export async function actualizarCache(
     let saldoPendiente = 0
 
     const deudasDetalle = deudasCliente.map((d: any) => {
-      // Descontar pagos enviados solo si UpTres aún no los refleja
-      const saldoUptres = Number(d.saldo)
-      const pagosEnviadosDeuda = pagosEnviadosDetalleMap[d.id] || []
-      const saldoReal = calcularSaldoReal(saldoUptres, pagosEnviadosDeuda)
-
+      // d.saldo ya es confiable — sync-nocturno.ts lo reconcilia contra UpTres antes
+      // de que este job corra. calcularSaldoReal aqui causaba doble resta (removido 21/06).
+      const saldoReal = Number(d.saldo)
       const valor = Number(d.valor)
       const { estado } = calcularEstado(saldoReal, valor, Number(d.abono), d.fechaVencimiento)
       porEstado[estado] = (porEstado[estado] || 0) + saldoReal

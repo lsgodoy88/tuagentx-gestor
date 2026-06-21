@@ -79,28 +79,7 @@ describe('lib/integracion/sync — actualizarCache', () => {
     expect(args.create.empleadoNombre).toBe('Vendedor A')
   })
 
-  it('pago enviado, UpTres sin actualizar → se resta del saldo', async () => {
-    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
-      baseDeuda({ id: 'sd-1', saldo: 100 }),
-    ])
-    vi.mocked((prisma as any).cliente.findMany).mockResolvedValue([
-      { id: 'c1', apiId: 'api-c1', nombre: 'X', nit: '900' },
-    ])
-    vi.mocked((prisma as any).empleado.findMany).mockResolvedValue([])
-    // Pago enviado de 30 — saldoAnterior=100 → esperado=70, UpTres dice 100 → no actualizó → restar
-    vi.mocked((prisma as any).pagoCartera.findMany).mockResolvedValue([
-      { syncDeudaId: 'sd-1', monto: 30, reciboPago: { saldoAnterior: 100 } },
-    ])
-
-    await actualizarCache(new Set(['api-c1']), INT_ID, EMP_ID)
-
-    const args = vi.mocked((prisma as any).carteraCache.upsert).mock.calls[0][0]
-    // saldoReal = max(0, 100 - 30) = 70
-    expect(args.create.saldoPendiente).toBe(70)
-    expect(args.create.deudas[0].saldo).toBe(70)
-  })
-
-  it('pago enviado, UpTres YA actualizó → no se resta (sin doble descuento)', async () => {
+  it('d.saldo ya confiable (reconciliado por sync-nocturno) → se usa directo, sin restar pagos enviados', async () => {
     vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
       baseDeuda({ id: 'sd-1', saldo: 70 }),
     ])
@@ -108,46 +87,24 @@ describe('lib/integracion/sync — actualizarCache', () => {
       { id: 'c1', apiId: 'api-c1', nombre: 'X', nit: '900' },
     ])
     vi.mocked((prisma as any).empleado.findMany).mockResolvedValue([])
-    // saldoAnterior=100, enviado=30 → esperado=70, UpTres dice 70 → ya actualizó → no restar
-    vi.mocked((prisma as any).pagoCartera.findMany).mockResolvedValue([
-      { syncDeudaId: 'sd-1', monto: 30, reciboPago: { saldoAnterior: 100 } },
-    ])
 
     await actualizarCache(new Set(['api-c1']), INT_ID, EMP_ID)
 
     const args = vi.mocked((prisma as any).carteraCache.upsert).mock.calls[0][0]
-    expect(args.create.saldoPendiente).toBe(70) // no doble descuento
-  })
-
-  it('pago pendiente (no enviado) → NO se resta del saldo', async () => {
-    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
-      baseDeuda({ id: 'sd-1', saldo: 100 }),
-    ])
-    vi.mocked((prisma as any).cliente.findMany).mockResolvedValue([
-      { id: 'c1', apiId: 'api-c1', nombre: 'X', nit: '900' },
-    ])
-    vi.mocked((prisma as any).empleado.findMany).mockResolvedValue([])
-    // El query filtra envioEstado='enviado' → pagos pendientes no llegan
-    vi.mocked((prisma as any).pagoCartera.findMany).mockResolvedValue([])
-
-    await actualizarCache(new Set(['api-c1']), INT_ID, EMP_ID)
-
-    const args = vi.mocked((prisma as any).carteraCache.upsert).mock.calls[0][0]
-    expect(args.create.saldoPendiente).toBe(100) // no se resta el pago
+    // d.saldo=70 se usa tal cual — sync-nocturno ya reconcilio, calcularSaldoReal removido (21/06)
+    expect(args.create.saldoPendiente).toBe(70)
+    expect(args.create.deudas[0].saldo).toBe(70)
+    expect((prisma as any).pagoCartera.findMany).not.toHaveBeenCalled()
   })
 
   it('saldoReal nunca negativo (max 0) — cliente sin saldo se elimina del cache', async () => {
     vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
-      baseDeuda({ id: 'sd-1', saldo: 50 }),
+      baseDeuda({ id: 'sd-1', saldo: 0 }),
     ])
     vi.mocked((prisma as any).cliente.findMany).mockResolvedValue([
       { id: 'c1', apiId: 'api-c1', nombre: 'X', nit: '900' },
     ])
     vi.mocked((prisma as any).empleado.findMany).mockResolvedValue([])
-    // Pago enviado MAYOR que el saldo — saldoAnterior=50, enviado=100 → esperado=-50, UpTres dice 50 → restar → max(0, -50)=0
-    vi.mocked((prisma as any).pagoCartera.findMany).mockResolvedValue([
-      { syncDeudaId: 'sd-1', monto: 100, reciboPago: { saldoAnterior: 50 } },
-    ])
 
     await actualizarCache(new Set(['api-c1']), INT_ID, EMP_ID)
 

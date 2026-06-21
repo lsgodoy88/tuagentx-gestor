@@ -37,7 +37,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
       orderBy: [{ fechaVencimiento: { sort: 'asc', nulls: 'last' } }]
     })
 
-    // Para cada deuda calcular saldo real con lógica inteligente
+    // saldo ya es confiable: pago-sync lo descuenta al crear, sync-nocturno
+    // es el unico que lo actualiza despues, con reconciliacion contra UpTres.
+    // Ya no hace falta heuristica de saldoEsperado — d.saldo es la fuente unica.
     const deudasEnriquecidas = await Promise.all(deudas.map(async (d: any) => {
       const pagosLocales = await (prisma as any).pagoCartera.findMany({
         where: { syncDeudaId: d.id },
@@ -45,31 +47,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
         include: { Empleado: { select: { id: true, nombre: true } } }
       })
 
-      // Descontar pagos enviados solo si UpTres aún no los refleja
-      const pagosEnviadosDeuda = await (prisma as any).pagoCartera.findMany({
-        where: { syncDeudaId: d.id, envioEstado: 'enviado' },
-        select: { monto: true, reciboPago: true, envioVariacion: true },
-        orderBy: { envioFecha: 'asc' }
-      })
-      const saldoUptres = Number(d.saldo)
-      let saldoReal = saldoUptres
-      if (pagosEnviadosDeuda.length > 0) {
-        const totalEnviado = pagosEnviadosDeuda.reduce((s: number, p: any) => s + Number(p.monto), 0)
-        // Base fresca: saldo UpTres capturado AL MOMENTO del envío (envioVariacion.saldoBaseEnvio)
-        // Fallback: reciboPago.saldoAnterior (pagos viejos sin base de envío)
-        const base = Number(
-          pagosEnviadosDeuda[0]?.envioVariacion?.saldoBaseEnvio ??
-          pagosEnviadosDeuda[0]?.reciboPago?.saldoAnterior ??
-          saldoUptres + totalEnviado
-        )
-        const saldoEsperado = base - totalEnviado
-        // Si UpTres ya actualizó (saldo <= esperado) → no descontar
-        if (saldoUptres <= saldoEsperado + 1) {
-          saldoReal = saldoUptres
-        } else {
-          saldoReal = Math.max(0, saldoUptres - totalEnviado)
-        }
-      }
+      const saldoReal = Number(d.saldo)
 
       return {
         ...d,

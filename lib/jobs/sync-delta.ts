@@ -212,32 +212,10 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     await invalidatePattern(`g:${destino}:*`)
   }
 
-  // Delta saldos
-  let saldosActualizados = 0
-  try {
-    const ultimaReceivable = await (prisma as any).syncDeuda.aggregate({ where: { integracionId }, _max: { receivableAt: true } })
-    const desdeReceivable: Date = ultimaReceivable._max.receivableAt ? new Date(new Date(ultimaReceivable._max.receivableAt).getTime() - 5 * 60 * 1000) : new Date(Date.now() - 24 * 60 * 60 * 1000)
-    const deudasConPago = await adapter.fetchDeudasDesde(desdeReceivable)
-    if (deudasConPago.length > 0) {
-      const exIds = deudasConPago.map((d: any) => String(d.uid || d._id))
-      const existentesSaldo = await (prisma as any).syncDeuda.findMany({ where: { integracionId, externalId: { in: exIds } }, select: { externalId: true } })
-      const existentesSaldoSet = new Set(existentesSaldo.map((e: any) => e.externalId))
-      const toUpdateSaldo = deudasConPago.filter((d: any) => existentesSaldoSet.has(String(d.uid || d._id)))
-      const CHUNK = 100
-      for (let i = 0; i < toUpdateSaldo.length; i += CHUNK) {
-        const chunk = toUpdateSaldo.slice(i, i + CHUNK)
-        await Promise.all(chunk.map((d: any) => (prisma as any).syncDeuda.update({ where: { integracionId_externalId: { integracionId, externalId: String(d.uid || d._id) } }, data: { saldo: parseFloat(String(d.vSaldo ?? '0')), valor: parseFloat(String(d.vTotal ?? '0')), receivableAt: d.receivableAt ? new Date(d.receivableAt) : null, externalUpdatedAt: d.fModificado ? new Date(d.fModificado) : null, sincronizadoEl: new Date() } })))
-      }
-      saldosActualizados = toUpdateSaldo.length
-      if (saldosActualizados > 0) {
-        try {
-          const intgDestino2 = await (prisma as any).integracion.findFirst({ where: { empresaId: destino, tipo: 'uptres', activa: true }, select: { id: true } })
-          await reconstruirCartera(intgDestino2?.id || integracionId, destino)
-        } catch {}
-        await invalidatePattern(`g:${destino}:*`)
-      }
-    }
-  } catch (err: any) { console.error('[delta] delta-saldos error:', err.message); erroresParciales.push('delta-saldos: ' + err.message) }
+  // Delta saldos — removido 21/06. SyncDeuda.saldo/condition de deudas existentes
+  // ahora se actualiza SOLO desde sync-nocturno.ts (single writer, evita pisar pagos locales pendientes).
+  // sync-delta conserva su responsabilidad real: detectar y crear deudas NUEVAS (bloque arriba).
+  const saldosActualizados = 0
 
   const duracionMs = Date.now() - inicioTs
 

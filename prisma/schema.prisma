@@ -2808,6 +2808,7 @@ model SyncDeuda {
   valor              Decimal     @db.Decimal(14, 2)
   saldo              Decimal     @db.Decimal(14, 2)
   saldoAnterior      Decimal?    @db.Decimal(14, 2)
+  saldoUptresOriginal Decimal?   @db.Decimal(14, 2) // espejo crudo de UpTres — solo lo escribe sync-nocturno
   abono              Decimal     @default(0) @db.Decimal(14, 2)
   diasCredito        Int?
   fechaVencimiento   DateTime?

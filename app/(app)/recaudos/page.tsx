@@ -26,6 +26,7 @@ type Pago = {
   envioVariacion: any
   numeroRecibo: string | null
   numeroFactura: number | null
+  reciboPago: any
   Cartera: {
     Cliente: { id: string; nombre: string; nit: string | null; telefono: string | null }
   }
@@ -211,15 +212,16 @@ function getColumns(ctx: {
       },
     },
     {
-      key: 'total', label: 'Total', width: 110, minWidth: 70,
+      key: 'total', label: 'Nuevo Saldo', width: 110, minWidth: 70,
       render: p => {
-        const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0
-          ? (p as any).lineasPago : []
-        const d = ls.length > 0 ? Number(ls[0].descuento || 0) : Number(p.descuento || 0)
-        const v = ls.length > 0 ? Number(ls[0].monto || 0)     : Number(p.monto)
+        const saldoAnt = Number(p.saldoAnterior || 0)
+        const desc = Number(p.descuento || 0)
+        const nuevoSaldo = (p as any).reciboPago?.saldoNuevo != null
+          ? Number((p as any).reciboPago.saldoNuevo)
+          : saldoAnt > 0 ? saldoAnt - Number(p.monto) - desc : null
         return (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-            <span style={{ color: '#86efac', fontWeight: 700 }}>{fmtMonto(v - d)}</span>
+            <span style={{ color: '#86efac', fontWeight: 700 }}>{nuevoSaldo != null ? fmtMonto(nuevoSaldo) : '—'}</span>
             {p.envioEstado === 'enviado'  && <span style={{ color: '#60a5fa', fontSize: 9 }}>✔ {fmtHora(p.envioFecha)}</span>}
             {p.envioEstado === 'recibido' && <span style={{ color: '#4ade80', fontSize: 9 }}>✔✔</span>}
           </div>
@@ -370,6 +372,7 @@ export default function RecaudosPage() {
       if (data.ok) {
         setPagos(prev => prev.filter(p => p.id !== pagoId))
         setMarcadoEliminar(null)
+        if (data.advertencia) alert(data.advertencia)
       }
     } finally {
       setEliminando(false)
