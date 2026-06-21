@@ -183,7 +183,10 @@ function getColumns(ctx: {
       render: p => {
         const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0
           ? (p as any).lineasPago : []
-        const d = ls.length > 0 ? Number(ls[0].descuento || 0) : Number(p.descuento || 0)
+        // Si hay una sola linea sin descuento propio, usar el scalar del pago (descuento global)
+        const d = ls.length === 1
+          ? (Number(ls[0].descuento || 0) || Number(p.descuento || 0))
+          : ls.length > 1 ? Number(ls[0].descuento || 0) : Number(p.descuento || 0)
         return <span style={{ color: d > 0 ? '#fdba74' : 'rgba(255,255,255,0.25)' }}>{d > 0 ? `-${fmtMonto(d)}` : '—'}</span>
       },
       renderSub: (sub) => {
@@ -586,7 +589,9 @@ export default function RecaudosPage() {
                               ? (pago as any).lineasPago
                               : [{ metodoPago: pago.metodopago, monto: pago.monto, descuento: pago.descuento }]
                             return ls.map((l: any, i: number) => {
-                              const d = Number(l.descuento || 0)
+                              // Si hay una sola linea y ella no trae su propio descuento, usar el
+                              // scalar del pago (descuento global aplicado al pago completo)
+                              const d = Number(l.descuento || 0) || (ls.length === 1 ? Number(pago.descuento || 0) : 0)
                               return (
                                 <div key={i} className="flex items-center justify-between bg-zinc-800/50 rounded-lg px-2 py-1 text-xs">
                                   <span className="text-zinc-300 font-semibold">{fmtMetodo(l.metodoPago)}</span>
