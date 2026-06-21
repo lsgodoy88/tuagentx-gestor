@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN_BODEGA } from '@/lib/auth-helpers'
 import { subirR2, registrarDespachoLog, esDespachado } from '@/lib/bodega'
+import { nowBogota } from '@/lib/fechas'
 
 const ROLES = ROLES_ADMIN_BODEGA
 
@@ -19,9 +20,28 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const empleadoId = user.role !== 'empresa' ? user.id : null
   const { id } = await params
 
-  const orden = await (prisma as any).ordenDespacho.findFirst({ where: { id, empresaId } })
+  // FIX 2026-06-20: OrdenDespacho ya no se duplica por EmpresaVinculada — la
+  // orden vive bajo el empresaId real de quien la generó en UpTres. Para que
+  // Lumeli pueda operar (alistar/entregar) órdenes de una empresa vinculada
+  // (ej. Leche), se busca primero sin filtrar empresaId, y luego se autoriza
+  // explícitamente: o es de la propia empresa, o existe una EmpresaVinculada
+  // activa de la empresa del usuario hacia la empresa dueña de la orden.
+  const ordenRaw = await (prisma as any).ordenDespacho.findUnique({ where: { id } })
+  if (!ordenRaw) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
+
+  let autorizado = ordenRaw.empresaId === empresaId
+  if (!autorizado) {
+    const vinculo = await (prisma as any).empresaVinculada.findFirst({
+      where: { empresaId, empresaClienteId: ordenRaw.empresaId, activa: true },
+      select: { id: true },
+    })
+    autorizado = !!vinculo
+  }
+  if (!autorizado) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
+
+  const orden = ordenRaw
+  const empresaIdOrden = orden.empresaId
   const empresa = await (prisma as any).empresa.findFirst({ where: { id: empresaId }, select: { nombre: true } })
-  if (!orden) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
 
   const body = await req.json()
   const { estado, fotoAlistamiento, repartidorId, guiaTransporte, transportadora, firmaBase64 } = body
@@ -81,14 +101,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     // Firma entrega personal — solo guarda la firma en OrdenDespacho, sin Visita
 
     // Asignar a ruta del repartidor — crear si no existe (lazy creation)
+    // La ruta queda bajo la empresa DUEÑA de la orden (empresaIdOrden), no la
+    // del usuario logueado — el repartidor puede ser de Lumeli operando sobre
+    // un cliente/orden real de Leche.
     if (estado === 'en_entrega' && repartidorId && orden.clienteNit) {
       const cliente = await tx.cliente.findFirst({
-        where: { nit: orden.clienteNit, empresaId },
+        where: { nit: orden.clienteNit, empresaId: empresaIdOrden },
       })
       if (cliente) {
         // Buscar ruta activa del día
         let rutaEmpleado = await tx.rutaEmpleado.findFirst({
-          where: { empleadoId: repartidorId, ruta: { cerrada: false } },
+          where: { empleadoId: repartidorId, ruta: { cerrada: false, empresaId: empresaIdOrden } },
           select: { rutaId: true }
         })
 
@@ -97,7 +120,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
           const repartidor = await tx.empleado.findUnique({
             where: { id: repartidorId }, select: { nombre: true }
           })
-          const hoy = new Date(Date.now() - 5*60*60*1000)
+          const hoy = nowBogota()
           const dd = String(hoy.getDate()).padStart(2,'0')
           const mm = String(hoy.getMonth()+1).padStart(2,'0')
           const yyyy = hoy.getFullYear()
@@ -105,7 +128,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             data: {
               nombre: `${repartidor?.nombre || 'Repartidor'}-${dd}-${mm}-${yyyy}`,
               fecha: new Date(new Date().toISOString().split('T')[0] + 'T05:00:00.000Z'),
-              empresaId,
+              empresaId: empresaIdOrden,
               empleados: { create: [{ empleadoId: repartidorId }] }
             }
           })

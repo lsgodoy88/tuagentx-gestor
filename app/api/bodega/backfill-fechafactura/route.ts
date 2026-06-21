@@ -2,7 +2,7 @@
  * POST /api/bodega/backfill-fechafactura
  */
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma, DB_SCHEMA } from '@/lib/prisma'
 import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 
@@ -19,7 +19,7 @@ export async function POST(req: NextRequest) {
   const whereEmp = empFiltro ? `AND o."empresaId" = '${empFiltro}'` : ''
   const ordenesBug = await prisma.$queryRawUnsafe<any[]>(`
     SELECT o.id, o."origenId", o."empresaId", o."fechaOrden"
-    FROM gestor."OrdenDespacho" o
+    FROM ${DB_SCHEMA}."OrdenDespacho" o
     WHERE ABS(EXTRACT(EPOCH FROM (o."fechaFactura" - o."createdAt"))) < 1
       AND o."isFacturada" = true ${whereEmp}
     ORDER BY o."fechaOrden" DESC
@@ -63,9 +63,9 @@ export async function POST(req: NextRequest) {
           if (!data?.id) { errores.push(`No encontrada: ${orden.origenId}`); continue }
           if (data.invoicedAt) {
             const fechaReal = new Date(data.invoicedAt)
-            await prisma.$executeRawUnsafe(`UPDATE gestor."OrdenDespacho" SET "fechaFactura" = '${fechaReal.toISOString()}', "updatedAt" = NOW() WHERE id = '${orden.id}'`)
+            await prisma.$executeRawUnsafe(`UPDATE ${DB_SCHEMA}."OrdenDespacho" SET "fechaFactura" = '${fechaReal.toISOString()}', "updatedAt" = NOW() WHERE id = '${orden.id}'`)
           } else {
-            await prisma.$executeRawUnsafe(`UPDATE gestor."OrdenDespacho" SET "fechaFactura" = "fechaOrden", "updatedAt" = NOW() WHERE id = '${orden.id}'`)
+            await prisma.$executeRawUnsafe(`UPDATE ${DB_SCHEMA}."OrdenDespacho" SET "fechaFactura" = "fechaOrden", "updatedAt" = NOW() WHERE id = '${orden.id}'`)
             sinInvoicedAt++
           }
           corregidas++
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
   } catch {}
 
   const pendientes = await prisma.$queryRawUnsafe<any[]>(`
-    SELECT COUNT(*) as total FROM gestor."OrdenDespacho"
+    SELECT COUNT(*) as total FROM ${DB_SCHEMA}."OrdenDespacho"
     WHERE ABS(EXTRACT(EPOCH FROM ("fechaFactura" - "createdAt"))) < 1 AND "isFacturada" = true ${whereEmp}
   `)
 

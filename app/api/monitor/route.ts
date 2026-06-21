@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
+import { inicioDiaBogota } from '@/lib/fechas'
 
 async function getMonitorData(empresaId: string, hoy: Date) {
   const turnos = await prisma.turno.findMany({
@@ -87,7 +88,7 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
 
-  const hoy = new Date(Date.now() - 5*60*60*1000); hoy.setHours(0, 0, 0, 0)
+  const hoy = inicioDiaBogota()
 
   if (user.role === 'superadmin') {
     const empresas = await prisma.empresa.findMany({

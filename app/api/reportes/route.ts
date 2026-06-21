@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
+import { nowBogota, fechaHoyBogota } from '@/lib/fechas'
 
 export async function GET(req: NextRequest) {
   try {
@@ -17,8 +18,8 @@ export async function GET(req: NextRequest) {
     const user = session.user as any
     const empresaId = getEmpresaId(user)
 
-    const ahora = new Date(Date.now() - 5*60*60*1000)
-    const inicioRanking = new Date(Date.now() - 5*60*60*1000)
+    const ahora = nowBogota()
+    const inicioRanking = nowBogota()
     if (periodo === 'semana') {
       inicioRanking.setDate(ahora.getDate() - 7)
     } else {
@@ -47,7 +48,7 @@ export async function GET(req: NextRequest) {
   const user = session.user as any
   const empresaId = getEmpresaId(user)
 
-  const fecha = searchParams.get('fecha') || new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]
+  const fecha = searchParams.get('fecha') || fechaHoyBogota()
   const empleadoId = searchParams.get('empleadoId') || null
 
   const inicio = new Date(fecha)

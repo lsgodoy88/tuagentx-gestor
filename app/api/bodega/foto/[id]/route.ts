@@ -16,11 +16,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const empresaId = getEmpresaId(user)
   const { id } = await params
 
-  const orden = await (prisma as any).ordenDespacho.findFirst({
-    where: { id, empresaId },
-    select: { fotoAlistamiento: true },
+  // FIX 2026-06-20: la orden puede vivir en la empresa propia o en una vinculada
+  const orden = await (prisma as any).ordenDespacho.findUnique({
+    where: { id },
+    select: { fotoAlistamiento: true, empresaId: true },
   })
   if (!orden?.fotoAlistamiento) return NextResponse.json({ error: 'Sin foto' }, { status: 404 })
+  if (orden.empresaId !== empresaId) {
+    const vinculo = await (prisma as any).empresaVinculada.findFirst({
+      where: { empresaId, empresaClienteId: orden.empresaId, activa: true }, select: { id: true },
+    })
+    if (!vinculo) return NextResponse.json({ error: 'Sin foto' }, { status: 404 })
+  }
 
   const key = orden.fotoAlistamiento
   const url = await archivoUrl(key)

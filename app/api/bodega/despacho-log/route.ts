@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { prisma, DB_SCHEMA } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN_BODEGA } from '@/lib/auth-helpers'
-import { origenFiltroSQL } from '@/lib/bodega'
+import { resolverEmpresaIdOrigen } from '@/lib/bodega'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -17,20 +17,26 @@ export async function GET(req: NextRequest) {
   const cursor   = sp.get('cursor')  // último id visto
   const LIMIT = 50
 
+  // El log de despacho (DespachoLog) sigue indexado por quién hizo el trabajo
+  // (empresaId del usuario logueado, ej. Lumeli) — eso no cambió, es un evento
+  // operativo propio. La orden referenciada (OrdenDespacho) ya NO se duplica
+  // por vinculación: vive bajo el empresaId real de quien la generó en UpTres
+  // (ej. Leche). El join debe usar ese empresaId real, no el del log.
+  const empresaIdOrden = await resolverEmpresaIdOrigen(prisma, empresaId, origenId)
+
   const rows = await prisma.$queryRawUnsafe<any[]>(`
     SELECT l.id, l."numeroFactura", l."clienteNombre", l.modo, l."guiaTransporte", l.transportadora, l."despachadoEl",
            o."alistadoEl", o.ciudad, o."fotosAlistamiento", o."fotoAlistamiento"
-    FROM gestor."DespachoLog" l
-    LEFT JOIN gestor."OrdenDespacho" o
+    FROM ${DB_SCHEMA}."DespachoLog" l
+    LEFT JOIN ${DB_SCHEMA}."OrdenDespacho" o
       ON o."numeroFactura" = l."numeroFactura"
-      AND o."empresaId" = l."empresaId"
-      AND (o."origenVinculadaId" = l."origenVinculadaId" OR (o."origenVinculadaId" IS NULL AND l."origenVinculadaId" IS NULL))
+      AND o."empresaId" = $2
     WHERE l."empresaId" = $1
-      AND l.${origenFiltroSQL(origenId)}
-      ${cursor ? `AND l."despachadoEl" < (SELECT "despachadoEl" FROM gestor."DespachoLog" WHERE id = '${cursor.replace(/'/g,"''")}' LIMIT 1)` : ''}
+      AND (l."origenVinculadaId" ${origenId && origenId !== 'propia' ? `= '${origenId.replace(/'/g,"''")}'` : 'IS NULL'})
+      ${cursor ? `AND l."despachadoEl" < (SELECT "despachadoEl" FROM ${DB_SCHEMA}."DespachoLog" WHERE id = '${cursor.replace(/'/g,"''")}' LIMIT 1)` : ''}
     ORDER BY l."despachadoEl" DESC
     LIMIT ${LIMIT + 1}
-  `, empresaId)
+  `, empresaId, empresaIdOrden)
 
   const hayMas  = rows.length > LIMIT
   const data    = hayMas ? rows.slice(0, LIMIT) : rows

@@ -1,5 +1,6 @@
 import webpush from 'web-push'
-import { prisma } from './prisma'
+import { prisma, DB_SCHEMA } from './prisma'
+import { Prisma } from '@/app/generated/prisma'
 
 webpush.setVapidDetails(
   process.env.VAPID_EMAIL!,
@@ -11,7 +12,7 @@ export async function enviarPushEmpleados(empleadoIds: string[], titulo: string,
   let subs: any[] = []
   try {
     subs = await prisma.$queryRaw<any[]>`
-      SELECT * FROM gestor."PushSuscripcion" WHERE "empleadoId" = ANY(${empleadoIds}::text[])`
+      SELECT * FROM ${Prisma.raw(DB_SCHEMA)}."PushSuscripcion" WHERE "empleadoId" = ANY(${empleadoIds}::text[])`
   } catch (e) {
     console.error('Push query error:', e)
     return

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN } from '@/lib/auth-helpers'
+import { anioBogota } from '@/lib/fechas'
 
 /**
  * GET /api/metas?empleadoId=X&anio=2026
@@ -19,7 +20,7 @@ export async function GET(req: Request) {
   const empresaId = getEmpresaId(user)
   const { searchParams } = new URL(req.url)
   const empleadoId = searchParams.get('empleadoId')
-  const anio = parseInt(searchParams.get('anio') || String(new Date().getFullYear()))
+  const anio = parseInt(searchParams.get('anio') || String(anioBogota()))
 
   if (!empleadoId) return NextResponse.json({ error: 'empleadoId requerido' }, { status: 400 })
 

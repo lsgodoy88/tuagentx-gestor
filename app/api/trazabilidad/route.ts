@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { nowBogota, fechaHoyBogota, haceNDiasBogota, haceNMesesBogota, inicioDiaBogota, finDiaBogota, inicioMesBogota, inicioMesAnteriorBogota, mesBogota, anioBogota, mesAnteriorBogota, anioMesAnteriorBogota, esDelMesBogota, fmtFechaHora, fmtFechaMedia, fmtHora } from '@/lib/fechas'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { prisma, DB_SCHEMA } from '@/lib/prisma'
 
 const PAGE_SIZE = 30
 
@@ -27,6 +27,12 @@ function buildWhereSQL(where: any): { sql: string; params: any[] } {
         const placeholders = cond.origenVinculadaId.in.map(() => `\$${i++}`).join(',')
         orParts.push(`"origenVinculadaId" IN (${placeholders})`)
         params.push(...cond.origenVinculadaId.in)
+      } else if (cond.empresaId?.in) {
+        // FIX 2026-06-20: órdenes de empresas vinculadas viven bajo su propio
+        // empresaId real, no bajo origenVinculadaId (ya no se duplican)
+        const placeholders = cond.empresaId.in.map(() => `\$${i++}`).join(',')
+        orParts.push(`"empresaId" IN (${placeholders})`)
+        params.push(...cond.empresaId.in)
       }
     }
     if (orParts.length > 0) parts.push(`(${orParts.join(' OR ')})`)
@@ -164,13 +170,13 @@ export async function GET(req: NextRequest) {
 
     const { sql: whereSQL, params } = buildWhereSQL(where)
     const [countRow]: any[] = await prisma.$queryRawUnsafe(
-      `SELECT COUNT(*)::int AS c FROM gestor."OrdenDespacho" WHERE ${whereSQL}`,
+      `SELECT COUNT(*)::int AS c FROM ${DB_SCHEMA}."OrdenDespacho" WHERE ${whereSQL}`,
       ...params
     )
     const totalV = countRow.c
     const offset = (page - 1) * PAGE_SIZE
     const idRows: any[] = await prisma.$queryRawUnsafe(
-      `SELECT id FROM gestor."OrdenDespacho" WHERE ${whereSQL}
+      `SELECT id FROM ${DB_SCHEMA}."OrdenDespacho" WHERE ${whereSQL}
        ORDER BY (CASE WHEN "numeroFactura" ~ '^[0-9]+$' THEN CAST("numeroFactura" AS INTEGER) ELSE 0 END) DESC, "fechaOrden" DESC
        LIMIT ${PAGE_SIZE} OFFSET ${offset}`,
       ...params
@@ -210,14 +216,18 @@ export async function GET(req: NextRequest) {
 
   let where: any = {}
   if (user.role === 'bodega') {
-    // Bodega ve todo: propias + todas las vinculadas
-    const vinIds = vinculacionesBodega.map((v: any) => v.id)
-    where = vinIds.length > 0
-      ? { OR: [{ empresaId: user.empresaId, origenVinculadaId: null }, { origenVinculadaId: { in: vinIds } }] }
+    // Bodega ve todo: propias + todas las vinculadas.
+    // FIX 2026-06-20: ya no hay copia física — la orden de la empresa
+    // vinculada vive bajo SU PROPIO empresaId real, no origenVinculadaId.
+    const empresaClienteIds = vinculacionesBodega.map((v: any) => v.empresaClienteId).filter(Boolean)
+    where = empresaClienteIds.length > 0
+      ? { OR: [{ empresaId: user.empresaId, origenVinculadaId: null }, { empresaId: { in: empresaClienteIds } }] }
       : { empresaId: user.empresaId }
   } else if (vinculaciones.length > 0 && !empresa?.bodegaPuedeEnviar) {
-    // Empresa cliente (Leche): solo sus propias órdenes en la bodega de Lumeli
-    where = { origenVinculadaId: { in: vinculaciones.map((v: any) => v.id) } }
+    // Empresa cliente sin bodega propia (ej. Leche sin bodegaPuedeEnviar):
+    // sus órdenes siguen viviendo bajo su propio empresaId — no cambia nada
+    // aquí, solo consulta directo por su empresaId real.
+    where = { empresaId: user.empresaId }
   } else {
     // Empresa con bodega propia (Lumeli) o sin vinculación: solo sus órdenes propias
     where = { empresaId: user.empresaId, origenVinculadaId: null }
@@ -268,7 +278,7 @@ export async function GET(req: NextRequest) {
     let cursorClause = ''
     if (cursor) {
       const cursorRow: any[] = await prisma.$queryRawUnsafe(
-        `SELECT "numeroFactura", "fechaOrden" FROM gestor."OrdenDespacho" WHERE id = $1`,
+        `SELECT "numeroFactura", "fechaOrden" FROM ${DB_SCHEMA}."OrdenDespacho" WHERE id = $1`,
         cursor
       )
       if (cursorRow[0]) {
@@ -278,7 +288,7 @@ export async function GET(req: NextRequest) {
       }
     }
     const idRows: any[] = await prisma.$queryRawUnsafe(
-      `SELECT id FROM gestor."OrdenDespacho" WHERE ${whereSQL}${cursorClause}
+      `SELECT id FROM ${DB_SCHEMA}."OrdenDespacho" WHERE ${whereSQL}${cursorClause}
        ORDER BY (CASE WHEN "numeroFactura" ~ '^[0-9]+$' THEN CAST("numeroFactura" AS INTEGER) ELSE 0 END) DESC, "fechaOrden" DESC
        LIMIT ${PAGE_SIZE + 1}`,
       ...params
@@ -297,13 +307,13 @@ export async function GET(req: NextRequest) {
 
   const { sql: whereSQL, params } = buildWhereSQL(where)
   const [countRow]: any[] = await prisma.$queryRawUnsafe(
-    `SELECT COUNT(*)::int AS c FROM gestor."OrdenDespacho" WHERE ${whereSQL}`,
+    `SELECT COUNT(*)::int AS c FROM ${DB_SCHEMA}."OrdenDespacho" WHERE ${whereSQL}`,
     ...params
   )
   const total = countRow.c
   const offset = (page - 1) * PAGE_SIZE
   const idRows: any[] = await prisma.$queryRawUnsafe(
-    `SELECT id FROM gestor."OrdenDespacho" WHERE ${whereSQL}
+    `SELECT id FROM ${DB_SCHEMA}."OrdenDespacho" WHERE ${whereSQL}
      ORDER BY (CASE WHEN "numeroFactura" ~ '^[0-9]+$' THEN CAST("numeroFactura" AS INTEGER) ELSE 0 END) DESC, "fechaOrden" DESC
      LIMIT ${PAGE_SIZE} OFFSET ${offset}`,
     ...params

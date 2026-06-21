@@ -21,10 +21,18 @@ export async function GET() {
 
   const hoy = inicioDiaBogota()
 
+  // Incluye órdenes propias + de empresas vinculadas activas (FIX 2026-06-20:
+  // ya no hay copia física por vinculación, hay que sumar explícitamente)
+  const vinculadas = await (prisma as any).empresaVinculada.findMany({
+    where: { empresaId: user.empresaId, activa: true },
+    select: { empresaClienteId: true },
+  })
+  const empresaIds = [user.empresaId, ...vinculadas.map((v: any) => v.empresaClienteId).filter(Boolean)]
+
   const [pendientes, alistados, entregados] = await Promise.all([
-    prisma.ordenDespacho.count({ where: { empresaId: user.empresaId, estado: 'pendiente' } }),
-    prisma.ordenDespacho.count({ where: { empresaId: user.empresaId, estado: 'alistado' } }),
-    prisma.ordenDespacho.count({ where: { empresaId: user.empresaId, estado: { in: ['en_entrega', 'entregado'] }, entregadoEl: { gte: hoy } } }),
+    prisma.ordenDespacho.count({ where: { empresaId: { in: empresaIds }, estado: 'pendiente' } }),
+    prisma.ordenDespacho.count({ where: { empresaId: { in: empresaIds }, estado: 'alistado' } }),
+    prisma.ordenDespacho.count({ where: { empresaId: { in: empresaIds }, estado: { in: ['en_entrega', 'entregado'] }, entregadoEl: { gte: hoy } } }),
   ])
 
   const data = { pendientes, alistados, entregados }

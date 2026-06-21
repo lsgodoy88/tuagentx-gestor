@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
 import { audit } from '@/lib/audit'
-import { fechaBogotaStr, inicioDiaBogota, finDiaBogota } from '@/lib/fecha'
+import { fechaBogotaStr, inicioDiaBogota, finDiaBogota } from '@/lib/fechas'
 
 export async function GET() {
   try {
@@ -46,8 +46,8 @@ export async function GET() {
     const fechaRuta = ruta.fecha ? new Date(ruta.fecha) : null
     if (!fechaRuta) return { ...ruta, visitas: [] }
     const fechaStr = fechaBogotaStr(fechaRuta)
-    const inicio = inicioDiaBogota(fechaStr)
-    const fin = finDiaBogota(fechaStr)
+    const inicio = inicioDiaBogota(fechaRuta)
+    const fin = finDiaBogota(fechaRuta)
     const empSet = new Set(ruta.empleados.map((e: any) => e.empleadoId))
     const cliSet = new Set(ruta.clientes.map((c: any) => c.clienteId))
     const visitas = todasVisitasBatch.filter((v: any) =>
@@ -105,13 +105,13 @@ export async function POST(req: NextRequest) {
       if (!rutaAnterior) continue
       const fechaRuta = rutaAnterior.fecha
         ? new Date(rutaAnterior.fecha).toISOString().split('T')[0]
-        : new Date(new Date(rutaAnterior.createdAt).getTime() - 5*60*60*1000).toISOString().split('T')[0]
+        : fechaBogotaStr(rutaAnterior.createdAt)
       for (const rc of rutaAnterior.clientes) {
         const tieneVisita = visitasRuta.some((v: any) => {
           if (v.clienteId !== rc.clienteId) return false
           const fv = v.fechaBogota
             ? new Date(v.fechaBogota).toISOString().split('T')[0]
-            : new Date(new Date(v.createdAt).getTime() - 5*60*60*1000).toISOString().split('T')[0]
+            : fechaBogotaStr(v.createdAt)
           return fv === fechaRuta
         })
         if (!tieneVisita && !rezagos.find(r => r.clienteId === rc.clienteId)) {

@@ -127,7 +127,16 @@ export async function POST(req: NextRequest) {
     }
   })
   const hoyStr = fechaHoyBogota()
-  await invalidateKeys(...(empleadoIds || []).map((id: string) => `g:v:${id}:${hoyStr}`))
+  const idsImpulsadoras: string[] = empleadoIds || []
+  const vendedoresAfectados = await prisma.empleado.findMany({
+    where: { id: { in: idsImpulsadoras }, vendedorId: { not: null } },
+    select: { vendedorId: true }
+  })
+  const keysInvalidar = [
+    ...idsImpulsadoras.map((id: string) => `g:v:${id}:${hoyStr}`),
+    ...vendedoresAfectados.map((e: any) => `g:v:${e.vendedorId}:${hoyStr}`),
+  ]
+  await invalidateKeys(...keysInvalidar)
 
   return NextResponse.json({ ok: true, ruta })
   } catch (err: any) {
@@ -148,7 +157,16 @@ export async function DELETE(req: NextRequest) {
     prisma.rutaFija.delete({ where: { id } }),
   ])
   const hoyStr = fechaHoyBogota()
-  await invalidateKeys(...empleadosAfectados.map((e: any) => `g:v:${e.empleadoId}:${hoyStr}`))
+  const idsImpulsadorasDel = empleadosAfectados.map((e: any) => e.empleadoId)
+  const vendedoresAfectadosDel = await prisma.empleado.findMany({
+    where: { id: { in: idsImpulsadorasDel }, vendedorId: { not: null } },
+    select: { vendedorId: true }
+  })
+  const keysInvalidarDel = [
+    ...idsImpulsadorasDel.map((id: string) => `g:v:${id}:${hoyStr}`),
+    ...vendedoresAfectadosDel.map((e: any) => `g:v:${e.vendedorId}:${hoyStr}`),
+  ]
+  await invalidateKeys(...keysInvalidarDel)
   return NextResponse.json({ ok: true })
   } catch (err: any) {
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })

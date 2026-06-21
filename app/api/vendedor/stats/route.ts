@@ -81,6 +81,7 @@ export async function GET() {
       ? (prisma as any).ordenDespacho.findMany({
           where: {
             vendedorApiId: miApiId,
+            empresaId: user.empresaId,  // excluir copias 'vinculada' de otra empresa (mismo vendedorApiId)
             OR: [
               { fechaOrdenBogota: { gte: inicioDia, lt: finDia } },
               { fechaFactura: { gte: inicioDia, lt: finDia } },
@@ -94,6 +95,7 @@ export async function GET() {
       ? (prisma as any).ordenDespacho.aggregate({
           where: {
             vendedorApiId: miApiId,
+            empresaId: user.empresaId,  // excluir copias 'vinculada' de otra empresa (mismo vendedorApiId)
             fechaOrdenBogota: { gte: inicioMes, lt: finMes },
             isFacturada: true,
             isActiva: true,   // excluir órdenes canceladas en UpTres
@@ -191,19 +193,44 @@ export async function GET() {
   })
 
   // ── Impulsadoras ──────────────────────────────────────────────────
-  const cumplimiento = await Promise.all(impulsadoras.map(async (imp) => {
-    const diaSemana = ahora.getDay()
-    const rutaFija = await prisma.rutaFija.findFirst({
-      where: { diaSemana, empleados: { some: { empleadoId: imp.id } } },
-      include: { clientes: { include: { cliente: true } } }
-    })
+  // FIX 2026-06-20: antes era N+1 — 11 queries POR impulsadora (rutaFija,
+  // visitas, turno, alertasGps + 7 días de rutasFijasDias). Con varias
+  // impulsadoras escalaba mal (5 imp = 55 queries en un solo request).
+  // Ahora: 4 queries en batch para TODAS las impulsadoras juntas, más el
+  // cálculo de "próximo día con ruta" se hace en memoria sobre datos ya
+  // traídos, sin queries adicionales por día de la semana.
+  const impIds = impulsadoras.map(imp => imp.id)
+  const diaSemana = ahora.getDay()
 
-    const visitasImp = await prisma.visita.findMany({
-      where: { empleadoId: imp.id },
-      take: 500,
-      orderBy: { fechaBogota: 'desc' }
-    })
+  const [rutasFijasHoy, visitasTodas, turnosActivos, alertasGpsTodas, todasLasRutasFijas] = impIds.length > 0
+    ? await Promise.all([
+        prisma.rutaFija.findMany({
+          where: { diaSemana, empleados: { some: { empleadoId: { in: impIds } } } },
+          include: { clientes: { include: { cliente: true }, orderBy: { orden: 'asc' } }, empleados: { select: { empleadoId: true } } }
+        }),
+        prisma.visita.findMany({
+          where: { empleadoId: { in: impIds } },
+          take: 500 * impIds.length,
+          orderBy: { fechaBogota: 'desc' }
+        }),
+        prisma.turno.findMany({ where: { empleadoId: { in: impIds }, activo: true } }),
+        prisma.auditLog.findMany({
+          where: { empleadoId: { in: impIds }, accion: 'GPS_FUERA_RANGO', createdAt: { gte: inicioDia, lt: finDia } },
+          orderBy: { createdAt: 'desc' }
+        }),
+        // Todas las rutas fijas de cualquier día para estas impulsadoras —
+        // permite calcular "próximo día con ruta" en memoria sin loop de queries
+        prisma.rutaFija.findMany({
+          where: { empleados: { some: { empleadoId: { in: impIds } } } },
+          select: { diaSemana: true, empleados: { select: { empleadoId: true } } }
+        }),
+      ])
+    : [[], [], [], [], []]
 
+  const cumplimiento = impulsadoras.map((imp) => {
+    const rutaFija = rutasFijasHoy.find((rf: any) => rf.empleados.some((e: any) => e.empleadoId === imp.id)) || null
+
+    const visitasImp = visitasTodas.filter(v => v.empleadoId === imp.id)
     const visitasHoyImp = visitasImp.filter(v => {
       const fv = v.fechaBogota
         ? new Date(v.fechaBogota).toISOString().split('T')[0]
@@ -214,49 +241,60 @@ export async function GET() {
     const totalPuntos = rutaFija?.clientes?.length || 0
     const clientesVisitados = new Set(visitasHoyImp.map(v => v.clienteId)).size
     const pct = totalPuntos > 0 ? Math.round((clientesVisitados / totalPuntos) * 100) : null
-    const turnoActivo = await prisma.turno.findFirst({ where: { empleadoId: imp.id, activo: true } })
+    const turnoActivo = turnosActivos.find((t: any) => t.empleadoId === imp.id) || null
 
     let puntoActual = null
     let proximoPunto = null
+    const puntosCompletados: any[] = []
     if (rutaFija?.clientes) {
       for (const rc of rutaFija.clientes) {
         const entradas = visitasHoyImp.filter(v => v.rutaFijaClienteId === rc.id && v.tipo === 'entrada')
         const salidas  = visitasHoyImp.filter(v => v.rutaFijaClienteId === rc.id && v.tipo === 'salida')
-        if (entradas.length > 0 && salidas.length === 0) {
-          puntoActual = { nombre: rc.cliente.nombre, nombreComercial: rc.cliente.nombreComercial, orden: rc.orden }
-        } else if (entradas.length === 0 && !puntoActual) {
-          proximoPunto = { nombre: rc.cliente.nombre, nombreComercial: rc.cliente.nombreComercial, orden: rc.orden }
+        if (entradas.length > 0 && salidas.length > 0) {
+          const entrada = entradas.sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0]
+          const salida  = salidas.sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0]
+          puntosCompletados.push({
+            nombre: rc.cliente.nombre, nombreComercial: rc.cliente.nombreComercial, orden: rc.orden,
+            horaEntrada: entrada.createdAt, horaSalida: salida.createdAt,
+            // GPS de la visita real — siempre capturado en el registro, no depende de Cliente.lat/lng (puede faltar)
+            lat: entrada.lat, lng: entrada.lng,
+          })
+        } else if (entradas.length > 0 && salidas.length === 0 && !puntoActual) {
+          const entrada = entradas.sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0]
+          puntoActual = {
+            nombre: rc.cliente.nombre, nombreComercial: rc.cliente.nombreComercial, orden: rc.orden,
+            horaEntrada: entrada.createdAt, horaSalida: null,
+            lat: entrada.lat, lng: entrada.lng,
+          }
+        } else if (entradas.length === 0 && !puntoActual && !proximoPunto) {
+          // Próximo punto aún no tiene visita registrada — usa coordenada del cliente como referencia (puede faltar)
+          proximoPunto = { nombre: rc.cliente.nombre, nombreComercial: rc.cliente.nombreComercial, orden: rc.orden, lat: rc.cliente.lat, lng: rc.cliente.lng }
         }
       }
     }
 
-    const alertasGps = await prisma.auditLog.findMany({
-      where: { empleadoId: imp.id, accion: 'GPS_FUERA_RANGO', createdAt: { gte: inicioDia, lt: finDia } },
-      orderBy: { createdAt: 'desc' }
-    })
+    const alertasGps = alertasGpsTodas.filter((a: any) => a.empleadoId === imp.id)
 
-    const daysToCheck = Array.from({ length: 7 }, (_, i) => (ahora.getDay() + i + 1) % 7)
-    const rutasFijasDias = await Promise.all(
-      daysToCheck.map((diaCheck: number) =>
-        prisma.rutaFija.findFirst({
-          where: { diaSemana: diaCheck, empleados: { some: { empleadoId: imp.id } } }
-        })
-      )
+    const diasConRuta = new Set(
+      todasLasRutasFijas
+        .filter((rf: any) => rf.empleados.some((e: any) => e.empleadoId === imp.id))
+        .map((rf: any) => rf.diaSemana)
     )
-    const firstIdx = rutasFijasDias.findIndex((r: any) => r !== null)
-    const proximoDia = firstIdx >= 0 ? DIAS[daysToCheck[firstIdx]] : null
+    const daysToCheck = Array.from({ length: 7 }, (_, i) => (diaSemana + i + 1) % 7)
+    const firstDiaConRuta = daysToCheck.find(d => diasConRuta.has(d))
+    const proximoDia = firstDiaConRuta !== undefined ? DIAS[firstDiaConRuta] : null
 
     return {
       id: imp.id, nombre: imp.nombre, turnoActivo: !!turnoActivo,
       totalPuntos, visitados: clientesVisitados, pct,
       alerta: pct !== null && pct < 50 && !turnoActivo,
-      puntoActual, proximoPunto,
-      alertasGps: alertasGps.map(a => ({ detalle: a.detalle, hora: a.createdAt })),
+      puntoActual, proximoPunto, puntosCompletados,
+      alertasGps: alertasGps.map((a: any) => ({ detalle: a.detalle, hora: a.createdAt })),
       proximoDia,
     }
-  }))
+  })
 
-  return { hoy, ordenes, recaudo, dias, meses, cumplimiento } satisfies VendedorStats & { dias: any[], meses: any[] }
+  return { hoy, ordenes, recaudo, dias, meses, cumplimiento, generadoEn: Date.now() } satisfies VendedorStats & { dias: any[], meses: any[], generadoEn: number }
   }) // withCache
   const res = NextResponse.json(result)
   res.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60')

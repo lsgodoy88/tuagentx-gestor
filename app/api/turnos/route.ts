@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
     if (user.role === 'entregas') {
       ;(async () => {
         try {
-          const hoyStr = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
+          const hoyStr = fechaHoyBogota()
           const rutaHoy = await prisma.ruta.findFirst({
             where: {
               empleados: { some: { empleadoId: user.id } },

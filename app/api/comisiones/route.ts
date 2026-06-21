@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN } from '@/lib/auth-helpers'
-import { inicioDiaBogota } from '@/lib/fechas'
+import { inicioDiaBogota, mesBogota, anioBogota } from '@/lib/fechas'
 
 // GET — configs + último cálculo del mes
 export async function GET(req: NextRequest) {
@@ -17,8 +17,8 @@ export async function GET(req: NextRequest) {
 
   const empresaId = getEmpresaId(user)
   const { searchParams } = new URL(req.url)
-  const mes  = parseInt(searchParams.get('mes')  || String(new Date().getMonth() + 1))
-  const anio = parseInt(searchParams.get('anio') || String(new Date().getFullYear()))
+  const mes  = parseInt(searchParams.get('mes')  || String(mesBogota()))
+  const anio = parseInt(searchParams.get('anio') || String(anioBogota()))
 
   const [vendedores, configs, calculo] = await Promise.all([
     prisma.empleado.findMany({

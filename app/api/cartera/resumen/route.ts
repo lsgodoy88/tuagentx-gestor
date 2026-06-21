@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 import { nowBogota, fechaHoyBogota, haceNDiasBogota, haceNMesesBogota, inicioDiaBogota, finDiaBogota, inicioMesBogota, inicioMesAnteriorBogota, mesBogota, anioBogota, mesAnteriorBogota, anioMesAnteriorBogota, esDelMesBogota, fmtFechaHora, fmtFechaMedia, fmtHora } from '@/lib/fechas'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { prisma, DB_SCHEMA } from '@/lib/prisma'
+import { Prisma } from '@/app/generated/prisma'
 import { getEmpresaId, vendedorScope } from '@/lib/auth-helpers'
 import { withCache } from '@/lib/cache'
 
@@ -52,12 +53,12 @@ export async function GET() {
             COALESCE(SUM(cc."saldoTotal"), 0)     AS "totalCartera",
             COALESCE(SUM(cc."saldoPendiente"), 0)  AS "totalPendiente",
             COUNT(cc."clienteApiId")::int           AS clientes
-          FROM gestor."CarteraCache" cc
+          FROM ${Prisma.raw(DB_SCHEMA)}."CarteraCache" cc
           WHERE cc."integracionId" = ${integracion.id}
             AND cc."saldoPendiente" > 0
             AND cc."clienteApiId" IN (
               SELECT DISTINCT sd."clienteApiId"
-              FROM gestor."SyncDeuda" sd
+              FROM ${Prisma.raw(DB_SCHEMA)}."SyncDeuda" sd
               WHERE sd."integracionId" = ${integracion.id}
                 AND sd."empleadoExternalId" = ${miApiId}
                 AND sd.condition = true

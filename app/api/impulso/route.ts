@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const { searchParams } = new URL(req.url)
   const impulsadoraId = searchParams.get('impulsadoraId')
-  const fecha = searchParams.get('fecha') || new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]
+  const fecha = searchParams.get('fecha') || fechaHoyBogota()
   if (!impulsadoraId) return NextResponse.json({ error: 'Falta impulsadoraId' }, { status: 400 })
 
   const user = session.user as any

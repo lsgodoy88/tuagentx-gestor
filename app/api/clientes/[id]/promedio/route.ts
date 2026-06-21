@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { haceNMesesBogota } from '@/lib/fechas'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await getServerSession(authOptions)
@@ -16,8 +17,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   })
   if (!cliente) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
-  const hace3meses = new Date(Date.now() - 5*60*60*1000)
-  hace3meses.setMonth(hace3meses.getMonth() - 3)
+  const hace3meses = haceNMesesBogota(3)
 
   // Buscar en VentaMesCliente si tiene integración ERP (datos reales de ventas)
   if (cliente.apiId) {

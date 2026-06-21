@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
+import { haceNDiasBogota } from '@/lib/fechas'
 
 function formatHora(d: Date) {
   return d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota' })
@@ -45,8 +46,7 @@ export async function GET(req: NextRequest) {
   if (modo === "hoy") {
     whereBase.inicio = { gte: inicioDia, lte: finDia }
   } else {
-    const hace30 = new Date(Date.now() - 5*60*60*1000)
-    hace30.setDate(hace30.getDate() - 30)
+    const hace30 = haceNDiasBogota(30)
     whereBase.inicio = { gte: hace30 }
     whereBase.fin = { not: null }
   }

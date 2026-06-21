@@ -19,8 +19,16 @@ export async function POST(req: NextRequest) {
   const { ordenId, fotoBase64 } = await req.json()
   if (!ordenId || !fotoBase64) return NextResponse.json({ error: 'Faltan datos' }, { status: 400 })
 
-  const orden = await (prisma as any).ordenDespacho.findFirst({ where: { id: ordenId, empresaId } })
+  // FIX 2026-06-20: OrdenDespacho ya no se duplica por EmpresaVinculada — la
+  // orden puede vivir bajo la empresa propia o bajo una vinculada activa.
+  const orden = await (prisma as any).ordenDespacho.findUnique({ where: { id: ordenId } })
   if (!orden) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
+  if (orden.empresaId !== empresaId) {
+    const vinculo = await (prisma as any).empresaVinculada.findFirst({
+      where: { empresaId, empresaClienteId: orden.empresaId, activa: true }, select: { id: true },
+    })
+    if (!vinculo) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
+  }
 
   const fotosActuales = (orden.fotosAlistamiento as string[]) || []
   const idx = fotosActuales.length

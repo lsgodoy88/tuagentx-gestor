@@ -155,9 +155,17 @@ export async function POST(req: NextRequest) {
 
   await audit('VISITA_REGISTRADA', user.email, `Tipo: ${tipo} | Cliente: ${clienteId} | Libre: ${esLibre}`, user.id, user.empresaId)
   // Invalidar caché de stats afectados por esta visita
-  await invalidateKeys(
+  const keysInvalidar = [
     `g:${user.empresaId}:stats:${fechaHoyBogota()}`,
-    `g:v:${user.id}:${fechaHoyBogota()}`
-  )
+    `g:v:${user.id}:${fechaHoyBogota()}`,
+  ]
+  // Si quien registra es impulsadora, su vendedor supervisor también ve este punto
+  // en su dashboard (card Impulsos) — invalidar también su cache, o queda desactualizado
+  // hasta que expire el TTL de 600s (causa raíz: bug visto 19/06 con Cindy/Carlos)
+  if (user.role === 'impulsadora') {
+    const empPropio = await (prisma.empleado as any).findUnique({ where: { id: user.id }, select: { vendedorId: true } })
+    if (empPropio?.vendedorId) keysInvalidar.push(`g:v:${empPropio.vendedorId}:${fechaHoyBogota()}`)
+  }
+  await invalidateKeys(...keysInvalidar)
   return NextResponse.json({ ok: true, visita, alertaDistancia })
 }

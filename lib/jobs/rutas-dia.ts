@@ -8,8 +8,9 @@
  *            /api/rutas/procesar-dia/route.ts
  *            /api/turnos/procesar-dia/route.ts
  */
-import { prisma } from '@/lib/prisma'
-import { ahoraBogota, fechaBogotaStr, inicioDiaBogota, finDiaBogota } from '@/lib/fecha'
+import { prisma, DB_SCHEMA } from '@/lib/prisma'
+import { Prisma } from '@/app/generated/prisma'
+import { nowBogota as ahoraBogota, fechaBogotaStr, inicioDiaBogota, finDiaBogota } from '@/lib/fechas'
 import { audit } from '@/lib/audit'
 
 function horaEnMinutos(hora: string): number {
@@ -31,13 +32,14 @@ export async function runRutasDia(empresaIdFiltro?: string | null, forzar = fals
     autoCrearRuta: boolean
     autoCerrarRuta: boolean
   }> = empresaIdFiltro
-    ? await prisma.$queryRaw`SELECT id, "horaInicioRuta", "horaFinRuta", "autoCrearRuta", "autoCerrarRuta" FROM gestor."Empresa" WHERE activo = true AND id = ${empresaIdFiltro}`
-    : await prisma.$queryRaw`SELECT id, "horaInicioRuta", "horaFinRuta", "autoCrearRuta", "autoCerrarRuta" FROM gestor."Empresa" WHERE activo = true`
+    ? await prisma.$queryRaw`SELECT id, "horaInicioRuta", "horaFinRuta", "autoCrearRuta", "autoCerrarRuta" FROM ${Prisma.raw(DB_SCHEMA)}."Empresa" WHERE activo = true AND id = ${empresaIdFiltro}`
+    : await prisma.$queryRaw`SELECT id, "horaInicioRuta", "horaFinRuta", "autoCrearRuta", "autoCerrarRuta" FROM ${Prisma.raw(DB_SCHEMA)}."Empresa" WHERE activo = true`
 
   const ahoraBog = ahoraBogota()
   const horaActualMin = ahoraBog.getHours() * 60 + ahoraBog.getMinutes()
-  const hoyStr = fechaBogotaStr()
-  const ayerStr = fechaBogotaStr(new Date(ahoraBog.getTime() - 24 * 60 * 60 * 1000))
+  const ayerDate = new Date(ahoraBog.getTime() - 24 * 60 * 60 * 1000)
+  const hoyStr = fechaBogotaStr(ahoraBog)
+  const ayerStr = fechaBogotaStr(ayerDate)
 
   let procesadas = 0, rutasCreadas = 0, rutasCerradas = 0, rezagosMigrados = 0
 
@@ -48,7 +50,7 @@ export async function runRutasDia(empresaIdFiltro?: string | null, forzar = fals
     // ── CIERRE ────────────────────────────────────────────────────────────
     if (!empresaIdFiltro && horaActualMin >= finMin && empresa.autoCerrarRuta) {
       const rutasHoy = await prisma.ruta.findMany({
-        where: { empresaId: empresa.id, cerrada: false, fecha: { lte: finDiaBogota(hoyStr) } },
+        where: { empresaId: empresa.id, cerrada: false, fecha: { lte: finDiaBogota(ahoraBog) } },
         include: { empleados: { select: { empleadoId: true } }, clientes: { select: { clienteId: true, rutaId: true } } }
       })
 
@@ -57,7 +59,7 @@ export async function runRutasDia(empresaIdFiltro?: string | null, forzar = fals
         const todosCliIds = [...new Set(rutasHoy.flatMap(r => r.clientes.map((c: any) => c.clienteId)))]
 
         const visitasHoy = await prisma.visita.findMany({
-          where: { empleadoId: { in: todosEmpIds }, clienteId: { in: todosCliIds }, fechaBogota: { gte: inicioDiaBogota(hoyStr), lte: finDiaBogota(hoyStr) } },
+          where: { empleadoId: { in: todosEmpIds }, clienteId: { in: todosCliIds }, fechaBogota: { gte: inicioDiaBogota(ahoraBog), lte: finDiaBogota(ahoraBog) } },
           select: { clienteId: true }
         })
         const visitadosSet = new Set(visitasHoy.map((v: any) => v.clienteId))
@@ -91,11 +93,11 @@ export async function runRutasDia(empresaIdFiltro?: string | null, forzar = fals
 
       const [rutasHoyTodos, rutasAyerTodos] = await Promise.all([
         prisma.ruta.findMany({
-          where: { empresaId: empresa.id, fecha: { gte: inicioDiaBogota(hoyStr), lte: finDiaBogota(hoyStr) }, empleados: { some: { empleadoId: { in: empIds } } } },
+          where: { empresaId: empresa.id, fecha: { gte: inicioDiaBogota(ahoraBog), lte: finDiaBogota(ahoraBog) }, empleados: { some: { empleadoId: { in: empIds } } } },
           include: { empleados: { select: { empleadoId: true } } }
         }),
         prisma.ruta.findMany({
-          where: { empresaId: empresa.id, fecha: { gte: inicioDiaBogota(ayerStr), lte: finDiaBogota(ayerStr) }, empleados: { some: { empleadoId: { in: empIds } } } },
+          where: { empresaId: empresa.id, fecha: { gte: inicioDiaBogota(ayerDate), lte: finDiaBogota(ayerDate) }, empleados: { some: { empleadoId: { in: empIds } } } },
           include: { empleados: { select: { empleadoId: true } }, clientes: { where: { rezago: true }, orderBy: { orden: 'asc' } } }
         })
       ])
@@ -111,7 +113,7 @@ export async function runRutasDia(empresaIdFiltro?: string | null, forzar = fals
 
       const nombresExistentes = new Set(
         (await prisma.ruta.findMany({
-          where: { empresaId: empresa.id, fecha: { gte: inicioDiaBogota(hoyStr), lte: finDiaBogota(hoyStr) } },
+          where: { empresaId: empresa.id, fecha: { gte: inicioDiaBogota(ahoraBog), lte: finDiaBogota(ahoraBog) } },
           select: { nombre: true }
         })).map(r => r.nombre)
       )
@@ -184,7 +186,7 @@ export async function runTurnosDia(forzar = false): Promise<{
     SELECT id, "horaInicioRuta", "horaFinRuta",
            "autoAbrirTurno", "autoCerrarTurno",
            "diasCrearRuta", "diasCerrarRuta"
-    FROM gestor."Empresa"
+    FROM ${Prisma.raw(DB_SCHEMA)}."Empresa"
     WHERE activo = true
       AND ("autoAbrirTurno" = true OR "autoCerrarTurno" = true)`
 

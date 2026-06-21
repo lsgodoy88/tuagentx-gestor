@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { calcularEstado } from '@/lib/cartera'
+import { nowBogota } from '@/lib/fechas'
 
 async function poblarCarteraCache(integracionId: string, empresaId: string) {
   const deudas = await (prisma as any).syncDeuda.findMany({
@@ -52,7 +53,7 @@ async function poblarCarteraCache(integracionId: string, empresaId: string) {
     porCliente[d.clienteApiId].push(d)
   }
 
-  const ahora = new Date(Date.now() - 5*60*60*1000)
+  const ahora = nowBogota()
   for (const [apiId, deudasCliente] of Object.entries(porCliente)) {
     const cliente = clienteMap[apiId]
     if (!cliente) continue

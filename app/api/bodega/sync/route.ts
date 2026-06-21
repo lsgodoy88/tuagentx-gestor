@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN_BODEGA } from '@/lib/auth-helpers'
+import { haceNDiasBogota } from '@/lib/fechas'
 import fs from 'fs'
 import path from 'path'
 import { getServerSession } from 'next-auth'
@@ -30,10 +31,12 @@ export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}))
   const vinculadaId: string | null = body.vinculadaId || null
 
-  // Determinar empresa con integración + dónde guardar
+  // FIX 2026-06-20: la orden ya no se duplica bajo la empresa del proveedor
+  // de bodega (Lumeli) — siempre se guarda bajo la empresa REAL dueña de la
+  // venta en UpTres (integracionEmpresaId). origenVinculadaId queda solo
+  // informativo, no determina dónde vive la fila.
   let integracionEmpresaId = empresaId
   let origenVinculadaId: string | null = null
-  let empresaBodegaId = empresaId
 
   if (vinculadaId) {
     const vinculada = await (prisma as any).empresaVinculada.findFirst({
@@ -45,7 +48,6 @@ export async function POST(req: NextRequest) {
     }
     integracionEmpresaId = vinculada.empresaClienteId
     origenVinculadaId = vinculadaId
-    // empresaBodegaId queda en empresaId (la bodega del proveedor)
   }
 
   const integracion = await (prisma as any).integracion.findFirst({
@@ -64,8 +66,7 @@ export async function POST(req: NextRequest) {
     select: { diasHistorialBodega: true }
   })
   const dias = empresaRow?.diasHistorialBodega ?? 30
-  const desde = new Date(Date.now() - 5*60*60*1000)
-  desde.setDate(desde.getDate() - dias)
+  const desde = haceNDiasBogota(dias)
 
   const ordenes = await adapter.fetchVentas(desde)
   const desdeTs = desde.getTime()
@@ -86,9 +87,8 @@ export async function POST(req: NextRequest) {
   const origenIds = ordenesValidas.map((o: any) => String(o.uid || o._id))
   const existentes = await (prisma as any).ordenDespacho.findMany({
     where: {
-      empresaId: empresaBodegaId,
+      empresaId: integracionEmpresaId,
       origenId: { in: origenIds },
-      ...(origenVinculadaId ? { origenVinculadaId } : { origenVinculadaId: null })
     },
     select: { origenId: true }
   })
@@ -158,10 +158,10 @@ export async function POST(req: NextRequest) {
       fechaOrden: orden.fCreado ? new Date(orden.fCreado as string) : new Date(),
       fechaOrdenBogota: orden.fCreado ? toBogota(new Date(orden.fCreado as string)) : toBogota(new Date()),
       totalOrden: orden.vTotal ? parseFloat(orden.vTotal) : null,
-      empresaId: empresaBodegaId,
-      origen: origenVinculadaId ? 'vinculada' : 'propia',
+      empresaId: integracionEmpresaId,
+      origen: 'propia',
       origenId,
-      origenVinculadaId,
+      origenVinculadaId: null,
       estado: 'pendiente',
     }
   })

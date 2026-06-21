@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
+import { mesBogota, anioBogota } from '@/lib/fechas'
 
 export async function GET(req: NextRequest) {
   try {
@@ -12,8 +13,8 @@ export async function GET(req: NextRequest) {
   const user = session.user as any
   const empresaId = getEmpresaId(user)
   const { searchParams } = new URL(req.url)
-  const mes  = parseInt(searchParams.get('mes')  || String(new Date().getMonth() + 1))
-  const anio = parseInt(searchParams.get('anio') || String(new Date().getFullYear()))
+  const mes  = parseInt(searchParams.get('mes')  || String(mesBogota()))
+  const anio = parseInt(searchParams.get('anio') || String(anioBogota()))
 
   // Vendedor: todas sus metas (el cliente filtra por mes)
   if (user.role === 'vendedor') {

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
+import { fechaHoyBogota } from '@/lib/fechas'
 import { buildSemana } from '@/lib/impulsoMetricas'
 
 export async function GET(req: NextRequest) {
@@ -12,7 +13,7 @@ export async function GET(req: NextRequest) {
   const empresaId = getEmpresaId(user)
 
   const { searchParams } = new URL(req.url)
-  const fecha = searchParams.get('fecha') || new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]
+  const fecha = searchParams.get('fecha') || fechaHoyBogota()
   const inicioMes = new Date(fecha.slice(0, 7) + '-01T00:00:00.000Z')
   const finMes = new Date(new Date(inicioMes).setMonth(inicioMes.getMonth() + 1) - 1)
   const mesLabel = inicioMes.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })

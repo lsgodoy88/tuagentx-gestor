@@ -89,6 +89,7 @@ export default function OrdenesPage() {
   const [ultimaSync, setUltimaSync] = useState<string | null>(null)
   const [diasHistorial, setDiasHistorial] = useState<number>(() => { if (typeof window === 'undefined') return 10; const v = parseInt(localStorage.getItem('diasHistorialVista') || '10'); return Math.min(30, Math.max(1, v)) })
   const [origenId, setOrigenId] = useState<string>('propia')
+  const [origenSeleccion, setOrigenSeleccion] = useState<string>('propia')
   const [empresasOrigen, setEmpresasOrigen] = useState<any[]>([])
   const [repartidores, setRepartidores] = useState<any[]>([])
   const [cargando, setCargando] = useState(true)
@@ -182,9 +183,10 @@ export default function OrdenesPage() {
       setEmpresasOrigen(lista)
       if (lista.length > 0) {
         setOrigenId(lista[0].id)
+        setOrigenSeleccion(lista[0].id)
         cargarDatos(lista[0].id)
       }
-    }).catch(() => { cargarDatos('propia') })
+    }).catch(() => { setOrigenSeleccion('propia'); cargarDatos('propia') })
     fetch('/api/empleados?rol=entregas')
       .then(r => r.json())
       .then(d => {
@@ -235,12 +237,13 @@ export default function OrdenesPage() {
       cargarTab('alistado', origen, true),
       cargarTab('despachado', origen, true),
     ])
-    cargarDespachoLog(true)
+    cargarDespachoLog(true, origen)
   }
 
-  async function cargarDespachoLog(reset = false) {
+  async function cargarDespachoLog(reset = false, origen?: string) {
+    const id = origen ?? origenId
     const params = new URLSearchParams()
-    if (origenId !== 'propia') params.set('origenId', origenId)
+    if (id !== 'propia') params.set('origenId', id)
     if (!reset && logNextCursor) params.set('cursor', logNextCursor)
     const data = await fetch(`/api/bodega/despacho-log?${params}`).then(r => r.json())
     setDespachoLog(prev => reset ? (data.data || []) : [...prev, ...(data.data || [])])
@@ -596,31 +599,41 @@ export default function OrdenesPage() {
 
 
       {/* Selector empresa origen + buscador */}
-      <div className="flex gap-2">
+      <div className="flex gap-2" style={{width: '100%'}}>
         {empresasOrigen.length > 1 && (
-          <select
-            value={origenId}
-            onChange={e => { setOrigenId(e.target.value); cargarDatos(e.target.value); setBusqueda('') }}
-            className="rounded-xl px-3 py-2 text-white text-sm" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)",width: '30%'}}>
-            {empresasOrigen.map(e => (
-              <option key={e.id} value={e.id}>{e.nombre}</option>
-            ))}
-          </select>
+          <>
+            <select
+              value={origenSeleccion}
+              onChange={e => setOrigenSeleccion(e.target.value)}
+              className="rounded-xl px-3 py-2 text-white text-sm min-w-0" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)",width: '40%'}}>
+              {empresasOrigen.map(e => (
+                <option key={e.id} value={e.id}>{e.nombre}</option>
+              ))}
+            </select>
+            <button
+              onClick={() => { setOrigenId(origenSeleccion); cargarDatos(origenSeleccion); setBusqueda('') }}
+              disabled={origenSeleccion === origenId}
+              className="rounded-xl px-2 py-2 text-white text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0"
+              style={{background:"rgba(59,130,246,0.20)",border:"1px solid rgba(59,130,246,0.35)",width: '10%'}}>
+              Ir
+            </button>
+          </>
         )}
         <input
           value={busqueda}
           onChange={e => setBusqueda(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && ejecutarBusqueda()}
           placeholder="Cliente u orden..."
-          className="rounded-xl px-3 py-2 text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-zinc-500 min-w-0" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)",width: '60%'}}
+          className="rounded-xl px-3 py-2 text-white text-sm placeholder-zinc-500 focus:outline-none focus:border-zinc-500 min-w-0" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)",width: '25%'}}
         />
         <button onClick={ejecutarBusqueda}
           className="bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 text-white rounded-xl text-sm flex-shrink-0"
-          style={{width: '10%'}}>
+          style={{width: '12%'}}>
           {buscandoRemoto ? '⏳' : '🔍'}
         </button>
         <button onClick={syncOrdenes} disabled={syncing}
-          className={`flex items-center gap-1 bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 disabled:opacity-40 text-blue-400 rounded-xl text-sm px-2 py-2 flex-shrink-0 transition-colors ${syncing ? 'btn-shimmer' : ''}`}>
+          className={`flex items-center justify-center gap-1 bg-zinc-800 border border-zinc-700 hover:bg-zinc-700 disabled:opacity-40 text-blue-400 rounded-xl text-sm flex-shrink-0 transition-colors ${syncing ? 'btn-shimmer' : ''}`}
+          style={{width: '13%'}}>
           <SyncIcon spinning={syncing} className="w-4 h-4" />
         </button>
       </div>

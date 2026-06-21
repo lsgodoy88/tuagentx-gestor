@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { prisma, DB_SCHEMA } from '@/lib/prisma'
+import { Prisma } from '@/app/generated/prisma'
 import { getEmpresaId, ROLES_ADMIN_BODEGA } from '@/lib/auth-helpers'
-import { origenFiltroSQL } from '@/lib/bodega'
+import { resolverEmpresaIdOrigen } from '@/lib/bodega'
+import { haceNDiasBogota } from '@/lib/fechas'
 
 const ROLES = ROLES_ADMIN_BODEGA
 const LIMIT  = 15
@@ -27,7 +29,7 @@ export async function GET(req: NextRequest) {
   const controlCursor = sp.get('controlCursor')       // cursor control consecutivos
   const q             = sp.get('q')?.trim() ?? ''
 
-  const origenSQL = origenFiltroSQL(origenId)
+  const empresaIdConsulta = await resolverEmpresaIdOrigen(prisma, empresaId, origenId)
 
   // Estados reales por tab
   const estadosFiltro: Record<string, string[]> = {
@@ -38,8 +40,7 @@ export async function GET(req: NextRequest) {
   const estados = estadosFiltro[estado] ?? ['pendiente']
 
   // Ventana de 30 días fija
-  const desde = new Date(Date.now() - 5*60*60*1000)
-  desde.setDate(desde.getDate() - DIAS)
+  const desde = haceNDiasBogota(DIAS)
   const desdeIso = desde.toISOString()
 
   // Filtro de búsqueda
@@ -57,16 +58,15 @@ export async function GET(req: NextRequest) {
   const idRows = await prisma.$queryRawUnsafe<{ id: string; nf: number }[]>(`
     SELECT id,
       (CASE WHEN "numeroFactura" ~ '^[0-9]+$' THEN CAST("numeroFactura" AS INTEGER) ELSE 0 END) AS nf
-    FROM gestor."OrdenDespacho"
+    FROM ${DB_SCHEMA}."OrdenDespacho"
     WHERE "empresaId" = $1
-      AND ${origenSQL}
       AND estado IN (${estadoIn})
       AND ("fechaOrdenBogota" >= $2::timestamp OR ("fechaOrdenBogota" IS NULL AND "createdAt" >= $2::timestamp))
       ${qFilter}
       ${cursorFilter}
     ORDER BY nf DESC
     LIMIT ${LIMIT + 1}
-  `, empresaId, desdeIso)
+  `, empresaIdConsulta, desdeIso)
 
   const hayMas = idRows.length > LIMIT
   const rows   = hayMas ? idRows.slice(0, LIMIT) : idRows
@@ -99,7 +99,7 @@ export async function GET(req: NextRequest) {
     ultimaSyncBodega: Date | null
   }]>`
     SELECT "ciudadEntregaLocal", "bodegaPuedeEnviar", "ultimaSyncBodega"
-    FROM gestor."Empresa" WHERE id = ${empresaId} LIMIT 1
+    FROM ${Prisma.raw(DB_SCHEMA)}."Empresa" WHERE id = ${empresaId} LIMIT 1
   `
 
   // Control de consecutivos — solo para tab despachado
@@ -123,15 +123,14 @@ export async function GET(req: NextRequest) {
         "transportadora",
         estado,
         CAST("numeroFactura" AS INTEGER) AS nf_int
-      FROM gestor."OrdenDespacho"
+      FROM ${DB_SCHEMA}."OrdenDespacho"
       WHERE "empresaId" = $1
-        AND ${origenSQL}
         AND "numeroFactura" ~ '^[0-9]+$'
         AND ("fechaOrdenBogota" >= $2::timestamp OR ("fechaOrdenBogota" IS NULL AND "createdAt" >= $2::timestamp))
         ${controlCursorFilter}
       ORDER BY nf_int DESC
       LIMIT ${CONTROL_LIMIT + 1}
-    `, empresaId, desdeIso)
+    `, empresaIdConsulta, desdeIso)
 
     controlHayMas = controlRows.length > CONTROL_LIMIT
     const controlRowsSliced = controlHayMas ? controlRows.slice(0, CONTROL_LIMIT) : controlRows

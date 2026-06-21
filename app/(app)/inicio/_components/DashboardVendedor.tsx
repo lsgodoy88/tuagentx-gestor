@@ -123,11 +123,21 @@ export default function DashboardVendedor({ user }: { user: any }) {
   // Prefetch silencioso — 8s después del primer render, carga modales en background
   // (3s competía con fetches de datos aún en curso en mobile lento)
   useEffect(() => {
-    const t = setTimeout(() => {
+    // FIX 2026-06-20: requestIdleCallback en vez de timeout fijo de 8s —
+    // precarga cuando el navegador realmente está libre, no compite con
+    // trabajo real (primer render, fetches iniciales) ni espera de más si
+    // el dispositivo ya terminó su trabajo antes. Fallback a setTimeout
+    // corto para navegadores sin soporte (Safari).
+    const precargar = () => {
       import('@/components/ModalRecaudo').catch(() => {})
       import('@/components/ModalVisita').catch(() => {})
       import('@/components/CarteraCard').catch(() => {})
-    }, 8000)
+    }
+    if (typeof (window as any).requestIdleCallback === 'function') {
+      const id = (window as any).requestIdleCallback(precargar, { timeout: 8000 })
+      return () => (window as any).cancelIdleCallback?.(id)
+    }
+    const t = setTimeout(precargar, 3000)
     return () => clearTimeout(t)
   }, [])
 
@@ -177,9 +187,16 @@ export default function DashboardVendedor({ user }: { user: any }) {
     if (debeRefrescarStats) setLoadingStats(true)
     fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null).then(stats => {
       if (stats && !stats.error) {
-        setStatsVendedor(stats)
-        lastPulseTs.current = Date.now()
-        setCached({ statsVendedor: stats })
+        // FIX 2026-06-20: comparar generadoEn del servidor contra lo cacheado
+        // local — evita pisar un dato más nuevo con uno viejo si la respuesta
+        // de red llegó fuera de orden, y confirma que sí se reemplaza aunque
+        // el TTL local de 10min no hubiera expirado todavía.
+        const generadoEnCache = cached?.statsVendedor?.generadoEn || 0
+        if (!stats.generadoEn || stats.generadoEn >= generadoEnCache) {
+          setStatsVendedor(stats)
+          lastPulseTs.current = Date.now()
+          setCached({ statsVendedor: stats })
+        }
       }
       setVendedorStatsLoading(false)
       if (debeRefrescarStats) setLoadingStats(false)
@@ -587,7 +604,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
             <span className="text-zinc-500 text-xs">{mostrarImpulsadoras ? '▲ Ocultar' : '▼ Ver'}</span>
           </button>
           {mostrarImpulsadoras && (
-            <div className="mt-2 space-y-3 bg-zinc-900 border border-zinc-800 rounded-2xl p-3">
+            <div className="mt-2 space-y-3 rounded-2xl p-3" style={{background:'rgba(255,255,255,0.05)',border:`1px solid ${tieneAlerta ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.12)'}`}}>
           {!statsVendedor ? (
             <>{[0,1].map(i => <div key={i} className="h-16 rounded-xl bg-zinc-800/40" />)}</>
           ) : (statsVendedor.cumplimiento?.length ?? 0) === 0 ? (
@@ -596,7 +613,10 @@ export default function DashboardVendedor({ user }: { user: any }) {
             const diasSemana = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
             const diaHoy = diasSemana[new Date().getDay()]
             return (
-          <CardSub key={imp.id} alerta={imp.alerta} className="p-3">
+          <CardSub key={imp.id} alerta={false} className="p-3" style={{
+            background:'rgba(63,63,70,0.80)',
+            border: `1px solid ${imp.puntoActual ? 'rgba(16,185,129,0.55)' : imp.visitados === 0 ? 'rgba(239,68,68,0.55)' : imp.alerta ? 'rgba(249,115,22,0.55)' : 'rgba(255,255,255,0.12)'}`,
+          }}>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <div className={"w-2 h-2 rounded-full " + (imp.turnoActivo ? "bg-emerald-500" : "bg-zinc-600")} />
@@ -615,8 +635,33 @@ export default function DashboardVendedor({ user }: { user: any }) {
                     <div className={"h-1.5 rounded-full " + (imp.pct >= 80 ? "bg-emerald-500" : imp.pct >= 50 ? "bg-yellow-500" : "bg-red-500")} style={{width:(imp.pct||0)+'%'}} />
                   </div>
                 </div>
-                {imp.puntoActual && <div style={{background:"rgba(148,160,185,0.28)",border:"1px solid rgba(148,180,255,0.35)",borderRadius:8,padding:"8px 12px"}}><p className="text-zinc-400 text-xs">📍 Está en:</p><p className="text-emerald-400 text-sm font-medium">{imp.puntoActual.nombre}</p>{imp.puntoActual.nombreComercial && <p className="text-zinc-500 text-xs">{imp.puntoActual.nombreComercial}</p>}</div>}
-                {!imp.puntoActual && imp.proximoPunto && <div style={{background:"rgba(148,160,185,0.28)",border:"1px solid rgba(148,180,255,0.25)",borderRadius:8,padding:"8px 12px"}}><p className="text-zinc-400 text-xs">➡️ Va hacia:</p><p className="text-white text-sm font-medium">{imp.proximoPunto.nombre}</p>{imp.proximoPunto.nombreComercial && <p className="text-zinc-500 text-xs">{imp.proximoPunto.nombreComercial}</p>}</div>}
+                {imp.puntoActual && <div style={{background:"rgba(148,160,185,0.28)",border:"1px solid rgba(148,180,255,0.35)",borderRadius:8,padding:"8px 12px"}}>
+                  <div className="flex items-center gap-1">
+                    <div style={{width:'50%'}} className="min-w-0">
+                      <p className="text-emerald-400 text-sm font-medium truncate">{imp.puntoActual.nombre}</p>
+                      {imp.puntoActual.nombreComercial && <p className="text-zinc-500 text-xs truncate">{imp.puntoActual.nombreComercial}</p>}
+                    </div>
+                    <div style={{width:'25%'}} className="text-center"><p className="text-zinc-500 text-[10px] uppercase tracking-wide">Entrada</p><p className="text-white text-xs font-medium">{imp.puntoActual.horaEntrada ? new Date(imp.puntoActual.horaEntrada).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'}) : '--:--'}</p></div>
+                    <div style={{width:'25%'}} className="text-center"><p className="text-zinc-500 text-[10px] uppercase tracking-wide">Salida</p><p className="text-white text-xs font-medium">{imp.puntoActual.horaSalida ? new Date(imp.puntoActual.horaSalida).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'}) : '--:--'}</p></div>
+                  </div>
+                </div>}
+                {imp.proximoPunto && <div style={{background:"rgba(148,160,185,0.28)",border:"1px solid rgba(148,180,255,0.25)",borderRadius:8,padding:"8px 12px"}}>
+                  <p className="text-zinc-400 text-xs mb-1">➡️ Va hacia:</p>
+                  <p className="text-white text-sm font-medium truncate">{imp.proximoPunto.nombre}</p>
+                  {imp.proximoPunto.nombreComercial && <p className="text-zinc-500 text-xs">{imp.proximoPunto.nombreComercial}</p>}
+                </div>}
+                {imp.puntosCompletados?.length > 0 && imp.puntosCompletados.map((pc: any, i: number) => (
+                  <div key={i} style={{background:"rgba(16,185,129,0.12)",border:"1px solid rgba(16,185,129,0.35)",borderRadius:8,padding:"8px 12px"}}>
+                    <div className="flex items-center gap-1">
+                      <div style={{width:'50%'}} className="min-w-0">
+                        <p className="text-emerald-400 text-xs font-medium truncate">✅ {pc.nombre}</p>
+                        {pc.nombreComercial && <p className="text-zinc-500 text-xs truncate">{pc.nombreComercial}</p>}
+                      </div>
+                      <div style={{width:'25%'}} className="text-center"><p className="text-zinc-500 text-[10px] uppercase tracking-wide">Entrada</p><p className="text-white text-xs font-medium">{new Date(pc.horaEntrada).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'})}</p></div>
+                      <div style={{width:'25%'}} className="text-center"><p className="text-zinc-500 text-[10px] uppercase tracking-wide">Salida</p><p className="text-white text-xs font-medium">{new Date(pc.horaSalida).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'})}</p></div>
+                    </div>
+                  </div>
+                ))}
                 {imp.alertasGps?.length > 0 && <div style={{background:"rgba(127,29,29,0.30)",border:"1px solid rgba(239,68,68,0.30)",borderRadius:8,padding:"8px 12px"}}><p className="text-red-400 text-xs font-semibold">⚠️ Alertas GPS hoy ({imp.alertasGps.length})</p>{imp.alertasGps.slice(0,2).map((a: any, i: number) => <p key={i} className="text-red-300 text-xs">{a.detalle} — {new Date(a.hora).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'})}</p>)}</div>}
               </div>
             )}

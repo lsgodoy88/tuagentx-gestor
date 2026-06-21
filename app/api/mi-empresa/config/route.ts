@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { prisma, DB_SCHEMA } from '@/lib/prisma'
+import { Prisma } from '@/app/generated/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
 
 export async function PATCH(req: NextRequest) {
@@ -39,7 +40,7 @@ export async function PATCH(req: NextRequest) {
     SELECT "horaInicioRuta", "horaFinRuta", "autoCrearRuta", "autoCerrarRuta",
            "diasCrearRuta", "diasCerrarRuta", "ciudadEntregaLocal", "diasHistorialBodega", "bodegaPuedeEnviar",
            "autoAbrirTurno", "autoCerrarTurno"
-    FROM gestor."Empresa" WHERE id = ${user.id} LIMIT 1
+    FROM ${Prisma.raw(DB_SCHEMA)}."Empresa" WHERE id = ${user.id} LIMIT 1
   `
   const cur = rows[0] ?? { horaInicioRuta: '07:00', horaFinRuta: '21:00', autoCrearRuta: false, autoCerrarRuta: false, diasCrearRuta: '0,1,2,3,4', diasCerrarRuta: '0,1,2,3,4', ciudadEntregaLocal: null, diasHistorialBodega: 7, bodegaPuedeEnviar: false, autoAbrirTurno: false, autoCerrarTurno: false }
 
@@ -56,7 +57,7 @@ export async function PATCH(req: NextRequest) {
   const finalAutoCerrarTurno   = autoCerrarTurno  !== undefined ? Boolean(autoCerrarTurno)   : cur.autoCerrarTurno ?? false
 
   await prisma.$executeRaw`
-    UPDATE gestor."Empresa"
+    UPDATE ${Prisma.raw(DB_SCHEMA)}."Empresa"
     SET "horaInicioRuta"      = ${finalHoraInicio},
         "horaFinRuta"         = ${finalHoraFin},
         "autoCrearRuta"       = ${finalAutoCrear},
@@ -88,7 +89,7 @@ export async function GET(req: NextRequest) {
   }]>`
     SELECT "horaInicioRuta", "horaFinRuta", "autoCrearRuta", "autoCerrarRuta", "diasCrearRuta", "diasCerrarRuta",
            "ciudadEntregaLocal", "diasHistorialBodega", "bodegaPuedeEnviar", "autoAbrirTurno", "autoCerrarTurno"
-    FROM gestor."Empresa" WHERE id = ${empresaId} LIMIT 1
+    FROM ${Prisma.raw(DB_SCHEMA)}."Empresa" WHERE id = ${empresaId} LIMIT 1
   `
   return NextResponse.json(rows[0] ?? { horaInicioRuta: '07:00', horaFinRuta: '21:00', autoCrearRuta: false, autoCerrarRuta: false, diasCrearRuta: '0,1,2,3,4', diasCerrarRuta: '0,1,2,3,4', ciudadEntregaLocal: null, diasHistorialBodega: 7, bodegaPuedeEnviar: false, autoAbrirTurno: false, autoCerrarTurno: false })
 }

@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { nowBogota, fechaHoyBogota, haceNDiasBogota, haceNMesesBogota, inicioDiaBogota, finDiaBogota, inicioMesBogota, inicioMesAnteriorBogota, mesBogota, anioBogota, mesAnteriorBogota, anioMesAnteriorBogota, esDelMesBogota, fmtFechaHora, fmtFechaMedia, fmtHora } from '@/lib/fechas'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { prisma, DB_SCHEMA } from '@/lib/prisma'
+import { Prisma } from '@/app/generated/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
 import { calcularEstado } from '@/lib/cartera'
 
@@ -187,11 +188,11 @@ export async function GET(req: NextRequest) {
             SELECT cc.*, COUNT(*) OVER() AS total_count,
               SUM(cc."saldoPendiente") OVER() AS sum_pendiente,
               SUM(cc."saldoTotal") OVER() AS sum_total
-            FROM gestor."CarteraCache" cc
+            FROM ${Prisma.raw(DB_SCHEMA)}."CarteraCache" cc
             WHERE cc."integracionId" = ${integracion.id}
               AND cc."saldoPendiente" > 0
               AND cc."clienteApiId" IN (
-                SELECT DISTINCT "clienteApiId" FROM gestor."SyncDeuda"
+                SELECT DISTINCT "clienteApiId" FROM ${Prisma.raw(DB_SCHEMA)}."SyncDeuda"
                 WHERE "integracionId" = ${integracion.id}
                   AND "empleadoExternalId" = ${miApiId}
                   AND condition = true
@@ -203,11 +204,11 @@ export async function GET(req: NextRequest) {
             SELECT cc.*, COUNT(*) OVER() AS total_count,
               SUM(cc."saldoPendiente") OVER() AS sum_pendiente,
               SUM(cc."saldoTotal") OVER() AS sum_total
-            FROM gestor."CarteraCache" cc
+            FROM ${Prisma.raw(DB_SCHEMA)}."CarteraCache" cc
             WHERE cc."integracionId" = ${integracion.id}
               AND cc."saldoPendiente" > 0
               AND cc."clienteApiId" IN (
-                SELECT DISTINCT "clienteApiId" FROM gestor."SyncDeuda"
+                SELECT DISTINCT "clienteApiId" FROM ${Prisma.raw(DB_SCHEMA)}."SyncDeuda"
                 WHERE "integracionId" = ${integracion.id}
                   AND "empleadoExternalId" = ${miApiId}
                   AND condition = true

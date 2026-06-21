@@ -7,7 +7,7 @@
 import { getServerSession } from 'next-auth'
 import { NextRequest, NextResponse } from 'next/server'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { prisma, DB_SCHEMA } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN_BODEGA } from '@/lib/auth-helpers'
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3'
 
@@ -74,29 +74,33 @@ export async function getBodegaCtx(
   }
 }
 
-// ─── origenId → filtro SQL ───────────────────────────────────────────────────
+// ─── origenId → empresaId real ───────────────────────────────────────────────
+// FIX 2026-06-20: OrdenDespacho ya NO se duplica por EmpresaVinculada.
+// Antes: cada orden vinculada vivía como copia bajo empresaId del propietario
+// de la vinculación (ej. Lumeli), marcada con origenVinculadaId.
+// Ahora: una sola fila por orden, bajo el empresaId real de quien la generó
+// en UpTres (ej. Leche). Para ver/operar bodega de una empresa vinculada,
+// se resuelve su empresaClienteId y se consulta DIRECTO ese empresaId —
+// sin filtro adicional de origenVinculadaId (ya no aplica).
 
 /**
- * Devuelve el fragmento SQL para filtrar por empresa/vinculada,
- * con escape correcto para evitar inyección SQL.
- *
- * Uso:
- *   const filtro = origenFiltroSQL(origenId)
- *   // → '"origenVinculadaId" = \'abc\''  o  '"origenVinculadaId" IS NULL'
+ * Resuelve el empresaId real a consultar/operar en OrdenDespacho según el
+ * origenId elegido en el selector de bodega ('propia' o el id de una
+ * EmpresaVinculada activa de la empresa logueada).
  */
-export function origenFiltroSQL(origenId: string): string {
-  if (!origenId || origenId === 'propia') {
-    return '"origenVinculadaId" IS NULL'
-  }
-  return `"origenVinculadaId" = '${origenId.replace(/'/g, "''")}'`
-}
-
-/** Devuelve el where Prisma equivalente */
-export function origenWhere(origenId: string): Record<string, string | null> {
-  if (!origenId || origenId === 'propia') {
-    return { origenVinculadaId: null }
-  }
-  return { origenVinculadaId: origenId }
+export async function resolverEmpresaIdOrigen(
+  prisma: any,
+  empresaPropiaId: string,
+  origenId: string
+): Promise<string> {
+  if (!origenId || origenId === 'propia') return empresaPropiaId
+  const vinculada = await prisma.empresaVinculada.findFirst({
+    where: { id: origenId, empresaId: empresaPropiaId, activa: true },
+    select: { empresaClienteId: true },
+  })
+  // Si el id no es una vinculada válida del usuario, no se filtra por nada
+  // ajeno — cae a la propia, evitando exponer datos de otra empresa.
+  return vinculada?.empresaClienteId || empresaPropiaId
 }
 
 // ─── DespachoLog ─────────────────────────────────────────────────────────────
@@ -133,7 +137,7 @@ export function registrarDespachoLog(orden: {
 }): void {
   const modo = inferirModo(orden)
   prisma.$executeRawUnsafe(
-    `INSERT INTO gestor."DespachoLog"
+    `INSERT INTO ${DB_SCHEMA}."DespachoLog"
        (id, "empresaId", "origenVinculadaId", "numeroFactura", "clienteNombre",
         modo, "guiaTransporte", transportadora, "despachadoEl")
      VALUES

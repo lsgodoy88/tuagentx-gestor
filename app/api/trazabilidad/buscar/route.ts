@@ -51,9 +51,13 @@ export async function GET(req: NextRequest) {
     where: { empresaClienteId: empresaId, activa: true }
   })
 
+  // FIX 2026-06-20: la orden vive bajo su propio empresaId real, no
+  // origenVinculadaId (ya no se duplica por vinculación). Si esta empresa
+  // (cliente) no tiene bodega propia, sus órdenes siguen viviendo bajo su
+  // propio empresaId — no necesita filtrar por la vinculación en absoluto.
   let scopeWhere: any
   if (vinculaciones.length > 0 && !empresa?.bodegaPuedeEnviar) {
-    scopeWhere = { origenVinculadaId: { in: vinculaciones.map((v: any) => v.id) } }
+    scopeWhere = { empresaId }
   } else {
     scopeWhere = { empresaId, origenVinculadaId: null }
   }

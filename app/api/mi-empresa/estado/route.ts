@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { prisma, DB_SCHEMA } from '@/lib/prisma'
+import { Prisma } from '@/app/generated/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
 
 export async function GET() {
@@ -16,7 +17,7 @@ export async function GET() {
 
   // planFin y modoEquipo fueron agregados via ALTER TABLE — rawSQL para planFin
   const rows = await prisma.$queryRaw<[{ activo: boolean; planFin: Date | null; modoEquipo: string | null }]>`
-    SELECT activo, "planFin", "modoEquipo" FROM gestor."Empresa" WHERE id = ${empresaId} LIMIT 1
+    SELECT activo, "planFin", "modoEquipo" FROM ${Prisma.raw(DB_SCHEMA)}."Empresa" WHERE id = ${empresaId} LIMIT 1
   `
   const row = rows[0]
   const planFin = row?.planFin ?? null

@@ -8,6 +8,7 @@ import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 import { invalidatePattern } from '@/lib/cache'
 import { reconstruirCartera } from '@/lib/jobs/sync-nocturno'
+import { fechaBogotaStr } from '@/lib/fechas'
 import { notificarWA } from '@/lib/notificaciones'
 import fs from 'fs'
 import path from 'path'
@@ -308,22 +309,13 @@ export async function runSyncDelta(): Promise<any[]> {
       const apiSecret = decrypt(config.apiSecret, process.env.UPTRES_SECRET!)
       const r = await deltaEmpresa(intg.empresaId, intg.id, config.apiKey, apiSecret)
       resultados.push(r)
-      const vinculadas = await (prisma as any).empresaVinculada.findMany({ where: { empresaId: intg.empresaId, activa: true }, select: { id: true, nombre: true, empresaClienteId: true } })
-      for (const v of vinculadas) {
-        try {
-          // Usar credenciales propias de la empresa vinculada si tiene integración
-          const intgVinculada = await (prisma as any).integracion.findFirst({
-            where: { empresaId: v.empresaClienteId, tipo: 'uptres', activa: true },
-            select: { id: true, config: true }
-          })
-          const cfgV = intgVinculada?.config as any
-          const apiKeyV = cfgV?.apiKey || config.apiKey
-          const apiSecretV = cfgV?.apiSecret ? decrypt(cfgV.apiSecret, process.env.UPTRES_SECRET!) : apiSecret
-          const intgIdV = intgVinculada?.id || intg.id
-          const rv = await deltaEmpresa(v.empresaClienteId, intgIdV, apiKeyV, apiSecretV, v.id, intg.empresaId)
-          resultados.push({ ...rv, vinculada: v.nombre })
-        } catch (err: any) { resultados.push({ vinculada: v.nombre, error: err.message }) }
-      }
+      // NOTA 2026-06-20: se eliminó el sync duplicado hacia EmpresaVinculada.
+      // Antes, cada empresa vinculada (ej. Leche vinculada a Lumeli) generaba una
+      // SEGUNDA fila completa de OrdenDespacho con origen='vinculada', duplicando
+      // 25+ campos de venta que nunca debían divergir. La empresa vinculada ya se
+      // sincroniza por su cuenta en este mismo loop (tiene su propia integración
+      // activa). La visibilidad de Lumeli sobre las órdenes de Leche ahora se
+      // resuelve por consulta via EmpresaVinculada, no por copia física.
     } catch (err: any) {
       resultados.push({ empresaId: intg.empresaId, error: err.message })
       try {

@@ -17,9 +17,11 @@ const municipiosDANE: Record<string, string> = JSON.parse(
   fs.readFileSync(path.join(process.cwd(), 'public/municipios_dane.json'), 'utf-8')
 )
 
+// FIX 2026-06-20: ya no se duplica la orden bajo la empresa "bodega" que
+// dispara el sync (Lumeli) — siempre se guarda bajo empresaIdConIntegracion,
+// el dueño real de la venta en UpTres. origenVinculadaId queda informativo.
 async function syncEmpresa(empresaIdConIntegracion: string, origenVinculadaId: string | null = null, empresaBodegaId?: string) {
-  // empresaIdConIntegracion: dueño de la API de UpTres (de donde traemos órdenes)
-  // empresaBodegaId: dónde guardamos los OrdenDespacho (default = misma empresa)
+  // empresaIdConIntegracion: dueño de la API de UpTres Y dueño real de la orden
   const integracion = await (prisma as any).integracion.findFirst({
     where: { empresaId: empresaIdConIntegracion, tipo: 'uptres', activa: true }
   })
@@ -30,11 +32,8 @@ async function syncEmpresa(empresaIdConIntegracion: string, origenVinculadaId: s
   const adapter = new UpTresAdapter(config.apiKey, apiSecret)
   await adapter.login()
 
-  // Días historial de la empresa PRINCIPAL (no la vinculada)
-  const principal = empresaBodegaId || empresaIdConIntegracion
-
-  // Ventana delta: desde ultimaSyncBodega, fallback 2 días si nunca ha sincronizado
-  const empresaData = await prisma.empresa.findUnique({ where: { id: principal }, select: { ultimaSyncBodega: true } })
+  // Ventana delta: desde ultimaSyncBodega de la empresa real, fallback 2 días
+  const empresaData = await prisma.empresa.findUnique({ where: { id: empresaIdConIntegracion }, select: { ultimaSyncBodega: true } })
   const desde = empresaData?.ultimaSyncBodega ?? new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
 
   const ordenes = await adapter.fetchVentas(desde)
@@ -48,7 +47,7 @@ async function syncEmpresa(empresaIdConIntegracion: string, origenVinculadaId: s
 
     // Insert-only: traer una vez, guardar, nunca sobreescribir
   let nuevas = 0
-  const empresaDestino = empresaBodegaId || empresaIdConIntegracion
+  const empresaDestino = empresaIdConIntegracion
 
   // 1. Filtrar órdenes válidas (con factura y origenId — nombre no requerido para no perder órdenes)
   const ordenesValidas = ordenesFiltradas.filter((orden: any) => {
@@ -63,7 +62,6 @@ async function syncEmpresa(empresaIdConIntegracion: string, origenVinculadaId: s
     where: {
       empresaId: empresaDestino,
       origenId: { in: origenIds },
-      ...(origenVinculadaId ? { origenVinculadaId } : { origenVinculadaId: null })
     },
     select: { origenId: true }
   })
@@ -138,9 +136,9 @@ async function syncEmpresa(empresaIdConIntegracion: string, origenVinculadaId: s
       isActiva: (orden as any).isActiva !== false, // false=cancelada en UpTres
       fechaFactura: orden.invoicedAt ? new Date(orden.invoicedAt) : null,
       empresaId: empresaDestino,
-      origen: origenVinculadaId ? 'vinculada' : 'propia',
+      origen: 'propia',
       origenId,
-      origenVinculadaId,
+      origenVinculadaId: null,
       estado: 'pendiente',
     }
   })

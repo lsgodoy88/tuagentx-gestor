@@ -2,13 +2,14 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { fechaHoyBogota } from '@/lib/fechas'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json([])
   const user = session.user as any
   const { searchParams } = new URL(req.url)
-  const fecha = searchParams.get('fecha') || new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]
+  const fecha = searchParams.get('fecha') || fechaHoyBogota()
 
   // Buscar impulsadoras del vendedor
   const impulsadoras = await prisma.empleado.findMany({

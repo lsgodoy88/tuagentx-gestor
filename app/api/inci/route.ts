@@ -7,7 +7,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { prisma, DB_SCHEMA } from '@/lib/prisma'
+import { Prisma } from '@/app/generated/prisma'
 
 // Mapa de módulo → prefijo de código
 const PREFIJOS: Record<string, string> = {
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
   const limite  = parseInt(searchParams.get('limite') || '50')
 
   // Query directo con condiciones opcionales
-  let sql = `SELECT * FROM gestor."InciGuardian" WHERE 1=1`
+  let sql = `SELECT * FROM ${DB_SCHEMA}."InciGuardian" WHERE 1=1`
   const params: any[] = []
   if (estado)   { params.push(estado);   sql += ` AND estado = $${params.length}` }
   if (modulo)   { params.push(modulo);   sql += ` AND modulo = $${params.length}` }
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest) {
 
   // Verificar si ya existe incidencia ACTIVA para este contrato
   const existente = await prisma.$queryRaw<any[]>`
-    SELECT codigo FROM gestor."InciGuardian"
+    SELECT codigo FROM ${Prisma.raw(DB_SCHEMA)}."InciGuardian"
     WHERE contrato = ${contrato} AND estado = 'ACTIVO'
     LIMIT 1
   `.catch(() => [])
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
   // Generar código secuencial: SYNC-BOD-0001
   const prefijo = PREFIJOS[modulo] || 'GUARD'
   const ultimaSeq = await prisma.$queryRaw<any[]>`
-    SELECT codigo FROM gestor."InciGuardian"
+    SELECT codigo FROM ${Prisma.raw(DB_SCHEMA)}."InciGuardian"
     WHERE codigo LIKE ${prefijo + '-%'}
     ORDER BY "createdAt" DESC LIMIT 1
   `.catch(() => [])
@@ -83,7 +84,7 @@ export async function POST(req: NextRequest) {
 
   // Insertar
   await prisma.$executeRaw`
-    INSERT INTO gestor."InciGuardian"
+    INSERT INTO ${Prisma.raw(DB_SCHEMA)}."InciGuardian"
       (id, codigo, contrato, modulo, proyecto, descripcion, obtenido, estado, "accionTomada", "scoreAntes", "empresaId", "fechaInicio", "createdAt", "updatedAt")
     VALUES (
       concat('inci_', substr(md5(random()::text), 1, 20)),
@@ -112,7 +113,7 @@ export async function PUT(req: NextRequest) {
   }
 
   const resultado = await prisma.$executeRaw`
-    UPDATE gestor."InciGuardian"
+    UPDATE ${Prisma.raw(DB_SCHEMA)}."InciGuardian"
     SET estado = 'RESUELTO',
         "fechaResolucion" = NOW(),
         "accionTomada" = COALESCE(${accionTomada || null}, "accionTomada"),
@@ -128,7 +129,7 @@ export async function PUT(req: NextRequest) {
   // Leer el código para incluirlo en la respuesta
   const resuelta = await prisma.$queryRaw<any[]>`
     SELECT codigo, "fechaInicio", "fechaResolucion"
-    FROM gestor."InciGuardian"
+    FROM ${Prisma.raw(DB_SCHEMA)}."InciGuardian"
     WHERE contrato = ${contrato} AND estado = 'RESUELTO'
     ORDER BY "fechaResolucion" DESC LIMIT 1
   `.catch(() => [])

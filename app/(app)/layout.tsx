@@ -457,6 +457,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Link>
             )
           })}
+          {/* OCULTO 2026-06-20: Recibo manual offline aún no funciona sin red
+              (recarga de página pierde el formulario). Restaurar cuando la
+              solución offline (Service Worker u otra) esté lista.
           <a href="/recibo-manual.html" target="_blank" rel="noopener noreferrer"
             style={{
               display:'flex',flexDirection:'column',alignItems:'center',gap:4,
@@ -469,6 +472,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               Recibo
             </span>
           </a>
+          */}
         </div>
 
         {/* Divider */}

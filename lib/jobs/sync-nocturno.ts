@@ -8,6 +8,7 @@ import { invalidatePattern } from '@/lib/cache'
 import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 import { calcularEstado } from '@/lib/cartera'
+import { nowBogota } from '@/lib/fechas'
 import { actualizarDeudasInactivas } from '@/lib/integracion/sync'
 import { calcularSaldoReal } from '@/lib/cartera-utils'
 
@@ -39,7 +40,7 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
     porCliente[d.clienteApiId].push(d)
   }
 
-  const ahora = new Date(Date.now() - 5 * 60 * 60 * 1000)
+  const ahora = nowBogota()
   for (const [apiId, deudasCliente] of Object.entries(porCliente)) {
     const cliente = clienteMap[apiId]
     if (!cliente) continue

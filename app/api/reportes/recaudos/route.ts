@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN } from '@/lib/auth-helpers'
 import { generarReciboToken } from '@/lib/recibos'
+import { nowBogota } from '@/lib/fechas'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -99,7 +100,7 @@ export async function GET(req: NextRequest) {
   clientesSync.forEach(c => { if (c.apiId) cliSyncMap[c.apiId] = c.nombre })
 
   // Renovar tokens expirados — admin puede ver recibos viejos
-  const ahora = new Date(Date.now() - 5*60*60*1000)
+  const ahora = nowBogota()
   const expirados = pagos.filter((p: any) =>
     p.reciboToken && p.tokenExpira && new Date(p.tokenExpira) < ahora
   )
