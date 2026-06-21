@@ -59,25 +59,9 @@ function fmtFechaBtn(dateStr: string) {
 }
 function fmtMetodo(m: string | null) {
   if (!m) return '—'
-  if (m === 'efectivo')      return '💵 Efectivo'
-  if (m === 'transferencia') return '📲 Transf.'
-  if (m === 'mixto')         return '💵+📲'
-  return m
-}
-
-function MetodoPagoChip({ metodo }: { metodo: string | null }) {
-  if (!metodo) return null
-  const map: Record<string, { label: string; cls: string }> = {
-    efectivo:      { label: 'Efectivo',     cls: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' },
-    transferencia: { label: 'Transferencia',cls: 'bg-blue-500/10 text-blue-400 border-blue-500/20'          },
-    descuento:     { label: 'Descuento',    cls: 'bg-orange-500/10 text-orange-400 border-orange-500/20'    },
-  }
-  const cfg = map[metodo] ?? { label: metodo, cls: 'bg-zinc-700 text-white border-zinc-600' }
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded-lg text-xs font-semibold border ${cfg.cls}`}>
-      {cfg.label}
-    </span>
-  )
+  if (m === 'efectivo')      return 'Efect.'
+  if (m === 'transferencia') return 'Banco'
+  return 'Otro'
 }
 
 function VariacionPanel({ variacion, pagoId, onDetalle }: { variacion: any; pagoId: string; onDetalle: (id: string) => void }) {
@@ -95,16 +79,6 @@ function VariacionPanel({ variacion, pagoId, onDetalle }: { variacion: any; pago
       </button>
     </div>
   )
-}
-
-function calcResumen(lista: Pago[]) {
-  let efectivo = 0, transferencia = 0
-  for (const p of lista) {
-    const m = Number(p.monto) || 0
-    if (p.metodopago === 'efectivo') efectivo += m
-    else if (p.metodopago === 'transferencia') transferencia += m
-  }
-  return { efectivo, transferencia }
 }
 
 async function abrirRecibo(pagoId: string) {
@@ -138,6 +112,12 @@ function getColumns(ctx: {
       ),
     },
     {
+      key: 'fecha', label: 'Fecha', width: 70, minWidth: 55,
+      render: p => (
+        <span style={{ fontFamily: 'monospace' }}>{fmtFecha(p.createdAt)}</span>
+      ),
+    },
+    {
       key: 'recibo', label: 'Recibo', width: 130, minWidth: 80,
       render: p => (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 4 }}>
@@ -159,7 +139,7 @@ function getColumns(ctx: {
       ),
     },
     {
-      key: 'factura', label: 'Factura', width: 80, minWidth: 50,
+      key: 'factura', label: 'Factura', width: 60, minWidth: 45,
       render: p => (
         <span style={{ fontFamily: 'monospace' }}>
           {p.numeroFactura || '—'}
@@ -167,7 +147,7 @@ function getColumns(ctx: {
       ),
     },
     {
-      key: 'cliente', label: 'Cliente', width: 200, minWidth: 100,
+      key: 'cliente', label: 'Cliente', width: 260, minWidth: 100,
       render: p => (
         <span>{p.Cartera?.Cliente?.nombre || (p as any).cliente?.nombre || (p as any).clienteNombre || '—'}</span>
       ),
@@ -181,7 +161,7 @@ function getColumns(ctx: {
       ),
     },
     {
-      key: 'metodo', label: 'Método', width: 110, minWidth: 70,
+      key: 'metodo', label: 'Método', width: 70, minWidth: 55,
       render: p => {
         const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0
           ? (p as any).lineasPago : []
@@ -258,18 +238,13 @@ export default function RecaudosPage() {
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [vendedores,          setVendedores]          = useState<Vendedor[]>([])
   const [enviando,            setEnviando]            = useState<Set<string>>(new Set())
-  const [enviandoTodos,       setEnviandoTodos]       = useState(false)
   const [detalleVariacion,    setDetalleVariacion]    = useState<string | null>(null)
   const [abiertos,            setAbiertos]            = useState<string[]>([])
   const [voucherUrls,         setVoucherUrls]         = useState<Record<string, string>>({})
   const [lightboxUrl,         setLightboxUrl]         = useState<string | null>(null)
   const [seleccionados,       setSeleccionados]       = useState<Set<string>>(new Set())
   const [enviandoSeleccionados, setEnviandoSeleccionados] = useState(false)
-  const [validadoTodos,       setValidadoTodos]       = useState(false)
-  const [validadoSel,         setValidadoSel]         = useState(false)
   const [isDesktop,           setIsDesktop]           = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : false)
-  const [validaciones,        setValidaciones]        = useState<Record<string,{valido:boolean,motivo:string,saldoUptres:number|null}>>({})
-  const [validando,           setValidando]           = useState(false)
   const fechaInputRef = useRef<HTMLInputElement>(null)
   const [fechaOpen, setFechaOpen] = useState(false)
 
@@ -349,7 +324,7 @@ export default function RecaudosPage() {
     if (!cursor) setLoading(false); else setLoadingMore(false)
   }, [tab, vendedorId, fecha, isAdmin])
 
-  useEffect(() => { fetchPagos(null); setValidadoTodos(false); setValidadoSel(false) }, [fetchPagos])
+  useEffect(() => { fetchPagos(null) }, [fetchPagos])
 
   useEffect(() => {
     const check = () => setIsDesktop(window.innerWidth >= 768)
@@ -400,46 +375,6 @@ export default function RecaudosPage() {
     }
   }
 
-  async function validarPagos(ids: string[]) {
-    setValidando(true)
-    try {
-      const res  = await fetch('/api/recaudos/validar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pagoIds: ids }),
-      })
-      const data = await res.json()
-      const map: Record<string,{valido:boolean,motivo:string,saldoUptres:number|null}> = {}
-      for (const r of data.resultados ?? []) map[r.pagoId] = r
-      setValidaciones(prev => ({ ...prev, ...map }))
-      const todosValidos = (data.resultados ?? []).every((r:any) => r.valido)
-      return todosValidos
-    } finally {
-      setValidando(false)
-    }
-  }
-
-  async function validarTodos() {
-    setValidadoTodos(false)
-    const ids = pagos.filter(p => p.envioEstado === 'pendiente').map(p => p.id)
-    const ok = await validarPagos(ids)
-    if (ok) setValidadoTodos(true)
-  }
-
-  async function validarSeleccionados() {
-    setValidadoSel(false)
-    const ok = await validarPagos([...seleccionados])
-    if (ok) setValidadoSel(true)
-  }
-
-  async function enviarTodos() {
-    const pendientes = pagos.filter(p => p.envioEstado === 'pendiente')
-    if (!pendientes.length) return
-    setEnviandoTodos(true)
-    for (const p of pendientes) await enviarPago(p.id)
-    setEnviandoTodos(false)
-  }
-
   async function enviarSeleccionados() {
     setEnviandoSeleccionados(true)
     for (const id of [...seleccionados]) {
@@ -451,8 +386,6 @@ export default function RecaudosPage() {
   }
 
   const haySeleccion      = seleccionados.size > 0
-  const pagosSeleccionados = pagos.filter(p => seleccionados.has(p.id))
-  const resumen            = haySeleccion ? calcResumen(pagosSeleccionados) : calcResumen(pagos)
 
   const pagedPagos  = pagos.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
   const totalPages  = Math.max(1, Math.ceil(pagos.length / PAGE_SIZE))
@@ -483,18 +416,15 @@ export default function RecaudosPage() {
 
       {/* Filtros — una línea, ancho completo */}
       <div style={{display:'flex',gap:8,width:'100%',alignItems:'stretch'}}>
-        {/* 25% — Efectivo */}
-        <div style={{flex:'0 0 25%',background:'#1e2a3d',border:'1px solid #1e3a5f',borderRadius:'0.75rem',display:'flex',alignItems:'center',justifyContent:'center',padding:'8px 12px',minWidth:0}}>
-          <span style={{fontSize:15,fontWeight:700,color:'#34d399',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
-            {resumen.efectivo > 0 ? `💵 ${fmtMonto(resumen.efectivo)}` : '💵 $0'}
-          </span>
-        </div>
-        {/* 25% — Transferencias */}
-        <div style={{flex:'0 0 25%',background:'#1e2a3d',border:'1px solid #1e3a5f',borderRadius:'0.75rem',display:'flex',alignItems:'center',justifyContent:'center',padding:'8px 12px',minWidth:0}}>
-          <span style={{fontSize:15,fontWeight:700,color:'#60a5fa',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>
-            {resumen.transferencia > 0 ? `📲 ${fmtMonto(resumen.transferencia)}` : '📲 $0'}
-          </span>
-        </div>
+        {/* Enviar — solo tab pendiente, habilitado solo con selección */}
+        {tab === 'pendiente' && (
+          <button
+            onClick={() => enviarSeleccionados()}
+            disabled={!haySeleccion || enviandoSeleccionados}
+            style={{flexShrink:0,background:haySeleccion?'rgba(37,99,235,0.35)':'#1e2a3d',border:haySeleccion?'1px solid rgba(96,165,250,0.5)':'1px solid #1e3a5f',borderRadius:'0.75rem',padding:'8px 16px',fontSize:12,fontWeight:700,color:haySeleccion?'white':'rgba(255,255,255,0.4)',cursor:haySeleccion?'pointer':'not-allowed',whiteSpace:'nowrap'}}>
+            {enviandoSeleccionados ? '⏳ Enviando...' : `📤 Enviar${haySeleccion ? ` (${seleccionados.size})` : ''}`}
+          </button>
+        )}
         {/* Vendedor — flex restante */}
         {isAdmin && (
           <div style={{flex:1,background:'#1e2a3d',border:'1px solid #1e3a5f',borderRadius:'0.75rem',minWidth:0,overflow:'hidden'}}>
@@ -529,13 +459,6 @@ export default function RecaudosPage() {
             style={{position:'absolute',opacity:0,pointerEvents:'none',width:0,height:0}}
           />
         </div>
-        {/* Validar — solo en tab pendiente */}
-        {tab === 'pendiente' && <button
-          onClick={() => haySeleccion ? validarSeleccionados() : validarTodos()}
-          disabled={validando}
-          style={{flexShrink:0,background:'#1e2a3d',border:'1px solid #1e3a5f',borderRadius:'0.75rem',padding:'8px 16px',fontSize:12,fontWeight:700,color:validando?'rgba(255,255,255,0.4)':'white',cursor:validando?'not-allowed':'pointer',whiteSpace:'nowrap'}}>
-          {validando ? '⏳ Validando...' : `🔍 Validar${haySeleccion ? ` (${seleccionados.size})` : ''}`}
-        </button>}
       </div>
 
       {/* ── DESKTOP: DataTable ─────────────────────────────────── */}
@@ -576,15 +499,13 @@ export default function RecaudosPage() {
                 const enEnvio       = enviando.has(pago.id)
                 const yaEnviado     = pago.envioEstado === 'enviado' || pago.envioEstado === 'recibido'
                 const tieneVariacion = pago.envioEstado === 'variacion'
-                const tieneVoucher  = !!pago.voucherDatosIA
-                const voucherData   = tieneVoucher ? (pago.voucherDatosIA as any) : null
                 const abierto       = abiertos.includes(pago.id)
                 const seleccionado  = seleccionados.has(pago.id)
                 return (
                   <div key={pago.id}>
                     {/* Fila contraída */}
                     <div
-                      onClick={() => { if (marcadoEliminar === pago.id) return; toggleAbierto(pago.id, pago.voucherKey) }}
+                      onClick={() => { if (marcadoEliminar === pago.id) { setMarcadoEliminar(null); return }; toggleAbierto(pago.id, pago.voucherKey) }}
                       onTouchStart={() => iniciarLongPress(pago.id)}
                       onTouchEnd={cancelarLongPress}
                       onTouchMove={cancelarLongPress}
@@ -613,12 +534,18 @@ export default function RecaudosPage() {
                           {seleccionado && <span className="text-white text-[9px] font-bold leading-none">✓</span>}
                         </div>
                       </div>
-                      {/* Nombre + vendedor */}
+                      {/* Recibo · Fecha · Factura  +  Nombre cliente */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-white font-semibold text-sm truncate leading-tight">
-                          {pago.Cartera?.Cliente?.nombre || (pago as any).cliente?.nombre || (pago as any).clienteNombre || (pago.numeroFactura ? `Fact. ${pago.numeroFactura}` : '—')}
+                        <p className="text-zinc-300 text-[15px] truncate leading-tight font-mono flex items-center gap-1.5">
+                          <span
+                            onClick={e => { e.stopPropagation(); abrirRecibo(pago.id) }}
+                            style={{ fontSize: 13, lineHeight: 1, flexShrink: 0 }}
+                            title="Ver recibo">🖨️</span>
+                          {pago.numeroRecibo || '—'} · {fmtFecha(pago.createdAt)} · Fact. {pago.numeroFactura || '—'}
                         </p>
-                        <p className="text-zinc-400 text-xs truncate leading-tight mt-0.5">{pago.Empleado?.nombre || (pago as any).vendedorNombre || ''}</p>
+                        <p className="text-white font-semibold text-sm truncate leading-tight mt-0.5">
+                          {pago.Cartera?.Cliente?.nombre || (pago as any).cliente?.nombre || (pago as any).clienteNombre || '—'}
+                        </p>
                       </div>
                       {/* Iconos método */}
                       <div className="flex items-center gap-0.5 flex-shrink-0 text-base leading-none">
@@ -652,34 +579,25 @@ export default function RecaudosPage() {
                       <div
                         className={`bg-[#0d0d0d] border border-t-0 ${tieneVariacion ? 'border-red-500/50' : seleccionado ? 'border-blue-500/60' : 'border-zinc-800'} rounded-b-[10px] px-4 py-3 space-y-3`}
                         onClick={e => e.stopPropagation()}>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="bg-zinc-800 text-white text-xs px-2 py-0.5 rounded-lg">
-                            {fmtFecha(pago.createdAt)} {fmtHora(pago.createdAt)}
-                          </span>
-                          <MetodoPagoChip metodo={pago.metodopago} />
-                        </div>
-                        <div className="flex items-center gap-2 bg-[#18181b] border border-[#27272a] rounded-[8px] px-2 py-1.5">
-                          {tieneVoucher && pago.voucherKey ? (
-                            <div className="w-[34px] h-[34px] rounded-[5px] overflow-hidden flex-shrink-0 bg-[#27272a] border border-[#3f3f46] cursor-pointer"
-                              onClick={() => voucherUrls[pago.id] && setLightboxUrl(voucherUrls[pago.id])}>
-                              <img src={voucherUrls[pago.id] || ''} alt="v" className="w-full h-full object-cover"
-                                onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
-                            </div>
-                          ) : (
-                            <div className="w-[34px] h-[34px] rounded-[5px] flex-shrink-0 bg-[#111] border border-[#1f1f1f] flex items-center justify-center text-lg">
-                              {pago.metodopago === 'efectivo' ? '💵' : '📲'}
-                            </div>
-                          )}
-                          <div className="min-w-0 flex-1">
-                            {voucherData?.banco      && <p className="text-white text-[11px] font-bold truncate">{voucherData.banco}</p>}
-                            {voucherData?.referencia && <p className="text-white text-[10px] font-mono truncate">{voucherData.referencia}</p>}
-                            {!voucherData && <p className="text-white text-[11px]">{pago.metodopago === 'efectivo' ? 'Efectivo' : 'Sin comprobante'}</p>}
-                          </div>
-                          <span className="text-[#34d399] text-[12px] font-bold flex-shrink-0">{fmtMonto(pago.monto)}</span>
-                          {pago.descuento && Number(pago.descuento) > 0 && (
-                            <><span className="text-[#3f3f46] text-[11px]">·</span>
-                            <span className="text-[#f87171] text-[10px] flex-shrink-0">-{fmtMonto(pago.descuento)}</span></>
-                          )}
+                        {/* Lineas de pago — 1 por linea, Efect/Banco/Otro + valor + descuento */}
+                        <div className="space-y-1">
+                          {(() => {
+                            const ls: any[] = Array.isArray((pago as any).lineasPago) && (pago as any).lineasPago.length > 0
+                              ? (pago as any).lineasPago
+                              : [{ metodoPago: pago.metodopago, monto: pago.monto, descuento: pago.descuento }]
+                            return ls.map((l: any, i: number) => {
+                              const d = Number(l.descuento || 0)
+                              return (
+                                <div key={i} className="flex items-center justify-between bg-zinc-800/50 rounded-lg px-2 py-1 text-xs">
+                                  <span className="text-zinc-300 font-semibold">{fmtMetodo(l.metodoPago)}</span>
+                                  <span className="text-blue-300 font-mono">{fmtMonto(l.monto)}</span>
+                                  <span className={d > 0 ? 'text-orange-400 font-mono' : 'text-zinc-600 font-mono'}>
+                                    {d > 0 ? `-${fmtMonto(d)}` : '—'}
+                                  </span>
+                                </div>
+                              )
+                            })
+                          })()}
                         </div>
                         {pago.notas && <p className="text-white text-xs mt-1">{pago.notas}</p>}
                         {tieneVariacion && (
@@ -721,28 +639,7 @@ export default function RecaudosPage() {
         </div>
       )}
 
-      {/* Botón flotante — solo Enviar, aparece tras validación exitosa */}
-      {tab === 'pendiente' && (validadoTodos || validadoSel) && (
-        <div className="fixed bottom-6 right-4 md:right-6 z-40 flex items-center gap-2">
-          {haySeleccion && (
-            <button onClick={() => { setSeleccionados(new Set()); setValidadoSel(false) }}
-              className="tab-btn flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold">
-              {seleccionados.size} sel. <span className="text-white/60 ml-0.5">✕</span>
-            </button>
-          )}
-          <button
-            onClick={async () => {
-              if (haySeleccion) { await enviarSeleccionados(); setValidadoSel(false) }
-              else              { await enviarTodos();         setValidadoTodos(false) }
-            }}
-            disabled={enviandoTodos || enviandoSeleccionados}
-            style={{border:'1px solid rgba(96,165,250,0.5)',background:'rgba(37,99,235,0.35)',borderRadius:'0.75rem',color:'white',boxShadow:'0 4px 16px rgba(37,99,235,0.4)',display:'flex',alignItems:'center',gap:'6px',padding:'10px 20px',fontSize:'13px',fontWeight:700,cursor:'pointer'}}>
-            {enviandoTodos || enviandoSeleccionados
-              ? '⏳ Enviando...'
-              : haySeleccion ? `📤 Enviar (${seleccionados.size})` : '📤 Enviar todos'}
-          </button>
-        </div>
-      )}
+
 
 
 

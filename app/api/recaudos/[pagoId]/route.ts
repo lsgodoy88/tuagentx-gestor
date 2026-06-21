@@ -103,6 +103,8 @@ export async function DELETE(
 
   const numeroRecibo = pago.numeroRecibo
   const yaRecibido = pago.envioEstado === 'recibido'
+  let clienteApiIdAfectado: string | null = null
+  let integracionIdAfectada: string | null = null
 
   await prisma.$transaction(async (tx) => {
     // Revertir el monto en SyncDeuda — el pago deja de existir, su descuento tambien.
@@ -111,7 +113,7 @@ export async function DELETE(
     if (pago.syncDeudaId) {
       const sd = await tx.syncDeuda.findUnique({
         where: { id: pago.syncDeudaId },
-        select: { saldo: true, valor: true }
+        select: { saldo: true, valor: true, clienteApiId: true, integracionId: true }
       })
       if (sd) {
         const saldoRevertido = Math.min(Number(sd.valor), Number(sd.saldo) + Number(pago.monto))
@@ -119,6 +121,8 @@ export async function DELETE(
           where: { id: pago.syncDeudaId },
           data: { saldo: saldoRevertido, condition: saldoRevertido > 0 }
         })
+        clienteApiIdAfectado = sd.clienteApiId
+        integracionIdAfectada = sd.integracionId
       }
     }
 
@@ -152,6 +156,18 @@ export async function DELETE(
       }
     }
   })
+
+  // Mismo patron que pago-sync al crear: refrescar CarteraCache puntual del
+  // cliente afectado, para que el dashboard del vendedor (que lee CarteraCache,
+  // no SyncDeuda) refleje la reversion sin esperar al ciclo nocturno.
+  if (clienteApiIdAfectado && integracionIdAfectada) {
+    try {
+      const { actualizarCache } = await import('@/lib/integracion/sync')
+      await actualizarCache(new Set([clienteApiIdAfectado]), integracionIdAfectada, empresaId)
+    } catch (eCache: any) {
+      console.error('[recaudos DELETE] actualizarCache fallo (no critico):', eCache.message)
+    }
+  }
 
   await invalidateKeys(
     `g:${empresaId}:stats:${fechaHoyBogota()}`,
