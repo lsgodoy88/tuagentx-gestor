@@ -211,6 +211,7 @@ export async function POST(req: NextRequest) {
         vendedorNombre: vendedorNom || null,
         saldoAnterior: saldoAnteriorTotal > 0 ? saldoAnteriorTotal : null,
         valorFactura: valorFacturaTotal > 0 ? valorFacturaTotal : null,
+        numeroFactura: aplicaciones.length > 0 ? aplicaciones[0].numeroFactura : null,
         ...(lineasValidas.length > 0 ? { lineasPago: lineasValidas } : {}),
         ...(lat != null && lng != null ? { latCobro: Number(lat), lngCobro: Number(lng), gpsAccuracy: gpsAccuracy != null ? Number(gpsAccuracy) : null } : {}),
         numeroRecibo,
