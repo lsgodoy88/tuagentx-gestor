@@ -246,29 +246,37 @@ export async function GET() {
     let puntoActual = null
     let proximoPunto = null
     const puntosCompletados: any[] = []
+    // todosLosPuntos — TODOS los clientes del dia, en orden de ruta, con su estado individual.
+    // No reemplaza puntoActual/proximoPunto (se mantienen igual para no romper nada existente),
+    // es un campo nuevo para mostrar la lista completa en el dashboard.
+    const todosLosPuntos: any[] = []
     if (rutaFija?.clientes) {
       for (const rc of rutaFija.clientes) {
         const entradas = visitasHoyImp.filter(v => v.rutaFijaClienteId === rc.id && v.tipo === 'entrada')
         const salidas  = visitasHoyImp.filter(v => v.rutaFijaClienteId === rc.id && v.tipo === 'salida')
+        const base = { nombre: rc.cliente.nombre, nombreComercial: rc.cliente.nombreComercial, orden: rc.orden }
         if (entradas.length > 0 && salidas.length > 0) {
           const entrada = entradas.sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0]
           const salida  = salidas.sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0]
           puntosCompletados.push({
-            nombre: rc.cliente.nombre, nombreComercial: rc.cliente.nombreComercial, orden: rc.orden,
+            ...base,
             horaEntrada: entrada.createdAt, horaSalida: salida.createdAt,
             // GPS de la visita real — siempre capturado en el registro, no depende de Cliente.lat/lng (puede faltar)
             lat: entrada.lat, lng: entrada.lng,
           })
-        } else if (entradas.length > 0 && salidas.length === 0 && !puntoActual) {
+          todosLosPuntos.push({ ...base, estado: 'completado', horaEntrada: entrada.createdAt, horaSalida: salida.createdAt })
+        } else if (entradas.length > 0 && salidas.length === 0) {
           const entrada = entradas.sort((a,b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())[0]
-          puntoActual = {
-            nombre: rc.cliente.nombre, nombreComercial: rc.cliente.nombreComercial, orden: rc.orden,
-            horaEntrada: entrada.createdAt, horaSalida: null,
-            lat: entrada.lat, lng: entrada.lng,
+          if (!puntoActual) {
+            puntoActual = { ...base, horaEntrada: entrada.createdAt, horaSalida: null, lat: entrada.lat, lng: entrada.lng }
           }
-        } else if (entradas.length === 0 && !puntoActual && !proximoPunto) {
-          // Próximo punto aún no tiene visita registrada — usa coordenada del cliente como referencia (puede faltar)
-          proximoPunto = { nombre: rc.cliente.nombre, nombreComercial: rc.cliente.nombreComercial, orden: rc.orden, lat: rc.cliente.lat, lng: rc.cliente.lng }
+          todosLosPuntos.push({ ...base, estado: 'dentro', horaEntrada: entrada.createdAt, horaSalida: null })
+        } else {
+          if (!puntoActual && !proximoPunto) {
+            // Próximo punto aún no tiene visita registrada — usa coordenada del cliente como referencia (puede faltar)
+            proximoPunto = { ...base, lat: rc.cliente.lat, lng: rc.cliente.lng }
+          }
+          todosLosPuntos.push({ ...base, estado: 'pendiente', horaEntrada: null, horaSalida: null })
         }
       }
     }
@@ -288,7 +296,7 @@ export async function GET() {
       id: imp.id, nombre: imp.nombre, turnoActivo: !!turnoActivo,
       totalPuntos, visitados: clientesVisitados, pct,
       alerta: pct !== null && pct < 50 && !turnoActivo,
-      puntoActual, proximoPunto, puntosCompletados,
+      puntoActual, proximoPunto, puntosCompletados, todosLosPuntos,
       alertasGps: alertasGps.map((a: any) => ({ detalle: a.detalle, hora: a.createdAt })),
       proximoDia,
     }

@@ -663,6 +663,31 @@ export default function DashboardVendedor({ user }: { user: any }) {
                   </div>
                 ))}
                 {imp.alertasGps?.length > 0 && <div style={{background:"rgba(127,29,29,0.30)",border:"1px solid rgba(239,68,68,0.30)",borderRadius:8,padding:"8px 12px"}}><p className="text-red-400 text-xs font-semibold">⚠️ Alertas GPS hoy ({imp.alertasGps.length})</p>{imp.alertasGps.slice(0,2).map((a: any, i: number) => <p key={i} className="text-red-300 text-xs">{a.detalle} — {new Date(a.hora).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'})}</p>)}</div>}
+                {imp.todosLosPuntos?.length > 0 && (
+                  <div className="mt-1">
+                    {(() => {
+                      // No repetir el punto ya mostrado arriba (puntoActual o proximoPunto)
+                      const ordenYaMostrado = imp.puntoActual?.orden ?? imp.proximoPunto?.orden ?? null
+                      const restantes = imp.todosLosPuntos.filter((pt: any) => pt.orden !== ordenYaMostrado)
+                      if (restantes.length === 0) return null
+                      return (
+                        <>
+                          <p className="text-zinc-500 text-[10px] uppercase tracking-wide mb-1">Siguientes puntos</p>
+                          <div className="space-y-1">
+                            {restantes.map((pt: any, i: number) => (
+                              <div key={i} className="flex items-center gap-2 px-2 py-1 rounded-lg" style={{background:'rgba(255,255,255,0.04)'}}>
+                                <span className={"w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 " + (pt.estado === 'completado' ? 'bg-emerald-500 text-black' : pt.estado === 'dentro' ? 'bg-emerald-500/30 text-emerald-300' : 'bg-zinc-700 text-zinc-300')}>
+                                  {pt.estado === 'completado' ? '✓' : pt.orden + 1}
+                                </span>
+                                <span className={"text-xs truncate flex-1 " + (pt.estado === 'completado' ? 'text-zinc-500' : 'text-white')}>{pt.nombre}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </>
+                      )
+                    })()}
+                  </div>
+                )}
               </div>
             )}
             {imp.totalPuntos === 0 && <div><p className="text-zinc-500 text-xs">Sin ruta asignada hoy</p>{imp.proximoDia && <p className="text-zinc-400 text-xs mt-1">📅 Próxima ruta: <span className="text-white">{imp.proximoDia}</span></p>}</div>}
