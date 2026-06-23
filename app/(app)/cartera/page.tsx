@@ -120,6 +120,7 @@ export default function CarteraPage() {
   const [guardandoPago, setGuardandoPago] = useState(false)
   const fileInputRefs = useRef<Map<string, HTMLInputElement | null>>(new Map())
   const guardandoPagoRef = useRef(false) // ref síncrono — bloquea doble tap antes del re-render
+  const filtroDiaInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (status === 'unauthenticated') router.push('/login')
@@ -1133,9 +1134,11 @@ export default function CarteraPage() {
                 </div>
                 {/* Input date */}
                 <input
+                  ref={filtroDiaInputRef}
                   type="date"
                   value={filtroDia || new Date().toLocaleDateString('en-CA',{timeZone:'America/Bogota'})}
                   onChange={e => { setFiltroDia(e.target.value); setPickerDiaAbierto(false) }}
+                  onClick={e => { try { (e.currentTarget as HTMLInputElement).showPicker?.() } catch {} }}
                   style={{
                     width:'100%', background:'rgba(15,20,40,0.90)',
                     border:'1px solid rgba(59,130,246,0.30)', borderRadius:10,

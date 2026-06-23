@@ -20,6 +20,7 @@ export async function GET(req: NextRequest) {
   const fecha = searchParams.get('fecha') || undefined
   const mes   = searchParams.get('mes')   ? parseInt(searchParams.get('mes')!)   : undefined
   const anio  = searchParams.get('anio')  ? parseInt(searchParams.get('anio')!)  : undefined
+  const numeroRecibo = searchParams.get('numeroRecibo') || undefined
   const cursor = searchParams.get('cursor') || null
   const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
   // Sin paginación cuando hay filtro de mes o día — trae todo
@@ -36,8 +37,12 @@ export async function GET(req: NextRequest) {
 
   if (empleadoIdForzado) where.empleadoId = empleadoIdForzado
   else if (vendedorId) where.empleadoId = vendedorId
-  if (estado && estado !== 'todos') where.envioEstado = estado
-  if (mes && anio) {
+  if (numeroRecibo) {
+    where.numeroRecibo = numeroRecibo
+  } else if (estado && estado !== 'todos') where.envioEstado = estado
+  if (numeroRecibo) {
+    // Búsqueda directa por recibo — ignora filtros de mes/fecha de la vista activa
+  } else if (mes && anio) {
     const inicioMes = new Date(`${anio}-${String(mes).padStart(2,'0')}-01T05:00:00.000Z`)
     const finMes    = new Date(inicioMes)
     finMes.setMonth(finMes.getMonth() + 1)
