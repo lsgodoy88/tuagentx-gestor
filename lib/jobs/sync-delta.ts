@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { UpTresAdapter, parseFechaUptresBogota } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 import { invalidatePattern } from '@/lib/cache'
-import { reconstruirCartera } from '@/lib/jobs/sync-nocturno'
+import { reconstruirCartera, reconciliarDeuda } from '@/lib/jobs/sync-nocturno'
 import { fechaBogotaStr } from '@/lib/fechas'
 import { notificarWA } from '@/lib/notificaciones'
 import fs from 'fs'
@@ -215,7 +215,50 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   // Delta saldos — removido 21/06. SyncDeuda.saldo/condition de deudas existentes
   // ahora se actualiza SOLO desde sync-nocturno.ts (single writer, evita pisar pagos locales pendientes).
   // sync-delta conserva su responsabilidad real: detectar y crear deudas NUEVAS (bloque arriba).
-  const saldosActualizados = 0
+  //
+  // EXCEPCIÓN agregada 24/06: reconciliación puntual por receivableAt (pagos recibidos en
+  // UpTres recientemente). El endpoint /cartera plano (usado por fetchDeudas en el nocturno)
+  // deja de listar órdenes ya saldadas, así que el nocturno nunca las vuelve a tocar — eso
+  // está bien para el nocturno (la deuda ya quedó correcta localmente vía pago-sync), pero
+  // el PagoCartera local queda en 'pendiente' para siempre sin esto, porque ningún sync
+  // confirma el receivableAt de UpTres y marca el pago como 'recibido'.
+  // fetchDeudasDesde() usa /cartera/update filtrado por receivableAt — SÍ incluye órdenes
+  // recién saldadas (criterio: "tuvo un pago reciente", no "sigue activa"). Solo aplica
+  // a sync-delta (alta frecuencia, 30min) — el nocturno no lo necesita.
+  let saldosActualizados = 0
+  try {
+    const desdeCartera = new Date(Date.now() - 40 * 60 * 1000) // 40min: cubre el ciclo de 30min + margen
+    const deudasConPago = await adapter.fetchDeudasDesde(desdeCartera)
+    if (deudasConPago.length > 0) {
+      const extIdsConPago = deudasConPago.map((d: any) => String(d.uid || d._id))
+      const sdExistentes = await (prisma as any).syncDeuda.findMany({
+        where: { integracionId, externalId: { in: extIdsConPago } },
+        select: { id: true, externalId: true, saldo: true, saldoUptresOriginal: true }
+      })
+      const sdMap = new Map(sdExistentes.map((sd: any) => [sd.externalId, sd]))
+
+      for (const d of deudasConPago) {
+        const externalId = String(d.uid || d._id)
+        const sdLocal: any = sdMap.get(externalId)
+        if (!sdLocal) continue // deuda no existe localmente todavía — el bloque de creación arriba la maneja
+        await reconciliarDeuda({
+          sdId: sdLocal.id,
+          externalId,
+          saldo: parseFloat(String((d as any).vSaldo ?? '0')),
+          valor: parseFloat(String((d as any).vTotal ?? '0')),
+          condicionUpTres: Boolean((d as any).condicionUpTres !== false),
+          saldoUptresAnterior: sdLocal.saldoUptresOriginal != null ? Number(sdLocal.saldoUptresOriginal) : Number(sdLocal.saldo),
+          saldoLocalActual: Number(sdLocal.saldo),
+          externalUpdatedAt: (d as any).fModificado ? new Date((d as any).fModificado) : null,
+          receivableAt: (d as any).receivableAt ? new Date((d as any).receivableAt) : null,
+          data: d,
+        }, integracionId)
+        saldosActualizados++
+      }
+    }
+  } catch (e: any) {
+    erroresParciales.push('delta-cartera-receivableAt: ' + e.message)
+  }
 
   const duracionMs = Date.now() - inicioTs
 
