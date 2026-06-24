@@ -5,6 +5,27 @@ import path from 'path'
 const BASE = 'https://serviceuptres.cloud/external/v1/api'
 const AUTH_URL = 'https://serviceuptres.cloud/external/v1/auth/api'
 
+/**
+ * UpTres entrega fechas (createdAt, invoicedAt) como string ISO con sufijo "Z",
+ * pero el valor numérico YA es hora Bogotá local, no UTC real (confirmado contra
+ * la fuente original 24/06: UpTres muestra "2026-06-19 16:11:18" como la hora real
+ * de creación, sin offset — exactamente igual al string que entrega vía API).
+ *
+ * Esta función interpreta el string ignorando el sufijo "Z" engañoso, y construye
+ * el instante UTC correcto sumando el offset de Bogotá (+5h). Usar SIEMPRE esta
+ * función al guardar fechaOrden/fechaFactura desde datos de UpTres — nunca
+ * `new Date(stringDeUptres)` directo, y nunca restar/sumar 5h manualmente después.
+ */
+export function parseFechaUptresBogota(fechaUptres: string | null | undefined): Date | null {
+  if (!fechaUptres) return null
+  // Extrae componentes ignorando timezone que el string pueda llevar (Z, +00:00, etc.)
+  const m = fechaUptres.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2}):(\d{2})/)
+  if (!m) return null
+  const [, anio, mes, dia, hora, min, seg] = m.map(Number) as unknown as number[]
+  // Date.UTC con estos componentes + 5h da el instante UTC real equivalente a esa hora Bogotá
+  return new Date(Date.UTC(anio, mes - 1, dia, hora, min, seg) + 5 * 60 * 60 * 1000)
+}
+
 // Cargar tablas DANE
 const municipiosPath = path.join(process.cwd(), 'public/municipios_dane.json')
 const departamentosPath = path.join(process.cwd(), 'public/departamentos_dane.json')

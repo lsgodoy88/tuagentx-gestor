@@ -8,7 +8,7 @@ function toBogota(d: Date | null): Date | null {
 
 import { testigo } from '@/lib/testigo'
 import { prisma } from '@/lib/prisma'
-import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
+import { UpTresAdapter, parseFechaUptresBogota } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 import fs from 'fs'
 import path from 'path'
@@ -129,12 +129,12 @@ async function syncEmpresa(empresaIdConIntegracion: string, origenVinculadaId: s
       ciudad: ciudadNombre,
       direccion,
       telefono,
-      fechaOrden: orden.fCreado ? new Date(orden.fCreado as string) : new Date(),
-      fechaOrdenBogota: orden.fCreado ? toBogota(new Date(orden.fCreado as string)) : toBogota(new Date()),
+      fechaOrden: orden.fCreado ? parseFechaUptresBogota(orden.fCreado as string) : new Date(),
+      fechaOrdenBogota: orden.fCreado ? parseFechaUptresBogota(orden.fCreado as string) : new Date(),
       totalOrden: orden.vTotal ? parseFloat(orden.vTotal) : null,
       isFacturada: orden.isInvoiced === true,
       isActiva: (orden as any).isActiva !== false, // false=cancelada en UpTres
-      fechaFactura: orden.invoicedAt ? new Date(orden.invoicedAt) : null,
+      fechaFactura: orden.invoicedAt ? parseFechaUptresBogota(orden.invoicedAt) : null,
       empresaId: empresaDestino,
       origen: 'propia',
       origenId,

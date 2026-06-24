@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
   finMes.setMonth(finMes.getMonth() + 1)
 
   const recaudos = await prisma.pagoCartera.groupBy({
-    by: ['empleadoId'],
+    by: ['empleadoId', 'metodopago'],
     where: {
       OR: [
         { Cartera: { empresaId } },
@@ -55,23 +55,43 @@ export async function GET(req: NextRequest) {
   })
 
   const configMap = Object.fromEntries(configs.map((c: any) => [c.empleadoId, c]))
-  const recaudoMap = Object.fromEntries(recaudos.map((r: any) => [r.empleadoId, r]))
+
+  // Agrega por vendedor: efectivo / transferencia / otro (todo lo demás, incluido null)
+  const porVendedor: Record<string, { efectivo: number; transferencia: number; otro: number; descuentos: number; pagosCount: number }> = {}
+  for (const r of recaudos as any[]) {
+    const id = r.empleadoId
+    if (!porVendedor[id]) porVendedor[id] = { efectivo: 0, transferencia: 0, otro: 0, descuentos: 0, pagosCount: 0 }
+    const monto = Number(r._sum?.monto || 0)
+    if (r.metodopago === 'efectivo') porVendedor[id].efectivo += monto
+    else if (r.metodopago === 'transferencia') porVendedor[id].transferencia += monto
+    else porVendedor[id].otro += monto
+    porVendedor[id].descuentos += Number(r._sum?.descuento || 0)
+    porVendedor[id].pagosCount += r._count?.id || 0
+  }
 
   const vendedoresData = vendedores.map((v: any) => {
-    const cfg = configMap[v.id] || { porcentaje: 0, formula: 'recaudado * porcentaje / 100' }
-    const rec = recaudoMap[v.id]
-    const recaudado = Number(rec?._sum?.monto || 0)
-    const descuentos = Number(rec?._sum?.descuento || 0)
+    const cfg = configMap[v.id] || { porcentaje: 0, formula: 'total/1.19*porcentaje' }
+    const agg = porVendedor[v.id] || { efectivo: 0, transferencia: 0, otro: 0, descuentos: 0, pagosCount: 0 }
+    const total = agg.efectivo + agg.transferencia + agg.otro
     const porcentaje = Number(cfg.porcentaje || 0)
-    const comision = Math.round(recaudado * porcentaje / 100)
+    const formula = cfg.formula || 'total/1.19*porcentaje'
+    let comision = 0
+    try {
+      const { Parser } = require('expr-eval')
+      comision = Math.round(new Parser().parse(formula).evaluate({ total, porcentaje }))
+    } catch {
+      comision = 0
+    }
     return {
       id: v.id,
       nombre: v.nombre,
       porcentaje,
-      formula: cfg.formula || 'recaudado * porcentaje / 100',
-      recaudado,
-      descuentos,
-      pagosCount: rec?._count?.id || 0,
+      formula,
+      efectivo: agg.efectivo,
+      transferencia: agg.transferencia,
+      otro: agg.otro,
+      total,
+      descuentos: agg.descuentos,
       comision,
     }
   })
@@ -115,11 +135,14 @@ export async function POST(req: NextRequest) {
     for (const v of vendedores || []) {
       resultados[v.id] = {
         nombre: v.nombre,
-        recaudado: v.recaudado,
+        efectivo: v.efectivo,
+        transferencia: v.transferencia,
+        otro: v.otro,
+        total: v.total,
         descuentos: v.descuentos,
         porcentaje: v.porcentaje,
+        formula: v.formula,
         comision: v.comision,
-        pagosCount: v.pagosCount,
       }
     }
     const calculo = await (prisma as any).comisionCalculo.upsert({

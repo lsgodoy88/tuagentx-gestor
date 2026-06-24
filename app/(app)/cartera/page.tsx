@@ -6,6 +6,7 @@ import { useEffect, useState, useRef, useCallback } from 'react'
 import { saveCache, loadCache } from '@/lib/offlineCache'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { Parser } from 'expr-eval'
 import { calcularEstado, estadoMasCritico } from '@/lib/cartera'
 import { CountUp, LiveDot, LoadingBorder } from '@/components/FX'
 import InputMoneda from '@/components/InputMoneda'
@@ -16,6 +17,15 @@ import { ROLES_ADMIN } from '@/lib/auth-helpers'
 import type { PagoListado, ComisionVendedor } from '@/lib/types/cartera'
 
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
+
+function evaluarComision(formula: string, total: number, porcentaje: number): number {
+  try {
+    const r = new Parser().parse(formula || 'total/1.19*porcentaje').evaluate({ total, porcentaje })
+    return Number.isFinite(r) ? Math.round(r) : 0
+  } catch {
+    return 0
+  }
+}
 const fmtShort = (n: number): string => {
   if (n >= 1_000_000) return '$' + (n / 1_000_000).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) + ' mill'
   if (n >= 1_000)     return '$' + (n / 1_000).toLocaleString('es-CO',     { minimumFractionDigits: 0, maximumFractionDigits: 1 }) + ' K'
@@ -82,6 +92,7 @@ export default function CarteraPage() {
   })
   const [comisiones, setComisiones] = useState<ComisionVendedor[]>([])
   const [comisionCalculo, setComisionCalculo] = useState<any>(null)
+  const [editandoFormulaId, setEditandoFormulaId] = useState<string | null>(null)
   const [loadingComisiones, setLoadingComisiones] = useState(false)
   const [nombreComision, setNombreComision] = useState('')
   const [guardandoComision, setGuardandoComision] = useState(false)
@@ -1370,51 +1381,80 @@ export default function CarteraPage() {
             {/* Tabla de vendedores con % */}
             <div className="rounded-2xl overflow-hidden" style={{border:'1px solid #1e2a3d'}}>
               <div className="overflow-x-auto">
-                <table className="w-full text-sm min-w-[680px]">
+                <table className="w-full text-sm min-w-[820px]">
                   <thead>
                     <tr style={{background:'#0d1220',borderBottom:'1px solid #1e2a3d'}}>
                       <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left"}}>Vendedor</th>
-                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Recaudado</th>
-                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Pagos</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Efect.</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Transf.</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Otro</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Total</th>
                       <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center"}}>% Comisión</th>
-                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left"}}>Fórmula</th>
                       <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Comisión</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {comisiones.map((v: any, i: number) => (
+                    {comisiones.map((v: any, i: number) => {
+                      const total = (v.efectivo||0) + (v.transferencia||0) + (v.otro||0)
+                      const editando = editandoFormulaId === v.id
+                      return (
                       <tr key={v.id} style={{background: i%2===0 ? '#141c2e' : '#141c2e', borderBottom:'1px solid #1e2a3d'}}>
                         <td className="px-4 py-3 text-white font-medium">{v.nombre}</td>
-                        <td className="px-4 py-3 text-right text-emerald-400 font-semibold">{fmt(v.recaudado)}</td>
-                        <td className="px-4 py-3 text-right text-zinc-400">{v.pagosCount}</td>
+                        <td className="px-4 py-3 text-right text-zinc-300">{fmt(v.efectivo||0)}</td>
+                        <td className="px-4 py-3 text-right text-zinc-300">{fmt(v.transferencia||0)}</td>
+                        <td className="px-4 py-3 text-right text-zinc-300">{fmt(v.otro||0)}</td>
+                        <td className="px-4 py-3 text-right text-emerald-400 font-semibold">{fmt(total)}</td>
                         <td className="px-4 py-3 text-center">
                           <input
                             type="number" min="0" max="100" step="0.5"
                             value={v.porcentaje}
-                            onChange={e => setComisiones(prev => prev.map(x => x.id === v.id ? { ...x, porcentaje: parseFloat(e.target.value)||0, comision: Math.round(x.recaudado * (parseFloat(e.target.value)||0) / 100) } : x))}
+                            onChange={e => {
+                              const porcentaje = parseFloat(e.target.value) || 0
+                              setComisiones(prev => prev.map(x => x.id === v.id
+                                ? { ...x, porcentaje, comision: evaluarComision(x.formula, total, porcentaje) }
+                                : x))
+                            }}
                             className="w-16 bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-white text-center text-xs outline-none focus:border-blue-500"
                           />
                           <span className="text-zinc-500 ml-1">%</span>
                         </td>
-                        <td className="px-4 py-3">
-                          <input
-                            type="text"
-                            value={v.formula || ''}
-                            onChange={e => setComisiones(prev => prev.map(x => x.id === v.id ? { ...x, formula: e.target.value } : x))}
-                            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-1 text-zinc-300 text-xs outline-none focus:border-blue-500 font-mono"
-                            placeholder="recaudado * porcentaje / 100"
-                          />
+                        <td className="px-4 py-3 text-right" title={v.formula || 'total/1.19*porcentaje'}>
+                          {editando ? (
+                            <input
+                              autoFocus
+                              type="text"
+                              defaultValue={v.formula || 'total/1.19*porcentaje'}
+                              onBlur={e => {
+                                const formula = e.target.value.trim() || 'total/1.19*porcentaje'
+                                setComisiones(prev => prev.map(x => x.id === v.id
+                                  ? { ...x, formula, comision: evaluarComision(formula, total, x.porcentaje) }
+                                  : x))
+                                setEditandoFormulaId(null)
+                              }}
+                              onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') setEditandoFormulaId(null) }}
+                              className="w-32 bg-zinc-800 border border-blue-500 rounded-lg px-2 py-1 text-zinc-200 text-xs outline-none font-mono text-right"
+                            />
+                          ) : (
+                            <span
+                              onDoubleClick={() => setEditandoFormulaId(v.id)}
+                              className="text-amber-400 font-bold cursor-pointer"
+                              title="Doble click para cambiar la fórmula">
+                              {fmt(v.comision)}
+                            </span>
+                          )}
                         </td>
-                        <td className="px-4 py-3 text-right text-amber-400 font-bold">{fmt(v.comision)}</td>
                       </tr>
-                    ))}
+                      )
+                    })}
                   </tbody>
                   <tfoot>
                     <tr style={{background:'#0d1220',borderTop:'1px solid #1e2a3d'}}>
                       <td className="px-4 py-3 text-zinc-400 font-bold">Total</td>
-                      <td className="px-4 py-3 text-right text-emerald-400 font-bold">{fmt(comisiones.reduce((s,v)=>s+v.recaudado,0))}</td>
-                      <td className="px-4 py-3 text-right text-zinc-400">{comisiones.reduce((s,v)=>s+v.pagosCount,0)}</td>
-                      <td colSpan={2}></td>
+                      <td className="px-4 py-3 text-right text-zinc-300 font-bold">{fmt(comisiones.reduce((s,v)=>s+(v.efectivo||0),0))}</td>
+                      <td className="px-4 py-3 text-right text-zinc-300 font-bold">{fmt(comisiones.reduce((s,v)=>s+(v.transferencia||0),0))}</td>
+                      <td className="px-4 py-3 text-right text-zinc-300 font-bold">{fmt(comisiones.reduce((s,v)=>s+(v.otro||0),0))}</td>
+                      <td className="px-4 py-3 text-right text-emerald-400 font-bold">{fmt(comisiones.reduce((s,v)=>s+(v.efectivo||0)+(v.transferencia||0)+(v.otro||0),0))}</td>
+                      <td></td>
                       <td className="px-4 py-3 text-right text-amber-400 font-bold">{fmt(comisiones.reduce((s,v)=>s+v.comision,0))}</td>
                     </tr>
                   </tfoot>

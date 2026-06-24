@@ -25,7 +25,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       '/cartera':       'Cartera',
       '/recaudos':      'Recaudos',
       '/rutas':         'Visitas',
-      '/rutas-fijas':   'Impulsos',
+      '/impulsos':   'Impulsos',
       '/trazabilidad':  'Despacho',
       '/reportes':      'Reportes',
       '/ordenes':       'Órdenes',
@@ -37,7 +37,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       '/historial':     'Historial',
       '/mapa-ruta':     'Mapa',
       '/bodega':        'Bodega',
-      '/impulsos':      'Impulsos',
       '/configuracion': 'Configuración',
     }
     document.title = `${titles[pathname] || 'Gestor'} — TuAgentX`
@@ -181,7 +180,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       label: 'Visitas',
       items: [
         { href: '/rutas',        label: 'Visitas',       icon: '📋' },
-        { href: '/rutas-fijas',  label: 'Impulsos',      icon: '⚡' },
+        { href: '/impulsos',  label: 'Impulsos',      icon: '⚡' },
         { href: '/trazabilidad', label: 'Despacho',  icon: '🚚' },
       ]
     }, {
@@ -204,14 +203,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           { href: '/cartera',      label: 'Cartera',     icon: '💰' },
           { href: '/trazabilidad', label: 'Despacho',icon: '🚚' },
         ] : []),
-        ...(user?.role !== 'entregas' ? [{ href: '/rutas-fijas', label: 'Impulsos', icon: '⚡' }] : []),
+        ...(user?.role !== 'entregas' ? [{ href: '/impulsos', label: 'Impulsos', icon: '⚡' }] : []),
         ...(user?.role === 'entregas' ? [{ href: '/trazabilidad', label: 'Despacho', icon: '🚚' }] : []),
       ]
     }] : []),
     ...(user?.role === 'impulsadora' ? [{
       items: [
         { href: '/impulsadora', label: 'Inicio',    icon: '⚡' },
-        { href: '/rutas-fijas', label: 'Mi semana', icon: '📌' },
+        { href: '/impulsos', label: 'Mi semana', icon: '📌' },
       ]
     }] : []),
   ]
@@ -233,7 +232,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: '/cartera',       label: 'Cartera',      icon: '💰' },
       { href: '/recaudos',      label: 'Recaudos',     icon: '💳' },
       { href: '/rutas',         label: 'Visitas',      icon: '📋' },
-      { href: '/rutas-fijas',   label: 'Impulsos',     icon: '⚡' },
+      { href: '/impulsos',   label: 'Impulsos',     icon: '⚡' },
       { href: '/trazabilidad',  label: 'Despacho', icon: '🚚' },
       { href: '/reportes',      label: 'Reportes',     icon: '📈' },
     ] : []),
@@ -248,11 +247,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { href: '/cartera',      label: 'Cartera',     icon: '💰' },
         { href: '/trazabilidad', label: 'Despacho',icon: '🚚' },
       ] : []),
-      ...(user?.role !== 'entregas' ? [{ href: '/rutas-fijas', label: 'Impulsos', icon: '⚡' }] : []),
+      ...(user?.role !== 'entregas' ? [{ href: '/impulsos', label: 'Impulsos', icon: '⚡' }] : []),
     ] : []),
     ...(user?.role === 'impulsadora' ? [
       { href: '/impulsadora', label: 'Inicio',    icon: '⚡' },
-      { href: '/rutas-fijas', label: 'Mi semana', icon: '📌' },
+      { href: '/impulsos', label: 'Mi semana', icon: '📌' },
     ] : []),
   ]
 
@@ -415,13 +414,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* ── MUESCA MÓVIL — overlay ── */}
       {drawerOpen && (
-        <div className="fixed inset-0 z-[998] md:hidden"
+        <div className="fixed inset-0 z-[2998] md:hidden"
           style={{background:'rgba(5,12,52,0.35)'}}
           onClick={() => setDrawerOpen(false)} />
       )}
 
       {/* ── DRAWER — siempre en DOM, GPU translateY ── */}
-      <div className="fixed bottom-0 left-0 right-0 z-[999] md:hidden"
+      <div className="fixed bottom-0 left-0 right-0 z-[2999] md:hidden"
         style={{
           background:'rgba(30,36,58,0.99)',
           borderTop:'1px solid rgba(59,130,246,0.30)',
@@ -507,7 +506,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <>
           {/* Banda full-width */}
           <div
-            className="fixed bottom-0 left-0 right-0 z-[999] md:hidden"
+            className="fixed bottom-0 left-0 right-0 z-[2999] md:hidden"
             style={{
               height:16,
               background:'rgba(30,36,58,0.99)',
@@ -516,7 +515,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           />
           {/* Notch — solo texto blanco */}
           <button
-            className="fixed bottom-0 left-1/2 -translate-x-1/2 z-[1000] md:hidden"
+            className="fixed bottom-0 left-1/2 -translate-x-1/2 z-[3000] md:hidden"
             onClick={() => setDrawerOpen(true)}
             style={{background:'none',border:'none',padding:0,cursor:'pointer'}}>
             <div style={{

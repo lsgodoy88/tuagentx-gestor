@@ -127,10 +127,12 @@ export interface ComisionVendedor {
   nombre: string
   porcentaje: number
   formula: string
-  recaudado: number
+  efectivo: number
+  transferencia: number
+  otro: number
+  total: number
   descuentos: number
-  pagosCount: number
-  /** Comisión calculada = recaudado * porcentaje / 100 */
+  /** Comisión calculada evaluando `formula` con variables {total, porcentaje}. Default: total/1.19*porcentaje */
   comision: number
 }
 

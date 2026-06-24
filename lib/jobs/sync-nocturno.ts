@@ -70,6 +70,23 @@ export async function reconciliarDeuda(u: ReconciliarInput, integracionId: strin
     return (prisma as any).syncDeuda.update({ where: whereSd, data: baseUpdate })
   }
 
+  // Guardia de no-regresión: si el saldo local YA refleja correctamente haber restado
+  // pendienteLocal del último saldo conocido de UpTres, el pago local ya está bien
+  // aplicado (total o parcial) — UpTres simplemente no lo ha reflejado aún. NO recalcular
+  // con la fórmula de ajuste por diferencia, que puede pisar un saldo local correcto
+  // cuando saldoUptresAnterior queda desfasado vs la realidad (bug real detectado 24/06:
+  // pago total quedó en 0 localmente y el sync siguiente lo revirtió a saldo completo).
+  // Requiere delta >= 0 (UpTres no subió) — si UpTres subió (cargo nuevo: intereses, etc.)
+  // al mismo tiempo que hay un pago pendiente, la resta de snapshots puede coincidir por
+  // casualidad y enmascarar el cargo nuevo (brecha detectada en análisis 24/06). Con
+  // delta < 0 se cae al bloque de ajuste por diferencia, que sí suma el cargo nuevo.
+  if (pendienteLocal > 0 && delta >= 0) {
+    const saldoLocalEsperado = u.saldoUptresAnterior - pendienteLocal
+    if (Math.abs(saldoLocalEsperado - u.saldoLocalActual) < 1) {
+      return (prisma as any).syncDeuda.update({ where: whereSd, data: baseUpdate })
+    }
+  }
+
   // delta no coincide con pendienteLocal (ni cubre limpio, ni es menor) — ej. cargo nuevo
   // ajeno mezclado con pago pendiente. No inferir: aplicar el ajuste sin tocar pagos.
   const ajuste = u.saldoUptresAnterior - u.saldo // positivo = bajo, negativo = subio

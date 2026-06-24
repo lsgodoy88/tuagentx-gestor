@@ -31,7 +31,7 @@ export async function GET() {
     where: whereRutas,
     include: {
       empleados: { include: { empleado: { select: { id: true, nombre: true, rol: true } } } },
-      clientes: { select: { id: true, clienteId: true, orden: true, metaVenta: true, cliente: { select: { id: true, nombre: true, nombreComercial: true, lat: true, lng: true, latTmp: true, lngTmp: true, ubicacionReal: true, direccion: true } } }, orderBy: { orden: 'asc' } }
+      clientes: { select: { id: true, clienteId: true, orden: true, metaVenta: true, horaEntrada: true, cliente: { select: { id: true, nombre: true, nombreComercial: true, lat: true, lng: true, latTmp: true, lngTmp: true, ubicacionReal: true, direccion: true } } }, orderBy: { orden: 'asc' } }
     },
     orderBy: { diaSemana: 'asc' }
   })
@@ -49,8 +49,8 @@ export async function POST(req: NextRequest) {
   const user = session.user as any
   const empresaId = getEmpresaId(user)
 
-  const { diaSemana, empleadoIds, clienteIds, metas } = await req.json()
-  // clienteIds: string[], metas: Record<string, number>
+  const { diaSemana, empleadoIds, clienteIds, metas, horas } = await req.json()
+  // clienteIds: string[], metas: Record<string, number>, horas: Record<string, string> opcional ("HH:mm")
   if (diaSemana === undefined) return NextResponse.json({ error: 'Día requerido' }, { status: 400 })
 
   const nombre = DIAS[diaSemana]
@@ -113,17 +113,25 @@ export async function POST(req: NextRequest) {
         create: (empleadoIds || []).map((id: string) => ({ id: crypto.randomUUID(), empleadoId: id }))
       },
       clientes: {
-        create: (clienteIds || []).map((id: string, i: number) => ({
-          id: crypto.randomUUID(),
-          clienteId: id,
-          orden: i,
-          metaVenta: metas?.[id] || null
-        }))
+        create: (clienteIds || []).map((id: string, i: number) => {
+          // Preserva horaEntrada del cliente si ya existía en la ruta anterior y el formulario
+          // no manda una nueva explícita -- evita la pérdida silenciosa del campo en cada guardado
+          // del día (mismo patrón deleteMany+create que ya causó bugs en listas de empleados)
+          const horaExistente = existente?.clientes.find((c: any) => c.clienteId === id)?.horaEntrada || null
+          const horaNueva = horas?.[id]
+          return {
+            id: crypto.randomUUID(),
+            clienteId: id,
+            orden: i,
+            metaVenta: metas?.[id] || null,
+            horaEntrada: horaNueva !== undefined ? (horaNueva || null) : horaExistente,
+          }
+        })
       }
     },
     include: {
       empleados: { include: { empleado: { select: { id: true, nombre: true, rol: true } } } },
-      clientes: { select: { id: true, clienteId: true, orden: true, metaVenta: true, cliente: { select: { id: true, nombre: true, nombreComercial: true, lat: true, lng: true, latTmp: true, lngTmp: true, ubicacionReal: true, direccion: true } } }, orderBy: { orden: 'asc' } }
+      clientes: { select: { id: true, clienteId: true, orden: true, metaVenta: true, horaEntrada: true, cliente: { select: { id: true, nombre: true, nombreComercial: true, lat: true, lng: true, latTmp: true, lngTmp: true, ubicacionReal: true, direccion: true } } }, orderBy: { orden: 'asc' } }
     }
   })
   const hoyStr = fechaHoyBogota()

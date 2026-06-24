@@ -3,6 +3,16 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { fetchApi } from '@/lib/fetchApi'
+
+// Formatea "HH:mm" (24h, formato guardado en BD) a texto legible 12h con AM/PM
+function fmtHora12(hhmm: string): string {
+  if (!hhmm) return ''
+  const [h, m] = hhmm.split(':').map(Number)
+  const meridiano = h >= 12 ? 'PM' : 'AM'
+  let hora12 = h % 12
+  if (hora12 === 0) hora12 = 12
+  return `${hora12}:${String(m).padStart(2, '0')} ${meridiano}`
+}
 import { useGpsEnDemanda } from '@/components/useGpsEnDemanda'
 import { estadoMasCritico } from '@/lib/cartera'
 import { CountUp, SkeletonCard, LoadingBorder } from '@/components/FX'
@@ -595,7 +605,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
 
         {/* Impulsos — botón siempre visible */}
         {(() => {
-          const tieneAlerta = statsVendedor?.cumplimiento?.some((imp: any) => imp.alerta) ?? false
+          const tieneAlerta = statsVendedor?.cumplimiento?.some((imp: any) => imp.todosLosPuntos?.some((pt: any) => pt.alertaHora)) ?? false
           return (
         <div>
           <button onClick={() => setMostrarImpulsadoras(v => !v)}
@@ -614,18 +624,17 @@ export default function DashboardVendedor({ user }: { user: any }) {
             const diaHoy = diasSemana[new Date().getDay()]
             return (
           <CardSub key={imp.id} alerta={false} className="p-3" style={{
-            background:'rgba(63,63,70,0.80)',
-            border: `1px solid ${imp.puntoActual ? 'rgba(16,185,129,0.55)' : imp.visitados === 0 ? 'rgba(239,68,68,0.55)' : imp.alerta ? 'rgba(249,115,22,0.55)' : 'rgba(255,255,255,0.12)'}`,
+            background:'rgba(30,36,58,0.99)',
+            border: `1px solid ${imp.todosLosPuntos?.some((pt: any) => pt.alertaHora) ? 'rgba(239,68,68,0.55)' : imp.puntoActual ? 'rgba(16,185,129,0.55)' : 'rgba(255,255,255,0.12)'}`,
           }}>
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
                 <div className={"w-2 h-2 rounded-full " + (imp.turnoActivo ? "bg-emerald-500" : "bg-zinc-600")} />
                 <p className="text-white text-sm font-medium">{imp.nombre}</p>
               </div>
-              <div className="flex items-center gap-2">
-                {imp.alerta && <span className="text-red-400 text-xs">Alerta</span>}
-                {imp.pct !== null && <span className={"text-xs font-bold " + (imp.pct >= 80 ? "text-emerald-400" : imp.pct >= 50 ? "text-yellow-400" : "text-red-400")}>{imp.pct}%</span>}
-              </div>
+              {imp.todosLosPuntos?.some((pt: any) => pt.alertaHora) && (
+                <span className="text-red-400 text-xs font-bold">⏰ Retraso</span>
+              )}
             </div>
             {imp.totalPuntos > 0 && (
               <div className="space-y-2">
@@ -645,8 +654,15 @@ export default function DashboardVendedor({ user }: { user: any }) {
                     <div style={{width:'25%'}} className="text-center"><p className="text-zinc-500 text-[10px] uppercase tracking-wide">Salida</p><p className="text-white text-xs font-medium">{imp.puntoActual.horaSalida ? new Date(imp.puntoActual.horaSalida).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'}) : '--:--'}</p></div>
                   </div>
                 </div>}
-                {imp.proximoPunto && <div style={{background:"rgba(148,160,185,0.28)",border:"1px solid rgba(148,180,255,0.25)",borderRadius:8,padding:"8px 12px"}}>
-                  <p className="text-zinc-400 text-xs mb-1">➡️ Va hacia:</p>
+                {imp.proximoPunto && <div style={{background: imp.proximoPunto.alertaHora ? "rgba(127,29,29,0.30)" : "rgba(148,160,185,0.28)", border: imp.proximoPunto.alertaHora ? "1px solid rgba(239,68,68,0.55)" : "1px solid rgba(148,180,255,0.25)", borderRadius:8, padding:"8px 12px"}}>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-zinc-400 text-xs">➡️ Va hacia:</p>
+                    {imp.proximoPunto.horaEntradaPlan && (
+                      <p className={"text-xs font-bold " + (imp.proximoPunto.alertaHora ? "text-red-400" : "text-amber-400")}>
+                        {imp.proximoPunto.alertaHora ? "⏰ Atrasado · " : "🕐 "}{fmtHora12(imp.proximoPunto.horaEntradaPlan)}
+                      </p>
+                    )}
+                  </div>
                   <p className="text-white text-sm font-medium truncate">{imp.proximoPunto.nombre}</p>
                   {imp.proximoPunto.nombreComercial && <p className="text-zinc-500 text-xs">{imp.proximoPunto.nombreComercial}</p>}
                 </div>}
@@ -675,11 +691,16 @@ export default function DashboardVendedor({ user }: { user: any }) {
                           <p className="text-zinc-500 text-[10px] uppercase tracking-wide mb-1">Siguientes puntos</p>
                           <div className="space-y-1">
                             {restantes.map((pt: any, i: number) => (
-                              <div key={i} className="flex items-center gap-2 px-2 py-1 rounded-lg" style={{background:'rgba(255,255,255,0.04)'}}>
-                                <span className={"w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 " + (pt.estado === 'completado' ? 'bg-emerald-500 text-black' : pt.estado === 'dentro' ? 'bg-emerald-500/30 text-emerald-300' : 'bg-zinc-700 text-zinc-300')}>
+                              <div key={i} className="flex items-center gap-2 px-2 py-1 rounded-lg" style={{background: pt.alertaHora ? 'rgba(239,68,68,0.12)' : 'rgba(255,255,255,0.04)'}}>
+                                <span className={"w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 " + (pt.estado === 'completado' ? 'bg-emerald-500 text-black' : pt.estado === 'dentro' ? 'bg-emerald-500/30 text-emerald-300' : pt.alertaHora ? 'bg-red-500/30 text-red-300' : 'bg-zinc-700 text-zinc-300')}>
                                   {pt.estado === 'completado' ? '✓' : pt.orden + 1}
                                 </span>
                                 <span className={"text-xs truncate flex-1 " + (pt.estado === 'completado' ? 'text-zinc-500' : 'text-white')}>{pt.nombre}</span>
+                                {pt.horaEntradaPlan && (
+                                  <span className={"text-[10px] font-bold flex-shrink-0 " + (pt.alertaHora ? "text-red-400" : "text-amber-400")}>
+                                    {pt.alertaHora ? "⏰ " : "🕐 "}{fmtHora12(pt.horaEntradaPlan)}
+                                  </span>
+                                )}
                               </div>
                             ))}
                           </div>

@@ -272,11 +272,19 @@ export async function GET() {
           }
           todosLosPuntos.push({ ...base, estado: 'dentro', horaEntrada: entrada.createdAt, horaSalida: null })
         } else {
+          // alertaHora: punto con horaEntrada planeada (RutaFijaCliente.horaEntrada, formato "HH:mm")
+          // y ya pasó esa hora sin registrar entrada real — bug real detectado 23/06, antes solo
+          // existía alerta global por % de venta del día, no por punto individual.
+          let alertaHora = false
+          if (rc.horaEntrada) {
+            const ahoraBogStr = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Bogota' })
+            alertaHora = ahoraBogStr >= rc.horaEntrada
+          }
           if (!puntoActual && !proximoPunto) {
             // Próximo punto aún no tiene visita registrada — usa coordenada del cliente como referencia (puede faltar)
-            proximoPunto = { ...base, lat: rc.cliente.lat, lng: rc.cliente.lng }
+            proximoPunto = { ...base, lat: rc.cliente.lat, lng: rc.cliente.lng, horaEntradaPlan: rc.horaEntrada || null, alertaHora }
           }
-          todosLosPuntos.push({ ...base, estado: 'pendiente', horaEntrada: null, horaSalida: null })
+          todosLosPuntos.push({ ...base, estado: 'pendiente', horaEntrada: null, horaSalida: null, horaEntradaPlan: rc.horaEntrada || null, alertaHora })
         }
       }
     }

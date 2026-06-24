@@ -328,6 +328,7 @@ model RutaFijaCliente {
   clienteId   String
   orden       Int      @default(0)
   metaVenta   Float?
+  horaEntrada String?
   latImpulso  Float?
   lngImpulso  Float?
   latVendedor Float?

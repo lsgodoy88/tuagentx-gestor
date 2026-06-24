@@ -30,6 +30,7 @@
     "bullmq": "^5.76.2",
     "cropperjs": "^2.1.1",
     "exceljs": "^4.4.0",
+    "expr-eval": "^2.0.2",
     "html2canvas": "^1.4.1",
     "ioredis": "^5.10.0",
     "jsonwebtoken": "^9.0.3",

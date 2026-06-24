@@ -12,7 +12,7 @@ function toBogota(d: Date | null): Date | null {
 }
 
 
-import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
+import { UpTresAdapter, parseFechaUptresBogota } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 
 const municipiosDANE: Record<string, string> = JSON.parse(
@@ -155,8 +155,8 @@ export async function POST(req: NextRequest) {
       ciudad: ciudadNombre,
       direccion,
       telefono,
-      fechaOrden: orden.fCreado ? new Date(orden.fCreado as string) : new Date(),
-      fechaOrdenBogota: orden.fCreado ? toBogota(new Date(orden.fCreado as string)) : toBogota(new Date()),
+      fechaOrden: orden.fCreado ? parseFechaUptresBogota(orden.fCreado as string) : new Date(),
+      fechaOrdenBogota: orden.fCreado ? parseFechaUptresBogota(orden.fCreado as string) : new Date(),
       totalOrden: orden.vTotal ? parseFloat(orden.vTotal) : null,
       empresaId: integracionEmpresaId,
       origen: 'propia',

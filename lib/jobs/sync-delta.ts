@@ -4,7 +4,7 @@
  * Sin dependencia de gestor HTTP — accede directo a BD y adapters
  */
 import { prisma } from '@/lib/prisma'
-import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
+import { UpTresAdapter, parseFechaUptresBogota } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 import { invalidatePattern } from '@/lib/cache'
 import { reconstruirCartera } from '@/lib/jobs/sync-nocturno'
@@ -95,11 +95,11 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
       numeroOrden: String(orden.numeroOrden || ''), numeroFactura: String(orden.numeroFacturado),
       vendedorApiId: orden.empleado?.uid || null, clienteApiId, clienteNombre: orden.clienteNombre || orden.clienteNombreApi,
       clienteNit, ciudad: ciudadNombre, direccion, telefono,
-      fechaOrden: orden.fCreado ? new Date(orden.fCreado as string) : new Date(),
-      fechaOrdenBogota: orden.fCreado ? toBogota(new Date(orden.fCreado as string)) : toBogota(new Date()),
+      fechaOrden: orden.fCreado ? parseFechaUptresBogota(orden.fCreado as string) : new Date(),
+      fechaOrdenBogota: orden.fCreado ? parseFechaUptresBogota(orden.fCreado as string) : new Date(),
       totalOrden: orden.vTotal ? parseFloat(orden.vTotal) : null,
       isFacturada: orden.isInvoiced === true, isActiva: (orden as any).isActiva !== false,
-      fechaFactura: orden.invoicedAt ? new Date(orden.invoicedAt) : null,
+      fechaFactura: orden.invoicedAt ? parseFechaUptresBogota(orden.invoicedAt) : null,
       discount: (orden as any).discount ? parseFloat((orden as any).discount) : null,
       balance: (orden as any).balance ? parseFloat((orden as any).balance) : null,
       paymentType: (orden as any).paymentType || null, paymentMethod: (orden as any).paymentMethod || null,
@@ -226,7 +226,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     for (const orden of sinFacturar) {
       const uptres = await adapter.fetchOrdenPorId(orden.origenId!)
       if (uptres?.isInvoiced && uptres.invoiceNumber) {
-        await prisma.ordenDespacho.update({ where: { id: orden.id }, data: { isFacturada: true, numeroFactura: uptres.invoiceNumber, fechaFactura: uptres.invoicedAt ? new Date(uptres.invoicedAt) : null, totalOrden: uptres.total ? parseFloat(uptres.total) : undefined, reconciliadoEn: new Date() } })
+        await prisma.ordenDespacho.update({ where: { id: orden.id }, data: { isFacturada: true, numeroFactura: uptres.invoiceNumber, fechaFactura: uptres.invoicedAt ? parseFechaUptresBogota(uptres.invoicedAt) : null, totalOrden: uptres.total ? parseFloat(uptres.total) : undefined, reconciliadoEn: new Date() } })
         reconciliadas++
       }
     }
@@ -255,7 +255,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
                 const origenId = String((orden as any).uid || (orden as any)._id)
                 const completa = await adapter.fetchOrdenCompletaPorId(origenId)
                 if (completa && completa.clienteNombre) {
-                  await prisma.ordenDespacho.upsert({ where: { origenId_empresaId: { origenId, empresaId: destino } }, create: { origenId, empresaId: destino, numeroOrden: completa.numeroOrden, numeroFactura: completa.numeroFactura || String(hueco), isFacturada: completa.isFacturada, fechaFactura: completa.fechaFactura ? new Date(completa.fechaFactura) : null, totalOrden: completa.totalOrden, balance: completa.balance, paymentType: completa.paymentType, paymentMethod: completa.paymentMethod, clienteApiId: completa.clienteApiId, clienteNit: completa.clienteNit || '', clienteNombre: completa.clienteNombre, vendedorApiId: completa.vendedorApiId, fechaOrden: completa.createdAt ? new Date(completa.createdAt) : new Date(), fechaOrdenBogota: completa.createdAt ? new Date(new Date(completa.createdAt).getTime() - 5*60*60*1000) : new Date(), origen: origenVinculadaId ? 'vinculada' : 'propia', origenVinculadaId, estado: 'pendiente', sincronizadoEn: new Date(), origenSync: 'recuperada' }, update: {} })
+                  await prisma.ordenDespacho.upsert({ where: { origenId_empresaId: { origenId, empresaId: destino } }, create: { origenId, empresaId: destino, numeroOrden: completa.numeroOrden, numeroFactura: completa.numeroFactura || String(hueco), isFacturada: completa.isFacturada, fechaFactura: completa.fechaFactura ? parseFechaUptresBogota(String(completa.fechaFactura)) : null, totalOrden: completa.totalOrden, balance: completa.balance, paymentType: completa.paymentType, paymentMethod: completa.paymentMethod, clienteApiId: completa.clienteApiId, clienteNit: completa.clienteNit || '', clienteNombre: completa.clienteNombre, vendedorApiId: completa.vendedorApiId, fechaOrden: completa.createdAt ? parseFechaUptresBogota(String(completa.createdAt)) : new Date(), fechaOrdenBogota: completa.createdAt ? parseFechaUptresBogota(String(completa.createdAt)) : new Date(), origen: origenVinculadaId ? 'vinculada' : 'propia', origenVinculadaId, estado: 'pendiente', sincronizadoEn: new Date(), origenSync: 'recuperada' }, update: {} })
                   huecosRecuperados++
                 }
               }

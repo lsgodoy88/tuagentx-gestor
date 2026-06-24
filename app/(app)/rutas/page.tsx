@@ -8,11 +8,12 @@ import { DIAS } from '@/lib/constants'
 import { checkPermiso } from '@/lib/permisos'
 const MapaHistorialCliente = dynamic(() => import('@/components/MapaHistorialCliente'), { ssr: false })
 
+// Fecha de hoy en Bogotá vía timeZone explícito — correcto sin importar el TZ
+// del navegador/dispositivo (bug real: restar 5h manualmente sobre-corrige si el
+// dispositivo ya interpreta Date en hora Bogotá nativa, detectado 24/06).
 function hoySufijo() {
-  const now = new Date(Date.now() - 5 * 60 * 60 * 1000)
-  const dd = String(now.getDate()).padStart(2, '0')
-  const mm = String(now.getMonth() + 1).padStart(2, '0')
-  const yyyy = now.getFullYear()
+  const partes = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) // "YYYY-MM-DD"
+  const [yyyy, mm, dd] = partes.split('-')
   return `${dd}-${mm}-${yyyy}`
 }
 
