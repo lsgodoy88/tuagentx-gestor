@@ -227,7 +227,18 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   // a sync-delta (alta frecuencia, 30min) — el nocturno no lo necesita.
   let saldosActualizados = 0
   try {
-    const desdeCartera = new Date(Date.now() - 40 * 60 * 1000) // 40min: cubre el ciclo de 30min + margen
+    // Cursor basado en el máximo receivableAt ya visto, NO ventana fija — si el delta
+    // se cae por horas (falla del servidor, etc.), la siguiente corrida recupera todo
+    // el hueco automáticamente en vez de perder silenciosamente lo confirmado durante
+    // la caída. Margen de 5min (mismo patrón que sync-nocturno usa para externalUpdatedAt)
+    // evita perder registros escritos justo en el límite del corte anterior.
+    const maxReceivable = await (prisma as any).syncDeuda.aggregate({
+      where: { integracionId, receivableAt: { not: null } },
+      _max: { receivableAt: true }
+    })
+    const desdeCartera = maxReceivable._max.receivableAt
+      ? new Date(new Date(maxReceivable._max.receivableAt).getTime() - 5 * 60 * 1000)
+      : new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) // fallback: sin receivableAt previo, 2 días atrás
     const deudasConPago = await adapter.fetchDeudasDesde(desdeCartera)
     if (deudasConPago.length > 0) {
       const extIdsConPago = deudasConPago.map((d: any) => String(d.uid || d._id))

@@ -5,6 +5,7 @@ import { fechaHoyBogota } from '@/lib/fechas'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN } from '@/lib/auth-helpers'
+import { recalcularEnvioEstadoPago } from '@/lib/jobs/sync-nocturno'
 
 export async function POST(
   req: NextRequest,
@@ -41,28 +42,46 @@ export async function POST(
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
-  // Capturar saldo UpTres AL MOMENTO del envío — base fresca para el descuento
-  let saldoBaseEnvio: number | null = null
-  if (pago.syncDeudaId) {
-    const deuda = await (prisma as any).syncDeuda.findUnique({
-      where: { id: pago.syncDeudaId },
-      select: { saldo: true }
-    })
-    if (deuda) saldoBaseEnvio = Number(deuda.saldo)
-  }
+  // Capturar saldo UpTres AL MOMENTO del envío — base fresca para el descuento.
+  // Multi-factura: cada Aplicacion puede tener saldoBaseEnvio distinto (facturas
+  // diferentes), se guarda como mapa syncDeudaId -> saldo en envioVariacion.
+  const aplicaciones = await (prisma as any).pagoCarteraDeuda.findMany({
+    where: { pagoId, envioEstado: 'pendiente' },
+    select: { id: true, syncDeudaId: true }
+  })
+  const syncDeudaIds = aplicaciones.length > 0
+    ? aplicaciones.map((a: any) => a.syncDeudaId)
+    : (pago.syncDeudaId ? [pago.syncDeudaId] : [])
+  const deudas = syncDeudaIds.length > 0
+    ? await (prisma as any).syncDeuda.findMany({ where: { id: { in: syncDeudaIds } }, select: { id: true, saldo: true } })
+    : []
+  const saldoBaseEnvioPorDeuda: Record<string, number> = {}
+  for (const d of deudas) saldoBaseEnvioPorDeuda[d.id] = Number(d.saldo)
 
   const envioRef = `REF-${Date.now()}`
   const envioEstado = 'enviado'
+  const ahora = new Date()
 
-  await prisma.pagoCartera.update({
-    where: { id: pagoId },
-    data: {
-      envioEstado,
-      envioFecha: new Date(),
-      envioRef,
-      envioVariacion: { saldoBaseEnvio },
-    },
-  })
+  if (aplicaciones.length > 0) {
+    // Recibo con Aplicaciones reales — marcar cada factura, luego derivar el padre.
+    // Fuente única de verdad: PagoCarteraDeuda.envioEstado (ver sync-nocturno.ts).
+    await (prisma as any).pagoCarteraDeuda.updateMany({
+      where: { id: { in: aplicaciones.map((a: any) => a.id) } },
+      data: { envioEstado: 'enviado', envioFecha: ahora }
+    })
+    await recalcularEnvioEstadoPago(pagoId)
+    await prisma.pagoCartera.update({
+      where: { id: pagoId },
+      data: { envioRef, envioVariacion: { saldoBaseEnvioPorDeuda } },
+    })
+  } else {
+    // Recibo legacy sin Aplicaciones (pagos previos a esta migración) —
+    // fallback directo sobre el padre, comportamiento idéntico al anterior.
+    await prisma.pagoCartera.update({
+      where: { id: pagoId },
+      data: { envioEstado, envioFecha: ahora, envioRef, envioVariacion: { saldoBaseEnvioPorDeuda } },
+    })
+  }
 
   await invalidateKeys(
     `g:${empresaId}:stats:${fechaHoyBogota()}`,
@@ -91,6 +110,7 @@ export async function DELETE(
     include: {
       Cartera: { select: { empresaId: true } },
       Empleado: { select: { id: true, empresaId: true, configRecibos: true } },
+      Aplicaciones: { select: { syncDeudaId: true, montoAplicado: true } },
     },
   })
   if (!pago) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
@@ -103,27 +123,30 @@ export async function DELETE(
 
   const numeroRecibo = pago.numeroRecibo
   const yaRecibido = pago.envioEstado === 'recibido'
-  let clienteApiIdAfectado: string | null = null
+  const clientesApiIdAfectados: Set<string> = new Set()
   let integracionIdAfectada: string | null = null
 
+  // Multi-factura: revertir CADA aplicación contra su propia SyncDeuda — antes
+  // solo se revertía pago.syncDeudaId (la primera factura), perdiendo la reversión
+  // de las facturas 2+ del mismo recibo (mismo bug de fondo corregido 24/06).
+  const aplicacionesARevertir = pago.Aplicaciones.length > 0
+    ? pago.Aplicaciones.map((a: any) => ({ syncDeudaId: a.syncDeudaId, montoAplicado: Number(a.montoAplicado) }))
+    : (pago.syncDeudaId ? [{ syncDeudaId: pago.syncDeudaId, montoAplicado: Number(pago.monto) }] : [])
+
   await prisma.$transaction(async (tx) => {
-    // Revertir el monto en SyncDeuda — el pago deja de existir, su descuento tambien.
-    // Si ya estaba 'recibido' (UpTres lo certifico), se revierte igual en local
-    // pero requiere correccion manual en UpTres tambien (advertencia en la respuesta).
-    if (pago.syncDeudaId) {
+    for (const a of aplicacionesARevertir) {
       const sd = await tx.syncDeuda.findUnique({
-        where: { id: pago.syncDeudaId },
+        where: { id: a.syncDeudaId },
         select: { saldo: true, valor: true, clienteApiId: true, integracionId: true }
       })
-      if (sd) {
-        const saldoRevertido = Math.min(Number(sd.valor), Number(sd.saldo) + Number(pago.monto))
-        await tx.syncDeuda.update({
-          where: { id: pago.syncDeudaId },
-          data: { saldo: saldoRevertido, condition: saldoRevertido > 0 }
-        })
-        clienteApiIdAfectado = sd.clienteApiId
-        integracionIdAfectada = sd.integracionId
-      }
+      if (!sd) continue
+      const saldoRevertido = Math.min(Number(sd.valor), Number(sd.saldo) + a.montoAplicado)
+      await tx.syncDeuda.update({
+        where: { id: a.syncDeudaId },
+        data: { saldo: saldoRevertido, condition: saldoRevertido > 0 }
+      })
+      clientesApiIdAfectados.add(sd.clienteApiId)
+      integracionIdAfectada = sd.integracionId
     }
 
     await tx.pagoCartera.delete({ where: { id: pagoId } })
@@ -157,13 +180,14 @@ export async function DELETE(
     }
   })
 
-  // Mismo patron que pago-sync al crear: refrescar CarteraCache puntual del
-  // cliente afectado, para que el dashboard del vendedor (que lee CarteraCache,
-  // no SyncDeuda) refleje la reversion sin esperar al ciclo nocturno.
-  if (clienteApiIdAfectado && integracionIdAfectada) {
+  // Mismo patron que pago-sync al crear: refrescar CarteraCache puntual de
+  // CADA cliente afectado (multi-factura puede tocar distintos clientes en
+  // EmpresaVinculada), para que el dashboard del vendedor refleje la reversion
+  // sin esperar al ciclo nocturno.
+  if (clientesApiIdAfectados.size > 0 && integracionIdAfectada) {
     try {
       const { actualizarCache } = await import('@/lib/integracion/sync')
-      await actualizarCache(new Set([clienteApiIdAfectado]), integracionIdAfectada, empresaId)
+      await actualizarCache(clientesApiIdAfectados, integracionIdAfectada, empresaId)
     } catch (eCache: any) {
       console.error('[recaudos DELETE] actualizarCache fallo (no critico):', eCache.message)
     }

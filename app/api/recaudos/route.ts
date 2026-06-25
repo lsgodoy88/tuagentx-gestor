@@ -39,9 +39,19 @@ export async function GET(req: NextRequest) {
   else if (vendedorId) where.empleadoId = vendedorId
   if (numeroRecibo) {
     where.numeroRecibo = numeroRecibo
+  } else if (estado === 'revisar') {
+    // Revisar: pagos pendientes (sin receivableAtUptres — UpTres nunca los confirmó)
+    // con más de 3 días de antigüedad. envioEstado='pendiente' YA implica
+    // receivableAtUptres=null (solo se puebla al pasar a 'recibido'). Confirmado contra
+    // SyncDeuda.condicionUpTres (24/06): estos pagos antiguos siguen con deuda activa
+    // en UpTres, sin certificación de saldada — no se deben marcar 'recibido' a mano.
+    where.envioEstado = 'pendiente'
+    where.createdAt = { lt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) }
   } else if (estado && estado !== 'todos') where.envioEstado = estado
   if (numeroRecibo) {
     // Búsqueda directa por recibo — ignora filtros de mes/fecha de la vista activa
+  } else if (estado === 'revisar') {
+    // Revisar ignora filtros de mes/fecha — siempre busca en todo el histórico
   } else if (mes && anio) {
     const inicioMes = new Date(`${anio}-${String(mes).padStart(2,'0')}-01T05:00:00.000Z`)
     const finMes    = new Date(inicioMes)
@@ -62,6 +72,7 @@ export async function GET(req: NextRequest) {
       }
     },
     Empleado: { select: { id: true, nombre: true, rol: true } },
+    Aplicaciones: { select: { numeroFactura: true, montoAplicado: true, descuento: true, envioEstado: true } },
   }
 
   if (useCursor) {

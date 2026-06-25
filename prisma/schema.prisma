@@ -477,6 +477,11 @@ model PagoCartera {
   envioFecha     DateTime?
   envioRef       String?
   envioVariacion Json?
+  receivableAtUptres DateTime?      // Fecha real en que UpTres confirmó este pago (receivableAt
+                                      // de la orden en el momento de la reconciliación). Null
+                                      // mientras envioEstado='pendiente'. Permite distinguir un
+                                      // pago lento (UpTres aún no confirma) de uno huérfano real
+                                      // (nunca se confirmará porque no corresponde a un pago real).
   Cartera        Cartera?           @relation(fields: [carteraId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   Empleado       Empleado           @relation(fields: [empleadoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   Aplicaciones   PagoCarteraDeuda[]
@@ -495,6 +500,13 @@ model PagoCarteraDeuda {
   montoAplicado Decimal     @db.Decimal(14, 2)
   descuento     Decimal?    @db.Decimal(10, 2)  // Descuento comercial por factura
   createdAt     DateTime    @default(now())
+  // Estado por FACTURA — única fuente de verdad para el envío/confirmación a UpTres.
+  // PagoCartera.envioEstado se DERIVA de estas filas (todas recibido → recibido;
+  // todas al menos enviado → enviado; cualquier otra combinación → pendiente).
+  // NUNCA duplicar este estado en PagoCartera directamente — evita desincronización.
+  envioEstado        String    @default("pendiente")
+  envioFecha         DateTime?
+  receivableAtUptres DateTime?
   PagoCartera   PagoCartera @relation(fields: [pagoId], references: [id], onDelete: Cascade)
 
   @@index([pagoId])

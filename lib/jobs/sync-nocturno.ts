@@ -12,6 +12,43 @@ import { nowBogota } from '@/lib/fechas'
 import { actualizarDeudasInactivas } from '@/lib/integracion/sync'
 import { recalcularVentasMesImpulsos } from '@/lib/integracion/venta-mes'
 
+// ── Estado derivado del PagoCartera padre ────────────────────────────────────
+// UNICA fuente de verdad: PagoCarteraDeuda.envioEstado por factura. El padre NUNCA
+// almacena su propio envioEstado de forma independiente — se calcula aquí, siempre,
+// para evitar que padre e hijos se desincronicen (bug real evitado por diseño 24/06).
+// Reglas: todas las facturas 'recibido' → 'recibido'. Todas al menos 'enviado'
+// (mezcla de enviado/recibido, sin pendientes) → 'enviado'. Cualquier otra
+// combinación (al menos una 'pendiente') → 'pendiente'.
+export function derivarEnvioEstado(aplicaciones: { envioEstado: string }[]): 'pendiente' | 'enviado' | 'recibido' {
+  if (aplicaciones.length === 0) return 'pendiente'
+  if (aplicaciones.every(a => a.envioEstado === 'recibido')) return 'recibido'
+  if (aplicaciones.every(a => a.envioEstado === 'recibido' || a.envioEstado === 'enviado')) return 'enviado'
+  return 'pendiente'
+}
+
+// Recalcula y persiste el envioEstado derivado de un PagoCartera específico,
+// a partir de sus PagoCarteraDeuda actuales. Llamar después de cualquier cambio
+// de estado en una aplicación individual (reconciliación, envío manual, etc.)
+export async function recalcularEnvioEstadoPago(pagoId: string) {
+  const aplicaciones = await (prisma as any).pagoCarteraDeuda.findMany({
+    where: { pagoId },
+    select: { envioEstado: true }
+  })
+  const estado = derivarEnvioEstado(aplicaciones)
+  const ultimaFecha = await (prisma as any).pagoCarteraDeuda.aggregate({
+    where: { pagoId, envioEstado: estado === 'pendiente' ? undefined : { not: 'pendiente' } },
+    _max: { envioFecha: true }
+  })
+  await (prisma as any).pagoCartera.update({
+    where: { id: pagoId },
+    data: {
+      envioEstado: estado,
+      envioFecha: estado !== 'pendiente' ? (ultimaFecha._max.envioFecha ?? new Date()) : null,
+    }
+  })
+  return estado
+}
+
 // ── Reconciliacion de saldo — unico punto que decide si SyncDeuda.saldo
 // se actualiza o se preserva mientras UpTres no confirme pagos locales pendientes/enviados.
 // Exportada para testing aislado (no depende de adapter ni de la transaccion del sync completo).
@@ -39,29 +76,47 @@ export async function reconciliarDeuda(u: ReconciliarInput, integracionId: strin
   }
   const whereSd = { integracionId_externalId: { integracionId, externalId: u.externalId } }
 
+  // Fuente única de verdad por FACTURA: PagoCarteraDeuda.envioEstado, nunca
+  // PagoCartera.envioEstado directo (ese se deriva, ver recalcularEnvioEstadoPago).
+  // BUG REAL corregido 24/06: antes se buscaba via PagoCartera.syncDeudaId, que solo
+  // guarda la PRIMERA factura de un recibo multi-factura — las facturas 2+ quedaban
+  // invisibles para la reconciliación.
+  async function marcarAplicacionesRecibidasYRecalcular(aplicacionIds: string[], fecha: Date) {
+    if (aplicacionIds.length === 0) return
+    await (prisma as any).pagoCarteraDeuda.updateMany({
+      where: { id: { in: aplicacionIds } },
+      data: { envioEstado: 'recibido', envioFecha: fecha, receivableAtUptres: fecha }
+    })
+    const pagoIds = await (prisma as any).pagoCarteraDeuda.findMany({
+      where: { id: { in: aplicacionIds } },
+      select: { pagoId: true },
+      distinct: ['pagoId']
+    })
+    await Promise.all(pagoIds.map((p: any) => recalcularEnvioEstadoPago(p.pagoId)))
+  }
+
   if (u.condicionUpTres === false) {
     // UpTres certifica deuda saldada — autoridad maxima, sin ambiguedad
-    await (prisma as any).pagoCartera.updateMany({
+    const aplicacionesDeEstaFactura = await (prisma as any).pagoCarteraDeuda.findMany({
       where: { syncDeudaId: u.sdId, envioEstado: { in: ['pendiente', 'enviado'] } },
-      data: { envioEstado: 'recibido' }
+      select: { id: true }
     })
+    await marcarAplicacionesRecibidasYRecalcular(aplicacionesDeEstaFactura.map((a: any) => a.id), u.receivableAt ?? new Date())
     return (prisma as any).syncDeuda.update({ where: whereSd, data: { ...baseUpdate, saldo: u.saldo, condition: false } })
   }
 
   // Deuda sigue activa en UpTres — ver si bajo por pagos locales ya conocidos
   const delta = u.saldoUptresAnterior - u.saldo // cuanto bajo segun UpTres desde el ultimo sync
-  const pagosNoReflejados = await (prisma as any).pagoCartera.findMany({
+  const aplicacionesNoReflejadas = await (prisma as any).pagoCarteraDeuda.findMany({
     where: { syncDeudaId: u.sdId, envioEstado: { in: ['pendiente', 'enviado'] } },
-    select: { id: true, monto: true }
+    select: { id: true, montoAplicado: true, pagoId: true }
   })
-  const pendienteLocal = pagosNoReflejados.reduce((s: number, p: any) => s + Number(p.monto), 0)
+  const pendienteLocal = aplicacionesNoReflejadas.reduce((s: number, a: any) => s + Number(a.montoAplicado), 0)
+  const pagosNoReflejados = aplicacionesNoReflejadas.map((a: any) => ({ id: a.pagoId, monto: a.montoAplicado }))
 
   if (pendienteLocal > 0 && Math.abs(delta - pendienteLocal) < 1) {
     // Coincidencia exacta — UpTres reflejo justo lo que teniamos pendiente
-    await (prisma as any).pagoCartera.updateMany({
-      where: { id: { in: pagosNoReflejados.map((p: any) => p.id) } },
-      data: { envioEstado: 'recibido' }
-    })
+    await marcarAplicacionesRecibidasYRecalcular(aplicacionesNoReflejadas.map((a: any) => a.id), u.receivableAt ?? new Date())
     return (prisma as any).syncDeuda.update({ where: whereSd, data: { ...baseUpdate, saldo: u.saldo, condition: u.saldo > 0 } })
   }
 

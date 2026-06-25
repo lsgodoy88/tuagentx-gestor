@@ -38,7 +38,7 @@ type Vendedor = { id: string; nombre: string }
 const TABS = [
   { key: 'pendiente', label: 'Pendientes' },
   { key: 'enviado',   label: 'Enviados'   },
-  { key: 'todos',     label: 'Todos'      },
+  { key: 'revisar',   label: 'Revisar'    },
 ]
 
 function fmtMonto(v: number | string) {
@@ -139,54 +139,69 @@ function getColumns(ctx: {
       ),
     },
     {
-      key: 'factura', label: 'Factura', width: 60, minWidth: 45,
-      render: p => (
-        <span style={{ fontFamily: 'monospace' }}>
-          {p.numeroFactura || '—'}
-        </span>
-      ),
-    },
-    {
-      key: 'cliente', label: 'Cliente', width: 260, minWidth: 100,
+      key: 'cliente', label: 'Cliente', width: 220, minWidth: 100,
       render: p => (
         <span>{p.Cartera?.Cliente?.nombre || (p as any).cliente?.nombre || (p as any).clienteNombre || '—'}</span>
       ),
     },
     {
-      key: 'saldo', label: 'Saldo', width: 100, minWidth: 70,
-      render: p => (
-        <span style={{ color: '#fde68a' }}>
-          {p.saldoAnterior ? fmtMonto(p.saldoAnterior) : '—'}
-        </span>
-      ),
+      // Una sola fuente para fila y sub-filas: reciboPago.detalles[i] — mismo
+      // formato/colores en ambas, índice 0 = fila principal, 1+ = sub-filas.
+      key: 'factura', label: 'Factura', width: 75, minWidth: 55,
+      render: p => {
+        const detalles: any[] = Array.isArray((p as any).reciboPago?.detalles) ? (p as any).reciboPago.detalles : []
+        const numero = detalles.length > 0 ? detalles[0].numeroFactura : p.numeroFactura
+        return <span style={{ fontFamily: 'monospace' }}>{numero || '—'}</span>
+      },
+      renderSub: (sub) => <span style={{ fontFamily: 'monospace' }}>{sub.numeroFactura || '—'}</span>,
     },
     {
-      key: 'metodo', label: 'Método', width: 70, minWidth: 55,
+      key: 'saldoAntes', label: 'Saldo', width: 95, minWidth: 70,
       render: p => {
-        const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0
-          ? (p as any).lineasPago : []
-        return <span>{fmtMetodo(ls.length > 0 ? ls[0].metodoPago : p.metodopago)}</span>
+        const detalles: any[] = Array.isArray((p as any).reciboPago?.detalles) ? (p as any).reciboPago.detalles : []
+        const saldo = detalles.length > 0 ? detalles[0].saldoAntes : p.saldoAnterior
+        return <span style={{ color: '#fde68a' }}>{saldo != null ? fmtMonto(saldo) : '—'}</span>
       },
-      renderSub: (sub) => <span>{fmtMetodo(sub.metodoPago)}</span>,
+      renderSub: (sub) => <span style={{ color: '#fde68a' }}>{sub.saldoAntes != null ? fmtMonto(sub.saldoAntes) : '—'}</span>,
     },
     {
-      key: 'valor', label: 'Valor', width: 100, minWidth: 70,
+      // Metodo de pago vive a nivel de RECIBO (lineasPago/metodopago), no por factura
+      // individual — se asume el mismo metodo para todas las facturas del mismo recibo
+      // (un recibo no cruza "que parte de la transferencia fue a cada factura").
+      key: 'efectivo', label: 'Efect.', width: 90, minWidth: 70,
       render: p => {
-        const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0
-          ? (p as any).lineasPago : []
-        return <span style={{ color: '#93c5fd' }}>{fmtMonto(ls.length > 0 ? ls[0].monto : p.monto)}</span>
+        const detalles: any[] = Array.isArray((p as any).reciboPago?.detalles) ? (p as any).reciboPago.detalles : []
+        const monto = detalles.length > 0 ? detalles[0].montoAplicado : p.monto
+        const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0 ? (p as any).lineasPago : []
+        const m = ls.length > 0 ? ls[0].metodoPago : p.metodopago
+        return <span style={{ color: '#34d399' }}>{m === 'efectivo' && monto != null ? fmtMonto(monto) : '—'}</span>
       },
-      renderSub: (sub) => <span style={{ color: '#93c5fd' }}>{fmtMonto(sub.monto)}</span>,
+      renderSub: (sub, p) => {
+        const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0 ? (p as any).lineasPago : []
+        const m = ls.length > 0 ? ls[0].metodoPago : p.metodopago
+        return <span style={{ color: '#34d399' }}>{m === 'efectivo' && sub.montoAplicado != null ? fmtMonto(sub.montoAplicado) : '—'}</span>
+      },
+    },
+    {
+      key: 'transferencia', label: 'Transf.', width: 90, minWidth: 70,
+      render: p => {
+        const detalles: any[] = Array.isArray((p as any).reciboPago?.detalles) ? (p as any).reciboPago.detalles : []
+        const monto = detalles.length > 0 ? detalles[0].montoAplicado : p.monto
+        const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0 ? (p as any).lineasPago : []
+        const m = ls.length > 0 ? ls[0].metodoPago : p.metodopago
+        return <span style={{ color: '#60a5fa' }}>{m === 'transferencia' && monto != null ? fmtMonto(monto) : '—'}</span>
+      },
+      renderSub: (sub, p) => {
+        const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0 ? (p as any).lineasPago : []
+        const m = ls.length > 0 ? ls[0].metodoPago : p.metodopago
+        return <span style={{ color: '#60a5fa' }}>{m === 'transferencia' && sub.montoAplicado != null ? fmtMonto(sub.montoAplicado) : '—'}</span>
+      },
     },
     {
       key: 'descuento', label: 'Desc.', width: 90, minWidth: 60,
       render: p => {
-        const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0
-          ? (p as any).lineasPago : []
-        // Si hay una sola linea sin descuento propio, usar el scalar del pago (descuento global)
-        const d = ls.length === 1
-          ? (Number(ls[0].descuento || 0) || Number(p.descuento || 0))
-          : ls.length > 1 ? Number(ls[0].descuento || 0) : Number(p.descuento || 0)
+        const detalles: any[] = Array.isArray((p as any).reciboPago?.detalles) ? (p as any).reciboPago.detalles : []
+        const d = detalles.length > 0 ? Number(detalles[0].descuento || 0) : Number(p.descuento || 0)
         return <span style={{ color: d > 0 ? '#fdba74' : 'rgba(255,255,255,0.25)' }}>{d > 0 ? `-${fmtMonto(d)}` : '—'}</span>
       },
       renderSub: (sub) => {
@@ -195,26 +210,13 @@ function getColumns(ctx: {
       },
     },
     {
-      key: 'total', label: 'Nuevo Saldo', width: 110, minWidth: 70,
+      key: 'saldoDespues', label: 'Nuevo Saldo', width: 105, minWidth: 75,
       render: p => {
-        const saldoAnt = Number(p.saldoAnterior || 0)
-        const desc = Number(p.descuento || 0)
-        const nuevoSaldo = (p as any).reciboPago?.saldoNuevo != null
-          ? Number((p as any).reciboPago.saldoNuevo)
-          : saldoAnt > 0 ? saldoAnt - Number(p.monto) - desc : null
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
-            <span style={{ color: '#86efac', fontWeight: 700 }}>{nuevoSaldo != null ? fmtMonto(nuevoSaldo) : '—'}</span>
-            {p.envioEstado === 'enviado'  && <span style={{ color: '#60a5fa', fontSize: 9 }}>✔ {fmtHora(p.envioFecha)}</span>}
-            {p.envioEstado === 'recibido' && <span style={{ color: '#4ade80', fontSize: 9 }}>✔✔</span>}
-          </div>
-        )
+        const detalles: any[] = Array.isArray((p as any).reciboPago?.detalles) ? (p as any).reciboPago.detalles : []
+        const saldo = detalles.length > 0 ? detalles[0].saldoDespues : ((p as any).reciboPago?.saldoNuevo ?? null)
+        return <span style={{ color: '#86efac', fontWeight: 700 }}>{saldo != null ? fmtMonto(saldo) : '—'}</span>
       },
-      renderSub: (sub) => {
-        const d = Number(sub.descuento || 0)
-        const v = Number(sub.monto     || 0)
-        return <span style={{ color: '#86efac', fontWeight: 700 }}>{fmtMonto(v - d)}</span>
-      },
+      renderSub: (sub) => <span style={{ color: '#86efac', fontWeight: 700 }}>{sub.saldoDespues != null ? fmtMonto(sub.saldoDespues) : '—'}</span>,
     },
   ]
 }
@@ -227,7 +229,7 @@ export default function RecaudosPage() {
   const router  = useRouter()
   const user    = session?.user as any
 
-  const [tab,                 setTab]                 = useState<'pendiente' | 'enviado' | 'todos'>('pendiente')
+  const [tab,                 setTab]                 = useState<'pendiente' | 'enviado' | 'revisar'>('pendiente')
   const [fecha,               setFecha]               = useState<string>('')
   const [pagos,               setPagos]               = useState<Pago[]>([])
   const [nextCursor,          setNextCursor]          = useState<string | null>(null)
@@ -307,7 +309,7 @@ export default function RecaudosPage() {
     if (!isAdmin) return
     const params = new URLSearchParams()
     if (vendedorId) params.set('vendedorId', vendedorId)
-    if (tab !== 'todos') params.set('estado', tab)
+    params.set('estado', tab)
     if (fecha) params.set('fecha', fecha)
     if (cursor) params.set('cursor', cursor)
 
@@ -481,6 +483,16 @@ export default function RecaudosPage() {
   if (!isAdmin) return null
 
   const cols = getColumns({  onLightbox: setLightboxUrl, voucherUrls, cargarVoucherUrl })
+  if (tab === 'enviado') {
+    cols.push({
+      key: 'envioFechaCol', label: 'Envío', width: 110, minWidth: 80,
+      render: p => (
+        <span style={{ color: '#60a5fa', fontSize: 12, whiteSpace: 'nowrap' }}>
+          {p.envioFecha ? `${fmtFecha(p.envioFecha)} ${fmtHora(p.envioFecha)}` : '—'}
+        </span>
+      ),
+    })
+  }
 
   return (
     <div className="space-y-4 pb-28 max-w-7xl mx-auto">
@@ -632,9 +644,11 @@ export default function RecaudosPage() {
             loading={loading}
             storageKey="recaudos"
             subRows={p => {
-              const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 1
-                ? (p as any).lineasPago.slice(1) : []
-              return ls
+              // Multi-factura: cada elemento de reciboPago.detalles ya trae
+              // numeroFactura/saldoAntes/montoAplicado/descuento/saldoDespues —
+              // mismo formato leído por columnas Factura/Saldo/Pago/Desc./Nuevo Saldo.
+              const detalles: any[] = Array.isArray((p as any).reciboPago?.detalles) ? (p as any).reciboPago.detalles : []
+              return detalles.length > 1 ? detalles.slice(1) : []
             }}
           />
         </div>
@@ -727,8 +741,8 @@ export default function RecaudosPage() {
                             {enEnvio ? '...' : 'Enviar'}
                           </button>
                         )}
-                        {pago.envioEstado === 'enviado'  && <span className="text-blue-400 text-xs font-semibold whitespace-nowrap">✔ {fmtHora(pago.envioFecha)}</span>}
-                        {pago.envioEstado === 'recibido' && <span className="text-emerald-400 text-xs font-semibold whitespace-nowrap">✔✔ {fmtHora(pago.envioFecha)}</span>}
+                        {pago.envioEstado === 'enviado'  && <span className="text-blue-400 text-xs font-semibold whitespace-nowrap">✔</span>}
+                        {pago.envioEstado === 'recibido' && <span className="text-emerald-400 text-xs font-semibold whitespace-nowrap">✔✔</span>}
                         {pago.envioEstado === 'enviando' && <span className="text-white text-xs animate-pulse">Enviando...</span>}
                       </div>
                     </div>
@@ -798,7 +812,6 @@ export default function RecaudosPage() {
           </button>
         </div>
       )}
-
 
 
 
