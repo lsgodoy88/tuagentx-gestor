@@ -52,6 +52,37 @@ export async function recalcularEnvioEstadoPago(pagoId: string) {
 // ── Reconciliacion de saldo — unico punto que decide si SyncDeuda.saldo
 // se actualiza o se preserva mientras UpTres no confirme pagos locales pendientes/enviados.
 // Exportada para testing aislado (no depende de adapter ni de la transaccion del sync completo).
+// Busca un subconjunto de aplicaciones cuya suma de montoAplicado coincida exacto
+// (tolerancia 1 peso por redondeo) con el target. Caso real: pagos parciales que
+// UpTres confirma en momentos distintos — el sync puede ver "bajó X" donde X coincide
+// con UNO de los pagos pendientes, no con la suma de todos. Backtracking exhaustivo,
+// limitado a 20 aplicaciones (2^20 manejable; más que eso es un caso anómalo que no
+// debería intentar resolverse por inferencia automática — preservar sin marcar).
+// Si hay múltiples subconjuntos que calzan, retorna el de MENOS elementos (el más
+// conservador: marca el mínimo necesario como recibido).
+export function encontrarSubsetExacto(
+  aplicaciones: { id: string; montoAplicado: any }[],
+  target: number
+): { id: string; montoAplicado: any }[] | null {
+  if (aplicaciones.length === 0 || aplicaciones.length > 20 || target <= 0) return null
+  let mejor: { id: string; montoAplicado: any }[] | null = null
+  function backtrack(idx: number, acumulado: number, elegidos: { id: string; montoAplicado: any }[]) {
+    if (Math.abs(acumulado - target) < 1 && elegidos.length > 0) {
+      if (!mejor || elegidos.length < mejor.length) mejor = [...elegidos]
+      return
+    }
+    if (idx >= aplicaciones.length || acumulado > target + 1) return
+    const a = aplicaciones[idx]
+    const monto = Number(a.montoAplicado)
+    elegidos.push(a)
+    backtrack(idx + 1, acumulado + monto, elegidos)
+    elegidos.pop()
+    backtrack(idx + 1, acumulado, elegidos)
+  }
+  backtrack(0, 0, [])
+  return mejor
+}
+
 export interface ReconciliarInput {
   sdId: string
   externalId: string
@@ -121,7 +152,17 @@ export async function reconciliarDeuda(u: ReconciliarInput, integracionId: strin
   }
 
   if (delta >= 0 && delta < pendienteLocal) {
-    // UpTres bajo, pero no lo suficiente para cubrir lo pendiente — preservar saldo local
+    // UpTres bajo, pero no cubre el TOTAL pendiente — antes de asumir "ningún pago
+    // individual confirmó todavía", buscar si delta coincide EXACTO con un subconjunto
+    // de las aplicaciones pendientes (caso real 25/06: pagos parciales que UpTres
+    // confirma en momentos distintos, sin que ninguno coincida con la suma total en
+    // el instante del sync — el pago más viejo SÍ puede haber confirmado ya).
+    const subset = encontrarSubsetExacto(aplicacionesNoReflejadas, delta)
+    if (subset) {
+      await marcarAplicacionesRecibidasYRecalcular(subset.map((a: any) => a.id), u.receivableAt ?? new Date())
+      return (prisma as any).syncDeuda.update({ where: whereSd, data: { ...baseUpdate, saldo: u.saldo, condition: u.saldo > 0 } })
+    }
+    // Sin coincidencia exacta de ningún subconjunto — preservar saldo local sin marcar nada
     return (prisma as any).syncDeuda.update({ where: whereSd, data: baseUpdate })
   }
 
@@ -157,6 +198,25 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
       ...(soloClienteApiIds && soloClienteApiIds.length > 0 ? { clienteApiId: { in: soloClienteApiIds } } : {})
     }
   })
+
+  // Operación: el saldo que ve el vendedor SIEMPRE resta pago+descuento ya registrado en
+  // un recibo de caja, sin importar si su envioEstado es 'pendiente' o 'enviado' — esa
+  // distinción es solo bitácora administrativa (tabs Recaudos), no debe afectar cuánto
+  // debe el cliente en pantalla. 'recibido' SÍ se excluye porque ya lo confirmó UpTres
+  // vía receivableAt y el saldo crudo de SyncDeuda ya lo refleja (ver reconciliarDeuda()).
+  // SyncDeuda.saldo en BD NO se toca aquí — sigue siendo el crudo de UpTres, intacto.
+  const sdIds = deudas.map((d: any) => d.id)
+  const pendientesPorDeuda: Record<string, number> = {}
+  if (sdIds.length > 0) {
+    const aplicacionesPendientes = await (prisma as any).pagoCarteraDeuda.findMany({
+      where: { syncDeudaId: { in: sdIds }, envioEstado: { in: ['pendiente', 'enviado'] } },
+      select: { syncDeudaId: true, montoAplicado: true, descuento: true }
+    })
+    for (const a of aplicacionesPendientes) {
+      const monto = Number(a.montoAplicado || 0) + Number(a.descuento || 0)
+      pendientesPorDeuda[a.syncDeudaId] = (pendientesPorDeuda[a.syncDeudaId] || 0) + monto
+    }
+  }
 
   const apiIds = [...new Set(deudas.map((d: any) => d.clienteApiId))]
   const clientes = await (prisma as any).cliente.findMany({
@@ -201,10 +261,13 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
       return fa - fb
     })
 
-    // d.saldo ya es confiable — reconciliarDeuda() lo actualizo justo antes en este mismo
-    // ciclo del nocturno. Aplicar calcularSaldoReal encima causaba doble resta (removido 21/06).
+    // d.saldo es el crudo de UpTres (reconciliarDeuda() lo actualiza/preserva justo antes
+    // en este mismo ciclo) — se le resta pendientesPorDeuda (pagos locales aún sin
+    // confirmar por UpTres) SOLO para lo que se muestra al vendedor, sin tocar BD.
     const deudasDetalle = deudasOrdenadas.map((d: any) => {
-      const saldoReal = Number(d.saldo)
+      const saldoCrudo = Number(d.saldo)
+      const pendienteLocal = pendientesPorDeuda[d.id] || 0
+      const saldoReal = Math.max(0, saldoCrudo - pendienteLocal)
       const valor = Number(d.valor)
       const { estado } = calcularEstado(saldoReal, valor, Number(d.abono), d.fechaVencimiento)
       porEstado[estado] = (porEstado[estado] || 0) + saldoReal
@@ -336,6 +399,53 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
           saldoLocalActual: u.saldoLocalActual, externalUpdatedAt: u.externalUpdatedAt,
           receivableAt: u.receivableAt, data: u.data,
         }, intg.id)))
+      }
+
+      // FIX 26/06 — fetchDeudas(desde) filtra por createdAt de la orden en UpTres,
+      // NO por actividad/receivableAt reciente (confirmado: 20 deudas reales con pago
+      // pendiente quedaban fuera de este filtro por tener createdAt viejo, aunque
+      // hubieran recibido pago hace poco — solo se reconciliaban el domingo en modo
+      // completo). fetchDeudasDesde() usa /cartera/update, filtrado por receivableAt
+      // real — SÍ cubre ese hueco. Solo en modo delta (en completo ya se trae todo
+      // sin filtro, este bloque sería redundante).
+      if (modo === 'delta') {
+        try {
+          const maxReceivable = await (prisma as any).syncDeuda.aggregate({
+            where: { integracionId: intg.id, receivableAt: { not: null } },
+            _max: { receivableAt: true }
+          })
+          const desdeCartera = maxReceivable._max.receivableAt
+            ? new Date(new Date(maxReceivable._max.receivableAt).getTime() - 5 * 60 * 1000)
+            : new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+          const deudasConPago = await adapter.fetchDeudasDesde(desdeCartera)
+          if (deudasConPago.length > 0) {
+            const extIdsConPago = deudasConPago.map((d: any) => String(d.uid || d._id))
+            const sdExistentes = await (prisma as any).syncDeuda.findMany({
+              where: { integracionId: intg.id, externalId: { in: extIdsConPago } },
+              select: { id: true, externalId: true, saldo: true, saldoUptresOriginal: true }
+            })
+            const sdMap = new Map(sdExistentes.map((sd: any) => [sd.externalId, sd]))
+            for (const d of deudasConPago) {
+              const externalId = String(d.uid || d._id)
+              const sdLocal: any = sdMap.get(externalId)
+              if (!sdLocal) continue // no existe localmente todavía — la crea el bloque normal
+              await reconciliarDeuda({
+                sdId: sdLocal.id,
+                externalId,
+                saldo: parseFloat(String((d as any).vSaldo ?? '0')),
+                valor: parseFloat(String((d as any).vTotal ?? '0')),
+                condicionUpTres: Boolean((d as any).condicionUpTres !== false),
+                saldoUptresAnterior: sdLocal.saldoUptresOriginal != null ? Number(sdLocal.saldoUptresOriginal) : Number(sdLocal.saldo),
+                saldoLocalActual: Number(sdLocal.saldo),
+                externalUpdatedAt: (d as any).fModificado ? new Date((d as any).fModificado) : null,
+                receivableAt: (d as any).receivableAt ? new Date((d as any).receivableAt) : null,
+                data: d,
+              }, intg.id)
+            }
+          }
+        } catch (eReceivable: any) {
+          console.error(`[sync-nocturno] fetchDeudasDesde (receivableAt) fallo (no critico):`, eReceivable.message)
+        }
       }
 
       if (modo === 'completo') {

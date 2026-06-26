@@ -7,7 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { UpTresAdapter, parseFechaUptresBogota } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 import { invalidatePattern } from '@/lib/cache'
-import { reconstruirCartera, reconciliarDeuda } from '@/lib/jobs/sync-nocturno'
+import { reconstruirCartera } from '@/lib/jobs/sync-nocturno'
 import { fechaBogotaStr } from '@/lib/fechas'
 import { notificarWA } from '@/lib/notificaciones'
 import fs from 'fs'
@@ -216,60 +216,15 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   // ahora se actualiza SOLO desde sync-nocturno.ts (single writer, evita pisar pagos locales pendientes).
   // sync-delta conserva su responsabilidad real: detectar y crear deudas NUEVAS (bloque arriba).
   //
-  // EXCEPCIÓN agregada 24/06: reconciliación puntual por receivableAt (pagos recibidos en
-  // UpTres recientemente). El endpoint /cartera plano (usado por fetchDeudas en el nocturno)
-  // deja de listar órdenes ya saldadas, así que el nocturno nunca las vuelve a tocar — eso
-  // está bien para el nocturno (la deuda ya quedó correcta localmente vía pago-sync), pero
-  // el PagoCartera local queda en 'pendiente' para siempre sin esto, porque ningún sync
-  // confirma el receivableAt de UpTres y marca el pago como 'recibido'.
-  // fetchDeudasDesde() usa /cartera/update filtrado por receivableAt — SÍ incluye órdenes
-  // recién saldadas (criterio: "tuvo un pago reciente", no "sigue activa"). Solo aplica
-  // a sync-delta (alta frecuencia, 30min) — el nocturno no lo necesita.
+  // EXCEPCIÓN agregada 24/06, REMOVIDA 25/06: reconciliación puntual por receivableAt en
+  // sync-delta. Decisión: el saldo que ve el vendedor ya NO depende de receivableAtUptres
+  // (reconstruirCartera resta pendiente+enviado al vuelo, ver sync-nocturno.ts) — confirmar
+  // 'recibido' cada 30min ya no aportaba nada operativo, solo aceleraba una bitácora
+  // administrativa (tab Recaudos/Revisar). Esa confrontación contra UpTres queda
+  // EXCLUSIVAMENTE en sync-nocturno.ts (corre 1x/día, modo completo, barre todas las
+  // deudas vía reconciliarDeuda() incluyendo subset-sum). sync-delta de día solo crea
+  // deudas/órdenes nuevas — no reconcilia saldos ni marca recibido.
   let saldosActualizados = 0
-  try {
-    // Cursor basado en el máximo receivableAt ya visto, NO ventana fija — si el delta
-    // se cae por horas (falla del servidor, etc.), la siguiente corrida recupera todo
-    // el hueco automáticamente en vez de perder silenciosamente lo confirmado durante
-    // la caída. Margen de 5min (mismo patrón que sync-nocturno usa para externalUpdatedAt)
-    // evita perder registros escritos justo en el límite del corte anterior.
-    const maxReceivable = await (prisma as any).syncDeuda.aggregate({
-      where: { integracionId, receivableAt: { not: null } },
-      _max: { receivableAt: true }
-    })
-    const desdeCartera = maxReceivable._max.receivableAt
-      ? new Date(new Date(maxReceivable._max.receivableAt).getTime() - 5 * 60 * 1000)
-      : new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) // fallback: sin receivableAt previo, 2 días atrás
-    const deudasConPago = await adapter.fetchDeudasDesde(desdeCartera)
-    if (deudasConPago.length > 0) {
-      const extIdsConPago = deudasConPago.map((d: any) => String(d.uid || d._id))
-      const sdExistentes = await (prisma as any).syncDeuda.findMany({
-        where: { integracionId, externalId: { in: extIdsConPago } },
-        select: { id: true, externalId: true, saldo: true, saldoUptresOriginal: true }
-      })
-      const sdMap = new Map(sdExistentes.map((sd: any) => [sd.externalId, sd]))
-
-      for (const d of deudasConPago) {
-        const externalId = String(d.uid || d._id)
-        const sdLocal: any = sdMap.get(externalId)
-        if (!sdLocal) continue // deuda no existe localmente todavía — el bloque de creación arriba la maneja
-        await reconciliarDeuda({
-          sdId: sdLocal.id,
-          externalId,
-          saldo: parseFloat(String((d as any).vSaldo ?? '0')),
-          valor: parseFloat(String((d as any).vTotal ?? '0')),
-          condicionUpTres: Boolean((d as any).condicionUpTres !== false),
-          saldoUptresAnterior: sdLocal.saldoUptresOriginal != null ? Number(sdLocal.saldoUptresOriginal) : Number(sdLocal.saldo),
-          saldoLocalActual: Number(sdLocal.saldo),
-          externalUpdatedAt: (d as any).fModificado ? new Date((d as any).fModificado) : null,
-          receivableAt: (d as any).receivableAt ? new Date((d as any).receivableAt) : null,
-          data: d,
-        }, integracionId)
-        saldosActualizados++
-      }
-    }
-  } catch (e: any) {
-    erroresParciales.push('delta-cartera-receivableAt: ' + e.message)
-  }
 
   const duracionMs = Date.now() - inicioTs
 

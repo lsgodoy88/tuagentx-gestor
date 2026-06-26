@@ -16,7 +16,7 @@ vi.mock('@/lib/prisma', () => ({
   },
 }))
 
-import { reconciliarDeuda, derivarEnvioEstado } from '@/lib/jobs/sync-nocturno'
+import { reconciliarDeuda, derivarEnvioEstado, encontrarSubsetExacto } from '@/lib/jobs/sync-nocturno'
 import { prisma } from '@/lib/prisma'
 
 const INT_ID = 'intg-1'
@@ -166,6 +166,92 @@ describe('sync-nocturno — reconciliarDeuda', () => {
     expect((prisma as any).syncDeuda.update).toHaveBeenCalledWith(
       expect.objectContaining({ data: expect.objectContaining({ saldo: 350000, condition: true }) })
     )
+  })
+
+  // ── Subset exacto (caso real Nancy Benítez, 25/06) ──────────────────────────
+  it('delta coincide con UN subconjunto de aplicaciones pendientes (no la suma total) → marca solo ese subconjunto recibido', async () => {
+    // 3 pagos: 100000 (5/jun), 70000 (11/jun), 100000 (18/jun). UpTres confirmó
+    // los primeros 2 (delta=170000) pero el sync los ve junto al tercero (pendienteLocal=270000)
+    vi.mocked((prisma as any).pagoCarteraDeuda.findMany)
+      .mockResolvedValueOnce([
+        { id: 'apl-1', montoAplicado: 100000, pagoId: 'p1' },
+        { id: 'apl-2', montoAplicado: 70000, pagoId: 'p2' },
+        { id: 'apl-3', montoAplicado: 100000, pagoId: 'p3' },
+      ])
+      .mockResolvedValueOnce([{ pagoId: 'p1' }, { pagoId: 'p2' }])
+      .mockResolvedValueOnce([{ envioEstado: 'recibido' }])
+      .mockResolvedValueOnce([{ envioEstado: 'recibido' }])
+    vi.mocked((prisma as any).pagoCarteraDeuda.updateMany).mockResolvedValue({ count: 2 })
+    vi.mocked((prisma as any).pagoCartera.update).mockResolvedValue({})
+    vi.mocked((prisma as any).syncDeuda.update).mockResolvedValue({})
+
+    await reconciliarDeuda({
+      sdId: 'sd-1', externalId: 'ext-1', saldo: 191500, valor: 361500,
+      condicionUpTres: true, saldoUptresAnterior: 361500, saldoLocalActual: 91500,
+    }, INT_ID)
+
+    expect((prisma as any).pagoCarteraDeuda.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ['apl-1', 'apl-2'] } },
+      data: expect.objectContaining({ envioEstado: 'recibido' }),
+    })
+    expect((prisma as any).syncDeuda.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ saldo: 191500, condition: true }) })
+    )
+  })
+
+  it('delta no coincide con ningún subconjunto → preserva sin marcar nada (comportamiento previo intacto)', async () => {
+    vi.mocked((prisma as any).pagoCarteraDeuda.findMany).mockResolvedValueOnce([
+      { id: 'apl-1', montoAplicado: 100000, pagoId: 'p1' },
+      { id: 'apl-2', montoAplicado: 70000, pagoId: 'p2' },
+    ])
+    vi.mocked((prisma as any).syncDeuda.update).mockResolvedValue({})
+
+    // delta=50000 — no coincide con 100000, ni 70000, ni 170000 (la suma)
+    await reconciliarDeuda({
+      sdId: 'sd-1', externalId: 'ext-1', saldo: 250000, valor: 500000,
+      condicionUpTres: true, saldoUptresAnterior: 300000, saldoLocalActual: 130000,
+    }, INT_ID)
+
+    expect((prisma as any).pagoCarteraDeuda.updateMany).not.toHaveBeenCalled()
+    const callData = vi.mocked((prisma as any).syncDeuda.update).mock.calls[0][0].data
+    expect(callData.saldo).toBeUndefined()
+  })
+})
+
+describe('sync-nocturno — encontrarSubsetExacto', () => {
+  it('encuentra el subconjunto exacto entre varias aplicaciones', () => {
+    const aplicaciones = [
+      { id: 'a', montoAplicado: 100000 },
+      { id: 'b', montoAplicado: 70000 },
+      { id: 'c', montoAplicado: 100000 },
+    ]
+    const resultado = encontrarSubsetExacto(aplicaciones, 170000)
+    expect(resultado?.map(r => r.id).sort()).toEqual(['a', 'b'])
+  })
+
+  it('retorna null si ningún subconjunto coincide', () => {
+    const aplicaciones = [
+      { id: 'a', montoAplicado: 100000 },
+      { id: 'b', montoAplicado: 70000 },
+    ]
+    expect(encontrarSubsetExacto(aplicaciones, 50000)).toBeNull()
+  })
+
+  it('retorna el subconjunto de MENOS elementos cuando hay varios que calzan', () => {
+    const aplicaciones = [
+      { id: 'a', montoAplicado: 50000 },
+      { id: 'b', montoAplicado: 50000 },
+      { id: 'c', montoAplicado: 100000 },
+    ]
+    // tanto [a,b] como [c] suman 100000 — debe preferir [c] (1 elemento, mas conservador)
+    const resultado = encontrarSubsetExacto(aplicaciones, 100000)
+    expect(resultado?.length).toBe(1)
+    expect(resultado?.[0].id).toBe('c')
+  })
+
+  it('retorna null con target<=0 o lista vacía', () => {
+    expect(encontrarSubsetExacto([], 100)).toBeNull()
+    expect(encontrarSubsetExacto([{ id: 'a', montoAplicado: 100 }], 0)).toBeNull()
   })
 })
 

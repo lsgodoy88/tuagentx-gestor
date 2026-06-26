@@ -15,17 +15,11 @@ export function NetworkBanner() {
 
   return (
     <>
-      {/* Glow 4 lados */}
-      <div className="fixed top-0 left-0 right-0 z-[9998] pointer-events-none" style={{ height: '28px', background: 'linear-gradient(to bottom, rgba(239,68,68,0.55), transparent)', animation: 'edgePulse 2s ease-in-out infinite' }} />
-      <div className="fixed bottom-0 left-0 right-0 z-[9998] pointer-events-none" style={{ height: '28px', background: 'linear-gradient(to top, rgba(239,68,68,0.55), transparent)', animation: 'edgePulse 2s ease-in-out infinite' }} />
-      <div className="fixed top-0 bottom-0 left-0 z-[9998] pointer-events-none" style={{ width: '28px', background: 'linear-gradient(to right, rgba(239,68,68,0.55), transparent)', animation: 'edgePulse 2s ease-in-out infinite' }} />
-      <div className="fixed top-0 bottom-0 right-0 z-[9998] pointer-events-none" style={{ width: '28px', background: 'linear-gradient(to left, rgba(239,68,68,0.55), transparent)', animation: 'edgePulse 2s ease-in-out infinite' }} />
-      <style>{`
-        @keyframes edgePulse {
-          0%,100% { opacity: 0; }
-          50%      { opacity: 1; }
-        }
-      `}</style>
+      {/* Glow 4 lados — difuminado fijo, sin pulso */}
+      <div className="fixed top-0 left-0 right-0 z-[9998] pointer-events-none" style={{ height: '28px', background: 'linear-gradient(to bottom, rgba(239,68,68,0.55), transparent)' }} />
+      <div className="fixed bottom-0 left-0 right-0 z-[9998] pointer-events-none" style={{ height: '28px', background: 'linear-gradient(to top, rgba(239,68,68,0.55), transparent)' }} />
+      <div className="fixed top-0 bottom-0 left-0 z-[9998] pointer-events-none" style={{ width: '28px', background: 'linear-gradient(to right, rgba(239,68,68,0.55), transparent)' }} />
+      <div className="fixed top-0 bottom-0 right-0 z-[9998] pointer-events-none" style={{ width: '28px', background: 'linear-gradient(to left, rgba(239,68,68,0.55), transparent)' }} />
 
     <div
       title={label}
@@ -51,9 +45,6 @@ export function NetworkBanner() {
           <line x1="20" y1="3" x2="14" y2="9" stroke="#ef4444" strokeWidth="2" strokeLinecap="round"/>
         </svg>
 
-        {/* Pulso animado */}
-        <span className="absolute inset-0 rounded-2xl animate-ping"
-          style={{background:'rgba(220,38,38,0.20)', animationDuration:'2s'}} />
       </div>
 
       {/* Tooltip — aparece al hover/focus */}

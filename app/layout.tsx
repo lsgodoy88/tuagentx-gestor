@@ -3,6 +3,7 @@ import { Geist } from 'next/font/google'
 import './globals.css'
 import Providers from './providers'
 import SwUpdateNotifier from './sw-update-notifier'
+import StaleDeployGuard from './StaleDeployGuard'
 
 const geist = Geist({ subsets: ['latin'] })
 
@@ -18,6 +19,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={`${geist.className} text-white`} style={{background:'#060f2c'}}>
         <Providers>{children}</Providers>
         <SwUpdateNotifier />
+        <StaleDeployGuard />
       </body>
     </html>
   )

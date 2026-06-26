@@ -38,7 +38,7 @@ module.exports = {
     min_uptime: '10s',
     script: 'node_modules/next/dist/bin/next',
     args: 'start -p 3011',
-    cwd: '/srv/gestor',
+    cwd: '/srv/gestor-staging',
     env: {
       NODE_ENV:           'production',
       DATABASE_URL:       env.DATABASE_URL,

@@ -41,12 +41,15 @@ export async function GET(req: NextRequest) {
     where.numeroRecibo = numeroRecibo
   } else if (estado === 'revisar') {
     // Revisar: pagos pendientes (sin receivableAtUptres — UpTres nunca los confirmó)
-    // con más de 3 días de antigüedad. envioEstado='pendiente' YA implica
+    // con más de 8 días de antigüedad (subido de 3→8 el 25/06: la confirmación 'recibido'
+    // ahora corre EXCLUSIVAMENTE en sync-nocturno 1x/día, no en sync-delta cada 30min —
+    // umbral más alto evita marcar como "para revisar" pagos que aún están en ventana
+    // normal de espera del ciclo nocturno). envioEstado='pendiente' YA implica
     // receivableAtUptres=null (solo se puebla al pasar a 'recibido'). Confirmado contra
     // SyncDeuda.condicionUpTres (24/06): estos pagos antiguos siguen con deuda activa
     // en UpTres, sin certificación de saldada — no se deben marcar 'recibido' a mano.
     where.envioEstado = 'pendiente'
-    where.createdAt = { lt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) }
+    where.createdAt = { lt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000) }
   } else if (estado && estado !== 'todos') where.envioEstado = estado
   if (numeroRecibo) {
     // Búsqueda directa por recibo — ignora filtros de mes/fecha de la vista activa
