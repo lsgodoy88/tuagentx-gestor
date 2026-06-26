@@ -203,7 +203,7 @@ export async function runTurnosDia(forzar = false): Promise<{
     const diasCerrar = empresa.diasCerrarRuta.split(',').map(Number)
 
     const empleados = await prisma.empleado.findMany({
-      where: { empresaId: empresa.id, activo: true, rol: { in: ['vendedor', 'supervisor'] } },
+      where: { empresaId: empresa.id, activo: true, rol: { in: ['vendedor', 'supervisor', 'entregas'] } }, // 'entregas' agregado 26/06 — quedaban fuera de apertura/cierre automatico, turnos eternos sin cerrar (caso real: David Orjuela, 182h abierto)
       select: { id: true, nombre: true, email: true }
     })
 

@@ -194,27 +194,32 @@ export async function reconciliarDeuda(u: ReconciliarInput, integracionId: strin
 export async function reconstruirCartera(integracionId: string, empresaId: string, soloClienteApiIds?: string[]) {
   const deudas = await (prisma as any).syncDeuda.findMany({
     where: {
-      integracionId, condition: true, saldo: { gt: 0 }, // condition=true (UpTres activa) AND saldo>0
+      integracionId, condition: true, // condition=true (UpTres activa) — el filtro de saldo>0
+      // ahora se aplica sobre nSaldo (nuestra matematica), no sobre saldo crudo de UpTres,
+      // ver FIX 26/06 mas abajo: vTotal - SUM(todos nuestros pagos) puede ya ser 0 aunque
+      // UpTres siga mostrando saldo>0 por movimientos externos a nuestra app
       ...(soloClienteApiIds && soloClienteApiIds.length > 0 ? { clienteApiId: { in: soloClienteApiIds } } : {})
     }
   })
 
-  // Operación: el saldo que ve el vendedor SIEMPRE resta pago+descuento ya registrado en
-  // un recibo de caja, sin importar si su envioEstado es 'pendiente' o 'enviado' — esa
-  // distinción es solo bitácora administrativa (tabs Recaudos), no debe afectar cuánto
-  // debe el cliente en pantalla. 'recibido' SÍ se excluye porque ya lo confirmó UpTres
-  // vía receivableAt y el saldo crudo de SyncDeuda ya lo refleja (ver reconciliarDeuda()).
-  // SyncDeuda.saldo en BD NO se toca aquí — sigue siendo el crudo de UpTres, intacto.
+  // FIX 26/06 — nSaldo: el saldo que ve el vendedor ahora se calcula como
+  // vTotal (SyncDeuda.valor, fijo) MENOS la suma de TODOS nuestros pagos/abonos
+  // registrados para esa factura, sin importar envioEstado (pendiente, enviado
+  // o recibido cuentan igual) — deja de depender de SyncDeuda.saldo (crudo de
+  // UpTres, que puede mezclar pagos externos a nuestra app, ver casos reales
+  // facturas 8821/3704 confirmados 26/06). SyncDeuda.saldo en BD NO se toca
+  // aquí, sigue siendo el crudo de UpTres intacto — solo cambia QUÉ se resta
+  // y DESDE QUÉ base se resta para lo que se muestra al vendedor.
   const sdIds = deudas.map((d: any) => d.id)
-  const pendientesPorDeuda: Record<string, number> = {}
+  const totalPagadoPorDeuda: Record<string, number> = {}
   if (sdIds.length > 0) {
-    const aplicacionesPendientes = await (prisma as any).pagoCarteraDeuda.findMany({
-      where: { syncDeudaId: { in: sdIds }, envioEstado: { in: ['pendiente', 'enviado'] } },
+    const todasLasAplicaciones = await (prisma as any).pagoCarteraDeuda.findMany({
+      where: { syncDeudaId: { in: sdIds } }, // TODOS los estados — pendiente+enviado+recibido
       select: { syncDeudaId: true, montoAplicado: true, descuento: true }
     })
-    for (const a of aplicacionesPendientes) {
+    for (const a of todasLasAplicaciones) {
       const monto = Number(a.montoAplicado || 0) + Number(a.descuento || 0)
-      pendientesPorDeuda[a.syncDeudaId] = (pendientesPorDeuda[a.syncDeudaId] || 0) + monto
+      totalPagadoPorDeuda[a.syncDeudaId] = (totalPagadoPorDeuda[a.syncDeudaId] || 0) + monto
     }
   }
 
@@ -261,23 +266,40 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
       return fa - fb
     })
 
-    // d.saldo es el crudo de UpTres (reconciliarDeuda() lo actualiza/preserva justo antes
-    // en este mismo ciclo) — se le resta pendientesPorDeuda (pagos locales aún sin
-    // confirmar por UpTres) SOLO para lo que se muestra al vendedor, sin tocar BD.
-    const deudasDetalle = deudasOrdenadas.map((d: any) => {
-      const saldoCrudo = Number(d.saldo)
-      const pendienteLocal = pendientesPorDeuda[d.id] || 0
-      const saldoReal = Math.max(0, saldoCrudo - pendienteLocal)
-      const valor = Number(d.valor)
-      const { estado } = calcularEstado(saldoReal, valor, Number(d.abono), d.fechaVencimiento)
-      porEstado[estado] = (porEstado[estado] || 0) + saldoReal
-      saldoTotal += valor
-      saldoPendiente += saldoReal
-      return { id: d.id, externalId: d.externalId, numeroOrden: d.numeroOrden, numeroFactura: d.numeroFactura, valor, saldo: saldoReal, abono: Number(d.abono), diasCredito: d.diasCredito, fechaVencimiento: d.fechaVencimiento, estado }
-    })
+    // FIX 26/06 — nSaldo = vTotal - totalPagado (nuestra propia matemática,
+    // ya NO parte de d.saldo crudo de UpTres). d.saldo se preserva en BD sin
+    // tocar (reconciliarDeuda() sigue actualizándolo normal cada noche, sirve
+    // de referencia para "Revisar" en recaudos/route.ts) — pero deja de ser
+    // la base de lo que el vendedor ve. Filtro de "saldo>0" ahora se aplica
+    // sobre nSaldo, no sobre el crudo: una factura con d.saldo>0 pero ya
+    // cubierta por nuestros propios pagos (nSaldo<=0) deja de mostrarse.
+    const deudasDetalle = deudasOrdenadas
+      .map((d: any) => {
+        const valor = Number(d.valor)
+        const totalPagado = totalPagadoPorDeuda[d.id] || 0
+        const nSaldo = Math.max(0, valor - totalPagado)
+        const { estado } = calcularEstado(nSaldo, valor, Number(d.abono), d.fechaVencimiento)
+        return { id: d.id, externalId: d.externalId, numeroOrden: d.numeroOrden, numeroFactura: d.numeroFactura, valor, saldo: nSaldo, abono: Number(d.abono), diasCredito: d.diasCredito, fechaVencimiento: d.fechaVencimiento, estado, _nSaldo: nSaldo }
+      })
+      .filter((d: any) => d._nSaldo > 0) // FIX 26/06: ya no se muestra si nuestra propia cuenta da 0
 
-    // No incluir clientes sin saldo pendiente real
-    if (saldoPendiente <= 0) continue
+    for (const d of deudasDetalle) {
+      porEstado[d.estado] = (porEstado[d.estado] || 0) + d.saldo
+      saldoTotal += d.valor
+      saldoPendiente += d.saldo
+      delete (d as any)._nSaldo
+    }
+
+    // FIX 26/06 — cliente sin saldo pendiente real: antes este 'continue' saltaba
+    // el upsert dejando un registro VIEJO huérfano en CarteraCache si el cliente
+    // ya tenía cache previo (mostraba saldo desactualizado indefinidamente, nunca
+    // se limpiaba). Con nSaldo (este FIX) más clientes llegan a $0 más rápido que
+    // antes (ya no esperan confirmación de UpTres) — se vuelve más frecuente, así
+    // que ahora se borra explícitamente el cache existente en vez de solo saltar.
+    if (saldoPendiente <= 0) {
+      await (prisma as any).carteraCache.deleteMany({ where: { integracionId, clienteApiId: apiId } })
+      continue
+    }
 
     await (prisma as any).carteraCache.upsert({
       where: { integracionId_clienteApiId: { integracionId, clienteApiId: apiId } },

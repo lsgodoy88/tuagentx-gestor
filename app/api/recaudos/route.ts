@@ -40,16 +40,35 @@ export async function GET(req: NextRequest) {
   if (numeroRecibo) {
     where.numeroRecibo = numeroRecibo
   } else if (estado === 'revisar') {
-    // Revisar: pagos pendientes (sin receivableAtUptres — UpTres nunca los confirmó)
-    // con más de 8 días de antigüedad (subido de 3→8 el 25/06: la confirmación 'recibido'
-    // ahora corre EXCLUSIVAMENTE en sync-nocturno 1x/día, no en sync-delta cada 30min —
-    // umbral más alto evita marcar como "para revisar" pagos que aún están en ventana
-    // normal de espera del ciclo nocturno). envioEstado='pendiente' YA implica
-    // receivableAtUptres=null (solo se puebla al pasar a 'recibido'). Confirmado contra
-    // SyncDeuda.condicionUpTres (24/06): estos pagos antiguos siguen con deuda activa
-    // en UpTres, sin certificación de saldada — no se deben marcar 'recibido' a mano.
-    where.envioEstado = 'pendiente'
-    where.createdAt = { lt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000) }
+    // FIX 26/06 — Revisar ya NO filtra por antigüedad de un pago individual.
+    // Nueva lógica: una factura (SyncDeuda) entra a Revisar si (a) tiene AL MENOS
+    // un pago en estado 'enviado' (señal de que alguien ya marcó "ya se le avisó
+    // a UpTres"), (b) SaldoUpTres (SyncDeuda.saldo, crudo) sigue sin coincidir con
+    // nSaldo (nuestra propia matemática: valor - SUM(todos los pagos), ver
+    // reconstruirCartera() en sync-nocturno.ts) y (c) han pasado 10+ días desde
+    // el ÚLTIMO pago/abono registrado a esa factura — control de que no se
+    // "escape" un valor sin reconciliar en UpTres. Filtro inicial por empresa vía
+    // Integracion.empresaId — aísla Lumeli/Leche, ver EmpresaVinculada.
+    const syncDeudasCandidatas = await (prisma as any).syncDeuda.findMany({
+      where: {
+        Integracion: { empresaId },
+        Aplicaciones: { some: { envioEstado: 'enviado' } },
+      },
+      select: { id: true, valor: true, saldo: true, Aplicaciones: { select: { montoAplicado: true, descuento: true, createdAt: true } } }
+    })
+    const diezDiasMs = 10 * 24 * 60 * 60 * 1000
+    const sdIdsParaRevisar: string[] = []
+    for (const sd of syncDeudasCandidatas) {
+      const totalPagado = sd.Aplicaciones.reduce((acc: number, a: any) => acc + Number(a.montoAplicado || 0) + Number(a.descuento || 0), 0)
+      const nSaldo = Math.max(0, Number(sd.valor) - totalPagado)
+      const saldoUpTres = Number(sd.saldo)
+      if (saldoUpTres === nSaldo) continue // ya coinciden, no hay anomalía
+      const ultimoAbono = sd.Aplicaciones.reduce((max: number, a: any) => Math.max(max, new Date(a.createdAt).getTime()), 0)
+      if (ultimoAbono === 0) continue
+      if (Date.now() - ultimoAbono < diezDiasMs) continue // todavía dentro de ventana normal
+      sdIdsParaRevisar.push(sd.id)
+    }
+    where.Aplicaciones = { some: { syncDeudaId: { in: sdIdsParaRevisar } } }
   } else if (estado && estado !== 'todos') where.envioEstado = estado
   if (numeroRecibo) {
     // Búsqueda directa por recibo — ignora filtros de mes/fecha de la vista activa
