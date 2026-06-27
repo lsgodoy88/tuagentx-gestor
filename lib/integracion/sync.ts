@@ -212,10 +212,16 @@ export async function actualizarCache(
 
   const apiIdsArr = [...clienteApiIds]
 
-  // Traer deudas activas de los clientes afectados
-  // Incluir condition=false si aún tienen saldo pendiente (UpTres las cerró pero no se cobró)
+  // FIX 26/06 — ya no filtramos por saldo crudo de UpTres > 0. Una deuda puede
+  // tener saldo>0 en UpTres pero nSaldo<=0 si ya la cubrimos con nuestros propios
+  // pagos (ver reconstruirCartera() en sync-nocturno.ts, misma lógica aquí).
+  // Traemos TODAS las deudas activas (condition=true) o condition=false con
+  // saldo>0 residual, y filtramos por nSaldo más abajo, después de calcularlo.
   const deudas = await (prisma as any).syncDeuda.findMany({
-    where: { integracionId, clienteApiId: { in: apiIdsArr }, saldo: { gt: 0 } }
+    where: {
+      integracionId, clienteApiId: { in: apiIdsArr },
+      OR: [{ condition: true }, { condition: false, saldo: { gt: 0 } }],
+    }
   })
 
   // Traer clientes
@@ -268,30 +274,53 @@ export async function actualizarCache(
     let saldoTotal = 0
     let saldoPendiente = 0
 
-    const deudasDetalle = deudasCliente.map((d: any) => {
-      // d.saldo ya es confiable — sync-nocturno.ts lo reconcilia contra UpTres antes
-      // de que este job corra. calcularSaldoReal aqui causaba doble resta (removido 21/06).
-      const saldoReal = Number(d.saldo)
-      const valor = Number(d.valor)
-      const { estado } = calcularEstado(saldoReal, valor, Number(d.abono), d.fechaVencimiento)
-      porEstado[estado] = (porEstado[estado] || 0) + saldoReal
-
-      saldoTotal += valor
-      saldoPendiente += saldoReal
-
-      return {
-        id: d.id,
-        externalId: d.externalId,
-        numeroOrden: d.numeroOrden,
-        numeroFactura: d.numeroFactura,
-        valor,
-        saldo: saldoReal,
-        abono: Number(d.abono),
-        diasCredito: d.diasCredito,
-        fechaVencimiento: d.fechaVencimiento,
-        estado,
+    // FIX 26/06 — nSaldo = vTotal - SUM(todos los pagos/abonos de esta factura,
+    // cualquier envioEstado). Mismo principio que reconstruirCartera() en
+    // sync-nocturno.ts — esta función (actualizarCache) se llama tras crear o
+    // eliminar un pago individual (pago-sync, DELETE recaudos/[pagoId]), así
+    // que debía quedar igual o el cache quedaría inconsistente según cuál de
+    // las dos funciones lo haya escrito último.
+    const sdIdsCliente = deudasCliente.map((d: any) => d.id)
+    const totalPagadoPorDeuda: Record<string, number> = {}
+    if (sdIdsCliente.length > 0) {
+      const todasLasAplicaciones = await (prisma as any).pagoCarteraDeuda.findMany({
+        where: { syncDeudaId: { in: sdIdsCliente } },
+        select: { syncDeudaId: true, montoAplicado: true, descuento: true }
+      })
+      for (const a of todasLasAplicaciones) {
+        const monto = Number(a.montoAplicado || 0) + Number(a.descuento || 0)
+        totalPagadoPorDeuda[a.syncDeudaId] = (totalPagadoPorDeuda[a.syncDeudaId] || 0) + monto
       }
-    })
+    }
+
+    const deudasDetalle = deudasCliente
+      .map((d: any) => {
+        const valor = Number(d.valor)
+        const totalPagado = totalPagadoPorDeuda[d.id] || 0
+        const nSaldo = Math.max(0, valor - totalPagado)
+        const { estado } = calcularEstado(nSaldo, valor, Number(d.abono), d.fechaVencimiento)
+        return {
+          id: d.id,
+          externalId: d.externalId,
+          numeroOrden: d.numeroOrden,
+          numeroFactura: d.numeroFactura,
+          valor,
+          saldo: nSaldo,
+          abono: Number(d.abono),
+          diasCredito: d.diasCredito,
+          fechaVencimiento: d.fechaVencimiento,
+          estado,
+          _nSaldo: nSaldo,
+        }
+      })
+      .filter((d: any) => d._nSaldo > 0)
+
+    for (const d of deudasDetalle) {
+      porEstado[d.estado] = (porEstado[d.estado] || 0) + d.saldo
+      saldoTotal += d.valor
+      saldoPendiente += d.saldo
+      delete (d as any)._nSaldo
+    }
 
     // No incluir clientes sin saldo pendiente real
     if (saldoPendiente <= 0) {

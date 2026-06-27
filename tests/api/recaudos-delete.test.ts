@@ -41,6 +41,7 @@ describe('DELETE /api/recaudos/[pagoId] — reversion de saldo', () => {
       id: 'pago-1', numeroRecibo: 'REC001', empleadoId: 'e1', monto: 100000,
       envioEstado: 'pendiente', syncDeudaId: 'sd-1',
       Cartera: { empresaId: 'emp-1' }, Empleado: { empresaId: 'emp-1' },
+      Aplicaciones: [{ syncDeudaId: 'sd-1', montoAplicado: 100000 }],
     })
     vi.mocked((prisma as any).syncDeuda.findUnique).mockResolvedValue({ saldo: 0, valor: 300000, clienteApiId: 'api-c1', integracionId: 'int-1' })
     vi.mocked((prisma as any).syncDeuda.update).mockResolvedValue({})
@@ -64,6 +65,7 @@ describe('DELETE /api/recaudos/[pagoId] — reversion de saldo', () => {
       id: 'pago-1', numeroRecibo: 'REC005', empleadoId: 'e1', monto: 100000,
       envioEstado: 'pendiente', syncDeudaId: 'sd-1',
       Cartera: { empresaId: 'emp-1' }, Empleado: { empresaId: 'emp-1' },
+      Aplicaciones: [{ syncDeudaId: 'sd-1', montoAplicado: 100000 }],
     })
     vi.mocked((prisma as any).syncDeuda.findUnique).mockResolvedValue({ saldo: 0, valor: 300000, clienteApiId: 'api-c1', integracionId: 'int-1' })
     vi.mocked((prisma as any).syncDeuda.update).mockResolvedValue({})
@@ -81,6 +83,7 @@ describe('DELETE /api/recaudos/[pagoId] — reversion de saldo', () => {
       id: 'pago-1', numeroRecibo: 'REC002', empleadoId: 'e1', monto: 100000,
       envioEstado: 'recibido', syncDeudaId: 'sd-1',
       Cartera: { empresaId: 'emp-1' }, Empleado: { empresaId: 'emp-1' },
+      Aplicaciones: [{ syncDeudaId: 'sd-1', montoAplicado: 100000 }],
     })
     vi.mocked((prisma as any).syncDeuda.findUnique).mockResolvedValue({ saldo: 0, valor: 300000 })
     vi.mocked((prisma as any).syncDeuda.update).mockResolvedValue({})
@@ -101,6 +104,7 @@ describe('DELETE /api/recaudos/[pagoId] — reversion de saldo', () => {
       id: 'pago-1', numeroRecibo: 'REC003', empleadoId: 'e1', monto: 500000,
       envioEstado: 'pendiente', syncDeudaId: 'sd-1',
       Cartera: { empresaId: 'emp-1' }, Empleado: { empresaId: 'emp-1' },
+      Aplicaciones: [{ syncDeudaId: 'sd-1', montoAplicado: 500000 }],
     })
     // saldo actual 100000 + monto 500000 = 600000, pero valor de la factura es solo 300000
     vi.mocked((prisma as any).syncDeuda.findUnique).mockResolvedValue({ saldo: 100000, valor: 300000 })
@@ -122,6 +126,7 @@ describe('DELETE /api/recaudos/[pagoId] — reversion de saldo', () => {
       id: 'pago-1', numeroRecibo: 'REC004', empleadoId: 'e1', monto: 50000,
       envioEstado: 'pendiente', syncDeudaId: null,
       Cartera: { empresaId: 'emp-1' }, Empleado: { empresaId: 'emp-1' },
+      Aplicaciones: [],
     })
     vi.mocked((prisma as any).pagoCartera.delete).mockResolvedValue({})
     vi.mocked((prisma as any).empleado.findUnique).mockResolvedValue({ configRecibos: {} })
@@ -140,6 +145,7 @@ describe('DELETE /api/recaudos/[pagoId] — reversion de saldo', () => {
       id: 'pago-1', numeroRecibo: 'CL2606144', empleadoId: 'e1', monto: 50000,
       envioEstado: 'pendiente', syncDeudaId: null,
       Cartera: { empresaId: 'emp-1' }, Empleado: { empresaId: 'emp-1' },
+      Aplicaciones: [],
     })
     vi.mocked((prisma as any).pagoCartera.delete).mockResolvedValue({})
     // consecutivoActual=144 coincide con el numero del recibo eliminado -> es el ultimo
@@ -162,6 +168,7 @@ describe('DELETE /api/recaudos/[pagoId] — reversion de saldo', () => {
       id: 'pago-1', numeroRecibo: 'CL2606140', empleadoId: 'e1', monto: 50000,
       envioEstado: 'pendiente', syncDeudaId: null,
       Cartera: { empresaId: 'emp-1' }, Empleado: { empresaId: 'emp-1' },
+      Aplicaciones: [],
     })
     vi.mocked((prisma as any).pagoCartera.delete).mockResolvedValue({})
     // consecutivoActual=144 (alguien ya pago despues del 140 eliminado) -> NO coincide
@@ -181,6 +188,7 @@ describe('DELETE /api/recaudos/[pagoId] — reversion de saldo', () => {
       id: 'pago-1', numeroRecibo: 'CL2605099', empleadoId: 'e1', monto: 50000,
       envioEstado: 'pendiente', syncDeudaId: null,
       Cartera: { empresaId: 'emp-1' }, Empleado: { empresaId: 'emp-1' },
+      Aplicaciones: [],
     })
     vi.mocked((prisma as any).pagoCartera.delete).mockResolvedValue({})
     // configRecibos sigue marcando el mes viejo (0526) — nadie ha pagado aun en el mes actual (0626)
