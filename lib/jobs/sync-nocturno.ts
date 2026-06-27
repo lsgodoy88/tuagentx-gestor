@@ -202,24 +202,38 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
     }
   })
 
-  // FIX 26/06 — nSaldo: el saldo que ve el vendedor ahora se calcula como
-  // vTotal (SyncDeuda.valor, fijo) MENOS la suma de TODOS nuestros pagos/abonos
-  // registrados para esa factura, sin importar envioEstado (pendiente, enviado
-  // o recibido cuentan igual) — deja de depender de SyncDeuda.saldo (crudo de
-  // UpTres, que puede mezclar pagos externos a nuestra app, ver casos reales
-  // facturas 8821/3704 confirmados 26/06). SyncDeuda.saldo en BD NO se toca
-  // aquí, sigue siendo el crudo de UpTres intacto — solo cambia QUÉ se resta
-  // y DESDE QUÉ base se resta para lo que se muestra al vendedor.
+  // FIX 26/06 (v1, nSaldo=valor-pagos) → CORREGIDO 27/06 tras hallazgo real:
+  // 109 facturas (Lumeli+Leche) con abonos hechos DIRECTO en UpTres antes de
+  // que existieran en nuestra app (ej. factura 3821 Martha Asened: $342.000
+  // pagados en UpTres vía recibos 4523/4670/4739/4902, nunca vistos por
+  // nosotros) — nSaldo=valor-pagos los ignoraba, mostrando deuda inflada
+  // hasta $2.9M en un caso (factura 1581, ya saldada 100% en UpTres).
+  // FIX híbrido v2:
+  //   - Si la factura YA tiene ≥1 pago nuestro: usar PagoCartera.saldoAnterior
+  //     (congelado en pago-sync/route.ts ANTES de aplicar cada pago — captura
+  //     el saldo real de UpTres en el momento exacto que empezamos a operar
+  //     esa factura, incluyendo cualquier abono externo previo) del pago MÁS
+  //     ANTIGUO, menos TODOS nuestros pagos desde entonces.
+  //   - Si la factura NUNCA ha tenido pago nuestro: no hay ningún ancla propia
+  //     que reconstruir — usar SyncDeuda.saldo crudo de UpTres directo (única
+  //     fuente disponible, confirmado 26/06 que backups históricos no dan
+  //     ventana útil para reconstruir versus la antigüedad real de los abonos).
   const sdIds = deudas.map((d: any) => d.id)
   const totalPagadoPorDeuda: Record<string, number> = {}
+  const saldoAnclaPorDeuda: Record<string, number> = {} // saldoAnterior del primer pago, si existe
   if (sdIds.length > 0) {
     const todasLasAplicaciones = await (prisma as any).pagoCarteraDeuda.findMany({
       where: { syncDeudaId: { in: sdIds } }, // TODOS los estados — pendiente+enviado+recibido
-      select: { syncDeudaId: true, montoAplicado: true, descuento: true }
+      select: { syncDeudaId: true, montoAplicado: true, descuento: true, createdAt: true, PagoCartera: { select: { saldoAnterior: true } } },
+      orderBy: { createdAt: 'asc' }
     })
     for (const a of todasLasAplicaciones) {
       const monto = Number(a.montoAplicado || 0) + Number(a.descuento || 0)
       totalPagadoPorDeuda[a.syncDeudaId] = (totalPagadoPorDeuda[a.syncDeudaId] || 0) + monto
+      // El PRIMER pago cronológico (orderBy asc, solo se fija si aún no existe ancla) define el ancla
+      if (saldoAnclaPorDeuda[a.syncDeudaId] === undefined && a.PagoCartera?.saldoAnterior != null) {
+        saldoAnclaPorDeuda[a.syncDeudaId] = Number(a.PagoCartera.saldoAnterior)
+      }
     }
   }
 
@@ -266,18 +280,20 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
       return fa - fb
     })
 
-    // FIX 26/06 — nSaldo = vTotal - totalPagado (nuestra propia matemática,
-    // ya NO parte de d.saldo crudo de UpTres). d.saldo se preserva en BD sin
-    // tocar (reconciliarDeuda() sigue actualizándolo normal cada noche, sirve
-    // de referencia para "Revisar" en recaudos/route.ts) — pero deja de ser
-    // la base de lo que el vendedor ve. Filtro de "saldo>0" ahora se aplica
-    // sobre nSaldo, no sobre el crudo: una factura con d.saldo>0 pero ya
-    // cubierta por nuestros propios pagos (nSaldo<=0) deja de mostrarse.
+    // FIX 27/06 — nSaldo híbrido (ver comentario arriba en el bloque de
+    // totalPagadoPorDeuda). d.saldo se preserva en BD sin tocar (reconciliarDeuda()
+    // sigue actualizándolo normal cada noche, sirve de referencia para "Revisar"
+    // en recaudos/route.ts) — pero deja de ser la base de lo que el vendedor ve
+    // SOLO cuando tenemos un ancla propia confiable (saldoAnterior). Sin pago
+    // nuestro todavía, d.saldo crudo SIGUE siendo la única fuente real.
     const deudasDetalle = deudasOrdenadas
       .map((d: any) => {
         const valor = Number(d.valor)
         const totalPagado = totalPagadoPorDeuda[d.id] || 0
-        const nSaldo = Math.max(0, valor - totalPagado)
+        const ancla = saldoAnclaPorDeuda[d.id]
+        const nSaldo = ancla !== undefined
+          ? Math.max(0, ancla - totalPagado)
+          : Math.max(0, Number(d.saldo)) // sin pago nuestro aun — usar crudo de UpTres directo
         const { estado } = calcularEstado(nSaldo, valor, Number(d.abono), d.fechaVencimiento)
         return { id: d.id, externalId: d.externalId, numeroOrden: d.numeroOrden, numeroFactura: d.numeroFactura, valor, saldo: nSaldo, abono: Number(d.abono), diasCredito: d.diasCredito, fechaVencimiento: d.fechaVencimiento, estado, _nSaldo: nSaldo }
       })

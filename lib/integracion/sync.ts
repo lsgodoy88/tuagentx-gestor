@@ -280,16 +280,26 @@ export async function actualizarCache(
     // eliminar un pago individual (pago-sync, DELETE recaudos/[pagoId]), así
     // que debía quedar igual o el cache quedaría inconsistente según cuál de
     // las dos funciones lo haya escrito último.
+    // FIX 27/06 — mismo fix híbrido que reconstruirCartera() en sync-nocturno.ts:
+    // sin pago nuestro todavía, usar d.saldo crudo (única fuente real); con pago
+    // nuestro, usar saldoAnterior del primer pago como ancla. Ver comentario
+    // completo en sync-nocturno.ts (hallazgo 27/06: abonos hechos directo en
+    // UpTres antes de existir en nuestra app quedaban ignorados por valor-pagos).
     const sdIdsCliente = deudasCliente.map((d: any) => d.id)
     const totalPagadoPorDeuda: Record<string, number> = {}
+    const saldoAnclaPorDeuda: Record<string, number> = {}
     if (sdIdsCliente.length > 0) {
       const todasLasAplicaciones = await (prisma as any).pagoCarteraDeuda.findMany({
         where: { syncDeudaId: { in: sdIdsCliente } },
-        select: { syncDeudaId: true, montoAplicado: true, descuento: true }
+        select: { syncDeudaId: true, montoAplicado: true, descuento: true, createdAt: true, PagoCartera: { select: { saldoAnterior: true } } },
+        orderBy: { createdAt: 'asc' }
       })
       for (const a of todasLasAplicaciones) {
         const monto = Number(a.montoAplicado || 0) + Number(a.descuento || 0)
         totalPagadoPorDeuda[a.syncDeudaId] = (totalPagadoPorDeuda[a.syncDeudaId] || 0) + monto
+        if (saldoAnclaPorDeuda[a.syncDeudaId] === undefined && a.PagoCartera?.saldoAnterior != null) {
+          saldoAnclaPorDeuda[a.syncDeudaId] = Number(a.PagoCartera.saldoAnterior)
+        }
       }
     }
 
@@ -297,7 +307,10 @@ export async function actualizarCache(
       .map((d: any) => {
         const valor = Number(d.valor)
         const totalPagado = totalPagadoPorDeuda[d.id] || 0
-        const nSaldo = Math.max(0, valor - totalPagado)
+        const ancla = saldoAnclaPorDeuda[d.id]
+        const nSaldo = ancla !== undefined
+          ? Math.max(0, ancla - totalPagado)
+          : Math.max(0, Number(d.saldo))
         const { estado } = calcularEstado(nSaldo, valor, Number(d.abono), d.fechaVencimiento)
         return {
           id: d.id,

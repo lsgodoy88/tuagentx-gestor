@@ -17,10 +17,12 @@ const INT_ID = 'intg-1'
 const EMP_ID = 'emp-1'
 
 // Helpers para mock data
-// NOTA 26/06: 'saldo' aqui es el VALOR de la factura por defecto (igual a valor),
-// ya que con nSaldo el saldo real se calcula como valor - SUM(pagos), no se lee
-// directo de SyncDeuda.saldo. Los tests que necesitan simular pagos los agregan
-// via mockAplicaciones().
+// NOTA 27/06 — FIX híbrido: sin pago nuestro registrado todavía, el saldo
+// mostrado usa SyncDeuda.saldo crudo DIRECTO (única fuente real disponible).
+// Con ≥1 pago nuestro, usa PagoCartera.saldoAnterior (congelado en el primer
+// pago cronológico) menos la suma de nuestros pagos desde entonces — evita
+// ignorar abonos hechos directo en UpTres antes de que existiera el pago
+// nuestro (hallazgo real 27/06, ver sync-nocturno.ts).
 const baseDeuda = (overrides: any = {}) => ({
   id: 'sd-1',
   externalId: 'ext-1',
@@ -28,7 +30,7 @@ const baseDeuda = (overrides: any = {}) => ({
   numeroOrden: 1,
   numeroFactura: 101,
   valor: 100,
-  saldo: 100, // crudo UpTres — ya no se usa para el saldo mostrado, solo referencia
+  saldo: 100, // crudo UpTres — fuente real cuando no hay pago nuestro
   abono: 0,
   diasCredito: 30,
   fechaVencimiento: null,
@@ -40,8 +42,21 @@ function mockSinAplicaciones() {
   vi.mocked((prisma as any).pagoCarteraDeuda.findMany).mockResolvedValue([])
 }
 
-function mockAplicaciones(apps: Array<{ syncDeudaId: string; montoAplicado: number; descuento?: number }>) {
-  vi.mocked((prisma as any).pagoCarteraDeuda.findMany).mockResolvedValue(apps)
+// saldoAnterior: si se pasa, simula que el pago tiene PagoCartera.saldoAnterior
+// congelado (el ancla real). Si se omite, simula un pago sin ese dato (legacy).
+function mockAplicaciones(apps: Array<{
+  syncDeudaId: string; montoAplicado: number; descuento?: number;
+  saldoAnterior?: number; createdAt?: string;
+}>) {
+  vi.mocked((prisma as any).pagoCarteraDeuda.findMany).mockResolvedValue(
+    apps.map((a, i) => ({
+      syncDeudaId: a.syncDeudaId,
+      montoAplicado: a.montoAplicado,
+      descuento: a.descuento,
+      createdAt: a.createdAt ?? `2026-06-${String(i + 1).padStart(2, '0')}`,
+      PagoCartera: { saldoAnterior: a.saldoAnterior ?? null },
+    }))
+  )
 }
 
 describe('lib/integracion/sync — actualizarCache', () => {
@@ -69,9 +84,9 @@ describe('lib/integracion/sync — actualizarCache', () => {
     expect((prisma as any).carteraCache.upsert).not.toHaveBeenCalled()
   })
 
-  it('cliente con 1 deuda, sin pagos nuestros → upsert con saldoTotal/saldoPendiente = valor completo', async () => {
+  it('cliente con 1 deuda, SIN pago nuestro → usa saldo crudo de UpTres directo', async () => {
     vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
-      baseDeuda({ valor: 100, saldo: 80, abono: 20 }), // saldo crudo UpTres ya no se usa
+      baseDeuda({ valor: 100, saldo: 80, abono: 20 }), // saldo crudo SÍ se usa (sin ancla propia)
     ])
     vi.mocked((prisma as any).cliente.findMany).mockResolvedValue([
       { id: 'c1', apiId: 'api-c1', nombre: 'Cliente X', nit: '900', telefono: '+57', ciudad: 'Ibagué' },
@@ -85,13 +100,13 @@ describe('lib/integracion/sync — actualizarCache', () => {
 
     const args = vi.mocked((prisma as any).carteraCache.upsert).mock.calls[0][0]
     expect(args.create.saldoTotal).toBe(100)
-    expect(args.create.saldoPendiente).toBe(100) // nSaldo = valor - 0 pagos = 100
+    expect(args.create.saldoPendiente).toBe(80) // sin pago nuestro → saldo crudo directo
     expect(args.create.totalDeudas).toBe(1)
     expect(args.create.nombre).toBe('Cliente X')
     expect(args.create.empleadoNombre).toBe('Vendedor A')
   })
 
-  it('FIX 26/06 — nSaldo = valor - pagos nuestros, ignora saldo crudo de UpTres', async () => {
+  it('FIX 27/06 — CON pago nuestro y saldoAnterior real → ancla - pagos, ignora saldo crudo actual', async () => {
     vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
       baseDeuda({ id: 'sd-1', valor: 100, saldo: 999 }), // saldo crudo deliberadamente distinto, no debe usarse
     ])
@@ -99,65 +114,105 @@ describe('lib/integracion/sync — actualizarCache', () => {
       { id: 'c1', apiId: 'api-c1', nombre: 'X', nit: '900' },
     ])
     vi.mocked((prisma as any).empleado.findMany).mockResolvedValue([])
-    mockAplicaciones([{ syncDeudaId: 'sd-1', montoAplicado: 30 }])
+    // saldoAnterior=90 (el ancla, congelada en el primer pago) - pago de 30 = 60
+    mockAplicaciones([{ syncDeudaId: 'sd-1', montoAplicado: 30, saldoAnterior: 90 }])
 
     await actualizarCache(new Set(['api-c1']), INT_ID, EMP_ID)
 
     const args = vi.mocked((prisma as any).carteraCache.upsert).mock.calls[0][0]
-    // nSaldo = 100 - 30 = 70, NO 999 (saldo crudo) — confirma que ya no se usa d.saldo directo
-    expect(args.create.saldoPendiente).toBe(70)
-    expect(args.create.deudas[0].saldo).toBe(70)
+    // nSaldo = 90 (ancla) - 30 = 60, NO 999 (saldo crudo) ni 70 (100-30) — confirma que usa el ancla
+    expect(args.create.saldoPendiente).toBe(60)
+    expect(args.create.deudas[0].saldo).toBe(60)
     expect((prisma as any).pagoCarteraDeuda.findMany).toHaveBeenCalled()
   })
 
-  it('pagos cubren el valor completo → nSaldo=0, cliente se elimina del cache', async () => {
+  it('CON pago nuestro pero SIN saldoAnterior (legacy, pago viejo sin ese dato) → cae a saldo crudo', async () => {
     vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
-      baseDeuda({ id: 'sd-1', valor: 100, saldo: 100 }),
+      baseDeuda({ id: 'sd-1', valor: 100, saldo: 70 }),
     ])
     vi.mocked((prisma as any).cliente.findMany).mockResolvedValue([
       { id: 'c1', apiId: 'api-c1', nombre: 'X', nit: '900' },
     ])
     vi.mocked((prisma as any).empleado.findMany).mockResolvedValue([])
-    mockAplicaciones([{ syncDeudaId: 'sd-1', montoAplicado: 100 }])
-
-    await actualizarCache(new Set(['api-c1']), INT_ID, EMP_ID)
-
-    // saldoPendiente=0 → cliente se elimina del cache, no se upserta
-    expect(vi.mocked((prisma as any).carteraCache.upsert)).not.toHaveBeenCalled()
-    expect(vi.mocked((prisma as any).carteraCache.deleteMany)).toHaveBeenCalled()
-  })
-
-  it('pagos superan el valor → nSaldo nunca negativo (max 0), se elimina del cache', async () => {
-    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
-      baseDeuda({ id: 'sd-1', valor: 100, saldo: 100 }),
-    ])
-    vi.mocked((prisma as any).cliente.findMany).mockResolvedValue([
-      { id: 'c1', apiId: 'api-c1', nombre: 'X', nit: '900' },
-    ])
-    vi.mocked((prisma as any).empleado.findMany).mockResolvedValue([])
-    mockAplicaciones([{ syncDeudaId: 'sd-1', montoAplicado: 150 }]) // pago mayor al valor
-
-    await actualizarCache(new Set(['api-c1']), INT_ID, EMP_ID)
-
-    expect(vi.mocked((prisma as any).carteraCache.upsert)).not.toHaveBeenCalled()
-    expect(vi.mocked((prisma as any).carteraCache.deleteMany)).toHaveBeenCalled()
-  })
-
-  it('descuento cuenta igual que un pago — reduce nSaldo', async () => {
-    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
-      baseDeuda({ id: 'sd-1', valor: 100, saldo: 100 }),
-    ])
-    vi.mocked((prisma as any).cliente.findMany).mockResolvedValue([
-      { id: 'c1', apiId: 'api-c1', nombre: 'X', nit: '900' },
-    ])
-    vi.mocked((prisma as any).empleado.findMany).mockResolvedValue([])
-    mockAplicaciones([{ syncDeudaId: 'sd-1', montoAplicado: 60, descuento: 10 }])
+    // pago real pero sin saldoAnterior congelado (caso legacy o dato faltante)
+    mockAplicaciones([{ syncDeudaId: 'sd-1', montoAplicado: 30, saldoAnterior: undefined }])
 
     await actualizarCache(new Set(['api-c1']), INT_ID, EMP_ID)
 
     const args = vi.mocked((prisma as any).carteraCache.upsert).mock.calls[0][0]
-    // nSaldo = 100 - (60 + 10) = 30
+    // sin ancla disponible → usa saldo crudo (70) directo, no resta el pago de nuevo
+    expect(args.create.saldoPendiente).toBe(70)
+  })
+
+  it('ancla cubre el pago completo → nSaldo=0, cliente se elimina del cache', async () => {
+    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
+      baseDeuda({ id: 'sd-1', valor: 100, saldo: 100 }),
+    ])
+    vi.mocked((prisma as any).cliente.findMany).mockResolvedValue([
+      { id: 'c1', apiId: 'api-c1', nombre: 'X', nit: '900' },
+    ])
+    vi.mocked((prisma as any).empleado.findMany).mockResolvedValue([])
+    mockAplicaciones([{ syncDeudaId: 'sd-1', montoAplicado: 100, saldoAnterior: 100 }])
+
+    await actualizarCache(new Set(['api-c1']), INT_ID, EMP_ID)
+
+    expect(vi.mocked((prisma as any).carteraCache.upsert)).not.toHaveBeenCalled()
+    expect(vi.mocked((prisma as any).carteraCache.deleteMany)).toHaveBeenCalled()
+  })
+
+  it('pago supera la ancla → nSaldo nunca negativo (max 0), se elimina del cache', async () => {
+    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
+      baseDeuda({ id: 'sd-1', valor: 100, saldo: 100 }),
+    ])
+    vi.mocked((prisma as any).cliente.findMany).mockResolvedValue([
+      { id: 'c1', apiId: 'api-c1', nombre: 'X', nit: '900' },
+    ])
+    vi.mocked((prisma as any).empleado.findMany).mockResolvedValue([])
+    mockAplicaciones([{ syncDeudaId: 'sd-1', montoAplicado: 150, saldoAnterior: 100 }]) // pago mayor a la ancla
+
+    await actualizarCache(new Set(['api-c1']), INT_ID, EMP_ID)
+
+    expect(vi.mocked((prisma as any).carteraCache.upsert)).not.toHaveBeenCalled()
+    expect(vi.mocked((prisma as any).carteraCache.deleteMany)).toHaveBeenCalled()
+  })
+
+  it('descuento cuenta igual que un pago — reduce nSaldo desde la ancla', async () => {
+    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
+      baseDeuda({ id: 'sd-1', valor: 100, saldo: 100 }),
+    ])
+    vi.mocked((prisma as any).cliente.findMany).mockResolvedValue([
+      { id: 'c1', apiId: 'api-c1', nombre: 'X', nit: '900' },
+    ])
+    vi.mocked((prisma as any).empleado.findMany).mockResolvedValue([])
+    mockAplicaciones([{ syncDeudaId: 'sd-1', montoAplicado: 60, descuento: 10, saldoAnterior: 100 }])
+
+    await actualizarCache(new Set(['api-c1']), INT_ID, EMP_ID)
+
+    const args = vi.mocked((prisma as any).carteraCache.upsert).mock.calls[0][0]
+    // nSaldo = 100 (ancla) - (60 + 10) = 30
     expect(args.create.saldoPendiente).toBe(30)
+  })
+
+  it('ancla se toma del PRIMER pago cronológico, no del último', async () => {
+    vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
+      baseDeuda({ id: 'sd-1', valor: 200, saldo: 999 }),
+    ])
+    vi.mocked((prisma as any).cliente.findMany).mockResolvedValue([
+      { id: 'c1', apiId: 'api-c1', nombre: 'X', nit: '900' },
+    ])
+    vi.mocked((prisma as any).empleado.findMany).mockResolvedValue([])
+    // 2 pagos: el primero (cronológicamente) trae el ancla real=150; el segundo
+    // no debe pisarla aunque también tenga un valor de saldoAnterior distinto
+    mockAplicaciones([
+      { syncDeudaId: 'sd-1', montoAplicado: 50, saldoAnterior: 150, createdAt: '2026-06-01' },
+      { syncDeudaId: 'sd-1', montoAplicado: 30, saldoAnterior: 100, createdAt: '2026-06-15' },
+    ])
+
+    await actualizarCache(new Set(['api-c1']), INT_ID, EMP_ID)
+
+    const args = vi.mocked((prisma as any).carteraCache.upsert).mock.calls[0][0]
+    // nSaldo = 150 (ancla del primer pago) - (50+30) = 70
+    expect(args.create.saldoPendiente).toBe(70)
   })
 
   it('empleadoPrincipal = el más frecuente entre las deudas del cliente', async () => {
@@ -235,7 +290,7 @@ describe('lib/integracion/sync — actualizarCache', () => {
     const args = vi.mocked((prisma as any).carteraCache.upsert).mock.calls[0][0]
     expect(args.create.porEstado.critica).toBe(200)
     expect(args.create.porEstado.pendiente + args.create.porEstado.vigente || 0).toBeGreaterThanOrEqual(0)
-    // saldoPendiente total = 300 (sin pagos nuestros, nSaldo = valor completo)
+    // saldoPendiente total = 300 (sin pagos nuestros, usa saldo crudo de cada una)
     expect(args.create.saldoPendiente).toBe(300)
   })
 
