@@ -202,24 +202,38 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
     }
   })
 
-  // FIX 26/06 (v1, nSaldo=valor-pagos) → CORREGIDO 27/06 tras hallazgo real:
-  // 109 facturas (Lumeli+Leche) con abonos hechos DIRECTO en UpTres antes de
-  // que existieran en nuestra app (ej. factura 3821 Martha Asened: $342.000
-  // pagados en UpTres vía recibos 4523/4670/4739/4902, nunca vistos por
-  // nosotros) — nSaldo=valor-pagos los ignoraba, mostrando deuda inflada
-  // hasta $2.9M en un caso (factura 1581, ya saldada 100% en UpTres).
-  // FIX híbrido v2:
-  //   - Si la factura YA tiene ≥1 pago nuestro: usar PagoCartera.saldoAnterior
-  //     (congelado en pago-sync/route.ts ANTES de aplicar cada pago — captura
-  //     el saldo real de UpTres en el momento exacto que empezamos a operar
-  //     esa factura, incluyendo cualquier abono externo previo) del pago MÁS
-  //     ANTIGUO, menos TODOS nuestros pagos desde entonces.
-  //   - Si la factura NUNCA ha tenido pago nuestro: no hay ningún ancla propia
-  //     que reconstruir — usar SyncDeuda.saldo crudo de UpTres directo (única
-  //     fuente disponible, confirmado 26/06 que backups históricos no dan
-  //     ventana útil para reconstruir versus la antigüedad real de los abonos).
+  // FIX 26/06 (v1, nSaldo=valor-pagos) → CORREGIDO 27/06 (v2, ancla saldoAnterior)
+  // → CORREGIDO 28/06 (v3) tras hallazgo real adicional: v2 asumía que
+  // PagoCartera.saldoAnterior es confiable por factura — pero en recibos
+  // MULTI-FACTURA ese campo vive a nivel de RECIBO, no por factura — la
+  // 2da+ factura de un mismo recibo heredaba el saldoAnterior de la 1ra
+  // factura del recibo (22 facturas reales afectadas en Lumeli, 10 recibos).
+  // FIX v3 — para LUMELI exclusivamente: se obtuvo cartera real de UpTres al
+  // corte 2026-06-02 21:08:15 (archivo Deuda-LUMELI-total-completa-total-
+  // 02_06_2026.xlsx, verificado: 511/511 facturas existían en BD, 0 huérfanas).
+  // Para las facturas que YA EXISTÍAN en ese corte: nSaldo = saldoInicial
+  // (LumeliSaldoInicial0206) − SUM(pagos nuestros con createdAt > corte).
+  // El archivo YA refleja correctamente cualquier abono anterior al corte
+  // (nuestro o externo) — confirmado con casos reales (valor=saldoInicial
+  // cuando no había abonos previos; saldoInicial<valor cuando sí los había).
+  // Para facturas NUEVAS (creadas después del corte) o de OTRA empresa
+  // (Leche, sin archivo equivalente): sigue el fix v2 (ancla saldoAnterior
+  // si hay pago nuestro, saldo crudo si no) — sin cambio.
+  const EMPRESA_LUMELI = 'cmn7oiutk0001vmega46373b4'
+  const CORTE_LUMELI_0206 = new Date('2026-06-02T21:08:15-05:00')
+  let saldosInicialesLumeli: Record<number, number> = {}
+  if (empresaId === EMPRESA_LUMELI) {
+    const filas = await (prisma as any).$queryRaw`
+      SELECT "numeroFactura", "saldoInicial" FROM "LumeliSaldoInicial0206"
+    `
+    for (const f of filas as any[]) {
+      saldosInicialesLumeli[f.numeroFactura] = Number(f.saldoInicial)
+    }
+  }
+
   const sdIds = deudas.map((d: any) => d.id)
   const totalPagadoPorDeuda: Record<string, number> = {}
+  const totalPagadoPostCortePorDeuda: Record<string, number> = {} // solo pagos > CORTE_LUMELI_0206
   const saldoAnclaPorDeuda: Record<string, number> = {} // saldoAnterior del primer pago, si existe
   if (sdIds.length > 0) {
     const todasLasAplicaciones = await (prisma as any).pagoCarteraDeuda.findMany({
@@ -230,6 +244,9 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
     for (const a of todasLasAplicaciones) {
       const monto = Number(a.montoAplicado || 0) + Number(a.descuento || 0)
       totalPagadoPorDeuda[a.syncDeudaId] = (totalPagadoPorDeuda[a.syncDeudaId] || 0) + monto
+      if (new Date(a.createdAt) > CORTE_LUMELI_0206) {
+        totalPagadoPostCortePorDeuda[a.syncDeudaId] = (totalPagadoPostCortePorDeuda[a.syncDeudaId] || 0) + monto
+      }
       // El PRIMER pago cronológico (orderBy asc, solo se fija si aún no existe ancla) define el ancla
       if (saldoAnclaPorDeuda[a.syncDeudaId] === undefined && a.PagoCartera?.saldoAnterior != null) {
         saldoAnclaPorDeuda[a.syncDeudaId] = Number(a.PagoCartera.saldoAnterior)
@@ -280,20 +297,28 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
       return fa - fb
     })
 
-    // FIX 27/06 — nSaldo híbrido (ver comentario arriba en el bloque de
-    // totalPagadoPorDeuda). d.saldo se preserva en BD sin tocar (reconciliarDeuda()
-    // sigue actualizándolo normal cada noche, sirve de referencia para "Revisar"
-    // en recaudos/route.ts) — pero deja de ser la base de lo que el vendedor ve
-    // SOLO cuando tenemos un ancla propia confiable (saldoAnterior). Sin pago
-    // nuestro todavía, d.saldo crudo SIGUE siendo la única fuente real.
+    // FIX 28/06 (v3) — prioridad de fuentes para nSaldo, de más a menos confiable:
+    //   1. Lumeli + factura existía al corte 02/06 → saldoInicial (archivo real,
+    //      verificado) − pagos nuestros POSTERIORES al corte (v3, ver arriba).
+    //   2. Factura con ≥1 pago nuestro → ancla saldoAnterior − TODOS los pagos (v2).
+    //   3. Sin pago nuestro y sin archivo → saldo crudo de UpTres directo (v1 fallback).
+    // d.saldo se preserva en BD sin tocar (reconciliarDeuda() sigue actualizándolo
+    // normal, sirve de referencia para "Revisar" en recaudos/route.ts).
     const deudasDetalle = deudasOrdenadas
       .map((d: any) => {
         const valor = Number(d.valor)
-        const totalPagado = totalPagadoPorDeuda[d.id] || 0
-        const ancla = saldoAnclaPorDeuda[d.id]
-        const nSaldo = ancla !== undefined
-          ? Math.max(0, ancla - totalPagado)
-          : Math.max(0, Number(d.saldo)) // sin pago nuestro aun — usar crudo de UpTres directo
+        const saldoInicialLumeli = saldosInicialesLumeli[d.numeroFactura]
+        let nSaldo: number
+        if (saldoInicialLumeli !== undefined) {
+          const pagadoPostCorte = totalPagadoPostCortePorDeuda[d.id] || 0
+          nSaldo = Math.max(0, saldoInicialLumeli - pagadoPostCorte)
+        } else {
+          const totalPagado = totalPagadoPorDeuda[d.id] || 0
+          const ancla = saldoAnclaPorDeuda[d.id]
+          nSaldo = ancla !== undefined
+            ? Math.max(0, ancla - totalPagado)
+            : Math.max(0, Number(d.saldo))
+        }
         const { estado } = calcularEstado(nSaldo, valor, Number(d.abono), d.fechaVencimiento)
         return { id: d.id, externalId: d.externalId, numeroOrden: d.numeroOrden, numeroFactura: d.numeroFactura, valor, saldo: nSaldo, abono: Number(d.abono), diasCredito: d.diasCredito, fechaVencimiento: d.fechaVencimiento, estado, _nSaldo: nSaldo }
       })
