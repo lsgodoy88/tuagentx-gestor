@@ -24,6 +24,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       '/clientes':      'Clientes',
       '/cartera':       'Cartera',
       '/recaudos':      'Recaudos',
+      '/gastos':        'Gastos',
       '/rutas':         'Visitas',
       '/impulsos':   'Impulsos',
       '/trazabilidad':  'Despacho',
@@ -175,6 +176,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { href: '/clientes',  label: 'Clientes',  icon: '🏪' },
         { href: '/cartera',   label: 'Cartera',   icon: '💰' },
         { href: '/recaudos',  label: 'Recaudos',  icon: '💳' },
+        { href: '/gastos',    label: 'Gastos',    icon: '🧾' },
       ]
     }, {
       label: 'Visitas',
@@ -205,12 +207,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         ] : []),
         ...(user?.role !== 'entregas' ? [{ href: '/impulsos', label: 'Impulsos', icon: '⚡' }] : []),
         ...(user?.role === 'entregas' ? [{ href: '/trazabilidad', label: 'Despacho', icon: '🚚' }] : []),
+        ...(user?.role === 'vendedor' ? [{ href: '/gastos', label: 'Gastos', icon: '🧾' }] : []),
       ]
     }] : []),
     ...(user?.role === 'impulsadora' ? [{
       items: [
         { href: '/impulsadora', label: 'Inicio',    icon: '⚡' },
         { href: '/impulsos', label: 'Mi semana', icon: '📌' },
+        { href: '/gastos', label: 'Gastos', icon: '🧾' },
       ]
     }] : []),
   ]
@@ -231,6 +235,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: '/clientes',      label: 'Clientes',     icon: '🏪' },
       { href: '/cartera',       label: 'Cartera',      icon: '💰' },
       { href: '/recaudos',      label: 'Recaudos',     icon: '💳' },
+      { href: '/gastos',        label: 'Gastos',       icon: '🧾' },
       { href: '/rutas',         label: 'Visitas',      icon: '📋' },
       { href: '/impulsos',   label: 'Impulsos',     icon: '⚡' },
       { href: '/trazabilidad',  label: 'Despacho', icon: '🚚' },
@@ -248,10 +253,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { href: '/trazabilidad', label: 'Despacho',icon: '🚚' },
       ] : []),
       ...(user?.role !== 'entregas' ? [{ href: '/impulsos', label: 'Impulsos', icon: '⚡' }] : []),
+      ...(user?.role === 'vendedor' ? [{ href: '/gastos', label: 'Gastos', icon: '🧾' }] : []),
     ] : []),
     ...(user?.role === 'impulsadora' ? [
       { href: '/impulsadora', label: 'Inicio',    icon: '⚡' },
       { href: '/impulsos', label: 'Mi semana', icon: '📌' },
+      { href: '/gastos', label: 'Gastos', icon: '🧾' },
     ] : []),
   ]
 

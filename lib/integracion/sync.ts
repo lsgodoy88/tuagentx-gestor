@@ -250,6 +250,18 @@ export async function actualizarCache(
 
   const ahora = new Date()
 
+  const EMPRESA_LUMELI = 'cmn7oiutk0001vmega46373b4'
+  const CORTE_LUMELI_0206 = new Date('2026-06-02T21:08:15-05:00')
+  let saldosInicialesLumeli: Record<number, number> = {}
+  if (empresaId === EMPRESA_LUMELI) {
+    const filas = await (prisma as any).$queryRaw`
+      SELECT "numeroFactura", "saldoInicial" FROM "LumeliSaldoInicial0206"
+    `
+    for (const f of filas as any[]) {
+      saldosInicialesLumeli[f.numeroFactura] = Number(f.saldoInicial)
+    }
+  }
+
   for (const apiId of apiIdsArr) {
     const cliente = clienteMap[apiId]
     if (!cliente) continue
@@ -287,6 +299,7 @@ export async function actualizarCache(
     // UpTres antes de existir en nuestra app quedaban ignorados por valor-pagos).
     const sdIdsCliente = deudasCliente.map((d: any) => d.id)
     const totalPagadoPorDeuda: Record<string, number> = {}
+    const totalPagadoPostCortePorDeuda: Record<string, number> = {}
     const saldoAnclaPorDeuda: Record<string, number> = {}
     if (sdIdsCliente.length > 0) {
       const todasLasAplicaciones = await (prisma as any).pagoCarteraDeuda.findMany({
@@ -297,6 +310,9 @@ export async function actualizarCache(
       for (const a of todasLasAplicaciones) {
         const monto = Number(a.montoAplicado || 0) + Number(a.descuento || 0)
         totalPagadoPorDeuda[a.syncDeudaId] = (totalPagadoPorDeuda[a.syncDeudaId] || 0) + monto
+        if (new Date(a.createdAt) > CORTE_LUMELI_0206) {
+          totalPagadoPostCortePorDeuda[a.syncDeudaId] = (totalPagadoPostCortePorDeuda[a.syncDeudaId] || 0) + monto
+        }
         if (saldoAnclaPorDeuda[a.syncDeudaId] === undefined && a.PagoCartera?.saldoAnterior != null) {
           saldoAnclaPorDeuda[a.syncDeudaId] = Number(a.PagoCartera.saldoAnterior)
         }
@@ -306,11 +322,18 @@ export async function actualizarCache(
     const deudasDetalle = deudasCliente
       .map((d: any) => {
         const valor = Number(d.valor)
-        const totalPagado = totalPagadoPorDeuda[d.id] || 0
-        const ancla = saldoAnclaPorDeuda[d.id]
-        const nSaldo = ancla !== undefined
-          ? Math.max(0, ancla - totalPagado)
-          : Math.max(0, Number(d.saldo))
+        const saldoInicialLumeli = saldosInicialesLumeli[d.numeroFactura]
+        let nSaldo: number
+        if (saldoInicialLumeli !== undefined) {
+          const pagadoPostCorte = totalPagadoPostCortePorDeuda[d.id] || 0
+          nSaldo = Math.max(0, saldoInicialLumeli - pagadoPostCorte)
+        } else {
+          const totalPagado = totalPagadoPorDeuda[d.id] || 0
+          const ancla = saldoAnclaPorDeuda[d.id]
+          nSaldo = ancla !== undefined
+            ? Math.max(0, ancla - totalPagado)
+            : Math.max(0, Number(d.saldo))
+        }
         const { estado } = calcularEstado(nSaldo, valor, Number(d.abono), d.fechaVencimiento)
         return {
           id: d.id,

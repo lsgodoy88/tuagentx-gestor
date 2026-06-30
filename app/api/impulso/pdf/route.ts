@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
 import { fechaHoyBogota } from '@/lib/fechas'
-import { buildSemana } from '@/lib/impulsoMetricas'
+import { calcularImpulsadorasMes } from '@/lib/impulsoMetricas'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -14,90 +14,40 @@ export async function GET(req: NextRequest) {
 
   const { searchParams } = new URL(req.url)
   const fecha = searchParams.get('fecha') || fechaHoyBogota()
-  const inicioMes = new Date(fecha.slice(0, 7) + '-01T00:00:00.000Z')
-  const finMes = new Date(new Date(inicioMes).setMonth(inicioMes.getMonth() + 1) - 1)
-  const mesLabel = inicioMes.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })
+  const [anioStr, mesStr] = fecha.slice(0, 7).split('-')
+  const anio = parseInt(anioStr)
+  const mes = parseInt(mesStr)
 
-  let whereImp: any = { empresaId, rol: 'impulsadora', activo: true }
-  if (user.role === 'vendedor') whereImp.vendedorId = user.id
-  if (user.role === 'impulsadora') whereImp = { id: user.id, rol: 'impulsadora', activo: true }
-
-  const impulsadoras = await prisma.empleado.findMany({
-    where: whereImp,
-    orderBy: { nombre: 'asc' }
+  // Snapshot congelado (mes ya cerrado, ultimo dia 23:59 via Guardian) tiene
+  // prioridad sobre el calculo en vivo — es de solo lectura, no se recalcula.
+  const snapshot = await (prisma as any).reporteImpulsoMes.findUnique({
+    where: { empresaId_mes_anio: { empresaId, mes, anio } },
   })
 
-  const resultados = await Promise.all(impulsadoras.map(async (imp: any) => { try {
-    const rutasFijas = await prisma.rutaFija.findMany({
-      where: { empleados: { some: { empleadoId: imp.id } } },
-      include: { clientes: { select: { id: true, clienteId: true, orden: true, metaVenta: true, cliente: { select: { id: true, nombre: true, nombreComercial: true } } }, orderBy: { orden: 'asc' } } }
-    })
+  if (snapshot) {
+    const data = snapshot.resultados as any
+    const impulsadoras = aplicarScopeRol(data.impulsadoras || [], user)
+    return NextResponse.json({ ...data, impulsadoras, snapshot: true })
+  }
 
-    if (rutasFijas.length === 0) return null
+  let whereImpExtra: any = {}
+  if (user.role === 'vendedor') whereImpExtra = { vendedorId: user.id }
+  if (user.role === 'impulsadora') whereImpExtra = { id: user.id }
 
-    // Todos los clienteIds únicos de sus rutas
-    const clienteIds = [...new Set(rutasFijas.flatMap((r: any) => r.clientes.map((c: any) => c.clienteId)))]
+  const data = await calcularImpulsadorasMes(empresaId, fecha, whereImpExtra)
+  return NextResponse.json({ ...data, snapshot: false })
+}
 
-    // Traer clientes con apiId para saber cuáles tienen ERP
-    const clientes = await prisma.cliente.findMany({
-      where: { id: { in: clienteIds } },
-      select: { id: true, apiId: true }
-    })
-
-    const ventasPorCliente: Record<string, number> = {}
-
-    // Clientes con ERP → SyncDeuda
-    const conApiId = clientes.filter((c: any) => c.apiId)
-    const sinApiId = clientes.filter((c: any) => !c.apiId)
-
-    if (conApiId.length > 0) {
-      const apiIds = conApiId.map((c: any) => c.apiId)
-      const apiIdToClienteId = Object.fromEntries(conApiId.map((c: any) => [c.apiId, c.id]))
-
-      const deudas = await (prisma as any).syncDeuda.findMany({
-        where: {
-          clienteApiId: { in: apiIds },
-          modificadoEn: { gte: inicioMes, lte: finMes },
-          condition: true,
-        },
-        select: { clienteApiId: true, valor: true }
-      })
-
-      for (const d of deudas) {
-        const cid = apiIdToClienteId[d.clienteApiId]
-        if (!cid) continue
-        ventasPorCliente[cid] = (ventasPorCliente[cid] || 0) + Number(d.valor)
-      }
-    }
-
-    // Clientes sin ERP → Visita
-    if (sinApiId.length > 0) {
-      const ids = sinApiId.map((c: any) => c.id)
-      const visitas = await prisma.visita.findMany({
-        where: {
-          clienteId: { in: ids },
-          empleadoId: imp.id,
-          tipo: { in: ['venta', 'cobro'] },
-          fechaBogota: { gte: inicioMes, lte: finMes }
-        },
-        select: { clienteId: true, monto: true }
-      })
-      for (const v of visitas) {
-        ventasPorCliente[v.clienteId] = (ventasPorCliente[v.clienteId] || 0) + Number(v.monto || 0)
-      }
-    }
-
-    const semana = buildSemana(rutasFijas, ventasPorCliente).filter(Boolean)
-    const totalMeta = semana.reduce((a: number, d: any) => a + d.totalMeta, 0)
-    const totalMes = semana.reduce((a: number, d: any) => a + d.totalMes, 0)
-    const pctTotal = totalMeta > 0 ? Math.round((totalMes / totalMeta) * 100) : null
-
-    return { id: imp.id, nombre: imp.nombre, semana, totalMeta, totalMes, pctTotal }
-  } catch(e: any) { console.error('[pdf]', imp.nombre, e.message); return null } }))
-
-  return NextResponse.json({
-    mes: mesLabel,
-    fecha,
-    impulsadoras: resultados.filter(Boolean)
-  })
+// Aplica el mismo filtro de rol que antes vivia en el where de Prisma, pero
+// sobre el JSON ya congelado del snapshot (que siempre incluye TODAS las
+// impulsadoras de la empresa). Cada entrada del snapshot guarda vendedorId
+// para poder reproducir el mismo scope exacto que el calculo en vivo.
+function aplicarScopeRol(impulsadoras: any[], user: any) {
+  if (user.role === 'vendedor') {
+    return impulsadoras.filter((i: any) => i.vendedorId === user.id)
+  }
+  if (user.role === 'impulsadora') {
+    return impulsadoras.filter((i: any) => i.id === user.id)
+  }
+  return impulsadoras
 }

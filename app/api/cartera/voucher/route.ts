@@ -3,13 +3,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import OpenAI from 'openai'
 import { subirVoucher } from '@/lib/r2'
-import { execFile } from 'child_process'
-import { promisify } from 'util'
-import { writeFileSync, readFileSync, readdirSync, unlinkSync } from 'fs'
-import { join, basename } from 'path'
-import { tmpdir } from 'os'
+import { pdfPrimerarPaginaAJpg } from '@/lib/pdfAJpg'
 
-const execFileAsync = promisify(execFile)
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 const PROMPT_EXTRACCION =
@@ -22,42 +17,6 @@ const PROMPT_EXTRACCION =
   'Si no encuentras un campo devuelve null. Responde ÚNICAMENTE con JSON válido sin texto adicional: {"valor": number, "fecha": "YYYY-MM-DD HH:mm:ss", "banco": "string", "origen": "string", "destino": "string", "referencia": "string"}'
 
 type DatosIA = { valor: number | null; fecha: string | null; banco: string | null; origen: string | null; destino: string | null; referencia: string | null }
-
-async function pdfPrimerarPaginaAJpg(pdfBase64: string): Promise<string> {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const sharp = require('sharp')
-  const tag = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-  const tmpPdf = join(tmpdir(), `voucher_${tag}.pdf`)
-  const tmpBase = join(tmpdir(), `voucher_img_${tag}`)
-
-  try {
-    writeFileSync(tmpPdf, Buffer.from(pdfBase64, 'base64'))
-
-    // -jpeg genera archivos .jpg; -f 1 -l 1 procesa solo la primera página
-    await execFileAsync('pdftoppm', ['-jpeg', '-r', '150', '-f', '1', '-l', '1', tmpPdf, tmpBase])
-
-    const archivos = readdirSync(tmpdir()).filter(
-      (f) => f.startsWith(basename(tmpBase)) && f.endsWith('.jpg')
-    )
-    if (archivos.length === 0) throw new Error('pdftoppm no generó archivo de imagen')
-
-    const imgBuffer = readFileSync(join(tmpdir(), archivos[0]))
-
-    const compressed: Buffer = await sharp(imgBuffer)
-      .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
-      .jpeg({ quality: 88 })
-      .toBuffer()
-
-    return compressed.toString('base64')
-  } finally {
-    try { unlinkSync(tmpPdf) } catch {}
-    try {
-      readdirSync(tmpdir())
-        .filter((f) => f.startsWith(basename(tmpBase)))
-        .forEach((f) => { try { unlinkSync(join(tmpdir(), f)) } catch {} })
-    } catch {}
-  }
-}
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)

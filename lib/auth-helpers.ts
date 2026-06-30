@@ -48,3 +48,21 @@ export function vendedorScope(
   const empleadoIdForzado = isVendedor ? (user.id as string) : null
   return { permitido, empleadoIdForzado, isVendedor }
 }
+
+/**
+ * Igual que vendedorScope, pero cubre vendedor E impulsadora (cualquier rol
+ * de campo no-admin) forzando su propio empleadoId. Usado en módulos donde
+ * ambos roles registran datos propios que el admin debe ver consolidados
+ * (ej. gastos), a diferencia de vendedorScope que es estrictamente para
+ * vendedor (cartera/rutas clásicas).
+ */
+export function empleadoCampoScope(
+  user: any,
+  rolesExtra: string[] = []
+): { permitido: boolean; empleadoIdForzado: string | null; esEmpleadoCampo: boolean } {
+  const esEmpleadoCampo = user?.role === 'vendedor' || user?.role === 'impulsadora'
+  const rolesPermitidos = [...ROLES_ADMIN, ...rolesExtra]
+  const permitido = rolesPermitidos.includes(user?.role) || esEmpleadoCampo
+  const empleadoIdForzado = esEmpleadoCampo ? (user.id as string) : null
+  return { permitido, empleadoIdForzado, esEmpleadoCampo }
+}

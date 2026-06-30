@@ -48,6 +48,27 @@ export async function subirVoucher(imagenBase64: string, pagoId: string): Promis
   return key
 }
 
+export async function subirEvidenciaGasto(imagenBase64: string, gastoId: string): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const sharp = require('sharp')
+  const base64Data = imagenBase64.replace(/^data:[^;]+;base64,/, '')
+  const buffer = Buffer.from(base64Data, 'base64')
+
+  const compressed: Buffer = await sharp(buffer)
+    .resize(800, 800, { fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: 82 })
+    .toBuffer()
+
+  const key = `gastos/${gastoId}.jpg`
+  await r2.send(new PutObjectCommand({
+    Bucket: process.env.R2_BUCKET!,
+    Key: key,
+    Body: compressed,
+    ContentType: 'image/jpeg',
+  }))
+  return key
+}
+
 export async function firmaUrl(key: string): Promise<string> {
   // Si es base64 legacy, devolverlo tal cual
   if (key.startsWith('data:')) return key

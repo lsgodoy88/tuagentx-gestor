@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { getEmpresaId, ROLES_ADMIN } from '@/lib/auth-helpers'
+import { getEmpresaId, ROLES_ADMIN, vendedorScope } from '@/lib/auth-helpers'
 import { inicioDiaBogota, mesBogota, anioBogota } from '@/lib/fechas'
 
 // GET — configs + último cálculo del mes
@@ -13,7 +13,8 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
-  if (!ROLES_ADMIN.includes(user.role)) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  const { permitido, empleadoIdForzado, isVendedor } = vendedorScope(user)
+  if (!permitido) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const empresaId = getEmpresaId(user)
   const { searchParams } = new URL(req.url)
@@ -22,7 +23,7 @@ export async function GET(req: NextRequest) {
 
   const [vendedores, configs, calculo] = await Promise.all([
     prisma.empleado.findMany({
-      where: { empresaId, rol: 'vendedor', activo: true },
+      where: { empresaId, rol: 'vendedor', activo: true, ...(empleadoIdForzado ? { id: empleadoIdForzado } : {}) },
       select: { id: true, nombre: true },
       orderBy: { nombre: 'asc' },
     }),
@@ -56,29 +57,29 @@ export async function GET(req: NextRequest) {
 
   const configMap = Object.fromEntries(configs.map((c: any) => [c.empleadoId, c]))
 
-  // Agrega por vendedor: efectivo / transferencia / otro (todo lo demás, incluido null)
-  const porVendedor: Record<string, { efectivo: number; transferencia: number; otro: number; descuentos: number; pagosCount: number }> = {}
+  // Agrega por vendedor: efectivo / transferencia (todo lo no-efectivo, incluido null, cae aquí)
+  const porVendedor: Record<string, { efectivo: number; transferencia: number; descuentos: number; pagosCount: number }> = {}
   for (const r of recaudos as any[]) {
     const id = r.empleadoId
-    if (!porVendedor[id]) porVendedor[id] = { efectivo: 0, transferencia: 0, otro: 0, descuentos: 0, pagosCount: 0 }
+    if (!porVendedor[id]) porVendedor[id] = { efectivo: 0, transferencia: 0, descuentos: 0, pagosCount: 0 }
     const monto = Number(r._sum?.monto || 0)
     if (r.metodopago === 'efectivo') porVendedor[id].efectivo += monto
-    else if (r.metodopago === 'transferencia') porVendedor[id].transferencia += monto
-    else porVendedor[id].otro += monto
+    else porVendedor[id].transferencia += monto
     porVendedor[id].descuentos += Number(r._sum?.descuento || 0)
     porVendedor[id].pagosCount += r._count?.id || 0
   }
 
   const vendedoresData = vendedores.map((v: any) => {
-    const cfg = configMap[v.id] || { porcentaje: 0, formula: 'total/1.19*porcentaje' }
-    const agg = porVendedor[v.id] || { efectivo: 0, transferencia: 0, otro: 0, descuentos: 0, pagosCount: 0 }
-    const total = agg.efectivo + agg.transferencia + agg.otro
+    const cfg = configMap[v.id] || { porcentaje: 3, formula: 'total/1.19*porcentaje' }
+    const agg = porVendedor[v.id] || { efectivo: 0, transferencia: 0, descuentos: 0, pagosCount: 0 }
+    const total = agg.efectivo + agg.transferencia
     const porcentaje = Number(cfg.porcentaje || 0)
     const formula = cfg.formula || 'total/1.19*porcentaje'
     let comision = 0
     try {
       const { Parser } = require('expr-eval')
-      comision = Math.round(new Parser().parse(formula).evaluate({ total, porcentaje }))
+      // porcentaje normalizado a fracción (5 → 0.05), igual que en frontend
+      comision = Math.round(new Parser().parse(formula).evaluate({ total, porcentaje: porcentaje / 100 }))
     } catch {
       comision = 0
     }
@@ -89,7 +90,6 @@ export async function GET(req: NextRequest) {
       formula,
       efectivo: agg.efectivo,
       transferencia: agg.transferencia,
-      otro: agg.otro,
       total,
       descuentos: agg.descuentos,
       comision,
@@ -137,7 +137,6 @@ export async function POST(req: NextRequest) {
         nombre: v.nombre,
         efectivo: v.efectivo,
         transferencia: v.transferencia,
-        otro: v.otro,
         total: v.total,
         descuentos: v.descuentos,
         porcentaje: v.porcentaje,

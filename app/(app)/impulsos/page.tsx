@@ -82,7 +82,7 @@ export default function RutasFijasPage() {
   const [totalCli, setTotalCli] = useState(0)
   const [loading, setLoading] = useState(false)
   const [diasAbiertosEmp, setDiasAbiertosEmp] = useState<Record<string, Set<number>>>({})
-  const [tab, setTab] = useState<'historial'|'rutas'|'reporte'>('rutas')
+  const [tab, setTab] = useState<'rutas'|'reporte'>('rutas')
   const [modalVerRuta, setModalVerRuta] = useState<{emp: any, dia: number, ruta: any}|null>(null)
   const [bottomSheet, setBottomSheet] = useState<{rc: any, rutaId: string}|null>(null)
   const [syncVentas, setSyncVentas] = useState<{usadosHoy:number,restantes:number,ultimoSync:string|null,puedeSync:boolean}|null>(null)
@@ -155,10 +155,6 @@ export default function RutasFijasPage() {
   const [gestionMonto, setGestionMonto] = useState('')
   const [gestionNota, setGestionNota] = useState('')
   const [guardandoGestion, setGuardandoGestion] = useState(false)
-  const [fechaHistorial, setFechaHistorial] = useState(new Date().toISOString().split('T')[0])
-  const [historialData, setHistorialData] = useState<any>({ visitas: [], impulsadoras: [], alertas: [] })
-  const [loadingHistorial, setLoadingHistorial] = useState(false)
-  const historialReqId = useRef(0)
   const LIMIT_CLI = 10
   const esImpulsadora = user?.role === 'impulsadora'
   const esVendedor = user?.role === 'vendedor'
@@ -179,9 +175,6 @@ export default function RutasFijasPage() {
     if (!user?.id || !empleados.length) return
     // cumplimiento tab removed
   }, [user?.id, empleados.length, tab])
-  useEffect(() => {
-    if (tab === 'historial' && (esVendedor || esImpulsadora || esAdmin || esSupervisor)) loadHistorial()
-  }, [tab, fechaHistorial, user])
   useEffect(() => {
     if (tab === 'rutas') loadVentasHoy()
   }, [tab])
@@ -250,27 +243,6 @@ export default function RutasFijasPage() {
     setGestionMonto('')
     setGestionNota('')
     loadCumplimiento()
-  }
-
-  async function loadHistorial() {
-    const miPeticion = ++historialReqId.current
-    setLoadingHistorial(true)
-    if (esImpulsadora) {
-      const res = await fetch('/api/visitas/todas')
-      const visitas = await res.json()
-      if (miPeticion !== historialReqId.current) return
-      const filtradas = (Array.isArray(visitas) ? visitas : []).filter((v: any) => {
-        const fv = v.fechaBogota ? v.fechaBogota.split('T')[0] : new Date(new Date(v.createdAt).getTime() - 5*60*60*1000).toISOString().split('T')[0]
-        return fv === fechaHistorial && (v.tipo === 'entrada' || v.tipo === 'salida')
-      })
-      setHistorialData({ visitas: filtradas, impulsadoras: [{ id: user?.id, nombre: user?.name || 'Yo' }] })
-    } else {
-      const res = await fetch('/api/visitas/impulsos?fecha=' + fechaHistorial)
-      const data = await res.json()
-      if (miPeticion !== historialReqId.current) return
-      setHistorialData(data)
-    }
-    if (miPeticion === historialReqId.current) setLoadingHistorial(false)
   }
 
   function abrirDiaAcordeon(empId: string, diaNum: number) {
@@ -372,129 +344,9 @@ export default function RutasFijasPage() {
     <div className="space-y-3 max-w-7xl mx-auto">
 <div className="flex gap-1 tab-pills rounded-xl p-1">
         <button onClick={() => setTab('rutas')} className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tab === 'rutas' ? 'tab-active' : 'text-white hover:text-white'}`}>Rutero</button>
-        <button onClick={() => setTab('historial')} className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tab === 'historial' ? 'tab-active' : 'text-white hover:text-white'}`}>Historial</button>
         <button onClick={() => setTab('reporte')} className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tab === 'reporte' ? 'tab-active' : 'text-white hover:text-white'}`}>Reporte</button>
 
       </div>
-
-      {tab === 'historial' && (
-        <div className="space-y-4">
-          <input type="date" value={fechaHistorial} onChange={e => setFechaHistorial(e.target.value)}
-            className="w-full bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-blue-500" />
-          {(esAdmin || esSupervisor) && (
-            <div className="flex items-center gap-2">
-              <input type="month" value={mesPDF} onChange={e => setMesPDF(e.target.value)}
-                className="flex-1 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-blue-500" />
-              <button
-                onClick={() => window.open(`/pdf-impulso?fecha=${mesPDF}-01`, '_blank')}
-                className="flex-shrink-0 bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2">
-                📄 PDF
-              </button>
-            </div>
-          )}
-          {loadingHistorial ? (
-            <div className="text-zinc-400 text-center py-8">Cargando...</div>
-          ) : (
-            <div className="space-y-4">
-              {(historialData.impulsadoras || []).map((imp: any) => {
-                const visitasImp = (historialData.visitas || []).filter((v: any) => v.empleadoId === imp.id)
-                const clientesMap: any = {}
-                for (const v of visitasImp) {
-                  if (!clientesMap[v.clienteId]) clientesMap[v.clienteId] = { cliente: v.cliente, entrada: null, salida: null }
-                  if (v.tipo === 'entrada') clientesMap[v.clienteId].entrada = v
-                  if (v.tipo === 'salida') clientesMap[v.clienteId].salida = v
-                }
-                const puntos = Object.values(clientesMap)
-                return (
-                  <div key={imp.id}>
-                    {!esImpulsadora && (
-                      <div className="flex items-center gap-3 mb-3">
-                        <div className="w-8 h-8 bg-zinc-700 rounded-full flex items-center justify-center text-white font-bold text-sm">{imp.nombre[0]}</div>
-                        <div>
-                          <p className="text-white font-semibold text-sm">{imp.nombre}</p>
-                          <p className="text-zinc-500 text-xs">{puntos.length} puntos visitados</p>
-                        </div>
-                      </div>
-                    )}
-                    {puntos.length === 0 ? (
-                      <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 text-center">
-                        <p className="text-zinc-400 text-sm">Sin registros para esta fecha</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {puntos.map((item: any) => {
-                          const tiempoMin = item.entrada && item.salida
-                            ? Math.round((new Date(item.salida.createdAt).getTime() - new Date(item.entrada.createdAt).getTime()) / 60000)
-                            : null
-                          return (
-                            <div key={item.cliente.id} className="rounded-2xl p-4 space-y-2" style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.45)"}}>
-                              <p className="text-white font-semibold">{item.cliente.nombre}</p>
-                              {item.cliente.nombreComercial && <p className="text-zinc-400 text-sm">{item.cliente.nombreComercial}</p>}
-                                {(() => {
-                                  // Distancia directa: Visita.lat/lng vs Cliente.lat/lng
-                                  const clienteLat = item.cliente.lat
-                                  const clienteLng = item.cliente.lng
-                                  const distEntrada = item.entrada?.lat && clienteLat
-                                    ? Math.round(distanciaMetros(item.entrada.lat, item.entrada.lng, clienteLat, clienteLng))
-                                    : null
-                                  const distSalida = item.salida?.lat && clienteLat
-                                    ? Math.round(distanciaMetros(item.salida.lat, item.salida.lng, clienteLat, clienteLng))
-                                    : null
-                                  const alertaEnEntrada = distEntrada !== null && distEntrada > 100
-                                  const alertaEnSalida = distSalida !== null && distSalida > 100
-                                  return (
-                                    <>
-                                      <div className="grid grid-cols-2 gap-2">
-                                        <div>
-                                          <div className={"rounded-xl p-2.5 relative " + (item.entrada ? "bg-blue-500/10 border border-blue-500/20" : "bg-zinc-800")}>
-                                            <p className="text-zinc-400 text-xs">Entrada</p>
-                                            {item.entrada ? <p className="text-blue-400 font-semibold text-sm">{new Date(item.entrada.createdAt).toLocaleTimeString("es-CO", {hour:"2-digit", minute:"2-digit", timeZone: 'America/Bogota'})}</p> : <p className="text-zinc-600 text-sm">-</p>}
-                                            {item.entrada?.lat && (
-                                              <a href={"https://www.google.com/maps?q=" + item.entrada.lat + "," + item.entrada.lng} target="_blank" className="absolute top-2 right-2 text-base leading-none">📍</a>
-                                            )}
-                                          </div>
-                                          {alertaEnEntrada ? (
-                                            <p className="text-orange-400 text-xs mt-1 px-1">⚠️ a {distEntrada} mts</p>
-                                          ) : item.entrada?.lat && clienteLat ? (
-                                            <p className="text-emerald-400 text-xs mt-1 px-1">✓ {distEntrada}m</p>
-                                          ) : null}
-                                        </div>
-                                        <div>
-                                          <div className={"rounded-xl p-2.5 relative " + (item.salida ? "bg-orange-500/10 border border-orange-500/20" : "bg-zinc-800")}>
-                                            <p className="text-zinc-400 text-xs">Salida</p>
-                                            {item.salida ? <p className="text-orange-400 font-semibold text-sm">{new Date(item.salida.createdAt).toLocaleTimeString("es-CO", {hour:"2-digit", minute:"2-digit", timeZone: 'America/Bogota'})}</p> : <p className="text-zinc-600 text-sm">-</p>}
-                                            {item.salida?.lat && (
-                                              <a href={"https://www.google.com/maps?q=" + item.salida.lat + "," + item.salida.lng} target="_blank" className="absolute top-2 right-2 text-base leading-none">📍</a>
-                                            )}
-                                          </div>
-                                          {alertaEnSalida ? (
-                                            <p className="text-orange-400 text-xs mt-1 px-1">⚠️ a {distSalida} mts</p>
-                                          ) : item.salida?.lat && clienteLat ? (
-                                            <p className="text-emerald-400 text-xs mt-1 px-1">✓ {distSalida}m</p>
-                                          ) : null}
-                                        </div>
-                                      </div>
-                                      {tiempoMin !== null && <p className="text-zinc-500 text-xs text-center">{tiempoMin} min en punto</p>}
-                                    </>
-                                  )
-                                })()}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-              {(historialData.impulsadoras || []).length === 0 && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6 text-center">
-                  <p className="text-zinc-400 text-sm">Sin registros</p>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
 
       {tab === 'rutas' && (
         <div className="space-y-4">
@@ -595,7 +447,6 @@ export default function RutasFijasPage() {
                                     title="Editar día"
                                     className="text-zinc-400 hover:text-white text-xs px-1.5 py-1 rounded-lg transition-colors">✏️</button>
                                 )}
-                                <span onClick={() => abrirDiaAcordeon(emp.id, diaNum)} className="text-zinc-600 text-xs cursor-pointer px-1">{esOculto ? '▶' : '▼'}</span>
                               </>
                             ) : !esImpulsadora && puedeAsignar ? (
                               <button onClick={() => abrirDia(emp, diaNum)}
@@ -1074,7 +925,9 @@ export default function RutasFijasPage() {
 }
 
 function ReporteImpulsoTab() {
-  const [mes, setMes] = useState(new Date().toISOString().slice(0, 7))
+  const mesActual = new Date().toISOString().slice(0, 7)
+  const [mesInput, setMesInput] = useState(mesActual)
+  const [mesBuscado, setMesBuscado] = useState(mesActual)
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
@@ -1085,12 +938,20 @@ function ReporteImpulsoTab() {
         <div className="flex items-center gap-2">
           <input
             type="month"
-            value={mes}
-            onChange={e => setMes(e.target.value)}
+            value={mesInput}
+            onChange={e => setMesInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') setMesBuscado(mesInput) }}
             className="rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid #1a3557"}}
           />
           <button
-            onClick={() => window.open('/pdf-impulso?fecha=' + mes + '-01', '_blank')}
+            onClick={() => setMesBuscado(mesInput)}
+            title="Buscar mes"
+            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold px-3 py-2 rounded-xl transition-colors"
+          >
+            🔍
+          </button>
+          <button
+            onClick={() => window.open('/pdf-impulso?fecha=' + mesBuscado + '-01', '_blank')}
             className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
           >
             📄 Descargar PDF
@@ -1098,7 +959,7 @@ function ReporteImpulsoTab() {
         </div>
       </div>
 
-      <ReporteImpulsoTabla mes={mes} />
+      <ReporteImpulsoTabla mes={mesBuscado} />
     </div>
   )
 }
@@ -1129,6 +990,9 @@ function ReporteImpulsoTabla({ mes }: { mes: string }) {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
+      {datos.snapshot && (
+        <p className="text-zinc-500 text-xs">🔒 Mes cerrado — vista de solo lectura, no se recalcula.</p>
+      )}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
       {datos.impulsadoras?.map((imp: any) => (
         <div key={imp.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
@@ -1139,41 +1003,38 @@ function ReporteImpulsoTabla({ mes }: { mes: string }) {
               {imp.pctTotal !== null && <span className="ml-2">{imp.pctTotal}%</span>}
             </span>
           </div>
-          <table className="w-full text-sm">
+          <div className="overflow-x-auto">
+          <table className="w-full text-sm" style={{minWidth:560}}>
             <thead>
               <tr style={{background:"#0d1220",borderBottom:"1px solid #1e2a3d"}}>
-                <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left"}}>Cliente</th>
-                <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Meta</th>
-                <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>Ventas</th>
-                <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right"}}>%</th>
+                <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center",textTransform:"uppercase",whiteSpace:"nowrap"}}>Cliente</th>
+                <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center",textTransform:"uppercase",whiteSpace:"nowrap"}}>Meta</th>
+                <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center",textTransform:"uppercase",whiteSpace:"nowrap"}}>Ventas</th>
+                <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center",textTransform:"uppercase",whiteSpace:"nowrap"}}>%</th>
               </tr>
             </thead>
             <tbody>
               {imp.semana?.map((dia: any) => (
                 <>
                   <tr key={'dia-' + dia.dia} style={{background:"#141c2e",borderBottom:"1px solid #1e2a3d"}}>
-                    <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",borderBottom:"1px solid #1e2a3d"}}>{dia.nombre}</td>
-                    <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",borderBottom:"1px solid #1e2a3d"}}>{dia.totalMeta > 0 ? fmt(dia.totalMeta) : ''}</td>
-                    <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",borderBottom:"1px solid #1e2a3d"}}>{dia.totalMes > 0 ? fmt(dia.totalMes) : ''}</td>
-                    <td className={'px-4 py-2 text-right text-xs font-bold ' + color(dia.pctTotal)}>
-                      {dia.pctTotal !== null ? dia.pctTotal + '%' : ''}
-                    </td>
+                    <td colSpan={4} style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",borderBottom:"1px solid #1e2a3d",whiteSpace:"nowrap",textAlign:"center",textTransform:"uppercase"}}>{dia.nombre}</td>
                   </tr>
                   {dia.puntos?.map((p: any, i: number) => (
                     <tr key={i} style={{background:"#141c2e",borderBottom:"1px solid #1e2a3d"}}>
                       <td className="px-4 py-2">
-                        <span className="text-white">{p.nombre}</span>
-                        {p.nombreComercial && <span className="text-zinc-500 text-xs ml-1">— {p.nombreComercial}</span>}
+                        <span className="text-white whitespace-nowrap block">{p.nombre}</span>
+                        {p.nombreComercial && <span className="text-zinc-500 text-xs whitespace-nowrap block mt-0.5">{p.nombreComercial}</span>}
                       </td>
-                      <td className="px-4 py-2 text-right text-amber-500 font-medium">{p.meta > 0 ? fmt(p.meta) : '—'}</td>
-                      <td className="px-4 py-2 text-right text-blue-400 font-medium">{p.montoMes > 0 ? fmt(p.montoMes) : '—'}</td>
-                      <td className={'px-4 py-2 text-right font-bold ' + color(p.pct)}>{p.pct !== null ? p.pct + '%' : '—'}</td>
+                      <td className="px-4 py-2 text-right text-amber-500 font-medium whitespace-nowrap">{p.meta > 0 ? fmt(p.meta) : '—'}</td>
+                      <td className="px-4 py-2 text-right text-blue-400 font-medium whitespace-nowrap">{p.montoMes > 0 ? fmt(p.montoMes) : '—'}</td>
+                      <td className={'px-4 py-2 text-right font-bold whitespace-nowrap ' + color(p.pct)}>{p.pct !== null ? p.pct + '%' : '—'}</td>
                     </tr>
                   ))}
                 </>
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       ))}
       </div>

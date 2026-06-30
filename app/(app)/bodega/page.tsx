@@ -56,7 +56,10 @@ export default function BodegaPage() {
 
   const [tab, setTab] = useState<'despachos' | 'inventario'>('despachos')
   const [subTab, setSubTab] = useState<'pendientes' | 'alistados' | 'entregados'>('pendientes')
-  const [despachos, setDespachos] = useState<any[]>([])
+  const [cursores, setCursores] = useState<Record<string, string | null>>({ pendiente: null, alistado: null, despachado: null })
+  const [hayMasPorTab, setHayMasPorTab] = useState<Record<string, boolean>>({ pendiente: false, alistado: false, despachado: false })
+  const [despachosPorTab, setDespachosPorTab] = useState<Record<string, any[]>>({ pendiente: [], alistado: [], despachado: [] })
+  const [cargandoMasTab, setCargandoMasTab] = useState(false)
   const [ciudadLocal, setCiudadLocal] = useState<string | null>(null)
   const [bodegaPuedeEnviar, setBodegaPuedeEnviar] = useState(false)
   const [repartidores, setRepartidores] = useState<any[]>([])
@@ -84,6 +87,7 @@ export default function BodegaPage() {
   const [soportaZoom, setSoportaZoom] = useState(false)
   const [asignarTodasRepartidor, setAsignarTodasRepartidor] = useState('')
   const [asignandoTodas, setAsignandoTodas] = useState(false)
+  const montado = useRef(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
   const trackRef = useRef<MediaStreamTrack | null>(null)
@@ -94,7 +98,7 @@ export default function BodegaPage() {
     if (status === 'unauthenticated') { router.push('/login'); return }
     if (status !== 'authenticated') return
     if (!['empresa', 'supervisor', 'bodega'].includes(user?.role)) { router.push('/inicio'); return }
-    cargarDatos()
+    cargarDatos().then(() => { montado.current = true })
     fetch('/api/bodega/empresas-origen').then(r => r.json()).then(d => setEmpresasOrigen(Array.isArray(d) ? d : []))
     fetch('/api/empleados?rol=entregas')
       .then(r => r.json())
@@ -102,19 +106,49 @@ export default function BodegaPage() {
       .catch(() => {})
   }, [status])
 
-  useEffect(() => { if (status === 'authenticated') cargarDatos() }, [origenSel, diasHistorial])
+  useEffect(() => { if (status === 'authenticated' && montado.current) cargarDatos() }, [origenSel, diasHistorial])
+
+  const ESTADO_POR_SUBTAB: Record<'pendientes' | 'alistados' | 'entregados', 'pendiente' | 'alistado' | 'despachado'> = {
+    pendientes: 'pendiente', alistados: 'alistado', entregados: 'despachado',
+  }
+
+  async function cargarTab(estadoTab: 'pendiente' | 'alistado' | 'despachado', reset = false) {
+    if (reset) {
+      setCursores(p => ({ ...p, [estadoTab]: null }))
+      setDespachosPorTab(p => ({ ...p, [estadoTab]: [] }))
+    }
+    try {
+      const params = new URLSearchParams()
+      if (origenSel !== 'propia') params.set('origenId', origenSel)
+      params.set('estado', estadoTab)
+      if (!reset && cursores[estadoTab]) params.set('cursor', cursores[estadoTab]!)
+      const data = await fetch(`/api/bodega/despachos?${params}`).then(r => r.json())
+      setDespachosPorTab(p => ({ ...p, [estadoTab]: reset ? (data.despachos || []) : [...(p[estadoTab] || []), ...(data.despachos || [])] }))
+      setCursores(p => ({ ...p, [estadoTab]: data.nextCursor || null }))
+      setHayMasPorTab(p => ({ ...p, [estadoTab]: !!data.hayMas }))
+      setCiudadLocal(data.ciudadLocal || null)
+      setBodegaPuedeEnviar(data.bodegaPuedeEnviar ?? false)
+    } catch {}
+  }
 
   async function cargarDatos() {
     setCargando(true)
     try {
-      const res = await fetch(`/api/bodega/despachos?origenId=${origenSel}&dias=${diasHistorial}`)
-      const data = await res.json()
-      setDespachos(data.despachos || [])
-      setCiudadLocal(data.ciudadLocal || null)
-      setBodegaPuedeEnviar(data.bodegaPuedeEnviar ?? false)
+      await Promise.all([
+        cargarTab('pendiente', true),
+        cargarTab('alistado', true),
+        cargarTab('despachado', true),
+      ])
     } finally {
       setCargando(false)
     }
+  }
+
+  async function cargarMasTab() {
+    const estadoTab = ESTADO_POR_SUBTAB[subTab]
+    if (cargandoMasTab || !hayMasPorTab[estadoTab]) return
+    setCargandoMasTab(true)
+    try { await cargarTab(estadoTab) } finally { setCargandoMasTab(false) }
   }
 
   async function sync() {
@@ -146,11 +180,42 @@ export default function BodegaPage() {
       })
       const data = await res.json()
       if (data.orden) {
-        setDespachos(prev => prev.map(d => d.id === id ? { ...d, ...data.orden } : d))
+        moverEntreTabs(id, data.orden)
       }
     } finally {
       setSaving(p => ({ ...p, [id]: false }))
     }
+  }
+
+  function moverEntreTabs(id: string, ordenActualizada: any) {
+    const estadoFinal = ordenActualizada.estado
+    const esDespachada = ['en_entrega', 'en_transito', 'entregado'].includes(estadoFinal)
+    const esAlistada = estadoFinal === 'alistado'
+    setDespachosPorTab(prev => {
+      const next = { ...prev }
+      for (const t of Object.keys(next) as Array<'pendiente' | 'alistado' | 'despachado'>) {
+        if (esDespachada && t !== 'despachado') {
+          next[t] = next[t].filter((d: any) => d.id !== id)
+        } else if (esDespachada && t === 'despachado') {
+          const yaExiste = next[t].some((d: any) => d.id === id)
+          next[t] = yaExiste
+            ? next[t].map((d: any) => d.id === id ? { ...d, ...ordenActualizada } : d)
+            : [{ ...ordenActualizada }, ...next[t]]
+        } else if (esAlistada && t === 'pendiente') {
+          next[t] = next[t].filter((d: any) => d.id !== id)
+        } else if (esAlistada && t === 'alistado') {
+          const yaExiste = next[t].some((d: any) => d.id === id)
+          next[t] = yaExiste
+            ? next[t].map((d: any) => d.id === id ? { ...d, ...ordenActualizada } : d)
+            : [...next[t], { ...ordenActualizada }]
+        } else {
+          next[t] = next[t].map((d: any) => d.id === id ? { ...d, ...ordenActualizada } : d)
+        }
+      }
+      return next
+    })
+    if (esDespachada) setSubTab('entregados')
+    else if (esAlistada) setSubTab('alistados')
   }
 
   async function abrirCamara(ordenId: string) {
@@ -201,7 +266,7 @@ export default function BodegaPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ordenId: camaraOrdenId, fotoBase64: preview }),
       }).then(r => r.json())
-      if (res.orden) setDespachos(prev => prev.map(d => d.id === camaraOrdenId ? { ...d, ...res.orden } : d))
+      if (res.orden) moverEntreTabs(camaraOrdenId, res.orden)
     } finally {
       setSaving(p => ({ ...p, [camaraOrdenId!]: false }))
       setCamaraActiva(false)
@@ -236,7 +301,7 @@ export default function BodegaPage() {
   async function asignarTodas() {
     if (!asignarTodasRepartidor) return
     setAsignandoTodas(true)
-    const alistadas = despachos.filter(d => d.estado === 'alistado')
+    const alistadas = despachosPorTab['alistado'] || []
     for (const d of alistadas) {
       await patchOrden(d.id, { repartidorId: asignarTodasRepartidor, estado: 'en_entrega' })
     }
@@ -296,9 +361,9 @@ export default function BodegaPage() {
         <div className="space-y-2">
           {/* Sub-tabs */}
           {(() => {
-            const cPendientes = despachos.filter(d => d.estado === 'pendiente').length
-            const cAlistados  = despachos.filter(d => d.estado === 'alistado').length
-            const cEntregados = despachos.filter(d => ['en_entrega','en_transito','entregado'].includes(d.estado)).length
+            const cPendientes = despachosPorTab['pendiente']?.length || 0
+            const cAlistados  = despachosPorTab['alistado']?.length || 0
+            const cEntregados = despachosPorTab['despachado']?.length || 0
             const pills: { id: typeof subTab; label: string; count: number; active: string; inactive: string; badge: string }[] = [
               { id: 'pendientes', label: 'Pendientes', count: cPendientes,
                 active: 'bg-amber-500 border-amber-500 text-white',
@@ -339,7 +404,7 @@ export default function BodegaPage() {
           )}
           {/* Contador + Sync */}
           <div className="flex items-center justify-between gap-2">
-            <p className="text-zinc-300 text-xs">{despachos.length} orden{despachos.length !== 1 ? 'es' : ''}{msgSync && <span className="ml-2 text-emerald-400">{msgSync}</span>}</p>
+            <p className="text-zinc-300 text-xs">{(despachosPorTab[ESTADO_POR_SUBTAB[subTab]] || []).length} orden{(despachosPorTab[ESTADO_POR_SUBTAB[subTab]] || []).length !== 1 ? 'es' : ''}{msgSync && <span className="ml-2 text-emerald-400">{msgSync}</span>}</p>
             <button onClick={sync} disabled={syncing}
               className={`flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-300 border border-zinc-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors ${syncing ? 'btn-shimmer' : ''}`}>
               <SyncIcon spinning={syncing} className="w-3.5 h-3.5 text-blue-400" />
@@ -347,16 +412,12 @@ export default function BodegaPage() {
             </button>
           </div>
 
-          {despachos.length === 0 ? (
+          {(despachosPorTab[ESTADO_POR_SUBTAB[subTab]] || []).length === 0 ? (
             <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-10 text-center">
               <p className="text-zinc-300 text-sm">Sin órdenes en el período configurado</p>
             </div>
           ) : (() => {
-            const despachosVisibles = despachos.filter(d => {
-              if (subTab === 'pendientes') return d.estado === 'pendiente'
-              if (subTab === 'alistados')  return d.estado === 'alistado'
-              return ['en_entrega','en_transito','entregado'].includes(d.estado)
-            })
+            const despachosVisibles = despachosPorTab[ESTADO_POR_SUBTAB[subTab]] || []
             return (
               <>
                 {subTab === 'alistados' && despachosVisibles.length > 0 && puedeEnviar && (
@@ -528,6 +589,13 @@ export default function BodegaPage() {
               </>
             )
           })()}
+
+          {hayMasPorTab[ESTADO_POR_SUBTAB[subTab]] && (
+            <button onClick={cargarMasTab} disabled={cargandoMasTab}
+              className="w-full bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-semibold py-3 rounded-2xl hover:text-white disabled:opacity-40 transition-colors">
+              {cargandoMasTab ? 'Cargando...' : 'Cargar más'}
+            </button>
+          )}
         </div>
       )}
 

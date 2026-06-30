@@ -58,6 +58,8 @@ model Empresa {
   despachoLogs        DespachoLog[]       @relation("DespachoLogEmpresa")
   comisionConfigs     ComisionConfig[]
   comisionCalculos    ComisionCalculo[]
+  reportesImpulsoMes  ReporteImpulsoMes[]
+  gastos              Gasto[]
   egresos             Egreso[]
 }
 
@@ -107,6 +109,7 @@ model Empleado {
   ordenesAlistadas    OrdenDespacho[]      @relation("AlistadoPor")
   ordenesRepartidas   OrdenDespacho[]      @relation("RepartidorDespacho")
   comisionConfigs     ComisionConfig[]
+  gastos              Gasto[]
 
   @@index([empresaId, activo], map: "idx_empleado_empresa_activo")
   @@map("Empleado")
@@ -3014,6 +3017,39 @@ model ComisionCalculo {
   @@unique([empresaId, mes, anio])
   @@index([empresaId])
   @@map("ComisionCalculo")
+}
+
+model Gasto {
+  id              String    @id @default(cuid())
+  empresaId       String
+  empleadoId      String
+  fechaAgregacion DateTime  @default(now())
+  fechaDoc        DateTime?
+  concepto        String
+  tipo            String    // Viaticos | Eventos | Papeleria | Otros — obligado, sin default
+  valor           Decimal   @db.Decimal(12, 2)
+  evidenciaKey    String
+  datosIA         Json?
+  createdAt       DateTime  @default(now())
+  empresa         Empresa   @relation(fields: [empresaId], references: [id])
+  empleado        Empleado  @relation(fields: [empleadoId], references: [id])
+
+  @@index([empresaId, empleadoId])
+  @@map("Gasto")
+}
+
+model ReporteImpulsoMes {
+  id         String   @id @default(cuid())
+  empresaId  String
+  mes        Int
+  anio       Int
+  resultados Json
+  createdAt  DateTime @default(now())
+  empresa    Empresa  @relation(fields: [empresaId], references: [id])
+
+  @@unique([empresaId, mes, anio])
+  @@index([empresaId])
+  @@map("ReporteImpulsoMes")
 }
 
 model InciGuardian {

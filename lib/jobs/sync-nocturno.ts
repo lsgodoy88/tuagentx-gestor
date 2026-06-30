@@ -572,11 +572,28 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
     }
   }
 
-  // SyncLog
+  // SyncLog — incluye snapshot de conteos totales (visibilidad/diagnóstico,
+  // NO es guard: los jobs de sync no hacen wipe masivo de clientes/empleados/
+  // listas hoy — el único riesgo real de wipe es deudas, ya protegido por el
+  // guard de marcarZombis()). Snapshot guardado dentro de "errores" con key
+  // "_snapshot" para no migrar schema.
   const integracionesMap = Object.fromEntries(integraciones.map((i: any) => [i.empresaId, i.id]))
   await Promise.allSettled(
-    resultados.map((r) =>
-      prisma.syncLog.create({
+    resultados.map(async (r) => {
+      let snapshot: Record<string, number> | null = null
+      try {
+        const [clientesTotal, deudasActivas, empleadosActivos, listasTotal] = await Promise.all([
+          (prisma as any).cliente.count({ where: { empresaId: r.empresaId } }),
+          (prisma as any).syncDeuda.count({ where: { integracionId: integracionesMap[r.empresaId], condition: true } }),
+          (prisma as any).empleado.count({ where: { empresaId: r.empresaId, activo: true } }),
+          (prisma as any).listaClientes.count({ where: { empresaId: r.empresaId } }),
+        ])
+        snapshot = { clientesTotal, deudasActivas, empleadosActivos, listasTotal }
+      } catch (eSnap: any) {
+        console.error(`[sync-nocturno] snapshot fallo (no critico) para ${r.empresaId}:`, eSnap.message)
+      }
+
+      return prisma.syncLog.create({
         data: {
           integracionId: integracionesMap[r.empresaId] ?? 'system',
           inicio: new Date(),
@@ -587,10 +604,12 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
           empresaId: r.empresaId,
           deudasSincronizadas: r.deudas ?? 0,
           clientesActualizados: r.clientesCache ?? 0,
-          errores: r.error ? { message: r.error } : undefined,
+          errores: r.error
+            ? { message: r.error, ...(snapshot ? { _snapshot: snapshot } : {}) }
+            : (snapshot ? { _snapshot: snapshot } : undefined),
         },
       })
-    )
+    })
   )
 
   return resultados

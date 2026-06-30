@@ -178,15 +178,23 @@ export default function EmpleadosPage() {
     setModal(true)
   }
 
-  async function guardar() {
+  async function guardar(confirmarReduccionListas?: boolean) {
     setLoading(true); setError('')
     if (editando) {
       const res = await fetch('/api/empleados', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: editando.id, nombre, email: emailEdit || undefined, telefono, password: password || undefined, vendedorId: vendedorId || null, puedeCapturarGps, ciudades: ciudadesAsignadas, listaIds, vendedorIds: (slotRol === 'supervisor' || editando?.rol === 'supervisor') ? vendedorIds : undefined, permisos: (slotRol === 'supervisor' || editando?.rol === 'supervisor') ? permisos : undefined, etiqueta: (slotRol === 'supervisor' || editando?.rol === 'supervisor') ? etiqueta : undefined, apiId: apiIdSeleccionado || undefined })
+        body: JSON.stringify({ id: editando.id, nombre, email: emailEdit || undefined, telefono, password: password || undefined, vendedorId: vendedorId || null, puedeCapturarGps, ciudades: ciudadesAsignadas, listaIds, vendedorIds: (slotRol === 'supervisor' || editando?.rol === 'supervisor') ? vendedorIds : undefined, permisos: (slotRol === 'supervisor' || editando?.rol === 'supervisor') ? permisos : undefined, etiqueta: (slotRol === 'supervisor' || editando?.rol === 'supervisor') ? etiqueta : undefined, apiId: apiIdSeleccionado || undefined, confirmarReduccionListas })
       })
       const data = await res.json()
+      if (data.error === 'REDUCCION_LISTAS_SIN_CONFIRMAR') {
+        setLoading(false)
+        const nombres = (data.listaIdsRemovidas || []).join(', ')
+        if (confirm(`Este cambio quita ${data.listaIdsRemovidas?.length || 0} lista(s) asignada(s) (${nombres}). ¿Confirmar?`)) {
+          guardar(true)
+        }
+        return
+      }
       setLoading(false)
       if (data.error) { setError(data.error); return }
       setModal(false)
@@ -654,14 +662,15 @@ export default function EmpleadosPage() {
                 )}
                 {(slotRol === 'vendedor' || editando?.rol === 'vendedor') && listas.length > 0 && (
                   <div>
-                    <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Listas asignadas</label>
+                    <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Lista asignada</label>
                     <div className="space-y-1 max-h-36 overflow-y-auto  rounded-xl p-2" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                       {listas.map((l: any) => (
                         <label key={l.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-700 cursor-pointer">
                           <input
-                            type="checkbox"
+                            type="radio"
+                            name="listaAsignada"
                             checked={listaIds.includes(l.id)}
-                            onChange={e => setListaIds(prev => e.target.checked ? [...prev, l.id] : prev.filter(x => x !== l.id))}
+                            onChange={() => setListaIds([l.id])}
                             className="accent-emerald-500"
                           />
                           <span className="text-white text-sm">{l.nombre}</span>
@@ -810,7 +819,7 @@ export default function EmpleadosPage() {
                   )}
                   <button onClick={() => setModal(false)}
                     className="flex-1 bg-zinc-800 text-white text-sm py-3 rounded-xl">Cancelar</button>
-                  <button onClick={guardar} disabled={loading || !nombre || (!editando && !password)}
+                  <button onClick={() => guardar()} disabled={loading || !nombre || (!editando && !password)}
                     className={`flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold text-sm py-3 rounded-xl ${(loading || !nombre || (!editando && !password)) ? 'btn-shimmer' : ''}`}>
                     {loading ? 'Guardando...' : editando ? 'Guardar' : 'Crear'}
                   </button>

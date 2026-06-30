@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
   const empresaId = getEmpresaId(user)
   const { nombre, rol, telefono, password, vendedorId, puedeCapturarGps, ciudades, listaIds, vendedorIds, permisos, etiqueta, apiId } = await req.json()
   if (!nombre || !rol || !password) return NextResponse.json({ error: 'Faltan datos' }, { status: 400 })
+  if (Array.isArray(listaIds) && listaIds.length > 1) return NextResponse.json({ error: 'Un vendedor solo puede tener 1 lista asignada' }, { status: 400 })
 
   // Obtener slug de la empresa
   const empresa = await prisma.empresa.findUnique({ where: { id: empresaId } })
@@ -116,7 +117,24 @@ export async function PUT(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
-  const { id, nombre, email, telefono, password, vendedorId, puedeCapturarGps, listaIds, vendedorIds, permisos, ciudades, etiqueta, apiId } = await req.json()
+  const { id, nombre, email, telefono, password, vendedorId, puedeCapturarGps, listaIds, vendedorIds, permisos, ciudades, etiqueta, apiId, confirmarReduccionListas } = await req.json()
+  if (Array.isArray(listaIds) && listaIds.length > 1) return NextResponse.json({ error: 'Un vendedor solo puede tener 1 lista asignada' }, { status: 400 })
+
+  if (listaIds !== undefined) {
+    const actuales = await prisma.empleadoLista.findMany({ where: { empleadoId: id }, select: { listaId: true } })
+    const idsActuales = actuales.map((a) => a.listaId)
+    const idsNuevos: string[] = listaIds as string[]
+    const removidas = idsActuales.filter((lid) => !idsNuevos.includes(lid))
+    if (removidas.length > 0 && !confirmarReduccionListas) {
+      return NextResponse.json({
+        error: 'REDUCCION_LISTAS_SIN_CONFIRMAR',
+        mensaje: `El guardado quita ${removidas.length} lista(s) que el empleado tiene asignadas actualmente. Confirma para proceder.`,
+        listaIdsActuales: idsActuales,
+        listaIdsRemovidas: removidas,
+      }, { status: 409 })
+    }
+  }
+
   const data: any = { nombre, telefono: telefono || null, vendedorId: vendedorId !== undefined ? vendedorId : undefined, puedeCapturarGps: puedeCapturarGps !== undefined ? puedeCapturarGps : undefined }
   if (email) data.email = email
   if (password) data.password = await bcrypt.hash(password, 10)
