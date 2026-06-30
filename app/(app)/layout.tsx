@@ -176,7 +176,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { href: '/clientes',  label: 'Clientes',  icon: '🏪' },
         { href: '/cartera',   label: 'Cartera',   icon: '💰' },
         { href: '/recaudos',  label: 'Recaudos',  icon: '💳' },
-        { href: '/gastos',    label: 'Gastos',    icon: '🧾' },
       ]
     }, {
       label: 'Visitas',
@@ -235,7 +234,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: '/clientes',      label: 'Clientes',     icon: '🏪' },
       { href: '/cartera',       label: 'Cartera',      icon: '💰' },
       { href: '/recaudos',      label: 'Recaudos',     icon: '💳' },
-      { href: '/gastos',        label: 'Gastos',       icon: '🧾' },
       { href: '/rutas',         label: 'Visitas',      icon: '📋' },
       { href: '/impulsos',   label: 'Impulsos',     icon: '⚡' },
       { href: '/trazabilidad',  label: 'Despacho', icon: '🚚' },

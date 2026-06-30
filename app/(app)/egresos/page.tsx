@@ -1,5 +1,7 @@
 'use client'
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useSession } from 'next-auth/react'
+import ModuloGastos from '@/components/ModuloGastos'
 
 const CATEGORIAS = [
   { key: 'nomina',        label: '👥 Nómina' },
@@ -266,11 +268,16 @@ function CalendarioPopup({ mes, anio, onChange, onClose }: { mes: number; anio: 
 }
 
 export default function EgresosPage() {
+  const { data: session } = useSession()
+  const user = session?.user as any
+  const isAdmin = user?.role === 'empresa' || user?.role === 'supervisor'
+
   const hoy = new Date()
   const [mes, setMes] = useState(hoy.getMonth() + 1)
   const [anio, setAnio] = useState(hoy.getFullYear())
   const [showCal, setShowCal] = useState(false)
   const calRef = useRef<HTMLDivElement>(null)
+  const [tab, setTab] = useState<'egresos' | 'gastos'>('egresos')
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -282,17 +289,26 @@ export default function EgresosPage() {
 
   return (
     <div className="space-y-6 pb-20">
-      <div className="flex items-center justify-between gap-2 px-1">
-        <h1 className="text-xl font-bold text-white">🛍️ Egresos</h1>
-        <div className="relative" ref={calRef}>
-          <button onClick={() => setShowCal(s => !s)}
-            className="flex items-center gap-1.5 bg-zinc-800 border border-zinc-700 text-white text-xs font-semibold px-3 py-2 rounded-xl hover:bg-zinc-700 transition-colors">
-            📅 {MESES[mes-1].slice(0,3)} {anio}
-          </button>
-          {showCal && <CalendarioPopup mes={mes} anio={anio} onChange={(m,a) => { setMes(m); setAnio(a) }} onClose={() => setShowCal(false)} />}
+      <div className="flex items-center justify-between gap-2 px-1 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className="flex gap-1 tab-pills rounded-xl p-1">
+            <button onClick={() => setTab('egresos')} className={`px-4 py-1.5 text-sm font-semibold transition-colors rounded-lg ${tab === 'egresos' ? 'tab-active' : 'text-white hover:text-white'}`}>Egresos</button>
+            <button onClick={() => setTab('gastos')} className={`px-4 py-1.5 text-sm font-semibold transition-colors rounded-lg ${tab === 'gastos' ? 'tab-active' : 'text-white hover:text-white'}`}>Gastos</button>
+          </div>
         </div>
+        {tab === 'egresos' && (
+          <div className="relative" ref={calRef}>
+            <button onClick={() => setShowCal(s => !s)}
+              className="flex items-center gap-1.5 bg-zinc-800 border border-zinc-700 text-white text-xs font-semibold px-3 py-2 rounded-xl hover:bg-zinc-700 transition-colors">
+              📅 {MESES[mes-1].slice(0,3)} {anio}
+            </button>
+            {showCal && <CalendarioPopup mes={mes} anio={anio} onChange={(m,a) => { setMes(m); setAnio(a) }} onClose={() => setShowCal(false)} />}
+          </div>
+        )}
       </div>
-      {CATEGORIAS.map(cat => <Tabla key={cat.key} cat={cat} mes={mes} anio={anio} />)}
+      {tab === 'egresos'
+        ? CATEGORIAS.map(cat => <Tabla key={cat.key} cat={cat} mes={mes} anio={anio} />)
+        : <ModuloGastos isAdmin={isAdmin} />}
     </div>
   )
 }

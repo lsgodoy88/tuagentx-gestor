@@ -168,10 +168,13 @@ function getColumns(ctx: {
       // Metodo de pago vive a nivel de RECIBO (lineasPago/metodopago), no por factura
       // individual — se asume el mismo metodo para todas las facturas del mismo recibo
       // (un recibo no cruza "que parte de la transferencia fue a cada factura").
+      // FIX 30/06: detalles[].montoAplicado es BRUTO (snapshot reciboPago, igual
+      // que PagoCarteraDeuda) — debe restarse detalles[].descuento para obtener
+      // el neto realmente recibido, igual patrón que /cartera tab Bonus.
       key: 'efectivo', label: 'Efect.', width: 90, minWidth: 70,
       render: p => {
         const detalles: any[] = Array.isArray((p as any).reciboPago?.detalles) ? (p as any).reciboPago.detalles : []
-        const monto = detalles.length > 0 ? detalles[0].montoAplicado : p.monto
+        const monto = detalles.length > 0 ? Number(detalles[0].montoAplicado) - Number(detalles[0].descuento || 0) : p.monto
         const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0 ? (p as any).lineasPago : []
         const m = ls.length > 0 ? ls[0].metodoPago : p.metodopago
         return <span style={{ color: '#34d399' }}>{m === 'efectivo' && monto != null ? fmtMonto(monto) : '—'}</span>
@@ -179,14 +182,15 @@ function getColumns(ctx: {
       renderSub: (sub, p) => {
         const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0 ? (p as any).lineasPago : []
         const m = ls.length > 0 ? ls[0].metodoPago : p.metodopago
-        return <span style={{ color: '#34d399' }}>{m === 'efectivo' && sub.montoAplicado != null ? fmtMonto(sub.montoAplicado) : '—'}</span>
+        const montoNeto = sub.montoAplicado != null ? Number(sub.montoAplicado) - Number(sub.descuento || 0) : null
+        return <span style={{ color: '#34d399' }}>{m === 'efectivo' && montoNeto != null ? fmtMonto(montoNeto) : '—'}</span>
       },
     },
     {
       key: 'transferencia', label: 'Transf.', width: 90, minWidth: 70,
       render: p => {
         const detalles: any[] = Array.isArray((p as any).reciboPago?.detalles) ? (p as any).reciboPago.detalles : []
-        const monto = detalles.length > 0 ? detalles[0].montoAplicado : p.monto
+        const monto = detalles.length > 0 ? Number(detalles[0].montoAplicado) - Number(detalles[0].descuento || 0) : p.monto
         const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0 ? (p as any).lineasPago : []
         const m = ls.length > 0 ? ls[0].metodoPago : p.metodopago
         return <span style={{ color: '#60a5fa' }}>{m === 'transferencia' && monto != null ? fmtMonto(monto) : '—'}</span>
@@ -194,7 +198,8 @@ function getColumns(ctx: {
       renderSub: (sub, p) => {
         const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0 ? (p as any).lineasPago : []
         const m = ls.length > 0 ? ls[0].metodoPago : p.metodopago
-        return <span style={{ color: '#60a5fa' }}>{m === 'transferencia' && sub.montoAplicado != null ? fmtMonto(sub.montoAplicado) : '—'}</span>
+        const montoNeto = sub.montoAplicado != null ? Number(sub.montoAplicado) - Number(sub.descuento || 0) : null
+        return <span style={{ color: '#60a5fa' }}>{m === 'transferencia' && montoNeto != null ? fmtMonto(montoNeto) : '—'}</span>
       },
     },
     {
