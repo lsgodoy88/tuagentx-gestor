@@ -305,7 +305,7 @@ export async function actualizarCache(
   const ahora = new Date()
 
   const EMPRESA_LUMELI = 'cmn7oiutk0001vmega46373b4'
-  const CORTE_LUMELI_0206 = new Date('2026-06-02T21:08:15-05:00')
+  const CORTE_LUMELI_0206 = new Date('2026-06-02T21:08:15Z') // sin offset: Prisma devuelve TIMESTAMP sin TZ como UTC
   let saldosInicialesLumeli: Record<number, number> = {}
   if (empresaId === EMPRESA_LUMELI) {
     const filas = await (prisma as any).$queryRaw`
