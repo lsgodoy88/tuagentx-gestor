@@ -3,7 +3,7 @@ import React from 'react'
 import DataTable, { ColDef } from '@/components/DataTable'
 import { mesBogota, anioBogota, esDelMesBogota } from '@/lib/fechas'
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { saveCache, loadCache } from '@/lib/offlineCache'
+import { saveCache, loadCache, clearCache } from '@/lib/offlineCache'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Parser } from 'expr-eval'
@@ -510,6 +510,7 @@ export default function CarteraPage() {
       setLineasPago([crearLinea()])
       setDescuentosPorFactura({})
       setNotasPago('')
+      clearCache('cartera')
       cargarDatos()
     }
   }

@@ -50,3 +50,20 @@ export function cacheAge(key: string): number | null {
 export function clearCache(key: string): void {
   try { localStorage.removeItem(PREFIX + key) } catch {}
 }
+
+/**
+ * Limpia TODAS las entradas de offlineCache (cualquier módulo, cualquier
+ * clave). Usado cuando se detecta cambio de usuario en el mismo navegador
+ * — evita que el usuario nuevo vea instantáneamente datos cacheados del
+ * usuario anterior (stale-while-revalidate antes del primer refresh real).
+ * No borra otras claves de localStorage no relacionadas con offlineCache
+ * (ej. colorFondo_*), solo las que llevan el PREFIX de este módulo.
+ */
+export function clearAllCache(): void {
+  try {
+    const keys = Object.keys(localStorage).filter(k => k.startsWith(PREFIX))
+    for (const k of keys) localStorage.removeItem(k)
+  } catch {
+    // localStorage no disponible — ignorar silencioso
+  }
+}

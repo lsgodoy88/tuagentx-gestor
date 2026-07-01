@@ -7,6 +7,7 @@ import { GpsContext } from '@/lib/gps-context'
 import Link from 'next/link'
 import PermisosGuard from '@/components/PermisosGuard'
 import { NetworkBanner } from '@/components/NetworkBanner'
+import { clearAllCache } from '@/lib/offlineCache'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession()
@@ -106,6 +107,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       if (cached && /^#[0-9a-fA-F]{6}$/.test(cached)) {
         applyColor(cached)
       }
+    }
+  }, [user])
+
+  // Detecta cambio de USUARIO (no de empresa-en-general, no re-login del
+  // mismo usuario) en el mismo navegador — limpia offlineCache para que el
+  // usuario nuevo nunca vea, ni por un instante, datos cacheados del
+  // usuario anterior (stale-while-revalidate de recaudos/clientes/cartera/
+  // mi-ruta). Clave de control separada del PREFIX de offlineCache, para
+  // no auto-limpiarse a sí misma.
+  useEffect(() => {
+    const uid = (user as any)?.id
+    if (!uid) return
+    try {
+      const ultimoUid = localStorage.getItem('txa_ultimo_userid')
+      if (ultimoUid && ultimoUid !== uid) {
+        clearAllCache()
+        // Dashboards (DashboardAdmin/DashboardVendedor) namespacean su propia
+        // clave de sessionStorage por userId — nunca se cruzan, sin necesidad
+        // de limpieza aquí.
+      }
+      localStorage.setItem('txa_ultimo_userid', uid)
+    } catch {
+      // localStorage no disponible — ignorar silencioso
     }
   }, [user])
 

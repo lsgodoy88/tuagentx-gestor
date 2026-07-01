@@ -42,34 +42,42 @@ const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
 const RR_LIMIT = 10
 
 // ── Cache sessionStorage ─────────────────────────────────────────────────────
-const CACHE_KEY       = 'inicio_cache'
+// Clave BASE — namespaced por userId en runtime (ver cacheKeyFor), nunca se
+// usa directamente. Evita que dos usuarios distintos en el mismo navegador
+// lean/escriban el mismo slot de sessionStorage (bug real: usuario B veía
+// datos de usuario A hasta refrescar manualmente).
+const CACHE_KEY_BASE  = 'inicio_cache'
 const CACHE_TTL       = 10 * 60 * 1000  // stats/cartera: 10min
 const CACHE_TTL_RUTA  =  5 * 60 * 1000  // ruta: 5min
 const CACHE_TTL_TURNO =  2 * 60 * 1000  // turno: 2min
 
-function getCached() {
+function cacheKeyFor(userId: string | undefined): string {
+  return userId ? `${CACHE_KEY_BASE}_${userId}` : CACHE_KEY_BASE
+}
+function getCached(cacheKey: string) {
   try {
-    const raw = sessionStorage.getItem(CACHE_KEY)
+    const raw = sessionStorage.getItem(cacheKey)
     if (!raw) return null
     const { ts, data } = JSON.parse(raw)
-    if (Date.now() - ts > CACHE_TTL) { sessionStorage.removeItem(CACHE_KEY); return null }
+    if (Date.now() - ts > CACHE_TTL) { sessionStorage.removeItem(cacheKey); return null }
     return { ...data, ts }
   } catch { return null }
 }
-function setCached(patch: Record<string, any>) {
+function setCached(cacheKey: string, patch: Record<string, any>) {
   try {
-    const prev = getCached() || {}
-    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ ts: Date.now(), data: { ...prev, ...patch } }))
+    const prev = getCached(cacheKey) || {}
+    sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: { ...prev, ...patch } }))
   } catch {}
 }
-function vieneDelLogin() {
-  try { return document.referrer.includes('/login') || sessionStorage.getItem(CACHE_KEY) === null }
+function vieneDelLogin(cacheKey: string) {
+  try { return document.referrer.includes('/login') || sessionStorage.getItem(cacheKey) === null }
   catch { return true }
 }
 
 // ── Componente ───────────────────────────────────────────────────────────────
 export default function DashboardVendedor({ user }: { user: any }) {
   const router = useRouter()
+  const cacheKey = cacheKeyFor(user?.id)
 
   // Turno
   const [turno, setTurno]               = useState<TurnoActivo | null>(null)
@@ -159,7 +167,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
       fetch('/api/me').then(r => r.json()),
     ]).then(([t, me]) => {
       setTurno(t)
-      if (t) setCached({ turno: t })
+      if (t) setCached(cacheKey, { turno: t })
       setCargandoTurno(false)
       if (!t) setTurnoExpandido(false)
       setPuedeCapturarGps(me?.puedeCapturarGps === true)
@@ -167,7 +175,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
     // Prioridad 2 — ruta en background
     fetch('/api/rutas/mi-ruta').then(r => r.json()).then(r => {
       setRuta(r)
-      if (r) setCached({ ruta: r })
+      if (r) setCached(cacheKey, { ruta: r })
       setClientesOrdenados(r?.clientes?.map((rc: any) => ({
         ...rc.cliente,
         supervisorEtiqueta: rc.supervisorEtiqueta || null, rezago: rc.rezago,
@@ -181,8 +189,8 @@ export default function DashboardVendedor({ user }: { user: any }) {
       })) || [])
     }).catch(() => {})
     // Prioridad 3 — stats/cartera/turno/ruta (cache inmediato + refresco background)
-    const cached = getCached()
-    const desdLogin = vieneDelLogin()
+    const cached = getCached(cacheKey)
+    const desdLogin = vieneDelLogin(cacheKey)
     if (cached && !desdLogin) {
       // Mostrar inmediatamente desde sessionStorage
       if (cached.statsVendedor)  { setStatsVendedor(cached.statsVendedor);  lastPulseTs.current = cached.ts || 0 }
@@ -205,14 +213,14 @@ export default function DashboardVendedor({ user }: { user: any }) {
         if (!stats.generadoEn || stats.generadoEn >= generadoEnCache) {
           setStatsVendedor(stats)
           lastPulseTs.current = Date.now()
-          setCached({ statsVendedor: stats })
+          setCached(cacheKey, { statsVendedor: stats })
         }
       }
       setVendedorStatsLoading(false)
       if (debeRefrescarStats) setLoadingStats(false)
     })
     fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null).then(cartera => {
-      if (cartera) { setResumenCartera(cartera); setCached({ resumenCartera: cartera }) }
+      if (cartera) { setResumenCartera(cartera); setCached(cacheKey, { resumenCartera: cartera }) }
       if (debeRefrescarStats) setLoadingStats(false)
     })
   }, [user])
@@ -224,12 +232,12 @@ export default function DashboardVendedor({ user }: { user: any }) {
       if (Date.now() - lastPulseTs.current < 3 * 60 * 1000) return
       lastPulseTs.current = Date.now()
       // Solo invalidar stats — mantener turno y ruta en cache (TTL propio)
-      setCached({ statsVendedor: null, resumenCartera: null })
+      setCached(cacheKey, { statsVendedor: null, resumenCartera: null })
       fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null).then(s => {
-        if (s && !s.error) { setStatsVendedor(s); setCached({ statsVendedor: s }) }
+        if (s && !s.error) { setStatsVendedor(s); setCached(cacheKey, { statsVendedor: s }) }
       })
       fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null).then(cv => {
-        if (cv) { setResumenCartera(cv); setCached({ resumenCartera: cv }) }
+        if (cv) { setResumenCartera(cv); setCached(cacheKey, { resumenCartera: cv }) }
       })
     }
     document.addEventListener('visibilitychange', onVisible)
@@ -267,7 +275,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
       return
     }
     const res = await fetchApi('/api/turnos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accion: 'iniciar', ...ubicacion }) })
-    if (res?.ok) { setTurnoExpandido(false); setTurno(res.turno); setCached({ turno: res.turno }) }
+    if (res?.ok) { setTurnoExpandido(false); setTurno(res.turno); setCached(cacheKey, { turno: res.turno }) }
     setBloqueadoTurno(false)
   }
   async function cerrarTurno() {
@@ -275,7 +283,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
     setBloqueadoTurno(true)
     const ubicacion = await getUbicacion()
     await fetchApi('/api/turnos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ accion: 'cerrar', ...ubicacion }) })
-    setTurno(null); setCached({ turno: null })
+    setTurno(null); setCached(cacheKey, { turno: null })
     setBloqueadoTurno(false)
   }
   async function pausarTurno() {
@@ -874,3 +882,4 @@ export default function DashboardVendedor({ user }: { user: any }) {
     </div>
   )
 }
+// MARCADOR_PRUEBA_1782852113

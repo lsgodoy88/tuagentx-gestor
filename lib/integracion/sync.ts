@@ -203,6 +203,60 @@ export function crearAdaptador(tipo: string, config: Record<string, string>): Ad
   return new UpTresAdapter(config.apiKey, config.apiSecret)
 }
 
+/**
+ * Escribe el saldo final de cada deuda directamente en CarteraCache, usando
+ * el valor calculado en el recibo (reciboPago.detalles[i].saldoDespues) como
+ * única fuente de verdad. El recibo y el cache siempre muestran el mismo
+ * número — cero cálculo adicional, cero race condition, cero divergencia.
+ *
+ * saldoFinal es un valor ABSOLUTO (el nuevo saldo de la deuda después del
+ * pago), no un delta — así no depende del saldo actual del cache para derivar
+ * el nuevo, eliminando cualquier posibilidad de acumulación de errores.
+ */
+export async function aplicarPagoEnCache(
+  clienteApiId: string,
+  integracionId: string,
+  empresaId: string,
+  ajustes: Array<{ syncDeudaId: string; saldoFinal: number }>
+): Promise<void> {
+  if (!ajustes.length) return
+  try {
+    const cc = await (prisma as any).carteraCache.findUnique({
+      where: { integracionId_clienteApiId: { integracionId, clienteApiId } }
+    })
+    if (!cc) return // No existe aún — el nocturno lo generará
+
+    const deudas: any[] = Array.isArray(cc.deudas) ? [...cc.deudas] : []
+    const saldoFinalMap: Record<string, number> = {}
+    for (const a of ajustes) saldoFinalMap[a.syncDeudaId] = a.saldoFinal
+
+    let saldoPendiente = 0
+    const deudasActualizadas = deudas
+      .map((d: any) => {
+        const saldoFinal = saldoFinalMap[d.id]
+        const nuevoSaldo = saldoFinal !== undefined ? saldoFinal : Number(d.saldo)
+        saldoPendiente += nuevoSaldo
+        return saldoFinal !== undefined ? { ...d, saldo: nuevoSaldo } : d
+      })
+      // Una deuda con saldoFinal=0 sale de la vista — igual que hace
+      // reconstruirCartera() con el filtro nSaldo > 0
+      .filter((d: any) => d.saldo > 0)
+
+    await (prisma as any).carteraCache.update({
+      where: { integracionId_clienteApiId: { integracionId, clienteApiId } },
+      data: {
+        deudas: deudasActualizadas,
+        saldoPendiente,
+        totalDeudas: deudasActualizadas.length,
+        ultimaActualizacion: new Date(),
+      }
+    })
+  } catch (e: any) {
+    // No crítico — el sync nocturno reconstruye el cache con valores correctos
+    console.error('[aplicarPagoEnCache] error (no critico):', e.message)
+  }
+}
+
 export async function actualizarCache(
   clienteApiIds: Set<string>,
   integracionId: string,
@@ -255,7 +309,7 @@ export async function actualizarCache(
   let saldosInicialesLumeli: Record<number, number> = {}
   if (empresaId === EMPRESA_LUMELI) {
     const filas = await (prisma as any).$queryRaw`
-      SELECT "numeroFactura", "saldoInicial" FROM "LumeliSaldoInicial0206"
+      SELECT "numeroFactura", "saldoInicial" FROM gestor."LumeliSaldoInicial0206"
     `
     for (const f of filas as any[]) {
       saldosInicialesLumeli[f.numeroFactura] = Number(f.saldoInicial)

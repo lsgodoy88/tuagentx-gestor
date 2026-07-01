@@ -224,7 +224,7 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
   let saldosInicialesLumeli: Record<number, number> = {}
   if (empresaId === EMPRESA_LUMELI) {
     const filas = await (prisma as any).$queryRaw`
-      SELECT "numeroFactura", "saldoInicial" FROM "LumeliSaldoInicial0206"
+      SELECT "numeroFactura", "saldoInicial" FROM gestor."LumeliSaldoInicial0206"
     `
     for (const f of filas as any[]) {
       saldosInicialesLumeli[f.numeroFactura] = Number(f.saldoInicial)

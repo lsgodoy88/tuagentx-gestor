@@ -297,14 +297,27 @@ export async function POST(req: NextRequest) {
     throw txErr
   }
 
-  // Repoblar cache del cliente
+  // Actualizar cache del cliente con el cálculo local ya conocido (sin releer
+  // BD de pagos). El deltaSaldo de cada deuda = montoAplicado + descuento de
+  // esa factura, extraído directamente de los datos del request — la misma
+  // fuente que genera el recibo. Sin race condition, sin dependencia del pool.
   const integracion = await (prisma as any).integracion.findFirst({
     where: { empresaId, tipo: 'uptres', activa: true },
     select: { id: true }
   })
-  if (integracion) {
-    const { actualizarCache } = await import('@/lib/integracion/sync')
-    await actualizarCache(new Set([clienteApiId]), integracion.id, empresaId)
+  if (integracion && clienteApiId) {
+    const { aplicarPagoEnCache } = await import('@/lib/integracion/sync')
+    // reciboPago.detalles[i].saldoDespues es la única fuente de verdad —
+    // el mismo valor que aparece en el recibo físico del cliente. El cache
+    // refleja ese valor directamente, sin ningún cálculo adicional.
+    const ajustes: Array<{ syncDeudaId: string; saldoFinal: number }> = reciboPago.detalles
+      .filter((d: any) => d.saldoDespues !== undefined)
+      .map((d: any) => {
+        const syncDeudaId = aplicaciones.find((a: any) => a.numeroFactura === d.numeroFactura)?.syncDeudaId
+        return syncDeudaId ? { syncDeudaId, saldoFinal: Number(d.saldoDespues) } : null
+      })
+      .filter(Boolean) as Array<{ syncDeudaId: string; saldoFinal: number }>
+    await aplicarPagoEnCache(clienteApiId, integracion.id, empresaId, ajustes)
   }
 
   // Invalidar caché afectado por el nuevo pago

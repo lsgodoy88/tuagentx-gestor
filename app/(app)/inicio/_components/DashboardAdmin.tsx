@@ -4,7 +4,7 @@ import { CountUp, LiveDot } from '@/components/FX'
 import { CardKPIGroup, CardCountAdmin, CardCountAdminSkeleton } from '@/components/ui/cards'
 import { useRouter } from 'next/navigation'
 
-const CACHE_KEY = 'inicio_admin_cache'
+const CACHE_KEY_BASE = 'inicio_admin_cache'
 const CACHE_TTL = 10 * 60 * 1000
 const CACHE_TTL_PRECIOS = 30 * 60 * 1000
 
@@ -19,6 +19,12 @@ export default function DashboardAdmin({ user }: { user: any }) {
 
   const isEmpresa   = user?.role === 'empresa'
   const isSupervisor = user?.role === 'supervisor'
+
+  // Clave namespaced por userId — nunca lee/escribe el cache de OTRO usuario,
+  // sin importar orden de efectos ni si el login pasó literalmente por /login
+  // (a diferencia de antes, que dependía de document.referrer). El uid está
+  // disponible desde el primer render via prop `user`, sin race condition.
+  const CACHE_KEY = user?.id ? `${CACHE_KEY_BASE}_${user.id}` : CACHE_KEY_BASE
 
   function getCached() {
     try {

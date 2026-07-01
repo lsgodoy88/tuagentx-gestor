@@ -16,7 +16,7 @@ vi.mock('next-auth', () => ({ getServerSession: vi.fn() }))
 vi.mock('@/lib/auth', () => ({ authOptions: {} }))
 vi.mock('@/lib/cache', () => ({ invalidateKeys: vi.fn() }))
 vi.mock('@/lib/fechas', () => ({ fechaHoyBogota: () => '2026-06-21' }))
-vi.mock('@/lib/integracion/sync', () => ({ actualizarCache: vi.fn() }))
+vi.mock('@/lib/integracion/sync', () => ({ actualizarCache: vi.fn(), aplicarPagoEnCache: vi.fn() }))
 vi.mock('@/lib/auth-helpers', () => ({
   getEmpresaId: (user: any) => user.empresaId,
   ROLES_ADMIN: ['empresa', 'supervisor'],
@@ -182,7 +182,7 @@ describe('DELETE /api/recaudos/[pagoId] — reversion de saldo', () => {
     expect((prisma as any).empleado.update).not.toHaveBeenCalled()
   })
 
-  it('eliminar el ultimo recibo pero de un MES distinto al actual → NO toca el consecutivo', async () => {
+  it('eliminar el ultimo recibo de un mes anterior (0526) cuando el contador sigue en ese mes → SÍ decrementa', async () => {
     vi.mocked(getServerSession).mockResolvedValue(ADMIN)
     vi.mocked((prisma as any).pagoCartera.findUnique).mockResolvedValue({
       id: 'pago-1', numeroRecibo: 'CL2605099', empleadoId: 'e1', monto: 50000,
@@ -191,7 +191,8 @@ describe('DELETE /api/recaudos/[pagoId] — reversion de saldo', () => {
       Aplicaciones: [],
     })
     vi.mocked((prisma as any).pagoCartera.delete).mockResolvedValue({})
-    // configRecibos sigue marcando el mes viejo (0526) — nadie ha pagado aun en el mes actual (0626)
+    // consecutivoMes=0526 coincide con el recibo eliminado (mayo 2026, CL2605099)
+    // y consecutivoActual=99 coincide con el número → debe decrementar a 98
     vi.mocked((prisma as any).empleado.findUnique).mockResolvedValue({
       configRecibos: { consecutivoActual: 99, consecutivoMes: '0526', prefijo: 'CL' },
     })
@@ -199,6 +200,9 @@ describe('DELETE /api/recaudos/[pagoId] — reversion de saldo', () => {
 
     await DELETE(makeReq(), makeParams())
 
-    expect((prisma as any).empleado.update).not.toHaveBeenCalled()
+    expect((prisma as any).empleado.update).toHaveBeenCalledWith({
+      where: { id: 'e1' },
+      data: { configRecibos: { consecutivoActual: 98, consecutivoMes: '0526', prefijo: 'CL' } },
+    })
   })
 })

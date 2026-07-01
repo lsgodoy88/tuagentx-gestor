@@ -159,12 +159,13 @@ export async function DELETE(
         select: { configRecibos: true }
       })
       const cfg: any = emp?.configRecibos ?? {}
-      const now = new Date()
-      const mes = String(now.getMonth() + 1).padStart(2, '0')
-      const anio = String(now.getFullYear()).slice(-2)
-      const mmaa = `${mes}${anio}`
+      // Extraer mmaa del recibo eliminado (no del mes actual) — permite
+      // decrementar consecutivos de meses anteriores si se elimina el último.
+      // Formato real: CL + AAMM + NNN (ej. CL2606144 → mmaa='0626')
+      const matchFecha = numeroRecibo.match(/^[A-Z]+(\d{2})(\d{2})\d/)
+      const mmaaRecibo = matchFecha ? `${matchFecha[2]}${matchFecha[1]}` : null
 
-      if (cfg.consecutivoMes === mmaa) {
+      if (mmaaRecibo && cfg.consecutivoMes === mmaaRecibo) {
         // El sufijo numérico del recibo eliminado
         const match = numeroRecibo.match(/(\d{3})$/)
         const numEliminado = match ? parseInt(match[1], 10) : null
