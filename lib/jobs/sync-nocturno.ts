@@ -347,6 +347,14 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
       create: { id: `cc-${integracionId}-${apiId}`, empresaId, integracionId, clienteId: cliente.id, clienteApiId: apiId, nombre: cliente.nombre, nit: cliente.nit, telefono: cliente.telefono, ciudad: cliente.ciudad, empleadoExternalId: empleadoPrincipal, empleadoNombre: empleadoPrincipal ? (empleadoMap[empleadoPrincipal] ?? null) : null, saldoTotal, saldoPendiente, porEstado, deudas: deudasDetalle, totalDeudas: deudasDetalle.length, ultimaActualizacion: ahora },
       update: { clienteId: cliente.id, nombre: cliente.nombre, nit: cliente.nit, telefono: cliente.telefono, ciudad: cliente.ciudad, empleadoExternalId: empleadoPrincipal, empleadoNombre: empleadoPrincipal ? (empleadoMap[empleadoPrincipal] ?? null) : null, saldoTotal, saldoPendiente, porEstado, deudas: deudasDetalle, totalDeudas: deudasDetalle.length, ultimaActualizacion: ahora }
     })
+
+    // Persistir nSaldo v3 en SyncDeuda — fuente de verdad para recibos y pago-sync
+    await Promise.all(deudasDetalle.map((d: any) =>
+      (prisma as any).syncDeuda.update({
+        where: { id: d.id },
+        data: { nSaldo: d.saldo }
+      })
+    ))
   }
 
   // Limpiar cache con saldo=0 (deudas ya pagadas)

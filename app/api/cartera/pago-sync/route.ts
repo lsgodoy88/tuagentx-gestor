@@ -1,5 +1,6 @@
 import type { PagoSyncResponse } from '@/lib/types/cartera'
 import { NextRequest, NextResponse } from 'next/server'
+import { aplicarPagoEnCache } from '@/lib/integracion/sync'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -148,7 +149,7 @@ export async function POST(req: NextRequest) {
   // Congelar saldoAnterior y valorFactura ANTES de aplicar pagos
   const saldoAnteriorTotal = deudas
     .filter((d: any) => aplicaciones.some(a => a.syncDeudaId === d.id))
-    .reduce((s: number, d: any) => s + Number(d.saldo), 0)
+    .reduce((s: number, d: any) => s + (d.nSaldo != null ? Number(d.nSaldo) : Number(d.saldo)), 0)
   const valorFacturaTotal = deudas
     .filter((d: any) => aplicaciones.some(a => a.syncDeudaId === d.id))
     .reduce((s: number, d: any) => s + Number(d.valor || d.saldo), 0)
@@ -174,7 +175,7 @@ export async function POST(req: NextRequest) {
     detalles: aplicaciones.map(a => {
       const descFact = Number((descuentosPorFactura as Record<string,number>)[a.syncDeudaId] || 0)
       const d = deudas.find((x: any) => x.id === a.syncDeudaId)
-      const saldoAntes = d ? Number(d.saldo) : 0
+      const saldoAntes = d ? (d.nSaldo != null ? Number(d.nSaldo) : Number(d.saldo)) : 0
       return {
         numeroFactura:  a.numeroFactura,
         montoAplicado:  a.montoAplicado,
@@ -306,7 +307,6 @@ export async function POST(req: NextRequest) {
     select: { id: true }
   })
   if (integracion && clienteApiId) {
-    const { aplicarPagoEnCache } = await import('@/lib/integracion/sync')
     // reciboPago.detalles[i].saldoDespues es la única fuente de verdad —
     // el mismo valor que aparece en el recibo físico del cliente. El cache
     // refleja ese valor directamente, sin ningún cálculo adicional.

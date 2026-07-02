@@ -1,4 +1,72 @@
-import { prisma } from '@/lib/prisma'
+import { prisma, DB_SCHEMA } from '@/lib/prisma'
+import { Prisma } from '@/app/generated/prisma'
+const CORTE_LUMELI_0206 = new Date('2026-06-02T21:08:15Z')
+const EMPRESA_LUMELI = 'cmn7oiutk0001vmega46373b4'
+
+/**
+ * Calcula nSaldo v3 para un conjunto de SyncDeuda IDs.
+ * Misma lógica que sync-nocturno.ts y [clienteId]/route.ts.
+ * Retorna Record<syncDeudaId, nSaldo>.
+ */
+export async function calcularNSaldoPorDeuda(
+  deudas: Array<{ id: string; valor: number | string; numeroFactura: number | string }>,
+  empresaId: string
+): Promise<Record<string, number>> {
+  if (!deudas.length) return {}
+  const ids = deudas.map(d => d.id)
+
+  // Lumeli: cargar saldos iniciales del corte 02/06
+  let saldosInicialesLumeli: Record<number, number> = {}
+  if (empresaId === EMPRESA_LUMELI) {
+    const filas: any[] = await prisma.$queryRaw`
+      SELECT "numerofactura", "saldoinicial"
+      FROM ${Prisma.raw(DB_SCHEMA)}."LumeliSaldoInicial0206"`
+    for (const f of filas) {
+      saldosInicialesLumeli[Number(f.numerofactura)] = Number(f.saldoinicial)
+    }
+  }
+
+  // Todos los pagos de estas deudas (una sola query)
+  const aplicaciones = await (prisma as any).pagoCarteraDeuda.findMany({
+    where: { syncDeudaId: { in: ids } },
+    select: {
+      syncDeudaId: true, montoAplicado: true, descuento: true, createdAt: true,
+      PagoCartera: { select: { saldoAnterior: true } }
+    },
+    orderBy: { createdAt: 'asc' }
+  })
+
+  // Acumular por deuda
+  const totalPagado: Record<string, number> = {}
+  const totalPostCorte: Record<string, number> = {}
+  const ancla: Record<string, number> = {}
+  for (const a of aplicaciones) {
+    const monto = Number(a.montoAplicado || 0) + Number(a.descuento || 0)
+    totalPagado[a.syncDeudaId] = (totalPagado[a.syncDeudaId] || 0) + monto
+    if (new Date(a.createdAt) > CORTE_LUMELI_0206) {
+      totalPostCorte[a.syncDeudaId] = (totalPostCorte[a.syncDeudaId] || 0) + monto
+    }
+    if (ancla[a.syncDeudaId] === undefined && a.PagoCartera?.saldoAnterior != null) {
+      ancla[a.syncDeudaId] = Number(a.PagoCartera.saldoAnterior)
+    }
+  }
+
+  const result: Record<string, number> = {}
+  for (const d of deudas) {
+    const saldoInicialLumeli = saldosInicialesLumeli[Number(d.numeroFactura)]
+    let nSaldo: number
+    if (empresaId === EMPRESA_LUMELI && saldoInicialLumeli !== undefined) {
+      nSaldo = Math.max(0, saldoInicialLumeli - (totalPostCorte[d.id] || 0))
+    } else if (ancla[d.id] !== undefined) {
+      nSaldo = Math.max(0, ancla[d.id] - (totalPagado[d.id] || 0))
+    } else {
+      nSaldo = Math.max(0, Number(d.valor))
+    }
+    result[d.id] = nSaldo
+  }
+  return result
+}
+
 import { calcularEstado } from '@/lib/cartera'
 import type { AdaptadorIntegracion, DeudaExterna } from './types'
 import { UpTresAdapter } from './adapters/uptres'
@@ -251,6 +319,14 @@ export async function aplicarPagoEnCache(
         ultimaActualizacion: new Date(),
       }
     })
+
+    // Persistir nSaldo v3 en SyncDeuda para que pago-sync use saldoAntes correcto
+    await Promise.all(ajustes.map(a =>
+      (prisma as any).syncDeuda.update({
+        where: { id: a.syncDeudaId },
+        data: { nSaldo: a.saldoFinal }
+      })
+    ))
   } catch (e: any) {
     // No crítico — el sync nocturno reconstruye el cache con valores correctos
     console.error('[aplicarPagoEnCache] error (no critico):', e.message)
@@ -309,10 +385,10 @@ export async function actualizarCache(
   let saldosInicialesLumeli: Record<number, number> = {}
   if (empresaId === EMPRESA_LUMELI) {
     const filas = await (prisma as any).$queryRaw`
-      SELECT "numeroFactura", "saldoInicial" FROM gestor."LumeliSaldoInicial0206"
+      SELECT "numerofactura", "saldoinicial" FROM ${Prisma.raw(DB_SCHEMA)}."LumeliSaldoInicial0206"
     `
     for (const f of filas as any[]) {
-      saldosInicialesLumeli[f.numeroFactura] = Number(f.saldoInicial)
+      saldosInicialesLumeli[Number(f.numerofactura)] = Number(f.saldoinicial)
     }
   }
 
@@ -457,6 +533,15 @@ export async function actualizarCache(
         ultimaActualizacion: ahora,
       }
     })
+
+    // Persistir nSaldo v3 en SyncDeuda (incluye deudas eliminadas del detalle por saldo=0)
+    await Promise.all(deudasCliente.map((d: any) => {
+      const det = deudasDetalle.find((x: any) => x.id === d.id)
+      return (prisma as any).syncDeuda.update({
+        where: { id: d.id },
+        data: { nSaldo: det ? det.saldo : 0 }
+      })
+    }))
   }
 }
 
