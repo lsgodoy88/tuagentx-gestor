@@ -182,7 +182,7 @@ export async function POST(req: NextRequest) {
         valorFactura:   d ? Number(d.valor || d.saldo) : 0,
         saldoAntes,
         descuento:      descFact || null,
-        saldoDespues:   Math.max(0, saldoAntes - a.montoAplicado - descFact),
+        saldoDespues:   Math.max(0, saldoAntes - a.montoAplicado),
       }
     }),
     saldoAnterior: saldoAnteriorTotal > 0 ? saldoAnteriorTotal : null,

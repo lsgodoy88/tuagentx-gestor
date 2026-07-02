@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('@/lib/prisma', () => ({
+  DB_SCHEMA: 'gestor',
   prisma: {
-    syncDeuda: { findMany: vi.fn() },
+    syncDeuda: { findMany: vi.fn(), update: vi.fn().mockResolvedValue({}) },
     cliente: { findMany: vi.fn() },
     empleado: { findMany: vi.fn() },
     pagoCarteraDeuda: { findMany: vi.fn() },
@@ -37,7 +38,7 @@ describe('lib/integracion/sync — actualizarCache (v3)', () => {
       { id: 'sd-1', clienteApiId: API_ID, numeroFactura: 3547, valor: 500000, saldo: 999999, abono: 0, fechaVencimiento: null, diasCredito: 30, externalId: 'ext-1', numeroOrden: 'ord-1', empleadoExternalId: null },
     ])
     ;(prisma as any).$queryRaw.mockResolvedValue([
-      { numeroFactura: 3547, saldoInicial: 200000 },
+      { numerofactura: 3547, saldoinicial: 200000 },
     ])
     // Un pago ANTES del corte (debe ignorarse, ya reflejado en saldoInicial) y uno DESPUÉS (debe restarse)
     ;(prisma as any).pagoCarteraDeuda.findMany.mockResolvedValue([
@@ -59,7 +60,7 @@ describe('lib/integracion/sync — actualizarCache (v3)', () => {
       { id: 'sd-2', clienteApiId: API_ID, numeroFactura: 9001, valor: 300000, saldo: 999999, abono: 0, fechaVencimiento: null, diasCredito: 30, externalId: 'ext-2', numeroOrden: 'ord-2', empleadoExternalId: null },
     ])
     ;(prisma as any).$queryRaw.mockResolvedValue([
-      { numeroFactura: 9001, saldoInicial: 300000 },
+      { numerofactura: 9001, saldoinicial: 300000 },
     ])
     ;(prisma as any).pagoCarteraDeuda.findMany.mockResolvedValue([])
 
@@ -75,7 +76,7 @@ describe('lib/integracion/sync — actualizarCache (v3)', () => {
       { id: 'sd-3', clienteApiId: API_ID, numeroFactura: 99999, valor: 100000, saldo: 999999, abono: 0, fechaVencimiento: null, diasCredito: 30, externalId: 'ext-3', numeroOrden: 'ord-3', empleadoExternalId: null },
     ])
     ;(prisma as any).$queryRaw.mockResolvedValue([
-      { numeroFactura: 3547, saldoInicial: 200000 }, // no incluye 99999
+      { numerofactura: 3547, saldoinicial: 200000 }, // no incluye 99999
     ])
     ;(prisma as any).pagoCarteraDeuda.findMany.mockResolvedValue([
       { syncDeudaId: 'sd-3', montoAplicado: 30000, descuento: 0, createdAt: new Date('2026-06-15T00:00:00-05:00'), PagoCartera: { saldoAnterior: 100000 } },
@@ -122,7 +123,7 @@ describe('lib/integracion/sync — actualizarCache (v3)', () => {
       { id: 'sd-6', clienteApiId: API_ID, numeroFactura: 3548, valor: 200000, saldo: 999999, abono: 0, fechaVencimiento: null, diasCredito: 30, externalId: 'ext-6', numeroOrden: 'ord-6', empleadoExternalId: null },
     ])
     ;(prisma as any).$queryRaw.mockResolvedValue([
-      { numeroFactura: 3548, saldoInicial: 50000 },
+      { numerofactura: 3548, saldoinicial: 50000 },
     ])
     ;(prisma as any).pagoCarteraDeuda.findMany.mockResolvedValue([
       { syncDeudaId: 'sd-6', montoAplicado: 50000, descuento: 0, createdAt: new Date('2026-06-10T00:00:00-05:00'), PagoCartera: { saldoAnterior: 200000 } },

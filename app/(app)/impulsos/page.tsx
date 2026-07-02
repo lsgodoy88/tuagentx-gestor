@@ -466,11 +466,13 @@ export default function RutasFijasPage() {
                               return (
                                 <div key={rc.id} className="rounded-xl px-3 py-2.5 space-y-1" style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.35)"}}>
                                   {/* Nombre + GPS — toque para expandir acciones */}
-                                  <div className="flex items-center gap-2 cursor-pointer active:opacity-70"
-                                    onClick={() => setExpandedCliente(expandedCliente === rc.id ? null : rc.id)}>
-                                    <p className="text-white text-xs font-semibold flex-1 min-w-0 truncate">{rc.cliente.nombre}</p>
-                                    {rc.horaEntrada && <span className="text-amber-400 text-[11px] font-semibold flex-shrink-0">🕐 {fmtHora12(rc.horaEntrada)}</span>}
-                                    {(rc.cliente.ubicacionReal || rc.cliente.latTmp) && <span className={`text-sm flex-shrink-0 ${rc.cliente.ubicacionReal ? "" : "opacity-50"}`}>📍</span>}
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 cursor-pointer active:opacity-70 flex-1 min-w-0"
+                                      onClick={() => setExpandedCliente(expandedCliente === rc.id ? null : rc.id)}>
+                                      <p className="text-white text-xs font-semibold flex-1 min-w-0 truncate">{rc.cliente.nombre}</p>
+                                      {rc.horaEntrada && <span className="text-amber-400 text-[11px] font-semibold flex-shrink-0">🕐 {fmtHora12(rc.horaEntrada)}</span>}
+                                    </div>
+                                    {(rc.cliente.ubicacionReal || rc.cliente.latTmp) && rc.cliente.lat && rc.cliente.lng && <a href={`https://www.google.com/maps?q=${rc.cliente.lat},${rc.cliente.lng}`} target="_blank" rel="noopener noreferrer" className={`text-sm flex-shrink-0 ${rc.cliente.ubicacionReal ? "" : "opacity-50"}`}>📍</a>}
                                   </div>
                                   {/* Meta · Venta · % */}
                                   <div className="grid gap-x-2" style={{gridTemplateColumns: rc.metaVenta > 0 ? '1fr 1fr auto' : '1fr auto'}}>
@@ -591,7 +593,7 @@ export default function RutasFijasPage() {
                     <div key={c.id} className="flex items-center gap-3 bg-zinc-800 rounded-xl px-3 py-2.5">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
-                          {(c.ubicacionReal || c.latTmp) && <span className={`text-xs flex-shrink-0 ${c.ubicacionReal ? "" : "opacity-50"}`}>📍</span>}
+                          {(c.ubicacionReal || c.latTmp) && c.lat && c.lng && <a href={`https://www.google.com/maps?q=${c.lat},${c.lng}`} target="_blank" rel="noopener noreferrer" className={`text-xs flex-shrink-0 ${c.ubicacionReal ? "" : "opacity-50"}`} onClick={e => e.stopPropagation()}>📍</a>}
                           <p className="text-white text-sm truncate">{c.nombre}</p>
                         </div>
                         {c.nombreComercial && <p className="text-zinc-500 text-xs ml-5">{c.nombreComercial}</p>}
@@ -870,7 +872,7 @@ export default function RutasFijasPage() {
                   <div key={rc.id} className="bg-zinc-800 rounded-xl px-3 py-2.5 space-y-1.5">
                     <div className="flex items-center gap-2">
                       <p className="text-white text-sm font-medium flex-1 truncate">{rc.cliente.nombre}</p>
-                      {(rc.cliente.ubicacionReal || rc.cliente.latTmp) && <span className={`text-[11px] ${rc.cliente.ubicacionReal ? "" : "opacity-50"}`}>📍</span>}
+                      {(rc.cliente.ubicacionReal || rc.cliente.latTmp) && rc.cliente.lat && rc.cliente.lng && <a href={`https://www.google.com/maps?q=${rc.cliente.lat},${rc.cliente.lng}`} target="_blank" rel="noopener noreferrer" className={`text-[11px] ${rc.cliente.ubicacionReal ? "" : "opacity-50"}`} onClick={e => e.stopPropagation()}>📍</a>}
                     </div>
                     <div className="ml-6 flex items-center gap-3 flex-wrap text-xs">
                       {rc.metaVenta > 0 && (
