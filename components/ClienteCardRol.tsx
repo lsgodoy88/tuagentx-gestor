@@ -14,6 +14,8 @@ interface Cliente {
   direccion?: string
   lat?: number | null
   lng?: number | null
+  ubicacionReal?: boolean | null
+  latTmp?: number | null
   maps?: string | null
   apiId?: string | null
 }
@@ -82,17 +84,48 @@ export default function ClienteCardRol({ cliente: c, rol, onVisita, onEntregar, 
   }, [ddOpen])
 
   /* ── Header (shared between open/closed) ── */
+  const [confirmBorrarGps, setConfirmBorrarGps] = useState(false)
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function iniciarLongPress() {
+    if (!c.lat && !c.latTmp) return
+    longPressTimer.current = setTimeout(() => setConfirmBorrarGps(true), 600)
+  }
+  function cancelarLongPress() {
+    if (longPressTimer.current) clearTimeout(longPressTimer.current)
+  }
+  async function borrarGps() {
+    setConfirmBorrarGps(false)
+    await fetch('/api/clientes/gps', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: c.id }) })
+    window.location.reload()
+  }
+
+  const tieneGpsReal = !!c.ubicacionReal && c.lat != null
+  const tieneGpsTmp = !c.ubicacionReal && (c.lat != null || c.latTmp != null)
+
   const header = (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{
-            fontSize: 15, fontWeight: 700, color: '#fff',
-            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-          }}>
-            {c.nombre}
+          <div style={{ display:'flex', alignItems:'center', gap:4, minWidth:0 }}>
+            <div style={{
+              fontSize: 15, fontWeight: 700, color: '#fff',
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+            }}>
+              {c.nombre}
+            </div>
+            {(tieneGpsReal || tieneGpsTmp) && (
+              <span
+                onMouseDown={e => { e.stopPropagation(); iniciarLongPress() }}
+                onMouseUp={cancelarLongPress}
+                onMouseLeave={cancelarLongPress}
+                onTouchStart={e => { e.stopPropagation(); iniciarLongPress() }}
+                onTouchEnd={cancelarLongPress}
+                title={tieneGpsReal ? 'GPS real confirmado — mantén para borrar' : 'GPS temporal — mantén para borrar'}
+                style={{ fontSize:13, flexShrink:0, cursor:'pointer', opacity: tieneGpsReal ? 1 : 0.3, userSelect:'none' }}
+              >📍</span>
+            )}
           </div>
-
         </div>
         {open && subtituloAbierto && (
           <div style={{ fontSize: 12, color: '#ffffff', marginTop: 2 }}>
@@ -251,7 +284,15 @@ export default function ClienteCardRol({ cliente: c, rol, onVisita, onEntregar, 
             {/* Dirección con botón mapa */}
             {c.direccion && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8 }}>
-                <span>📍</span>
+                <span
+                  onMouseDown={e => { e.stopPropagation(); iniciarLongPress() }}
+                  onMouseUp={cancelarLongPress}
+                  onMouseLeave={cancelarLongPress}
+                  onTouchStart={e => { e.stopPropagation(); iniciarLongPress() }}
+                  onTouchEnd={cancelarLongPress}
+                  style={{ fontSize:16, cursor: (tieneGpsReal || tieneGpsTmp) ? 'pointer' : 'default', opacity: tieneGpsReal ? 1 : tieneGpsTmp ? 0.3 : 0.5, userSelect:'none', flexShrink:0 }}
+                  title={tieneGpsReal ? 'GPS real — mantén para borrar' : tieneGpsTmp ? 'GPS temporal — mantén para borrar' : 'Sin GPS'}
+                >📍</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 11, color: '#ffffff' }}>Dirección</div>
                   <div style={{ fontSize: 13, color: '#d1d5db', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -358,6 +399,27 @@ export default function ClienteCardRol({ cliente: c, rol, onVisita, onEntregar, 
               <span style={{ color: color, fontWeight: 600 }}>{tipo}</span>
             </button>
           ))}
+        </div>
+      )}
+      {confirmBorrarGps && (
+        <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.75)', zIndex:9999, display:'flex', alignItems:'center', justifyContent:'center' }}
+          onClick={() => setConfirmBorrarGps(false)}>
+          <div style={{ background:'#1e2030', border:'1px solid rgba(239,68,68,0.4)', borderRadius:16, padding:24, width:280, textAlign:'center' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ fontSize:32, marginBottom:12 }}>📍</div>
+            <div style={{ color:'#fff', fontWeight:700, fontSize:15, marginBottom:8 }}>¿Eliminar GPS?</div>
+            <div style={{ color:'#9ca3af', fontSize:13, marginBottom:20 }}>Se borrará la ubicación guardada de <b style={{color:'#fff'}}>{c.nombre}</b></div>
+            <div style={{ display:'flex', gap:10 }}>
+              <button onClick={() => setConfirmBorrarGps(false)}
+                style={{ flex:1, padding:'10px 0', borderRadius:10, background:'#27272a', border:'none', color:'#fff', fontWeight:600, cursor:'pointer', fontSize:14 }}>
+                No
+              </button>
+              <button onClick={borrarGps}
+                style={{ flex:1, padding:'10px 0', borderRadius:10, background:'#dc2626', border:'none', color:'#fff', fontWeight:700, cursor:'pointer', fontSize:14 }}>
+                Sí, eliminar
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </>

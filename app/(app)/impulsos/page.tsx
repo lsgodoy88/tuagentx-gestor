@@ -932,7 +932,7 @@ function ReporteImpulsoTab() {
   const [mesBuscado, setMesBuscado] = useState(mesActual)
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 w-full">
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
           <p className="text-zinc-400 text-sm mt-1">Metas y ventas de todas las impulsadoras</p>
@@ -991,11 +991,11 @@ function ReporteImpulsoTabla({ mes }: { mes: string }) {
   if (!datos) return null
 
   return (
-    <div className="space-y-6 max-w-7xl mx-auto">
+    <div className="space-y-6 w-full">
       {datos.snapshot && (
         <p className="text-zinc-500 text-xs">🔒 Mes cerrado — vista de solo lectura, no se recalcula.</p>
       )}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <div className={`grid gap-4 ${datos.impulsadoras?.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"}`}>
       {datos.impulsadoras?.map((imp: any) => (
         <div key={imp.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">

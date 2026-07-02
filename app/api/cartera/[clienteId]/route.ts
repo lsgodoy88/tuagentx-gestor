@@ -25,7 +25,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
     // Buscar cliente para obtener su apiId
     const cliente = await (prisma as any).cliente.findFirst({
       where: { id: clienteId, empresaId },
-      select: { id: true, nombre: true, nit: true, telefono: true, ciudad: true, apiId: true }
+      select: { id: true, nombre: true, nit: true, telefono: true, ciudad: true, apiId: true, ubicacionReal: true, lat: true, lng: true }
     })
 
     if (!cliente?.apiId) {

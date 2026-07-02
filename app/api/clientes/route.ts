@@ -76,6 +76,8 @@ export async function GET(req: NextRequest) {
     maps: true,
     lat: true,
     lng: true,
+    latTmp: true,
+    lngTmp: true,
     lista: {
       select: {
         vendedores: {

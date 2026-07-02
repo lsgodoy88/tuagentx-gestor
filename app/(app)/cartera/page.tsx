@@ -246,6 +246,11 @@ export default function CarteraPage() {
 
   async function cargarPagos(mes = mesPagos, anio = anioPagos, vendedorId = vendedorPagoId) {
     setLoadingPagos(true)
+    // Limpiar filtro de día al cambiar mes — evita que filtre client-side con fecha de otro mes
+    const hoy = new Date()
+    const mesHoy = hoy.getMonth() + 1
+    const anioHoy = hoy.getFullYear()
+    if (mes !== mesHoy || anio !== anioHoy) setFiltroDia('')
     try {
       const r = await fetch(`/api/recaudos?limit=500&mes=${mes}&anio=${anio}${vendedorId ? '&vendedorId='+vendedorId : ''}`)
         .then(r => r.json()).catch(() => ({ pagos: [] }))
@@ -1116,7 +1121,7 @@ export default function CarteraPage() {
         <div className="flex items-center gap-2">
           <SelectorMes
             value={`${anioPagos}-${String(mesPagos).padStart(2,'0')}`}
-            onChange={v => { const [a,m] = v.split('-'); const anio=Number(a), mes=Number(m); setAnioPagos(anio); setMesPagos(mes); try { sessionStorage.setItem('cartera_mesPagos', String(mes)); sessionStorage.setItem('cartera_anioPagos', String(anio)) } catch {} }}
+            onChange={v => { const [a,m] = v.split('-'); const anio=Number(a), mes=Number(m); setAnioPagos(anio); setMesPagos(mes); try { sessionStorage.setItem('cartera_mesPagos', String(mes)); sessionStorage.setItem('cartera_anioPagos', String(anio)) } catch {} cargarPagos(mes, anio, vendedorPagoId) }}
           />
           <button
             onClick={() => cargarPagos(mesPagos, anioPagos, vendedorPagoId)}

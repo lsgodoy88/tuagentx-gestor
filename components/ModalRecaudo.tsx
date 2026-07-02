@@ -1,6 +1,5 @@
 'use client'
-import React from 'react'
-import { useRef } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import InputMoneda from './InputMoneda'
 
 interface LineaPago {
@@ -35,6 +34,39 @@ export default function ModalRecaudo({
   procesando, fmt, onClose, onSetLineasPago, onSetFacturasSeleccionadas,
   onSubirVoucher, onConfirmar, crearLinea,
 }: ModalRecaudoProps) {
+  const clienteId = cartera?.clienteId || cartera?.cliente?.id || null
+
+  // GPS — igual que ModalVisita
+  const [capturarGps, setCapturarGps] = useState(false)
+  const [gpsStatus, setGpsStatus] = useState<'idle'|'buscando'|'ok'|'error'>('idle')
+  const [gpsCoords, setGpsCoords] = useState<{lat:number,lng:number}|null>(null)
+
+  useEffect(() => {
+    if (!clienteId) return
+    // Verificar si el cliente ya tiene GPS real
+    fetch(`/api/cartera/${clienteId}`).then(r => r.json()).then(d => {
+      const cl = d?.cartera?.cliente
+      if (cl) setCapturarGps(!cl.ubicacionReal)
+    }).catch(() => {})
+    // Iniciar GPS en background
+    if (navigator.geolocation) {
+      setGpsStatus('buscando')
+      navigator.geolocation.getCurrentPosition(
+        pos => { setGpsCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude }); setGpsStatus('ok') },
+        () => setGpsStatus('error'),
+        { timeout: 15000, enableHighAccuracy: true, maximumAge: 0 }
+      )
+    }
+  }, [clienteId])
+
+  async function guardarGpsSiCorresponde() {
+    if (!capturarGps || !clienteId || !gpsCoords) return
+    await fetch('/api/clientes/gps', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: clienteId, lat: gpsCoords.lat, lng: gpsCoords.lng })
+    }).catch(() => {})
+  }
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map())
   const [notasOpen, setNotasOpen] = React.useState(false)
   const [confirmadoSobrepago, setConfirmadoSobrepago] = React.useState(false)
@@ -339,6 +371,21 @@ export default function ModalRecaudo({
                 const pedirConfirmacionSobrepago = haySobrepago && !confirmadoSobrepago
                 return (
                   <>
+                    {/* GPS — solo si vendedor, igual que ModalVisita */}
+                    <div className="flex items-center gap-3 rounded-xl px-4 py-3" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
+                      <input type="checkbox" id="capturarGpsRecaudo" checked={capturarGps}
+                        onChange={e => setCapturarGps(e.target.checked)}
+                        className="w-4 h-4 accent-emerald-500" />
+                      <label htmlFor="capturarGpsRecaudo" className="text-zinc-300 text-sm cursor-pointer">
+                        Guardar ubicación de este cliente
+                      </label>
+                    </div>
+                    {gpsStatus === 'buscando' && capturarGps && (
+                      <p className="text-zinc-500 text-xs">📡 Obteniendo GPS...</p>
+                    )}
+                    {gpsStatus === 'ok' && capturarGps && (
+                      <p className="text-emerald-400 text-xs">📍 Ubicación lista</p>
+                    )}
                     {hayTransferenciaSinVoucher && (
                       <p className="text-amber-400 text-xs text-center">📎 Adjunta el comprobante para continuar</p>
                     )}
@@ -348,7 +395,7 @@ export default function ModalRecaudo({
                         ⚠️ Confirmar saldo
                       </button>
                     ) : (
-                      <button onClick={onConfirmar} disabled={procesando || hayTransferenciaSinVoucher || sinMonto}
+                      <button onClick={() => { guardarGpsSiCorresponde(); onConfirmar() }} disabled={procesando || hayTransferenciaSinVoucher || sinMonto}
                         className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl text-sm transition-colors">
                         {procesando ? 'Procesando...' : '✅ Confirmar recaudo'}
                       </button>

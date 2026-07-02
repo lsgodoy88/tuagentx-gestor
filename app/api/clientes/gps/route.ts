@@ -15,3 +15,16 @@ export async function PATCH(req: NextRequest) {
   })
   return NextResponse.json({ ok: true, cliente })
 }
+
+export async function DELETE(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const { id } = await req.json()
+  if (!id) return NextResponse.json({ error: 'Falta id' }, { status: 400 })
+
+  const cliente = await prisma.cliente.update({
+    where: { id },
+    data: { lat: null, lng: null, latTmp: null, lngTmp: null, ubicacionReal: false }
+  })
+  return NextResponse.json({ ok: true, cliente })
+}
