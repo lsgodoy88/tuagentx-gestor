@@ -88,12 +88,8 @@ export default function CarteraPage() {
   const [busquedaPagos, setBusquedaPagos] = useState('')
   const [filtroDia, setFiltroDia] = useState(() => { try { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) } catch { return '' } })
   const [pickerDiaAbierto, setPickerDiaAbierto] = useState(false)
-  const [mesPagos, setMesPagos] = useState(() => {
-    try { const v = sessionStorage.getItem('cartera_mesPagos'); return v ? parseInt(v) : mesBogota() } catch { return mesBogota() }
-  })
-  const [anioPagos, setAnioPagos] = useState(() => {
-    try { const v = sessionStorage.getItem('cartera_anioPagos'); return v ? parseInt(v) : anioBogota() } catch { return anioBogota() }
-  })
+  const [mesPagos, setMesPagos] = useState(mesBogota)
+  const [anioPagos, setAnioPagos] = useState(anioBogota)
   const [comisiones, setComisiones] = useState<ComisionVendedor[]>([])
   const [comisionPropia, setComisionPropia] = useState<any>(null)
   const [loadingComisionPropia, setLoadingComisionPropia] = useState(false)
@@ -193,7 +189,7 @@ export default function CarteraPage() {
         // Fetch en segundo plano para actualizar
         Promise.all([
           fetch(url).then(r => r.json()),
-          fetch(`/api/recaudos?limit=500&mes=${mesPagos}&anio=${anioPagos}${vendedorPagoId ? '&vendedorId='+vendedorPagoId : ''}`).then(r => r.json()).catch(() => ({ pagos: [] })),
+          fetch(`/api/recaudos?limit=200&fecha=${filtroDia}${vendedorPagoId ? '&vendedorId='+vendedorPagoId : ''}`).then(r => r.json()).catch(() => ({ pagos: [] })),
           fetch('/api/cartera/metas').then(r => r.json()).catch(() => ({ metas: [] })),
         ]).then(([nr1, nr2, nr3]) => {
           if (nr1.carteras) {
@@ -222,7 +218,7 @@ export default function CarteraPage() {
     try {
       ;[r1, r2, r3] = await Promise.all([
         fetch(url).then(r => r.json()),
-        fetch(`/api/recaudos?limit=500&mes=${mesPagos}&anio=${anioPagos}${vendedorPagoId ? '&vendedorId='+vendedorPagoId : ''}`).then(r => r.json()).catch(() => ({ pagos: [] })),
+        fetch(`/api/recaudos?limit=200&fecha=${filtroDia}${vendedorPagoId ? '&vendedorId='+vendedorPagoId : ''}`).then(r => r.json()).catch(() => ({ pagos: [] })),
         fetch('/api/cartera/metas').then(r => r.json()).catch(() => ({ metas: [] })),
       ])
       if (!q && r1.carteras) {
@@ -244,16 +240,14 @@ export default function CarteraPage() {
     setLoading(false); setLoadingBusqueda(false)
   }
 
-  async function cargarPagos(mes = mesPagos, anio = anioPagos, vendedorId = vendedorPagoId) {
+  async function cargarPagos(mes = mesPagos, anio = anioPagos, vendedorId = vendedorPagoId, diaOverride?: string) {
     setLoadingPagos(true)
-    // Limpiar filtro de día al cambiar mes — evita que filtre client-side con fecha de otro mes
-    const hoy = new Date()
-    const mesHoy = hoy.getMonth() + 1
-    const anioHoy = hoy.getFullYear()
-    if (mes !== mesHoy || anio !== anioHoy) setFiltroDia('')
+    const diaEfectivo = diaOverride !== undefined ? diaOverride : filtroDia
     try {
-      const r = await fetch(`/api/recaudos?limit=500&mes=${mes}&anio=${anio}${vendedorId ? '&vendedorId='+vendedorId : ''}`)
-        .then(r => r.json()).catch(() => ({ pagos: [] }))
+      const url = diaEfectivo
+        ? `/api/recaudos?limit=200&fecha=${diaEfectivo}${vendedorId ? '&vendedorId='+vendedorId : ''}`
+        : `/api/recaudos?limit=500&mes=${mes}&anio=${anio}${vendedorId ? '&vendedorId='+vendedorId : ''}`
+      const r = await fetch(url).then(r => r.json()).catch(() => ({ pagos: [] }))
       setPagos(r.pagos || [])
     } finally {
       setLoadingPagos(false)
@@ -1121,18 +1115,9 @@ export default function CarteraPage() {
         <div className="flex items-center gap-2">
           <SelectorMes
             value={`${anioPagos}-${String(mesPagos).padStart(2,'0')}`}
-            onChange={v => { const [a,m] = v.split('-'); const anio=Number(a), mes=Number(m); setAnioPagos(anio); setMesPagos(mes); try { sessionStorage.setItem('cartera_mesPagos', String(mes)); sessionStorage.setItem('cartera_anioPagos', String(anio)) } catch {} cargarPagos(mes, anio, vendedorPagoId) }}
+            onChange={v => { const [a,m] = v.split('-'); const anio=Number(a), mes=Number(m); setAnioPagos(anio); setMesPagos(mes); try { sessionStorage.setItem('cartera_mesPagos', String(mes)); sessionStorage.setItem('cartera_anioPagos', String(anio)) } catch {} const hoyStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }); const [ah,mh] = hoyStr.split('-').map(Number); const diaRef = (mes === mh && anio === ah) ? hoyStr : `${String(anio)}-${String(mes).padStart(2,'0')}-01`; setFiltroDia(diaRef); cargarPagos(mes, anio, vendedorPagoId, diaRef) }}
           />
-          <button
-            onClick={() => cargarPagos(mesPagos, anioPagos, vendedorPagoId)}
-            disabled={loadingPagos}
-            title="Buscar pagos del mes"
-            style={{flexShrink:0, width:36, height:36, borderRadius:10, border:'1px solid rgba(59,130,246,0.35)', background:'rgba(30,42,61,0.90)', display:'flex', alignItems:'center', justifyContent:'center', cursor:'pointer', color: loadingPagos ? '#4b5563' : '#93c5fd', transition:'background 0.15s'}}>
-            {loadingPagos
-              ? <svg width="15" height="15" viewBox="0 0 24 24" fill="none" className="animate-spin"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/></svg>
-              : <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" strokeWidth="2.2"/><line x1="16.5" y1="16.5" x2="21" y2="21" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"/></svg>
-            }
-          </button>
+
           {/* Filtro día — picker desplegable con día visible en botón */}
           <div data-picker-dia style={{position:'relative', flexShrink:0}}>
             <button
@@ -1173,7 +1158,7 @@ export default function CarteraPage() {
                 <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10}}>
                   <span style={{fontSize:11, letterSpacing:'0.10em', color:'#475569', textTransform:'uppercase'}}>Filtrar día</span>
                   <button
-                    onClick={() => { setFiltroDia(''); setPickerDiaAbierto(false) }}
+                    onClick={() => { setFiltroDia(''); setPickerDiaAbierto(false); cargarPagos(mesPagos, anioPagos, vendedorPagoId, '') }}
                     style={{fontSize:10, color:'#3b82f6', cursor:'pointer', background:'none', border:'none', padding:'2px 6px', borderRadius:6}}>
                     Limpiar
                   </button>
@@ -1183,7 +1168,7 @@ export default function CarteraPage() {
                   ref={filtroDiaInputRef}
                   type="date"
                   value={filtroDia || new Date().toLocaleDateString('en-CA',{timeZone:'America/Bogota'})}
-                  onChange={e => { setFiltroDia(e.target.value); setPickerDiaAbierto(false) }}
+                  onChange={e => { const d = e.target.value; setFiltroDia(d); setPickerDiaAbierto(false); cargarPagos(mesPagos, anioPagos, vendedorPagoId, d) }}
                   onClick={e => { try { (e.currentTarget as HTMLInputElement).showPicker?.() } catch {} }}
                   style={{
                     width:'100%', background:'rgba(15,20,40,0.90)',
@@ -1200,7 +1185,7 @@ export default function CarteraPage() {
                     { label:'Ayer', val: new Date(Date.now()-86400000).toLocaleDateString('en-CA',{timeZone:'America/Bogota'}) },
                   ].map(s => (
                     <button key={s.label}
-                      onClick={() => { setFiltroDia(s.val); setPickerDiaAbierto(false) }}
+                      onClick={() => { setFiltroDia(s.val); setPickerDiaAbierto(false); cargarPagos(mesPagos, anioPagos, vendedorPagoId, s.val) }}
                       style={{
                         fontSize:11, padding:'4px 9px', borderRadius:8,
                         border: filtroDia === s.val ? '1px solid rgba(59,130,246,0.65)' : '1px solid rgba(59,130,246,0.22)',
@@ -1251,12 +1236,7 @@ export default function CarteraPage() {
         ) : (() => {
           // Pre-calcular totales
           let totEfectivo = 0, totTransf = 0, totDesc = 0
-          const _pagosBase = filtroDia
-            ? pagos.filter((p: any) => {
-                const fecha = new Date(p.createdAt).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
-                return fecha === filtroDia
-              })
-            : pagos
+          const _pagosBase = pagos
           const pagosFiltrados = busquedaPagos.trim()
             ? _pagosBase.filter((p: any) => {
                 const q = busquedaPagos.toLowerCase()

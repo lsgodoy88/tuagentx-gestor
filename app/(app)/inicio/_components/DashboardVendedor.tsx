@@ -55,6 +55,7 @@ function cacheKeyFor(userId: string | undefined): string {
   return userId ? `${CACHE_KEY_BASE}_${userId}` : CACHE_KEY_BASE
 }
 function getCached(cacheKey: string) {
+  if (cacheKey === CACHE_KEY_BASE) return null
   try {
     const raw = sessionStorage.getItem(cacheKey)
     if (!raw) return null

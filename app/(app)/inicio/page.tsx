@@ -50,14 +50,19 @@ function DashboardRouter() {
 
   if (status === 'loading' || !user) return <DashboardSkeleton />
 
-  if (user.role === 'vendedor')    return <DashboardVendedor user={user} />
+  if (user.role === 'vendedor')    return <DashboardVendedor key={user.id} user={user} />
   if (user.role === 'bodega')      return <DashboardBodega user={user} />
   if (user.role === 'entregas')    return <DashboardEntregas user={user} />
   if (user.role === 'impulsadora') { router.push('/impulsadora'); return null }
 
-  return <DashboardAdmin user={user} />
+  return <DashboardAdmin key={user.id} user={user} />
+}
+
+function DashboardPageInner() {
+  const { data: session } = useSession()
+  return <DashboardRouter key={(session?.user as any)?.id || 'anon'} />
 }
 
 export default function DashboardPage() {
-  return <ErrorBoundary><DashboardRouter /></ErrorBoundary>
+  return <ErrorBoundary><DashboardPageInner /></ErrorBoundary>
 }

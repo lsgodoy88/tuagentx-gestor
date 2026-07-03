@@ -27,6 +27,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
   const CACHE_KEY = user?.id ? `${CACHE_KEY_BASE}_${user.id}` : CACHE_KEY_BASE
 
   function getCached() {
+    if (CACHE_KEY === CACHE_KEY_BASE) return null
     try {
       const raw = sessionStorage.getItem(CACHE_KEY)
       if (!raw) return null

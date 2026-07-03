@@ -10,8 +10,10 @@ export default function SelectorMes({ value, onChange, className }: Props) {
   const anioActual = new Date().getFullYear()
   const opciones: { val: string; label: string }[] = []
 
+  const mesActual = new Date().getMonth()
   for (const anio of [anioActual - 1, anioActual]) {
     for (let i = 0; i < 12; i++) {
+      if (anio === anioActual && i > mesActual) continue
       const d = new Date(anio, i, 15)
       const val = d.toISOString().slice(0, 7)
       const label = d.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' , timeZone: 'America/Bogota'})

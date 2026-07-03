@@ -15,6 +15,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname()
 
   useEffect(() => {
+    // Forzar reload si la página viene del bfcache (mobile back-forward)
+    const handlePageShow = (e: PageTransitionEvent) => {
+      if (e.persisted) window.location.reload()
+    }
+    window.addEventListener('pageshow', handlePageShow)
+    return () => window.removeEventListener('pageshow', handlePageShow)
+  }, [])
+
+  useEffect(() => {
     const titles: Record<string, string> = {
       '/inicio':        'Inicio',
       '/empresas':      'Empresas',
@@ -380,7 +389,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-[#a1a1aa] hover:text-white hover:bg-[#27272a] transition-colors">
                   <span>⚙️</span> Configuración
                 </Link>
-                <button onClick={() => signOut({ redirect: false }).then(() => { window.location.href = '/login' })}
+                <button onClick={() => signOut({ redirect: false }).then(() => {
+              const uid = (user as any)?.id
+              if (uid) { sessionStorage.removeItem(`inicio_cache_\${uid}`); sessionStorage.removeItem(`inicio_admin_cache_\${uid}`) }
+              window.location.href = '/login'
+            })}
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-red-400 hover:text-red-300 hover:bg-[#27272a] transition-colors">
                   <span>🚪</span> Cerrar sesión
                 </button>
@@ -520,7 +533,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             style={{width:32,height:32,borderRadius:8,background:'rgba(59,130,246,0.10)',border:'1px solid rgba(59,130,246,0.20)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:17,textDecoration:'none'}}>
             ⚙️
           </Link>
-          <button onClick={() => signOut({ redirect: false }).then(() => { window.location.href = '/login' })}
+          <button onClick={() => signOut({ redirect: false }).then(() => {
+              const uid = (user as any)?.id
+              if (uid) { sessionStorage.removeItem(`inicio_cache_\${uid}`); sessionStorage.removeItem(`inicio_admin_cache_\${uid}`) }
+              window.location.href = '/login'
+            })}
             style={{width:32,height:32,borderRadius:8,background:'rgba(239,68,68,0.10)',border:'1px solid rgba(239,68,68,0.30)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,cursor:'pointer'}}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
               <path d="M12 3v9" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round"/>

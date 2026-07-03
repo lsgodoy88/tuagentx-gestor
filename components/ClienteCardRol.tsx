@@ -284,15 +284,7 @@ export default function ClienteCardRol({ cliente: c, rol, onVisita, onEntregar, 
             {/* Dirección con botón mapa */}
             {c.direccion && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8 }}>
-                <span
-                  onMouseDown={e => { e.stopPropagation(); iniciarLongPress() }}
-                  onMouseUp={cancelarLongPress}
-                  onMouseLeave={cancelarLongPress}
-                  onTouchStart={e => { e.stopPropagation(); iniciarLongPress() }}
-                  onTouchEnd={cancelarLongPress}
-                  style={{ fontSize:16, cursor: (tieneGpsReal || tieneGpsTmp) ? 'pointer' : 'default', opacity: tieneGpsReal ? 1 : tieneGpsTmp ? 0.3 : 0.5, userSelect:'none', flexShrink:0 }}
-                  title={tieneGpsReal ? 'GPS real — mantén para borrar' : tieneGpsTmp ? 'GPS temporal — mantén para borrar' : 'Sin GPS'}
-                >📍</span>
+                <span style={{ fontSize:16, flexShrink:0 }}>📍</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 11, color: '#ffffff' }}>Dirección</div>
                   <div style={{ fontSize: 13, color: '#d1d5db', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
