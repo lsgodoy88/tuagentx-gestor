@@ -41,7 +41,7 @@ export async function calcularNSaldoPorDeuda(
   const totalPostCorte: Record<string, number> = {}
   const ancla: Record<string, number> = {}
   for (const a of aplicaciones) {
-    const monto = Number(a.montoAplicado || 0) + Number(a.descuento || 0)
+    const monto = Number(a.montoAplicado || 0) // montoAplicado ya incluye descuento
     totalPagado[a.syncDeudaId] = (totalPagado[a.syncDeudaId] || 0) + monto
     if (new Date(a.createdAt) > CORTE_LUMELI_0206) {
       totalPostCorte[a.syncDeudaId] = (totalPostCorte[a.syncDeudaId] || 0) + monto
@@ -438,7 +438,7 @@ export async function actualizarCache(
         orderBy: { createdAt: 'asc' }
       })
       for (const a of todasLasAplicaciones) {
-        const monto = Number(a.montoAplicado || 0) + Number(a.descuento || 0)
+        const monto = Number(a.montoAplicado || 0) // montoAplicado ya incluye descuento
         totalPagadoPorDeuda[a.syncDeudaId] = (totalPagadoPorDeuda[a.syncDeudaId] || 0) + monto
         if (new Date(a.createdAt) > CORTE_LUMELI_0206) {
           totalPagadoPostCortePorDeuda[a.syncDeudaId] = (totalPagadoPostCortePorDeuda[a.syncDeudaId] || 0) + monto

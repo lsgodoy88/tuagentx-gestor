@@ -119,6 +119,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
   const [rrBuscarCartera, setRrBuscarCartera] = useState('')
   const [rrCartera, setRrCartera]       = useState<any[]>([])
   const [rrLoadingCartera, setRrLoadingCartera] = useState(false)
+  const [rrTotalDeudas, setRrTotalDeudas] = useState<number | null>(null)
   const [rrCliente, setRrCliente]       = useState<any>(null)
   const [rrVerificando, setRrVerificando] = useState(false)
   const [rrSinDeuda, setRrSinDeuda]     = useState(false)
@@ -307,10 +308,15 @@ export default function DashboardVendedor({ user }: { user: any }) {
     setRrCartera(data?.carteras || data?.cartera || [])
     setRrLoadingCartera(false)
   }
+  async function rrFetchTotal() {
+    const data = await fetchApi('/api/cartera?limit=1&q=')
+    setRrTotalDeudas(typeof data?.total === 'number' ? data.total : null)
+  }
   function abrirModalRecaudoRapido() {
     setModalRecaudoRapido(true)
     setRrBuscarCartera(''); setRrCliente(null); setRrSinDeuda(false); setRrCartera([])
-    rrLoadCartera('') // Cargar todos los clientes al abrir
+    setRrTotalDeudas(null)
+    rrFetchTotal()
   }
   function abrirWhatsApp(cartera: any) {
     const telefono = (cartera.cliente?.celular || cartera.cliente?.telefono || cartera.telefono || cartera.celular || '').replace(/\D/g, '')
@@ -832,9 +838,17 @@ export default function DashboardVendedor({ user }: { user: any }) {
                     placeholder="Buscar cliente con deuda..." autoFocus
                     className="w-full rounded-xl px-4 py-2.5 text-white text-sm outline-none placeholder:text-zinc-400"
                     style={{background:"rgba(30,41,59,0.80)",border:"1px solid rgba(59,130,246,0.35)"}} />
-                  {rrLoadingCartera && <div className="space-y-2">{Array.from({length:3}).map((_,i) => <div key={i} className="rounded-xl h-16 bg-zinc-800/40"/>)}</div>}
-                  {!rrLoadingCartera && rrCartera.length === 0 && <p className="text-zinc-500 text-sm text-center py-6">Sin clientes con deuda activa</p>}
-                  {!rrLoadingCartera && rrCartera.map((cartera: any) => (
+                  {!rrBuscarCartera && (
+                    <div className="text-center py-6">
+                      {rrTotalDeudas === null
+                        ? <p className="text-zinc-500 text-sm">Cargando...</p>
+                        : <p className="text-zinc-400 text-sm"><span className="text-white font-bold text-lg">{rrTotalDeudas}</span> cliente{rrTotalDeudas !== 1 ? 's' : ''} con deuda activa</p>
+                      }
+                    </div>
+                  )}
+                  {rrBuscarCartera && rrLoadingCartera && <div className="space-y-2">{Array.from({length:3}).map((_,i) => <div key={i} className="rounded-xl h-16 bg-zinc-800/40"/>)}</div>}
+                  {rrBuscarCartera && !rrLoadingCartera && rrCartera.length === 0 && <p className="text-zinc-500 text-sm text-center py-4">Sin resultados</p>}
+                  {rrBuscarCartera && !rrLoadingCartera && rrCartera.map((cartera: any) => (
                     <CarteraCard key={cartera.id||cartera.clienteId} cartera={cartera} rol={user?.role||'vendedor'} fmt={fmt}
                       onRecaudar={(c: any) => { setModalRecaudoRapido(false); setLineasPago([crearLinea()]); setRecaudandoCartera(c); cargarDetalleCartera({ ...c, clienteId: c.clienteId || c.cliente?.id || c.id }) }}
                       onWhatsApp={abrirWhatsApp} variant="modal" />
