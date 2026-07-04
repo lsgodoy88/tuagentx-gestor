@@ -50,7 +50,7 @@ type DatosIAGasto = { valor: number | null; fecha: string | null; concepto: stri
  * dentro de /egresos (admin/supervisor) — mismo componente, mismo
  * comportamiento, sin duplicar lógica.
  */
-export default function ModuloGastos({ isAdmin }: { isAdmin: boolean }) {
+export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, mes, anio }: { isAdmin: boolean, hideButton?: boolean, triggerRef?: React.RefObject<(() => void) | null>, mes?: number, anio?: number }) {
   const [gastos, setGastos] = useState<Gasto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -65,13 +65,15 @@ export default function ModuloGastos({ isAdmin }: { isAdmin: boolean }) {
   const [borradorTipo, setBorradorTipo] = useState('')
 
   const fileInputRef = useRef<HTMLInputElement>(null)
+  if (triggerRef) (triggerRef as any).current = () => fileInputRef.current?.click()
 
-  useEffect(() => { cargarGastos() }, [])
+  useEffect(() => { cargarGastos() }, [mes, anio])
 
   async function cargarGastos() {
     setLoading(true)
     try {
-      const res = await fetch('/api/gastos')
+      const params = mes && anio ? `?mes=${mes}&anio=${anio}` : ''
+      const res = await fetch(`/api/gastos${params}`)
       const data = await res.json()
       setGastos(data.gastos || [])
     } finally {
@@ -174,12 +176,12 @@ export default function ModuloGastos({ isAdmin }: { isAdmin: boolean }) {
         <div>
           <input ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden"
             onChange={e => { if (e.target.files?.[0]) handleArchivo(e.target.files[0]) }} />
-          <button
+          {!hideButton && <button
             onClick={() => fileInputRef.current?.click()}
             disabled={subiendo}
             className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors">
             {subiendo ? 'Analizando con IA...' : '📎 Adjuntar gasto'}
-          </button>
+          </button>}
         </div>
       </div>
 

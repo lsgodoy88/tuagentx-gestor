@@ -16,8 +16,18 @@ export async function GET(req: NextRequest) {
 
   const empresaId = getEmpresaId(user)
 
+  const { searchParams: sp } = new URL(req.url)
+  const mesF = sp.get('mes') ? parseInt(sp.get('mes')!) : null
+  const anioF = sp.get('anio') ? parseInt(sp.get('anio')!) : null
+  let mesWhere = {}
+  if (mesF && anioF) {
+    const inicio = new Date(anioF, mesF - 1, 1)
+    const fin = new Date(anioF, mesF, 1)
+    mesWhere = { fechaAgregacion: { gte: inicio, lt: fin } }
+  }
+
   const gastos = await (prisma as any).gasto.findMany({
-    where: { empresaId, ...(empleadoIdForzado ? { empleadoId: empleadoIdForzado } : {}) },
+    where: { empresaId, ...(empleadoIdForzado ? { empleadoId: empleadoIdForzado } : {}), ...mesWhere },
     include: { empleado: { select: { id: true, nombre: true } } },
     orderBy: { fechaAgregacion: 'desc' },
   })

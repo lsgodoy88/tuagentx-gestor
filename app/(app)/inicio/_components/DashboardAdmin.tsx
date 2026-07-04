@@ -104,7 +104,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
     return (
       <div className="space-y-6 pb-20 max-w-5xl mx-auto">
         <div>
-          <h1 className="text-2xl font-bold text-white">Bienvenido, {user?.name?.split(' ')[0]}</h1>
+          <h1 className="text-lg font-bold text-white">Bienvenido, {user?.name?.split(' ')[0]}</h1>
           <p className="text-zinc-400 text-sm mt-1">Superadmin</p>
         </div>
         <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl px-4 py-4 flex items-center justify-between">
@@ -172,22 +172,22 @@ export default function DashboardAdmin({ user }: { user: any }) {
 
   // ── Empresa / Supervisor ────────────────────────────────────
   return (
-    <div className="space-y-3 pb-20 md:pb-0 max-w-5xl mx-auto">
-      <h1 className="text-2xl font-bold text-white px-1">Bienvenido, {user?.name?.split(' ')[0]}</h1>
+    <div className="space-y-3 pb-20 md:pb-0 md:max-w-2xl md:mx-auto">
+      <h1 className="text-lg font-bold text-white px-1">Bienvenido, {user?.name?.split(' ')[0]}</h1>
       {(isEmpresa || isSupervisor) && (
         <div className="space-y-6">
-          <div className="rounded-2xl" style={{overflow:"hidden",borderRadius:16}}>
+          <div>
           <div className="grid grid-cols-2 gap-3">
 
             <div className="rounded-2xl p-4 hover-lift card-glass flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">🛍️</span>
-                <span className="text-white text-[10px] font-bold tracking-widest uppercase">Vendedores</span>
+                <span className="text-white text-sm font-bold tracking-wide">Vendedores</span>
               </div>
               <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-white text-2xl font-bold"><CountUp end={stats.vendedoresActivos||0} /></span>
-                <span className="text-white/40 text-xl font-light">/</span>
-                <span className="text-white text-2xl font-bold"><CountUp end={stats.totalVendedores||0} /></span>
+                <span className="text-white text-lg font-bold"><CountUp end={stats.vendedoresActivos||0} /></span>
+                <span className="text-white/40 text-base font-light">/</span>
+                <span className="text-white text-lg font-bold"><CountUp end={stats.totalVendedores||0} /></span>
               </div>
               <div className="flex justify-center gap-4 mt-1">
                 <span className="text-white text-xs">en turno</span>
@@ -198,12 +198,12 @@ export default function DashboardAdmin({ user }: { user: any }) {
             <div className="rounded-2xl p-4 hover-lift card-glass flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">⚡</span>
-                <span className="text-white text-[10px] font-bold tracking-widest uppercase">Impulsos</span>
+                <span className="text-white text-sm font-bold tracking-wide">Impulsos</span>
               </div>
               <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-amber-400 text-2xl font-bold"><CountUp end={stats.impulsosActivos||0} /></span>
-                <span className="text-white/40 text-xl font-light">/</span>
-                <span className="text-white text-2xl font-bold"><CountUp end={stats.totalImpulsos||0} /></span>
+                <span className="text-amber-400 text-lg font-bold"><CountUp end={stats.impulsosActivos||0} /></span>
+                <span className="text-white/40 text-base font-light">/</span>
+                <span className="text-white text-lg font-bold"><CountUp end={stats.totalImpulsos||0} /></span>
               </div>
               <div className="flex justify-center gap-4 mt-1">
                 <span className="text-white text-xs">activas</span>
@@ -213,13 +213,29 @@ export default function DashboardAdmin({ user }: { user: any }) {
 
             <div className="rounded-2xl p-4 hover-lift card-glass flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
-                <span className="text-sm">📦</span>
-                <span className="text-white text-[10px] font-bold tracking-widest uppercase">Órdenes hoy</span>
+                <span className="text-sm">👁️</span>
+                <span className="text-white text-sm font-bold tracking-wide">Visitas</span>
               </div>
               <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-emerald-400 text-2xl font-bold"><CountUp end={stats.ordenesDespachadasHoy||0} /></span>
-                <span className="text-white/40 text-xl font-light">/</span>
-                <span className="text-white text-2xl font-bold"><CountUp end={stats.ordenesFact||0} /></span>
+                <span className="text-white text-lg font-bold"><CountUp end={stats.visitasHoyTotal||0} /></span>
+                <span className="text-white/40 text-base font-light">/</span>
+                <span className="text-white text-lg font-bold"><CountUp end={stats.visitasAyer||0} /></span>
+              </div>
+              <div className="flex justify-center gap-4 mt-1">
+                <span className="text-white text-xs">hoy</span>
+                <span className="text-white text-xs">ayer</span>
+              </div>
+            </div>
+
+            <div className="rounded-2xl p-4 hover-lift card-glass flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+              <div className="flex items-center justify-center gap-1.5 mb-2">
+                <span className="text-sm">📦</span>
+                <span className="text-white text-sm font-bold tracking-wide">Órdenes hoy</span>
+              </div>
+              <div className="flex items-baseline justify-center gap-1.5">
+                <span className="text-emerald-400 text-lg font-bold"><CountUp end={stats.ordenesDespachadasHoy||0} /></span>
+                <span className="text-white/40 text-base font-light">/</span>
+                <span className="text-white text-lg font-bold"><CountUp end={stats.ordenesFact||0} /></span>
               </div>
               <div className="flex justify-center gap-4 mt-1">
                 <span className="text-white text-xs">despacho</span>
@@ -227,29 +243,48 @@ export default function DashboardAdmin({ user }: { user: any }) {
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift card-glass flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
-              <div className="flex items-center justify-center gap-1.5 mb-2">
-                <span className="text-sm">💰</span>
-                <span className="text-white text-[10px] font-bold tracking-widest uppercase">Recaudado</span>
-              </div>
-              <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-blue-400 text-2xl font-bold"><CountUp end={stats.recaudoHoy||0} prefix="$" /></span>
-                <span className="text-white/40 text-xl font-light">/</span>
-                <span className="text-white text-2xl font-bold"><CountUp end={stats.recaudoMes||0} prefix="$" /></span>
-              </div>
-              <div className="flex justify-center gap-4 mt-1">
-                <span className="text-white text-xs">hoy</span>
-                <span className="text-white text-xs">mes</span>
-              </div>
-            </div>
 
           </div>
+          </div>
+
+          {/* Ventas — línea completa */}
+          <div className="rounded-2xl p-4 hover-lift card-glass flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div className="flex items-center justify-center gap-1.5 mb-2">
+              <span className="text-sm">💼</span>
+              <span className="text-white text-sm font-bold tracking-wide">Ventas</span>
+            </div>
+            <div className="flex items-baseline justify-center gap-1.5">
+              <span className="text-emerald-400 text-lg font-bold"><CountUp end={Math.round(stats.ventasHoy||0)} prefix="$" /></span>
+              <span className="text-white/40 text-base font-light">/</span>
+              <span className="text-white text-lg font-bold"><CountUp end={Math.round(stats.ventasMes||0)} prefix="$" /></span>
+            </div>
+            <div className="flex justify-center gap-4 mt-1">
+              <span className="text-white text-xs">hoy</span>
+              <span className="text-white text-xs">mes</span>
+            </div>
+          </div>
+
+          {/* Recaudos — línea completa */}
+          <div className="rounded-2xl p-4 hover-lift card-glass flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div className="flex items-center justify-center gap-1.5 mb-2">
+              <span className="text-sm">💰</span>
+              <span className="text-white text-sm font-bold tracking-wide">Recaudos</span>
+            </div>
+            <div className="flex items-baseline justify-center gap-1.5">
+              <span className="text-blue-400 text-lg font-bold"><CountUp end={stats.recaudoHoy||0} prefix="$" /></span>
+              <span className="text-white/40 text-base font-light">/</span>
+              <span className="text-white text-lg font-bold"><CountUp end={stats.recaudoMes||0} prefix="$" /></span>
+            </div>
+            <div className="flex justify-center gap-4 mt-1">
+              <span className="text-white text-xs">hoy</span>
+              <span className="text-white text-xs">mes</span>
+            </div>
           </div>
 
           {/* Botón Estadísticas */}
           <button
             onClick={cargarEstadisticas}
-            style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25)',borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
+className='card-glass' style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
             <span className="text-white font-semibold text-sm">📊 Estadísticas</span>
             <span className="text-zinc-500 text-xs">{mostrarEstadisticas ? '▲ Ocultar' : '▼ Ver'}</span>
           </button>
@@ -298,7 +333,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
               <p className="text-white font-semibold">Rutas activas</p>
               <p className="text-zinc-500 text-xs mt-0.5">Sin cerrar</p>
             </div>
-            <p className="text-2xl font-bold text-white">{stats.rutasActivas || 0}</p>
+            <p className="text-lg font-bold text-white">{stats.rutasActivas || 0}</p>
           </div>
           </div>
           <div className="space-y-6">

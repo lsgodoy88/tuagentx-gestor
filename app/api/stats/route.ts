@@ -62,6 +62,8 @@ export async function GET() {
   ])
 
   const visitasHoy = visitas30dias.filter((v: any) => new Date(v.fechaBogota) >= hoy).length
+  const ayer = new Date(hoy); ayer.setDate(ayer.getDate() - 1)
+  const visitasAyer = visitas30dias.filter((v: any) => { const f = new Date(v.fechaBogota); return f >= ayer && f < hoy }).length
   const porTipo = visitas30dias.reduce((acc: any, v: any) => { acc[v.tipo] = (acc[v.tipo] || 0) + 1; return acc }, {})
   const ventasTotal = visitas30dias.filter((v: any) => v.tipo === 'venta').reduce((a: number, v: any) => a + (v.monto || 0), 0)
   const cobrosTotal = visitas30dias.filter((v: any) => v.tipo === 'cobro').reduce((a: number, v: any) => a + (v.monto || 0), 0)
@@ -133,6 +135,7 @@ export async function GET() {
     // Nuevas métricas
     vendedoresActivos, totalVendedores,
     visitasHoyTotal: visitasHoy,
+    visitasAyer,
     ordenesDespachadasHoy, ordenesFact,
     impulsosActivos, totalImpulsos,
     recaudoHoy: Number(recaudoHoy._sum.monto || 0),

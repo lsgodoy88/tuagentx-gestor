@@ -6,7 +6,7 @@ import { Prisma } from '@/app/generated/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
 import { calcularEstado } from '@/lib/cartera'
 
-const CORTE_LUMELI = new Date('2026-06-02T21:08:15Z').getTime() // sin offset: Prisma devuelve TIMESTAMP sin TZ como UTC
+const CORTE_LUMELI = new Date('2026-06-01T05:00:00Z').getTime() // sin offset: Prisma devuelve TIMESTAMP sin TZ como UTC
 const LUMELI_ID = 'cmn7oiutk0001vmega46373b4'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ clienteId: string }> }) {

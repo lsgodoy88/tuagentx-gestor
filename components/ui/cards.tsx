@@ -15,8 +15,8 @@ interface CardKPIProps {
 export function CardKPI({ children, className = '', center = true }: CardKPIProps) {
   return (
     <div
-      className={['rounded-2xl', center ? 'flex flex-col items-center justify-center min-h-[110px]' : '', className].filter(Boolean).join(' ')}
-      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 14, padding: '10px 12px' } as CSSProperties}
+      className={['rounded-2xl card-glass', center ? 'flex flex-col items-center justify-center min-h-[110px]' : '', className].filter(Boolean).join(' ')}
+      style={{ background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)', borderRadius: 14, padding: '10px 12px' } as CSSProperties}
     >
       {children}
     </div>
@@ -59,12 +59,12 @@ export function CardCountAdmin({
 }: CardCountAdminProps) {
   return (
     <div
-      className="rounded-2xl flex flex-col items-center justify-center min-h-[110px]"
-      style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 14, padding: '10px 12px', cursor: onClick ? 'pointer' : 'default' } as CSSProperties}
+      className="rounded-2xl flex flex-col items-center justify-center min-h-[110px] card-glass hover-lift"
+      style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.30)', boxShadow: '0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)', borderRadius: 14, padding: '10px 12px', cursor: onClick ? 'pointer' : 'default' } as CSSProperties}
       onClick={onClick}
     >
       <div className="flex items-center justify-center gap-1.5 mb-2">
-        <span className="text-base">{icon}</span>
+        <span className="text-sm">{icon}</span>
         <span className="text-white text-sm font-bold tracking-wide">{label}</span>
       </div>
       <div className="flex items-baseline justify-center gap-1.5">
@@ -142,8 +142,9 @@ export function CardSub({ children, alerta = false, className = '', style }: Car
     <div
       className={['rounded-xl', className].filter(Boolean).join(' ')}
       style={{
-        background: alerta ? 'rgba(127,29,29,0.50)' : 'rgba(255,255,255,0.06)',
-        border: alerta ? '1px solid rgba(239,68,68,0.30)' : '1px solid rgba(255,255,255,0.12)',
+        background: alerta ? 'rgba(127,29,29,0.50)' : 'rgba(255,255,255,0.08)',
+        border: alerta ? '1px solid rgba(239,68,68,0.30)' : '1px solid rgba(255,255,255,0.30)',
+        boxShadow: '0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',
         borderRadius: 10,
         ...style,
       } as CSSProperties}

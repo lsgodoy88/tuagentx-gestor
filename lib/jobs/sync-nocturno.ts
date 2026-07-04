@@ -220,7 +220,7 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
   // (Leche, sin archivo equivalente): sigue el fix v2 (ancla saldoAnterior
   // si hay pago nuestro, saldo crudo si no) — sin cambio.
   const EMPRESA_LUMELI = 'cmn7oiutk0001vmega46373b4'
-  const CORTE_LUMELI_0206 = new Date('2026-06-02T21:08:15Z') // sin offset: Prisma devuelve TIMESTAMP sin TZ como UTC
+  const CORTE_LUMELI_0206 = new Date('2026-06-01T05:00:00Z') // sin offset: Prisma devuelve TIMESTAMP sin TZ como UTC
   let saldosInicialesLumeli: Record<number, number> = {}
   if (empresaId === EMPRESA_LUMELI) {
     const filas = await (prisma as any).$queryRaw`

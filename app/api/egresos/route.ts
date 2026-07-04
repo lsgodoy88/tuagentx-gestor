@@ -33,7 +33,8 @@ export async function POST(req: NextRequest) {
   if (!body.concepto?.trim()) return NextResponse.json({ error: 'Concepto requerido' }, { status: 400 })
   if (!body.valor || parseFloat(body.valor) === 0) return NextResponse.json({ error: 'Valor requerido' }, { status: 400 })
 
-  const fecha = new Date(body.fecha)
+  let fecha = new Date(body.fecha)
+  if (isNaN(fecha.getTime())) fecha = new Date()
   const egreso = await (prisma as any).egreso.create({
     data: {
       empresaId, categoria: body.categoria,
@@ -45,7 +46,8 @@ export async function POST(req: NextRequest) {
       medioPago: body.medioPago || null,
       estado: body.estado || 'pendiente',
       autorizado: body.autorizado || false,
-      mes: fecha.getMonth() + 1, anio: fecha.getFullYear(),
+      mes: body.mes || (fecha.getMonth() + 1), anio: body.anio || fecha.getFullYear(),
+      ...(body.evidenciaKey ? { evidenciaKey: body.evidenciaKey } : {}),
     }
   })
   return NextResponse.json({ ok: true, egreso })

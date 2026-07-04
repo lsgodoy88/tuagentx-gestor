@@ -111,7 +111,7 @@ export default function DashboardEntregas({ user }: { user: any }) {
   }
 
   return (
-    <div className="space-y-3 pb-20">
+    <div className="space-y-3 pb-20 md:max-w-2xl md:mx-auto">
       {!turno && !cargandoTurno && <SaludoBlock nombre={user?.name} />}
       <TurnoBlock
         turno={turno}
@@ -124,7 +124,7 @@ export default function DashboardEntregas({ user }: { user: any }) {
 
       {/* Ruta del día */}
       {ruta && totalClientes > 0 && (
-        <div className="rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.25)' }}>
+        <div className="rounded-2xl overflow-hidden card-glass" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)'}}>
           <div className="px-4 py-3 border-b border-white/20 flex items-center justify-between">
             <Link href="/mapa-ruta" className="text-white font-bold hover:text-emerald-400 transition-colors">📦 Ruta de hoy →</Link>
             <span className="text-white text-sm font-semibold">{ejecutadosRuta}/{totalClientes} entregas</span>
@@ -205,7 +205,7 @@ export default function DashboardEntregas({ user }: { user: any }) {
       />
       {/* Card Rutas */}
       <Link href="/rutas-entregas"
-        style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 16, display: 'block', padding: '12px 16px' }}>
+        className='card-glass' style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)', borderRadius:16, display:'block', padding:'12px 16px'}}>
         <div className="flex items-center justify-between">
           <span className="text-white font-semibold">📋 Mis Rutas</span>
           <span className="text-zinc-400 text-sm">→</span>

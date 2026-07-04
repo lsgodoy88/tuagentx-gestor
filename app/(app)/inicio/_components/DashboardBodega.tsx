@@ -18,10 +18,10 @@ export default function DashboardBodega({ user }: { user: any }) {
   }, [])
 
   return (
-    <div className="space-y-4 pb-20">
+    <div className="space-y-4 pb-20 md:max-w-2xl md:mx-auto">
       <SaludoBlock nombre={user?.name} />
 
-      <div className="rounded-2xl p-4" style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.25)' }}>
+      <div className="rounded-2xl p-4 card-glass" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)'}}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-white font-semibold text-sm">📦 Órdenes bodega hoy</h3>
           <a href="/ordenes" className="text-emerald-400 text-xs">Ver órdenes →</a>
@@ -57,8 +57,8 @@ export default function DashboardBodega({ user }: { user: any }) {
       </div>
 
       <a href="/ordenes"
-        className="block w-full text-center py-3 rounded-xl text-white font-semibold text-sm"
-        style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.25)' }}>
+        className="block w-full text-center py-3 rounded-xl text-white font-semibold text-sm card-glass"
+        style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)'}}>
         📋 Ver todas las órdenes
       </a>
     </div>

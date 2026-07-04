@@ -452,11 +452,13 @@ export default function RecaudosPage() {
       })
       const data = await res.json()
       if (data.ok) {
-        setPagos(prev => prev.map(p =>
-          p.id === pagoId
-            ? { ...p, envioEstado: data.envioEstado, envioFecha: new Date().toISOString(), envioRef: data.envioRef }
-            : p
-        ))
+        setPagos(prev =>
+          tab === 'pendiente'
+            ? prev.filter(p => p.id !== pagoId)
+            : prev.map(p => p.id === pagoId
+                ? { ...p, envioEstado: data.envioEstado, envioFecha: new Date().toISOString(), envioRef: data.envioRef }
+                : p)
+        )
       }
     } finally {
       setEnviando(prev => { const s = new Set(prev); s.delete(pagoId); return s })

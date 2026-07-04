@@ -3182,6 +3182,7 @@ model Egreso {
   medioPago   String?  // BANCO | NEQUI | EFECTIVO | etc
   estado      String   @default("pendiente") // pendiente | ok
   autorizado  Boolean  @default(false)
+  evidenciaKey String?
   mes         Int
   anio        Int
   createdAt   DateTime @default(now())

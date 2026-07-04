@@ -443,7 +443,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
 
   // ── JSX ──────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-3 pb-20">
+    <div className="space-y-3 pb-20 md:max-w-2xl md:mx-auto">
 
       {/* Bienvenido — solo cuando no hay turno y ya cargó */}
       {!turno && !cargandoTurno && (
@@ -453,14 +453,14 @@ export default function DashboardVendedor({ user }: { user: any }) {
       {/* Turno — skeleton exacto mientras carga (misma altura que el pill) */}
       <div className="space-y-4">
           {cargandoTurno ? (
-            <div style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:16,overflow:'hidden'}}>
+            <div className="card-glass" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',borderRadius:16,overflow:'hidden'}}>
               <div className="flex items-center gap-2 px-3 py-2.5">
                 <div className="flex-1 h-8 rounded-xl bg-zinc-700/50" />
                 <div className="w-10 h-8 rounded-xl bg-zinc-700/50 flex-shrink-0" />
               </div>
             </div>
           ) : turno?.pausado ? (
-            <div style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:16,overflow:"hidden"}}>
+            <div className="card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",borderRadius:16,overflow:"hidden"}}>
               <button onClick={() => setTurnoExpandido(e => !e)} className="w-full flex items-center gap-3 px-4 py-3 text-left">
                 <span className="relative inline-flex h-2.5 w-2.5 flex-shrink-0">
                   
@@ -484,10 +484,10 @@ export default function DashboardVendedor({ user }: { user: any }) {
               )}
             </div>
           ) : turno ? (
-            <div className="w-full">
+            <div className="w-full md:max-w-2xl md:mx-auto md:w-full">
               <div className="flex justify-center">
                 <div className="inline-flex items-center gap-2 px-4 py-2 cursor-pointer"
-                  style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderBottom:turnoExpandido?"none":undefined,borderRadius:turnoExpandido?"16px 16px 0 0":"16px"}}
+                  style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",borderBottom:turnoExpandido?"none":undefined,borderRadius:turnoExpandido?"16px 16px 0 0":"16px"}}
                   onClick={() => setTurnoExpandido(e => !e)}>
                   <span className="relative inline-flex h-2 w-2 flex-shrink-0">
                     <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 live-ping" />
@@ -500,7 +500,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
                 </div>
               </div>
               {turnoExpandido && (
-                <div className="w-full" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)",borderTop:"1px solid rgba(16,185,129,0.12)",borderRadius:"0 0 16px 16px"}}>
+                <div className="w-full" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",borderTop:"1px solid rgba(16,185,129,0.12)",borderRadius:"0 0 16px 16px"}}>
                   <div className="px-4 pb-4 pt-3 space-y-3">
                     <div className="grid grid-cols-2 gap-2">
                       <div className="rounded-lg p-2" style={{background:'rgba(148,160,185,0.28)',border:'1px solid rgba(148,180,255,0.25)'}}><p className="text-zinc-500 text-xs">Hora inicio</p><p className="text-sm font-bold text-white">{new Date(turno.inicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",timeZone:'America/Bogota'})}</p></div>
@@ -531,7 +531,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
               )}
             </div>
           ) : (
-            <div style={{background:"rgba(255,255,255,0.06)",border:"1px solid rgba(255,255,255,0.15)",borderRadius:16,overflow:"hidden"}}>
+            <div className="card-glass md:max-w-2xl md:mx-auto md:w-full" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",borderRadius:16,overflow:"hidden"}}>
               <div className="flex items-center justify-between gap-2 px-3 py-2.5">
                 <button onClick={iniciarTurno} disabled={bloqueadoTurno || obteniendoGps} className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors">{obteniendoGps ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full" /> Buscando GPS...</> : <>⚡ Iniciar turno</>}</button>
                 <a href="/historial-turnos" className="flex items-center gap-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold px-3 py-2 rounded-xl flex-shrink-0">📅</a>
@@ -541,7 +541,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
 
           {/* Botones acción */}
           {turno && (
-            <div className="flex gap-2 w-full">
+            <div className="flex gap-2 w-full md:max-w-2xl md:mx-auto">
               {[
                 { tipo: 'visita',  label: 'Visita',   icon: '👁️' },
                 { tipo: 'venta',   label: 'Venta',    icon: '💰' },
@@ -550,8 +550,8 @@ export default function DashboardVendedor({ user }: { user: any }) {
               ].map(b => (
                 <button key={b.tipo}
                   onClick={() => b.tipo === 'cobro' ? abrirModalRecaudoRapido() : abrirModalVisita(b.tipo)}
-                  className="flex-1 text-white font-semibold py-2.5 rounded-xl text-sm flex flex-col items-center gap-1"
-                  style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.14)'}}>
+                  className="flex-1 text-white font-semibold py-2.5 rounded-xl text-sm flex flex-col items-center gap-1 card-glass"
+                  style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)'}}>
                   <span className="text-lg">{b.icon}</span>
                   <span>{b.label}</span>
                 </button>
@@ -561,7 +561,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
 
           {/* Ruta del día */}
           {ruta && totalClientes > 0 && !rutaCompletada && (
-            <div className="rounded-2xl overflow-hidden" style={{background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.12)"}}>
+            <div className="rounded-2xl overflow-hidden card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)"}}>
               <div className="px-4 pt-4 pb-3">
                 <p className="text-zinc-400 text-xs font-semibold tracking-wide mb-1 truncate">{ruta.nombre}</p>
                 <div className="flex items-center gap-3 mb-2">
@@ -587,43 +587,40 @@ export default function DashboardVendedor({ user }: { user: any }) {
 
       {/* Stats — solo cuando turno ya cargó, evita que aparezcan antes que el turno */}
       {!cargandoTurno && <div className="space-y-4">
-        <div className="space-y-3">
-        <CardKPIGroup cols={2}>
-          <CardCountAdmin stagger={1} icon="👁️" label="Visitas" onClick={() => router.push('/visitas')}
-            primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={statsVendedor.hoy.total||0} /> : '—'}</span>}
-            secondary={statsVendedor ? <CountUp end={statsVendedor.hoy.ayer||0} /> : '—'}
-            primaryLabel="hoy" secondaryLabel="ayer" primaryColor="text-white" />
-          <CardCountAdmin stagger={2} icon="📦" label="Órdenes" onClick={() => router.push('/trazabilidad')}
-            primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={statsVendedor.ordenes?.despHoy||0} /> : '—'}</span>}
-            secondary={statsVendedor ? <CountUp end={statsVendedor.ordenes?.factHoy||0} /> : '—'}
-            primaryLabel="desp hoy" secondaryLabel="fact hoy" primaryColor="text-amber-400" />
-        </CardKPIGroup>
-        <div className="relative" style={{borderRadius:16,overflow:'hidden'}}>
+        <div className="space-y-3 md:max-w-2xl md:mx-auto">
+          <div className="grid grid-cols-2 gap-3">
+            <CardCountAdmin stagger={1} icon="👁️" label="Visitas" onClick={() => router.push('/visitas')}
+              primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={statsVendedor.hoy.total||0} /> : '—'}</span>}
+              secondary={statsVendedor ? <CountUp end={statsVendedor.hoy.ayer||0} /> : '—'}
+              primaryLabel="hoy" secondaryLabel="ayer" primaryColor="text-white" />
+            <CardCountAdmin stagger={2} icon="📦" label="Órdenes" onClick={() => router.push('/trazabilidad')}
+              primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={statsVendedor.ordenes?.despHoy||0} /> : '—'}</span>}
+              secondary={statsVendedor ? <CountUp end={statsVendedor.ordenes?.factHoy||0} /> : '—'}
+              primaryLabel="desp hoy" secondaryLabel="fact hoy" primaryColor="text-amber-400" />
+          </div>
           <CardCountAdmin stagger={3} icon="💼" label="Ventas"
             primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={Math.round(statsVendedor.ordenes?.montoMes||0)} prefix='$' /> : '—'}</span>}
             secondary={statsVendedor ? (statsVendedor.ordenes?.metaVentaMes > 0 ? '$'+Math.round(statsVendedor.ordenes.metaVentaMes).toLocaleString('es-CO') : '—') : '—'}
             primaryLabel="mes" secondaryLabel="meta" primaryColor="text-emerald-400" />
-        </div>
-        <div style={{borderRadius:16,overflow:'hidden'}}>
           <CardCountAdmin stagger={4} icon="💰" label="Recaudo" onClick={() => router.push('/cartera')}
             primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={Math.round(statsVendedor.recaudo?.mes||0)} prefix='$' /> : '—'}</span>}
             secondary={statsVendedor ? (statsVendedor.recaudo?.meta > 0 ? '$'+Math.round(statsVendedor.recaudo.meta).toLocaleString('es-CO') : '—') : '—'}
             primaryLabel="mes" secondaryLabel="meta" primaryColor="text-blue-400" />
         </div>
-        </div>
 
+        <div className="space-y-4 md:max-w-2xl md:mx-auto">
         {/* Impulsos — botón siempre visible */}
         {(() => {
           const tieneAlerta = statsVendedor?.cumplimiento?.some((imp: any) => imp.todosLosPuntos?.some((pt: any) => pt.alertaHora)) ?? false
           return (
         <div>
           <button onClick={() => setMostrarImpulsadoras(v => !v)}
-            style={{background:'rgba(255,255,255,0.05)',border:`1px solid ${tieneAlerta ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.12)'}`,borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
+            className='card-glass' style={{background:'rgba(255,255,255,0.08)',border:`1px solid ${tieneAlerta ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.30)'}`,boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
             <span className="text-white font-semibold text-sm">⚡ Impulsos{tieneAlerta && <span className="ml-2 text-red-400 text-xs font-bold">● Alerta</span>}</span>
             <span className="text-zinc-500 text-xs">{mostrarImpulsadoras ? '▲ Ocultar' : '▼ Ver'}</span>
           </button>
           {mostrarImpulsadoras && (
-            <div className="mt-2 space-y-3 rounded-2xl p-3" style={{background:'rgba(255,255,255,0.05)',border:`1px solid ${tieneAlerta ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.12)'}`}}>
+            <div className="mt-2 space-y-3 rounded-2xl p-3" style={{background:'rgba(255,255,255,0.08)',border:`1px solid ${tieneAlerta ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.12)'}`}}>
           {!statsVendedor ? (
             <>{[0,1].map(i => <div key={i} className="h-16 rounded-xl bg-zinc-800/40" />)}</>
           ) : (statsVendedor.cumplimiento?.length ?? 0) === 0 ? (
@@ -732,7 +729,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
 
         {/* Estadísticas */}
         <button onClick={() => setMostrarEstadisticasVendedor(v => !v)}
-          style={{background:'rgba(255,255,255,0.05)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
+          className='card-glass' style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
           <span className="text-white font-semibold text-sm">📊 Estadísticas</span>
           <span className="text-zinc-500 text-xs">{mostrarEstadisticasVendedor ? '▲ Ocultar' : '▼ Ver'}</span>
         </button>
@@ -786,6 +783,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
           </div>
         ))}
 
+        </div>
       </div>}
 
       {/* ── Modales ── */}
