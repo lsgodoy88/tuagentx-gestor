@@ -1,10 +1,16 @@
 import type { NextConfig } from "next";
-import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
   compress: true,
   poweredByHeader: false,
+  experimental: {
+    optimizePackageImports: [
+      "@aws-sdk/client-s3",
+      "@aws-sdk/s3-request-presigner",
+      "@anthropic-ai/sdk",
+    ],
+  },
   async redirects() {
     return [
       { source: '/dashboard', destination: '/inicio', permanent: true },
@@ -36,11 +42,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-
-export default withSentryConfig(nextConfig, {
-  org: "tuagentx",
-  project: "javascript-nextjs",
-  silent: true,
-  widenClientFileUpload: false,
-  sourcemaps: { disable: true },
-})
+export default nextConfig;
