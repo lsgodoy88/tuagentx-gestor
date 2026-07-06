@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
     const diezDiasMs = 10 * 24 * 60 * 60 * 1000
     const sdIdsParaRevisar: string[] = []
     for (const sd of syncDeudasCandidatas) {
-      const totalPagado = sd.Aplicaciones.reduce((acc: number, a: any) => acc + Number(a.montoAplicado || 0) + Number(a.descuento || 0), 0)
+      const totalPagado = sd.Aplicaciones.reduce((acc: number, a: any) => acc + Number(a.montoAplicado || 0), 0) // montoAplicado ya incluye descuento
       const nSaldo = Math.max(0, Number(sd.valor) - totalPagado)
       const saldoUpTres = Number(sd.saldo)
       if (saldoUpTres === nSaldo) continue // ya coinciden, no hay anomalía

@@ -207,6 +207,7 @@ model Visita {
   firma             String?
   rutaFijaClienteId String?
   ordenDespachoId   String?
+  clienteNombreLibre String?
   createdAt         DateTime       @default(now())
   cliente           Cliente        @relation(fields: [clienteId], references: [id])
   empleado          Empleado       @relation(fields: [empleadoId], references: [id])

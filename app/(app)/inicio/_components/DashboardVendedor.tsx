@@ -22,6 +22,7 @@ import { CardKPIGroup, CardSub, CardCountAdmin, CardCountAdminSkeleton } from '@
 import dynamic from 'next/dynamic'
 
 const ModalVisita  = dynamic(() => import('@/components/ModalVisita'),  { ssr: false })
+const BuscadorInlineAccion = dynamic(() => import('@/components/BuscadorInlineAccion'), { ssr: false })
 const CarteraCard  = dynamic(() => import('@/components/CarteraCard'),  { ssr: false })
 const ModalRecaudo = dynamic(() => import('@/components/ModalRecaudo'), { ssr: false })
 
@@ -76,13 +77,15 @@ function vieneDelLogin(cacheKey: string) {
 }
 
 // ── Componente ───────────────────────────────────────────────────────────────
-export default function DashboardVendedor({ user }: { user: any }) {
+export default function DashboardVendedor({ user, onRegisterRefresh, activo = true }: { user: any, onRegisterRefresh?: (fn: () => void) => void, activo?: boolean }) {
+  const _cacheKey0 = user?.id ? `${CACHE_KEY_BASE}_${user.id}` : CACHE_KEY_BASE
+  const _cached0 = typeof window !== 'undefined' ? getCached(_cacheKey0) : null
   const router = useRouter()
   const cacheKey = cacheKeyFor(user?.id)
 
   // Turno
-  const [turno, setTurno]               = useState<TurnoActivo | null>(null)
-  const [cargandoTurno, setCargandoTurno] = useState(true)
+  const [turno, setTurno]               = useState<TurnoActivo | null>(_cached0?.turno && (Date.now()-(_cached0?.ts||0))<CACHE_TTL_TURNO ? _cached0.turno : null)
+  const [cargandoTurno, setCargandoTurno] = useState(() => !(_cached0?.turno && (Date.now() - (_cached0?.ts||0)) < CACHE_TTL_TURNO))
   const [turnoExpandido, setTurnoExpandido] = useState(false)
   const [bloqueadoTurno, setBloqueadoTurno] = useState(false)
   const [mostrarPausa, setMostrarPausa] = useState(false)
@@ -92,13 +95,20 @@ export default function DashboardVendedor({ user }: { user: any }) {
   const [pausaDuracionCustom, setPausaDuracionCustom] = useState(false)
 
   // Stats
-  const [statsVendedor, setStatsVendedor] = useState<VendedorStats | null>(null)
+  const [statsVendedor, setStatsVendedor] = useState<VendedorStats | null>(_cached0?.statsVendedor || null)
   const [vendedorStatsLoading, setVendedorStatsLoading] = useState(true)
   const [loadingStats, setLoadingStats] = useState(false)
   const [mostrarEstadisticasVendedor, setMostrarEstadisticasVendedor] = useState(false)
   const [mostrarImpulsadoras, setMostrarImpulsadoras] = useState(false)
-  const [resumenCartera, setResumenCartera] = useState<any>(null)
+  const [resumenCartera, setResumenCartera] = useState<any>(_cached0?.resumenCartera || null)
   const lastPulseTs = useRef<number>(0)
+  const activoRef = useRef(activo)
+  useEffect(() => { activoRef.current = activo }, [activo])
+  useEffect(() => {
+    // BFCache: permite al layout forzar refresh reseteando el timestamp
+    onRegisterRefresh?.(() => { lastPulseTs.current = 0; document.dispatchEvent(new Event('visibilitychange')) })
+  }, []) // eslint-disable-line
+
 
   // Ruta
   const [ruta, setRuta]                 = useState<any>(null)
@@ -109,6 +119,10 @@ export default function DashboardVendedor({ user }: { user: any }) {
 
   // Modales visita
   const [modalVisita, setModalVisita]   = useState<{open: boolean, tipo: string}>({open: false, tipo: 'visita'})
+  const [accionActiva, setAccionActiva] = useState<string | null>(null)
+  const [listaAbierta, setListaAbierta] = useState(false)
+
+  const [modalVisitaNuevo, setModalVisitaNuevo] = useState(false)
   const [clienteModal, setClienteModal] = useState<any>(null)
   const [clienteInicialLibre, setClienteInicialLibre] = useState<any>(null)
   const [distanciaLejos, setDistanciaLejos] = useState(false)
@@ -231,6 +245,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
   useEffect(() => {
     const onVisible = () => {
       if (document.visibilityState !== 'visible') return
+      if (!activoRef.current) return
       if (Date.now() - lastPulseTs.current < 3 * 60 * 1000) return
       lastPulseTs.current = Date.now()
       // Solo invalidar stats — mantener turno y ruta en cache (TTL propio)
@@ -453,7 +468,7 @@ export default function DashboardVendedor({ user }: { user: any }) {
 
       {/* Bienvenido — solo cuando no hay turno y ya cargó */}
       {!turno && !cargandoTurno && (
-        <h1 className="text-2xl font-bold text-white px-1">Bienvenido, {user?.name?.split(' ')[0]}</h1>
+        <h1 className="text-lg font-bold text-white px-1 text-center">Bienvenido, {user?.name?.split(' ')[0]}{user?.empresaNombre ? <span className="text-zinc-400 font-normal text-lg"> · {user.empresaNombre}</span> : ''}</h1>
       )}
 
       {/* Turno — skeleton exacto mientras carga (misma altura que el pill) */}
@@ -499,37 +514,38 @@ export default function DashboardVendedor({ user }: { user: any }) {
                     <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 live-ping" />
                     <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                   </span>
-                  <TurnoTimer turno={turno} />
-                  <span className="w-7 h-7 flex items-center justify-center bg-zinc-800 rounded-lg text-xs"
-                    onClick={e => { e.stopPropagation(); setMostrarPausa(m => !m); setTurnoExpandido(true) }}>⏸</span>
+                  <span className="text-white font-semibold text-sm">{user?.name?.split(' ')[0]}{user?.empresaNombre ? <span className="text-zinc-400 font-normal"> · {user.empresaNombre}</span> : ''}</span>
                   <span className={`text-zinc-600 text-[10px] ${turnoExpandido ? 'rotate-180' : ''}`}>▼</span>
                 </div>
               </div>
               {turnoExpandido && (
                 <div className="w-full" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",borderTop:"1px solid rgba(16,185,129,0.12)",borderRadius:"0 0 16px 16px"}}>
                   <div className="px-4 pb-4 pt-3 space-y-3">
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="rounded-lg p-2" style={{background:'rgba(148,160,185,0.28)',border:'1px solid rgba(148,180,255,0.25)'}}><p className="text-zinc-500 text-xs">Hora inicio</p><p className="text-sm font-bold text-white">{new Date(turno.inicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",timeZone:'America/Bogota'})}</p></div>
-                      <div className="rounded-lg p-2" style={{background:'rgba(148,160,185,0.28)',border:'1px solid rgba(148,180,255,0.25)'}}><p className="text-zinc-500 text-xs">Contador</p><TurnoTimer turno={turno} className="text-emerald-400 font-mono font-bold" /></div>
-                    </div>
-                    <button onClick={cerrarTurno} className="w-full bg-red-600 text-white text-sm font-bold py-2.5 rounded-xl">{bloqueadoTurno ? "..." : "Cerrar turno"}</button>
-                    <div className="flex gap-2">
-                      <button onClick={() => setMostrarPausa(m => !m)} className={"flex-1 text-sm font-semibold py-2.5 rounded-xl border " + (mostrarPausa ? "bg-amber-500/10 border-amber-500/30 text-amber-400" : "bg-zinc-800 border-zinc-700 text-zinc-400")}>⏸️ Pausar</button>
-                      <a href="/historial-turnos" className="flex-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold py-2.5 rounded-xl flex items-center justify-center gap-1">📅 Historial</a>
+                    <div className="flex gap-2 items-stretch">
+                      <div className="flex-[35%] flex-shrink-0 flex items-center gap-2"><span className="relative inline-flex h-2 w-2 flex-shrink-0"><span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 live-ping" /><span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" /></span><p className="text-sm font-bold text-white">{new Date(turno.inicio).toLocaleTimeString("es-CO",{hour:"2-digit",minute:"2-digit",timeZone:'America/Bogota'})}</p></div>
+                      <button onClick={() => setMostrarPausa(m => !m)} className="flex-[10%] flex-shrink-0 text-lg flex items-center justify-center">⏸️</button>
+                      <a href="/historial-turnos" className="flex-[10%] flex-shrink-0 flex items-center justify-center text-lg">📅</a>
+                      <button onClick={cerrarTurno} className="flex-[35%] flex-shrink-0 bg-red-600 text-white text-xs font-bold py-2 rounded-xl">{bloqueadoTurno ? "..." : "Cerrar turno"}</button>
                     </div>
                     {mostrarPausa && (
                       <div className="bg-black/30 rounded-xl p-3 border border-zinc-700">
-                        <p className="text-zinc-400 text-xs font-bold mb-2">Motivo</p>
-                        <div className="flex gap-2 flex-wrap mb-3">
-                          {["Almuerzo","Permiso","Otro"].map(m => <button key={m} onClick={() => setPausaMotivo(m)} className={"px-3 py-1.5 rounded-full text-xs font-semibold border " + (pausaMotivo===m ? "bg-amber-500/15 border-amber-500/30 text-amber-400" : "bg-zinc-800 border-zinc-700 text-zinc-400")}>{m === "Almuerzo" ? "🍽️" : m === "Permiso" ? "📝" : "📦"} {m}</button>)}
+                        <div className="flex gap-2 items-center">
+                          <select value={pausaMotivo} onChange={e => { setPausaMotivo(e.target.value); setPausaMotivoCustom('') }}
+                            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 text-sm text-white outline-none">
+                            <option value="Almuerzo">🍽️ Almuerzo</option>
+                            <option value="Permiso">📝 Permiso</option>
+                            <option value="Otro">📦 Otro</option>
+                          </select>
+                          <select value={pausaDuracion} onChange={e => setPausaDuracion(Number(e.target.value))}
+                            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 text-sm text-white outline-none">
+                            <option value={30}>30 min</option>
+                            <option value={60}>1 hora</option>
+                            <option value={120}>2 horas</option>
+                            <option value={180}>3 horas</option>
+                          </select>
+                          <button onClick={pausarTurno} className="bg-amber-500 text-white text-lg px-3 py-2.5 rounded-xl">⏸️</button>
                         </div>
-                        {pausaMotivo === "Otro" && <input value={pausaMotivoCustom} onChange={e => setPausaMotivoCustom(e.target.value)} placeholder="¿Cuál es el motivo?" className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white mb-3 outline-none" />}
-                        <p className="text-zinc-400 text-xs font-bold mb-2">Tiempo estimado</p>
-                        <div className="flex gap-2 flex-wrap mb-3">
-                          {[{l:"30 min",v:30},{l:"1 hora",v:60},{l:"2 horas",v:120},{l:"Otro",v:0}].map(t => <button key={t.l} onClick={() => { if(t.v>0){setPausaDuracion(t.v);setPausaDuracionCustom(false)}else{setPausaDuracionCustom(true)} }} className={"px-3 py-1.5 rounded-full text-xs font-semibold border " + ((!pausaDuracionCustom&&pausaDuracion===t.v&&t.v>0)||(pausaDuracionCustom&&t.v===0) ? "bg-indigo-500/15 border-indigo-500/30 text-indigo-400" : "bg-zinc-800 border-zinc-700 text-zinc-400")}>{t.l}</button>)}
-                        </div>
-                        {pausaDuracionCustom && <input type="number" onChange={e => setPausaDuracion(Number(e.target.value))} placeholder="¿Cuántos minutos?" className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-white mb-3 outline-none" />}
-                        <button onClick={pausarTurno} className="w-full bg-gradient-to-r from-amber-600 to-amber-500 text-white text-sm font-bold py-2 rounded-xl">⏸️ Confirmar pausa</button>
+                        {pausaMotivo === "Otro" && <input value={pausaMotivoCustom} onChange={e => setPausaMotivoCustom(e.target.value)} placeholder="Especifica el motivo..." className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-white mt-2 outline-none" />}
                       </div>
                     )}
                   </div>
@@ -547,21 +563,51 @@ export default function DashboardVendedor({ user }: { user: any }) {
 
           {/* Botones acción */}
           {turno && (
-            <div className="flex gap-2 w-full md:max-w-2xl md:mx-auto">
-              {[
-                { tipo: 'visita',  label: 'Visita',   icon: '👁️' },
-                { tipo: 'venta',   label: 'Venta',    icon: '💰' },
-                { tipo: 'cobro',   label: 'Recaudo',  icon: '💵' },
-                { tipo: 'entrega', label: 'Entrega',  icon: '📦' },
-              ].map(b => (
-                <button key={b.tipo}
-                  onClick={() => b.tipo === 'cobro' ? abrirModalRecaudoRapido() : abrirModalVisita(b.tipo)}
-                  className="flex-1 text-white font-semibold py-2.5 rounded-xl text-sm flex flex-col items-center gap-1 card-glass"
-                  style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)'}}>
-                  <span className="text-lg">{b.icon}</span>
-                  <span>{b.label}</span>
-                </button>
-              ))}
+            <div className="w-full md:max-w-2xl md:mx-auto space-y-0">
+              <div className="flex gap-2">
+                {[
+                  { tipo: 'visita',  label: 'Visita',   icon: '👁️' },
+                  { tipo: 'venta',   label: 'Venta',    icon: '💰' },
+                  { tipo: 'cobro',   label: 'Recaudo',  icon: '💵' },
+                  { tipo: 'entrega', label: 'Entrega',  icon: '📦' },
+                ].map(b => (
+                  <button key={b.tipo}
+                    onClick={() => { if (accionActiva === b.tipo) { setAccionActiva(null); setListaAbierta(false) } else { setAccionActiva(b.tipo); setListaAbierta(false) } }}
+                    className="flex-1 text-white font-semibold py-2.5 rounded-xl text-sm flex flex-col items-center gap-1 card-glass transition-opacity duration-150"
+                    style={{
+                      background: accionActiva === b.tipo ? 'rgba(59,130,246,0.25)' : 'rgba(255,255,255,0.08)',
+                      border: accionActiva === b.tipo ? '1px solid rgba(59,130,246,0.70)' : '1px solid rgba(255,255,255,0.30)',
+                      boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',
+                      opacity: accionActiva && accionActiva !== b.tipo ? 0.35 : 1,
+                      pointerEvents: accionActiva && accionActiva !== b.tipo ? 'none' : 'auto',
+                    }}>
+                    <span className="text-lg">{b.icon}</span>
+                    <span>{b.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Buscador inline */}
+              {accionActiva && (
+                <BuscadorInlineAccion
+                  accion={accionActiva}
+                  onHayResultados={setListaAbierta}
+                  onSeleccionar={(cliente: any) => {
+                    setListaAbierta(false)
+                    setAccionActiva(null)
+                    setClienteInicialLibre(cliente)
+                    if (accionActiva === 'cobro') { setModalRecaudoRapido(true); rrSeleccionarCliente(cliente) }
+                    else abrirModalVisita(accionActiva)
+                  }}
+                  onNuevoProspecto={(nombre: string) => {
+                    setListaAbierta(false)
+                    setAccionActiva(null)
+                    setClienteInicialLibre({ id: '__PROSPECTO__', nombre, clienteNombreLibre: nombre })
+                    setModalVisitaNuevo(true)
+                  }}
+                  onCerrar={() => { setAccionActiva(null); setListaAbierta(false) }}
+                />
+              )}
             </div>
           )}
 
@@ -591,6 +637,8 @@ export default function DashboardVendedor({ user }: { user: any }) {
         </div>
 
 
+      {/* Contenido colapsable al abrir buscador */}
+      <div style={{display:"grid", gridTemplateRows: listaAbierta ? "0fr" : "1fr", transition:"grid-template-rows 0.25s ease"}} className={listaAbierta ? "max-h-0 overflow-hidden" : ""}><div style={{overflow:"hidden", minHeight:0}}>
       {/* Stats — solo cuando turno ya cargó, evita que aparezcan antes que el turno */}
       {!cargandoTurno && <div className="space-y-4">
         <div className="space-y-3 md:max-w-2xl md:mx-auto">
@@ -792,6 +840,10 @@ export default function DashboardVendedor({ user }: { user: any }) {
         </div>
       </div>}
 
+
+
+      </div></div>{/* fin colapsable */}
+
       {/* ── Modales ── */}
       <ModalVisita
         key={`libre-${clienteInicialLibre?.id || 'libre'}`}
@@ -820,6 +872,20 @@ export default function DashboardVendedor({ user }: { user: any }) {
         titulo="📦 Registrar entrega"
         extraData={clienteModal?.ordenDespachoId ? { ordenDespachoId: clienteModal.ordenDespachoId } : {}}
       />
+
+      {/* Modal Visita Cliente Nuevo */}
+      {modalVisitaNuevo && (
+        <ModalVisita
+          open={modalVisitaNuevo}
+          onClose={() => { setModalVisitaNuevo(false); setClienteInicialLibre(null); setListaAbierta(false) }}
+          onRegistrado={recargarRutaVisitas}
+          tipoForzado="visita"
+          puedeCapturarGps={puedeCapturarGps}
+          titulo="✨ Cliente Nuevo"
+          clienteNuevo={true}
+          clienteInicial={clienteInicialLibre || undefined}
+        />
+      )}
 
       {/* Modal Recaudo Rápido */}
       {modalRecaudoRapido && (

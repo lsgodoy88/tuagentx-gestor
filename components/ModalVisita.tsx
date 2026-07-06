@@ -41,18 +41,21 @@ interface Props {
   extraData?: Record<string, any>
   facturaPreset?: string
   empresaOrigen?: string
+  clienteNuevo?: boolean
 }
 
 export default function ModalVisita({
   open, onClose, onRegistrado,
   clienteInicial, tipoForzado,
   puedeCapturarGps = false,
-  titulo, extraData = {}, distanciaLejos, facturaPreset, empresaOrigen
+  titulo, extraData = {}, distanciaLejos, facturaPreset, empresaOrigen,
+  clienteNuevo = false
 }: Props) {
   const [cliente, setCliente] = useState<Cliente | null>(clienteInicial || null)
   const gpsDemand = useGpsEnDemanda()
-  console.log('clienteInicial en modal:', clienteInicial)
   const [tipo, setTipo] = useState(tipoForzado || 'visita')
+  const [nombreLibre, setNombreLibre] = useState('')
+  const [modoNuevo, setModoNuevo] = useState(clienteNuevo)
   const [monto, setMonto] = useState('')
   const [nota, setNota] = useState('')
   const [factura, setFactura] = useState('')
@@ -78,7 +81,9 @@ export default function ModalVisita({
     if (open) {
       if (!clienteInicial) {
         setCliente(null)
-        setClientes([])  // vacío hasta que el usuario busque
+        setClientes([])
+      } else {
+        setCliente(clienteInicial)
       }
       setTipo(tipoForzado || 'visita')
       setMonto(''); setNota('')
@@ -143,7 +148,8 @@ export default function ModalVisita({
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        clienteId: cl.id,
+        clienteId: modoNuevo ? '__PROSPECTO__' : cl.id,
+        clienteNombreLibre: modoNuevo ? (nombreLibre.trim() || null) : null,
         tipo: tipoForzado || tipo,
         monto: monto || null,
         nota: nota || null,
@@ -201,7 +207,7 @@ export default function ModalVisita({
   }
 
   useEffect(() => {
-    if (open) gpsDemand.iniciar()
+    if (open) { gpsDemand.iniciar(); setNombreLibre(clienteNuevo && clienteInicial?.nombre ? clienteInicial.nombre : ''); setModoNuevo(clienteNuevo) }
     else gpsDemand.reset()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
@@ -212,7 +218,6 @@ export default function ModalVisita({
   const tituloFinal = titulo || (tipoForzado === 'entrega' ? 'Registrar entrega' : 'Registrar visita')
   const puedeGuardar = !loading && !(isEntregas && (!firma || !factura))
 
-  console.log('[ModalVisita render]', { clienteInicial, cliente, condicion: !clienteInicial && !cliente })
 
   return (
     <div className="fixed inset-0 flex items-start justify-center z-[1000] pt-4 px-4 pb-4" style={{background:"#0f1729"}}>
@@ -221,12 +226,35 @@ export default function ModalVisita({
         {/* Header */}
         <div className="flex items-center justify-between">
           <h3 className="text-white font-bold text-lg">{tituloFinal}</h3>
-          <button onClick={onClose} className="text-zinc-400 hover:text-white text-2xl leading-none">×</button>
+          <div className="flex items-center gap-2">
+            {!clienteInicial && !cliente && !modoNuevo && (
+              <button onClick={() => { setNombreLibre(''); setModoNuevo(true) }} className="text-indigo-300 text-xs font-semibold px-2 py-1 rounded-lg" style={{background:'rgba(99,102,241,0.15)',border:'1px solid rgba(99,102,241,0.35)'}}>✨ ¿Cliente Nuevo?</button>
+            )}
+            <button onClick={onClose} className="text-zinc-400 hover:text-white text-2xl leading-none">×</button>
+          </div>
         </div>
 
         {/* Paso 1: buscar cliente (nunca si clienteInicial está definido) */}
         {!clienteInicial && !cliente ? (
           <div className="space-y-3">
+            {modoNuevo ? (
+              <div className="space-y-3">
+                <input
+                  value={nombreLibre}
+                  onChange={e => setNombreLibre(e.target.value)}
+                  placeholder="Nombre del prospecto (opcional)"
+                  autoFocus
+                  className="w-full rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}
+                />
+                {(() => { const valido = nombreLibre.trim().split(/\s+/).filter(Boolean).length >= 2; return (
+                <button onClick={() => setCliente({ id: '__PROSPECTO__', nombre: nombreLibre.trim() })} disabled={!valido}
+                  className={"w-full font-semibold py-2.5 rounded-xl text-sm transition-colors " + (valido ? "bg-emerald-600 hover:bg-emerald-500 text-white" : "bg-emerald-600 text-white cursor-not-allowed opacity-40")}>
+                  Continuar →
+                </button>) })()}
+                <button onClick={() => setModoNuevo(false)} className="text-zinc-500 text-xs text-center w-full">← Buscar cliente existente</button>
+              </div>
+            ) : (
+            <>
             <input
               value={buscar}
               onChange={e => { setBuscar(e.target.value); setPageCli(1); loadClientes(e.target.value, 1) }}
@@ -267,6 +295,8 @@ export default function ModalVisita({
                 </div>
               )}
             </div>
+            </>
+            )}
           </div>
         ) : (
           /* Paso 2: formulario */
@@ -275,7 +305,7 @@ export default function ModalVisita({
             {/* Cliente seleccionado */}
             <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 flex items-center justify-between">
               <div>
-                <p className="text-white font-medium">{clienteActual!.nombre}</p>
+                <p className="text-white font-medium">{modoNuevo ? (nombreLibre || (clienteInicial?.nombre && clienteInicial.nombre !== '__PROSPECTO__' ? clienteInicial.nombre : 'Prospecto')) : clienteActual!.nombre}</p>
                 {clienteActual!.nombreComercial && <p className="text-zinc-400 text-xs">{clienteActual!.nombreComercial}</p>}
                 {distanciaLejos && <p className="text-amber-400 text-xs mt-1">⚠️ Estás lejos del cliente</p>}
               </div>
@@ -362,7 +392,7 @@ export default function ModalVisita({
                     </div>
                   )}
                   {/* Checkbox solo para vendedor autorizado */}
-                  {puedeCapturarGps && (
+                  {puedeCapturarGps && !modoNuevo && (
                     <div className="flex items-center gap-3  rounded-xl px-4 py-3" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                       <input type="checkbox" id="capturarGpsModal" checked={capturarGps}
                         onChange={e => setCapturarGps(e.target.checked)}

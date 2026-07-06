@@ -242,7 +242,7 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
       orderBy: { createdAt: 'asc' }
     })
     for (const a of todasLasAplicaciones) {
-      const monto = Number(a.montoAplicado || 0) + Number(a.descuento || 0)
+      const monto = Number(a.montoAplicado || 0) // montoAplicado ya incluye descuento
       totalPagadoPorDeuda[a.syncDeudaId] = (totalPagadoPorDeuda[a.syncDeudaId] || 0) + monto
       if (new Date(a.createdAt) > CORTE_LUMELI_0206) {
         totalPagadoPostCortePorDeuda[a.syncDeudaId] = (totalPagadoPostCortePorDeuda[a.syncDeudaId] || 0) + monto

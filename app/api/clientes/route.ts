@@ -23,7 +23,18 @@ export async function GET(req: NextRequest) {
   const useCursor = !!cursor || searchParams.has('cursor') || (searchParams.has('limit') && !searchParams.has('page'))
   const skip = useCursor ? undefined : (page - 1) * limit
 
+  const conDeuda = searchParams.get('conDeuda') === 'true'
   const where: any = { empresaId }
+  if (conDeuda) {
+    const deudas = await prisma.syncDeuda.findMany({
+      where: { nSaldo: { gt: 0 }, condition: true },
+      select: { clienteApiId: true },
+      distinct: ['clienteApiId']
+    })
+    const apiIds = deudas.map((d: any) => d.clienteApiId).filter(Boolean)
+    where.apiId = { in: apiIds }
+    where.empresaId = empresaId
+  }
 
   // Si es vendedor, filtrar solo sus clientes
   if (listaFilter && user.role === 'empresa') {
@@ -56,9 +67,9 @@ export async function GET(req: NextRequest) {
 
   if (q) {
     where.OR = [
-      { nombre: { contains: q, mode: 'insensitive' } },
-      { nombreComercial: { contains: q, mode: 'insensitive' } },
-      { nit: { contains: q, mode: 'insensitive' } },
+      { nombre: { startsWith: q, mode: 'insensitive' } },
+      { nombreComercial: { startsWith: q, mode: 'insensitive' } },
+      { nit: { startsWith: q, mode: 'insensitive' } },
     ]
   }
 

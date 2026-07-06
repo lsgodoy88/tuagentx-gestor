@@ -34,7 +34,11 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
 
-  const { clienteId, lat, lng, nota, tipo, monto, esLibre, rutaFijaClienteId, factura, firma, capturarGps, ordenDespachoId } = await req.json()
+  const { clienteId: clienteIdRaw, clienteNombreLibre, lat, lng, nota, tipo, monto, esLibre, rutaFijaClienteId, factura, firma, capturarGps, ordenDespachoId } = await req.json()
+  // Prospecto: clienteId puede venir como '__PROSPECTO__' — se resuelve por empresa
+  const clienteId = clienteIdRaw === '__PROSPECTO__'
+    ? `__PROSPECTO__${user.empresaId}`
+    : clienteIdRaw
   if (!clienteId) return NextResponse.json({ error: 'Cliente requerido' }, { status: 400 })
 
   // Obtener turno activo
@@ -52,9 +56,10 @@ export async function POST(req: NextRequest) {
   }
 
   // Leer cliente y empleado antes de la transacción
+  const esProspecto = clienteId.startsWith('__PROSPECTO__')
   const cli = await prisma.cliente.findUnique({ where: { id: clienteId } })
   let alertaDistancia: number | null = null
-  if (lat && lng && cli) {
+  if (!esProspecto && lat && lng && cli) {
     const refLat = cli.lat || cli.latTmp
     const refLng = cli.lng || cli.lngTmp
     if (refLat && refLng) {
@@ -64,7 +69,7 @@ export async function POST(req: NextRequest) {
   }
 
   let puedeCapturarGps = false
-  if (lat && lng && capturarGps && !cli?.lat) {
+  if (!esProspecto && lat && lng && capturarGps && !cli?.lat) {
     const emp = await (prisma.empleado as any).findUnique({ where: { id: user.id }, select: { puedeCapturarGps: true } })
     puedeCapturarGps = emp?.puedeCapturarGps === true
   }
@@ -88,6 +93,7 @@ export async function POST(req: NextRequest) {
         factura: factura || null,
         firma: firmaUrl,
         ordenDespachoId: ordenDespachoId || null,
+        clienteNombreLibre: clienteNombreLibre || null,
       },
       select: { id: true, tipo: true, monto: true, nota: true, factura: true, firma: true, lat: true, lng: true, esLibre: true, createdAt: true, fechaBogota: true, clienteId: true, empleadoId: true, cliente: { select: { id: true, nombre: true, direccion: true, lat: true, lng: true } } }
     })

@@ -170,7 +170,7 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
                         <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: colorEmpleado(v.empleadoId) }} />
                       )}
                       <span className="text-sm flex-shrink-0">{icon}</span>
-                      <span className="text-white text-xs font-medium flex-1 truncate">{v.cliente?.nombre || v.cliente?.nombreComercial}</span>
+                      <span className="text-white text-xs font-medium flex-1 truncate">{v.clienteNombreLibre || v.cliente?.nombre || v.cliente?.nombreComercial}</span>
                       <span className="text-zinc-500 text-[11px] flex-shrink-0 tabular-nums">{hora}</span>
                     </button>
                     {/* Línea 2 — solo desplegada */}

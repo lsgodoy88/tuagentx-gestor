@@ -1,24 +1,34 @@
 'use client'
+import React from 'react'
 import AsistenteGestor from '@/components/AsistenteGestor'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
+import dynamic from 'next/dynamic'
 import { GpsContext } from '@/lib/gps-context'
 import Link from 'next/link'
 import PermisosGuard from '@/components/PermisosGuard'
 import { NetworkBanner } from '@/components/NetworkBanner'
 import { clearAllCache } from '@/lib/offlineCache'
 
+// ── Dashboards persistidos en layout ─────────────────────────────────────────
+const DashboardVendedor  = dynamic(() => import('./inicio/_components/DashboardVendedor'),  { ssr: false })
+const DashboardAdmin     = dynamic(() => import('./inicio/_components/DashboardAdmin'),     { ssr: false })
+const DashboardBodega    = dynamic(() => import('./inicio/_components/DashboardBodega'),    { ssr: false })
+const DashboardEntregas  = dynamic(() => import('./inicio/_components/DashboardEntregas'),  { ssr: false })
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession()
   const router = useRouter()
   const pathname = usePathname()
 
+  // BFCache: en lugar de reload forzado, disparar evento para que dashboards refresquen datos
+  const dashboardRefreshRef = useRef<(() => void) | null>(null)
   useEffect(() => {
-    // Forzar reload si la página viene del bfcache (mobile back-forward)
     const handlePageShow = (e: PageTransitionEvent) => {
-      if (e.persisted) window.location.reload()
+      if (e.persisted) dashboardRefreshRef.current?.()
     }
+    // Solo BFCache (pageshow persisted) — visibilitychange lo maneja el dashboard internamente
     window.addEventListener('pageshow', handlePageShow)
     return () => window.removeEventListener('pageshow', handlePageShow)
   }, [])
@@ -447,7 +457,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="max-w-screen-xl mx-auto w-full space-y-6">
             <PermisosGuard role={user?.role}>
               <GpsContext.Provider value={{ setSincronizandoGps }}>
-                {children}
+                {/* Dashboard persistido — nunca se desmonta, key por userId garantiza limpieza entre usuarios */}
+                {user && (
+                  <div style={{display: pathname === '/inicio' ? 'block' : 'none'}}>
+                    {user.role === 'vendedor'    && React.createElement(DashboardVendedor  as any, { key: user.id, user, onRegisterRefresh: (fn: () => void) => { dashboardRefreshRef.current = fn } })}
+                    {user.role === 'bodega'      && React.createElement(DashboardBodega    as any, { key: user.id, user })}
+                    {user.role === 'entregas'    && React.createElement(DashboardEntregas  as any, { key: user.id, user })}
+                    {(user.role === 'empresa' || user.role === 'admin' || user.role === 'superadmin') && React.createElement(DashboardAdmin as any, { key: user.id, user, onRegisterRefresh: (fn: () => void) => { dashboardRefreshRef.current = fn } })}
+                  </div>
+                )}
+                {/* page.tsx — oculto en /inicio, visible en otras rutas */}
+                <div style={{display: pathname === '/inicio' ? 'none' : 'block'}}>
+                  {children}
+                </div>
               </GpsContext.Provider>
             </PermisosGuard>
           </div>

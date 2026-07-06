@@ -71,7 +71,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
       if (esLumeli && saldosInicialesLumeli[d.numeroFactura] !== undefined) {
         const pagadoPost = aplicaciones
           .filter((p: any) => new Date(p.createdAt).getTime() > CORTE_LUMELI)
-          .reduce((s: number, p: any) => s + Number(p.montoAplicado) + Number(p.descuento || 0), 0)
+          .reduce((s: number, p: any) => s + Number(p.montoAplicado), 0) // montoAplicado ya incluye descuento
         saldoReal = Math.max(0, saldosInicialesLumeli[d.numeroFactura] - pagadoPost)
       } else if (aplicaciones.length > 0) {
         const primerPago = await (prisma as any).pagoCartera.findFirst({
@@ -79,7 +79,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
           select: { saldoAnterior: true }
         })
         const ancla = primerPago?.saldoAnterior !== undefined ? Number(primerPago.saldoAnterior) : Number(d.valor)
-        const totalPagado = aplicaciones.reduce((s: number, p: any) => s + Number(p.montoAplicado) + Number(p.descuento || 0), 0)
+        const totalPagado = aplicaciones.reduce((s: number, p: any) => s + Number(p.montoAplicado), 0) // montoAplicado ya incluye descuento
         saldoReal = Math.max(0, ancla - totalPagado)
       } else {
         saldoReal = Number(d.valor)

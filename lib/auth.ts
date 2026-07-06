@@ -62,6 +62,7 @@ export const authOptions: NextAuthOptions = {
             etiqueta: (empleado as any).etiqueta ?? null,
             apiId: (empleado as any).apiId ?? null,
             colorFondo: (empleado as any).colorFondo ?? null,
+            empresaNombre: (empleado as any).empresa?.nombre ?? null,
           }
         }
 
@@ -77,6 +78,7 @@ export const authOptions: NextAuthOptions = {
         token.userId = (user as any).id
         token.permisos = (user as any).permisos ?? {}
         token.etiqueta = (user as any).etiqueta ?? null
+        token.empresaNombre = (user as any).empresaNombre ?? null
         token.bodegaPuedeEnviar = (user as any).bodegaPuedeEnviar ?? false
         token.tieneVinculacion = (user as any).tieneVinculacion ?? false
         token.tieneVinculacion = (user as any).tieneVinculacion ?? false
@@ -92,6 +94,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).id = (token.userId || token.sub) as string
         (session.user as any).permisos = token.permisos ?? {}
         ;(session.user as any).etiqueta = token.etiqueta ?? null
+        ;(session.user as any).empresaNombre = token.empresaNombre ?? null
         ;(session.user as any).bodegaPuedeEnviar = token.bodegaPuedeEnviar ?? false
         ;(session.user as any).tieneVinculacion = token.tieneVinculacion ?? false
         ;(session.user as any).tieneVinculacion = token.tieneVinculacion ?? false
