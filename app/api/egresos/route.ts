@@ -19,7 +19,8 @@ export async function GET(req: NextRequest) {
   if (categoria) where.categoria = categoria
 
   const egresos = await (prisma as any).egreso.findMany({
-    where, orderBy: { fecha: 'asc' }
+    where, orderBy: { fecha: 'asc' },
+    include: { _count: { select: { abonos: true } } }
   })
   return NextResponse.json({ ok: true, egresos })
 }

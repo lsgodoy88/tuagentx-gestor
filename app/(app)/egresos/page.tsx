@@ -2,6 +2,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
 import ModuloGastos from '@/components/ModuloGastos'
+import AbonoEgreso from '@/components/AbonoEgreso'
 import AdjuntarEgreso from '@/components/AdjuntarEgreso'
 
 const CATEGORIAS = [
@@ -32,7 +33,7 @@ function fmtFecha(f: string | null | undefined) {
 }
 function filaVacia(categoria: string) {
   const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
-  return { id: null as string | null, fecha: hoy, concepto: '', valor: '', retencion: '', abonoPago: '', descuento: '', saldo: '', fechaPago: '', medioPago: '', estado: 'pendiente', autorizado: false, categoria, esNueva: true }
+  return { id: null as string | null, fecha: hoy, concepto: '', valor: '', retencion: '', abonoPago: '', descuento: '', saldo: '', fechaPago: '', medioPago: '', estado: 'pendiente', autorizado: false, categoria, evidenciaKey: '', abonosCount: 0, esNueva: true }
 }
 type Fila = ReturnType<typeof filaVacia>
 
@@ -48,6 +49,7 @@ function NumInput({ value, onChange, onBlur, width = 90 }: { value: string; onCh
     />
   )
 }
+
 
 function Tabla({ cat, mes, anio }: { cat: { key: string; label: string }; mes: number; anio: number }) {
   const [filas, setFilas] = useState<Fila[]>([])
@@ -65,7 +67,7 @@ function Tabla({ cat, mes, anio }: { cat: { key: string; label: string }; mes: n
       descuento: String(Math.round(parseFloat(e.descuento)||0)),
       saldo: String(Math.round(parseFloat(e.saldo)||0)),
       fechaPago: e.fechaPago?.split('T')[0] || '', medioPago: e.medioPago || '',
-      estado: e.estado, autorizado: e.autorizado, categoria: cat.key, esNueva: false,
+      estado: e.estado, autorizado: e.autorizado, categoria: cat.key, evidenciaKey: e.evidenciaKey || '', abonosCount: e._count?.abonos ?? 0, esNueva: false,
     }))
     setFilas(rows)
   }, [cat.key, mes, anio])
@@ -119,7 +121,7 @@ function Tabla({ cat, mes, anio }: { cat: { key: string; label: string }; mes: n
       const d = parseInt(campo === 'descuento' ? valor : updated.descuento) || 0
       const a = parseInt(campo === 'abonoPago' ? valor : updated.abonoPago) || 0
       if (['valor','retencion','descuento','abonoPago'].includes(campo)) {
-        updated.saldo = String(Math.max(0, v - r - d - a))
+        updated.saldo = String(Math.max(0, v - r - a - d))
       }
       return updated
     }))
@@ -189,7 +191,13 @@ function Tabla({ cat, mes, anio }: { cat: { key: string; label: string }; mes: n
                       {isEdit ? <input type="date" value={f.fecha} onChange={e => set(idx,'fecha',e.target.value)} onBlur={() => onBlurFila(idx)} style={{ background:'transparent',color:'white',border:'none',outline:'none',width:110,fontSize:13 }} /> : fmtFecha(f.fecha)}
                     </td>
                     <td style={{ ...tdStyle, minWidth: 200 }}>
-                      {isEdit ? <input value={f.concepto} onChange={e => set(idx,'concepto',e.target.value.toUpperCase())} onBlur={() => guardar(idx)} autoFocus={f.esNueva} style={{ background:'transparent',color:'white',border:'none',outline:'none',width:'100%',fontSize:13 }} placeholder="Concepto..." /> : <span style={{ fontWeight: pagado ? 700 : 500 }}>{f.concepto}</span>}
+                      <div style={{ display:'flex', alignItems:'center', gap:4 }}>
+                        {f.evidenciaKey && !isEdit && (
+                          <button onClick={async () => { const r = await fetch(`/api/egresos/url?key=${encodeURIComponent(f.evidenciaKey)}`); const d = await r.json(); if(d.url) window.open(d.url, '_blank') }} title="Ver factura"
+                            style={{ background:'none', border:'none', cursor:'pointer', fontSize:14, lineHeight:1, padding:'0 2px', opacity:0.7, flexShrink:0 }}>📎</button>
+                        )}
+                        {isEdit ? <input value={f.concepto} onChange={e => set(idx,'concepto',e.target.value.toUpperCase())} onBlur={() => guardar(idx)} autoFocus={f.esNueva} style={{ background:'transparent',color:'white',border:'none',outline:'none',width:'100%',fontSize:13 }} placeholder="Concepto..." /> : <span style={{ fontWeight: pagado ? 700 : 500 }}>{f.concepto}</span>}
+                      </div>
                     </td>
                     <td style={tdStyle}>
                       {isEdit ? <NumInput value={f.valor} onChange={v => set(idx,'valor',v)} onBlur={() => onBlurFila(idx)} /> : f.valor ? fmt(f.valor) : ''}
@@ -204,7 +212,7 @@ function Tabla({ cat, mes, anio }: { cat: { key: string; label: string }; mes: n
                       {isEdit ? <NumInput value={f.descuento} onChange={v => set(idx,'descuento',v)} onBlur={() => onBlurFila(idx)} width={80} /> : parseInt(f.descuento) > 0 ? fmt(f.descuento) : ''}
                     </td>
                     <td style={{ ...tdStyle, color: parseInt(f.saldo) > 0 ? '#f59e0b' : 'white' }}>
-                      {isEdit ? <NumInput value={f.saldo} onChange={v => set(idx,'saldo',v)} onBlur={() => onBlurFila(idx)} width={80} /> : fmt(f.saldo)}
+                      {fmt(f.saldo)}
                     </td>
                     <td style={tdStyle}>
                       {isEdit ? <input type="date" value={f.fechaPago} onChange={e => set(idx,'fechaPago',e.target.value)} onBlur={() => onBlurFila(idx)} style={{ background:'transparent',color:'white',border:'none',outline:'none',width:110,fontSize:13 }} /> : fmtFecha(f.fechaPago)}
@@ -213,7 +221,24 @@ function Tabla({ cat, mes, anio }: { cat: { key: string; label: string }; mes: n
                       <select value={f.medioPago} onChange={e => { set(idx,'medioPago',e.target.value); if(f.id) fetch('/api/egresos',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:f.id,medioPago:e.target.value})}) }} style={{ background:'transparent',color:'#a78bfa',border:'none',outline:'none',fontSize:12,borderRadius:6,padding:'2px 2px',cursor:'pointer' }}><option value="">—</option>{MEDIOS.map(m => <option key={m} value={m} style={{background:'#1e2030'}}>{m}</option>)}</select>
                     </td>
                     <td style={tdStyle}>
-                      {f.id && <button onClick={() => toggle(idx,'estado')} className={`text-xs font-bold px-2 py-0.5 rounded-md ${pagado ? 'text-emerald-400' : 'text-zinc-500'}`}>{pagado ? 'OK' : '—'}</button>}
+                      {f.id && (
+                        <AbonoEgreso
+                          egresoId={f.id}
+                          abonosCount={f.abonosCount ?? 0}
+                          saldo={parseInt(f.saldo) || 0}
+                          onGuardado={(totalAbono, nuevoSaldo, count, medio, fechaPago) => {
+                            setFilas(prev => prev.map((fi, i) => i !== idx ? fi : {
+                              ...fi,
+                              abonoPago: String(Math.round(totalAbono)),
+                              saldo: String(Math.round(nuevoSaldo)),
+                              abonosCount: count,
+                              estado: nuevoSaldo <= 0 ? 'ok' : 'pendiente',
+                              ...(medio ? { medioPago: medio } : {}),
+                              ...(fechaPago ? { fechaPago } : {}),
+                            }))
+                          }}
+                        />
+                      )}
                     </td>
                     <td style={{ ...tdStyle, textAlign: 'center' }}>
                       {f.id && (

@@ -11,10 +11,11 @@ const PROMPT_EXTRACCION_GASTO =
   'Eres un extractor de datos de facturas, recibos y comprobantes de gasto colombianos (transporte, peajes, papelería, combustible, viáticos, alimentación, etc.). ' +
   'Extrae: (1) valor numérico total a pagar — IMPORTANTE: los puntos son separadores de miles en Colombia (ej: 45.000 = cuarenta y cinco mil), devuelve el número completo sin truncar; ' +
   '(2) fecha del documento en formato YYYY-MM-DD — IMPORTANTE: copia la fecha EXACTAMENTE como aparece escrita en el documento (día, mes, año), sin restar ni sumar días, sin hacer ningún cálculo o conversión de zona horaria. Si el documento dice "16 diciembre 2024 22:07:19", la fecha es 2024-12-16, NO 2024-12-15. La hora (si aparece) no afecta el día de la fecha. Si no hay fecha usa null; ' +
-  '(3) concepto breve y descriptivo del gasto (ej: "Combustible", "Peaje autopista norte", "Almuerzo cliente", "Papelería oficina") basado en el establecimiento o ítems visibles en el documento. ' +
-  'Si no encuentras un campo devuelve null. Responde ÚNICAMENTE con JSON válido sin texto adicional: {"valor": number, "fecha": "YYYY-MM-DD", "concepto": "string"}'
+  '(3) concepto breve y descriptivo del gasto (ej: "Combustible", "Peaje autopista norte", "Almuerzo cliente", "Papelería oficina") basado en el establecimiento o ítems visibles en el documento; ' +
+  '(4) medioPago: detecta el medio de pago si aparece en el documento — devuelve exactamente uno de: BANCO, NEQUI, DAVIPLATA, EFECTIVO, TRANSFERENCIA, PSE — o null si no se puede determinar. ' +
+  'Si no encuentras un campo devuelve null. Responde ÚNICAMENTE con JSON válido sin texto adicional: {"valor": number, "fecha": "YYYY-MM-DD", "concepto": "string", "medioPago": "string"}'
 
-type DatosIAGasto = { valor: number | null; fecha: string | null; concepto: string | null }
+type DatosIAGasto = { valor: number | null; fecha: string | null; concepto: string | null; medioPago?: string | null }
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
     imagenBase64 = base64Data
   }
 
-  let datosIA: DatosIAGasto = { valor: null, fecha: null, concepto: null }
+  let datosIA: DatosIAGasto = { valor: null, fecha: null, concepto: null, medioPago: null }
   try {
     const dataUrl = `data:image/jpeg;base64,${imagenBase64}`
     const msg = await openai.chat.completions.create({

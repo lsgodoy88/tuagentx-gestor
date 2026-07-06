@@ -3189,7 +3189,18 @@ model Egreso {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
   empresa     Empresa  @relation(fields: [empresaId], references: [id])
+  abonos      EgresoAbono[]
 
   @@index([empresaId, categoria, anio, mes])
   @@map("Egreso")
+}
+
+model EgresoAbono {
+  id           String   @id @default(cuid())
+  egresoId     String
+  valor        Decimal  @default(0)
+  fecha        DateTime
+  evidenciaKey String?
+  createdAt    DateTime @default(now())
+  egreso       Egreso   @relation(fields: [egresoId], references: [id], onDelete: Cascade)
 }

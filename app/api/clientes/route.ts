@@ -25,7 +25,20 @@ export async function GET(req: NextRequest) {
 
   const conDeuda = searchParams.get('conDeuda') === 'true'
   const where: any = { empresaId }
-  if (conDeuda) {
+  if (conDeuda && user.role === 'vendedor') {
+    // Para recaudo: todos los clientes con deuda asignada al vendedor vía SyncDeuda, sin importar lista
+    const empData = await prisma.empleado.findUnique({ where: { id: user.id }, select: { apiId: true } })
+    const miApiId = (user as any).apiId || empData?.apiId || null
+    if (!miApiId) return NextResponse.json({ clientes: [], total: 0, page, pages: 0 })
+    const deudas = await prisma.syncDeuda.findMany({
+      where: { nSaldo: { gt: 0 }, condition: true, empleadoExternalId: miApiId },
+      select: { clienteApiId: true },
+      distinct: ['clienteApiId']
+    })
+    const apiIds = deudas.map((d: any) => d.clienteApiId).filter(Boolean)
+    if (apiIds.length === 0) return NextResponse.json({ clientes: [], total: 0, page, pages: 0 })
+    where.apiId = { in: apiIds }
+  } else if (conDeuda) {
     const deudas = await prisma.syncDeuda.findMany({
       where: { nSaldo: { gt: 0 }, condition: true },
       select: { clienteApiId: true },
@@ -36,12 +49,12 @@ export async function GET(req: NextRequest) {
     where.empresaId = empresaId
   }
 
-  // Si es vendedor, filtrar solo sus clientes
+  // Si es vendedor, filtrar solo sus clientes (solo cuando NO es conDeuda — ya se filtró arriba)
   if (listaFilter && user.role === 'empresa') {
     where.listaId = listaFilter
   }
 
-  if (user.role === 'vendedor') {
+  if (user.role === 'vendedor' && !conDeuda) {
     const listasAsignadas = await prisma.empleadoLista.findMany({ where: { empleadoId: user.id }, select: { listaId: true } })
     const listaIds = listasAsignadas.map((l: any) => l.listaId)
     if (listaIds.length > 0) { where.listaId = { in: listaIds } } else { return NextResponse.json({ clientes: [], total: 0, page, pages: 0 }) }

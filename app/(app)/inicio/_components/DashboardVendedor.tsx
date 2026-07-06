@@ -452,13 +452,17 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
 
   function recargarRutaVisitas() {
     const hoy = new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]
+    // Actualización optimista — incrementa contador visitas hoy antes del fetch
+    setStatsVendedor((prev: any) => prev ? { ...prev, hoy: { ...prev.hoy, total: (prev.hoy?.total || 0) + 1 } } : prev)
     Promise.all([
       fetch('/api/rutas/mi-ruta').then(r => r.json()),
       fetch('/api/visitas/todas?fecha=' + hoy).then(r => r.json()),
-    ]).then(([r, v]) => {
+      fetch('/api/vendedor/stats').then(r => r.json()),
+    ]).then(([r, v, s]) => {
       setRuta(r)
       setClientesOrdenados(r?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta||null, rezago: rc.rezago, orden: rc.orden, notas: rc.notas||null, ordenDespachoId: rc.ordenDespachoId||null, numeroFactura: (rc as any).numeroFactura||null, empresaOrigen: (rc as any).empresaOrigen||null, alistadoPor: (rc as any).alistadoPor||null, asignadoEn: rc.asignadoEn||null, ordenCreadaEl: (rc as any).ordenCreadaEl||null })) || [])
       setVisitasRuta(Array.isArray(v?.visitas) ? v.visitas : Array.isArray(v) ? v : [])
+      if (s && !s.error) { setStatsVendedor(s); setCached(cacheKey, { statsVendedor: s }) }
     })
   }
 

@@ -77,13 +77,17 @@ export default function AdjuntarEgreso({ mes, anio, onAdicionado }: Props) {
     setGuardando(true)
     try {
       const hoy = new Date()
+      const v = parseFloat(valor) || 0
+      const r = parseFloat(retencion) || 0
+      const saldo = Math.max(0, v - r)
       const res = await fetch('/api/egresos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           concepto: concepto.trim(),
-          valor: parseFloat(valor),
-          retencion: retencion ? parseFloat(retencion) : 0,
+          valor: v,
+          retencion: r,
+          saldo,
           fecha: fechaDoc || hoy.toISOString().split('T')[0],
           categoria,
           mes,
@@ -108,8 +112,8 @@ export default function AdjuntarEgreso({ mes, anio, onAdicionado }: Props) {
       <button
         onClick={() => fileInputRef.current?.click()}
         disabled={subiendo}
-        className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-xs font-semibold px-3 rounded-xl transition-colors h-full flex-shrink-0">
-        {subiendo ? <><span>⏳</span><span className="hidden md:inline"> Analizando...</span></> : <><span>📎</span><span className="hidden md:inline"> Adjuntar</span></>}
+        className="flex items-center justify-center disabled:opacity-50 transition-colors h-full flex-shrink-0" style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, padding:'0 4px' }}>
+        {subiendo ? '⏳' : '📎'}
       </button>
 
       {error && !popupAbierto && (
