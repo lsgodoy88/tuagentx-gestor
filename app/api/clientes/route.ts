@@ -80,8 +80,11 @@ export async function GET(req: NextRequest) {
 
   if (q) {
     const tokens = q.trim().split(/\s+/).slice(0, 4)
+    // Busca q que empiece cualquier palabra del nombre: "% TOKEN%" o "TOKEN%"
     const nombreOR = tokens.flatMap(t => [
+      { nombre: { contains: ' ' + t, mode: 'insensitive' as const } },
       { nombre: { startsWith: t, mode: 'insensitive' as const } },
+      { nombreComercial: { contains: ' ' + t, mode: 'insensitive' as const } },
       { nombreComercial: { startsWith: t, mode: 'insensitive' as const } },
     ])
     where.OR = [...nombreOR, { nit: { startsWith: q, mode: 'insensitive' as const } }]
