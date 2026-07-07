@@ -60,15 +60,15 @@ function getCached(cacheKey: string) {
   try {
     const raw = sessionStorage.getItem(cacheKey)
     if (!raw) return null
-    const { ts, data } = JSON.parse(raw)
+    const { ts, data, empresaId: eid } = JSON.parse(raw)
     if (Date.now() - ts > CACHE_TTL) { sessionStorage.removeItem(cacheKey); return null }
-    return { ...data, ts }
+    return { ...data, ts, _empresaId: eid }
   } catch { return null }
 }
-function setCached(cacheKey: string, patch: Record<string, any>) {
+function setCached(cacheKey: string, patch: Record<string, any>, empresaId?: string) {
   try {
     const prev = getCached(cacheKey) || {}
-    sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), data: { ...prev, ...patch } }))
+    sessionStorage.setItem(cacheKey, JSON.stringify({ ts: Date.now(), empresaId: empresaId || (prev as any)._empresaId, data: { ...prev, ...patch } }))
   } catch {}
 }
 function vieneDelLogin(cacheKey: string) {
@@ -79,9 +79,23 @@ function vieneDelLogin(cacheKey: string) {
 // ── Componente ───────────────────────────────────────────────────────────────
 export default function DashboardVendedor({ user, onRegisterRefresh, activo = true }: { user: any, onRegisterRefresh?: (fn: () => void) => void, activo?: boolean }) {
   const _cacheKey0 = user?.id ? `${CACHE_KEY_BASE}_${user.id}` : CACHE_KEY_BASE
+
   const _cached0 = typeof window !== 'undefined' ? getCached(_cacheKey0) : null
   const router = useRouter()
   const cacheKey = cacheKeyFor(user?.id)
+
+  // Invalidar cache si cambió la empresa (switch de cuenta)
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(cacheKey)
+      if (!raw) return
+      const parsed = JSON.parse(raw)
+      if (parsed.empresaId && parsed.empresaId !== user?.empresaId) {
+        sessionStorage.removeItem(cacheKey)
+      }
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Turno
   const [turno, setTurno]               = useState<TurnoActivo | null>(_cached0?.turno && (Date.now()-(_cached0?.ts||0))<CACHE_TTL_TURNO ? _cached0.turno : null)
@@ -183,7 +197,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
       fetch('/api/me').then(r => r.json()),
     ]).then(([t, me]) => {
       setTurno(t)
-      if (t) setCached(cacheKey, { turno: t })
+      if (t) setCached(cacheKey, { turno: t }, user?.empresaId)
       setCargandoTurno(false)
       if (!t) setTurnoExpandido(false)
       setPuedeCapturarGps(me?.puedeCapturarGps === true)

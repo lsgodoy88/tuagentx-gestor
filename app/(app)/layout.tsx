@@ -80,6 +80,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sincronizandoGps, setSincronizandoGps] = useState(false)
   const user = session?.user as any
 
+  // Limpiar sessionStorage si cambió el usuario — solución definitiva para datos cruzados
+  useEffect(() => {
+    if (!user?.id) return
+    const prev = sessionStorage.getItem('__uid__')
+    if (prev && prev !== user.id) sessionStorage.clear()
+    sessionStorage.setItem('__uid__', user.id)
+  }, [user?.id])
+
   useEffect(() => {
     if (!user) return
     const role = user.role as string
@@ -458,7 +466,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <PermisosGuard role={user?.role}>
               <GpsContext.Provider value={{ setSincronizandoGps }}>
                 {/* Dashboard persistido — nunca se desmonta, key por userId garantiza limpieza entre usuarios */}
-                {user && (
+                {user && status === 'authenticated' && (
                   <div style={{display: pathname === '/inicio' ? 'block' : 'none'}}>
                     {user.role === 'vendedor'    && React.createElement(DashboardVendedor  as any, { key: user.id, user, onRegisterRefresh: (fn: () => void) => { dashboardRefreshRef.current = fn } })}
                     {user.role === 'bodega'      && React.createElement(DashboardBodega    as any, { key: user.id, user })}
