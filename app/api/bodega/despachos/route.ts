@@ -78,7 +78,7 @@ export async function GET(req: NextRequest) {
         where: { id: { in: ordenIds } },
         select: {
           id: true, numeroFactura: true, clienteNombre: true, clienteNit: true,
-          ciudad: true, direccion: true, telefono: true, estado: true, fechaOrden: true,
+          ciudad: true, direccion: true, telefono: true, estado: true, fechaOrden: true, fechaFactura: true, isFacturada: true,
           alistadoEl: true, entregadoEl: true, fotoAlistamiento: true, fotosAlistamiento: true,
           firmaEntrega: true, fotoEntrega: true, repartidorId: true, transportadora: true,
           guiaTransporte: true, vendedorApiId: true, clienteApiId: true, origenVinculadaId: true,

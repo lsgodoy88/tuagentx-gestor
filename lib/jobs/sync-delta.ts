@@ -152,19 +152,20 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
 
   // Deudas nuevas
   let deudasNuevasDelta = 0
+  let nuevasDeudas: any[] = []
   try {
-    const maxDeudaBogota = await (prisma as any).syncDeuda.findFirst({ where: { integracionId, createdAtBogota: { not: null } }, orderBy: { createdAtBogota: 'desc' }, select: { createdAtBogota: true } })
-    const baseDeuda = maxDeudaBogota?.createdAtBogota || empresa?.ultimaSyncBodega || new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-    const desdeDeuda = new Date(baseDeuda.getTime() - 30 * 60 * 1000)
+    const maxModificada = await (prisma as any).syncDeuda.findFirst({ where: { integracionId, externalUpdatedAt: { not: null } }, orderBy: { externalUpdatedAt: 'desc' }, select: { externalUpdatedAt: true } })
+    const baseDeuda = maxModificada?.externalUpdatedAt || empresa?.ultimaSyncBodega || new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+    const desdeDeuda = new Date(baseDeuda.getTime() - 60 * 60 * 1000) // 1h de overlap
     const deudasExt = await adapter.fetchDeudas(desdeDeuda)
     if (deudasExt.length > 0) {
       const extIds = deudasExt.map((d: any) => String(d.uid || d._id)).filter(Boolean)
       const existentesDeuda = await (prisma as any).syncDeuda.findMany({ where: { integracionId, externalId: { in: extIds } }, select: { externalId: true } })
       const existentesDeudaSet = new Set(existentesDeuda.map((d: any) => d.externalId))
-      const nuevasDeudas = deudasExt.filter((d: any) => { const extId = String(d.uid || d._id || ''); return extId && !existentesDeudaSet.has(extId) })
+      nuevasDeudas = deudasExt.filter((d: any) => { const extId = String(d.uid || d._id || ''); return extId && !existentesDeudaSet.has(extId) })
       if (nuevasDeudas.length > 0) {
-        await (prisma as any).syncDeuda.createMany({ data: nuevasDeudas.map((d: any) => ({ integracionId, externalId: String(d.uid || d._id), clienteApiId: d.cliente?.uid || '', empleadoExternalId: d.empleado?.uid || null, numeroOrden: d.numeroOrden ? parseInt(String(d.numeroOrden)) : null, numeroFactura: d.numeroFacturado ? parseInt(String(d.numeroFacturado)) : null, valor: parseFloat(d.vTotal ?? '0'), saldo: parseFloat(d.vSaldo ?? '0'), diasCredito: d.dias ? parseInt(String(d.dias)) : null, condition: true, data: d, externalUpdatedAt: d.fModificado ? new Date(d.fModificado) : null, receivableAt: d.receivableAt ? new Date(d.receivableAt) : null, sincronizadoEl: new Date(), createdAtBogota: d.fCreado ? toBogota(new Date(d.fCreado as string)) : toBogota(new Date()) })), skipDuplicates: true })
         deudasNuevasDelta = nuevasDeudas.length
+        // insertadas en la transacción principal
       }
     }
   } catch (err: any) { console.error('[delta] deudas error:', err.message); erroresParciales.push('deudas: ' + err.message) }
@@ -199,9 +200,17 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
       }
       if (canceladasIds.length) await tx.ordenDespacho.updateMany({ where: { origenId: { in: canceladasIds }, empresaId: destino }, data: { isActiva: false } })
       if (deudaToCreate.length) await tx.syncDeuda.createMany({ data: deudaToCreate, skipDuplicates: true })
+      if (nuevasDeudas.length > 0) {
+        const deudaRows = nuevasDeudas.map((d: any) => ({ integracionId, externalId: String(d.uid || d._id), clienteApiId: d.cliente?.uid || '', empleadoExternalId: d.empleado?.uid || null, numeroOrden: d.numeroOrden ? parseInt(String(d.numeroOrden)) : null, numeroFactura: d.numeroFacturado ? parseInt(String(d.numeroFacturado)) : null, valor: parseFloat(d.vTotal ?? '0'), saldo: parseFloat(d.vSaldo ?? '0'), diasCredito: d.dias ? parseInt(String(d.dias)) : null, condition: true, data: d, externalUpdatedAt: d.fModificado ? new Date(d.fModificado) : null, receivableAt: d.receivableAt ? new Date(d.receivableAt) : null, sincronizadoEl: new Date(), createdAtBogota: d.fCreado ? toBogota(new Date(d.fCreado as string)) : toBogota(new Date()) }))
+        await tx.syncDeuda.createMany({ data: deudaRows, skipDuplicates: true })
+      }
       await tx.empresa.update({ where: { id: destino }, data: { ultimaSyncBodega: proximoDesde } })
     }, { timeout: 30000 })
-  } catch (err: any) { console.error('[delta] insert-ordenes error:', err.message); erroresParciales.push('insert-ordenes: ' + err.message) }
+  } catch (err: any) {
+    console.error('[delta] insert-ordenes error:', err.message)
+    erroresParciales.push('insert-ordenes: ' + err.message)
+    try { await notificarWA('573219182435', `🚨 *Delta error*\n${destino}\n${err.message?.slice(0,120)}`) } catch {}
+  }
 
   if (toCreate.length || deudaToCreate.length || clientesNuevos || deudasNuevasDelta) {
     // Reconstruir CarteraCache — usar integración propia del destino (vinculada tiene la suya)

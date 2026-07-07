@@ -3,24 +3,18 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN_BODEGA } from '@/lib/auth-helpers'
-import { writeFile } from 'fs/promises'
-import path from 'path'
-
-const ROLES = ROLES_ADMIN_BODEGA
+import { subirFotoAlistamiento } from '@/lib/r2'
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
-  if (!ROLES.includes(user.role)) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
+  if (!ROLES_ADMIN_BODEGA.includes(user.role)) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
 
   const empresaId = getEmpresaId(user)
-
   const { ordenId, fotoBase64 } = await req.json()
   if (!ordenId || !fotoBase64) return NextResponse.json({ error: 'Faltan datos' }, { status: 400 })
 
-  // FIX 2026-06-20: OrdenDespacho ya no se duplica por EmpresaVinculada — la
-  // orden puede vivir bajo la empresa propia o bajo una vinculada activa.
   const orden = await (prisma as any).ordenDespacho.findUnique({ where: { id: ordenId } })
   if (!orden) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
   if (orden.empresaId !== empresaId) {
@@ -30,27 +24,19 @@ export async function POST(req: NextRequest) {
     if (!vinculo) return NextResponse.json({ error: 'No encontrada' }, { status: 404 })
   }
 
-  const fotosActuales = (orden.fotosAlistamiento as string[]) || []
+  const fotosActuales: string[] = (orden.fotosAlistamiento as string[]) || []
   const idx = fotosActuales.length
-  const filename = `${ordenId}_${idx}.jpg`
-  const urlPublica = `/api/fotos/alistamiento/${filename}`
-  const rutaFisica = path.join(process.cwd(), 'public', 'fotos', 'alistamiento', filename)
+  const key = await subirFotoAlistamiento(fotoBase64, ordenId, idx)
 
-  const data = fotoBase64.replace(/^data:[^;]+;base64,/, '')
-  await writeFile(rutaFisica, Buffer.from(data, 'base64'))
-
-  const fotos = [...fotosActuales, urlPublica]
+  const fotos = [...fotosActuales, key]
   const updated = await (prisma as any).ordenDespacho.update({
     where: { id: ordenId },
-    data: {
-      fotosAlistamiento: fotos,
-      fotoAlistamiento: urlPublica,
-    },
+    data: { fotosAlistamiento: fotos, fotoAlistamiento: key },
     include: {
       alistadoPor: { select: { id: true, nombre: true } },
-      repartidor: { select: { id: true, nombre: true } },
+      repartidor:  { select: { id: true, nombre: true } },
     },
   })
 
-  return NextResponse.json({ url: urlPublica, orden: updated })
+  return NextResponse.json({ url: `/api/egresos/url?key=${encodeURIComponent(key)}`, orden: updated })
 }

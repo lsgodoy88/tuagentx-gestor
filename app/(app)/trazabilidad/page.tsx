@@ -60,6 +60,7 @@ const PAGE_SIZE_TRAZ = 20
 
 function getOrdenColumns(ctx: {
   setFotoModal: (url: string | null) => void
+  abrirFoto: (key: string) => void
   setFirmaModal: (url: string | null) => void
   esVendedor: boolean
 }): ColDef<any>[] {
@@ -104,7 +105,7 @@ function getOrdenColumns(ctx: {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>{o.alistadoEl ? fmtFecha(o.alistadoEl) : '—'}</span>
             {fotos.length > 0 && (
-              <button onClick={e => { e.stopPropagation(); ctx.setFotoModal(fotos[0]) }}
+              <button onClick={e => { e.stopPropagation(); ctx.abrirFoto(fotos[0]) }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 0, lineHeight: 1 }} title="Fotos">🖼️</button>
             )}
           </div>
@@ -168,6 +169,15 @@ export default function TrazabilidadPage() {
   const [expandido, setExpandido] = useState<Record<string, boolean>>({})
   const [ordenSeleccionada, setOrdenSeleccionada] = useState<any>(null)
   const [fotoModal, setFotoModal] = useState<string | null>(null)
+  async function abrirFoto(key: string) {
+    if (!key) return
+    if (key.startsWith('data:') || key.startsWith('http')) { setFotoModal(key); return }
+    if (key.startsWith('/fotos/') || key.startsWith('/api/fotos/'))
+      { setFotoModal(key.replace('/api/fotos/', '/fotos/')); return }
+    const r = await fetch(`/api/egresos/url?key=${encodeURIComponent(key)}`)
+    const d = await r.json()
+    setFotoModal(d.url || key)
+  }
   const [sincronizando, setSincronizando] = useState(false)
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
   const [guiaOpen, setGuiaOpen] = useState(false)
@@ -379,7 +389,7 @@ export default function TrazabilidadPage() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(59,130,246,0.25)' }}>
                 <DataTable
-                  columns={getOrdenColumns({ setFotoModal, setFirmaModal, esVendedor })}
+                  columns={getOrdenColumns({ setFotoModal, abrirFoto, setFirmaModal, esVendedor })}
                   rows={pagedOrdenes}
                   rowKey={(o: any) => o.id}
                   onRowClick={(o: any) => setOrdenSeleccionada(o)}
@@ -420,7 +430,7 @@ export default function TrazabilidadPage() {
                 label: 'Alistado',
                 fecha: orden.alistadoEl,
                 quien: orden.alistadoPor?.nombre || null,
-                accion: fotos.length > 0 ? () => setFotoModal(fotos[0]) : null,
+                accion: fotos.length > 0 ? () => abrirFoto(fotos[0]) : null,
                 accionLabel: '🖼️',
               },
               {

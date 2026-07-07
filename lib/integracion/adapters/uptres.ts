@@ -201,8 +201,9 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       includeTotal: 'false',
     }
     if (desde) {
-      // Delta: solo las creadas desde la ultima sync (UpTres filtra por createdAt)
-      params.from = desde.toISOString().split('T')[0]
+      // Delta: convertir a fecha Bogotá (UTC-5) antes de truncar — evita desfase de día
+      const desdeBogota = new Date(desde.getTime() - 5 * 60 * 60 * 1000)
+      params.from = desdeBogota.toISOString().split('T')[0]
       const manana = new Date(); manana.setDate(manana.getDate() + 1)
       params.to = manana.toISOString().split('T')[0]
     }

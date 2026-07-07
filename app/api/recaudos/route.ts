@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
   const mes   = searchParams.get('mes')   ? parseInt(searchParams.get('mes')!)   : undefined
   const anio  = searchParams.get('anio')  ? parseInt(searchParams.get('anio')!)  : undefined
   const numeroRecibo = searchParams.get('numeroRecibo') || undefined
+  const q = searchParams.get('q') || undefined
   const cursor = searchParams.get('cursor') || null
   const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
   // Sin paginación cuando hay filtro de mes o día — trae todo
@@ -37,6 +38,12 @@ export async function GET(req: NextRequest) {
 
   if (empleadoIdForzado) where.empleadoId = empleadoIdForzado
   else if (vendedorId) where.empleadoId = vendedorId
+  if (q) {
+    const isNum = /^\d+$/.test(q.trim())
+    where.OR = isNum
+      ? [{ Cartera: { Cliente: { nombre: { contains: q, mode: 'insensitive' } } } }, { Aplicaciones: { some: { numeroFactura: parseInt(q) } } }, { numeroRecibo: { contains: q, mode: 'insensitive' } }]
+      : [{ Cartera: { Cliente: { nombre: { contains: q, mode: 'insensitive' } } } }, { numeroRecibo: { contains: q, mode: 'insensitive' } }]
+  }
   if (numeroRecibo) {
     where.numeroRecibo = numeroRecibo
   } else if (estado === 'revisar') {

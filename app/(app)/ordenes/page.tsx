@@ -116,12 +116,14 @@ export default function OrdenesPage() {
     setGaleriaLoading(true)
     try {
       const urls = await Promise.all(keys.map(async (key) => {
-        if (key.startsWith('data:') || key.startsWith('http') || key.startsWith('/api/')) return key
-        const res = await fetch('/api/firma', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ firma: key })
-        })
+        // Legacy: fotos guardadas en filesystem público
+        if (key.startsWith('data:') || key.startsWith('http')) return key
+        if (key.startsWith('/fotos/') || key.startsWith('/api/fotos/'))
+          return key.startsWith('/api/fotos/') ? key.replace('/api/fotos/', '/fotos/') : key
+        // R2: firmas y fotos con key relativo
+        const res = esFirma
+          ? await fetch('/api/firma', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ firma: key }) })
+          : await fetch(`/api/egresos/url?key=${encodeURIComponent(key)}`)
         const data = await res.json()
         return data.url || key
       }))
@@ -708,7 +710,7 @@ export default function OrdenesPage() {
               const isExpanded = expanded[d.id]
               const esLocalidad = ciudadLocal && d.ciudad &&
                 d.ciudad.split('/').pop()?.trim().toLowerCase() === ciudadLocal.trim().toLowerCase()
-              const horaOrden = d.fechaOrden ? formatFechaCorta(d.fechaOrden) : formatFechaCorta(d.createdAt)
+              const horaOrden = d.fechaFactura ? formatFechaCorta(d.fechaFactura) : (d.fechaOrden ? formatFechaCorta(d.fechaOrden) : formatFechaCorta(d.createdAt))
               const fotoKey = d.fotoAlistamiento
               const fotos: string[] = (d.fotosAlistamiento as string[] | null) || (fotoKey ? [fotoKey] : [])
               const tieneFotos = fotos.length > 0

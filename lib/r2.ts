@@ -84,6 +84,25 @@ export async function firmaUrl(key: string): Promise<string> {
   return getSignedUrl(r2, command, { expiresIn: 30 }) // 5 minutos
 }
 
+export async function subirFotoAlistamiento(imagenBase64: string, ordenId: string, idx: number): Promise<string> {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const sharp = require('sharp')
+  const base64Data = imagenBase64.replace(/^data:[^;]+;base64,/, '')
+  const buffer = Buffer.from(base64Data, 'base64')
+  const compressed: Buffer = await sharp(buffer)
+    .resize(1200, 1200, { fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: 85 })
+    .toBuffer()
+  const key = `alistamiento/${ordenId}_${idx}.jpg`
+  await r2.send(new PutObjectCommand({
+    Bucket: process.env.R2_BUCKET!,
+    Key: key,
+    Body: compressed,
+    ContentType: 'image/jpeg',
+  }))
+  return key
+}
+
 /** URL firmada para cualquier archivo en R2 (5 minutos) */
 export async function archivoUrl(key: string): Promise<string> {
   if (key.startsWith('data:')) return key
