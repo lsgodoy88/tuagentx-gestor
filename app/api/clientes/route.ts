@@ -79,11 +79,12 @@ export async function GET(req: NextRequest) {
   }
 
   if (q) {
-    where.OR = [
-      { nombre: { startsWith: q, mode: 'insensitive' } },
-      { nombreComercial: { startsWith: q, mode: 'insensitive' } },
-      { nit: { startsWith: q, mode: 'insensitive' } },
-    ]
+    const tokens = q.trim().split(/\s+/).slice(0, 4)
+    const nombreOR = tokens.flatMap(t => [
+      { nombre: { startsWith: t, mode: 'insensitive' as const } },
+      { nombreComercial: { startsWith: t, mode: 'insensitive' as const } },
+    ])
+    where.OR = [...nombreOR, { nit: { startsWith: q, mode: 'insensitive' as const } }]
   }
 
   const select = {
