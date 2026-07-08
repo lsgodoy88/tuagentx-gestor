@@ -82,7 +82,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
         const totalPagado = aplicaciones.reduce((s: number, p: any) => s + Number(p.montoAplicado), 0) // montoAplicado ya incluye descuento
         saldoReal = Math.max(0, ancla - totalPagado)
       } else {
-        saldoReal = Number(d.valor)
+        // nSaldo v3 persistido en BD — fuente de verdad cuando no hay pagos locales
+        saldoReal = Number(d.nSaldo ?? d.saldo ?? d.valor)
       }
 
       return {

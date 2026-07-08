@@ -7,16 +7,27 @@ import { pdfPrimerarPaginaAJpg } from '@/lib/pdfAJpg'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
-const PROMPT_EXTRACCION =
-  'Eres un extractor de datos de comprobantes de pago colombianos. El comprobante puede ser digital (Nequi, Daviplata, PSE, transferencia bancaria) o físico (recibo de papel, corresponsal bancario, Wompi, etc.). ' +
-  'Extrae: (1) valor numérico total consignado/transferido — IMPORTANTE: los puntos son separadores de miles en Colombia (ej: 1.240.000 = un millón doscientos cuarenta mil), devuelve el número completo sin truncar; ' +
-  '(2) fecha y hora de la transacción en formato YYYY-MM-DD HH:mm:ss, si no hay hora usa 00:00:00; ' +
-  '(3) origen: entidad o banco que envía el dinero; ' +
-  '(4) destino: entidad, cuenta o titular que recibe el dinero; ' +
-  '(5) número de referencia, recibo o transacción. ' +
-  'Si no encuentras un campo devuelve null. Responde ÚNICAMENTE con JSON válido sin texto adicional: {"valor": number, "fecha": "YYYY-MM-DD HH:mm:ss", "banco": "string", "origen": "string", "destino": "string", "referencia": "string"}'
+const PROMPT_EXTRACCION = `Analiza esta imagen. Puede contener UNO o VARIOS recibos/comprobantes de pago.
 
-type DatosIA = { valor: number | null; fecha: string | null; banco: string | null; origen: string | null; destino: string | null; referencia: string | null }
+IMPORTANTE: Si ves múltiples recibos (aunque estén lado a lado o superpuestos), devuelve UN objeto por cada recibo.
+
+Para cada recibo extrae:
+- valor: número total pagado (en Colombia los puntos son miles: 2.000.000 = dos millones)
+- fecha: formato YYYY-MM-DD HH:mm:ss
+- banco: entidad o red de pago
+- referencia: número de recibo, transacción o aprobación
+
+Responde ÚNICAMENTE con un array JSON válido, sin texto adicional, sin backticks:
+[{"valor": 2000000, "fecha": "2026-07-02 13:00:00", "banco": "Redeban", "referencia": "202503"}, {"valor": 1753950, "fecha": "2026-07-02 13:00:25", "banco": "Redeban", "referencia": "202504"}]
+
+Si solo hay un recibo, igual devuelve array con un elemento.`
+
+export type DatosIAPago = {
+  valor: number | null
+  fecha: string | null
+  banco: string | null
+  referencia: string | null
+}
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -29,7 +40,6 @@ export async function POST(req: NextRequest) {
 
   const base64Data = archivoBase64.replace(/^data:[^;]+;base64,/, '')
 
-  // Convertir PDF a JPG antes de enviar a GPT y subir a R2
   let imagenBase64: string
   if (mimeType === 'application/pdf') {
     try {
@@ -42,31 +52,50 @@ export async function POST(req: NextRequest) {
     imagenBase64 = base64Data
   }
 
-  let datosIA: DatosIA = { valor: null, fecha: null, banco: null, origen: null, destino: null, referencia: null }
-  try {
-    const dataUrl = `data:image/jpeg;base64,${imagenBase64}`
-    const msg = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      max_tokens: 256,
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'image_url', image_url: { url: dataUrl, detail: 'high' } },
-            { type: 'text', text: PROMPT_EXTRACCION },
-          ],
-        },
-      ],
-    })
+  let pagos: DatosIAPago[] = []
+  const t0 = Date.now()
+  let tIA = 0
 
-    const text = msg.choices[0]?.message?.content ?? ''
-    const match = text.match(/\{[\s\S]*\}/)
-    if (match) datosIA = JSON.parse(match[0])
-  } catch (e) {
-    console.log('[voucher-error]', e)
+  // Paralelizar: IA + upload R2 simultáneos
+  const dataUrl = `data:image/jpeg;base64,${imagenBase64}`
+  const [msgResult, key] = await Promise.allSettled([
+    openai.chat.completions.create({
+      model: 'gpt-4o',
+      max_tokens: 1024,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: dataUrl, detail: 'high' } },
+          { type: 'text', text: PROMPT_EXTRACCION },
+        ],
+      }],
+    }),
+    subirVoucher(imagenBase64, pagoId)
+  ])
+
+  tIA = Date.now() - t0
+
+  // Procesar respuesta IA
+  if (msgResult.status === 'fulfilled') {
+    try {
+      const text = (msgResult.value.choices[0]?.message?.content ?? '').trim()
+      console.log('[voucher-ia-raw]', text)
+      const clean = text.replace(/```json|```/g, '').trim()
+      const match = clean.match(/\[[\s\S]*\]/)
+      if (match) {
+        const parsed = JSON.parse(match[0])
+        if (Array.isArray(parsed) && parsed.length > 0) pagos = parsed
+      }
+    } catch (e) {
+      console.error('[voucher-parse-error]', e)
+    }
+  } else {
+    console.error('[voucher-ia-error]', msgResult.reason)
   }
 
-  const key = await subirVoucher(imagenBase64, pagoId)
+  if (pagos.length === 0) pagos = [{ valor: null, fecha: null, banco: null, referencia: null }]
 
-  return NextResponse.json({ key, datosIA })
+  const uploadKey = key.status === 'fulfilled' ? key.value : await subirVoucher(imagenBase64, pagoId)
+  console.log(`[voucher-timing] total: ${Date.now()-t0}ms | pagos: ${pagos.length}`)
+  return NextResponse.json({ key: uploadKey, datosIA: pagos[0], pagos })
 }

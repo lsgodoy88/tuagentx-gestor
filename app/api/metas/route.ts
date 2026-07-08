@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN } from '@/lib/auth-helpers'
+import { invalidatePattern } from '@/lib/cache'
 import { anioBogota } from '@/lib/fechas'
 
 /**
@@ -89,6 +90,7 @@ export async function POST(req: Request) {
   }
 
   await Promise.all(ops)
+  await invalidatePattern(`g:v:${empleadoId}:*`).catch(() => {})
   return NextResponse.json({ ok: true })
   } catch (err: any) {
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })

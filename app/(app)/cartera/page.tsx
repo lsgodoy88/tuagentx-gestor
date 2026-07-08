@@ -420,7 +420,12 @@ export default function CarteraPage() {
       .filter((d: any) => d.estado !== 'pagada')
       .sort((a: any, b: any) => { const fa = a.fechaVencimiento ? new Date(a.fechaVencimiento).getTime() : Infinity; const fb = b.fechaVencimiento ? new Date(b.fechaVencimiento).getTime() : Infinity; return fa - fb })
     setFacturasSeleccionadas(pendientes[0]?.id ? [pendientes[0].id] : [])
-    setLineasPago([crearLinea()])
+    // No resetear lineasPago si ya tiene voucher o múltiples líneas (voucher procesado durante el fetch)
+    setLineasPago(prev => {
+      const tieneVoucher = prev.some(l => l.voucherKey || l.voucherDatosIA || l.cargandoVoucher)
+      if (tieneVoucher || prev.length > 1) return prev
+      return [crearLinea()]
+    })
   }
 
   function abrirWhatsApp(cartera: any) {
@@ -471,13 +476,42 @@ export default function CarteraPage() {
         throw new Error(`HTTP ${res.status}: ${txt}`)
       }
       const data = await res.json()
-      setLineasPago(prev => prev.map(l => l.id === lineaId ? {
-        ...l,
-        voucherKey: data.key,
-        voucherDatosIA: data.datosIA,
-        cargandoVoucher: false,
-        monto: data.datosIA?.valor ? String(Math.round(data.datosIA.valor)) : l.monto,
-      } : l))
+      console.log('[voucher-client] pagos recibidos:', JSON.stringify(data.pagos))
+      const pagos: any[] = Array.isArray(data.pagos) && data.pagos.length > 0 ? data.pagos : [data.datosIA]
+
+      if (pagos.length <= 1) {
+        // Un solo pago — comportamiento original
+        setLineasPago(prev => prev.map(l => l.id === lineaId ? {
+          ...l,
+          voucherKey: data.key,
+          voucherDatosIA: pagos[0],
+          cargandoVoucher: false,
+          monto: pagos[0]?.valor ? String(Math.round(pagos[0].valor)) : l.monto,
+        } : l))
+      } else {
+        // Múltiples pagos detectados — reemplazar línea actual + agregar líneas extra
+        console.log('[voucher-client] expandiendo', pagos.length, 'líneas, lineaId=', lineaId)
+        setLineasPago(prev => {
+          console.log('[voucher-client] prev ids:', prev.map(l=>l.id))
+          const idx = prev.findIndex(l => l.id === lineaId)
+          console.log('[voucher-client] idx encontrado:', idx)
+          if (idx === -1) return prev
+          const nuevas = pagos.map((p, i) => ({
+            ...crearLinea(),
+            id: i === 0 ? lineaId : crypto.randomUUID(),
+            metodoPago: 'transferencia' as const,
+            voucherKey: data.key,        // mismo archivo para todas
+            voucherDatosIA: p,
+            cargandoVoucher: false,
+            monto: p?.valor ? String(Math.round(p.valor)) : '',
+          }))
+          return [
+            ...prev.slice(0, idx),
+            ...nuevas,
+            ...prev.slice(idx + 1),
+          ]
+        })
+      }
     } catch (err) {
       console.error('[voucher] catch:', err)
       alert('Error al procesar el comprobante')

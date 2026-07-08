@@ -68,6 +68,7 @@ export default function ModalRecaudo({
     }).catch(() => {})
   }
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map())
+  const scrollRef = useRef<HTMLDivElement>(null)
   const [notasOpen, setNotasOpen] = React.useState(false)
   const [confirmadoSobrepago, setConfirmadoSobrepago] = React.useState(false)
 
@@ -83,6 +84,10 @@ export default function ModalRecaudo({
   const haySobrepago = saldoRestanteActual < 1000
 
   React.useEffect(() => { setConfirmadoSobrepago(false) }, [lineasPago, descuentosPorFactura, facturasSeleccionadas])
+  React.useEffect(() => {
+    if (lineasPago.length > 1) setTimeout(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }), 80)
+  }, [lineasPago.length])
+  console.log("[modal-render] lineas=", lineasPago.length)
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 px-2" style={{background:"#0f1729"}}>
@@ -94,7 +99,7 @@ export default function ModalRecaudo({
           <button onClick={onClose} className="text-zinc-400 hover:text-white text-xl ml-3 flex-shrink-0">×</button>
         </div>
 
-        <div className="px-4 space-y-3 pb-4 overflow-y-auto overscroll-contain flex-1 pt-4">
+        <div ref={scrollRef} className="px-4 space-y-3 pb-4 overflow-y-auto overscroll-contain flex-1 pt-4">
 
           {/* Skeleton */}
           {loadingDetalle ? (
@@ -206,7 +211,37 @@ export default function ModalRecaudo({
                       <div className="space-y-3">
                         <input type="file" accept="image/*,application/pdf" className="hidden"
                           ref={el => { if (el) fileInputRefs.current.set(linea.id, el); else fileInputRefs.current.delete(linea.id) }}
-                          onChange={e => { if (e.target.files?.[0]) onSubirVoucher(linea.id, e.target.files[0]) }} />
+                          onChange={async e => {
+                          const file = e.target.files?.[0]
+                          if (!file) return
+                          console.log('[modal] subiendo voucher lineaId=', linea.id)
+                          // Marcar cargando
+                          onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, cargandoVoucher: true } : l))
+                          try {
+                            const archivoBase64 = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = ev => res(ev.target?.result as string); r.onerror = rej; r.readAsDataURL(file) })
+                            const tempId = crypto.randomUUID()
+                            const resp = await fetch('/api/cartera/voucher', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archivoBase64, mimeType: file.type, pagoId: tempId }) })
+                            const data = await resp.json()
+                            console.log('[modal] pagos recibidos:', JSON.stringify(data.pagos))
+                            const pagos: any[] = Array.isArray(data.pagos) && data.pagos.length > 0 ? data.pagos : [data.datosIA]
+                            if (pagos.length <= 1) {
+                              onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, voucherKey: data.key, voucherDatosIA: pagos[0], cargandoVoucher: false, monto: pagos[0]?.valor ? String(Math.round(pagos[0].valor)) : l.monto } : l))
+                            } else {
+                              console.log('[modal] expandiendo', pagos.length, 'líneas')
+                              onSetLineasPago(prev => {
+                                const idx = prev.findIndex(l => l.id === linea.id)
+                                if (idx === -1) return prev
+                                const nuevas = pagos.map((p: any, i: number) => ({ ...crearLinea(), id: i === 0 ? linea.id : crypto.randomUUID(), metodoPago: 'transferencia' as const, voucherKey: data.key, voucherDatosIA: p, cargandoVoucher: false, monto: p?.valor ? String(Math.round(p.valor)) : '' }))
+                                const result = [...prev.slice(0, idx), ...nuevas, ...prev.slice(idx + 1)]
+                                console.log('[modal] nuevo array:', result.length, 'líneas')
+                                return result
+                              })
+                            }
+                          } catch(err) {
+                            console.error('[modal] error voucher:', err)
+                            onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, cargandoVoucher: false } : l))
+                          }
+                        }} />
 
                         {!linea.voucherKey && !linea.cargandoVoucher && (
                           <button onClick={() => fileInputRefs.current.get(linea.id)?.click()}
@@ -228,9 +263,14 @@ export default function ModalRecaudo({
                           <div className="bg-zinc-500/40 border border-emerald-400/30 rounded-xl px-4 py-3 space-y-2.5">
                             <div className="flex items-center justify-between">
                               <span className="text-emerald-400 text-xs font-semibold">✅ Comprobante procesado</span>
-                              <button onClick={() => onSetLineasPago(prev => prev.map(l =>
-                                l.id === linea.id ? { ...l, voucherKey: null, voucherDatosIA: null, monto: '' } : l
-                              ))} className="text-zinc-500 hover:text-red-400 text-xs">✕ Quitar</button>
+                              <button onClick={() => {
+                                // Resetear el input file para permitir subir el mismo archivo de nuevo
+                                const inp = fileInputRefs.current.get(linea.id)
+                                if (inp) inp.value = ''
+                                onSetLineasPago(prev => prev.map(l =>
+                                  l.id === linea.id ? { ...l, voucherKey: null, voucherDatosIA: null, monto: '' } : l
+                                ))
+                              }} className="text-zinc-500 hover:text-red-400 text-xs">✕ Quitar</button>
                             </div>
                             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
                               {linea.voucherDatosIA.valor != null && <div><span className="text-zinc-500">Valor:</span> <span className="text-white font-semibold">{fmt(linea.voucherDatosIA.valor)}</span></div>}
