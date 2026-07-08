@@ -33,6 +33,7 @@ export default function LoginPage() {
         setError('Usuario o contraseña incorrectos')
         setLoading(false)
       } else {
+        sessionStorage.clear()
         router.push('/inicio')
       }
     } catch (err) {

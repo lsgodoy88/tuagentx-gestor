@@ -145,7 +145,7 @@ export async function GET() {
   return { totalCartera, totalPendiente, recaudadoMes, descuentosMes, clientes, pagosCount, variacion }
   }) // withCache
   const _res = NextResponse.json(resumenData)
-  _res.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60')
+  _res.headers.set('Cache-Control', 'private, no-store')
   return _res
   } catch (err: any) {
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })

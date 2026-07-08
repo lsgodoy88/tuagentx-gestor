@@ -144,7 +144,7 @@ export async function GET() {
   return stats satisfies AdminStats
   }) // withCache
   const res = NextResponse.json(stats)
-  res.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60')
+  res.headers.set('Cache-Control', 'private, no-store')
   return res
   } catch (err: any) {
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })

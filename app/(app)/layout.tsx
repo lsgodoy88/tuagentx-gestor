@@ -79,16 +79,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [menuUsuario, setMenuUsuario] = useState(false)
   const [sincronizandoGps, setSincronizandoGps] = useState(false)
   const user = session?.user as any
+  const authUser = status === 'authenticated' ? user : null
 
-  // Limpiar sessionStorage si cambió el usuario — solución definitiva para datos cruzados
-  useEffect(() => {
-    if (!user?.id) return
-    const prev = sessionStorage.getItem('__uid__')
-    if (prev && prev !== user.id) sessionStorage.clear()
-    sessionStorage.setItem('__uid__', user.id)
-  }, [user?.id])
-
-  useEffect(() => {
+    useEffect(() => {
     if (!user) return
     const role = user.role as string
     const necesitaNotif = ['empresa', 'supervisor', 'vendedor', 'entregas', 'impulsadora'].includes(role)
@@ -150,9 +143,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       const ultimoUid = localStorage.getItem('txa_ultimo_userid')
       if (ultimoUid && ultimoUid !== uid) {
         clearAllCache()
-        // Dashboards (DashboardAdmin/DashboardVendedor) namespacean su propia
-        // clave de sessionStorage por userId — nunca se cruzan, sin necesidad
-        // de limpieza aquí.
+        sessionStorage.clear()
       }
       localStorage.setItem('txa_ultimo_userid', uid)
     } catch {
@@ -185,19 +176,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       })
       .catch(() => {})
   }, [user])
-
-  if (status === 'loading') {
-    return (
-      <div className="space-y-3 pb-20 max-w-5xl mx-auto px-1 pt-4">
-        <div className="rounded-2xl" style={{height:44,background:'rgba(148,160,185,0.10)',border:'1px solid rgba(148,180,255,0.10)'}} />
-        <div className="grid grid-cols-2 gap-3">
-          {[1,2].map(i => <div key={i} className="rounded-2xl" style={{height:96,background:'rgba(148,160,185,0.08)',border:'1px solid rgba(148,180,255,0.08)'}} />)}
-        </div>
-        <div className="rounded-2xl" style={{height:80,background:'rgba(148,160,185,0.08)'}} />
-        <div className="rounded-2xl" style={{height:80,background:'rgba(148,160,185,0.08)'}} />
-      </div>
-    )
-  }
 
   const isSuperAdmin  = user?.role === 'superadmin'
   const isEmpresa     = user?.role === 'empresa'
@@ -407,11 +385,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-[#a1a1aa] hover:text-white hover:bg-[#27272a] transition-colors">
                   <span>⚙️</span> Configuración
                 </Link>
-                <button onClick={() => signOut({ redirect: false }).then(() => {
-              const uid = (user as any)?.id
-              if (uid) { sessionStorage.removeItem(`inicio_cache_\${uid}`); sessionStorage.removeItem(`inicio_admin_cache_\${uid}`) }
-              window.location.href = '/login'
-            })}
+                <button onClick={() => fetch('/api/auth/invalidate-cache', { method: 'POST' }).finally(() => signOut({ redirect: false }).then(() => { sessionStorage.clear(); window.location.href = '/login' }))}
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-red-400 hover:text-red-300 hover:bg-[#27272a] transition-colors">
                   <span>🚪</span> Cerrar sesión
                 </button>
@@ -465,13 +439,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <div className="max-w-screen-xl mx-auto w-full space-y-6">
             <PermisosGuard role={user?.role}>
               <GpsContext.Provider value={{ setSincronizandoGps }}>
-                {/* Dashboard persistido — nunca se desmonta, key por userId garantiza limpieza entre usuarios */}
-                {user && status === 'authenticated' && (
-                  <div style={{display: pathname === '/inicio' ? 'block' : 'none'}}>
-                    {user.role === 'vendedor'    && React.createElement(DashboardVendedor  as any, { key: user.id, user, onRegisterRefresh: (fn: () => void) => { dashboardRefreshRef.current = fn } })}
-                    {user.role === 'bodega'      && React.createElement(DashboardBodega    as any, { key: user.id, user })}
-                    {user.role === 'entregas'    && React.createElement(DashboardEntregas  as any, { key: user.id, user })}
-                    {(user.role === 'empresa' || user.role === 'admin' || user.role === 'superadmin') && React.createElement(DashboardAdmin as any, { key: user.id, user, onRegisterRefresh: (fn: () => void) => { dashboardRefreshRef.current = fn } })}
+                {/* Dashboard — persiste entre rutas, se desmonta solo al cambiar usuario */}
+                {authUser && (
+                  <div key={`${authUser.id}_${authUser.loginAt ?? 0}`} style={{display: pathname === '/inicio' ? 'block' : 'none'}}>
+                    {authUser?.role === 'vendedor'    && React.createElement(DashboardVendedor  as any, { key: authUser.id, user: authUser, onRegisterRefresh: (fn: () => void) => { dashboardRefreshRef.current = fn } })}
+                    {authUser?.role === 'bodega'      && React.createElement(DashboardBodega    as any, { key: authUser.id, user: authUser })}
+                    {authUser?.role === 'entregas'    && React.createElement(DashboardEntregas  as any, { key: authUser.id, user: authUser })}
+                    {(authUser?.role === 'empresa' || authUser?.role === 'admin' || authUser?.role === 'superadmin') && React.createElement(DashboardAdmin as any, { key: authUser.id, user: authUser, onRegisterRefresh: (fn: () => void) => { dashboardRefreshRef.current = fn } })}
                   </div>
                 )}
                 {/* page.tsx — oculto en /inicio, visible en otras rutas */}
@@ -563,11 +537,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             style={{width:32,height:32,borderRadius:8,background:'rgba(59,130,246,0.10)',border:'1px solid rgba(59,130,246,0.20)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:17,textDecoration:'none'}}>
             ⚙️
           </Link>
-          <button onClick={() => signOut({ redirect: false }).then(() => {
-              const uid = (user as any)?.id
-              if (uid) { sessionStorage.removeItem(`inicio_cache_\${uid}`); sessionStorage.removeItem(`inicio_admin_cache_\${uid}`) }
-              window.location.href = '/login'
-            })}
+          <button onClick={() => fetch('/api/auth/invalidate-cache', { method: 'POST' }).finally(() => signOut({ redirect: false }).then(() => { sessionStorage.clear(); window.location.href = '/login' }))}
             style={{width:32,height:32,borderRadius:8,background:'rgba(239,68,68,0.10)',border:'1px solid rgba(239,68,68,0.30)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,cursor:'pointer'}}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
               <path d="M12 3v9" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round"/>

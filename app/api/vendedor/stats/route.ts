@@ -313,7 +313,8 @@ export async function GET() {
   return { hoy, ordenes, recaudo, dias, meses, cumplimiento, generadoEn: Date.now() } satisfies VendedorStats & { dias: any[], meses: any[], generadoEn: number }
   }) // withCache
   const res = NextResponse.json(result)
-  res.headers.set('Cache-Control', 'private, s-maxage=30, stale-while-revalidate=60')
+  res.headers.set('Cache-Control', 'private, no-store')
+  res.headers.set('Surrogate-Control', 'no-store')
   return res
   } catch (err: any) {
     console.error('[vendedor/stats] ERROR:', err?.message, err?.stack?.slice(0,300))

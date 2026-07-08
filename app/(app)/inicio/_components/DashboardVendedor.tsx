@@ -78,28 +78,15 @@ function vieneDelLogin(cacheKey: string) {
 
 // ── Componente ───────────────────────────────────────────────────────────────
 export default function DashboardVendedor({ user, onRegisterRefresh, activo = true }: { user: any, onRegisterRefresh?: (fn: () => void) => void, activo?: boolean }) {
-  const _cacheKey0 = user?.id ? `${CACHE_KEY_BASE}_${user.id}` : CACHE_KEY_BASE
 
-  const _cached0 = typeof window !== 'undefined' ? getCached(_cacheKey0) : null
   const router = useRouter()
   const cacheKey = cacheKeyFor(user?.id)
 
-  // Invalidar cache si cambió la empresa (switch de cuenta)
-  useEffect(() => {
-    try {
-      const raw = sessionStorage.getItem(cacheKey)
-      if (!raw) return
-      const parsed = JSON.parse(raw)
-      if (parsed.empresaId && parsed.empresaId !== user?.empresaId) {
-        sessionStorage.removeItem(cacheKey)
-      }
-    } catch {}
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+
 
   // Turno
-  const [turno, setTurno]               = useState<TurnoActivo | null>(_cached0?.turno && (Date.now()-(_cached0?.ts||0))<CACHE_TTL_TURNO ? _cached0.turno : null)
-  const [cargandoTurno, setCargandoTurno] = useState(() => !(_cached0?.turno && (Date.now() - (_cached0?.ts||0)) < CACHE_TTL_TURNO))
+  const [turno, setTurno]               = useState<TurnoActivo | null>(null)
+  const [cargandoTurno, setCargandoTurno] = useState(true)
   const [turnoExpandido, setTurnoExpandido] = useState(false)
   const [bloqueadoTurno, setBloqueadoTurno] = useState(false)
   const [mostrarPausa, setMostrarPausa] = useState(false)
@@ -109,12 +96,12 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
   const [pausaDuracionCustom, setPausaDuracionCustom] = useState(false)
 
   // Stats
-  const [statsVendedor, setStatsVendedor] = useState<VendedorStats | null>(_cached0?.statsVendedor || null)
+  const [statsVendedor, setStatsVendedor] = useState<VendedorStats | null>(null)
   const [vendedorStatsLoading, setVendedorStatsLoading] = useState(true)
   const [loadingStats, setLoadingStats] = useState(false)
   const [mostrarEstadisticasVendedor, setMostrarEstadisticasVendedor] = useState(false)
   const [mostrarImpulsadoras, setMostrarImpulsadoras] = useState(false)
-  const [resumenCartera, setResumenCartera] = useState<any>(_cached0?.resumenCartera || null)
+  const [resumenCartera, setResumenCartera] = useState<any>(null)
   const lastPulseTs = useRef<number>(0)
   const activoRef = useRef(activo)
   useEffect(() => { activoRef.current = activo }, [activo])
@@ -191,11 +178,18 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
 
   useEffect(() => {
     if (!user) return
+    const currentUserId = user.id
+    // Reset estados al cambiar usuario
+    setStatsVendedor(null)
+    setResumenCartera(null)
+    setTurno(null)
+    setRuta(null)
     // Prioridad 1 — turno + me (UI visible de inmediato)
     Promise.all([
       fetch('/api/turnos').then(r => r.json()),
       fetch('/api/me').then(r => r.json()),
     ]).then(([t, me]) => {
+      if (user?.id !== currentUserId) return
       setTurno(t)
       if (t) setCached(cacheKey, { turno: t }, user?.empresaId)
       setCargandoTurno(false)
@@ -205,6 +199,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
     // Prioridad 2 — ruta en background
     fetch('/api/rutas/mi-ruta').then(r => r.json()).then(r => {
       setRuta(r)
+      if (user?.id !== currentUserId) return
       if (r) setCached(cacheKey, { ruta: r })
       setClientesOrdenados(r?.clientes?.map((rc: any) => ({
         ...rc.cliente,
@@ -218,40 +213,17 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
         ordenCreadaEl: (rc as any).ordenCreadaEl || null,
       })) || [])
     }).catch(() => {})
-    // Prioridad 3 — stats/cartera/turno/ruta (cache inmediato + refresco background)
-    const cached = getCached(cacheKey)
-    const desdLogin = vieneDelLogin(cacheKey)
-    if (cached && !desdLogin) {
-      // Mostrar inmediatamente desde sessionStorage
-      if (cached.statsVendedor)  { setStatsVendedor(cached.statsVendedor);  lastPulseTs.current = cached.ts || 0 }
-      if (cached.resumenCartera) setResumenCartera(cached.resumenCartera)
-      if (cached.turno && (Date.now() - (cached.ts||0)) < CACHE_TTL_TURNO) setTurno(cached.turno)
-      if (cached.ruta  && (Date.now() - (cached.ts||0)) < CACHE_TTL_RUTA)  setRuta(cached.ruta)
-      setLoadingStats(false)
-      setVendedorStatsLoading(false)
-    }
-    // Siempre refrescar en background (no bloquea render si había cache)
-    const debeRefrescarStats = desdLogin || !cached?.statsVendedor || (Date.now() - (cached?.ts||0)) > CACHE_TTL
-    if (debeRefrescarStats) setLoadingStats(true)
+    // Stats — siempre del API, nunca del cache
+    setLoadingStats(true)
     fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null).then(stats => {
-      if (stats && !stats.error) {
-        // FIX 2026-06-20: comparar generadoEn del servidor contra lo cacheado
-        // local — evita pisar un dato más nuevo con uno viejo si la respuesta
-        // de red llegó fuera de orden, y confirma que sí se reemplaza aunque
-        // el TTL local de 10min no hubiera expirado todavía.
-        const generadoEnCache = cached?.statsVendedor?.generadoEn || 0
-        if (!stats.generadoEn || stats.generadoEn >= generadoEnCache) {
-          setStatsVendedor(stats)
-          lastPulseTs.current = Date.now()
-          setCached(cacheKey, { statsVendedor: stats })
-        }
-      }
-      setVendedorStatsLoading(false)
-      if (debeRefrescarStats) setLoadingStats(false)
+      if (user?.id !== currentUserId) return
+      if (stats && !stats.error) { setStatsVendedor(stats); lastPulseTs.current = Date.now() }
+      setVendedorStatsLoading(false); setLoadingStats(false)
     })
     fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null).then(cartera => {
-      if (cartera) { setResumenCartera(cartera); setCached(cacheKey, { resumenCartera: cartera }) }
-      if (debeRefrescarStats) setLoadingStats(false)
+      if (user?.id !== currentUserId) return
+      if (cartera) { setResumenCartera(cartera) }
+      setLoadingStats(false)
     })
   }, [user])
 
@@ -263,12 +235,12 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
       if (Date.now() - lastPulseTs.current < 3 * 60 * 1000) return
       lastPulseTs.current = Date.now()
       // Solo invalidar stats — mantener turno y ruta en cache (TTL propio)
-      setCached(cacheKey, { statsVendedor: null, resumenCartera: null })
+      // no cache
       fetch('/api/vendedor/stats').then(r => r.json()).catch(() => null).then(s => {
-        if (s && !s.error) { setStatsVendedor(s); setCached(cacheKey, { statsVendedor: s }) }
+        if (s && !s.error) { setStatsVendedor(s) }
       })
       fetch('/api/cartera/resumen').then(r => r.json()).catch(() => null).then(cv => {
-        if (cv) { setResumenCartera(cv); setCached(cacheKey, { resumenCartera: cv }) }
+        if (cv) { setResumenCartera(cv) }
       })
     }
     document.addEventListener('visibilitychange', onVisible)
@@ -476,7 +448,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
       setRuta(r)
       setClientesOrdenados(r?.clientes?.map((rc: any) => ({ ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta||null, rezago: rc.rezago, orden: rc.orden, notas: rc.notas||null, ordenDespachoId: rc.ordenDespachoId||null, numeroFactura: (rc as any).numeroFactura||null, empresaOrigen: (rc as any).empresaOrigen||null, alistadoPor: (rc as any).alistadoPor||null, asignadoEn: rc.asignadoEn||null, ordenCreadaEl: (rc as any).ordenCreadaEl||null })) || [])
       setVisitasRuta(Array.isArray(v?.visitas) ? v.visitas : Array.isArray(v) ? v : [])
-      if (s && !s.error) { setStatsVendedor(s); setCached(cacheKey, { statsVendedor: s }) }
+      if (s && !s.error) { setStatsVendedor(s) }
     })
   }
 
