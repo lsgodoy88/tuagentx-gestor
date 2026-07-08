@@ -80,4 +80,10 @@ export interface AdminStats extends AdminStatsKpi {
   tabla7meses: AdminStatsTabla7Meses[]
   /** Nombres de vendedores en tabla7meses */
   vendedores7m: string[]
+  /** Meta de ventas del mes */
+  metaVentaMes: number
+  /** Meta de recaudo del mes */
+  metaRecaudoMes: number
+  /** Recaudo del mes por vendedor */
+  recaudoPorVendedor: { nombre: string, monto: number }[]
 }

@@ -77,6 +77,41 @@ function vieneDelLogin(cacheKey: string) {
 }
 
 // ── Componente ───────────────────────────────────────────────────────────────
+
+// ── Anillo SVG — % meta mes ─────────────────────────────────
+function RingChart({ pct, color, size = 72, stroke = 7 }: { pct: number, color: string, size?: number, stroke?: number }) {
+  const [drawn, setDrawn] = useState(false)
+  useEffect(() => { const t = setTimeout(() => setDrawn(true), 150); return () => clearTimeout(t) }, [])
+
+  const accent = color
+  const accentTrack = 'rgba(255,255,255,0.22)'
+
+  const R = (size / 2) - stroke
+  const C = size / 2
+  const circ = 2 * Math.PI * R
+  const cappedPct = Math.min(pct, 100)
+  const dash = drawn ? (cappedPct / 100) * circ : 0
+
+  return (
+    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={C} cy={C} r={R} fill="none" stroke={accentTrack} strokeWidth={stroke * 0.45} />
+        <circle cx={C} cy={C} r={R} fill="none"
+          stroke={accent} strokeWidth={stroke}
+          strokeDasharray={`${dash} ${circ - dash}`}
+          strokeLinecap="round"
+          style={{ transition: 'stroke-dasharray 0.85s cubic-bezier(.4,0,.2,1)', filter: `drop-shadow(0 0 6px ${accent})` }}
+        />
+      </svg>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <span style={{ color: 'white', fontSize: 15, fontWeight: 800 }}>
+          {pct > 0 ? `${cappedPct}%` : '—'}
+        </span>
+      </div>
+    </div>
+  )
+}
+
 export default function DashboardVendedor({ user, onRegisterRefresh, activo = true }: { user: any, onRegisterRefresh?: (fn: () => void) => void, activo?: boolean }) {
 
   const router = useRouter()
@@ -642,14 +677,39 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
               secondary={statsVendedor ? <CountUp end={statsVendedor.ordenes?.factHoy||0} /> : '—'}
               primaryLabel="desp hoy" secondaryLabel="fact hoy" primaryColor="text-amber-400" />
           </div>
-          <CardCountAdmin stagger={3} icon="💼" label="Ventas"
-            primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={Math.round(statsVendedor.ordenes?.montoMes||0)} prefix='$' /> : '—'}</span>}
-            secondary={statsVendedor ? (statsVendedor.ordenes?.metaVentaMes > 0 ? '$'+Math.round(statsVendedor.ordenes.metaVentaMes).toLocaleString('es-CO') : '—') : '—'}
-            primaryLabel="mes" secondaryLabel="meta" primaryColor="text-emerald-400" />
-          <CardCountAdmin stagger={4} icon="💰" label="Recaudo" onClick={() => router.push('/cartera')}
-            primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={Math.round(statsVendedor.recaudo?.mes||0)} prefix='$' /> : '—'}</span>}
-            secondary={statsVendedor ? (statsVendedor.recaudo?.meta > 0 ? '$'+Math.round(statsVendedor.recaudo.meta).toLocaleString('es-CO') : '—') : '—'}
-            primaryLabel="mes" secondaryLabel="meta" primaryColor="text-blue-400" />
+          {/* Ventas — 20% anillo + 80% valores */}
+          <div className="rounded-2xl hover-lift card-glass" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',padding:'14px 16px',display:'flex',alignItems:'center',minHeight:110,overflow:'hidden'}}>
+            <div style={{width:'20%',display:'flex',justifyContent:'center',alignItems:'center',flexShrink:0}}>
+              <RingChart pct={(statsVendedor?.ordenes?.metaVentaMes ?? 0) > 0 ? Math.round(((statsVendedor?.ordenes?.montoMes ?? 0) / statsVendedor!.ordenes!.metaVentaMes!) * 100) : 0} color="#34d399" />
+            </div>
+            <div style={{width:1,alignSelf:'stretch',background:'rgba(255,255,255,0.10)',margin:'0 10px',flexShrink:0}} />
+            <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
+              <div className="flex items-center justify-center gap-1.5 mb-2"><span className="text-sm">💼</span><span className="text-white text-sm font-bold tracking-wide">Ventas</span></div>
+              <div className="flex items-baseline justify-center gap-1.5">
+                <span className="text-emerald-400 text-lg font-bold"><span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={Math.round(statsVendedor.ordenes?.montoMes||0)} prefix='$' /> : '—'}</span></span>
+                <span className="text-white/40 text-base font-light">/</span>
+                <span className="text-white text-lg font-bold">{statsVendedor ? (statsVendedor.ordenes?.metaVentaMes > 0 ? '$'+Math.round(statsVendedor.ordenes.metaVentaMes).toLocaleString('es-CO') : '—') : '—'}</span>
+              </div>
+              <div className="flex justify-center gap-4 mt-1"><span className="text-white text-xs">mes</span><span className="text-white text-xs">meta</span></div>
+            </div>
+          </div>
+
+          {/* Recaudo — 20% anillo + 80% valores */}
+          <div className="rounded-2xl hover-lift card-glass" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',padding:'14px 16px',display:'flex',alignItems:'center',minHeight:110,overflow:'hidden'}} onClick={() => router.push('/cartera')}>
+            <div style={{width:'20%',display:'flex',justifyContent:'center',alignItems:'center',flexShrink:0}}>
+              <RingChart pct={(statsVendedor?.recaudo?.meta ?? 0) > 0 ? Math.round(((statsVendedor?.recaudo?.mes ?? 0) / statsVendedor!.recaudo!.meta!) * 100) : 0} color="#60a5fa" />
+            </div>
+            <div style={{width:1,alignSelf:'stretch',background:'rgba(255,255,255,0.10)',margin:'0 10px',flexShrink:0}} />
+            <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
+              <div className="flex items-center justify-center gap-1.5 mb-2"><span className="text-sm">💰</span><span className="text-white text-sm font-bold tracking-wide">Recaudo</span></div>
+              <div className="flex items-baseline justify-center gap-1.5">
+                <span className="text-blue-400 text-lg font-bold"><span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={Math.round(statsVendedor.recaudo?.mes||0)} prefix='$' /> : '—'}</span></span>
+                <span className="text-white/40 text-base font-light">/</span>
+                <span className="text-white text-lg font-bold">{statsVendedor ? (statsVendedor.recaudo?.meta > 0 ? '$'+Math.round(statsVendedor.recaudo.meta).toLocaleString('es-CO') : '—') : '—'}</span>
+              </div>
+              <div className="flex justify-center gap-4 mt-1"><span className="text-white text-xs">mes</span><span className="text-white text-xs">meta</span></div>
+            </div>
+          </div>
         </div>
 
         <div className="space-y-4 md:max-w-2xl md:mx-auto">

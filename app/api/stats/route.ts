@@ -30,13 +30,14 @@ export async function GET() {
          vendedoresActivos, totalVendedores,
          ordenesDespachadasHoy, ordenesFact,
          impulsosActivos, totalImpulsos,
-         recaudoHoy, recaudoMesAgg] = await Promise.all([
+         recaudoHoy, recaudoMesAgg,
+         metaVentaRows, metaRecaudoRows] = await Promise.all([
     prisma.empleado.count({ where: { empresaId, activo: true } }),
     prisma.cliente.count({ where: { empresaId } }),
     prisma.turno.count({ where: { empleado: { empresaId }, activo: true } }),
     prisma.visita.findMany({
       where: { empleado: { empresaId }, fechaBogota: { gte: hace30dias } },
-      select: { tipo: true, monto: true, fechaBogota: true, empleado: { select: { nombre: true } } },
+      select: { tipo: true, monto: true, fechaBogota: true, empleado: { select: { nombre: true, rol: true } } },
       orderBy: { fechaBogota: 'desc' },
       take: 1000
     }),
@@ -59,6 +60,9 @@ export async function GET() {
     // Card 4: Recaudo hoy / recaudado mes
     prisma.visita.aggregate({ where: { empleado: { empresaId }, tipo: 'cobro', fechaBogota: { gte: hoy } }, _sum: { monto: true } }),
     prisma.visita.aggregate({ where: { empleado: { empresaId }, tipo: 'cobro', fechaBogota: { gte: new Date(hoy.getFullYear(), hoy.getMonth(), 1) } }, _sum: { monto: true } }),
+    // Metas mes actual — suma de todos los vendedores de la empresa
+    (prisma as any).metaVenta.findMany({ where: { empresaId, mes: mesActual, anio: anioActual }, select: { metaPesos: true, empleado: { select: { nombre: true } } } }),
+    (prisma as any).metaRecaudo.findMany({ where: { empresaId, mes: mesActual, anio: anioActual }, select: { metaPesos: true, empleado: { select: { nombre: true } } } }),
   ])
 
   const visitasHoy = visitas30dias.filter((v: any) => new Date(v.fechaBogota) >= hoy).length
@@ -71,12 +75,26 @@ export async function GET() {
 
   // Top empleados
   const empleadosMap: Record<string, { ventas: number, monto: number }> = {}
-  visitas30dias.forEach((v: any) => {
+  visitas30dias.filter((v: any) => v.empleado?.rol === 'vendedor').forEach((v: any) => {
     const nombre = v.empleado?.nombre || 'Sin nombre'
     if (!empleadosMap[nombre]) empleadosMap[nombre] = { ventas: 0, monto: 0 }
     if (v.tipo === 'venta') { empleadosMap[nombre].ventas++; empleadosMap[nombre].monto += v.monto || 0 }
   })
-  const topEmpleados = Object.entries(empleadosMap).sort((a, b) => b[1].monto - a[1].monto).slice(0, 5).map(([nombre, data]) => ({ nombre, ...data }))
+  const metaVentaByNombre: Record<string,number> = {}
+  metaVentaRows.forEach((r: any) => { if (r.empleado?.nombre) metaVentaByNombre[r.empleado.nombre] = Number(r.metaPesos||0) })
+  const metaRecaudoByNombre: Record<string,number> = {}
+  metaRecaudoRows.forEach((r: any) => { if (r.empleado?.nombre) metaRecaudoByNombre[r.empleado.nombre] = Number(r.metaPesos||0) })
+
+  const topEmpleados = Object.entries(empleadosMap).sort((a, b) => b[1].monto - a[1].monto).slice(0, 5).map(([nombre, data]) => ({ nombre, ...data, meta: metaVentaByNombre[nombre] ?? null }))
+
+  // Recaudo del mes por vendedor
+  const recaudoMap: Record<string, number> = {}
+  const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1)
+  visitas30dias.filter((v: any) => v.tipo === 'cobro' && v.empleado?.rol === 'vendedor' && new Date(v.fechaBogota) >= inicioMes).forEach((v: any) => {
+    const nombre = v.empleado?.nombre || 'Sin nombre'
+    recaudoMap[nombre] = (recaudoMap[nombre] || 0) + (v.monto || 0)
+  })
+  const recaudoPorVendedor = Object.entries(recaudoMap).sort((a, b) => b[1] - a[1]).map(([nombre, monto]) => ({ nombre, monto, meta: metaRecaudoByNombre[nombre] ?? null }))
 
   // Visitas por dia (7 dias)
   const visitasPorDia: Record<string, number> = {}
@@ -125,6 +143,10 @@ export async function GET() {
     return row
   })
 
+  // Metas mes: suma de todos los vendedores configurados
+  const metaVentaMes = metaVentaRows.reduce((a: number, r: any) => a + Number(r.metaPesos || 0), 0)
+  const metaRecaudoMes = metaRecaudoRows.reduce((a: number, r: any) => a + Number(r.metaPesos || 0), 0)
+
   const stats = {
     empleados, clientes, enTurno, visitasHoy, ventasHoy,
     ventasMes: ventasTotal, cobrosMes: cobrosTotal, porTipo,
@@ -140,6 +162,9 @@ export async function GET() {
     impulsosActivos, totalImpulsos,
     recaudoHoy: Number(recaudoHoy._sum.monto || 0),
     recaudoMes: Number(recaudoMesAgg._sum.monto || 0),
+    metaVentaMes,
+    metaRecaudoMes,
+    recaudoPorVendedor,
   }
   return stats satisfies AdminStats
   }) // withCache

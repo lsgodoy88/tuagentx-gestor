@@ -445,7 +445,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                     {authUser?.role === 'vendedor'    && React.createElement(DashboardVendedor  as any, { key: authUser.id, user: authUser, onRegisterRefresh: (fn: () => void) => { dashboardRefreshRef.current = fn } })}
                     {authUser?.role === 'bodega'      && React.createElement(DashboardBodega    as any, { key: authUser.id, user: authUser })}
                     {authUser?.role === 'entregas'    && React.createElement(DashboardEntregas  as any, { key: authUser.id, user: authUser })}
-                    {(authUser?.role === 'empresa' || authUser?.role === 'admin' || authUser?.role === 'superadmin') && React.createElement(DashboardAdmin as any, { key: authUser.id, user: authUser, onRegisterRefresh: (fn: () => void) => { dashboardRefreshRef.current = fn } })}
+                    {(authUser?.role === 'empresa' || authUser?.role === 'admin' || authUser?.role === 'supervisor' || authUser?.role === 'superadmin') && React.createElement(DashboardAdmin as any, { key: authUser.id, user: authUser, onRegisterRefresh: (fn: () => void) => { dashboardRefreshRef.current = fn } })}
                   </div>
                 )}
                 {/* page.tsx — oculto en /inicio, visible en otras rutas */}

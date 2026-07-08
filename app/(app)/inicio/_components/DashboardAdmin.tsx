@@ -8,6 +8,106 @@ const CACHE_KEY_BASE = 'inicio_admin_cache'
 const CACHE_TTL = 10 * 60 * 1000
 const CACHE_TTL_PRECIOS = 30 * 60 * 1000
 
+
+// ── Helpers ──────────────────────────────────────────────────
+function fmtM(n: number): string {
+  if (n >= 1000000) return (n/1000000).toFixed(1).replace('.',',') + 'M'
+  if (n >= 1000)    return (n/1000).toFixed(0) + 'K'
+  return String(Math.round(n))
+}
+
+// ── Anillo ───────────────────────────────────────────────────
+function RingChart({ pct, color, size = 72, stroke = 7 }: { pct: number, color: string, size?: number, stroke?: number }) {
+  const [drawn, setDrawn] = useState(false)
+  useEffect(() => { const t = setTimeout(() => setDrawn(true), 150); return () => clearTimeout(t) }, [])
+  const R = (size/2) - stroke, C = size/2, circ = 2*Math.PI*R
+  const cappedPct = Math.min(pct, 100)
+  const dash = drawn ? (cappedPct/100)*circ : 0
+  return (
+    <div style={{ position:'relative', width:size, height:size, flexShrink:0 }}>
+      <svg width={size} height={size} style={{ transform:'rotate(-90deg)' }}>
+        <circle cx={C} cy={C} r={R} fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth={stroke*0.45} />
+        <circle cx={C} cy={C} r={R} fill="none" stroke={color} strokeWidth={stroke}
+          strokeDasharray={`${dash} ${circ-dash}`} strokeLinecap="round"
+          style={{ transition:'stroke-dasharray 0.85s cubic-bezier(.4,0,.2,1)', filter:`drop-shadow(0 0 6px ${color})` }} />
+      </svg>
+      <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
+        <span style={{ color:'white', fontSize:15, fontWeight:800 }}>{pct>0 ? `${cappedPct}%` : '—'}</span>
+      </div>
+    </div>
+  )
+}
+
+// ── Card con anillo + drill-down barras ──────────────────────
+function CardRingDrill({ emoji, label, valorHoy, valorMes, metaMes, realMes, color, vendedores, labelHoy, labelMes }:
+  { emoji:string, label:string, valorHoy:number, valorMes:number, metaMes:number, realMes?:number, color:string,
+    vendedores:{nombre:string,monto:number,meta?:number|null}[], labelHoy:string, labelMes:string }) {
+  const [open, setOpen] = useState(false)
+  const pct = metaMes > 0 ? Math.min(Math.round(((realMes ?? valorHoy)/metaMes)*100), 100) : 0
+  const max = Math.max(...vendedores.map(v=>v.monto), 1)
+  return (
+    <div className="rounded-2xl hover-lift card-glass" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',overflow:'hidden'}}>
+      {/* Header — siempre visible */}
+      <button onClick={() => setOpen(p=>!p)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',padding:'14px 16px',display:'flex',alignItems:'center',minHeight:110}}>
+        {/* 20% anillo */}
+        <div style={{width:'20%',display:'flex',justifyContent:'center',alignItems:'center',flexShrink:0}}>
+          <RingChart pct={pct} color={color} />
+        </div>
+        {/* divisor */}
+        <div style={{width:1,alignSelf:'stretch',background:'rgba(255,255,255,0.10)',margin:'0 10px',flexShrink:0}} />
+        {/* 80% valores */}
+        <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
+          <div className="flex items-center justify-center gap-1.5 mb-2">
+            <span className="text-sm">{emoji}</span>
+            <span className="text-white text-sm font-bold tracking-wide">{label}</span>
+          </div>
+          <div className="flex items-baseline justify-center gap-1.5">
+            <span className="text-lg font-bold" style={{color}}><CountUp end={Math.round(valorHoy)} prefix="$" /></span>
+            <span className="text-white/40 text-base font-light">/</span>
+            <span className="text-white text-lg font-bold"><CountUp end={Math.round(valorMes)} prefix="$" /></span>
+          </div>
+          <div className="flex justify-center gap-4 mt-1">
+            <span className="text-white text-xs">{labelHoy}</span>
+            <span className="text-white text-xs">{labelMes}</span>
+          </div>
+        </div>
+        {/* flecha */}
+        <span style={{color:open?color:'#374151',fontSize:10,marginLeft:8,flexShrink:0,transition:'transform 0.25s',display:'block',transform:open?'rotate(180deg)':'rotate(0deg)'}}>▼</span>
+      </button>
+
+      {/* Drill-down barras — CSS Grid collapse */}
+      <div style={{display:'grid',gridTemplateRows:open?'1fr':'0fr',transition:'grid-template-rows 0.35s cubic-bezier(.4,0,.2,1)'}}>
+        <div style={{overflow:'hidden'}}>
+          <div style={{borderTop:'1px solid rgba(255,255,255,0.07)',padding:'10px 16px 14px'}}>
+            {vendedores.length === 0
+              ? <p style={{color:'#4b5563',fontSize:11,textAlign:'center'}}>Sin datos del mes</p>
+              : vendedores.map((v,i) => {
+                  const barW = Math.round((v.monto/max)*100)
+                  return (
+                    <div key={v.nombre} style={{display:'flex',alignItems:'center',gap:8,marginBottom:i<vendedores.length-1?10:0,width:'100%',minWidth:0}}>
+                      {/* Nombre — 22% */}
+                      <span style={{color:'#fff',fontSize:13,flexShrink:0,width:'22%',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{v.nombre.split(' ')[0]}</span>
+                      {/* Valor — 30% */}
+                      <span style={{color:'#fff',fontSize:13,fontWeight:700,flexShrink:0,width:'30%',textAlign:'right',whiteSpace:'nowrap'}}>${Math.round(v.monto).toLocaleString('es-CO')}</span>
+                      {/* Barra — flex */}
+                      <div style={{flex:1,minWidth:0,background:'rgba(255,255,255,0.06)',borderRadius:4,height:8,overflow:'hidden'}}>
+                        <div style={{width:barW+'%',height:'100%',borderRadius:4,background:color,transition:'width 0.5s cubic-bezier(.4,0,.2,1)'}} />
+                      </div>
+                      {/* % — 13%, solo si tiene meta */}
+                      <span style={{flexShrink:0,width:'13%',textAlign:'right',color:'#fff',fontSize:13,fontWeight:600,whiteSpace:'nowrap'}}>
+                        {(v.meta ?? 0) > 0 ? `${Math.min(Math.round((v.monto/v.meta!)*100),100)}%` : ''}
+                      </span>
+                    </div>
+                  )
+                })
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function DashboardAdmin({ user }: { user: any }) {
   const router = useRouter()
   const [stats, setStats] = useState<any>({ empleados: 0, clientes: 0, visitasHoy: 0, enTurno: 0 })
@@ -20,10 +120,6 @@ export default function DashboardAdmin({ user }: { user: any }) {
   const isEmpresa   = user?.role === 'empresa'
   const isSupervisor = user?.role === 'supervisor'
 
-  // Clave namespaced por userId — nunca lee/escribe el cache de OTRO usuario,
-  // sin importar orden de efectos ni si el login pasó literalmente por /login
-  // (a diferencia de antes, que dependía de document.referrer). El uid está
-  // disponible desde el primer render via prop `user`, sin race condition.
   const CACHE_KEY = user?.id ? `${CACHE_KEY_BASE}_${user.id}` : CACHE_KEY_BASE
 
   function getCached() {
@@ -171,6 +267,10 @@ export default function DashboardAdmin({ user }: { user: any }) {
 
 
   // ── Empresa / Supervisor ────────────────────────────────────
+  // % de meta mes
+  const pctVentas   = stats.metaVentaMes   > 0 ? Math.min(Math.round((stats.ventasMes   / stats.metaVentaMes)   * 100), 100) : 0
+  const pctRecaudos = stats.metaRecaudoMes > 0 ? Math.min(Math.round((stats.recaudoMes  / stats.metaRecaudoMes) * 100), 100) : 0
+
   return (
     <div className="space-y-3 pb-20 md:pb-0 md:max-w-2xl md:mx-auto">
       <h1 className="text-lg font-bold text-white px-1">Bienvenido, {user?.name?.split(' ')[0]}</h1>
@@ -243,43 +343,26 @@ export default function DashboardAdmin({ user }: { user: any }) {
               </div>
             </div>
 
-
           </div>
           </div>
 
-          {/* Ventas — línea completa */}
-          <div className="rounded-2xl p-4 hover-lift card-glass flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
-            <div className="flex items-center justify-center gap-1.5 mb-2">
-              <span className="text-sm">💼</span>
-              <span className="text-white text-sm font-bold tracking-wide">Ventas</span>
-            </div>
-            <div className="flex items-baseline justify-center gap-1.5">
-              <span className="text-emerald-400 text-lg font-bold"><CountUp end={Math.round(stats.ventasHoy||0)} prefix="$" /></span>
-              <span className="text-white/40 text-base font-light">/</span>
-              <span className="text-white text-lg font-bold"><CountUp end={Math.round(stats.ventasMes||0)} prefix="$" /></span>
-            </div>
-            <div className="flex justify-center gap-4 mt-1">
-              <span className="text-white text-xs">hoy</span>
-              <span className="text-white text-xs">mes</span>
-            </div>
-          </div>
+          <CardRingDrill
+            emoji="💼" label="Ventas"
+            valorHoy={stats.ventasMes||0} valorMes={stats.metaVentaMes||0} metaMes={stats.metaVentaMes||0}
+            realMes={stats.ventasMes||0}
+            color="#34d399"
+            vendedores={stats.topEmpleados||[]}
+            labelHoy="mes" labelMes="meta"
+          />
 
-          {/* Recaudos — línea completa */}
-          <div className="rounded-2xl p-4 hover-lift card-glass flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
-            <div className="flex items-center justify-center gap-1.5 mb-2">
-              <span className="text-sm">💰</span>
-              <span className="text-white text-sm font-bold tracking-wide">Recaudos</span>
-            </div>
-            <div className="flex items-baseline justify-center gap-1.5">
-              <span className="text-blue-400 text-lg font-bold"><CountUp end={stats.recaudoHoy||0} prefix="$" /></span>
-              <span className="text-white/40 text-base font-light">/</span>
-              <span className="text-white text-lg font-bold"><CountUp end={stats.recaudoMes||0} prefix="$" /></span>
-            </div>
-            <div className="flex justify-center gap-4 mt-1">
-              <span className="text-white text-xs">hoy</span>
-              <span className="text-white text-xs">mes</span>
-            </div>
-          </div>
+          <CardRingDrill
+            emoji="💰" label="Recaudos"
+            valorHoy={stats.recaudoMes||0} valorMes={stats.metaRecaudoMes||0} metaMes={stats.metaRecaudoMes||0}
+            realMes={stats.recaudoMes||0}
+            color="#60a5fa"
+            vendedores={stats.recaudoPorVendedor||[]}
+            labelHoy="mes" labelMes="meta"
+          />
 
           {/* Botón Estadísticas */}
           <button
@@ -323,7 +406,7 @@ className='card-glass' style={{background:'rgba(255,255,255,0.08)',border:'1px s
                     <p className="text-white text-sm font-medium truncate">{e.nombre}</p>
                     <p className="text-zinc-500 text-xs">{e.ventas} ventas</p>
                   </div>
-                  <p className="text-emerald-400 font-semibold text-sm">{"$" + e.monto.toLocaleString('es-CO')}</p>
+                  <p className="text-emerald-400 font-semibold text-sm">${e.monto.toLocaleString('es-CO')}</p>
                 </div>
               ))}
             </div>
