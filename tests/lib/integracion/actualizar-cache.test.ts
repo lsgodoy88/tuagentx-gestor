@@ -70,10 +70,10 @@ describe('lib/integracion/sync — actualizarCache (v3)', () => {
     expect(arg.create.saldoPendiente).toBe(300000)
   })
 
-  it('Lumeli, factura NUEVA (no está en LumeliSaldoInicial0206): cae a v2 (ancla saldoAnterior)', async () => {
+  it('Lumeli, factura NUEVA (no en LumeliSaldoInicial0206): usa nSaldo persistido en BD', async () => {
     mockClienteYEmpleado()
     ;(prisma as any).syncDeuda.findMany.mockResolvedValue([
-      { id: 'sd-3', clienteApiId: API_ID, numeroFactura: 99999, valor: 100000, saldo: 999999, abono: 0, fechaVencimiento: null, diasCredito: 30, externalId: 'ext-3', numeroOrden: 'ord-3', empleadoExternalId: null },
+      { id: 'sd-3', clienteApiId: API_ID, numeroFactura: 99999, valor: 100000, nSaldo: 70000, saldo: 70000, abono: 0, fechaVencimiento: null, diasCredito: 30, externalId: 'ext-3', numeroOrden: 'ord-3', empleadoExternalId: null },
     ])
     ;(prisma as any).$queryRaw.mockResolvedValue([
       { numerofactura: 3547, saldoinicial: 200000 }, // no incluye 99999
@@ -85,7 +85,7 @@ describe('lib/integracion/sync — actualizarCache (v3)', () => {
     await actualizarCache(new Set([API_ID]), INT_ID, EMPRESA_LUMELI)
 
     const arg = (prisma as any).carteraCache.upsert.mock.calls[0][0]
-    expect(arg.create.saldoPendiente).toBe(70000) // ancla 100000 - 30000 pagado
+    expect(arg.create.saldoPendiente).toBe(70000) // nSaldo persistido en BD por aplicarPagoEnCache
   })
 
   it('Leche (sin tabla LumeliSaldoInicial0206 aplicable): nunca llama $queryRaw, usa v2/v1', async () => {
@@ -102,10 +102,10 @@ describe('lib/integracion/sync — actualizarCache (v3)', () => {
     expect(arg.create.saldoPendiente).toBe(50000) // sin pago nuestro y sin archivo → saldo crudo (v1 fallback)
   })
 
-  it('Leche con pago nuestro: usa ancla saldoAnterior (v2), no toca LumeliSaldoInicial0206', async () => {
+  it('Leche con pago nuestro: usa nSaldo persistido (aplicarPagoEnCache ya lo actualizó)', async () => {
     mockClienteYEmpleado()
     ;(prisma as any).syncDeuda.findMany.mockResolvedValue([
-      { id: 'sd-5', clienteApiId: API_ID, numeroFactura: 2, valor: 100000, saldo: 999999, abono: 0, fechaVencimiento: null, diasCredito: 30, externalId: 'ext-5', numeroOrden: 'ord-5', empleadoExternalId: null },
+      { id: 'sd-5', clienteApiId: API_ID, numeroFactura: 2, valor: 100000, nSaldo: 60000, saldo: 60000, abono: 0, fechaVencimiento: null, diasCredito: 30, externalId: 'ext-5', numeroOrden: 'ord-5', empleadoExternalId: null },
     ])
     ;(prisma as any).pagoCarteraDeuda.findMany.mockResolvedValue([
       { syncDeudaId: 'sd-5', montoAplicado: 40000, descuento: 0, createdAt: new Date('2026-06-20T00:00:00-05:00'), PagoCartera: { saldoAnterior: 100000 } },
@@ -114,7 +114,7 @@ describe('lib/integracion/sync — actualizarCache (v3)', () => {
     await actualizarCache(new Set([API_ID]), INT_ID, EMPRESA_LECHE)
 
     const arg = (prisma as any).carteraCache.upsert.mock.calls[0][0]
-    expect(arg.create.saldoPendiente).toBe(60000)
+    expect(arg.create.saldoPendiente).toBe(60000) // nSaldo ya actualizado por aplicarPagoEnCache
   })
 
   it('saldoPendiente llega a 0 → deleteMany explícito en vez de upsert (evita huérfanos)', async () => {
