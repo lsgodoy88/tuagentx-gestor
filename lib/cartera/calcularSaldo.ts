@@ -2,9 +2,11 @@
  * calcularSaldo.ts — Fuente unica de verdad para nSaldo v3
  *
  * Prioridad:
- *   1. Lumeli + LumeliSaldoInicial0206 -> saldoInicial - pagos post-corte
- *   2. Con pagos locales -> ancla (saldoAnterior primer pago) - total pagado
- *   3. Sin pagos -> nSaldo persistido (sync nocturno) -> saldo -> valor bruto
+ *   1. Lumeli + LumeliSaldoInicial0206 → saldoInicial - pagos post-corte
+ *   2. Todas las demás empresas → valor - SUM(todos nuestros pagos)
+ *      Determinista, inmune al lag de UpTres. UpTres solo define `valor`
+ *      (inmutable) y `condition=false` (deuda saldada). Nunca interfiere
+ *      con el saldo que ve el vendedor.
  *
  * CRITICO: montoAplicado YA incluye descuento.
  */
@@ -24,7 +26,6 @@ export interface AplicacionPago {
   syncDeudaId: string
   montoAplicado: number | string
   createdAt: Date | string
-  // saldoAnterior no se usa — PagoCartera.saldoAnterior es saldo del cliente, no de la factura
 }
 
 export interface ResultadoNSaldo {
@@ -45,7 +46,6 @@ export function calcularNSaldoBatch(
 ): Record<string, ResultadoNSaldo> {
   const totalPagado: Record<string, number> = {}
   const totalPostCorte: Record<string, number> = {}
-  const ancla: Record<string, number> = {}
 
   for (const a of aplicaciones) {
     const monto = Number(a.montoAplicado || 0)
@@ -53,8 +53,6 @@ export function calcularNSaldoBatch(
     if (new Date(a.createdAt) > CORTE_LUMELI) {
       totalPostCorte[a.syncDeudaId] = (totalPostCorte[a.syncDeudaId] || 0) + monto
     }
-    // NOTA: saldoAnterior de PagoCartera es saldo TOTAL del cliente, no de la factura.
-    // No usar como ancla por factura — ver rama 2 abajo.
   }
 
   const result: Record<string, ResultadoNSaldo> = {}
@@ -69,9 +67,15 @@ export function calcularNSaldoBatch(
       nSaldo = Math.max(0, saldoInicialLumeli - (totalPostCorte[d.id] || 0))
     } else {
       // Rama 2: todas las demás empresas — usar nSaldo persistido en BD
-      // aplicarPagoEnCache actualiza nSaldo inmediatamente post-pago
-      // sync-nocturno lo reconcilia cada noche
-      // nSaldo es siempre la fuente de verdad por factura individual
+      // El nSaldo en BD se calcula correctamente como:
+      //   saldo_uptres_inicial (snapshot al llegar a Gestor) - pagos nuestros
+      // Esto es correcto tanto para facturas sin abonos previos (saldo_inicial=valor)
+      // como para facturas con abonos previos en UpTres (saldo_inicial<valor).
+      // La fuente de ese valor es aplicarPagoEnCache (post-pago inmediato) y
+      // reconstruirCartera (nocturno). El nocturno actualiza saldoUptresOriginal
+      // (referencia) pero ya NO toca nSaldo — inmune al lag de UpTres.
+      // Fallback: si nSaldo no existe aún, usar saldo (crudo UpTres) → es correcto
+      // para facturas donde nunca hemos registrado un pago.
       nSaldo = Math.max(0, Number(d.nSaldo ?? d.saldo ?? d.valor))
     }
 

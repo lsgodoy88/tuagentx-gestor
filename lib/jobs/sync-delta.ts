@@ -4,7 +4,7 @@
  * Sin dependencia de gestor HTTP — accede directo a BD y adapters
  */
 import { prisma } from '@/lib/prisma'
-import { UpTresAdapter, parseFechaUptresBogota } from '@/lib/integracion/adapters/uptres'
+import { UpTresAdapter, parseFechaUptresBogota, fetchProductosUptres } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 import { invalidatePattern } from '@/lib/cache'
 import { reconstruirCartera } from '@/lib/jobs/sync-nocturno'
@@ -320,4 +320,105 @@ export async function runSyncDelta(): Promise<any[]> {
     }
   }
   return resultados
+}
+
+export async function syncProductosEmpresa(
+  empresaId: string,
+  integracionId: string,
+  apiKey: string,
+  apiSecret: string,
+  desde?: Date
+): Promise<{ upserted: number; desactivados: number }> {
+  // Login para obtener token
+  const authRes = await fetch('https://serviceuptres.cloud/external/v1/auth/api', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ apiKey, apiSecret }),
+  }).then(r => r.json())
+  if (!authRes.ok || !authRes.token) throw new Error('Login UpTres fallido en syncProductos: ' + (authRes.msg || ''))
+
+  const productos = await fetchProductosUptres(apiKey, authRes.token, desde)
+  if (productos.length === 0) return { upserted: 0, desactivados: 0 }
+
+  const DB_SCHEMA = process.env.DB_SCHEMA || 'gestor'
+  const now = new Date()
+
+  // Upsert por lotes de 100
+  const BATCH = 100
+  let upserted = 0
+  for (let i = 0; i < productos.length; i += BATCH) {
+    const batch = productos.slice(i, i + BATCH)
+    await Promise.all(batch.map(p =>
+      (prisma as any).$executeRawUnsafe(`
+        INSERT INTO ${DB_SCHEMA}."Producto" (
+          id, "empresaId", "integracionId", condition, nombre, barcode,
+          inventory, precio, marca, linea, punto, invima,
+          prices, "purchasePrice", taxable, tax, tipo, unidad, descripcion,
+          "externalUpdatedAt", "updatedAt", "createdAt"
+        ) VALUES (
+          $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$21
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          condition          = EXCLUDED.condition,
+          nombre             = EXCLUDED.nombre,
+          barcode            = EXCLUDED.barcode,
+          inventory          = EXCLUDED.inventory,
+          precio             = EXCLUDED.precio,
+          marca              = EXCLUDED.marca,
+          linea              = EXCLUDED.linea,
+          punto              = EXCLUDED.punto,
+          invima             = EXCLUDED.invima,
+          prices             = EXCLUDED.prices,
+          "purchasePrice"    = EXCLUDED."purchasePrice",
+          taxable            = EXCLUDED.taxable,
+          tax                = EXCLUDED.tax,
+          tipo               = EXCLUDED.tipo,
+          unidad             = EXCLUDED.unidad,
+          descripcion        = EXCLUDED.descripcion,
+          "externalUpdatedAt"= EXCLUDED."externalUpdatedAt",
+          "updatedAt"        = EXCLUDED."updatedAt"
+      `,
+        p.id,
+        empresaId,
+        integracionId,
+        p.condition,
+        p.name,
+        p.barcode ?? null,
+        p.inventory,
+        p.price ?? null,
+        p.brand ?? null,
+        p.line ?? null,
+        p.point ?? null,
+        p.invima ?? null,
+        p.prices ? JSON.stringify(p.prices) : null,
+        p.purchasePrice ?? null,
+        p.taxable ?? false,
+        p.tax ?? null,
+        p.type ?? null,
+        p.unit ?? null,
+        p.description ?? null,
+        p.updatedAt ? new Date(p.updatedAt) : now,
+        now,
+      )
+    ))
+    upserted += batch.length
+  }
+
+  // Si es sync completo (sin desde), desactivar los que ya no vienen
+  let desactivados = 0
+  if (!desde) {
+    const idsActivos = productos.map(p => p.id)
+    if (idsActivos.length > 0) {
+      const placeholders = idsActivos.map((_: string, i: number) => `$${i + 2}`).join(',')
+      const res = await (prisma as any).$executeRawUnsafe(
+        `UPDATE ${DB_SCHEMA}."Producto" SET condition=false, "updatedAt"=$1
+         WHERE "empresaId"='${empresaId}' AND condition=true AND id NOT IN (${placeholders})`,
+        now,
+        ...idsActivos
+      )
+      desactivados = res ?? 0
+    }
+  }
+
+  return { upserted, desactivados }
 }

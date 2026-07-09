@@ -488,3 +488,81 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     }))
   }
 }
+
+// Exportar fetchProductos fuera de la clase para uso directo en jobs
+// (igual que fetchAll interno pero público)
+export async function fetchProductosUptres(
+  apiKey: string,
+  token: string,
+  desde?: Date
+): Promise<import('../types').ProductoExterno[]> {
+  const todos: import('../types').ProductoExterno[] = []
+  let cursorDate: string | null = null
+  let cursorId: string | null = null
+  let pagina = 0
+  const MAX_PAGINAS = 100 // 100 × 80 = 8000 productos máx
+
+  while (pagina++ < MAX_PAGINAS) {
+    const p = new URLSearchParams({
+      condition: 'true',
+      fields: '',
+      limit: '80',
+    })
+    if (desde) p.set('from', desde.toISOString().slice(0, 10))
+    if (cursorDate && cursorId) {
+      p.set('cursorDate', cursorDate)
+      p.set('cursorId', cursorId)
+    }
+
+    let texto = ''
+    let exitoso = false
+    for (let intento = 0; intento < 3; intento++) {
+      try {
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 30000)
+        const res = await fetch(`${BASE}/productos?${p.toString()}`, {
+          headers: { 'x-api-key': apiKey, Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        })
+        clearTimeout(timer)
+        texto = await res.text()
+        exitoso = true
+        break
+      } catch {
+        if (intento < 2) await new Promise(r => setTimeout(r, 2000 * (intento + 1)))
+      }
+    }
+    if (!exitoso || !texto) throw new Error('UpTres productos no respondió tras 3 reintentos')
+
+    let d: any
+    try { d = JSON.parse(texto) } catch { throw new Error('UpTres productos respuesta inválida') }
+    if (!d.ok) throw new Error(`UpTres productos error: ${d.msg || d.message || ''}`)
+    if (!Array.isArray(d.data) || d.data.length === 0) break
+
+    todos.push(...d.data.map((p: any) => ({
+      id: p.id,
+      condition: p.condition ?? true,
+      name: p.name || '',
+      barcode: p.barcode || null,
+      inventory: typeof p.inventory === 'number' ? p.inventory : parseFloat(p.inventory ?? '0') || 0,
+      price: p.price != null ? parseFloat(p.price) : null,
+      prices: p.prices || null,
+      purchasePrice: p.purchasePrice != null ? parseFloat(p.purchasePrice) : null,
+      taxable: p.taxable ?? false,
+      tax: p.tax != null ? parseFloat(p.tax) : null,
+      type: p.type || null,
+      brand: p.brand || null,
+      line: p.line || null,
+      point: p.point || null,
+      invima: p.invima || null,
+      unit: p.unit || null,
+      description: p.description || null,
+      updatedAt: p.updatedAt || null,
+    })))
+
+    if (!d.nextCursor?.cursorDate || !d.nextCursor?.cursorId) break
+    cursorDate = d.nextCursor.cursorDate
+    cursorId = d.nextCursor.cursorId
+  }
+  return todos
+}

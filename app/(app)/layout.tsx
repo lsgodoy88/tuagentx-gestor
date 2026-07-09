@@ -205,6 +205,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { href: '/clientes',  label: 'Clientes',  icon: '🏪' },
         { href: '/cartera',   label: 'Cartera',   icon: '💰' },
         { href: '/recaudos',  label: 'Recaudos',  icon: '💳' },
+        { href: '/inventario', label: 'Inventario', icon: '📦' },
       ]
     }, {
       label: 'Visitas',
@@ -267,6 +268,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: '/impulsos',   label: 'Impulsos',     icon: '⚡' },
       { href: '/trazabilidad',  label: 'Despacho', icon: '🚚' },
       { href: '/reportes',      label: 'Reportes',     icon: '📈' },
+      { href: '/inventario',   label: 'Inventario',   icon: '📦' },
     ] : []),
     ...(isBodega ? [
       { href: '/ordenes',    label: 'Órdenes',    icon: '📦' },

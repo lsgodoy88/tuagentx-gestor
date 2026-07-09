@@ -70,3 +70,24 @@ export interface AdaptadorIntegracion {
   fetchEmpleados(desde?: Date): Promise<EmpleadoExterno[]>
   fetchVentas(desde?: Date): Promise<VentaExterna[]>
 }
+
+export interface ProductoExterno {
+  id: string
+  condition: boolean
+  name: string
+  barcode?: string | null
+  inventory: number
+  price?: number | null
+  prices?: any[] | null
+  purchasePrice?: number | null
+  taxable?: boolean
+  tax?: number | null
+  type?: string | null
+  brand?: string | null
+  line?: string | null
+  point?: string | null
+  invima?: string | null
+  unit?: string | null
+  description?: string | null
+  updatedAt?: string | null
+}

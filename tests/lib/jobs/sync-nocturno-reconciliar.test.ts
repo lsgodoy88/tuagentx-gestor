@@ -9,6 +9,7 @@ vi.mock('@/lib/prisma', () => ({
       findMany: vi.fn(),
       updateMany: vi.fn(),
       aggregate: vi.fn().mockResolvedValue({ _max: { envioFecha: new Date() } }),
+      count: vi.fn().mockResolvedValue(0),
     },
     pagoCartera: {
       update: vi.fn(),
@@ -21,10 +22,20 @@ import { prisma } from '@/lib/prisma'
 
 const INT_ID = 'intg-1'
 
-describe('sync-nocturno — reconciliarDeuda', () => {
+// Helper base para inputs — saldoLocalActual/saldoUptresAnterior mantenidos
+// por compatibilidad de interfaz pero ya no afectan la lógica de nSaldo.
+const base = (overrides: object) => ({
+  sdId: 'sd-1', externalId: 'ext-1', valor: 1000000,
+  condicionUpTres: true, saldoUptresAnterior: 300000, saldoLocalActual: 300000,
+  ...overrides,
+})
+
+describe('sync-nocturno — reconciliarDeuda (misión reducida)', () => {
   beforeEach(() => { vi.clearAllMocks() })
 
-  it('condicionUpTres=false → marca aplicaciones pendientes/enviadas como recibido, saldo=0', async () => {
+  // ── MISIÓN 1: condition=false ──────────────────────────────────────────────
+
+  it('condicionUpTres=false → marca aplicaciones pendientes/enviadas como recibido, saldo=0, condition=false', async () => {
     vi.mocked((prisma as any).pagoCarteraDeuda.findMany)
       .mockResolvedValueOnce([{ id: 'apl-1' }])
       .mockResolvedValueOnce([{ pagoId: 'p1' }])
@@ -33,10 +44,7 @@ describe('sync-nocturno — reconciliarDeuda', () => {
     vi.mocked((prisma as any).pagoCartera.update).mockResolvedValue({})
     vi.mocked((prisma as any).syncDeuda.update).mockResolvedValue({})
 
-    await reconciliarDeuda({
-      sdId: 'sd-1', externalId: 'ext-1', saldo: 0, valor: 300000,
-      condicionUpTres: false, saldoUptresAnterior: 300000, saldoLocalActual: 0,
-    }, INT_ID)
+    await reconciliarDeuda(base({ saldo: 0, condicionUpTres: false }), INT_ID)
 
     expect((prisma as any).pagoCarteraDeuda.updateMany).toHaveBeenCalledWith({
       where: { id: { in: ['apl-1'] } },
@@ -47,7 +55,9 @@ describe('sync-nocturno — reconciliarDeuda', () => {
     )
   })
 
-  it('delta exacto cubre pendienteLocal → marca esas aplicaciones recibido, acepta saldo de UpTres', async () => {
+  // ── MISIÓN 2: confirmar pagos que UpTres ya reflejó ───────────────────────
+
+  it('delta exacto cubre pendienteLocal → marca aplicaciones recibido', async () => {
     vi.mocked((prisma as any).pagoCarteraDeuda.findMany)
       .mockResolvedValueOnce([{ id: 'apl-1', montoAplicado: 100000, pagoId: 'p1' }])
       .mockResolvedValueOnce([{ pagoId: 'p1' }])
@@ -56,126 +66,97 @@ describe('sync-nocturno — reconciliarDeuda', () => {
     vi.mocked((prisma as any).pagoCartera.update).mockResolvedValue({})
     vi.mocked((prisma as any).syncDeuda.update).mockResolvedValue({})
 
-    await reconciliarDeuda({
-      sdId: 'sd-1', externalId: 'ext-1', saldo: 200000, valor: 1000000,
-      condicionUpTres: true, saldoUptresAnterior: 300000, saldoLocalActual: 200000,
-    }, INT_ID)
+    // saldo bajó de 300000 a 200000 → delta=100000 = pendienteLocal
+    await reconciliarDeuda(base({ saldo: 200000, saldoUptresAnterior: 300000 }), INT_ID)
 
     expect((prisma as any).pagoCarteraDeuda.updateMany).toHaveBeenCalledWith({
       where: { id: { in: ['apl-1'] } },
       data: expect.objectContaining({ envioEstado: 'recibido' }),
     })
+    // saldo (referencia UpTres) siempre se actualiza
     expect((prisma as any).syncDeuda.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ saldo: 200000, condition: true }) })
+      expect.objectContaining({ data: expect.objectContaining({ saldo: 200000 }) })
     )
   })
 
-  it('UpTres aun no refleja nada (delta=0) → preserva saldo local, no marca ninguna aplicacion', async () => {
+  it('delta=0, UpTres no refleja nada → no marca aplicaciones, actualiza saldo referencia', async () => {
     vi.mocked((prisma as any).pagoCarteraDeuda.findMany).mockResolvedValueOnce([
       { id: 'apl-1', montoAplicado: 100000, pagoId: 'p1' },
     ])
     vi.mocked((prisma as any).syncDeuda.update).mockResolvedValue({})
 
-    await reconciliarDeuda({
-      sdId: 'sd-1', externalId: 'ext-1', saldo: 300000, valor: 1000000,
-      condicionUpTres: true, saldoUptresAnterior: 300000, saldoLocalActual: 200000,
-    }, INT_ID)
+    await reconciliarDeuda(base({ saldo: 300000, saldoUptresAnterior: 300000 }), INT_ID)
 
     expect((prisma as any).pagoCarteraDeuda.updateMany).not.toHaveBeenCalled()
-    const callData = vi.mocked((prisma as any).syncDeuda.update).mock.calls[0][0].data
-    expect(callData.saldo).toBeUndefined()
+    // saldo referencia sí se actualiza (mismo valor = no-op real, pero se escribe)
+    expect((prisma as any).syncDeuda.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ saldo: 300000 }) })
+    )
   })
 
-  it('cargo nuevo mezclado con pago pendiente (UpTres sube) → ajusta saldo local sin marcar aplicaciones', async () => {
+  it('pago externo puro (sin pagos pendientes, delta>0) → actualiza saldo referencia, no toca aplicaciones', async () => {
+    vi.mocked((prisma as any).pagoCarteraDeuda.findMany).mockResolvedValueOnce([])
+    vi.mocked((prisma as any).syncDeuda.update).mockResolvedValue({})
+
+    await reconciliarDeuda(base({ saldo: 200000, saldoUptresAnterior: 300000 }), INT_ID)
+
+    expect((prisma as any).pagoCarteraDeuda.updateMany).not.toHaveBeenCalled()
+    expect((prisma as any).syncDeuda.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ saldo: 200000 }) })
+    )
+  })
+
+  it('cargo nuevo (UpTres sube, delta<0) → actualiza saldo referencia sin tocar aplicaciones', async () => {
     vi.mocked((prisma as any).pagoCarteraDeuda.findMany).mockResolvedValueOnce([
       { id: 'apl-1', montoAplicado: 50000, pagoId: 'p1' },
     ])
     vi.mocked((prisma as any).syncDeuda.update).mockResolvedValue({})
 
-    await reconciliarDeuda({
-      sdId: 'sd-1', externalId: 'ext-1', saldo: 320000, valor: 1000000,
-      condicionUpTres: true, saldoUptresAnterior: 300000, saldoLocalActual: 250000,
-    }, INT_ID)
+    // saldo subió de 300000 a 320000 → delta=-20000 (cargo nuevo)
+    await reconciliarDeuda(base({ saldo: 320000, saldoUptresAnterior: 300000 }), INT_ID)
 
     expect((prisma as any).pagoCarteraDeuda.updateMany).not.toHaveBeenCalled()
     expect((prisma as any).syncDeuda.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ saldo: 270000, condition: true }) })
+      expect.objectContaining({ data: expect.objectContaining({ saldo: 320000 }) })
     )
   })
 
-  it('pago externo directo sin pendienteLocal (delta>0, pendienteLocal=0) → acepta el nuevo saldo bajo', async () => {
-    vi.mocked((prisma as any).pagoCarteraDeuda.findMany).mockResolvedValueOnce([])
-    vi.mocked((prisma as any).syncDeuda.update).mockResolvedValue({})
+  // ── BUG REAL: Sergio González / Claudia / Leche — julio 2026 ─────────────
+  // Con la nueva lógica, nSaldo NO vive en reconciliarDeuda sino en
+  // calcularNSaldoBatch (valor - SUM pagos). El nocturno nunca puede pisarlo.
 
-    await reconciliarDeuda({
-      sdId: 'sd-1', externalId: 'ext-1', saldo: 200000, valor: 1000000,
-      condicionUpTres: true, saldoUptresAnterior: 300000, saldoLocalActual: 300000,
-    }, INT_ID)
-
-    expect((prisma as any).pagoCarteraDeuda.updateMany).not.toHaveBeenCalled()
-    expect((prisma as any).syncDeuda.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ saldo: 200000, condition: true }) })
-    )
-  })
-
-  // ── Guardia de no-regresión ────────────────────────────────────────────────
-  it('guardia: pago TOTAL ya aplicado localmente (saldo=0), UpTres aún no refleja nada → preserva saldo 0, NO marca recibido', async () => {
+  it('BUG CC2606050: UpTres con lag (delta=0), pago pendiente → no marca, actualiza saldo referencia, nSaldo inmune', async () => {
     vi.mocked((prisma as any).pagoCarteraDeuda.findMany).mockResolvedValueOnce([
-      { id: 'apl-1', montoAplicado: 127800, pagoId: 'p1' },
+      { id: 'apl-cc2606050', montoAplicado: 150000, pagoId: 'p-cc2606050' },
     ])
     vi.mocked((prisma as any).syncDeuda.update).mockResolvedValue({})
 
     await reconciliarDeuda({
-      sdId: 'sd-1', externalId: 'ext-1', saldo: 127800, valor: 127800,
-      condicionUpTres: true, saldoUptresAnterior: 127800, saldoLocalActual: 0,
+      sdId: 'cmpwq4wax001pphq972ysac3e',
+      externalId: '69f20a4bea692fad8a4eb265',
+      saldo: 386285,            // UpTres aún muestra este valor (lag)
+      valor: 428815,
+      condicionUpTres: true,
+      saldoUptresAnterior: 386285,   // mismo → delta=0
+      saldoLocalActual: 236285,      // ya no afecta nSaldo
     }, INT_ID)
 
+    // No marca ningún pago como recibido
     expect((prisma as any).pagoCarteraDeuda.updateMany).not.toHaveBeenCalled()
+    // Actualiza saldo referencia (386285) — no nSaldo
     const callData = vi.mocked((prisma as any).syncDeuda.update).mock.calls[0][0].data
-    expect(callData.saldo).toBeUndefined()
+    expect(callData.saldo).toBe(386285)
+    expect(callData.nSaldo).toBeUndefined()
+    expect(callData.condition).toBeUndefined() // deuda sigue activa
   })
 
-  it('guardia: ABONO PARCIAL ya aplicado localmente, UpTres aún no refleja nada → preserva saldo parcial correcto', async () => {
-    vi.mocked((prisma as any).pagoCarteraDeuda.findMany).mockResolvedValueOnce([
-      { id: 'apl-2', montoAplicado: 200000, pagoId: 'p1' },
-    ])
-    vi.mocked((prisma as any).syncDeuda.update).mockResolvedValue({})
+  // ── Subset exacto (caso real Nancy Benítez, 25/06) ────────────────────────
 
-    await reconciliarDeuda({
-      sdId: 'sd-1', externalId: 'ext-1', saldo: 500000, valor: 500000,
-      condicionUpTres: true, saldoUptresAnterior: 500000, saldoLocalActual: 300000,
-    }, INT_ID)
-
-    expect((prisma as any).pagoCarteraDeuda.updateMany).not.toHaveBeenCalled()
-    const callData = vi.mocked((prisma as any).syncDeuda.update).mock.calls[0][0].data
-    expect(callData.saldo).toBeUndefined()
-  })
-
-  it('guardia NO debe aplicar si UpTres SUBIÓ (cargo nuevo) simultáneo con pago pendiente — debe sumar el cargo, no enmascararlo', async () => {
-    vi.mocked((prisma as any).pagoCarteraDeuda.findMany).mockResolvedValueOnce([
-      { id: 'apl-3', montoAplicado: 200000, pagoId: 'p1' },
-    ])
-    vi.mocked((prisma as any).syncDeuda.update).mockResolvedValue({})
-
-    await reconciliarDeuda({
-      sdId: 'sd-1', externalId: 'ext-1', saldo: 550000, valor: 500000,
-      condicionUpTres: true, saldoUptresAnterior: 500000, saldoLocalActual: 300000,
-    }, INT_ID)
-
-    expect((prisma as any).pagoCarteraDeuda.updateMany).not.toHaveBeenCalled()
-    expect((prisma as any).syncDeuda.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ saldo: 350000, condition: true }) })
-    )
-  })
-
-  // ── Subset exacto (caso real Nancy Benítez, 25/06) ──────────────────────────
-  it('delta coincide con UN subconjunto de aplicaciones pendientes (no la suma total) → marca solo ese subconjunto recibido', async () => {
-    // 3 pagos: 100000 (5/jun), 70000 (11/jun), 100000 (18/jun). UpTres confirmó
-    // los primeros 2 (delta=170000) pero el sync los ve junto al tercero (pendienteLocal=270000)
+  it('delta coincide con subconjunto de aplicaciones → marca solo ese subconjunto recibido', async () => {
     vi.mocked((prisma as any).pagoCarteraDeuda.findMany)
       .mockResolvedValueOnce([
         { id: 'apl-1', montoAplicado: 100000, pagoId: 'p1' },
-        { id: 'apl-2', montoAplicado: 70000, pagoId: 'p2' },
+        { id: 'apl-2', montoAplicado: 70000,  pagoId: 'p2' },
         { id: 'apl-3', montoAplicado: 100000, pagoId: 'p3' },
       ])
       .mockResolvedValueOnce([{ pagoId: 'p1' }, { pagoId: 'p2' }])
@@ -185,36 +166,32 @@ describe('sync-nocturno — reconciliarDeuda', () => {
     vi.mocked((prisma as any).pagoCartera.update).mockResolvedValue({})
     vi.mocked((prisma as any).syncDeuda.update).mockResolvedValue({})
 
-    await reconciliarDeuda({
-      sdId: 'sd-1', externalId: 'ext-1', saldo: 191500, valor: 361500,
-      condicionUpTres: true, saldoUptresAnterior: 361500, saldoLocalActual: 91500,
-    }, INT_ID)
+    // delta = 361500 - 191500 = 170000 = apl-1(100000) + apl-2(70000)
+    await reconciliarDeuda(base({ saldo: 191500, saldoUptresAnterior: 361500 }), INT_ID)
 
     expect((prisma as any).pagoCarteraDeuda.updateMany).toHaveBeenCalledWith({
       where: { id: { in: ['apl-1', 'apl-2'] } },
       data: expect.objectContaining({ envioEstado: 'recibido' }),
     })
     expect((prisma as any).syncDeuda.update).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ saldo: 191500, condition: true }) })
+      expect.objectContaining({ data: expect.objectContaining({ saldo: 191500 }) })
     )
   })
 
-  it('delta no coincide con ningún subconjunto → preserva sin marcar nada (comportamiento previo intacto)', async () => {
+  it('delta no coincide con ningún subconjunto → no marca nada, actualiza saldo referencia', async () => {
     vi.mocked((prisma as any).pagoCarteraDeuda.findMany).mockResolvedValueOnce([
       { id: 'apl-1', montoAplicado: 100000, pagoId: 'p1' },
-      { id: 'apl-2', montoAplicado: 70000, pagoId: 'p2' },
+      { id: 'apl-2', montoAplicado: 70000,  pagoId: 'p2' },
     ])
     vi.mocked((prisma as any).syncDeuda.update).mockResolvedValue({})
 
-    // delta=50000 — no coincide con 100000, ni 70000, ni 170000 (la suma)
-    await reconciliarDeuda({
-      sdId: 'sd-1', externalId: 'ext-1', saldo: 250000, valor: 500000,
-      condicionUpTres: true, saldoUptresAnterior: 300000, saldoLocalActual: 130000,
-    }, INT_ID)
+    // delta=50000 — no coincide con 100000, ni 70000, ni 170000
+    await reconciliarDeuda(base({ saldo: 250000, saldoUptresAnterior: 300000 }), INT_ID)
 
     expect((prisma as any).pagoCarteraDeuda.updateMany).not.toHaveBeenCalled()
-    const callData = vi.mocked((prisma as any).syncDeuda.update).mock.calls[0][0].data
-    expect(callData.saldo).toBeUndefined()
+    expect((prisma as any).syncDeuda.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ saldo: 250000 }) })
+    )
   })
 })
 
@@ -243,7 +220,6 @@ describe('sync-nocturno — encontrarSubsetExacto', () => {
       { id: 'b', montoAplicado: 50000 },
       { id: 'c', montoAplicado: 100000 },
     ]
-    // tanto [a,b] como [c] suman 100000 — debe preferir [c] (1 elemento, mas conservador)
     const resultado = encontrarSubsetExacto(aplicaciones, 100000)
     expect(resultado?.length).toBe(1)
     expect(resultado?.[0].id).toBe('c')
@@ -255,7 +231,7 @@ describe('sync-nocturno — encontrarSubsetExacto', () => {
   })
 })
 
-describe('sync-nocturno — derivarEnvioEstado (estado del recibo derivado de sus facturas)', () => {
+describe('sync-nocturno — derivarEnvioEstado', () => {
   it('recibo de 1 factura, recibido → recibido', () => {
     expect(derivarEnvioEstado([{ envioEstado: 'recibido' }])).toBe('recibido')
   })
@@ -266,19 +242,19 @@ describe('sync-nocturno — derivarEnvioEstado (estado del recibo derivado de su
     ])).toBe('recibido')
   })
 
-  it('recibo multi-factura, una recibido y otra enviado (ninguna pendiente) → enviado', () => {
+  it('recibo multi-factura, una recibido y otra enviado → enviado', () => {
     expect(derivarEnvioEstado([
       { envioEstado: 'recibido' }, { envioEstado: 'enviado' },
     ])).toBe('enviado')
   })
 
-  it('recibo multi-factura, una recibido y otra AÚN pendiente → pendiente (caso real del bug 24/06)', () => {
+  it('recibo multi-factura, una recibido y otra pendiente → pendiente (bug 24/06)', () => {
     expect(derivarEnvioEstado([
       { envioEstado: 'recibido' }, { envioEstado: 'pendiente' },
     ])).toBe('pendiente')
   })
 
-  it('recibo sin aplicaciones (caso borde) → pendiente', () => {
+  it('recibo sin aplicaciones → pendiente', () => {
     expect(derivarEnvioEstado([])).toBe('pendiente')
   })
 })
