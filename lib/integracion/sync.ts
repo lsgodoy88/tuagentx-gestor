@@ -1,73 +1,52 @@
 import { prisma, DB_SCHEMA } from '@/lib/prisma'
 import { Prisma } from '@/app/generated/prisma'
-const CORTE_LUMELI_0206 = new Date('2026-06-01T05:00:00Z')
-const EMPRESA_LUMELI = 'cmn7oiutk0001vmega46373b4'
+import { calcularNSaldoBatch, EMPRESA_LUMELI, CORTE_LUMELI } from '@/lib/cartera/calcularSaldo'
 
 /**
  * Calcula nSaldo v3 para un conjunto de SyncDeuda IDs.
- * Misma lógica que sync-nocturno.ts y [clienteId]/route.ts.
- * Retorna Record<syncDeudaId, nSaldo>.
+ * Delega a calcularNSaldoBatch — fuente unica de verdad.
  */
 export async function calcularNSaldoPorDeuda(
-  deudas: Array<{ id: string; valor: number | string; numeroFactura: number | string }>,
+  deudas: Array<{ id: string; valor: number | string; numeroFactura: number | string; nSaldo?: number | null; saldo?: number | null }>,
   empresaId: string
 ): Promise<Record<string, number>> {
   if (!deudas.length) return {}
   const ids = deudas.map(d => d.id)
 
-  // Lumeli: cargar saldos iniciales del corte 02/06
   let saldosInicialesLumeli: Record<number, number> = {}
   if (empresaId === EMPRESA_LUMELI) {
     const filas: any[] = await prisma.$queryRaw`
-      SELECT "numerofactura", "saldoinicial"
+      SELECT "numeroFactura", "saldoInicial"
       FROM ${Prisma.raw(DB_SCHEMA)}."LumeliSaldoInicial0206"`
     for (const f of filas) {
-      saldosInicialesLumeli[Number(f.numerofactura)] = Number(f.saldoinicial)
+      saldosInicialesLumeli[Number(f.numeroFactura ?? f.numerofactura)] = Number(f.saldoInicial ?? f.saldoinicial)
     }
   }
 
-  // Todos los pagos de estas deudas (una sola query)
   const aplicaciones = await (prisma as any).pagoCarteraDeuda.findMany({
     where: { syncDeudaId: { in: ids } },
     select: {
-      syncDeudaId: true, montoAplicado: true, descuento: true, createdAt: true,
+      syncDeudaId: true, montoAplicado: true, createdAt: true,
       PagoCartera: { select: { saldoAnterior: true } }
     },
     orderBy: { createdAt: 'asc' }
   })
 
-  // Acumular por deuda
-  const totalPagado: Record<string, number> = {}
-  const totalPostCorte: Record<string, number> = {}
-  const ancla: Record<string, number> = {}
-  for (const a of aplicaciones) {
-    const monto = Number(a.montoAplicado || 0) // montoAplicado ya incluye descuento
-    totalPagado[a.syncDeudaId] = (totalPagado[a.syncDeudaId] || 0) + monto
-    if (new Date(a.createdAt) > CORTE_LUMELI_0206) {
-      totalPostCorte[a.syncDeudaId] = (totalPostCorte[a.syncDeudaId] || 0) + monto
-    }
-    if (ancla[a.syncDeudaId] === undefined && a.PagoCartera?.saldoAnterior != null) {
-      ancla[a.syncDeudaId] = Number(a.PagoCartera.saldoAnterior)
-    }
-  }
+  const apls = aplicaciones.map((a: any) => ({
+    syncDeudaId: a.syncDeudaId,
+    montoAplicado: a.montoAplicado,
+    createdAt: a.createdAt,
+    saldoAnterior: a.PagoCartera?.saldoAnterior ?? null,
+  }))
 
+  const batch = calcularNSaldoBatch(deudas, apls, saldosInicialesLumeli, empresaId)
   const result: Record<string, number> = {}
-  for (const d of deudas) {
-    const saldoInicialLumeli = saldosInicialesLumeli[Number(d.numeroFactura)]
-    let nSaldo: number
-    if (empresaId === EMPRESA_LUMELI && saldoInicialLumeli !== undefined) {
-      nSaldo = Math.max(0, saldoInicialLumeli - (totalPostCorte[d.id] || 0))
-    } else if (ancla[d.id] !== undefined) {
-      nSaldo = Math.max(0, ancla[d.id] - (totalPagado[d.id] || 0))
-    } else {
-      nSaldo = Math.max(0, Number(d.valor))
-    }
-    result[d.id] = nSaldo
-  }
+  for (const [id, r] of Object.entries(batch)) result[id] = r.nSaldo
   return result
 }
 
 import { calcularEstado } from '@/lib/cartera'
+import { invalidarCacheCliente, invalidarCacheClientes } from '@/lib/cartera/saldoCliente'
 import type { AdaptadorIntegracion, DeudaExterna } from './types'
 import { UpTresAdapter } from './adapters/uptres'
 
@@ -327,6 +306,8 @@ export async function aplicarPagoEnCache(
         data: { nSaldo: a.saldoFinal }
       })
     ))
+    // Invalidar cache Redis del cliente
+    await invalidarCacheCliente(empresaId, clienteApiId).catch(() => {})
   } catch (e: any) {
     // No crítico — el sync nocturno reconstruye el cache con valores correctos
     console.error('[aplicarPagoEnCache] error (no critico):', e.message)
@@ -380,15 +361,13 @@ export async function actualizarCache(
 
   const ahora = new Date()
 
-  const EMPRESA_LUMELI = 'cmn7oiutk0001vmega46373b4'
-  const CORTE_LUMELI_0206 = new Date('2026-06-01T05:00:00Z') // sin offset: Prisma devuelve TIMESTAMP sin TZ como UTC
   let saldosInicialesLumeli: Record<number, number> = {}
   if (empresaId === EMPRESA_LUMELI) {
     const filas = await (prisma as any).$queryRaw`
-      SELECT "numerofactura", "saldoinicial" FROM ${Prisma.raw(DB_SCHEMA)}."LumeliSaldoInicial0206"
+      SELECT "numeroFactura", "saldoInicial" FROM ${Prisma.raw(DB_SCHEMA)}."LumeliSaldoInicial0206"
     `
     for (const f of filas as any[]) {
-      saldosInicialesLumeli[Number(f.numerofactura)] = Number(f.saldoinicial)
+      saldosInicialesLumeli[Number(f.numeroFactura ?? f.numerofactura)] = Number(f.saldoInicial ?? f.saldoinicial)
     }
   }
 
@@ -428,42 +407,20 @@ export async function actualizarCache(
     // completo en sync-nocturno.ts (hallazgo 27/06: abonos hechos directo en
     // UpTres antes de existir en nuestra app quedaban ignorados por valor-pagos).
     const sdIdsCliente = deudasCliente.map((d: any) => d.id)
-    const totalPagadoPorDeuda: Record<string, number> = {}
-    const totalPagadoPostCortePorDeuda: Record<string, number> = {}
-    const saldoAnclaPorDeuda: Record<string, number> = {}
-    if (sdIdsCliente.length > 0) {
-      const todasLasAplicaciones = await (prisma as any).pagoCarteraDeuda.findMany({
-        where: { syncDeudaId: { in: sdIdsCliente } },
-        select: { syncDeudaId: true, montoAplicado: true, descuento: true, createdAt: true, PagoCartera: { select: { saldoAnterior: true } } },
-        orderBy: { createdAt: 'asc' }
-      })
-      for (const a of todasLasAplicaciones) {
-        const monto = Number(a.montoAplicado || 0) // montoAplicado ya incluye descuento
-        totalPagadoPorDeuda[a.syncDeudaId] = (totalPagadoPorDeuda[a.syncDeudaId] || 0) + monto
-        if (new Date(a.createdAt) > CORTE_LUMELI_0206) {
-          totalPagadoPostCortePorDeuda[a.syncDeudaId] = (totalPagadoPostCortePorDeuda[a.syncDeudaId] || 0) + monto
-        }
-        if (saldoAnclaPorDeuda[a.syncDeudaId] === undefined && a.PagoCartera?.saldoAnterior != null) {
-          saldoAnclaPorDeuda[a.syncDeudaId] = Number(a.PagoCartera.saldoAnterior)
-        }
-      }
-    }
+    const aplsCliente = sdIdsCliente.length > 0 ? (await (prisma as any).pagoCarteraDeuda.findMany({
+      where: { syncDeudaId: { in: sdIdsCliente } },
+      select: { syncDeudaId: true, montoAplicado: true, createdAt: true, PagoCartera: { select: { saldoAnterior: true } } },
+      orderBy: { createdAt: 'asc' }
+    })).map((a: any) => ({ syncDeudaId: a.syncDeudaId, montoAplicado: a.montoAplicado, createdAt: a.createdAt, saldoAnterior: a.PagoCartera?.saldoAnterior ?? null })) : []
+    const nSaldoMapCliente = calcularNSaldoBatch(
+      deudasCliente.map((d: any) => ({ id: d.id, valor: d.valor, numeroFactura: d.numeroFactura, nSaldo: d.nSaldo, saldo: d.saldo })),
+      aplsCliente, saldosInicialesLumeli, empresaId
+    )
 
     const deudasDetalle = deudasCliente
       .map((d: any) => {
         const valor = Number(d.valor)
-        const saldoInicialLumeli = saldosInicialesLumeli[d.numeroFactura]
-        let nSaldo: number
-        if (saldoInicialLumeli !== undefined) {
-          const pagadoPostCorte = totalPagadoPostCortePorDeuda[d.id] || 0
-          nSaldo = Math.max(0, saldoInicialLumeli - pagadoPostCorte)
-        } else {
-          const totalPagado = totalPagadoPorDeuda[d.id] || 0
-          const ancla = saldoAnclaPorDeuda[d.id]
-          nSaldo = ancla !== undefined
-            ? Math.max(0, ancla - totalPagado)
-            : Math.max(0, Number(d.saldo))
-        }
+        const nSaldo = nSaldoMapCliente[d.id]?.nSaldo ?? Math.max(0, Number(d.nSaldo ?? d.saldo ?? d.valor))
         const { estado } = calcularEstado(nSaldo, valor, Number(d.abono), d.fechaVencimiento)
         return {
           id: d.id,
@@ -483,7 +440,7 @@ export async function actualizarCache(
 
     for (const d of deudasDetalle) {
       porEstado[d.estado] = (porEstado[d.estado] || 0) + d.saldo
-      saldoTotal += d.valor
+      saldoTotal += d.saldo    // usar nSaldo (d.saldo) no valor bruto
       saldoPendiente += d.saldo
       delete (d as any)._nSaldo
     }
@@ -542,6 +499,8 @@ export async function actualizarCache(
         data: { nSaldo: det ? det.saldo : 0 }
       })
     }))
+    // Invalidar cache Redis del cliente
+    await invalidarCacheCliente(empresaId, apiId).catch(() => {})
   }
 }
 

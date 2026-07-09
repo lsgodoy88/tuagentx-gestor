@@ -282,7 +282,7 @@ describe('lib/integracion/adapters/uptres — UpTresAdapter', () => {
       const a = new UpTresAdapter('k', 's')
       await a.login()
       await a.fetchDeudas(new Date('2026-05-01T00:00:00Z'))
-      expect(capturedUrl).toContain('from=2026-05-01')
+      expect(capturedUrl).toContain('from=2026-04-30') // adapter convierte UTC→Bogotá (UTC-5)
       expect(capturedUrl).toContain('to=')
     })
 

@@ -5,10 +5,12 @@
  */
 import { prisma } from '@/lib/prisma'
 import { invalidatePattern } from '@/lib/cache'
+import { invalidarCacheClientes } from '@/lib/cartera/saldoCliente'
 import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 import { calcularEstado } from '@/lib/cartera'
 import { nowBogota } from '@/lib/fechas'
+import { calcularNSaldoBatch, EMPRESA_LUMELI as LUMELI_ID, CORTE_LUMELI as CORTE_LUMELI_0206 } from '@/lib/cartera/calcularSaldo'
 import { actualizarDeudasInactivas } from '@/lib/integracion/sync'
 import { recalcularVentasMesImpulsos } from '@/lib/integracion/venta-mes'
 
@@ -93,6 +95,7 @@ export interface ReconciliarInput {
   saldoLocalActual: number     // SyncDeuda.saldo ANTES de este sync
   externalUpdatedAt?: Date | null
   receivableAt?: Date | null
+  fechaVencimiento?: Date | null
   data?: any
 }
 
@@ -102,6 +105,7 @@ export async function reconciliarDeuda(u: ReconciliarInput, integracionId: strin
     saldoUptresOriginal: u.saldo,
     externalUpdatedAt: u.externalUpdatedAt ?? null,
     receivableAt: u.receivableAt ?? null,
+    fechaVencimiento: u.fechaVencimiento ?? null,
     sincronizadoEl: new Date(),
     data: u.data,
   }
@@ -219,10 +223,9 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
   // Para facturas NUEVAS (creadas después del corte) o de OTRA empresa
   // (Leche, sin archivo equivalente): sigue el fix v2 (ancla saldoAnterior
   // si hay pago nuestro, saldo crudo si no) — sin cambio.
-  const EMPRESA_LUMELI = 'cmn7oiutk0001vmega46373b4'
-  const CORTE_LUMELI_0206 = new Date('2026-06-01T05:00:00Z') // sin offset: Prisma devuelve TIMESTAMP sin TZ como UTC
+  // Saldos iniciales Lumeli
   let saldosInicialesLumeli: Record<number, number> = {}
-  if (empresaId === EMPRESA_LUMELI) {
+  if (empresaId === LUMELI_ID) {
     const filas = await (prisma as any).$queryRaw`
       SELECT "numeroFactura", "saldoInicial" FROM gestor."LumeliSaldoInicial0206"
     `
@@ -232,27 +235,21 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
   }
 
   const sdIds = deudas.map((d: any) => d.id)
-  const totalPagadoPorDeuda: Record<string, number> = {}
-  const totalPagadoPostCortePorDeuda: Record<string, number> = {} // solo pagos > CORTE_LUMELI_0206
-  const saldoAnclaPorDeuda: Record<string, number> = {} // saldoAnterior del primer pago, si existe
-  if (sdIds.length > 0) {
-    const todasLasAplicaciones = await (prisma as any).pagoCarteraDeuda.findMany({
-      where: { syncDeudaId: { in: sdIds } }, // TODOS los estados — pendiente+enviado+recibido
-      select: { syncDeudaId: true, montoAplicado: true, descuento: true, createdAt: true, PagoCartera: { select: { saldoAnterior: true } } },
-      orderBy: { createdAt: 'asc' }
-    })
-    for (const a of todasLasAplicaciones) {
-      const monto = Number(a.montoAplicado || 0) // montoAplicado ya incluye descuento
-      totalPagadoPorDeuda[a.syncDeudaId] = (totalPagadoPorDeuda[a.syncDeudaId] || 0) + monto
-      if (new Date(a.createdAt) > CORTE_LUMELI_0206) {
-        totalPagadoPostCortePorDeuda[a.syncDeudaId] = (totalPagadoPostCortePorDeuda[a.syncDeudaId] || 0) + monto
-      }
-      // El PRIMER pago cronológico (orderBy asc, solo se fija si aún no existe ancla) define el ancla
-      if (saldoAnclaPorDeuda[a.syncDeudaId] === undefined && a.PagoCartera?.saldoAnterior != null) {
-        saldoAnclaPorDeuda[a.syncDeudaId] = Number(a.PagoCartera.saldoAnterior)
-      }
-    }
-  }
+  const todasLasAplicaciones = sdIds.length > 0 ? await (prisma as any).pagoCarteraDeuda.findMany({
+    where: { syncDeudaId: { in: sdIds } },
+    select: { syncDeudaId: true, montoAplicado: true, createdAt: true, PagoCartera: { select: { saldoAnterior: true } } },
+    orderBy: { createdAt: 'asc' }
+  }) : []
+  const apls = todasLasAplicaciones.map((a: any) => ({
+    syncDeudaId: a.syncDeudaId,
+    montoAplicado: a.montoAplicado,
+    createdAt: a.createdAt,
+    saldoAnterior: a.PagoCartera?.saldoAnterior ?? null,
+  }))
+  const nSaldoMap = calcularNSaldoBatch(
+    deudas.map((d: any) => ({ id: d.id, valor: d.valor, numeroFactura: d.numeroFactura, nSaldo: d.nSaldo, saldo: d.saldo })),
+    apls, saldosInicialesLumeli, empresaId
+  )
 
   const apiIds = [...new Set(deudas.map((d: any) => d.clienteApiId))]
   const clientes = await (prisma as any).cliente.findMany({
@@ -307,18 +304,7 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
     const deudasDetalle = deudasOrdenadas
       .map((d: any) => {
         const valor = Number(d.valor)
-        const saldoInicialLumeli = saldosInicialesLumeli[d.numeroFactura]
-        let nSaldo: number
-        if (saldoInicialLumeli !== undefined) {
-          const pagadoPostCorte = totalPagadoPostCortePorDeuda[d.id] || 0
-          nSaldo = Math.max(0, saldoInicialLumeli - pagadoPostCorte)
-        } else {
-          const totalPagado = totalPagadoPorDeuda[d.id] || 0
-          const ancla = saldoAnclaPorDeuda[d.id]
-          nSaldo = ancla !== undefined
-            ? Math.max(0, ancla - totalPagado)
-            : Math.max(0, Number(d.saldo))
-        }
+        const nSaldo = nSaldoMap[d.id]?.nSaldo ?? Math.max(0, Number(d.nSaldo ?? d.saldo ?? d.valor))
         const { estado } = calcularEstado(nSaldo, valor, Number(d.abono), d.fechaVencimiento)
         return { id: d.id, externalId: d.externalId, numeroOrden: d.numeroOrden, numeroFactura: d.numeroFactura, valor, saldo: nSaldo, abono: Number(d.abono), diasCredito: d.diasCredito, fechaVencimiento: d.fechaVencimiento, estado, _nSaldo: nSaldo }
       })
@@ -430,6 +416,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
           const sdLocal: any = existentesMap.get(externalId)
           toUpdate.push({
             externalId, saldo, valor, externalUpdatedAt, receivableAt, data: d,
+            fechaVencimiento: d.fPago ? new Date(d.fPago) : null,
             condicionUpTres: Boolean(d.condicionUpTres !== false),
             sdId: sdLocal.id,
             clienteApiId: d.cliente?.uid || sdLocal.clienteApiId || '',
@@ -447,6 +434,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
             valor,
             saldo,
             diasCredito: d.dias ? parseInt(String(d.dias)) : null,
+            fechaVencimiento: d.fPago ? new Date(d.fPago) : null,
             condition: Boolean(d.condicionUpTres !== false), // condition real de UpTres
             data: d as any,
             externalUpdatedAt,
@@ -559,6 +547,9 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
       // Nocturno invalida todo — corre 1 vez/día, datos masivos
       await invalidatePattern('g:*')
 
+      // Invalidar cache Redis de todos los clientes procesados
+      const clienteApiIdsActualizados = [...new Set([...toInsert.map((d: any) => d.clienteApiId), ...toUpdate.map((u: any) => u.clienteApiId)].filter(Boolean))]
+      await invalidarCacheClientes(intg.empresaId, clienteApiIdsActualizados).catch(() => {})
       resultados.push({ empresaId: intg.empresaId, deudas: deudas.length, insertadas: toInsert.length, actualizadas: toUpdate.length, clientesCache: clientesActualizados })
     } catch (err: any) {
       console.error(`[sync-nocturno] Error integracion ${intg.id}:`, err.message)

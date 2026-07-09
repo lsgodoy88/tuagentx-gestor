@@ -2,14 +2,15 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma, DB_SCHEMA } from '@/lib/prisma'
-import { Prisma } from '@/app/generated/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
 import { calcularEstado } from '@/lib/cartera'
+import { calcularNSaldoPorDeuda } from '@/lib/integracion/sync'
 
 const CORTE_LUMELI = new Date('2026-06-01T05:00:00Z').getTime() // sin offset: Prisma devuelve TIMESTAMP sin TZ como UTC
 const LUMELI_ID = 'cmn7oiutk0001vmega46373b4'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ clienteId: string }> }) {
+  try {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
@@ -44,57 +45,36 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
     // nSaldo v3: calculado desde datos propios, sin depender de SyncDeuda.saldo
     // (que solo se actualiza cuando UpTres sincroniza). Misma fórmula que
     // reconstruirCartera() — fuente única de verdad para el saldo que ve el vendedor.
-    const esLumeli = empresaId === LUMELI_ID
-    let saldosInicialesLumeli: Record<number, number> = {}
-    if (esLumeli) {
-      const rows: any[] = await prisma.$queryRaw`
-        SELECT "numeroFactura", "saldoInicial"
-        FROM ${Prisma.raw(DB_SCHEMA)}."LumeliSaldoInicial0206"`
-      for (const r of rows) {
-        saldosInicialesLumeli[Number(r.numerofactura ?? r.numeroFactura)] = Number(r.saldoinicial ?? r.saldoInicial)
-      }
+    // nSaldo v3 — una sola query para todas las deudas (no N+1)
+    const nSaldoMap = await calcularNSaldoPorDeuda(
+      deudas.map((d: any) => ({ id: d.id, valor: d.valor, numeroFactura: d.numeroFactura, nSaldo: d.nSaldo, saldo: d.saldo })),
+      empresaId
+    )
+
+    // Pagos locales — una sola query para todas las deudas
+    const pagosLocalesTodos = await (prisma as any).pagoCartera.findMany({
+      where: { syncDeudaId: { in: deudas.map((d: any) => d.id) } },
+      orderBy: { createdAt: 'desc' },
+      include: { Empleado: { select: { id: true, nombre: true } } }
+    })
+    const pagosLocalesPorDeuda: Record<string, any[]> = {}
+    for (const p of pagosLocalesTodos) {
+      if (!pagosLocalesPorDeuda[p.syncDeudaId]) pagosLocalesPorDeuda[p.syncDeudaId] = []
+      pagosLocalesPorDeuda[p.syncDeudaId].push({ ...p, empleado: p.Empleado })
     }
 
-    const deudasEnriquecidas = await Promise.all(deudas.map(async (d: any) => {
-      const aplicaciones = await (prisma as any).pagoCarteraDeuda.findMany({
-        where: { syncDeudaId: d.id },
-        select: { montoAplicado: true, descuento: true, createdAt: true, pagoId: true },
-        orderBy: { createdAt: 'asc' }
-      })
-      const pagosLocales = await (prisma as any).pagoCartera.findMany({
-        where: { syncDeudaId: d.id },
-        orderBy: { createdAt: 'desc' },
-        include: { Empleado: { select: { id: true, nombre: true } } }
-      })
-
-      let saldoReal: number
-      if (esLumeli && saldosInicialesLumeli[d.numeroFactura] !== undefined) {
-        const pagadoPost = aplicaciones
-          .filter((p: any) => new Date(p.createdAt).getTime() > CORTE_LUMELI)
-          .reduce((s: number, p: any) => s + Number(p.montoAplicado), 0) // montoAplicado ya incluye descuento
-        saldoReal = Math.max(0, saldosInicialesLumeli[d.numeroFactura] - pagadoPost)
-      } else if (aplicaciones.length > 0) {
-        const primerPago = await (prisma as any).pagoCartera.findFirst({
-          where: { id: aplicaciones[0].pagoId },
-          select: { saldoAnterior: true }
-        })
-        const ancla = primerPago?.saldoAnterior !== undefined ? Number(primerPago.saldoAnterior) : Number(d.valor)
-        const totalPagado = aplicaciones.reduce((s: number, p: any) => s + Number(p.montoAplicado), 0) // montoAplicado ya incluye descuento
-        saldoReal = Math.max(0, ancla - totalPagado)
-      } else {
-        // nSaldo v3 persistido en BD — fuente de verdad cuando no hay pagos locales
-        saldoReal = Number(d.nSaldo ?? d.saldo ?? d.valor)
-      }
-
+    const deudasEnriquecidas = deudas.map((d: any) => {
+      const saldoReal = nSaldoMap[d.id] ?? Number(d.nSaldo ?? d.saldo ?? d.valor)
+      const pagosLocales = pagosLocalesPorDeuda[d.id] || []
       return {
         ...d,
         saldoReal,
         saldoSync: saldoReal,
         saldoCambioEnSync: false,
-        pagosLocales: pagosLocales.map((p: any) => ({ ...p, empleado: p.Empleado })),
+        pagosLocales,
         totalPagosLocales: pagosLocales.reduce((s: number, p: any) => s + Number(p.monto), 0),
       }
-    }))
+    })
 
     const saldoTotalCliente = deudasEnriquecidas.reduce((s: number, d: any) => s + d.saldoReal, 0)
 
@@ -114,4 +94,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
 
   // Cliente sin integración activa
   return NextResponse.json({ cartera: null, _motivo: 'sin integracion activa' })
+  } catch (e: any) {
+    console.error('[cartera/detalle] error:', e?.message ?? e)
+    return NextResponse.json({ error: 'Error al cargar deuda', cartera: null }, { status: 500 })
+  }
 }

@@ -391,9 +391,24 @@ export default function CarteraPage() {
     setLineasPago([crearLinea()])
     setNotasPago('')
     setLoadingDetalle(true)
-    const res = await fetch(`/api/cartera/${cartera.clienteId}`)
-    const data = await res.json()
-    setLoadingDetalle(false)
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 12000)
+    let data: any = {}
+    try {
+      const res = await fetch(`/api/cartera/${cartera.clienteId}`, { signal: controller.signal })
+      data = await res.json()
+      if (!res.ok) throw new Error(data.error || `Error ${res.status}`)
+    } catch (e: any) {
+      clearTimeout(timer)
+      setLoadingDetalle(false)
+      const msg = e?.name === 'AbortError' ? 'Tiempo de espera agotado. Intenta de nuevo.' : 'No se pudo cargar la deuda. Intenta de nuevo.'
+      alert(msg)
+      setRecaudandoCartera(null)
+      return
+    } finally {
+      clearTimeout(timer)
+      setLoadingDetalle(false)
+    }
     const dc = data.cartera
     if (!dc) { setDetalleData(null); return }
     dc.DetalleCartera = (dc.deudas || []).map((d: any) => ({

@@ -87,7 +87,6 @@ export default function ModalRecaudo({
   React.useEffect(() => {
     if (lineasPago.length > 1) setTimeout(() => scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' }), 80)
   }, [lineasPago.length])
-  console.log("[modal-render] lineas=", lineasPago.length)
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 px-2" style={{background:"#0f1729"}}>
@@ -214,7 +213,6 @@ export default function ModalRecaudo({
                           onChange={async e => {
                           const file = e.target.files?.[0]
                           if (!file) return
-                          console.log('[modal] subiendo voucher lineaId=', linea.id)
                           // Marcar cargando
                           onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, cargandoVoucher: true } : l))
                           try {
@@ -222,18 +220,15 @@ export default function ModalRecaudo({
                             const tempId = crypto.randomUUID()
                             const resp = await fetch('/api/cartera/voucher', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archivoBase64, mimeType: file.type, pagoId: tempId }) })
                             const data = await resp.json()
-                            console.log('[modal] pagos recibidos:', JSON.stringify(data.pagos))
                             const pagos: any[] = Array.isArray(data.pagos) && data.pagos.length > 0 ? data.pagos : [data.datosIA]
                             if (pagos.length <= 1) {
                               onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, voucherKey: data.key, voucherDatosIA: pagos[0], cargandoVoucher: false, monto: pagos[0]?.valor ? String(Math.round(pagos[0].valor)) : l.monto } : l))
                             } else {
-                              console.log('[modal] expandiendo', pagos.length, 'líneas')
                               onSetLineasPago(prev => {
                                 const idx = prev.findIndex(l => l.id === linea.id)
                                 if (idx === -1) return prev
                                 const nuevas = pagos.map((p: any, i: number) => ({ ...crearLinea(), id: i === 0 ? linea.id : crypto.randomUUID(), metodoPago: 'transferencia' as const, voucherKey: data.key, voucherDatosIA: p, cargandoVoucher: false, monto: p?.valor ? String(Math.round(p.valor)) : '' }))
                                 const result = [...prev.slice(0, idx), ...nuevas, ...prev.slice(idx + 1)]
-                                console.log('[modal] nuevo array:', result.length, 'líneas')
                                 return result
                               })
                             }

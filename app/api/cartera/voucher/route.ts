@@ -79,7 +79,6 @@ export async function POST(req: NextRequest) {
   if (msgResult.status === 'fulfilled') {
     try {
       const text = (msgResult.value.choices[0]?.message?.content ?? '').trim()
-      console.log('[voucher-ia-raw]', text)
       const clean = text.replace(/```json|```/g, '').trim()
       const match = clean.match(/\[[\s\S]*\]/)
       if (match) {
