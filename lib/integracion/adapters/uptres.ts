@@ -214,14 +214,22 @@ export class UpTresAdapter implements AdaptadorIntegracion {
 
   private _mapearDeudas(data: any[]): DeudaExterna[] {
     return data.map((o: any) => {
-      let fPago: string | null = o.paidAt || null
-      if (!fPago && o.creditDay && o.createdAt) {
+      // Prioridad fechaVencimiento:
+      // 1. receivableAt — campo explícito de UpTres
+      // 2. createdAt + creditDay — determinista
+      // 3. paidAt — solo fallback
+      let fPago: string | null = null
+      if (o.receivableAt) {
+        fPago = o.receivableAt
+      } else if (o.creditDay && o.createdAt) {
         const dias = parseInt(o.creditDay || '0')
         if (dias > 0) {
           const fecha = new Date(o.createdAt)
           fecha.setDate(fecha.getDate() + dias)
           fPago = fecha.toISOString()
         }
+      } else {
+        fPago = o.paidAt || null
       }
       return {
         uid: o.id,
@@ -291,14 +299,22 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       cursorId = d.nextCursor.cursorId
     }
     return todas.map((o: any) => {
-      let fPago: string | null = o.paidAt || null
-      if (!fPago && o.creditDay && o.createdAt) {
+      // Prioridad fechaVencimiento:
+      // 1. receivableAt — campo explícito de UpTres
+      // 2. createdAt + creditDay — determinista
+      // 3. paidAt — solo fallback
+      let fPago: string | null = null
+      if (o.receivableAt) {
+        fPago = o.receivableAt
+      } else if (o.creditDay && o.createdAt) {
         const dias = parseInt(o.creditDay || '0')
         if (dias > 0) {
           const fecha = new Date(o.createdAt)
           fecha.setDate(fecha.getDate() + dias)
           fPago = fecha.toISOString()
         }
+      } else {
+        fPago = o.paidAt || null
       }
       return {
         uid: o.id,
@@ -341,14 +357,22 @@ export class UpTresAdapter implements AdaptadorIntegracion {
   }
 
   private _mapDeudaExterna(o: any, clienteId?: string): DeudaExterna {
-    let fPago: string | null = o.paidAt || null
-    if (!fPago && o.creditDay && o.createdAt) {
+    // Prioridad fechaVencimiento:
+    // 1. receivableAt — campo explícito de UpTres
+    // 2. createdAt + creditDay — determinista
+    // 3. paidAt — solo fallback
+    let fPago: string | null = null
+    if (o.receivableAt) {
+      fPago = o.receivableAt
+    } else if (o.creditDay && o.createdAt) {
       const dias = parseInt(o.creditDay || '0')
       if (dias > 0) {
         const fecha = new Date(o.createdAt)
         fecha.setDate(fecha.getDate() + dias)
         fPago = fecha.toISOString()
       }
+    } else {
+      fPago = o.paidAt || null
     }
     return {
       uid: o.id,

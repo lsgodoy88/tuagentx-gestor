@@ -3,10 +3,10 @@
  *
  * Prioridad:
  *   1. Lumeli + LumeliSaldoInicial0206 → saldoInicial - pagos post-corte
- *   2. Todas las demás empresas → valor - SUM(todos nuestros pagos)
- *      Determinista, inmune al lag de UpTres. UpTres solo define `valor`
- *      (inmutable) y `condition=false` (deuda saldada). Nunca interfiere
- *      con el saldo que ve el vendedor.
+ *   2. Todas las demás empresas → nSaldo persistido en BD (calculado por
+ *      aplicarPagoEnCache post-pago, y preservado por reconstruirCartera).
+ *      Fallback: saldo (crudo UpTres) → valor.
+ *      El nocturno NO toca nSaldo — inmune al lag de UpTres.
  *
  * CRITICO: montoAplicado YA incluye descuento.
  */

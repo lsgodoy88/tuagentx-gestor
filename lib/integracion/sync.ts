@@ -395,23 +395,14 @@ export async function actualizarCache(
     let saldoTotal = 0
     let saldoPendiente = 0
 
-    // FIX 26/06 — nSaldo = vTotal - SUM(todos los pagos/abonos de esta factura,
-    // cualquier envioEstado). Mismo principio que reconstruirCartera() en
-    // sync-nocturno.ts — esta función (actualizarCache) se llama tras crear o
-    // eliminar un pago individual (pago-sync, DELETE recaudos/[pagoId]), así
-    // que debía quedar igual o el cache quedaría inconsistente según cuál de
-    // las dos funciones lo haya escrito último.
-    // FIX 27/06 — mismo fix híbrido que reconstruirCartera() en sync-nocturno.ts:
-    // sin pago nuestro todavía, usar d.saldo crudo (única fuente real); con pago
-    // nuestro, usar saldoAnterior del primer pago como ancla. Ver comentario
-    // completo en sync-nocturno.ts (hallazgo 27/06: abonos hechos directo en
-    // UpTres antes de existir en nuestra app quedaban ignorados por valor-pagos).
+    // nSaldo via calcularNSaldoBatch — misma lógica que reconstruirCartera().
+    // Se llama tras crear o eliminar un pago individual para mantener consistencia.
     const sdIdsCliente = deudasCliente.map((d: any) => d.id)
     const aplsCliente = sdIdsCliente.length > 0 ? (await (prisma as any).pagoCarteraDeuda.findMany({
       where: { syncDeudaId: { in: sdIdsCliente } },
-      select: { syncDeudaId: true, montoAplicado: true, createdAt: true, PagoCartera: { select: { saldoAnterior: true } } },
+      select: { syncDeudaId: true, montoAplicado: true, createdAt: true },
       orderBy: { createdAt: 'asc' }
-    })).map((a: any) => ({ syncDeudaId: a.syncDeudaId, montoAplicado: a.montoAplicado, createdAt: a.createdAt, saldoAnterior: a.PagoCartera?.saldoAnterior ?? null })) : []
+    })).map((a: any) => ({ syncDeudaId: a.syncDeudaId, montoAplicado: a.montoAplicado, createdAt: a.createdAt })) : []
     const nSaldoMapCliente = calcularNSaldoBatch(
       deudasCliente.map((d: any) => ({ id: d.id, valor: d.valor, numeroFactura: d.numeroFactura, nSaldo: d.nSaldo, saldo: d.saldo })),
       aplsCliente, saldosInicialesLumeli, empresaId

@@ -43,7 +43,7 @@ describe('DELETE /api/recaudos/[pagoId] — reversion de saldo', () => {
       Cartera: { empresaId: 'emp-1' }, Empleado: { empresaId: 'emp-1' },
       Aplicaciones: [{ syncDeudaId: 'sd-1', montoAplicado: 100000 }],
     })
-    vi.mocked((prisma as any).syncDeuda.findUnique).mockResolvedValue({ saldo: 0, valor: 300000, clienteApiId: 'api-c1', integracionId: 'int-1' })
+    vi.mocked((prisma as any).syncDeuda.findUnique).mockResolvedValue({ saldo: 0, nSaldo: 0, valor: 300000, clienteApiId: 'api-c1', integracionId: 'int-1' })
     vi.mocked((prisma as any).syncDeuda.update).mockResolvedValue({})
     vi.mocked((prisma as any).pagoCartera.delete).mockResolvedValue({})
     vi.mocked((prisma as any).empleado.findUnique).mockResolvedValue({ configRecibos: {} })
@@ -53,7 +53,7 @@ describe('DELETE /api/recaudos/[pagoId] — reversion de saldo', () => {
 
     expect((prisma as any).syncDeuda.update).toHaveBeenCalledWith({
       where: { id: 'sd-1' },
-      data: { saldo: 100000, condition: true },
+      data: { saldo: 100000, nSaldo: 100000, condition: true },
     })
     expect(data.ok).toBe(true)
     expect(data.advertencia).toBeUndefined()
@@ -107,7 +107,7 @@ describe('DELETE /api/recaudos/[pagoId] — reversion de saldo', () => {
       Aplicaciones: [{ syncDeudaId: 'sd-1', montoAplicado: 500000 }],
     })
     // saldo actual 100000 + monto 500000 = 600000, pero valor de la factura es solo 300000
-    vi.mocked((prisma as any).syncDeuda.findUnique).mockResolvedValue({ saldo: 100000, valor: 300000 })
+    vi.mocked((prisma as any).syncDeuda.findUnique).mockResolvedValue({ saldo: 100000, nSaldo: 100000, valor: 300000 })
     vi.mocked((prisma as any).syncDeuda.update).mockResolvedValue({})
     vi.mocked((prisma as any).pagoCartera.delete).mockResolvedValue({})
     vi.mocked((prisma as any).empleado.findUnique).mockResolvedValue({ configRecibos: {} })
@@ -116,7 +116,7 @@ describe('DELETE /api/recaudos/[pagoId] — reversion de saldo', () => {
 
     expect((prisma as any).syncDeuda.update).toHaveBeenCalledWith({
       where: { id: 'sd-1' },
-      data: { saldo: 300000, condition: true }, // acotado al valor, no 600000
+      data: { saldo: 300000, nSaldo: 300000, condition: true }, // acotado al valor, no 600000
     })
   })
 

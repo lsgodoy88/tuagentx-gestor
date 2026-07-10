@@ -414,8 +414,22 @@ export default function RutasFijasPage() {
                     const dia = DIAS[diaNum]
                     const rutaDia = rutasEmp.find(r => r.diaSemana === diaNum)
                     const esOculto = rutaDia ? !esDiaAbierto(emp.id, diaNum) : true
-                    const metaTotal = rutaDia ? rutaDia.clientes.reduce((a: number, rc: any) => a + (rc.metaVenta || 0), 0) : 0
-                                        const logradoTotal = rutaDia ? rutaDia.clientes.reduce((a: number, rc: any) => a + (ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || ventasHoy[rc.clienteId] || 0), 0) : 0
+                    const metaTotal = rutaDia ? (() => {
+                      const seen = new Set<string>()
+                      return rutaDia.clientes.reduce((a: number, rc: any) => {
+                        if (seen.has(rc.clienteId)) return a
+                        seen.add(rc.clienteId)
+                        return a + (rc.metaVenta || 0)
+                      }, 0)
+                    })() : 0
+                    const logradoTotal = rutaDia ? (() => {
+                      const seen = new Set<string>()
+                      return rutaDia.clientes.reduce((a: number, rc: any) => {
+                        if (seen.has(rc.clienteId)) return a
+                        seen.add(rc.clienteId)
+                        return a + (ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || ventasHoy[rc.clienteId] || 0)
+                      }, 0)
+                    })() : 0
                     const pctTotal = metaTotal > 0 ? Math.round((logradoTotal / metaTotal) * 100) : null
                     return (
                       <div key={diaNum} className="border border-blue-500/40 rounded-xl overflow-hidden" style={{background:'#060a24'}}>
@@ -461,7 +475,9 @@ export default function RutasFijasPage() {
                               const ventaMesActual = ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || 0
                               const logrado = ventaMesActual || ventasHoy[rc.clienteId] || 0
                               const pct = rc.metaVenta > 0 ? Math.round((logrado / rc.metaVenta) * 100) : null
-                              const esRep = clientesRepetidos.has(rc.clienteId) && clientesPrimerDia[rc.clienteId] !== diaNum
+                              // Duplicado si: ya apareció en otro día O ya apareció antes en este mismo día
+                              const aparicionesEnEsteDia = rutaDia.clientes.slice(0, i).filter((x: any) => x.clienteId === rc.clienteId).length
+                              const esRep = aparicionesEnEsteDia > 0 || (clientesRepetidos.has(rc.clienteId) && clientesPrimerDia[rc.clienteId] !== diaNum)
                               const bCol = pct === null ? 'bg-zinc-600' : pct >= 100 ? 'bg-blue-500' : pct >= 70 ? 'bg-cyan-500' : pct >= 40 ? 'bg-yellow-500' : 'bg-red-500'
                               return (
                                 <div key={rc.id} className="rounded-xl px-3 py-2.5 space-y-1" style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.35)"}}>
@@ -589,7 +605,7 @@ export default function RutasFijasPage() {
                   placeholder="Buscar..."
                   className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-blue-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
                 <div className="space-y-1.5">
-                  {clientes.filter((c: any) => !cliSeleccionados.includes(c.id)).map((c: any) => (
+                  {clientes.map((c: any) => (
                     <div key={c.id} className="flex items-center gap-3 bg-zinc-800 rounded-xl px-3 py-2.5">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">

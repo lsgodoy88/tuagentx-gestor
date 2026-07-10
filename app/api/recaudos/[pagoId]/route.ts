@@ -137,13 +137,15 @@ export async function DELETE(
     for (const a of aplicacionesARevertir) {
       const sd = await tx.syncDeuda.findUnique({
         where: { id: a.syncDeudaId },
-        select: { saldo: true, valor: true, clienteApiId: true, integracionId: true }
+        select: { saldo: true, nSaldo: true, valor: true, clienteApiId: true, integracionId: true }
       })
       if (!sd) continue
       const saldoRevertido = Math.min(Number(sd.valor), Number(sd.saldo) + a.montoAplicado)
+      // nSaldo también se revierte — es la fuente que ve el vendedor
+      const nSaldoRevertido = Math.min(Number(sd.valor), Number(sd.nSaldo ?? sd.saldo) + a.montoAplicado)
       await tx.syncDeuda.update({
         where: { id: a.syncDeudaId },
-        data: { saldo: saldoRevertido, condition: saldoRevertido > 0 }
+        data: { saldo: saldoRevertido, nSaldo: nSaldoRevertido, condition: saldoRevertido > 0 }
       })
       clientesApiIdAfectados.add(sd.clienteApiId)
       integracionIdAfectada = sd.integracionId

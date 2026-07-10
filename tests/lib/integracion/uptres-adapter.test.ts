@@ -254,13 +254,14 @@ describe('lib/integracion/adapters/uptres — UpTresAdapter', () => {
       expect(deudas[0].fPago).toBe('2026-05-16T00:00:00.000Z')
     })
 
-    it('con paidAt → usa paidAt directo (sin calcular)', async () => {
+    it('con receivableAt → usa receivableAt (prioridad 1)', async () => {
       global.fetch = mockFetch((url) => {
         if (url.includes('/auth/api')) return { ok: true, token: 'tok' }
         return {
           ok: true,
           data: [{
             id: 'ord-1', total: '100', balance: '0',
+            receivableAt: '2026-05-15T10:00:00Z',
             paidAt: '2026-05-08T12:00:00Z',
             creditDay: '99', createdAt: '2026-01-01',
           }],
@@ -269,7 +270,27 @@ describe('lib/integracion/adapters/uptres — UpTresAdapter', () => {
       const a = new UpTresAdapter('k', 's')
       await a.login()
       const deudas = await a.fetchDeudas()
-      expect(deudas[0].fPago).toBe('2026-05-08T12:00:00Z')
+      // receivableAt tiene prioridad sobre paidAt y createdAt+creditDay
+      expect(deudas[0].fPago).toBe('2026-05-15T10:00:00Z')
+    })
+
+    it('sin receivableAt, con creditDay+createdAt → calcula createdAt+dias (prioridad 2)', async () => {
+      global.fetch = mockFetch((url) => {
+        if (url.includes('/auth/api')) return { ok: true, token: 'tok' }
+        return {
+          ok: true,
+          data: [{
+            id: 'ord-1', total: '100', balance: '0',
+            paidAt: '2026-05-08T12:00:00Z',
+            creditDay: '30', createdAt: '2026-04-29',
+          }],
+        }
+      })
+      const a = new UpTresAdapter('k', 's')
+      await a.login()
+      const deudas = await a.fetchDeudas()
+      // Sin receivableAt: createdAt(2026-04-29) + 30 dias = 2026-05-29
+      expect(deudas[0].fPago).toBe(new Date('2026-04-29').setDate(new Date('2026-04-29').getDate() + 30) && new Date(new Date('2026-04-29').setDate(new Date('2026-04-29').getDate() + 30)).toISOString())
     })
 
     it('con desde → agrega params from/to (rango)', async () => {
