@@ -31,7 +31,8 @@ export async function GET() {
          ordenesDespachadasHoy, ordenesFact,
          impulsosActivos, totalImpulsos,
          recaudoHoy, recaudoMesAgg,
-         metaVentaRows, metaRecaudoRows] = await Promise.all([
+         metaVentaRows, metaRecaudoRows,
+         ventasMesAgg] = await Promise.all([
     prisma.empleado.count({ where: { empresaId, activo: true } }),
     prisma.cliente.count({ where: { empresaId } }),
     prisma.turno.count({ where: { empleado: { empresaId }, activo: true } }),
@@ -63,13 +64,14 @@ export async function GET() {
     // Metas mes actual — suma de todos los vendedores de la empresa
     (prisma as any).metaVenta.findMany({ where: { empresaId, mes: mesActual, anio: anioActual }, select: { metaPesos: true, empleado: { select: { nombre: true } } } }),
     (prisma as any).metaRecaudo.findMany({ where: { empresaId, mes: mesActual, anio: anioActual }, select: { metaPesos: true, empleado: { select: { nombre: true } } } }),
+    (prisma as any).ordenDespacho.aggregate({ where: { empresaId, createdAt: { gte: new Date(hoy.getFullYear(), hoy.getMonth(), 1) } }, _sum: { totalOrden: true } }),
   ])
 
   const visitasHoy = visitas30dias.filter((v: any) => new Date(v.fechaBogota) >= hoy).length
   const ayer = new Date(hoy); ayer.setDate(ayer.getDate() - 1)
   const visitasAyer = visitas30dias.filter((v: any) => { const f = new Date(v.fechaBogota); return f >= ayer && f < hoy }).length
   const porTipo = visitas30dias.reduce((acc: any, v: any) => { acc[v.tipo] = (acc[v.tipo] || 0) + 1; return acc }, {})
-  const ventasTotal = visitas30dias.filter((v: any) => v.tipo === 'venta').reduce((a: number, v: any) => a + (v.monto || 0), 0)
+  const ventasTotal = Number((ventasMesAgg as any)?._sum?.totalOrden || 0)
   const cobrosTotal = visitas30dias.filter((v: any) => v.tipo === 'cobro').reduce((a: number, v: any) => a + (v.monto || 0), 0)
   const ventasHoy = visitas30dias.filter((v: any) => v.tipo === 'venta' && new Date(v.fechaBogota) >= hoy).reduce((a: number, v: any) => a + (v.monto || 0), 0)
 
