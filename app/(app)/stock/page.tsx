@@ -140,13 +140,20 @@ export default function InventarioPage() {
     }
   }, [q, marca, linea])
 
+  // Montaje inicial — solo si no hay cache
   useEffect(() => {
     if (status !== 'authenticated') return
-    // Si hay cache, no recargar al volver a la ruta
     if (cacheValido()) return
     const t = setTimeout(() => cargar(1), 300)
     return () => clearTimeout(t)
-  }, [cargar, status])
+  }, [status])
+
+  // Cambio de filtros — siempre recarga
+  useEffect(() => {
+    if (status !== 'authenticated') return
+    const t = setTimeout(() => cargar(1), 300)
+    return () => clearTimeout(t)
+  }, [q, marca, linea])
 
   const handleSync = async () => {
     clearCache() // invalidar cache antes de sync
@@ -178,7 +185,13 @@ export default function InventarioPage() {
     })
     setEditingStock(null)
     setEditVal('')
-    setProductos(prev => prev.map(p => p.id === id ? { ...p, stockMinimo: val, stockBajo: val != null && p.inventory < val } : p))
+    setProductos(prev => {
+      const updated = prev.map(p => p.id === id ? { ...p, stockMinimo: val, stockBajo: val != null && p.inventory <= val } : p)
+      // Actualizar cache con nuevo stockMinimo
+      const cached = getCache()
+      if (cached) setCache({ ...cached, productos: updated })
+      return updated
+    })
   }
 
   // Resize handlers

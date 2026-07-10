@@ -352,23 +352,25 @@ export default function DashboardAdmin({ user }: { user: any }) {
           </div>
 
           <CardRingDrill
+            key={`ventas-${stats.ventasMes||0}`}
             emoji="💼" label="Ventas"
             valorHoy={stats.ventasMes||0} valorMes={stats.metaVentaMes||0} metaMes={stats.metaVentaMes||0}
             realMes={stats.ventasMes||0}
             color="#34d399"
             vendedores={stats.topEmpleados||[]}
             labelHoy="mes" labelMes="meta"
-            instant={fromCache}
+           
           />
 
           <CardRingDrill
+            key={`recaudo-${stats.recaudoMes||0}`}
             emoji="💰" label="Recaudos"
             valorHoy={stats.recaudoMes||0} valorMes={stats.metaRecaudoMes||0} metaMes={stats.metaRecaudoMes||0}
             realMes={stats.recaudoMes||0}
             color="#60a5fa"
             vendedores={stats.recaudoPorVendedor||[]}
             labelHoy="mes" labelMes="meta"
-            instant={fromCache}
+           
           />
 
           {/* Botón Estadísticas */}

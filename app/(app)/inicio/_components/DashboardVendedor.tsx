@@ -700,24 +700,24 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
         <div className="space-y-3 md:max-w-2xl md:mx-auto">
           <div className="grid grid-cols-2 gap-3">
             <CardCountAdmin stagger={1} icon="👁️" label="Visitas" onClick={() => router.push('/visitas')}
-              primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp instant={!!statsVendedor} end={statsVendedor.hoy.total||0} /> : '—'}</span>}
-              secondary={statsVendedor ? <CountUp instant={!!statsVendedor} end={statsVendedor.hoy.ayer||0} /> : '—'}
+              primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={statsVendedor.hoy.total||0} /> : '—'}</span>}
+              secondary={statsVendedor ? <CountUp end={statsVendedor.hoy.ayer||0} /> : '—'}
               primaryLabel="hoy" secondaryLabel="ayer" primaryColor="text-white" />
             <CardCountAdmin stagger={2} icon="📦" label="Órdenes" onClick={() => router.push('/trazabilidad')}
-              primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp instant={!!statsVendedor} end={statsVendedor.ordenes?.despHoy||0} /> : '—'}</span>}
-              secondary={statsVendedor ? <CountUp instant={!!statsVendedor} end={statsVendedor.ordenes?.factHoy||0} /> : '—'}
+              primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={statsVendedor.ordenes?.despHoy||0} /> : '—'}</span>}
+              secondary={statsVendedor ? <CountUp end={statsVendedor.ordenes?.factHoy||0} /> : '—'}
               primaryLabel="desp hoy" secondaryLabel="fact hoy" primaryColor="text-amber-400" />
           </div>
           {/* Ventas — 20% anillo + 80% valores */}
           <div className="rounded-2xl hover-lift card-glass" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',padding:'14px 16px',display:'flex',alignItems:'center',minHeight:110,overflow:'hidden'}}>
             <div style={{width:'20%',display:'flex',justifyContent:'center',alignItems:'center',flexShrink:0}}>
-              <RingChart pct={(statsVendedor?.ordenes?.metaVentaMes ?? 0) > 0 ? Math.round(((statsVendedor?.ordenes?.montoMes ?? 0) / statsVendedor!.ordenes!.metaVentaMes!) * 100) : 0} color="#34d399" instant={!!statsVendedor} />
+              <RingChart key={`v-${statsVendedor?.ordenes?.montoMes||0}`} pct={(statsVendedor?.ordenes?.metaVentaMes ?? 0) > 0 ? Math.round(((statsVendedor?.ordenes?.montoMes ?? 0) / statsVendedor!.ordenes!.metaVentaMes!) * 100) : 0} color="#34d399" />
             </div>
             <div style={{width:1,alignSelf:'stretch',background:'rgba(255,255,255,0.10)',margin:'0 10px',flexShrink:0}} />
             <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
               <div className="flex items-center justify-center gap-1.5 mb-2"><span className="text-sm">💼</span><span className="text-white text-sm font-bold tracking-wide">Ventas</span></div>
               <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-emerald-400 text-lg font-bold"><span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp instant={!!statsVendedor} end={Math.round(statsVendedor.ordenes?.montoMes||0)} prefix='$' /> : '—'}</span></span>
+                <span className="text-emerald-400 text-lg font-bold"><span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={Math.round(statsVendedor.ordenes?.montoMes||0)} prefix='$' /> : '—'}</span></span>
                 <span className="text-white/40 text-base font-light">/</span>
                 <span className="text-white text-lg font-bold">{statsVendedor ? (statsVendedor.ordenes?.metaVentaMes > 0 ? '$'+Math.round(statsVendedor.ordenes.metaVentaMes).toLocaleString('es-CO') : '—') : '—'}</span>
               </div>
@@ -728,13 +728,13 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
           {/* Recaudo — 20% anillo + 80% valores */}
           <div className="rounded-2xl hover-lift card-glass" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',padding:'14px 16px',display:'flex',alignItems:'center',minHeight:110,overflow:'hidden'}} onClick={() => router.push('/cartera')}>
             <div style={{width:'20%',display:'flex',justifyContent:'center',alignItems:'center',flexShrink:0}}>
-              <RingChart pct={(statsVendedor?.recaudo?.meta ?? 0) > 0 ? Math.round(((statsVendedor?.recaudo?.mes ?? 0) / statsVendedor!.recaudo!.meta!) * 100) : 0} color="#60a5fa" instant={!!statsVendedor} />
+              <RingChart key={`r-${statsVendedor?.recaudo?.mes||0}`} pct={(statsVendedor?.recaudo?.meta ?? 0) > 0 ? Math.round(((statsVendedor?.recaudo?.mes ?? 0) / statsVendedor!.recaudo!.meta!) * 100) : 0} color="#60a5fa" />
             </div>
             <div style={{width:1,alignSelf:'stretch',background:'rgba(255,255,255,0.10)',margin:'0 10px',flexShrink:0}} />
             <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
               <div className="flex items-center justify-center gap-1.5 mb-2"><span className="text-sm">💰</span><span className="text-white text-sm font-bold tracking-wide">Recaudo</span></div>
               <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-blue-400 text-lg font-bold"><span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp instant={!!statsVendedor} end={Math.round(statsVendedor.recaudo?.mes||0)} prefix='$' /> : '—'}</span></span>
+                <span className="text-blue-400 text-lg font-bold"><span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={Math.round(statsVendedor.recaudo?.mes||0)} prefix='$' /> : '—'}</span></span>
                 <span className="text-white/40 text-base font-light">/</span>
                 <span className="text-white text-lg font-bold">{statsVendedor ? (statsVendedor.recaudo?.meta > 0 ? '$'+Math.round(statsVendedor.recaudo.meta).toLocaleString('es-CO') : '—') : '—'}</span>
               </div>
