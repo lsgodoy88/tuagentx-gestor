@@ -73,21 +73,24 @@ export function CountUp({
   prefix = "",
   suffix = "",
   formatter,
+  instant = false,
 }: {
   end: number;
   duration?: number;
   prefix?: string;
   suffix?: string;
   formatter?: (n: number) => string;
+  instant?: boolean;
 }) {
-  const [val, setVal] = useState(0);
+  const [val, setVal] = useState(instant ? end : 0);
   const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
+    if (instant) { setVal(end); return }
     const start = performance.now();
     const tick = (now: number) => {
       const t = Math.min((now - start) / duration, 1);
-      const eased = 1 - Math.pow(1 - t, 3); // ease-out cubic
+      const eased = 1 - Math.pow(1 - t, 3);
       setVal(Math.floor(end * eased));
       if (t < 1) rafRef.current = requestAnimationFrame(tick);
       else setVal(end);
@@ -96,7 +99,7 @@ export function CountUp({
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [end, duration]);
+  }, [end, duration, instant]);
 
   const display = formatter ? formatter(val) : val.toLocaleString("es-CO");
   return <>{prefix}{display}{suffix}</>;

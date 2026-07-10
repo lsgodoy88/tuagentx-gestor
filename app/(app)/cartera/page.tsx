@@ -1284,7 +1284,7 @@ export default function CarteraPage() {
         {isAdmin && (
           <select
             value={vendedorPagoId}
-            onChange={e => setVendedorPagoId(e.target.value)}
+            onChange={e => { const v = e.target.value; setVendedorPagoId(v); cargarPagos(mesPagos, anioPagos, v) }}
             className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-blue-500 w-full">
             <option value="">Todos los vendedores</option>
             {vendedores.map((v: any) => (

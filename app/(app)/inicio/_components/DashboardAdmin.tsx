@@ -17,9 +17,13 @@ function fmtM(n: number): string {
 }
 
 // ── Anillo ───────────────────────────────────────────────────
-function RingChart({ pct, color, size = 72, stroke = 7 }: { pct: number, color: string, size?: number, stroke?: number }) {
-  const [drawn, setDrawn] = useState(false)
-  useEffect(() => { const t = setTimeout(() => setDrawn(true), 150); return () => clearTimeout(t) }, [])
+function RingChart({ pct, color, size = 72, stroke = 7, instant = false }: { pct: number, color: string, size?: number, stroke?: number, instant?: boolean }) {
+  const [drawn, setDrawn] = useState(instant)
+  useEffect(() => {
+    if (instant) return
+    const t = setTimeout(() => setDrawn(true), 150)
+    return () => clearTimeout(t)
+  }, [instant])
   const R = (size/2) - stroke, C = size/2, circ = 2*Math.PI*R
   const cappedPct = Math.min(pct, 100)
   const dash = drawn ? (cappedPct/100)*circ : 0
@@ -39,9 +43,9 @@ function RingChart({ pct, color, size = 72, stroke = 7 }: { pct: number, color: 
 }
 
 // ── Card con anillo + drill-down barras ──────────────────────
-function CardRingDrill({ emoji, label, valorHoy, valorMes, metaMes, realMes, color, vendedores, labelHoy, labelMes }:
+function CardRingDrill({ emoji, label, valorHoy, valorMes, metaMes, realMes, color, vendedores, labelHoy, labelMes, instant = false }:
   { emoji:string, label:string, valorHoy:number, valorMes:number, metaMes:number, realMes?:number, color:string,
-    vendedores:{nombre:string,monto:number,meta?:number|null}[], labelHoy:string, labelMes:string }) {
+    vendedores:{nombre:string,monto:number,meta?:number|null}[], labelHoy:string, labelMes:string, instant?:boolean }) {
   const [open, setOpen] = useState(false)
   const pct = metaMes > 0 ? Math.min(Math.round(((realMes ?? valorHoy)/metaMes)*100), 100) : 0
   const max = Math.max(...vendedores.map(v=>v.monto), 1)
@@ -51,7 +55,7 @@ function CardRingDrill({ emoji, label, valorHoy, valorMes, metaMes, realMes, col
       <button onClick={() => setOpen(p=>!p)} style={{width:'100%',background:'none',border:'none',cursor:'pointer',padding:'14px 16px',display:'flex',alignItems:'center',minHeight:110}}>
         {/* 20% anillo */}
         <div style={{width:'20%',display:'flex',justifyContent:'center',alignItems:'center',flexShrink:0}}>
-          <RingChart pct={pct} color={color} />
+          <RingChart pct={pct} color={color} instant={instant} />
         </div>
         {/* divisor */}
         <div style={{width:1,alignSelf:'stretch',background:'rgba(255,255,255,0.10)',margin:'0 10px',flexShrink:0}} />
@@ -62,9 +66,9 @@ function CardRingDrill({ emoji, label, valorHoy, valorMes, metaMes, realMes, col
             <span className="text-white text-sm font-bold tracking-wide">{label}</span>
           </div>
           <div className="flex items-baseline justify-center gap-1.5">
-            <span className="text-lg font-bold" style={{color}}><CountUp end={Math.round(valorHoy)} prefix="$" /></span>
+            <span className="text-lg font-bold" style={{color}}><CountUp end={Math.round(valorHoy)} prefix="$" instant={instant} /></span>
             <span className="text-white/40 text-base font-light">/</span>
-            <span className="text-white text-lg font-bold"><CountUp end={Math.round(valorMes)} prefix="$" /></span>
+            <span className="text-white text-lg font-bold"><CountUp end={Math.round(valorMes)} prefix="$" instant={instant} /></span>
           </div>
           <div className="flex justify-center gap-4 mt-1">
             <span className="text-white text-xs">{labelHoy}</span>
@@ -110,6 +114,7 @@ function CardRingDrill({ emoji, label, valorHoy, valorMes, metaMes, realMes, col
 
 export default function DashboardAdmin({ user }: { user: any }) {
   const router = useRouter()
+  const [fromCache, setFromCache] = useState(false)
   const [stats, setStats] = useState<any>({ empleados: 0, clientes: 0, visitasHoy: 0, enTurno: 0 })
   const [monitor, setMonitor] = useState<any[]>([])
   const [sincronizando, setSincronizando] = useState(false)
@@ -163,7 +168,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
 
     const cached = getCached()
     if (cached && !vieneDelLogin()) {
-      if (cached.stats) setStats(cached.stats)
+      if (cached.stats) { setStats(cached.stats); setFromCache(true) }
     }
 
     Promise.all(adminFetches).then(([s]) => {
@@ -353,6 +358,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
             color="#34d399"
             vendedores={stats.topEmpleados||[]}
             labelHoy="mes" labelMes="meta"
+            instant={fromCache}
           />
 
           <CardRingDrill
@@ -362,6 +368,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
             color="#60a5fa"
             vendedores={stats.recaudoPorVendedor||[]}
             labelHoy="mes" labelMes="meta"
+            instant={fromCache}
           />
 
           {/* Botón Estadísticas */}

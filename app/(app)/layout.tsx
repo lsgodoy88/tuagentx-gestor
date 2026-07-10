@@ -12,10 +12,10 @@ import { NetworkBanner } from '@/components/NetworkBanner'
 import { clearAllCache } from '@/lib/offlineCache'
 
 // ── Dashboards persistidos en layout ─────────────────────────────────────────
-const DashboardVendedor  = dynamic(() => import('./inicio/_components/DashboardVendedor'),  { ssr: false })
-const DashboardAdmin     = dynamic(() => import('./inicio/_components/DashboardAdmin'),     { ssr: false })
-const DashboardBodega    = dynamic(() => import('./inicio/_components/DashboardBodega'),    { ssr: false })
-const DashboardEntregas  = dynamic(() => import('./inicio/_components/DashboardEntregas'),  { ssr: false })
+const DashboardVendedor  = dynamic(() => import('./inicio/_components/DashboardVendedor'),  { ssr: false, loading: () => <div className="animate-pulse space-y-3 p-4"><div className="h-24 bg-white/5 rounded-2xl"/><div className="h-32 bg-white/5 rounded-2xl"/><div className="h-32 bg-white/5 rounded-2xl"/></div> })
+const DashboardAdmin     = dynamic(() => import('./inicio/_components/DashboardAdmin'),     { ssr: false, loading: () => <div className="animate-pulse space-y-3 p-4"><div className="h-24 bg-white/5 rounded-2xl"/><div className="h-32 bg-white/5 rounded-2xl"/><div className="h-32 bg-white/5 rounded-2xl"/></div> })
+const DashboardBodega    = dynamic(() => import('./inicio/_components/DashboardBodega'),    { ssr: false, loading: () => <div className="animate-pulse space-y-3 p-4"><div className="h-24 bg-white/5 rounded-2xl"/><div className="h-32 bg-white/5 rounded-2xl"/><div className="h-32 bg-white/5 rounded-2xl"/></div> })
+const DashboardEntregas  = dynamic(() => import('./inicio/_components/DashboardEntregas'),  { ssr: false, loading: () => <div className="animate-pulse space-y-3 p-4"><div className="h-24 bg-white/5 rounded-2xl"/><div className="h-32 bg-white/5 rounded-2xl"/><div className="h-32 bg-white/5 rounded-2xl"/></div> })
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession()
@@ -50,7 +50,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       '/trazabilidad':  'Despacho',
       '/reportes':      'Reportes',
       '/ordenes':       'Órdenes',
-      '/inventario':    'Inventario',
+      '/stock':         'Stock',
       '/visitas':       'Mis Visitas',
       '/impulsadora':   'Mi Ruta',
       '/mi-ruta':       'Mi Ruta',
@@ -61,17 +61,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       '/configuracion': 'Configuración',
     }
     document.title = `${titles[pathname] || 'Gestor'} — TuAgentX`
+    // Mostrar overlay al cambiar ruta, ocultar tras mínimo 400ms
+    setNavigating(true)
+    if (navTimer.current) clearTimeout(navTimer.current)
+    navTimer.current = setTimeout(() => setNavigating(false), 400)
   }, [pathname])
 
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const sidebarExpanded = sidebarOpen
   const collapsed = !sidebarOpen
-
-  // Auto-colapso inicial en viewport < 1280px
-  useEffect(() => {
-    if (window.innerWidth < 1280) setSidebarOpen(false)
-  }, [])
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [navigating, setNavigating] = useState(false)
+  const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [asistenteAbierto, setAsistenteAbierto] = useState(false)
   const [bloqueado, setBloqueado] = useState(false)
   const [diasRestantes, setDiasRestantes] = useState<number | null>(null)
@@ -205,7 +206,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { href: '/clientes',  label: 'Clientes',  icon: '🏪' },
         { href: '/cartera',   label: 'Cartera',   icon: '💰' },
         { href: '/recaudos',  label: 'Recaudos',  icon: '💳' },
-        { href: '/inventario', label: 'Inventario', icon: '📦' },
+        { href: '/stock', label: 'Stock', icon: '📦' },
       ]
     }, {
       label: 'Visitas',
@@ -223,7 +224,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     ...(isBodega ? [{
       items: [
         { href: '/ordenes',    label: 'Órdenes',    icon: '📦' },
-        { href: '/inventario', label: 'Inventario', icon: '🏭' },
+        { href: '/stock', label: 'Stock', icon: '📦' },
       ]
     }] : []),
     ...(isEmpleado && user?.role !== 'impulsadora' ? [{
@@ -268,11 +269,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: '/impulsos',   label: 'Impulsos',     icon: '⚡' },
       { href: '/trazabilidad',  label: 'Despacho', icon: '🚚' },
       { href: '/reportes',      label: 'Reportes',     icon: '📈' },
-      { href: '/inventario',   label: 'Inventario',   icon: '📦' },
+      { href: '/stock',   label: 'Stock',   icon: '📦' },
     ] : []),
     ...(isBodega ? [
       { href: '/ordenes',    label: 'Órdenes',    icon: '📦' },
-      { href: '/inventario', label: 'Inventario', icon: '🏭' },
+      { href: '/stock', label: 'Stock', icon: '📦' },
     ] : []),
     ...(isEmpleado && user?.role !== 'impulsadora' ? [
       { href: '/visitas', label: 'Visitas', icon: '📋' },
@@ -308,7 +309,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <NetworkBanner />
 
       {/* ── SIDEBAR DESKTOP ── */}
-      <aside className="flex-col hidden md:flex flex-shrink-0 fixed top-0 left-0 h-screen z-10" style={{width: sidebarExpanded ? 224 : 0, opacity: sidebarExpanded ? 1 : 0, transition:"width 0.2s ease, opacity 0.1s ease", overflowX:"hidden", overflowY: sidebarExpanded ? "auto" : "hidden", background:'rgba(8,10,30,0.82)',backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',borderRight:'1px solid rgba(255,255,255,0.10)'}}>
+      <aside className="flex-col hidden md:flex flex-shrink-0 fixed top-0 left-0 h-screen z-10" style={{width: sidebarExpanded ? 224 : 0, transition:"none", overflowX:"hidden", overflowY: sidebarExpanded ? "auto" : "hidden", background:'rgba(8,10,30,0.82)',backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',borderRight:'1px solid rgba(255,255,255,0.10)'}}>
 
         <div className="flex items-center px-4 h-14 border-b border-[#1c1c20] flex-shrink-0">
           <div className="flex items-center gap-2.5">
@@ -334,8 +335,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 .map(item => {
                   const isActive = pathname === item.href
                   return (
-                    <Link key={item.href} href={item.href}
-                      title={!sidebarExpanded ? item.label : ''}
+                    <Link key={item.href} href={item.href} prefetch
+                                            title={!sidebarExpanded ? item.label : ''}
                       className={`relative flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium ${!sidebarExpanded ? 'justify-center' : ''} ${isActive ? 'text-white' : 'text-white hover:bg-[#0f2540]'}`}
                       style={isActive ? {background:'#1e3a5f'} : {}}>
                       <span className="text-base flex-shrink-0">{item.icon}</span>
@@ -401,12 +402,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <button
         className="hidden md:flex fixed top-1/2 -translate-y-1/2 z-20 items-center justify-center"
         onClick={() => setSidebarOpen(o => !o)}
-        style={{left: sidebarOpen ? 224 : 0, width:20, height:80, background:'rgba(8,10,30,0.82)', borderRadius:'0 10px 10px 0', border:'1px solid rgba(59,130,246,0.25)', borderLeft:'none', cursor:'pointer', color:'#7aa2c8', fontSize:16, fontWeight:'bold', transition:'left 0.2s ease'}}>
+        style={{left: sidebarOpen ? 224 : 0, width:20, height:80, background:'rgba(8,10,30,0.82)', borderRadius:'0 10px 10px 0', border:'1px solid rgba(59,130,246,0.25)', borderLeft:'none', cursor:'pointer', color:'#7aa2c8', fontSize:16, fontWeight:'bold', transition:'none'}}>
         {sidebarOpen ? '‹' : '›'}
       </button>
 
       {/* ── MAIN ── */}
-      <main className="flex-1 flex flex-col min-w-0" style={{marginLeft: sidebarExpanded ? 224 : 0, transition:"margin-left 0.2s ease"}}>
+      <main className="flex-1 flex flex-col min-w-0 main-content">
         {bloqueado && (
           <div className="bg-red-900/80 border-b border-red-700 flex items-center justify-between px-4 h-10 flex-shrink-0 overflow-hidden">
             <span className="text-red-100 text-sm truncate">🔴 Cuenta suspendida</span>
@@ -475,7 +476,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           borderRadius:'24px 24px 0 0',
           padding:'12px 16px 28px',
           transform: drawerOpen ? 'translateY(0)' : 'translateY(100%)',
-          transition:'transform .28s cubic-bezier(.32,.72,0,1)',
+          transition:'none',
         }}>
 
         {/* Handle */}
@@ -582,6 +583,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </>
       )}
 
+
+      {/* Overlay navegación */}
+      {navigating && (
+        <div style={{
+          position:'fixed',inset:0,zIndex:9999,
+          background:'rgba(8,10,30,0.88)',
+          backdropFilter:'blur(3px)',
+          display:'flex',alignItems:'center',justifyContent:'center'
+        }}>
+          <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
+            <circle cx="22" cy="22" r="18" stroke="rgba(255,255,255,0.08)" strokeWidth="3.5"/>
+            <circle cx="22" cy="22" r="18" stroke="#3b82f6" strokeWidth="3.5"
+              strokeLinecap="round" strokeDasharray="28 88"
+              style={{transformOrigin:'center',animation:'spin 0.75s linear infinite'}}/>
+          </svg>
+        </div>
+      )}
       {asistenteAbierto && <AsistenteGestor onClose={() => setAsistenteAbierto(false)} />}
 
     </div>
