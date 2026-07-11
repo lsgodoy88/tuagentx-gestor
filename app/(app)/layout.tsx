@@ -596,12 +596,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           backdropFilter:'blur(3px)',
           display:'flex',alignItems:'center',justifyContent:'center'
         }}>
-          <svg width="44" height="44" viewBox="0 0 44 44" fill="none">
-            <circle cx="22" cy="22" r="18" stroke="rgba(255,255,255,0.08)" strokeWidth="3.5"/>
-            <circle cx="22" cy="22" r="18" stroke="#3b82f6" strokeWidth="3.5"
-              strokeLinecap="round" strokeDasharray="28 88"
-              style={{transformOrigin:'center',animation:'spin 0.75s linear infinite'}}/>
+          <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
+            <circle cx="26" cy="26" r="20" stroke="rgba(255,255,255,0.06)" strokeWidth="3"/>
+            <circle cx="26" cy="26" r="20" stroke="#3b82f6" strokeWidth="3"
+              strokeLinecap="round" strokeDasharray="32 94"
+              style={{transformOrigin:'26px 26px', animation:'spin 1.1s linear infinite'}}/>
+            <circle cx="26" cy="26" r="13" stroke="#6366f1" strokeWidth="3"
+              strokeLinecap="round" strokeDasharray="18 64"
+              style={{transformOrigin:'26px 26px', animation:'spinR 1.7s linear infinite'}}/>
           </svg>
+          <style>{`@keyframes spinR { to { transform: rotate(-360deg) } }`}</style>
         </div>
       )}
       {asistenteAbierto && <AsistenteGestor onClose={() => setAsistenteAbierto(false)} />}
