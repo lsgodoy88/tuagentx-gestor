@@ -28,12 +28,13 @@ function RingChart({ pct, color, size = 72, stroke = 7, instant = false }: { pct
   const cappedPct = Math.min(pct, 100)
   const dash = drawn ? (cappedPct/100)*circ : 0
   return (
-    <div style={{ position:'relative', width:size, height:size, flexShrink:0 }}>
-      <svg width={size} height={size} style={{ transform:'rotate(-90deg)' }}>
+    <div style={{ position:'relative', width:size, height:size, flexShrink:0, padding:4, margin:-4, boxSizing:'content-box' }}>
+      <svg width={size} height={size} style={{ transform:'rotate(-90deg)', overflow:'visible' }}>
         <circle cx={C} cy={C} r={R} fill="none" stroke="rgba(255,255,255,0.22)" strokeWidth={stroke*0.45} />
         <circle cx={C} cy={C} r={R} fill="none" stroke={color} strokeWidth={stroke}
           strokeDasharray={`${dash} ${circ-dash}`} strokeLinecap="round"
-          style={{ transition:'stroke-dasharray 0.85s cubic-bezier(.4,0,.2,1)', filter:`drop-shadow(0 0 6px ${color})` }} />
+          style={{ transition:'stroke-dasharray 0.85s cubic-bezier(.4,0,.2,1)' }} />
+
       </svg>
       <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center' }}>
         <span style={{ color:'white', fontSize:15, fontWeight:800 }}>{pct>0 ? `${cappedPct}%` : '—'}</span>

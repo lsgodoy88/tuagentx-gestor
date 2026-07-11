@@ -97,15 +97,16 @@ function RingChart({ pct, color, size = 72, stroke = 7, instant = false }: { pct
   const dash = drawn ? (cappedPct / 100) * circ : 0
 
   return (
-    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
-      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0, padding: 4, margin: -4, boxSizing: 'content-box' }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', overflow: 'visible' }}>
         <circle cx={C} cy={C} r={R} fill="none" stroke={accentTrack} strokeWidth={stroke * 0.45} />
         <circle cx={C} cy={C} r={R} fill="none"
           stroke={accent} strokeWidth={stroke}
           strokeDasharray={`${dash} ${circ - dash}`}
           strokeLinecap="round"
-          style={{ transition: 'stroke-dasharray 0.85s cubic-bezier(.4,0,.2,1)', filter: `drop-shadow(0 0 6px ${accent})` }}
+          style={{ transition: 'stroke-dasharray 0.85s cubic-bezier(.4,0,.2,1)' }}
         />
+
       </svg>
       <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <span style={{ color: 'white', fontSize: 15, fontWeight: 800 }}>
@@ -709,7 +710,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
               primaryLabel="desp hoy" secondaryLabel="fact hoy" primaryColor="text-amber-400" />
           </div>
           {/* Ventas — 20% anillo + 80% valores */}
-          <div className="rounded-2xl hover-lift card-glass" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',padding:'14px 16px',display:'flex',alignItems:'center',minHeight:110,overflow:'hidden'}}>
+          <div className="rounded-2xl hover-lift card-glass" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',padding:'14px 16px',display:'flex',alignItems:'center',minHeight:110}}>
             <div style={{width:'20%',display:'flex',justifyContent:'center',alignItems:'center',flexShrink:0}}>
               <RingChart key={`v-${statsVendedor?.ordenes?.montoMes||0}`} pct={(statsVendedor?.ordenes?.metaVentaMes ?? 0) > 0 ? Math.round(((statsVendedor?.ordenes?.montoMes ?? 0) / statsVendedor!.ordenes!.metaVentaMes!) * 100) : 0} color="#34d399" />
             </div>
@@ -726,7 +727,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
           </div>
 
           {/* Recaudo — 20% anillo + 80% valores */}
-          <div className="rounded-2xl hover-lift card-glass" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',padding:'14px 16px',display:'flex',alignItems:'center',minHeight:110,overflow:'hidden'}} onClick={() => router.push('/cartera')}>
+          <div className="rounded-2xl hover-lift card-glass" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',padding:'14px 16px',display:'flex',alignItems:'center',minHeight:110}} onClick={() => router.push('/cartera')}>
             <div style={{width:'20%',display:'flex',justifyContent:'center',alignItems:'center',flexShrink:0}}>
               <RingChart key={`r-${statsVendedor?.recaudo?.mes||0}`} pct={(statsVendedor?.recaudo?.meta ?? 0) > 0 ? Math.round(((statsVendedor?.recaudo?.mes ?? 0) / statsVendedor!.recaudo!.meta!) * 100) : 0} color="#60a5fa" />
             </div>

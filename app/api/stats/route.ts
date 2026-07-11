@@ -17,7 +17,7 @@ export async function GET() {
 
   const cacheKey = `g:${empresaId}:stats:${fechaHoyBogota()}`
 
-  const stats = await withCache(cacheKey, 300, async () => {
+  const stats = await withCache(cacheKey, 60, async () => {
   const hoy = inicioDiaBogota()
   const hace7dias = haceNDiasBogota(7)
   const hace30dias = haceNDiasBogota(30)

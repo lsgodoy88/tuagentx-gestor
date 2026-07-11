@@ -62,6 +62,7 @@ model Empresa {
   gastos              Gasto[]
   egresos             Egreso[]
   productos           Producto[]
+  impulsoInventarios  ImpulsoInventario[]
 }
 
 model Empleado {
@@ -111,6 +112,8 @@ model Empleado {
   ordenesRepartidas   OrdenDespacho[]      @relation("RepartidorDespacho")
   comisionConfigs     ComisionConfig[]
   gastos              Gasto[]
+  impulsoInventarioEmpleado ImpulsoInventario[] @relation("ImpulsoInventarioEmpleado")
+  impulsoInventarioVendedor ImpulsoInventario[] @relation("ImpulsoInventarioVendedor")
 
   @@index([empresaId, activo], map: "idx_empleado_empresa_activo")
   @@map("Empleado")
@@ -157,6 +160,7 @@ model Cliente {
   rutasFijas      RutaFijaCliente[]
   ventasMes       VentaMesCliente[]
   visitas         Visita[]
+  impulsoInventarios ImpulsoInventario[]
 
   @@index([empresaId], map: "idx_cliente_empresa")
   @@index([listaId], map: "idx_cliente_lista")
@@ -3056,6 +3060,29 @@ model ReporteImpulsoMes {
   @@map("ReporteImpulsoMes")
 }
 
+model ImpulsoInventario {
+  id           String   @id @default(cuid())
+  clienteId    String
+  productoId   String
+  sugerido     Float?
+  inventario   Float?
+  empleadoId   String   // impulsadora que llena
+  vendedorId   String   // vendedor destino
+  empresaId    String
+  createdAt    DateTime @default(now())
+
+  cliente      Cliente  @relation(fields: [clienteId], references: [id])
+  empleado     Empleado @relation("ImpulsoInventarioEmpleado", fields: [empleadoId], references: [id])
+  vendedor     Empleado @relation("ImpulsoInventarioVendedor", fields: [vendedorId], references: [id])
+  producto     Producto @relation(fields: [productoId], references: [id])
+  empresa      Empresa  @relation(fields: [empresaId], references: [id])
+
+  @@index([vendedorId])
+  @@index([clienteId])
+  @@index([empleadoId])
+  @@map("ImpulsoInventario")
+}
+
 model InciGuardian {
   id              String    @id @default(cuid())
   codigo          String    @unique        // SYNC-BOD-0001, TURNO-0003, etc.
@@ -3233,8 +3260,10 @@ model Producto {
   createdAt         DateTime @default(now())
   empresa           Empresa  @relation(fields: [empresaId], references: [id])
   integracion       Integracion @relation(fields: [integracionId], references: [id])
+  impulsoInventarios ImpulsoInventario[]
 
   @@index([empresaId])
   @@index([condition])
   @@index([externalUpdatedAt])
+  @@map("Producto")
 }

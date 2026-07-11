@@ -15,7 +15,8 @@ import { clearAllCache } from '@/lib/offlineCache'
 const DashboardVendedor  = dynamic(() => import('./inicio/_components/DashboardVendedor'),  { ssr: false, loading: () => <div className="animate-pulse space-y-3 p-4"><div className="h-24 bg-white/5 rounded-2xl"/><div className="h-32 bg-white/5 rounded-2xl"/><div className="h-32 bg-white/5 rounded-2xl"/></div> })
 const DashboardAdmin     = dynamic(() => import('./inicio/_components/DashboardAdmin'),     { ssr: false, loading: () => <div className="animate-pulse space-y-3 p-4"><div className="h-24 bg-white/5 rounded-2xl"/><div className="h-32 bg-white/5 rounded-2xl"/><div className="h-32 bg-white/5 rounded-2xl"/></div> })
 const DashboardBodega    = dynamic(() => import('./inicio/_components/DashboardBodega'),    { ssr: false, loading: () => <div className="animate-pulse space-y-3 p-4"><div className="h-24 bg-white/5 rounded-2xl"/><div className="h-32 bg-white/5 rounded-2xl"/><div className="h-32 bg-white/5 rounded-2xl"/></div> })
-const DashboardEntregas  = dynamic(() => import('./inicio/_components/DashboardEntregas'),  { ssr: false, loading: () => <div className="animate-pulse space-y-3 p-4"><div className="h-24 bg-white/5 rounded-2xl"/><div className="h-32 bg-white/5 rounded-2xl"/><div className="h-32 bg-white/5 rounded-2xl"/></div> })
+const DashboardEntregas      = dynamic(() => import('./inicio/_components/DashboardEntregas'),      { ssr: false, loading: () => <div className="animate-pulse space-y-3 p-4"><div className="h-24 bg-white/5 rounded-2xl"/><div className="h-32 bg-white/5 rounded-2xl"/><div className="h-32 bg-white/5 rounded-2xl"/></div> })
+const DashboardImpulsadora   = dynamic(() => import('./inicio/_components/DashboardImpulsadora'),   { ssr: false, loading: () => <div className="animate-pulse space-y-3 p-4"><div className="h-24 bg-white/5 rounded-2xl"/><div className="h-32 bg-white/5 rounded-2xl"/><div className="h-32 bg-white/5 rounded-2xl"/></div> })
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession()
@@ -244,6 +245,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       items: [
         { href: '/impulsadora', label: 'Inicio',    icon: '⚡' },
         { href: '/impulsos', label: 'Mi semana', icon: '📌' },
+        { href: '/impulsar', label: 'Impulsar',  icon: '🎯' },
         { href: '/gastos', label: 'Gastos', icon: '🧾' },
       ]
     }] : []),
@@ -288,6 +290,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     ...(user?.role === 'impulsadora' ? [
       { href: '/impulsadora', label: 'Inicio',    icon: '⚡' },
       { href: '/impulsos', label: 'Mi semana', icon: '📌' },
+      { href: '/impulsar', label: 'Impulsar',  icon: '🎯' },
       { href: '/gastos', label: 'Gastos', icon: '🧾' },
     ] : []),
   ]
@@ -444,15 +447,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <GpsContext.Provider value={{ setSincronizandoGps }}>
                 {/* Dashboard — persiste entre rutas, se desmonta solo al cambiar usuario */}
                 {authUser && (
-                  <div key={`${authUser.id}_${authUser.loginAt ?? 0}`} style={{display: pathname === '/inicio' ? 'block' : 'none'}}>
+                  <div key={`${authUser.id}_${authUser.loginAt ?? 0}`} style={{display: (pathname === '/inicio' || (pathname === '/impulsadora' && authUser?.role === 'impulsadora')) ? 'block' : 'none'}}>
                     {authUser?.role === 'vendedor'    && React.createElement(DashboardVendedor  as any, { key: authUser.id, user: authUser, onRegisterRefresh: (fn: () => void) => { dashboardRefreshRef.current = fn } })}
                     {authUser?.role === 'bodega'      && React.createElement(DashboardBodega    as any, { key: authUser.id, user: authUser })}
                     {authUser?.role === 'entregas'    && React.createElement(DashboardEntregas  as any, { key: authUser.id, user: authUser })}
                     {(authUser?.role === 'empresa' || authUser?.role === 'admin' || authUser?.role === 'supervisor' || authUser?.role === 'superadmin') && React.createElement(DashboardAdmin as any, { key: authUser.id, user: authUser, onRegisterRefresh: (fn: () => void) => { dashboardRefreshRef.current = fn } })}
+                    {authUser?.role === 'impulsadora' && React.createElement(DashboardImpulsadora as any, { key: authUser.id })}
                   </div>
                 )}
                 {/* page.tsx — oculto en /inicio, visible en otras rutas */}
-                <div style={{display: pathname === '/inicio' ? 'none' : 'block'}}>
+                <div style={{display: (pathname === '/inicio' || (pathname === '/impulsadora' && authUser?.role === 'impulsadora')) ? 'none' : 'block'}}>
                   {children}
                 </div>
               </GpsContext.Provider>
