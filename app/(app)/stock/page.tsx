@@ -1,5 +1,6 @@
 'use client'
 import { useSession } from 'next-auth/react'
+import { useBodegaContext } from '@/lib/bodega-context'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
 
@@ -59,31 +60,32 @@ const numFmt = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 })
 const priceFmt = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 })
 
 // Cache sessionStorage — sobrevive navegaciones y F5
-const SS_KEY = 'stock_cache'
-function getCache() {
-  try { const r = sessionStorage.getItem(SS_KEY); return r ? JSON.parse(r) : null } catch { return null }
+function getSSKey(origenId?: string) { return origenId && origenId !== 'propia' ? 'stock_cache_' + origenId : 'stock_cache' }
+function getCache(origenId?: string) {
+  try { const r = sessionStorage.getItem(getSSKey(origenId)); return r ? JSON.parse(r) : null } catch { return null }
 }
-function setCache(data: any) {
-  try { sessionStorage.setItem(SS_KEY, JSON.stringify(data)) } catch {}
+function setCache(origenId: string | undefined, data: any) {
+  try { sessionStorage.setItem(getSSKey(origenId), JSON.stringify(data)) } catch {}
 }
-function clearCache() {
-  try { sessionStorage.removeItem(SS_KEY) } catch {}
+function clearCache(origenId?: string) {
+  try { sessionStorage.removeItem(getSSKey(origenId)) } catch {}
 }
-const cacheValido = () => (getCache()?.productos?.length ?? 0) > 0
+function cacheValido(origenId?: string) { return (getCache(origenId)?.productos?.length ?? 0) > 0 }
 
 export default function InventarioPage() {
+  const { origenId: origenBodega } = useBodegaContext()
   const { data: session, status } = useSession()
   const router = useRouter()
   const user = session?.user as any
 
   // Leer sessionStorage una sola vez al montar
-  const _c0 = getCache()
+  const _c0 = getCache(origenBodega)
   const [productos, setProductos] = useState<any[]>(_c0?.productos ?? [])
   const [total, setTotal] = useState(_c0?.total ?? 0)
   const [pages, setPages] = useState(_c0?.pages ?? 1)
   const [page, setPage] = useState(_c0?.page ?? 1)
   const [q, setQ] = useState(_c0?.q ?? '')
-  const [marca, setMarca] = useState(_c0?.marca ?? '')
+  const [marca] = useState('') // dropdown marca eliminado de UI — siempre vacío
   const [linea, setLinea] = useState(_c0?.linea ?? '')
   const [filtros, setFiltros] = useState<{ marcas: string[]; lineas: string[] }>(_c0?.filtros ?? { marcas: [], lineas: [] })
   const [loading, setLoading] = useState(!_c0?.productos?.length)
@@ -106,7 +108,7 @@ export default function InventarioPage() {
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/login'); return }
     if (status !== 'authenticated') return
-    if (!['empresa', 'supervisor'].includes(user?.role)) router.push('/inicio')
+    if (!['empresa', 'supervisor', 'bodega'].includes(user?.role)) router.push('/inicio')
   }, [status])
 
   const cargar = useCallback(async (pg = 1) => {
@@ -118,6 +120,7 @@ export default function InventarioPage() {
       const p = new URLSearchParams({
         page: String(pg), limit: '50',
         q, marca, linea,
+        ...(origenBodega && origenBodega !== 'propia' ? { origenId: origenBodega } : {}),
       })
       const res = await fetch(`/api/stock?${p}`, { signal: ctrl.signal })
       if (!res.ok) throw new Error('Error cargando inventario')
@@ -132,31 +135,31 @@ export default function InventarioPage() {
       setPage(pg)
       if (data.filtros) setFiltros(flt)
       // Guardar snapshot en cache módulo
-      setCache({ productos: prods, total: tot, pages: pgs, page: pg, filtros: flt, q, marca, linea, colW })
+      setCache(origenBodega, { productos: prods, total: tot, pages: pgs, page: pg, filtros: flt, q, marca, linea, colW })
     } catch (e: any) {
       if (e.name !== 'AbortError') console.error(e)
     } finally {
       setLoading(false)
     }
-  }, [q, marca, linea])
+  }, [q, marca, linea, origenBodega])
 
-  // Montaje inicial — solo si no hay cache
+  // Montaje inicial + cambio de empresa — recarga si cambia origenBodega
   useEffect(() => {
     if (status !== 'authenticated') return
-    if (cacheValido()) return
+    if (cacheValido(origenBodega)) return
     const t = setTimeout(() => cargar(1), 300)
     return () => clearTimeout(t)
-  }, [status])
+  }, [status, origenBodega])
 
   // Cambio de filtros — siempre recarga
   useEffect(() => {
     if (status !== 'authenticated') return
     const t = setTimeout(() => cargar(1), 300)
     return () => clearTimeout(t)
-  }, [q, marca, linea])
+  }, [q, linea, origenBodega])
 
   const handleSync = async () => {
-    clearCache() // invalidar cache antes de sync
+    clearCache(origenBodega) // invalidar cache antes de sync
     setSyncing(true)
     setSyncMsg('')
     try {
@@ -188,8 +191,8 @@ export default function InventarioPage() {
     setProductos(prev => {
       const updated = prev.map(p => p.id === id ? { ...p, stockMinimo: val, stockBajo: val != null && p.inventory <= val } : p)
       // Actualizar cache con nuevo stockMinimo
-      const cached = getCache()
-      if (cached) setCache({ ...cached, productos: updated })
+      const cached = getCache(origenBodega)
+      if (cached) setCache(origenBodega, { ...cached, productos: updated })
       return updated
     })
   }
@@ -243,51 +246,33 @@ export default function InventarioPage() {
 
   return (
     <div className="space-y-4 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <h1 className="text-xl font-bold text-white">📦 Stock</h1>
-        <div className="flex items-center gap-2 flex-wrap">
+      {/* Header — solo botón sync para empresa */}
+      {(user?.role === 'empresa' || syncMsg) && (
+        <div className="flex items-center justify-end gap-2">
           {syncMsg && <span className="text-xs text-zinc-300">{syncMsg}</span>}
           {user?.role === 'empresa' && (
-            <button
-              onClick={handleSync}
-              disabled={syncing}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition"
-            >
+            <button onClick={handleSync} disabled={syncing}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white transition">
               {syncing ? '⏳ Sincronizando…' : '🔄 Sincronizar'}
             </button>
           )}
         </div>
-      </div>
+      )}
 
-      {/* Filtros — línea 1: buscador + stock bajo + contador */}
-      <div className="flex gap-2 items-center">
+      {/* Filtros — buscador + línea en una sola fila */}
+      <div className="flex gap-2 items-center" style={{ minWidth:0 }}>
         <input
           value={q}
           onChange={e => setQ(e.target.value)}
-          placeholder="Buscar producto o barcode…"
-          className="w-[35%] bg-[#0d1220] border border-[#1e2a3d] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+          placeholder="Buscar…"
+          className="min-w-0 flex-1 bg-[#0d1220] border border-[#1e2a3d] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
         />
-
-        <span className="text-zinc-500 text-xs whitespace-nowrap">{total.toLocaleString('es-CO')} productos</span>
-      </div>
-
-      {/* Filtros — línea 2: dropdowns */}
-      <div className="flex gap-2 items-center">
-        <select
-          value={marca}
-          onChange={e => setMarca(e.target.value)}
-          className="flex-1 bg-[#0d1220] border border-[#1e2a3d] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
-        >
-          <option value="">Todas las marcas</option>
-          {filtros.marcas.map(m => <option key={m} value={m}>{m}</option>)}
-        </select>
         <select
           value={linea}
           onChange={e => setLinea(e.target.value)}
-          className="flex-1 bg-[#0d1220] border border-[#1e2a3d] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500"
+          className="flex-shrink-0 w-32 bg-[#0d1220] border border-[#1e2a3d] text-white rounded-lg px-2 py-2 text-sm focus:outline-none focus:border-blue-500"
         >
-          <option value="">Todas las líneas</option>
+          <option value="">Línea</option>
           {filtros.lineas.map(l => <option key={l} value={l}>{l}</option>)}
         </select>
       </div>

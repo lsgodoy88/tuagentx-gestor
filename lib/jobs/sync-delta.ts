@@ -348,8 +348,8 @@ export async function syncProductosEmpresa(
   let upserted = 0
   for (let i = 0; i < productos.length; i += BATCH) {
     const batch = productos.slice(i, i + BATCH)
-    await Promise.all(batch.map(p =>
-      (prisma as any).$executeRawUnsafe(`
+    const batchResults = await Promise.all(batch.map(p =>
+      (prisma as any).$queryRawUnsafe(`
         INSERT INTO ${DB_SCHEMA}."Producto" (
           id, "empresaId", "integracionId", condition, nombre, barcode,
           inventory, precio, marca, linea, punto, invima,
@@ -377,6 +377,9 @@ export async function syncProductosEmpresa(
           descripcion        = EXCLUDED.descripcion,
           "externalUpdatedAt"= EXCLUDED."externalUpdatedAt",
           "updatedAt"        = EXCLUDED."updatedAt"
+        RETURNING id, nombre, "stockMinimo",
+          inventory AS nuevo_inv,
+          (SELECT inventory FROM ${DB_SCHEMA}."Producto" p2 WHERE p2.id = EXCLUDED.id) AS anterior_inv
       `,
         p.id,
         empresaId,
@@ -402,6 +405,41 @@ export async function syncProductosEmpresa(
       )
     ))
     upserted += batch.length
+
+    // Detectar cruces de umbral e insertar StockSnapshot
+    const snapshots: any[] = []
+    for (const rows of batchResults) {
+      for (const row of (rows as any[])) {
+        const anterior = row.anterior_inv
+        const nuevo = row.nuevo_inv
+        const minimo = row.stockMinimo
+        if (anterior === null || anterior === nuevo) continue
+
+        // Cruzó a agotado
+        if (anterior > 0 && nuevo <= 0) {
+          snapshots.push({ id: crypto.randomUUID(), empresaId, productoId: row.id, nombre: row.nombre, inventory: nuevo, stockMinimo: minimo ?? null, estado: 'agotado', createdAt: now })
+        }
+        // Cruzó a stock_bajo (inventory > 0 pero bajó de stockMinimo)
+        else if (minimo !== null && nuevo > 0 && nuevo < minimo && (anterior >= minimo || anterior > nuevo)) {
+          snapshots.push({ id: crypto.randomUUID(), empresaId, productoId: row.id, nombre: row.nombre, inventory: nuevo, stockMinimo: minimo, estado: 'stock_bajo', createdAt: now })
+        }
+        // Se reabastació — eliminar snapshot previo de ese producto
+        else if ((anterior <= 0 && nuevo > 0) || (minimo !== null && anterior < minimo && nuevo >= minimo)) {
+          await (prisma as any).$executeRawUnsafe(
+            `DELETE FROM ${DB_SCHEMA}."StockSnapshot" WHERE "empresaId"=$1 AND "productoId"=$2`,
+            empresaId, row.id
+          )
+        }
+      }
+    }
+    if (snapshots.length > 0) {
+      await (prisma as any).$executeRawUnsafe(
+        `INSERT INTO ${DB_SCHEMA}."StockSnapshot" (id,"empresaId","productoId",nombre,inventory,"stockMinimo",estado,"createdAt")
+         VALUES ${snapshots.map((_: any, i: number) => `($${i*8+1},$${i*8+2},$${i*8+3},$${i*8+4},$${i*8+5},$${i*8+6},$${i*8+7},$${i*8+8})`).join(',')}
+         ON CONFLICT DO NOTHING`,
+        ...snapshots.flatMap((s: any) => [s.id, s.empresaId, s.productoId, s.nombre, s.inventory, s.stockMinimo, s.estado, s.createdAt])
+      )
+    }
   }
 
   // Si es sync completo (sin desde), desactivar los que ya no vienen

@@ -25,17 +25,48 @@ export async function GET() {
   // ya no hay copia física por vinculación, hay que sumar explícitamente)
   const vinculadas = await (prisma as any).empresaVinculada.findMany({
     where: { empresaId: user.empresaId, activa: true },
-    select: { empresaClienteId: true },
+    select: { id: true, nombre: true, empresaClienteId: true },
   })
-  const empresaIds = [user.empresaId, ...vinculadas.map((v: any) => v.empresaClienteId).filter(Boolean)]
 
-  const [pendientes, alistados, entregados] = await Promise.all([
-    prisma.ordenDespacho.count({ where: { empresaId: { in: empresaIds }, estado: 'pendiente' } }),
-    prisma.ordenDespacho.count({ where: { empresaId: { in: empresaIds }, estado: 'alistado' } }),
-    prisma.ordenDespacho.count({ where: { empresaId: { in: empresaIds }, estado: { in: ['en_entrega', 'entregado'] }, entregadoEl: { gte: hoy } } }),
-  ])
+  // Empresa propia
+  const propiaEmpresa = await (prisma as any).empresa.findUnique({
+    where: { id: user.empresaId }, select: { nombre: true }
+  })
 
-  const data = { pendientes, alistados, entregados }
+  // Contadores por empresa
+  const empresas = [
+    { id: user.empresaId, nombre: propiaEmpresa?.nombre || 'Principal', slug: 'propia', clienteId: user.empresaId },
+    ...vinculadas.map((v: any) => ({
+      id: v.id, nombre: v.nombre,
+      slug: v.nombre.toLowerCase().replace(/\s+/g, '-'),
+      clienteId: v.empresaClienteId
+    }))
+  ]
+
+  const contadores = await Promise.all(empresas.map(async e => {
+    const [pendientes, alistados, entregados, agotados, stockBajo] = await Promise.all([
+      prisma.ordenDespacho.count({ where: { empresaId: e.clienteId, estado: 'pendiente' } }),
+      prisma.ordenDespacho.count({ where: { empresaId: e.clienteId, estado: 'alistado' } }),
+      prisma.ordenDespacho.count({ where: { empresaId: e.clienteId, estado: { in: ['en_entrega', 'entregado'] }, entregadoEl: { gte: hoy } } }),
+      // Agotados: últimos reportados via StockSnapshot
+      (prisma as any).stockSnapshot.findMany({
+        where: { empresaId: e.clienteId, estado: 'agotado' },
+        select: { nombre: true, inventory: true },
+        orderBy: { createdAt: 'desc' },
+        take: 3,
+      }),
+      // Stock bajo: últimos reportados via StockSnapshot
+      (prisma as any).stockSnapshot.findMany({
+        where: { empresaId: e.clienteId, estado: 'stock_bajo' },
+        select: { nombre: true, inventory: true, stockMinimo: true },
+        orderBy: { createdAt: 'desc' },
+        take: 3,
+      }),
+    ])
+    return { ...e, pendientes, alistados, entregados, agotados, stockBajo }
+  }))
+
+  const data = { empresas: contadores }
   cache.set(user.empresaId, { data, ts: Date.now() })
   return NextResponse.json(data)
   } catch (err: any) {

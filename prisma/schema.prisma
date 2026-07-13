@@ -55,6 +55,7 @@ model Empresa {
   vinculadas          EmpresaVinculada[]
   smsConfig           SmsConfig?
   smsLogs             SmsLog[]
+  stockSnapshots      StockSnapshot[]
   ordenesDespacho     OrdenDespacho[]
   ventasMes           VentaMesCliente[]
   despachoLogs        DespachoLog[]       @relation("DespachoLogEmpresa")
@@ -3270,6 +3271,21 @@ model Producto {
   @@index([condition])
   @@index([externalUpdatedAt])
   @@map("Producto")
+}
+
+model StockSnapshot {
+  id          String   @id @default(cuid())
+  empresaId   String
+  productoId  String
+  nombre      String
+  inventory   Int
+  stockMinimo Int?
+  estado      String   // 'agotado' | 'stock_bajo'
+  createdAt   DateTime @default(now())
+  empresa     Empresa  @relation(fields: [empresaId], references: [id])
+
+  @@index([empresaId, estado, createdAt])
+  @@map("StockSnapshot")
 }
 
 model SmsConfig {

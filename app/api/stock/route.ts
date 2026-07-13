@@ -12,13 +12,23 @@ export async function GET(req: NextRequest) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     const user = session.user as any
-    if (!['empresa', 'supervisor'].includes(user.role)) {
+    if (!['empresa', 'supervisor', 'bodega'].includes(user.role)) {
       return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
     }
 
     const empresaId = getEmpresaId(user)
     const { searchParams } = new URL(req.url)
     const q = searchParams.get('q') || ''
+    // Empresa vinculada desde /bodega/[slug]
+    const empresaIdParam = searchParams.get('origenId')
+    let empresaIdConsulta = empresaId
+    if (empresaIdParam && empresaIdParam !== 'propia') {
+      const vinculada = await (prisma as any).empresaVinculada.findFirst({
+        where: { id: empresaIdParam, empresaId, activa: true },
+        select: { empresaClienteId: true },
+      })
+      if (vinculada) empresaIdConsulta = vinculada.empresaClienteId
+    }
     const soloStockBajo = searchParams.get('stockBajo') === 'true'
     const marca = searchParams.get('marca') || ''
     const linea = searchParams.get('linea') || ''
@@ -31,7 +41,7 @@ export async function GET(req: NextRequest) {
       `p."empresaId" = $1`,
       `p.condition = true`,
     ]
-    const params: any[] = [empresaId]
+    const params: any[] = [empresaIdConsulta]
     let pi = 2
 
     if (q) {
@@ -86,18 +96,18 @@ export async function GET(req: NextRequest) {
       `, ...params),
     ])
 
-    // Filtros disponibles (marcas y líneas únicas para la empresa)
+    // Filtros disponibles (marcas y líneas únicas — usa empresaIdConsulta para vinculadas)
     const [marcas, lineas] = await Promise.all([
       ((prisma as any).$queryRawUnsafe as any)(`
         SELECT DISTINCT marca FROM ${DB_SCHEMA}."Producto"
         WHERE "empresaId" = $1 AND condition = true AND marca IS NOT NULL
         ORDER BY marca
-      `, empresaId),
+      `, empresaIdConsulta),
       ((prisma as any).$queryRawUnsafe as any)(`
         SELECT DISTINCT linea FROM ${DB_SCHEMA}."Producto"
         WHERE "empresaId" = $1 AND condition = true AND linea IS NOT NULL
         ORDER BY linea
-      `, empresaId),
+      `, empresaIdConsulta),
     ])
 
     const total = countRows[0]?.total ?? 0

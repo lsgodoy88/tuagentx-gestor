@@ -184,6 +184,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isSupervisor  = user?.role === 'supervisor'
   const isEmpleado    = ['vendedor', 'entregas'].includes(user?.role)
   const isBodega      = user?.role === 'bodega'
+  const [empresasBodega, setEmpresasBodega] = useState<{href:string,label:string,icon:string}[]>([])
+  useEffect(() => {
+    if (!isBodega) return
+    fetch('/api/bodega/empresas').then(r=>r.json()).then(d=>{
+      const items = [
+        { href: '/bodega/propia', label: d.propia?.nombre || 'Principal', icon: '🏢' },
+        ...(d.vinculadas||[]).map((v:any) => ({ href: `/bodega/${v.slug}`, label: v.nombre, icon: '🏢' }))
+      ]
+      setEmpresasBodega(items)
+    }).catch(()=>{})
+  }, [isBodega])
 
   // ── Nav groups (desktop sidebar) ────────────────────────────────
   const navGroups = [
@@ -223,8 +234,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }] : []),
     ...(isBodega ? [{
       items: [
-        { href: '/ordenes',    label: 'Órdenes',    icon: '📦' },
-        { href: '/trazabilidad', label: 'Bodega', icon: '🏭' },
+        ...empresasBodega,
       ]
     }] : []),
     ...(isEmpleado && user?.role !== 'impulsadora' ? [{
@@ -272,8 +282,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: '/reportes',      label: 'Reportes',     icon: '📈' },
     ] : []),
     ...(isBodega ? [
-      { href: '/ordenes',    label: 'Órdenes',    icon: '📦' },
-      { href: '/trazabilidad', label: 'Bodega', icon: '🏭' },
+      ...empresasBodega,
     ] : []),
     ...(isEmpleado && user?.role !== 'impulsadora' ? [
       { href: '/visitas', label: 'Visitas', icon: '📋' },
