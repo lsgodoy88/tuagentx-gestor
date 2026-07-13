@@ -53,6 +53,8 @@ model Empresa {
   integraciones       Integracion[]
   CarteraCache        CarteraCache[]
   vinculadas          EmpresaVinculada[]
+  smsConfig           SmsConfig?
+  smsLogs             SmsLog[]
   ordenesDespacho     OrdenDespacho[]
   ventasMes           VentaMesCliente[]
   despachoLogs        DespachoLog[]       @relation("DespachoLogEmpresa")
@@ -2946,6 +2948,7 @@ model OrdenDespacho {
   origenVinculadaId String?
   sincronizadoEn    DateTime?         // cuándo entró a BD via sync
   origenSync        String?           // 'delta' | 'nocturno' | 'backfill' | 'manual' | 'recuperada'
+  smsEnviado        Boolean           @default(false) // SMS de factura enviado al cliente
   reconciliadoEn    DateTime?         // cuándo se marcó isFacturada=true por reconciliador
   createdAt         DateTime          @default(now())
   empresaVinculada  EmpresaVinculada? @relation(fields: [origenVinculadaId], references: [id])
@@ -2954,6 +2957,7 @@ model OrdenDespacho {
   alistadoPor       Empleado?         @relation("AlistadoPor", fields: [alistadoPorId], references: [id])
   repartidor        Empleado?         @relation("RepartidorDespacho", fields: [repartidorId], references: [id])
   visitas           Visita[]
+  smsLogs           SmsLog[]
 
   @@index([empresaId, estado])
   @@index([empresaId, origen])
@@ -3266,4 +3270,39 @@ model Producto {
   @@index([condition])
   @@index([externalUpdatedAt])
   @@map("Producto")
+}
+
+model SmsConfig {
+  id         String   @id @default(cuid())
+  empresaId  String   @unique
+  activo     Boolean  @default(false)
+  dias       String   @default("1,2,3,4,5") // 0=Dom,1=Lun...6=Sab
+  firma      String   @default("Lumeli")
+  plantilla  String   @default("Sr(a) {nombre}, hemos facturado tu pedido No.{factura} por ${valor}. Agradecemos tu pago antes del {vencimiento}.")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  empresa    Empresa  @relation(fields: [empresaId], references: [id])
+
+  @@map("SmsConfig")
+}
+
+model SmsLog {
+  id             String   @id @default(cuid())
+  empresaId      String
+  ordenId        String
+  telefono       String
+  onurixMsgId    String?
+  estadoEnvio    String   // 'ok' | 'error_num' | 'error_api' | 'sin_telefono'
+  estadoEntrega  String   @default("pendiente") // 'pendiente' | 'entregado' | 'fallido'
+  errorCodigo    Int?
+  errorMsg       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  empresa        Empresa  @relation(fields: [empresaId], references: [id])
+  orden          OrdenDespacho @relation(fields: [ordenId], references: [id])
+
+  @@index([empresaId])
+  @@index([ordenId])
+  @@index([estadoEntrega])
+  @@map("SmsLog")
 }

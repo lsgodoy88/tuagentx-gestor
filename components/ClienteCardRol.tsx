@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 
-type Rol = 'vendedor' | 'entregador' | 'admin' | 'supervisor'
+type Rol = 'vendedor' | 'entregador' | 'admin' | 'supervisor' | 'empresa'
 type TipoVisita = 'Visita' | 'Venta' | 'Cobro' | 'Entrega'
 
 interface Cliente {
@@ -41,6 +41,11 @@ const VISITA_OPCIONES: { tipo: TipoVisita; icon: string; color: string }[] = [
 export default function ClienteCardRol({ cliente: c, rol, onVisita, onEntregar, onHistorial, onEditar, onSelect, isSelected }: Props) {
   const [open, setOpen] = useState(false)
   const [ddOpen, setDdOpen] = useState(false)
+  const [tab, setTab] = useState<'info'|'postventa'>('info')
+  const [smsConfig, setSmsConfig] = useState<any>(null)
+  const [smsSaving, setSmsSaving] = useState(false)
+  const [smsStats, setSmsStats] = useState<any>(null)
+  const [smsForm, setSmsForm] = useState<{activo:boolean,dias:string,plantilla:string}|null>(null)
   const [ddPos, setDdPos] = useState({ top: 0, left: 0 })
   const btnRef = useRef<HTMLButtonElement>(null)
   const ddRef = useRef<HTMLDivElement>(null)
@@ -245,7 +250,17 @@ export default function ClienteCardRol({ cliente: c, rol, onVisita, onEntregar, 
           if (onSelect && typeof window !== 'undefined' && window.innerWidth >= 1024) {
             onSelect()
           } else {
-            setOpen(o => !o)
+            const next = !open
+            setOpen(next)
+            if (next && rol === 'empresa' && !smsConfig) {
+              fetch(`/api/postventa?clienteId=${c.id}`)
+                .then(r => r.json())
+                .then(d => {
+                  setSmsConfig(d.config)
+                  setSmsForm({ activo: d.config.activo, dias: d.config.dias, plantilla: d.config.plantilla })
+                  setSmsStats(d.stats)
+                })
+            }
           }
         }}
         style={{
@@ -261,6 +276,161 @@ export default function ClienteCardRol({ cliente: c, rol, onVisita, onEntregar, 
 
         {open && (
           <>
+            {/* Tabs admin */}
+            {rol === 'empresa' && (
+              <div style={{ display:'flex', gap:6, margin:'8px 0 4px', borderBottom:'1px solid #27272a', paddingBottom:6 }}>
+                {(['info','postventa'] as const).map(t => (
+                  <button key={t} onClick={e => { e.stopPropagation(); setTab(t) }}
+                    style={{
+                      fontSize:12, fontWeight:600, padding:'4px 12px', borderRadius:8,
+                      border:'none', cursor:'pointer',
+                      background: tab===t ? '#1d4ed8' : '#18181b',
+                      color: tab===t ? '#fff' : '#9ca3af',
+                    }}>
+                    {t === 'info' ? '📋 Info' : '📱 Postventa'}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Tab Postventa — solo empresa */}
+            {rol === 'empresa' && tab === 'postventa' && (
+              <div onClick={e => e.stopPropagation()} style={{ paddingTop:4 }}>
+                {!smsForm ? (
+                  <div style={{ color:'#6b7280', fontSize:13, textAlign:'center', padding:'16px 0' }}>Cargando...</div>
+                ) : (
+                  <>
+                    {/* Toggle + Días */}
+                    <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+                      <span style={{ fontSize:13, color:'#d1d5db', fontWeight:600 }}>SMS automáticos</span>
+                      <button onClick={() => setSmsForm(f => f ? {...f, activo:!f.activo} : f)}
+                        style={{
+                          width:44, height:24, borderRadius:12, border:'none', cursor:'pointer',
+                          background: smsForm.activo ? '#1d4ed8' : '#3f3f46',
+                          position:'relative', transition:'background 0.2s',
+                        }}>
+                        <span style={{
+                          position:'absolute', top:3, left: smsForm.activo ? 22 : 2,
+                          width:18, height:18, borderRadius:'50%', background:'#fff',
+                          transition:'left 0.2s',
+                        }}/>
+                      </button>
+                    </div>
+
+                    {/* Selector días */}
+                    <div style={{ marginBottom:10 }}>
+                      <div style={{ fontSize:11, color:'#6b7280', marginBottom:5 }}>Días activos</div>
+                      <div style={{ display:'flex', gap:5 }}>
+                        {[{v:1,l:'L'},{v:2,l:'M'},{v:3,l:'X'},{v:4,l:'J'},{v:5,l:'V'},{v:6,l:'S'},{v:0,l:'D'}].map(({v,l}) => {
+                          const activos = smsForm.dias.split(',').map(Number)
+                          const on = activos.includes(v)
+                          return (
+                            <button key={v} onClick={() => {
+                              const cur = smsForm.dias.split(',').map(Number)
+                              const next = on ? cur.filter(x => x!==v) : [...cur,v].sort()
+                              setSmsForm(f => f ? {...f, dias: next.join(',')} : f)
+                            }}
+                              style={{
+                                width:30, height:30, borderRadius:8, border:'none', cursor:'pointer',
+                                fontSize:11, fontWeight:700,
+                                background: on ? '#1d4ed8' : '#18181b',
+                                color: on ? '#fff' : '#6b7280',
+                              }}>
+                              {l}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Plantilla */}
+                    <div style={{ marginBottom:10 }}>
+                      <div style={{ fontSize:11, color:'#6b7280', marginBottom:4 }}>Plantilla ({smsForm.plantilla.length}/160 caracteres)</div>
+                      <textarea
+                        value={smsForm.plantilla}
+                        onChange={e => setSmsForm(f => f ? {...f, plantilla: e.target.value.slice(0,160)} : f)}
+                        rows={3}
+                        style={{
+                          width:'100%', background:'#18181b', border:'1px solid #27272a',
+                          borderRadius:8, color:'#d1d5db', fontSize:12, padding:'6px 8px',
+                          resize:'none', boxSizing:'border-box', fontFamily:'inherit',
+                        }}
+                      />
+                      <div style={{ fontSize:10, color:'#4b5563' }}>Variables: {'{nombre} {factura} {valor} {vencimiento}'}</div>
+                    </div>
+
+                    {/* Guardar */}
+                    <button
+                      disabled={smsSaving}
+                      onClick={async () => {
+                        setSmsSaving(true)
+                        const r = await fetch('/api/postventa', {
+                          method:'POST', headers:{'Content-Type':'application/json'},
+                          body: JSON.stringify(smsForm),
+                        })
+                        const d = await r.json()
+                        if (d.ok) setSmsConfig(d.config)
+                        setSmsSaving(false)
+                      }}
+                      style={{
+                        width:'100%', padding:'8px 0', borderRadius:9,
+                        background: smsSaving ? '#27272a' : '#1d4ed8',
+                        border:'none', color:'#fff', fontSize:13, fontWeight:600,
+                        cursor: smsSaving ? 'not-allowed' : 'pointer', marginBottom:12,
+                      }}>
+                      {smsSaving ? 'Guardando...' : '💾 Guardar config'}
+                    </button>
+
+                    {/* Stats */}
+                    {smsStats && (
+                      <>
+                        <div style={{ display:'flex', gap:8, marginBottom:10 }}>
+                          {[
+                            {l:'Enviados', v:smsStats.enviados, c:'#6b7280'},
+                            {l:'Entregados', v:smsStats.entregados, c:'#22c55e'},
+                            {l:'Fallidos', v:smsStats.fallidos?.length ?? 0, c:'#ef4444'},
+                          ].map(({l,v,c:col}) => (
+                            <div key={l} style={{ flex:1, background:'#18181b', borderRadius:9, padding:'6px 8px', textAlign:'center' }}>
+                              <div style={{ fontSize:18, fontWeight:700, color:col }}>{v}</div>
+                              <div style={{ fontSize:10, color:'#6b7280' }}>{l}</div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Fallidos */}
+                        {smsStats.fallidos?.length > 0 && (
+                          <div>
+                            <div style={{ fontSize:11, color:'#ef4444', fontWeight:600, marginBottom:6 }}>⚠️ Números con problemas</div>
+                            {smsStats.fallidos.map((f:any) => (
+                              <div key={f.id} style={{ background:'#18181b', borderRadius:9, padding:'7px 10px', marginBottom:6, border:'1px solid #3f1a1a' }}>
+                                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                                  <div>
+                                    <div style={{ fontSize:12, color:'#fca5a5' }}>#{f.orden?.numeroFactura} · {f.telefono}</div>
+                                    <div style={{ fontSize:11, color:'#6b7280' }}>
+                                      {f.estadoEnvio === 'error_num' ? 'Número inválido' : 'Error de envío'}
+                                      {' · '}{new Date(f.createdAt).toLocaleDateString('es-CO',{day:'2-digit',month:'2-digit'})}
+                                    </div>
+                                  </div>
+                                  <a href={`/clientes`}
+                                    onClick={e => e.stopPropagation()}
+                                    style={{ fontSize:11, color:'#60a5fa', textDecoration:'none', fontWeight:600 }}>
+                                    ✏️ Corregir
+                                  </a>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* Tab info (siempre visible si no es postventa) */}
+            {(rol !== 'empresa' || tab === 'info') && (
+            <>
             {/* Celular + Ciudad */}
             <div style={{ display: 'flex', gap: 8, margin: '8px 0 4px' }}>
               {c.telefono && (
@@ -352,6 +522,8 @@ export default function ClienteCardRol({ cliente: c, rol, onVisita, onEntregar, 
             )}
 
             {botones}
+            </>
+            )}
           </>
         )}
       </div>

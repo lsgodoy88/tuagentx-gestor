@@ -50,10 +50,13 @@ type DatosIAGasto = { valor: number | null; fecha: string | null; concepto: stri
  * dentro de /egresos (admin/supervisor) — mismo componente, mismo
  * comportamiento, sin duplicar lógica.
  */
-export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, mes, anio }: { isAdmin: boolean, hideButton?: boolean, triggerRef?: React.RefObject<(() => void) | null>, mes?: number, anio?: number }) {
+export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, mes, anio, filtroRapido }: { isAdmin: boolean, hideButton?: boolean, triggerRef?: React.RefObject<(() => void) | null>, mes?: number, anio?: number, filtroRapido?: 'hoy'|'semana' }) {
   const [gastos, setGastos] = useState<Gasto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [filtro, setFiltro] = useState<'hoy'|'semana'|'mes'>(filtroRapido ?? 'semana')
+  const [empleadoFiltro, setEmpleadoFiltro] = useState('')
+  const [empleados, setEmpleados] = useState<{id:string,nombre:string}[]>([])
 
   const [subiendo, setSubiendo] = useState(false)
   const [popupAbierto, setPopupAbierto] = useState(false)
@@ -64,16 +67,29 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
   const [borradorFechaDoc, setBorradorFechaDoc] = useState('')
   const [borradorTipo, setBorradorTipo] = useState('')
 
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef   = useRef<HTMLInputElement>(null)
+  const camaraInputRef = useRef<HTMLInputElement>(null)
   if (triggerRef) (triggerRef as any).current = () => fileInputRef.current?.click()
 
-  useEffect(() => { cargarGastos() }, [mes, anio])
+  useEffect(() => { if (filtroRapido) setFiltro(filtroRapido) }, [filtroRapido])
+  useEffect(() => { cargarGastos() }, [filtro, empleadoFiltro, mes, anio])
+  useEffect(() => {
+    if (isAdmin) {
+      fetch('/api/empleados?rol=vendedor&activo=true').then(r=>r.json()).then(d=>{
+        if(Array.isArray(d?.empleados)) setEmpleados(d.empleados)
+        else if(Array.isArray(d)) setEmpleados(d)
+      }).catch(()=>{})
+    }
+  }, [isAdmin])
 
   async function cargarGastos() {
     setLoading(true)
     try {
-      const params = mes && anio ? `?mes=${mes}&anio=${anio}` : ''
-      const res = await fetch(`/api/gastos${params}`)
+      const sp = new URLSearchParams()
+      if (filtro !== 'mes' && !mes) sp.set('filtro', filtro)
+      else if (mes && anio) { sp.set('mes', String(mes)); sp.set('anio', String(anio)) }
+      if (empleadoFiltro) sp.set('empleadoId', empleadoFiltro)
+      const res = await fetch('/api/gastos?' + sp.toString())
       const data = await res.json()
       setGastos(data.gastos || [])
     } finally {
@@ -81,21 +97,42 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
     }
   }
 
+
+  async function comprimirImagen(base64: string, maxW = 1280, quality = 0.75): Promise<string> {
+    return new Promise((resolve) => {
+      const img = new Image()
+      img.onload = () => {
+        const scale = Math.min(1, maxW / Math.max(img.width, img.height))
+        const canvas = document.createElement('canvas')
+        canvas.width  = Math.round(img.width  * scale)
+        canvas.height = Math.round(img.height * scale)
+        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      }
+      img.onerror = () => resolve(base64) // fallback sin comprimir
+      img.src = base64
+    })
+  }
+
   async function handleArchivo(file: File) {
     setSubiendo(true)
     setError('')
     try {
-      const archivoBase64 = await new Promise<string>((resolve, reject) => {
+      let archivoBase64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
         reader.onload = e => resolve(e.target?.result as string)
         reader.onerror = reject
         reader.readAsDataURL(file)
       })
+      // Comprimir si es imagen (no PDF)
+      if (!archivoBase64.startsWith('data:application/pdf')) {
+        archivoBase64 = await comprimirImagen(archivoBase64)
+      }
       const gastoIdTemp = crypto.randomUUID()
       const res = await fetch('/api/gastos/voucher', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ archivoBase64, mimeType: file.type, gastoId: gastoIdTemp }),
+        body: JSON.stringify({ archivoBase64, mimeType: file.type || (archivoBase64.startsWith('data:application/pdf') ? 'application/pdf' : 'image/jpeg'), gastoId: gastoIdTemp }),
       })
       if (!res.ok) {
         const txt = await res.text()
@@ -110,7 +147,7 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
       setPopupAbierto(true)
     } catch (e: any) {
       console.error('[gastos] error subiendo evidencia:', e)
-      setError('No se pudo procesar el archivo. Intenta de nuevo.')
+      setError('Error: ' + (e?.message || 'No se pudo procesar el archivo'))
     } finally {
       setSubiendo(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -190,6 +227,8 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
           {error}
         </div>
       )}
+
+
 
       {loading ? (
         <p className="text-zinc-500 text-sm text-center py-10">Cargando...</p>
@@ -286,41 +325,48 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
   )
 }
 
+const thG: React.CSSProperties = {
+  padding: '8px 10px', fontSize: 13, fontWeight: 500, color: 'white',
+  whiteSpace: 'nowrap', overflow: 'hidden', borderRight: '1px solid #1e2a3d',
+  background: '#0d1220', userSelect: 'none',
+}
+const tdG: React.CSSProperties = {
+  padding: '9px 10px', fontSize: 13, borderBottom: '1px solid #131c2e',
+  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+}
+
 function TablaGasto({ gastos }: { gastos: Gasto[] }) {
+  const total = gastos.reduce((s, g) => s + Number(g.valor), 0)
   return (
-    <div className="overflow-x-auto bg-zinc-900 border border-zinc-800 rounded-2xl">
-      <table className="w-full text-sm" style={{ minWidth: 680 }}>
-        <thead>
-          <tr style={{ background: '#0d1220', borderBottom: '1px solid #1e2a3d' }}>
-            <th style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: 'white', textAlign: 'left', whiteSpace: 'nowrap' }}>Fecha</th>
-            <th style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: 'white', textAlign: 'left', whiteSpace: 'nowrap' }}>Concepto</th>
-            <th style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: 'white', textAlign: 'right', whiteSpace: 'nowrap' }}>Valor</th>
-            <th style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: 'white', textAlign: 'left', whiteSpace: 'nowrap' }}>Fecha doc</th>
-            <th style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: 'white', textAlign: 'center', whiteSpace: 'nowrap' }}>Evidencia</th>
-            <th style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: 'white', textAlign: 'left', whiteSpace: 'nowrap' }}>Tipo</th>
-          </tr>
-        </thead>
-        <tbody>
-          {gastos.map((g, i) => (
-            <tr key={g.id} style={{ background: i % 2 === 0 ? '#141c2e' : '#141c2e', borderBottom: '1px solid #1e2a3d' }}>
-              <td className="px-3.5 py-2.5 text-zinc-300 whitespace-nowrap">
-                {fmtFechaAgregacion(g.fechaAgregacion)}
-              </td>
-              <td className="px-3.5 py-2.5 text-white whitespace-nowrap">{g.concepto}</td>
-              <td className="px-3.5 py-2.5 text-emerald-400 font-semibold text-right whitespace-nowrap">{fmt(Number(g.valor))}</td>
-              <td className="px-3.5 py-2.5 text-zinc-400 whitespace-nowrap">
-                {g.fechaDoc ? fmtFechaDoc(g.fechaDoc) : '—'}
-              </td>
-              <td className="px-3.5 py-2.5 text-center whitespace-nowrap">
-                <VerEvidencia evidenciaKey={g.evidenciaKey} />
-              </td>
-              <td className="px-3.5 py-2.5 text-zinc-300 whitespace-nowrap">
-                {TIPO_API_A_UI[g.tipo] || g.tipo}
-              </td>
+    <div className="rounded-xl border border-zinc-800 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm" style={{ minWidth: 600, background: '#0a0f1a' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid #1e2a3d' }}>
+              {['FECHA REG.','FECHA DOC.','CONCEPTO','TIPO','VALOR','VER'].map(h => (
+                <th key={h} style={{ ...thG, textAlign: h === 'VALOR' ? 'right' : 'left' }}>{h}</th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {gastos.map(g => (
+              <tr key={g.id} style={{ background: '#0a0f1a' }}>
+                <td style={{ ...tdG, color: '#94a3b8' }}>{fmtFechaAgregacion(g.fechaAgregacion)}</td>
+                <td style={{ ...tdG, color: '#6b7280' }}>{g.fechaDoc ? fmtFechaDoc(g.fechaDoc) : '—'}</td>
+                <td style={{ ...tdG, color: 'white', fontWeight: 500, maxWidth: 200 }}>{g.concepto}</td>
+                <td style={{ ...tdG, color: '#94a3b8' }}>{TIPO_API_A_UI[g.tipo] || g.tipo}</td>
+                <td style={{ ...tdG, color: '#34d399', fontWeight: 700, textAlign: 'right' }}>{fmt(Number(g.valor))}</td>
+                <td style={{ ...tdG, textAlign: 'center' }}><VerEvidencia evidenciaKey={g.evidenciaKey} /></td>
+              </tr>
+            ))}
+            <tr style={{ background: '#0d1220', borderTop: '1px solid #1e2a3d' }}>
+              <td colSpan={4} style={{ ...tdG, color: '#6b7280', fontSize: 12 }}>Total · {gastos.length} registros</td>
+              <td style={{ ...tdG, color: '#fbbf24', fontWeight: 700, textAlign: 'right' }}>{fmt(total)}</td>
+              <td style={tdG}/>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

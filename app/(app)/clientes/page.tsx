@@ -80,8 +80,8 @@ export default function ClientesPage() {
   const esAdmin = (session?.user as any)?.role === 'empresa'
   const puedeEditar = esAdmin || checkPermiso(session, 'editarClientes')
   const userRole = (session?.user as any)?.role
-  const rol: 'vendedor' | 'entregador' | 'admin' | 'supervisor' =
-    userRole === 'empresa' ? 'admin' :
+  const rol: 'vendedor' | 'entregador' | 'admin' | 'supervisor' | 'empresa' =
+    userRole === 'empresa' ? 'empresa' :
     userRole === 'supervisor' ? 'supervisor' :
     userRole === 'entregador' ? 'entregador' : 'vendedor'
   const [clientes, setClientes] = useState<any[]>([])
@@ -102,7 +102,10 @@ export default function ClientesPage() {
   const [editando, setEditando] = useState<any>(null)
   const [editForm, setEditForm] = useState<any>({})
   const [error, setError] = useState('')
-  const [tab, setTab] = useState<'clientes'|'listas'>('clientes')
+  const [tab, setTab] = useState<'clientes'|'listas'|'postventa'>('clientes')
+  const [smsConfig, setSmsConfig] = useState<any>(null)
+  const [smsForm, setSmsForm] = useState<any>(null)
+  const [smsSaving, setSmsSaving] = useState(false)
   const [importandoImpExp, setImportandoImpExp] = useState(false)
   const [visitaModal, setVisitaModal] = useState<{ cliente: any; tipo: string } | null>(null)
   const [clienteSeleccionado, setClienteSeleccionado] = useState<any>(null)
@@ -376,10 +379,168 @@ export default function ClientesPage() {
     setSincronizando(false)
   }
 
+  function cargarPostventa() {
+    fetch('/api/postventa')
+      .then(r => { if (!r.ok) throw new Error('status ' + r.status); return r.json() })
+      .then(d => {
+        if (!d.config) return
+        setSmsConfig(d.config)
+        setSmsForm({ activo: !!d.config.activo, dias: d.config.dias || '1,2,3,4,5', plantilla: d.config.plantilla || '' })
+      })
+      .catch(err => console.error('[postventa]', err))
+  }
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
 
+      {/* Tabs de página — solo empresa */}
+      {esAdmin && (
+        <div className="flex gap-1 tab-pills rounded-xl p-1">
+          {([['clientes','👥 Clientes'],['postventa','📱 Postventa']] as const).map(([t,l]) => (
+            <button key={t} onClick={() => { setTab(t as any); if(t==='postventa') cargarPostventa() }}
+              className={`flex-1 py-2 text-sm font-semibold transition-colors ${tab===t ? 'tab-active' : 'text-white hover:text-white'}`}>
+              {l}
+            </button>
+          ))}
+        </div>
+      )}
 
+      {/* Tab Postventa */}
+      {tab === 'postventa' && (
+        <div style={{ maxWidth:520 }}>
+          {!smsForm ? (
+            <div style={{ color:'#6b7280', fontSize:15, textAlign:'center', padding:'32px 0' }}>Cargando...</div>
+          ) : (() => {
+            const plantilla = smsForm.plantilla || ''
+            function renderPeorCaso(tpl: string) {
+              return tpl
+                .replace('{nombre}', 'Juan Rodriguez Hernandez')
+                .replace('{factura}', '123456')
+                .replace('{valor}', '1.250.000.000')
+                .replace('{vencimiento}', '30/12/2026')
+            }
+            const plantillaRendered = renderPeorCaso(plantilla)
+            const totalChars = plantillaRendered.length
+            const overLimit = totalChars > 140
+            const nearLimit = totalChars > 125
+            return (
+            <div style={{ background:'#09091f', border:'1px solid #27272a', borderRadius:14, padding:20, display:'flex', flexDirection:'column', gap:16 }}>
+
+              {/* Título */}
+              <div style={{ borderBottom:'1px solid #27272a', paddingBottom:12 }}>
+                <div style={{ fontSize:18, color:'#f4f4f5', fontWeight:800, letterSpacing:'-0.01em' }}>📱 Onurix SMS</div>
+                <div style={{ fontSize:13, color:'#6b7280', marginTop:3 }}>Notificaciones automáticas de factura vía SMS</div>
+              </div>
+
+              {/* Toggle */}
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                <div>
+                  <div style={{ fontSize:16, color:'#f4f4f5', fontWeight:700 }}>SMS automáticos de factura</div>
+                  <div style={{ fontSize:13, color:'#6b7280', marginTop:2 }}>Se envía al confirmar cada orden</div>
+                </div>
+                <button onClick={() => setSmsForm((f:any) => ({...f, activo:!f.activo}))}
+                  style={{ width:50, height:28, borderRadius:14, border:'none', cursor:'pointer', flexShrink:0,
+                    background: smsForm.activo ? '#1d4ed8' : '#3f3f46', position:'relative', transition:'background 0.2s' }}>
+                  <span style={{ position:'absolute', top:4, left: smsForm.activo ? 25 : 3,
+                    width:20, height:20, borderRadius:'50%', background:'#fff', transition:'left 0.2s' }}/>
+                </button>
+              </div>
+
+              {/* Días */}
+              <div>
+                <div style={{ fontSize:14, color:'#9ca3af', fontWeight:600, marginBottom:8 }}>Días de envío</div>
+                <div style={{ display:'flex', gap:6 }}>
+                  {[{v:1,l:'L'},{v:2,l:'M'},{v:3,l:'X'},{v:4,l:'J'},{v:5,l:'V'},{v:6,l:'S'},{v:0,l:'D'}].map(({v,l}) => {
+                    const activos = smsForm.dias.split(',').map(Number)
+                    const on = activos.includes(v)
+                    return (
+                      <button key={v} onClick={() => {
+                        const cur = smsForm.dias.split(',').map(Number)
+                        const next = on ? cur.filter((x:number) => x!==v) : [...cur,v].sort()
+                        setSmsForm((f:any) => ({...f, dias: next.join(',')}))
+                      }}
+                        style={{ flex:1, height:38, borderRadius:9, border:'none', cursor:'pointer',
+                          fontSize:14, fontWeight:700,
+                          background: on ? '#1d4ed8' : '#18181b',
+                          color: on ? '#fff' : '#52525b' }}>
+                        {l}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Plantilla */}
+              <div>
+                <div style={{ marginBottom:6 }}>
+                  <span style={{ fontSize:14, color:'#9ca3af', fontWeight:600 }}>Plantilla del mensaje</span>
+                </div>
+                <textarea value={plantilla}
+                  onChange={(e:any) => {
+                    const val = e.target.value
+                    if (renderPeorCaso(val).length <= 140) setSmsForm((f:any) => ({...f, plantilla: val}))
+                  }}
+                  rows={4}
+                  style={{ width:'100%', background:'#18181b',
+                    border: overLimit ? '1px solid #ef4444' : '1px solid #27272a',
+                    borderRadius:9, color:'#e4e4e7', fontSize:14, padding:'10px 12px',
+                    resize:'none', boxSizing:'border-box', fontFamily:'inherit', lineHeight:1.5 }}
+                />
+                <div style={{ fontSize:12, color:'#4b5563', marginTop:4 }}>
+                  Variables: <span style={{color:'#52525b'}}>{'{nombre}  {factura}  {valor}  {vencimiento}'}</span>
+                </div>
+              </div>
+
+              {/* Preview */}
+              <div style={{ background:'#0a0f1a', borderRadius:10, padding:'12px 14px', border:'1px solid #1e3a5f' }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:6 }}>
+                  <span style={{ fontSize:12, color:'#3b82f6', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.05em' }}>Vista previa</span>
+                  <span style={{ fontSize:12, fontWeight:700, color: overLimit ? '#ef4444' : nearLimit ? '#f59e0b' : '#4b5563' }}>
+                    {totalChars} / 140 chars
+                  </span>
+                </div>
+                <div style={{ fontSize:14, color:'#9ca3af', lineHeight:1.6 }}>
+                  {plantillaRendered}
+                </div>
+                <div style={{ fontSize:11, color:'#374151', marginTop:6 }}>
+                  Peor caso · nombre 25 chars · valor máximo
+                </div>
+              </div>
+
+
+
+              {/* Guardar */}
+              <button
+                disabled={smsSaving || overLimit}
+                onClick={async () => {
+                  setSmsSaving(true)
+                  try {
+                    const r = await fetch('/api/postventa', {
+                      method:'POST',
+                      headers:{'Content-Type':'application/json'},
+                      body: JSON.stringify(smsForm),
+                    })
+                    const d = await r.json()
+                    if (d.ok) { setSmsConfig(d.config); alert('✅ Configuración guardada') }
+                    else alert('Error: ' + (d.error || 'desconocido'))
+                  } catch(e:any) { alert('Error de red: ' + e.message) }
+                  setSmsSaving(false)
+                }}
+                style={{ padding:'12px 0', borderRadius:10,
+                  background: smsSaving || overLimit ? '#27272a' : '#1d4ed8',
+                  border:'none', color:'#fff', fontSize:15, fontWeight:700,
+                  cursor: smsSaving || overLimit ? 'not-allowed' : 'pointer' }}>
+                {smsSaving ? 'Guardando...' : overLimit ? '⚠️ Texto supera 160 chars' : '💾 Guardar configuración'}
+              </button>
+            </div>
+            )
+          })()}
+        </div>
+      )}
+
+      {/* Toolbar: search + filters — oculto en postventa */}
+      {tab !== 'postventa' && (
+      <>
       {/* Toolbar: search + filters */}
       <div className="flex gap-2 flex-wrap mb-3">
         <input value={buscar} onChange={e => {
@@ -594,7 +755,8 @@ export default function ClientesPage() {
         </div>
       )}
       {/* Modal Importar / Exportar clientes */}
-
+      </>
+      )}
 
     </div>
   )

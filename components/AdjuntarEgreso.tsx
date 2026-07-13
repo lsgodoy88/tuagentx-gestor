@@ -16,7 +16,8 @@ interface Props {
 }
 
 export default function AdjuntarEgreso({ mes, anio, onAdicionado }: Props) {
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  const fileInputRef    = useRef<HTMLInputElement>(null)
+  const camaraInputRef  = useRef<HTMLInputElement>(null)
   const [subiendo, setSubiendo]               = useState(false)
   const [popupAbierto, setPopupAbierto]       = useState(false)
   const [evidenciaKey, setEvidenciaKey]       = useState('')
@@ -35,22 +36,47 @@ export default function AdjuntarEgreso({ mes, anio, onAdicionado }: Props) {
     setEvidenciaKey(''); setDatosIA(null); setError('')
   }
 
+
+  async function comprimirImagen(base64: string, maxW = 1280, quality = 0.75): Promise<string> {
+    return new Promise((resolve) => {
+      const img = new Image()
+      img.onload = () => {
+        const scale = Math.min(1, maxW / Math.max(img.width, img.height))
+        const canvas = document.createElement('canvas')
+        canvas.width  = Math.round(img.width  * scale)
+        canvas.height = Math.round(img.height * scale)
+        canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+        resolve(canvas.toDataURL('image/jpeg', quality))
+      }
+      img.onerror = () => resolve(base64) // fallback sin comprimir
+      img.src = base64
+    })
+  }
+
   async function handleArchivo(file: File) {
     setSubiendo(true); setError('')
+    console.log('[egreso] file:', file.name, file.type, file.size, file.lastModified)
     try {
+      // Cámara Android puede entregar blob sin nombre — forzar a File con nombre
+      const safeFile = file.size > 0 ? file : null
+      if (!safeFile) { setError('Archivo vacío o inválido'); setSubiendo(false); return }
+
       const archivoBase64 = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader()
         reader.onload = e => resolve(e.target?.result as string)
-        reader.onerror = reject
-        reader.readAsDataURL(file)
+        reader.onerror = (e) => { console.error('[egreso] FileReader error', e); reject(e) }
+        reader.readAsDataURL(safeFile)
       })
+      console.log('[egreso] base64 len:', archivoBase64.length, 'prefix:', archivoBase64.slice(0,40))
       const gastoIdTemp = crypto.randomUUID()
+      const mimeType = file.type || (archivoBase64.startsWith('data:application/pdf') ? 'application/pdf' : 'image/jpeg')
       const res = await fetch('/api/gastos/voucher', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ archivoBase64, mimeType: file.type, gastoId: gastoIdTemp }),
+        body: JSON.stringify({ archivoBase64, mimeType, gastoId: gastoIdTemp }),
       })
       const data = await res.json()
+      if (!res.ok) throw new Error(data.error || `HTTP ${res.status}`)
       setEvidenciaKey(data.key || '')
       setDatosIA(data.datosIA)
       setConcepto(data.datosIA?.concepto || '')
@@ -64,8 +90,10 @@ export default function AdjuntarEgreso({ mes, anio, onAdicionado }: Props) {
       }
       setFechaDoc(fechaNorm)
       setPopupAbierto(true)
-    } catch {
-      setError('No se pudo procesar el archivo.')
+    } catch (err: any) {
+      console.error('[egreso] catch:', err)
+      const msg = err?.message || err?.toString() || 'desconocido'
+      setError('Error: ' + msg)
     } finally {
       setSubiendo(false)
       if (fileInputRef.current) fileInputRef.current.value = ''
@@ -109,11 +137,13 @@ export default function AdjuntarEgreso({ mes, anio, onAdicionado }: Props) {
     <>
       <input ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden"
         onChange={e => { if (e.target.files?.[0]) handleArchivo(e.target.files[0]) }} />
+
       <button
         onClick={() => fileInputRef.current?.click()}
         disabled={subiendo}
+        title="Adjuntar archivo"
         className="flex items-center justify-center disabled:opacity-50 transition-colors h-full flex-shrink-0" style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, padding:'0 4px' }}>
-        {subiendo ? '⏳' : '📎'}
+        {subiendo ? '' : '📎'}
       </button>
 
       {error && !popupAbierto && (

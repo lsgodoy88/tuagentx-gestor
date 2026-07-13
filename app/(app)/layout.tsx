@@ -48,7 +48,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       '/gastos':        'Gastos',
       '/rutas':         'Visitas',
       '/impulsos':   'Impulsos',
-      '/trazabilidad':  'Despacho',
+      '/trazabilidad':  'Bodega',
       '/reportes':      'Reportes',
       '/ordenes':       'Órdenes',
       '/stock':         'Stock',
@@ -207,14 +207,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { href: '/clientes',  label: 'Clientes',  icon: '🏪' },
         { href: '/cartera',   label: 'Cartera',   icon: '💰' },
         { href: '/recaudos',  label: 'Recaudos',  icon: '💳' },
-        { href: '/stock', label: 'Stock', icon: '📦' },
       ]
     }, {
       label: 'Visitas',
       items: [
         { href: '/rutas',        label: 'Visitas',       icon: '📋' },
         { href: '/impulsos',  label: 'Impulsos',      icon: '⚡' },
-        { href: '/trazabilidad', label: 'Despacho',  icon: '🚚' },
+        { href: '/trazabilidad', label: 'Bodega',  icon: '🏭' },
       ]
     }, {
       label: 'Análisis',
@@ -225,7 +224,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     ...(isBodega ? [{
       items: [
         { href: '/ordenes',    label: 'Órdenes',    icon: '📦' },
-        { href: '/stock', label: 'Stock', icon: '📦' },
+        { href: '/trazabilidad', label: 'Bodega', icon: '🏭' },
       ]
     }] : []),
     ...(isEmpleado && user?.role !== 'impulsadora' ? [{
@@ -269,13 +268,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: '/recaudos',      label: 'Recaudos',     icon: '💳' },
       { href: '/rutas',         label: 'Visitas',      icon: '📋' },
       { href: '/impulsos',   label: 'Impulsos',     icon: '⚡' },
-      { href: '/trazabilidad',  label: 'Despacho', icon: '🚚' },
+      { href: '/trazabilidad',  label: 'Bodega', icon: '🏭' },
       { href: '/reportes',      label: 'Reportes',     icon: '📈' },
-      { href: '/stock',   label: 'Stock',   icon: '📦' },
     ] : []),
     ...(isBodega ? [
       { href: '/ordenes',    label: 'Órdenes',    icon: '📦' },
-      { href: '/stock', label: 'Stock', icon: '📦' },
+      { href: '/trazabilidad', label: 'Bodega', icon: '🏭' },
     ] : []),
     ...(isEmpleado && user?.role !== 'impulsadora' ? [
       { href: '/visitas', label: 'Visitas', icon: '📋' },

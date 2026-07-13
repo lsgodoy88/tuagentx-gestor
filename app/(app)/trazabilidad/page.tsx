@@ -1,5 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
+const StockPage = dynamic(() => import('@/app/(app)/stock/page'), { ssr: false })
 import { fechaHoyBogota, haceNDiasBogota } from '@/lib/fechas'
 import DataTable, { ColDef } from '@/components/DataTable'
 import { useSession } from 'next-auth/react'
@@ -294,7 +296,7 @@ export default function TrazabilidadPage() {
         </button>
         <button onClick={() => setTabPrincipal('inventario')}
           className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'inventario' ? 'tab-active' : 'text-white hover:text-white'}`}>
-          🏭 Inventario
+          📦 Inventario
         </button>
 
         {/* Guía de estados */}
@@ -332,13 +334,7 @@ export default function TrazabilidadPage() {
         </div>
       </div>
 
-      {tabPrincipal === 'inventario' && (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center text-zinc-500">
-          <p className="text-4xl mb-3">🏭</p>
-          <p className="font-semibold text-white">Módulo en construcción</p>
-          <p className="text-sm mt-1">Próximamente: control de stock, entradas y salidas</p>
-        </div>
-      )}
+      {tabPrincipal === 'inventario' && <StockPage />}
 
       {tabPrincipal === 'despachos' && (<>
 

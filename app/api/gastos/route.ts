@@ -19,15 +19,31 @@ export async function GET(req: NextRequest) {
   const { searchParams: sp } = new URL(req.url)
   const mesF = sp.get('mes') ? parseInt(sp.get('mes')!) : null
   const anioF = sp.get('anio') ? parseInt(sp.get('anio')!) : null
-  let mesWhere = {}
-  if (mesF && anioF) {
+  const filtro = sp.get('filtro') // 'hoy' | 'semana'
+  const empleadoIdParam = sp.get('empleadoId') // solo admin
+
+  // Rango de fechas Bogotá
+  const ahoraBogota = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
+  const hoySolo = new Date(ahoraBogota.getFullYear(), ahoraBogota.getMonth(), ahoraBogota.getDate())
+  const manana = new Date(hoySolo); manana.setDate(hoySolo.getDate() + 1)
+  const lunes = new Date(hoySolo); lunes.setDate(hoySolo.getDate() - ((hoySolo.getDay() + 6) % 7))
+
+  let fechaWhere = {}
+  if (filtro === 'hoy') fechaWhere = { fechaAgregacion: { gte: hoySolo, lt: manana } }
+  else if (filtro === 'semana') fechaWhere = { fechaAgregacion: { gte: lunes, lt: manana } }
+  else if (mesF && anioF) {
     const inicio = new Date(anioF, mesF - 1, 1)
     const fin = new Date(anioF, mesF, 1)
-    mesWhere = { fechaAgregacion: { gte: inicio, lt: fin } }
+    fechaWhere = { fechaAgregacion: { gte: inicio, lt: fin } }
   }
 
+  // Admin puede filtrar por empleado específico
+  const empWhere = empleadoIdForzado
+    ? { empleadoId: empleadoIdForzado }
+    : (empleadoIdParam ? { empleadoId: empleadoIdParam } : {})
+
   const gastos = await (prisma as any).gasto.findMany({
-    where: { empresaId, ...(empleadoIdForzado ? { empleadoId: empleadoIdForzado } : {}), ...mesWhere },
+    where: { empresaId, ...empWhere, ...fechaWhere },
     include: { empleado: { select: { id: true, nombre: true } } },
     orderBy: { fechaAgregacion: 'desc' },
   })

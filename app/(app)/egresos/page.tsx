@@ -272,11 +272,23 @@ function Tabla({ cat, mes, anio }: { cat: { key: string; label: string }; mes: n
   )
 }
 
-function CalendarioPopup({ mes, anio, onChange, onClose }: { mes: number; anio: number; onChange: (m: number, a: number) => void; onClose: () => void }) {
+function CalendarioPopup({ mes, anio, onChange, onClose, onFiltroRapido }: { mes: number; anio: number; onChange: (m: number, a: number) => void; onClose: () => void; onFiltroRapido?: (f: 'hoy'|'semana') => void }) {
   const [m, setM] = useState(mes)
   const [a, setA] = useState(anio)
   return (
     <div className="absolute right-0 top-10 z-50 bg-zinc-900 border border-zinc-700 rounded-2xl p-4 shadow-xl space-y-3" style={{ minWidth: 220 }}>
+      {onFiltroRapido && (
+        <div className="flex gap-2 pb-1 border-b border-zinc-800">
+          <button onClick={() => { onFiltroRapido('hoy'); onClose() }}
+            className="flex-1 bg-blue-600 text-white text-xs font-semibold py-2 rounded-xl transition-colors">
+            Hoy
+          </button>
+          <button onClick={() => { onFiltroRapido('semana'); onClose() }}
+            className="flex-1 bg-blue-600 text-white text-xs font-semibold py-2 rounded-xl transition-colors">
+            Esta semana
+          </button>
+        </div>
+      )}
       <div className="flex items-center justify-between gap-2">
         <select value={m} onChange={e => setM(+e.target.value)} className="bg-zinc-800 border border-zinc-700 text-white text-xs rounded-lg px-2 py-1.5 flex-1">
           {MESES.map((ml, i) => <option key={i} value={i+1}>{ml}</option>)}
@@ -302,6 +314,7 @@ export default function EgresosPage() {
   const [mes, setMes] = useState(hoy.getMonth() + 1)
   const [anio, setAnio] = useState(hoy.getFullYear())
   const [showCal, setShowCal] = useState(false)
+  const [filtroGastos, setFiltroGastos] = useState<'hoy'|'semana'|'mes'>('mes')
   const [reloadKey, setReloadKey] = useState(0)
   const triggerGastos = useRef<(() => void) | null>(null)
   const calRef = useRef<HTMLDivElement>(null)
@@ -332,8 +345,9 @@ export default function EgresosPage() {
           )}
           {tab === 'gastos' && (
             <button onClick={() => triggerGastos.current?.()}
-              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold px-3 rounded-xl transition-colors self-stretch">
-              <span>📎</span><span className="hidden md:inline"> Adjuntar</span>
+              className="flex items-center justify-center disabled:opacity-50 transition-colors h-full flex-shrink-0"
+              style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, padding:'0 4px' }}>
+              📎
             </button>
           )}
           <div className="relative flex-shrink-0 flex" ref={calRef}>
@@ -341,13 +355,13 @@ export default function EgresosPage() {
               className="flex items-center gap-1.5 bg-zinc-800 border border-zinc-700 text-white text-xs font-semibold px-3 rounded-xl hover:bg-zinc-700 transition-colors flex-1">
               📅 {MESES[mes-1].slice(0,3)} {anio}
             </button>
-            {showCal && <CalendarioPopup mes={mes} anio={anio} onChange={(m,a) => { setMes(m); setAnio(a) }} onClose={() => setShowCal(false)} />}
+            {showCal && <CalendarioPopup mes={mes} anio={anio} onChange={(m,a) => { setMes(m); setAnio(a); setFiltroGastos('mes') }} onClose={() => setShowCal(false)} onFiltroRapido={(f) => setFiltroGastos(f)} />}
           </div>
         </div>
       </div>
       {tab === 'egresos'
         ? CATEGORIAS.map(cat => <Tabla key={`${cat.key}-${reloadKey}`} cat={cat} mes={mes} anio={anio} />)
-        : <ModuloGastos isAdmin={isAdmin} hideButton triggerRef={triggerGastos} mes={mes} anio={anio} />}
+        : <ModuloGastos isAdmin={isAdmin} hideButton triggerRef={triggerGastos} mes={filtroGastos==='mes' ? mes : undefined} anio={filtroGastos==='mes' ? anio : undefined} filtroRapido={filtroGastos !== 'mes' ? filtroGastos : undefined} />}
     </div>
   )
 }
