@@ -6,6 +6,7 @@ import FirmaCanvas from '@/components/FirmaCanvas'
 import { useSession } from 'next-auth/react'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useBodegaContext } from '@/lib/bodega-context'
+import { useOrdenesData } from '@/hooks/useOrdenesData'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 const Cropper = dynamic(() => import('react-cropper'), { ssr: false })
@@ -83,26 +84,28 @@ export default function ModuloOrdenes() {
   const router = useRouter()
   const user = session?.user as any
 
-  const [subTab, setSubTab] = useState<'pendientes' | 'alistados' | 'entregados'>('pendientes') // legacy — usar tabActivo
-  const [despachos, setDespachos] = useState<any[]>([])
-  const [ciudadLocal, setCiudadLocal] = useState<string | null>(null)
-  const [bodegaPuedeEnviar, setBodegaPuedeEnviar] = useState(false)
-  const [ultimaSync, setUltimaSync] = useState<string | null>(null)
-  const [diasHistorial, setDiasHistorial] = useState<number>(() => { if (typeof window === 'undefined') return 10; const v = parseInt(localStorage.getItem('diasHistorialVista') || '10'); return Math.min(30, Math.max(1, v)) })
   const { origenId: origenForzado, forzado: esForzado } = useBodegaContext()
   const [origenId, setOrigenId] = useState<string>(origenForzado)
   const [origenSeleccion, setOrigenSeleccion] = useState<string>(origenForzado)
   const [empresasOrigen, setEmpresasOrigen] = useState<any[]>([])
   const [repartidores, setRepartidores] = useState<any[]>([])
-  const [cargando, setCargando] = useState(true)
+  const [diasHistorial, setDiasHistorial] = useState<number>(() => { if (typeof window === 'undefined') return 10; const v = parseInt(localStorage.getItem('diasHistorialVista') || '10'); return Math.min(30, Math.max(1, v)) })
   const [syncing, setSyncing] = useState(false)
   const [msgSync, setMsgSync] = useState('')
   const [saving, setSaving] = useState<Record<string, boolean>>({})
   const [tabActivo, setTabActivo] = useState<'pendiente'|'alistado'|'despachado'>('pendiente')
-  const [cursores, setCursores] = useState<Record<string, string|null>>({ pendiente: null, alistado: null, despachado: null })
-  const [hayMasPorTab, setHayMasPorTab] = useState<Record<string, boolean>>({ pendiente: false, alistado: false, despachado: false })
-  const [despachosPorTab, setDespachosPorTab] = useState<Record<string, any[]>>({ pendiente: [], alistado: [], despachado: [] })
-  const [cargandoMasTab, setCargandoMasTab] = useState(false)
+
+  const {
+    despachosPorTab, setDespachosPorTab,
+    cargando,
+    cursores, hayMasPorTab, cargandoMasTab,
+    ciudadLocal, bodegaPuedeEnviar, ultimaSync,
+    cargarDatos: cargarDatosHook,
+    cargarTab: cargarTabHook,
+    cargarMasTab: cargarMasTabHook,
+    actualizarOrden, moverOrdenEntreTab,
+    limpiarCache,
+  } = useOrdenesData(origenForzado)
   const [despachoLog, setDespachoLog] = useState<any[]>([])
   const [logHayMas, setLogHayMas] = useState(false)
   const [logNextCursor, setLogNextCursor] = useState<string|null>(null)
@@ -212,46 +215,16 @@ export default function ModuloOrdenes() {
         }
       })
       .catch(() => {})
+    limpiarCache()
   }, [status, origenForzado])
 
   async function cargarTab(tab: 'pendiente'|'alistado'|'despachado', origen?: string, reset = false) {
-    const id = origen ?? origenId
-    if (reset) {
-      setCursores(p => ({ ...p, [tab]: null }))
-      setDespachosPorTab(p => ({ ...p, [tab]: [] }))
-    }
-    try {
-      const params = new URLSearchParams()
-      if (id !== 'propia') params.set('origenId', id)
-      params.set('estado', tab)
-      if (!reset && cursores[tab]) params.set('cursor', cursores[tab]!)
-      if (busqueda) params.set('q', busqueda)
-      const res = await fetch(`/api/bodega/despachos?${params}`)
-      if (!res.ok) return
-      const data = await res.json()
-      if (data.error) return
-      setDespachosPorTab(p => ({ ...p, [tab]: reset ? (data.despachos || []) : [...(p[tab] || []), ...(data.despachos || [])] }))
-      setCursores(p => ({ ...p, [tab]: data.nextCursor || null }))
-      setHayMasPorTab(p => ({ ...p, [tab]: !!data.hayMas }))
-      setCiudadLocal(data.ciudadLocal || null)
-      setBodegaPuedeEnviar(data.bodegaPuedeEnviar ?? false)
-      setUltimaSync(data.ultimaSyncBodega || null)
-    } catch { /* error silencioso por tab */ }
+    await cargarTabHook(tab, origen ?? origenId, reset, busqueda, cursores)
   }
 
-  // Mantener compatibilidad con código existente que llama cargarDatos
   async function cargarDatos(origen?: string) {
-    setCargando(true)
-    try {
-      await Promise.all([
-        cargarTab('pendiente', origen, true),
-        cargarTab('alistado', origen, true),
-        cargarTab('despachado', origen, true),
-      ])
-      cargarDespachoLog(true, origen)
-    } finally {
-      setCargando(false)
-    }
+    await cargarDatosHook(origen ?? origenId, busqueda)
+    cargarDespachoLog(true, origen)
   }
 
   async function cargarDespachoLog(reset = false, origen?: string) {
@@ -272,9 +245,7 @@ export default function ModuloOrdenes() {
   }
 
   async function cargarMasTab() {
-    if (cargandoMasTab || !hayMasPorTab[tabActivo]) return
-    setCargandoMasTab(true)
-    try { await cargarTab(tabActivo) } finally { setCargandoMasTab(false) }
+    await cargarMasTabHook(tabActivo, origenId, busqueda)
   }
 
   async function sync() {
@@ -300,23 +271,7 @@ export default function ModuloOrdenes() {
     const nuevo = Math.min(30, Math.max(1, diasHistorial + delta))
     setDiasHistorial(nuevo)
     try { localStorage.setItem('diasHistorialVista', String(nuevo)) } catch {}
-    // Recargar sin sobreescribir diasHistorial
-    setCargando(true)
-    const id = origenId
-    try {
-      const params = new URLSearchParams()
-      if (id !== 'propia') params.set('origenId', id)
-      params.set('dias', String(nuevo))
-      const res = await fetch(`/api/bodega/despachos?${params.toString()}`)
-      const data = await res.json()
-      setDespachos(data.despachos || [])
-      setCiudadLocal(data.ciudadLocal || null)
-      setBodegaPuedeEnviar(data.bodegaPuedeEnviar ?? false)
-      setUltimaSync(data.ultimaSyncBodega || null)
-      // NO tocar diasHistorial aqui
-    } finally {
-      setCargando(false)
-    }
+    await cargarDatos(origenId)
   }
   async function patchOrden(id: string, body: Record<string, unknown>) {
     setSaving(p => ({ ...p, [id]: true }))
@@ -329,7 +284,7 @@ export default function ModuloOrdenes() {
       const data = await res.json()
       if (data.orden) {
         const ordenActualizada = data.orden
-        setDespachos(prev => prev.map(d => d.id === id ? { ...d, ...ordenActualizada } : d))
+        actualizarOrden(id, ordenActualizada)
         const estadoFinal = ordenActualizada.estado
         const esDespachada = ['en_entrega','en_transito','entregado'].includes(estadoFinal)
         const esAlistada = estadoFinal === 'alistado'
@@ -445,7 +400,7 @@ export default function ModuloOrdenes() {
           body: JSON.stringify({ ordenId, fotoBase64: foto }),
         }).then(r => r.json())
         if (res.orden) {
-          setDespachos(prev => prev.map(d => d.id === ordenId ? { ...d, ...res.orden } : d))
+          actualizarOrden(ordenId, res.orden)
           setDespachosPorTab(prev => {
             const next = { ...prev }
             for (const tab of Object.keys(next)) {
@@ -564,6 +519,7 @@ export default function ModuloOrdenes() {
     }, [tabActivo, pendientes, alistados, despachados, busqueda, ciudadFiltro])
 
   async function syncOrdenes() {
+    limpiarCache()
     setSyncing(true); setMsgSync('')
     try {
       const res = await fetch('/api/sync/delta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
@@ -672,7 +628,7 @@ export default function ModuloOrdenes() {
             { id: 'despachado', label: 'DESPACHADOS', count: despachados.length, activeC: 'bg-blue-600',   countC: 'text-white' },
           ] as const).map(p => (
             <button key={p.id}
-              onClick={() => { setTabActivo(p.id as any); setSubTab(p.id === 'pendiente' ? 'pendientes' : p.id === 'alistado' ? 'alistados' : 'entregados'); if (p.id === 'despachado' && despachoLog.length === 0) cargarDespachoLog(true) }}
+              onClick={() => { setTabActivo(p.id as any); if (p.id === 'despachado' && despachoLog.length === 0) cargarDespachoLog(true) }}
               className={`flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl transition-all ${
                 tabActivo === p.id ? p.activeC : 'hover:bg-zinc-800'
               }`}>

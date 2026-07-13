@@ -49,7 +49,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       '/rutas':         'Visitas',
       '/impulsos':   'Impulsos',
       '/trazabilidad':  'Bodega',
-      '/reportes':      'Reportes',
       '/ordenes':       'Órdenes',
       '/stock':         'Stock',
       '/visitas':       'Mis Visitas',
@@ -229,7 +228,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }, {
       label: 'Análisis',
       items: [
-        { href: '/reportes', label: 'Reportes', icon: '📈' },
       ]
     }] : []),
     ...(isBodega ? [{
@@ -279,7 +277,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: '/rutas',         label: 'Visitas',      icon: '📋' },
       { href: '/impulsos',   label: 'Impulsos',     icon: '⚡' },
       { href: '/trazabilidad',  label: 'Bodega', icon: '🏭' },
-      { href: '/reportes',      label: 'Reportes',     icon: '📈' },
     ] : []),
     ...(isBodega ? [
       ...empresasBodega,
