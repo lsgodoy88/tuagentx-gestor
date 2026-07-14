@@ -346,10 +346,10 @@ export default function TrazabilidadPage() {
             onChange={e => setQInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && buscar()}
             placeholder="# orden o cliente..."
-            className="flex-1 min-w-0  rounded-xl px-3 py-2 text-white text-sm outline-none" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}
+            className={`flex-1 min-w-0 bg-[#0d1220] rounded-lg px-3 py-2 text-white text-sm focus:outline-none ${qInput ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}
           />
           <select value={estado} onChange={e => setEstado(e.target.value)}
-            className="rounded-xl px-3 py-2 text-white text-sm outline-none" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
+            className={`bg-[#0d1220] rounded-lg px-3 py-2 text-white text-sm focus:outline-none ${estado ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}>
             {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
           </select>
           <button onClick={buscar}
@@ -434,8 +434,8 @@ export default function TrazabilidadPage() {
                 label: 'Despachado',
                 fecha: !['pendiente', 'alistado'].includes(orden.estado) ? orden.alistadoEl : null,
                 quien: repartidorNombre,
-                accion: null,
-                accionLabel: '',
+                accion: orden.urlSeguimiento ? () => window.open(orden.urlSeguimiento, '_blank') : null,
+                accionLabel: orden.urlSeguimiento ? '🔗' : '',
               },
               {
                 icon: '✅',

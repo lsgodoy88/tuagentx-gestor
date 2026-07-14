@@ -87,6 +87,17 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (guiaTransporte !== undefined) update.guiaTransporte = guiaTransporte
   if (transportadora !== undefined) update.transportadora = transportadora
 
+  // Construir urlSeguimiento si hay guía y config de transportadora
+  if (guiaTransporte) {
+    const emp = await (prisma as any).empresa.findUnique({
+      where: { id: empresaId }, select: { configDespachos: true }
+    })
+    const cfg: any = emp?.configDespachos ?? {}
+    if (cfg.urlBase && guiaTransporte) {
+      update.urlSeguimiento = cfg.urlBase.trim() + guiaTransporte.trim()
+    }
+  }
+
   // Todo lo de DB en una sola transacción — o todo o nada
   const updated = await prisma.$transaction(async (tx: any) => {
     const ordenActualizada = await tx.ordenDespacho.update({

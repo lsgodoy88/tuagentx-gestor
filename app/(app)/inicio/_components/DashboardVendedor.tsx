@@ -588,13 +588,13 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
                       <div className="bg-black/30 rounded-xl p-3 border border-zinc-700">
                         <div className="flex gap-2 items-center">
                           <select value={pausaMotivo} onChange={e => { setPausaMotivo(e.target.value); setPausaMotivoCustom('') }}
-                            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 text-sm text-white outline-none">
+                            className="flex-1 bg-[#0d1220] border border-[#1e2a3d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
                             <option value="Almuerzo">🍽️ Almuerzo</option>
                             <option value="Permiso">📝 Permiso</option>
                             <option value="Otro">📦 Otro</option>
                           </select>
                           <select value={pausaDuracion} onChange={e => setPausaDuracion(Number(e.target.value))}
-                            className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2.5 text-sm text-white outline-none">
+                            className="flex-1 bg-[#0d1220] border border-[#1e2a3d] rounded-lg px-3 py-2 text-sm text-white focus:outline-none">
                             <option value={30}>30 min</option>
                             <option value={60}>1 hora</option>
                             <option value={120}>2 horas</option>
@@ -602,7 +602,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
                           </select>
                           <button onClick={pausarTurno} className="bg-amber-500 text-white text-lg px-3 py-2.5 rounded-xl">⏸️</button>
                         </div>
-                        {pausaMotivo === "Otro" && <input value={pausaMotivoCustom} onChange={e => setPausaMotivoCustom(e.target.value)} placeholder="Especifica el motivo..." className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-sm text-white mt-2 outline-none" />}
+                        {pausaMotivo === "Otro" && <input value={pausaMotivoCustom} onChange={e => setPausaMotivoCustom(e.target.value)} placeholder="Especifica el motivo..." className="w-full bg-[#0d1220] border border-[#1e2a3d] rounded-lg px-3 py-2 text-sm text-white mt-2 focus:outline-none" />}
                       </div>
                     )}
                   </div>

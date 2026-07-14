@@ -489,7 +489,7 @@ export default function EmpleadosPage() {
                             <button disabled className="text-xs px-3 py-1.5 rounded-lg bg-zinc-800 text-zinc-600 cursor-not-allowed">
                               Configurar
                             </button>
-                            <div className="absolute bottom-full right-0 mb-1 hidden group-hover:block w-48  rounded-xl px-3 py-2 text-xs text-zinc-300 shadow-xl pointer-events-none z-10" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
+                            <div className="absolute bottom-full right-0 mb-1 hidden group-hover:block w-48  rounded-lg px-3 py-2 text-xs text-zinc-300 shadow-xl pointer-events-none z-10" style={{background:"#0d1220",border:"1px solid #1e2a3d"}}>
                               Primero crea un supervisor
                             </div>
                           </div>
@@ -535,7 +535,7 @@ export default function EmpleadosPage() {
                 if (!precio) return null
                 const cant = cantidades[rc.id] ?? 0
                 return (
-                  <div key={rc.id} className="flex items-center justify-between  rounded-xl px-4 py-3" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
+                  <div key={rc.id} className="flex items-center justify-between  rounded-xl px-4 py-3" style={{background:"#0d1220",border:"1px solid #1e2a3d"}}>
                     <div className="flex items-center gap-2 flex-1 min-w-0">
                       <span>{rc.icon}</span>
                       <div>
@@ -589,7 +589,7 @@ export default function EmpleadosPage() {
                 <div className="text-center space-y-3">
                   <div className="text-4xl">✅</div>
                   <p className="text-white font-semibold">Empleado creado</p>
-                  <div className="rounded-xl p-4 text-left space-y-2" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
+                  <div className="rounded-xl p-4 text-left space-y-2" style={{background:"#0d1220",border:"1px solid #1e2a3d"}}>
                     <p className="text-zinc-400 text-xs">Email:</p>
                     <p className="text-emerald-400 font-mono text-sm">{resultado.email}</p>
                     <p className="text-zinc-400 text-xs mt-2">Contraseña:</p>
@@ -610,11 +610,11 @@ export default function EmpleadosPage() {
                     <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Email de acceso</label>
                     <input value={emailEdit} onChange={e => setEmailEdit(e.target.value)}
                       placeholder="correo@empresa"
-                      className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
+                      className="w-full  rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#0d1220",border:"1px solid #1e2a3d"}} />
                   </div>
                 )}
                 {nombre && !editando && (
-                  <div className="rounded-xl p-3" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
+                  <div className="rounded-xl p-3" style={{background:"#0d1220",border:"1px solid #1e2a3d"}}>
                     <p className="text-zinc-400 text-xs mb-1">Usuario:</p>
                     <p className="text-emerald-400 font-mono text-sm">{getSlug(nombre)}</p>
                   </div>
@@ -623,7 +623,7 @@ export default function EmpleadosPage() {
                   <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Nombre</label>
                   <input value={nombre} onChange={e => { setNombre(e.target.value); if (!editando) setPassword(generarPasswordDefault(e.target.value, telefono)) }}
                     placeholder="Nombre del empleado"
-                    className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
+                    className="w-full  rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#0d1220",border:"1px solid #1e2a3d"}} />
                 </div>
                 <div>
                   <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Teléfono</label>
@@ -636,7 +636,7 @@ export default function EmpleadosPage() {
                   <div>
                     <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Vendedor responsable</label>
                     <select value={vendedorId} onChange={e => setVendedorId(e.target.value)}
-                      className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
+                      className="w-full  rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#0d1220",border:"1px solid #1e2a3d"}}>
                       <option value="">Sin asignar</option>
                       {empleados.filter(e => e.rol === 'vendedor' && e.activo).map((v: any) => (
                         <option key={v.id} value={v.id}>{v.nombre}</option>
@@ -652,7 +652,7 @@ export default function EmpleadosPage() {
                       const emp = syncEmpleados.find((s: any) => s.externalId === e.target.value)
                       if (emp && !nombre) setNombre(emp.nombre)
                     }}
-                      className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
+                      className="w-full  rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#0d1220",border:"1px solid #1e2a3d"}}>
                       <option value="">— Sin enlazar —</option>
                       {syncEmpleados.map((s: any) => (
                         <option key={s.externalId} value={s.externalId}>{s.nombre}</option>
@@ -663,7 +663,7 @@ export default function EmpleadosPage() {
                 {(slotRol === 'vendedor' || editando?.rol === 'vendedor') && listas.length > 0 && (
                   <div>
                     <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Lista asignada</label>
-                    <div className="space-y-1 max-h-36 overflow-y-auto  rounded-xl p-2" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
+                    <div className="space-y-1 max-h-36 overflow-y-auto  rounded-xl p-2" style={{background:"#0d1220",border:"1px solid #1e2a3d"}}>
                       {listas.map((l: any) => (
                         <label key={l.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-700 cursor-pointer">
                           <input
@@ -684,13 +684,13 @@ export default function EmpleadosPage() {
                     <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Etiqueta / Marca</label>
                     <input value={etiqueta} onChange={e => setEtiqueta(e.target.value)}
                       placeholder="Ej: Carmel, Chanel, Nike..."
-                      className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-violet-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
+                      className="w-full  rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-violet-500" style={{background:"#0d1220",border:"1px solid #1e2a3d"}} />
                   </div>
                 )}
                 {(slotRol === 'supervisor' || editando?.rol === 'supervisor') && empleados.filter(e => e.rol === 'vendedor' && e.activo).length > 0 && (
                   <div>
                     <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Vendedores asignados</label>
-                    <div className="space-y-1 max-h-36 overflow-y-auto  rounded-xl p-2" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
+                    <div className="space-y-1 max-h-36 overflow-y-auto  rounded-xl p-2" style={{background:"#0d1220",border:"1px solid #1e2a3d"}}>
                       {empleados.filter(e => e.rol === 'vendedor' && e.activo).map((v: any) => (
                         <label key={v.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-700 cursor-pointer">
                           <input
@@ -708,7 +708,7 @@ export default function EmpleadosPage() {
                 {(slotRol === 'supervisor' || editando?.rol === 'supervisor') && (
                   <div>
                     <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Permisos</label>
-                    <div className="space-y-2  rounded-xl p-3" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
+                    <div className="space-y-2  rounded-xl p-3" style={{background:"#0d1220",border:"1px solid #1e2a3d"}}>
                       {PERMISOS_CONFIG.map(p => (
                         <div key={p.key} className="flex items-center justify-between">
                           <span className="text-white text-sm">{p.label}</span>
@@ -734,7 +734,7 @@ export default function EmpleadosPage() {
                   </div>
                 )}
                 {(slotRol === 'vendedor' || slotRol === 'entregas' || editando?.rol === 'vendedor' || editando?.rol === 'entregas') && (
-                  <div className="flex items-center justify-between  rounded-xl px-4 py-3" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
+                  <div className="flex items-center justify-between  rounded-xl px-4 py-3" style={{background:"#0d1220",border:"1px solid #1e2a3d"}}>
                     <div>
                       <p className="text-white text-sm font-medium">Puede capturar GPS de clientes</p>
                       <p className="text-zinc-500 text-xs">Al visitar cliente sin GPS, puede guardar su ubicación</p>
@@ -765,10 +765,10 @@ export default function EmpleadosPage() {
                           setCiudadesSugeridas(resultados.slice(0, 8))
                         }}
                         placeholder="Buscar ciudad... ej: Tolima/Ibagué"
-                        className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-blue-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}
+                        className="w-full  rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500" style={{background:"#0d1220",border:"1px solid #1e2a3d"}}
                       />
                       {ciudadesSugeridas.length > 0 && (
-                        <div className="absolute z-10 w-full mt-1  rounded-xl overflow-hidden shadow-xl" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
+                        <div className="absolute z-10 w-full mt-1  rounded-xl overflow-hidden shadow-xl" style={{background:"#0d1220",border:"1px solid #1e2a3d"}}>
                           {ciudadesSugeridas.map(c => (
                             <button key={c} type="button" onClick={() => {
                               if (!ciudadesAsignadas.includes(c)) setCiudadesAsignadas(prev => [...prev, c])
@@ -798,7 +798,7 @@ export default function EmpleadosPage() {
                   <div className="relative">
                     <input type={showPassword ? "text" : "password"} value={password} onChange={e => setPassword(e.target.value)} autoComplete="new-password"
                       placeholder={editando ? 'Dejar vacío para no cambiar' : 'Contraseña de acceso'}
-                      className="w-full  rounded-xl px-4 py-2.5 pr-10 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
+                      className="w-full  rounded-lg px-3 py-2 pr-10 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#0d1220",border:"1px solid #1e2a3d"}} />
                     <button type="button" onClick={() => setShowPassword(p => !p)}
                       className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white">
                       {showPassword ? (

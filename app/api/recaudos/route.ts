@@ -2,7 +2,7 @@ import type { RecaudosResponse } from '@/lib/types/cartera'
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { prisma, DB_SCHEMA } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN, vendedorScope } from '@/lib/auth-helpers'
 
 export async function GET(req: NextRequest) {
@@ -56,26 +56,67 @@ export async function GET(req: NextRequest) {
     // el ÚLTIMO pago/abono registrado a esa factura — control de que no se
     // "escape" un valor sin reconciliar en UpTres. Filtro inicial por empresa vía
     // Integracion.empresaId — aísla Lumeli/Leche, ver EmpresaVinculada.
-    const syncDeudasCandidatas = await (prisma as any).syncDeuda.findMany({
-      where: {
-        Integracion: { empresaId },
-        Aplicaciones: { some: { envioEstado: 'enviado' } },
-      },
-      select: { id: true, valor: true, saldo: true, Aplicaciones: { select: { montoAplicado: true, descuento: true, createdAt: true } } }
-    })
     const diezDiasMs = 10 * 24 * 60 * 60 * 1000
+
+    // 1. SyncDeudas de esta empresa con AL MENOS una PCD enviada hace 10+ días
+    const pcdEnviadasAntiguas = await (prisma as any).$queryRawUnsafe(`
+      SELECT DISTINCT pcd."syncDeudaId", pcd."envioFecha"
+      FROM ${DB_SCHEMA}."PagoCarteraDeuda" pcd
+      JOIN ${DB_SCHEMA}."SyncDeuda" sd ON sd.id = pcd."syncDeudaId"
+      JOIN ${DB_SCHEMA}."Integracion" i ON i.id = sd."integracionId"
+      WHERE i."empresaId" = $1
+        AND pcd."envioEstado" = 'enviado'
+        AND pcd."envioFecha" IS NOT NULL
+        AND pcd."envioFecha" <= NOW() - INTERVAL '10 days'
+    `, empresaId)
+
+    const sdIdsConEnviado = new Set((pcdEnviadasAntiguas as any[]).map((p: any) => p.syncDeudaId))
+    if (sdIdsConEnviado.size === 0) {
+      return NextResponse.json({ pagos: [], nextCursor: null, hasMore: false })
+    }
+
+    // 2. Para esas SyncDeudas: calcular nSaldo real vs saldo UpTres
+    const syncDeudasCandidatas = await (prisma as any).syncDeuda.findMany({
+      where: { id: { in: Array.from(sdIdsConEnviado) } },
+      select: { id: true, valor: true, saldo: true, receivableAt: true }
+    })
+
+    // 3. Todas las PCD de esas deudas para calcular nSaldo real
+    const todasPcd = await (prisma as any).pagoCarteraDeuda.findMany({
+      where: { syncDeudaId: { in: Array.from(sdIdsConEnviado) } },
+      select: { syncDeudaId: true, montoAplicado: true, createdAt: true, envioEstado: true, envioFecha: true }
+    })
+    const pcdPorSd = new Map<string, any[]>()
+    for (const p of todasPcd) {
+      if (!pcdPorSd.has(p.syncDeudaId)) pcdPorSd.set(p.syncDeudaId, [])
+      pcdPorSd.get(p.syncDeudaId)!.push(p)
+    }
+
     const sdIdsParaRevisar: string[] = []
+    const receivableAtBySd = new Map<string, Date | null>()
     for (const sd of syncDeudasCandidatas) {
-      const totalPagado = sd.Aplicaciones.reduce((acc: number, a: any) => acc + Number(a.montoAplicado || 0), 0) // montoAplicado ya incluye descuento
+      const aplic = pcdPorSd.get(sd.id) || []
+      // nSaldo = valor - SUM(todos los pagos aplicados)
+      const totalPagado = aplic.reduce((acc: number, a: any) => acc + Number(a.montoAplicado || 0), 0)
       const nSaldo = Math.max(0, Number(sd.valor) - totalPagado)
       const saldoUpTres = Number(sd.saldo)
-      if (saldoUpTres === nSaldo) continue // ya coinciden, no hay anomalía
-      const ultimoAbono = sd.Aplicaciones.reduce((max: number, a: any) => Math.max(max, new Date(a.createdAt).getTime()), 0)
+      // Si ya coinciden → discrepancia resuelta → no aparece en Revisar
+      if (Math.abs(saldoUpTres - nSaldo) < 1) continue
+      // Tomar fecha del último envío
+      const ultimoAbono = aplic
+        .filter((a: any) => a.envioEstado === 'enviado' && a.envioFecha)
+        .reduce((max: number, a: any) => Math.max(max, new Date(a.envioFecha).getTime()), 0)
       if (ultimoAbono === 0) continue
-      if (Date.now() - ultimoAbono < diezDiasMs) continue // todavía dentro de ventana normal
+      if (ultimoAbono === 0) continue // no tiene envíos con fecha
       sdIdsParaRevisar.push(sd.id)
+      receivableAtBySd.set(sd.id, sd.receivableAt ?? null)
     }
-    where.Aplicaciones = { some: { syncDeudaId: { in: sdIdsParaRevisar } } }
+    if (sdIdsParaRevisar.length === 0) {
+      // Sin discrepancias — retornar lista vacía
+      return NextResponse.json({ pagos: [], nextCursor: null, hasMore: false })
+    }
+    // Solo pagos YA ENVIADOS a UpTres con esa deuda — los pendientes van en tab Pendiente
+    where.Aplicaciones = { some: { syncDeudaId: { in: sdIdsParaRevisar }, envioEstado: 'enviado' } }
   } else if (estado && estado !== 'todos') where.envioEstado = estado
   if (numeroRecibo) {
     // Búsqueda directa por recibo — ignora filtros de mes/fecha de la vista activa
@@ -161,15 +202,19 @@ async function hidratarSync(pagos: any[], empresaId: string) {
     // Prioridad: datos congelados en PagoCartera
     if (p.clienteApiId) {
       const cli: any = cliMap.get(p.clienteApiId)
-      if (cli) return { ...p, _facturas, cliente: { id: cli.id, nombre: cli.nombre, nit: cli.nit, telefono: cli.telefono } }
+      // Buscar receivableAt de la primera SyncDeuda de este pago
+      const faFirst = firstApp.get(p.id)
+      const sdFirst: any = faFirst ? sdMap.get(faFirst.syncDeudaId) : null
+      const receivableAt = sdFirst?.receivableAt ?? null
+      if (cli) return { ...p, _facturas, receivableAt, cliente: { id: cli.id, nombre: cli.nombre, nit: cli.nit, telefono: cli.telefono } }
       // Sin cliente en BD pero con nombre congelado
-      if (p.clienteNombre) return { ...p, _facturas, cliente: { nombre: p.clienteNombre } }
+      if (p.clienteNombre) return { ...p, _facturas, receivableAt, cliente: { nombre: p.clienteNombre } }
     }
     // Fallback pagos viejos
     const fa = firstApp.get(p.id)
     if (!fa) return { ...p, _facturas }
     const sd: any = sdMap.get(fa.syncDeudaId)
     const cli: any = sd ? cliMap.get(sd.clienteApiId) : null
-    return { ...p, _facturas, cliente: cli ? { id: cli.id, nombre: cli.nombre, nit: cli.nit, telefono: cli.telefono } : null }
+    return { ...p, _facturas, receivableAt: sd?.receivableAt ?? null, cliente: cli ? { id: cli.id, nombre: cli.nombre, nit: cli.nit, telefono: cli.telefono } : null }
   })
 }

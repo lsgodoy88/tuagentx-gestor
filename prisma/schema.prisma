@@ -40,6 +40,7 @@ model Empresa {
   syncVentasUltimo    DateTime?
   ultimaSyncBodega    DateTime?
   configRecibos       Json?              @default("{\"nit\": null, \"logo\": null, \"prefijo\": \"REC\", \"telefono\": null, \"direccion\": null, \"anchoPapel\": \"80mm\"}")
+  configDespachos     Json?              @default("{\"transportadora\": \"\", \"urlBase\": \"\"}") 
   colorFondo           String?
   chatsAsistente      AsistenteChat[]
   Cartera             Cartera[]
@@ -2949,6 +2950,7 @@ model OrdenDespacho {
   origenVinculadaId String?
   sincronizadoEn    DateTime?         // cuándo entró a BD via sync
   origenSync        String?           // 'delta' | 'nocturno' | 'backfill' | 'manual' | 'recuperada'
+  urlSeguimiento    String?           // URL completa de seguimiento: urlBase + guiaTransporte
   smsEnviado        Boolean           @default(false) // SMS de factura enviado al cliente
   reconciliadoEn    DateTime?         // cuándo se marcó isFacturada=true por reconciliador
   createdAt         DateTime          @default(now())

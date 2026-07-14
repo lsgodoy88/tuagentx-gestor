@@ -310,25 +310,31 @@ export default function RecaudosPage() {
     return () => document.removeEventListener('mousedown', handler)
   }, [modalEliminarPaso])
 
+  const tabRef = useRef(tab)
+  useEffect(() => { tabRef.current = tab }, [tab])
+
   const fetchPagos = useCallback(async (cursor: string | null = null) => {
     if (!isAdmin) return
+    const tabSnapshot = tab // capturar tab al inicio del fetch
     const params = new URLSearchParams()
     if (vendedorId) params.set('vendedorId', vendedorId)
-    params.set('estado', tab)
+    params.set('estado', tabSnapshot)
     if (fecha) params.set('fecha', fecha)
     if (cursor) params.set('cursor', cursor)
 
     // Stale-while-revalidate: mostrar caché al instante (solo carga inicial sin filtros)
-    const cacheKey = `recaudos:${tab}:${vendedorId}:${fecha}`
+    const cacheKey = `recaudos:${tabSnapshot}:${vendedorId}:${fecha}`
     if (!cursor) {
       const cached = loadCache<any>(cacheKey)
       if (cached?.data?.pagos) {
+        if (tabRef.current !== tabSnapshot) return // tab cambió — descartar
         setPagos(cached.data.pagos)
         setNextCursor(cached.data.nextCursor ?? null)
         setHasMore(cached.data.hasMore ?? false)
         setSeleccionados(new Set()); setPage(0)
         // Refrescar en background sin spinner
         fetch(`/api/recaudos?${params}`).then(r => r.json()).then(data => {
+          if (tabRef.current !== tabSnapshot) return // tab cambió — descartar
           const nuevos = data.pagos ?? []
           saveCache(cacheKey, { pagos: nuevos, nextCursor: data.nextCursor, hasMore: data.hasMore })
           setPagos(nuevos)
@@ -340,14 +346,26 @@ export default function RecaudosPage() {
       setLoading(true); setSeleccionados(new Set()); setPage(0)
     } else setLoadingMore(true)
 
-    const res  = await fetch(`/api/recaudos?${params}`)
-    const data = await res.json()
-    const nuevos = data.pagos ?? []
-    if (!cursor) saveCache(cacheKey, { pagos: nuevos, nextCursor: data.nextCursor, hasMore: data.hasMore })
-    setPagos(!cursor ? nuevos : prev => [...prev, ...nuevos])
-    setNextCursor(data.nextCursor ?? null)
-    setHasMore(data.hasMore ?? false)
-    if (!cursor) setLoading(false); else setLoadingMore(false)
+    try {
+      const res  = await fetch(`/api/recaudos?${params}`)
+      const data = await res.json()
+      if (tabRef.current !== tabSnapshot) { // tab cambió mientras cargaba — descartar
+        setLoading(false); setLoadingMore(false); return
+      }
+      const nuevos = data.pagos ?? []
+      if (!cursor) saveCache(cacheKey, { pagos: nuevos, nextCursor: data.nextCursor, hasMore: data.hasMore })
+      setPagos(!cursor ? nuevos : prev => [...prev, ...nuevos])
+      setNextCursor(data.nextCursor ?? null)
+      setHasMore(data.hasMore ?? false)
+    } catch {
+      // Error silencioso — no invalidar otras tabs
+    } finally {
+      if (tabRef.current === tabSnapshot) {
+        if (!cursor) setLoading(false); else setLoadingMore(false)
+      } else {
+        setLoading(false); setLoadingMore(false)
+      }
+    }
   }, [tab, vendedorId, fecha, isAdmin])
 
   useEffect(() => { fetchPagos(null) }, [fetchPagos])
@@ -531,7 +549,7 @@ export default function RecaudosPage() {
             <select
               value={vendedorId}
               onChange={e => setVendedorId(e.target.value)}
-              style={{width:'100%',height:'100%',background:'transparent',border:'none',padding:'8px 12px',fontSize:12,fontWeight:600,color:'white',outline:'none',cursor:'pointer'}}>
+              className="bg-[#0d1220] border border-[#1e2a3d] rounded-lg px-3 py-2 text-white text-sm focus:outline-none w-full cursor-pointer" style={{fontWeight:600}}>
               <option value="">Vendedor</option>
               {vendedores.map(v => (
                 <option key={v.id} value={v.id} style={{background:'#060a24'}}>{v.nombre.split(' ')[0]}</option>
@@ -589,7 +607,7 @@ export default function RecaudosPage() {
                     onChange={e => setReciboBuscado(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') buscarPorRecibo() }}
                     placeholder="Número de recibo"
-                    className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-blue-500"
+                    className="w-full bg-[#0d1220] border border-[#1e2a3d] rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500"
                     style={{marginBottom:10}}
                   />
                   {errorBusquedaRecibo && (
@@ -726,12 +744,16 @@ export default function RecaudosPage() {
                           {pago.Cartera?.Cliente?.nombre || (pago as any).cliente?.nombre || (pago as any).clienteNombre || '—'}
                         </p>
                       </div>
-                      {/* Iconos método */}
+                      {/* Iconos método / días UpTres en Revisar */}
                       <div className="flex items-center gap-0.5 flex-shrink-0 text-base leading-none">
-                        {pago.metodopago === 'efectivo'      && <span>💵</span>}
-                        {pago.metodopago === 'transferencia' && <span>📲</span>}
-                        {pago.descuento && Number(pago.descuento) > 0 && (
-                          <span className="text-orange-400 text-xs font-bold ml-0.5">%</span>
+                        {tab !== 'revisar' && (
+                          <>
+                            {pago.metodopago === 'efectivo'      && <span>💵</span>}
+                            {pago.metodopago === 'transferencia' && <span>📲</span>}
+                            {pago.descuento && Number(pago.descuento) > 0 && (
+                              <span className="text-orange-400 text-xs font-bold ml-0.5">%</span>
+                            )}
+                          </>
                         )}
                       </div>
                       {/* Botón / estado */}
@@ -748,8 +770,15 @@ export default function RecaudosPage() {
                             {enEnvio ? '...' : 'Enviar'}
                           </button>
                         )}
-                        {pago.envioEstado === 'enviado'  && <span className="text-blue-400 text-xs font-semibold whitespace-nowrap">✔</span>}
-                        {pago.envioEstado === 'recibido' && <span className="text-emerald-400 text-xs font-semibold whitespace-nowrap">✔✔</span>}
+                        {pago.envioEstado === 'enviado' && tab !== 'revisar' && <span className="text-blue-400 text-xs font-semibold whitespace-nowrap">✔</span>}
+                        {pago.envioEstado === 'recibido' && tab !== 'revisar' && <span className="text-emerald-400 text-xs font-semibold whitespace-nowrap">✔✔</span>}
+                        {tab === 'revisar' && (() => {
+                          const rv = (pago as any).receivableAt
+                          if (!rv) return <span className="text-zinc-600 text-xs">—</span>
+                          const dias = Math.floor((Date.now() - new Date(rv).getTime()) / 86400000)
+                          const color = dias > 20 ? '#ef4444' : dias > 10 ? '#f59e0b' : '#6b7280'
+                          return <span style={{fontSize:11, fontWeight:700, color}}>{dias}</span>
+                        })()}
                         {pago.envioEstado === 'enviando' && <span className="text-white text-xs animate-pulse">Enviando...</span>}
                       </div>
                     </div>

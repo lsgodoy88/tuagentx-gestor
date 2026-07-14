@@ -104,6 +104,10 @@ export default function ConfiguracionPage() {
   const [diasCerrar, setDiasCerrar] = useState<number[]>([0, 1, 2, 3, 4])
   const [msgRutas, setMsgRutas] = useState('')
   const [savingRutas, setSavingRutas] = useState(false)
+  const [transportadora, setTransportadora] = useState('')
+  const [urlBase, setUrlBase] = useState('')
+  const [savingDespachos, setSavingDespachos] = useState(false)
+  const [msgDespachos, setMsgDespachos] = useState('')
 
   // Despachos (solo empresa)
   const [ciudadEntregaLocal, setCiudadEntregaLocal] = useState('')
@@ -200,6 +204,10 @@ export default function ConfiguracionPage() {
   }
 
   useEffect(() => {
+    fetch('/api/empresa/despachos').then(r=>r.json()).then(d=>{ setTransportadora(d.transportadora||''); setUrlBase(d.urlBase||'') }).catch(()=>{})
+  }, [])
+
+  useEffect(() => {
     if (status !== 'authenticated') return
     const uid = user?.id
     if (uid) {
@@ -280,6 +288,14 @@ export default function ConfiguracionPage() {
     } else {
       setDiasCerrar(prev => prev.includes(i) ? prev.filter(d => d !== i) : [...prev, i].sort((a, b) => a - b))
     }
+  }
+
+  async function guardarConfigDespachos() {
+    setSavingDespachos(true)
+    const r = await fetch('/api/empresa/despachos', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ transportadora, urlBase }) })
+    setSavingDespachos(false)
+    setMsgDespachos(r.ok ? '✅ Guardado' : 'Error al guardar')
+    setTimeout(() => setMsgDespachos(''), 3000)
   }
 
   async function guardarConfigEntregas() {
@@ -706,8 +722,8 @@ export default function ConfiguracionPage() {
             {btnGuardar(guardarRecibosEmpresa, savingRecibosEmp, savingRecibosEmp)}
           </Seccion>
 
-          <Seccion titulo="Entregas" icono="🚚" isOpen={seccionAbierta === 'entregas'} onToggle={() => toggleSeccion('entregas')}>
-            <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide mb-3">Automatización — solo aplica a rol Entregas</p>
+          <Seccion titulo="Despachos" icono="🚚" isOpen={seccionAbierta === 'entregas'} onToggle={() => toggleSeccion('entregas')}>
+            <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide mb-3">Automatización — solo aplica a rol Despachos</p>
 
             <div className="flex items-center justify-between py-2">
               <div>
@@ -795,7 +811,7 @@ export default function ConfiguracionPage() {
               </button>
             </div>
 
-            <p className="text-zinc-600 text-xs mt-1 mb-3">Usa las mismas horas y días configurados arriba para Entregas.</p>
+            <p className="text-zinc-600 text-xs mt-1 mb-3">Usa las mismas horas y días configurados arriba para Despachos.</p>
 
             <hr className="border-zinc-800 my-3" />
 
@@ -832,6 +848,32 @@ export default function ConfiguracionPage() {
 
             {msgRutas && <p className="text-sm text-emerald-400">{msgRutas}</p>}
             {btnGuardar(guardarConfigEntregas, savingRutas, savingRutas)}
+
+            {/* Config transportadora */}
+            <div className="mt-6 pt-4 border-t border-zinc-800 space-y-3">
+              <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide">Transportadora de ciudades</p>
+              <div>
+                <label className="text-zinc-400 text-xs mb-1 block">Nombre de la transportadora</label>
+                <input value={transportadora} onChange={e => setTransportadora(e.target.value)}
+                  placeholder="Nombre de la transportadora"
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500" />
+              </div>
+              <div>
+                <label className="text-zinc-400 text-xs mb-1 block">URL base de seguimiento</label>
+                <input value={urlBase} onChange={e => setUrlBase(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500" />
+                <p className="text-zinc-600 text-xs mt-1">El código escaneado se agrega al final de esta URL</p>
+              </div>
+              {urlBase && transportadora && (
+                <div className="bg-zinc-900 rounded-xl px-3 py-2 border border-zinc-800">
+                  <p className="text-zinc-500 text-xs mb-1">Vista previa del link</p>
+                  <p className="text-blue-400 text-xs break-all">{urlBase}{'<codigo_guia>'}</p>
+                </div>
+              )}
+              {msgDespachos && <p className="text-sm text-emerald-400">{msgDespachos}</p>}
+              {btnGuardar(guardarConfigDespachos, savingDespachos, savingDespachos)}
+            </div>
           </Seccion>
 
           <Seccion titulo="Modo de integración" icono="⚙️" isOpen={seccionAbierta === 'integracion'} onToggle={() => toggleSeccion('integracion')}>

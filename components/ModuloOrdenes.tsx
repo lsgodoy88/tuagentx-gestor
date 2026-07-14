@@ -888,7 +888,7 @@ export default function ModuloOrdenes() {
       {tabActivo === 'despachado' && (
         <div className="space-y-1">
           {despachoLog.length === 0 ? (
-            <p className="text-zinc-600 text-xs text-center py-4">Cargando...</p>
+            null
           ) : (() => {
             const todasFacturas = [...despachoLog, ...pendientes, ...alistados, ...despachados]
             const allNums = todasFacturas.map((x: any) => parseInt(x.numeroFactura)).filter((n: number) => !isNaN(n))

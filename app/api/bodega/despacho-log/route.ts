@@ -31,8 +31,7 @@ export async function GET(req: NextRequest) {
     LEFT JOIN ${DB_SCHEMA}."OrdenDespacho" o
       ON o."numeroFactura" = l."numeroFactura"
       AND o."empresaId" = $2
-    WHERE l."empresaId" = $1
-      AND (l."origenVinculadaId" ${origenId && origenId !== 'propia' ? `= '${origenId.replace(/'/g,"''")}'` : 'IS NULL'})
+    WHERE l."empresaId" = $2
       ${cursor ? `AND l."despachadoEl" < (SELECT "despachadoEl" FROM ${DB_SCHEMA}."DespachoLog" WHERE id = '${cursor.replace(/'/g,"''")}' LIMIT 1)` : ''}
     ORDER BY l."despachadoEl" DESC
     LIMIT ${LIMIT + 1}
