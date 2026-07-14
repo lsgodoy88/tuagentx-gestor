@@ -97,6 +97,7 @@ model Empleado {
   subEmpresaId        String?
   configRecibos       Json?                @default("{\"prefijo\": null, \"anchoPapel\": null, \"consecutivoMes\": null, \"consecutivoActual\": 0, \"usarConfigEmpresa\": true}")
   colorFondo           String?
+  syncInicioAt        DateTime?              // fecha de inicio del vendedor — base para sync inicial de cartera
   Cartera             Cartera[]
   DetalleCartera      DetalleCartera[]
   empresa             Empresa              @relation(fields: [empresaId], references: [id])
@@ -2837,6 +2838,8 @@ model SyncDeuda {
   saldoAnterior      Decimal?    @db.Decimal(14, 2)
   saldoUptresOriginal Decimal?   @db.Decimal(14, 2) // espejo crudo de UpTres — solo lo escribe sync-nocturno
   nSaldo              Decimal?   @db.Decimal(14, 2) // saldo real calculado localmente (nSaldo v3) — fuente de verdad para recibos
+  nSaldoBase          Decimal?   @db.Decimal(14, 2) // base de saldo al momento de sync inicial del vendedor (write-once)
+  nSaldoBaseAt        DateTime?                   // fecha de inicio de pagos gestor — solo pagos posteriores a esta fecha se descuentan
   abono              Decimal     @default(0) @db.Decimal(14, 2)
   diasCredito        Int?
   fechaVencimiento   DateTime?

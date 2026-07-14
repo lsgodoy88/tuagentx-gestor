@@ -82,6 +82,11 @@ export default function EmpleadosPage() {
     return Math.round(n).toLocaleString('es-CO')
   }
   const parseMeta = (v: string) => v.replace(/[^0-9]/g,'')
+  const [popupSync, setPopupSync] = useState(false)
+  const [syncEmpleadoId, setSyncEmpleadoId] = useState('')
+  const [syncFecha, setSyncFecha] = useState('')
+  const [syncLoading, setSyncLoading] = useState(false)
+  const [syncMsg, setSyncMsg] = useState('')
   const [metasEmpleadoId, setMetasEmpleadoId] = useState('')
   const [metasAnio, setMetasAnio] = useState(new Date().getFullYear())
   const [metasData, setMetasData] = useState<{recaudo: any[], venta: any[]}>({ recaudo: [], venta: [] })
@@ -209,7 +214,28 @@ export default function EmpleadosPage() {
       setLoading(false)
       if (data.error) { setError(data.error); return }
       setResultado(data)
+      // Si el empleado tiene apiId y lista → preparar popup sync
+      if (data.id && apiIdSeleccionado && listaIds.length > 0) {
+        setSyncEmpleadoId(data.id)
+        setSyncFecha(new Date().toISOString().split('T')[0])
+        setSyncMsg('')
+      }
     }
+  }
+
+  async function ejecutarSyncInicial() {
+    if (!syncEmpleadoId || !syncFecha) return
+    setSyncLoading(true); setSyncMsg('')
+    const res = await fetch('/api/vendedor/sync-inicial', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ empleadoId: syncEmpleadoId, syncInicioAt: new Date(syncFecha + 'T05:00:00Z').toISOString() })
+    })
+    const data = await res.json()
+    setSyncLoading(false)
+    if (data.error) { setSyncMsg('Error: ' + data.error); return }
+    setSyncMsg(`✅ ${data.actualizadas} deudas sincronizadas`)
+    setTimeout(() => { setPopupSync(false); setSyncMsg('') }, 2000)
   }
 
   async function desactivar(id: string) {
@@ -596,7 +622,13 @@ export default function EmpleadosPage() {
                     <p className="text-white font-mono text-sm">{password}</p>
                   </div>
                 </div>
-                <button onClick={() => { setModal(false); loadData() }}
+                {syncEmpleadoId && !popupSync && (
+                  <button onClick={() => setPopupSync(true)}
+                    className="w-full bg-blue-600 hover:bg-blue-500 text-white text-sm py-3 rounded-xl font-semibold">
+                    📊 Sincronizar cartera inicial
+                  </button>
+                )}
+                <button onClick={() => { setModal(false); setSyncEmpleadoId(''); loadData() }}
                   className="w-full bg-zinc-800 text-white text-sm py-3 rounded-xl">Cerrar</button>
               </>
             ) : (
@@ -923,6 +955,37 @@ export default function EmpleadosPage() {
               Selecciona un vendedor para ver y editar sus metas
             </div>
           )}
+        </div>
+      )}
+
+
+      {popupSync && (
+        <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-sm p-6 space-y-4">
+            <div className="text-center">
+              <div className="text-3xl mb-2">📊</div>
+              <h3 className="text-white font-bold">Sincronizar cartera inicial</h3>
+              <p className="text-zinc-400 text-xs mt-1">El saldo actual de UpTres se usará como base. Solo se contarán los pagos registrados en Gestor desde la fecha indicada.</p>
+            </div>
+            <div>
+              <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Fecha de inicio de pagos</label>
+              <input type="date" value={syncFecha} onChange={e => setSyncFecha(e.target.value)}
+                className="w-full rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500"
+                style={{background:'#0d1220', border:'1px solid #1e2a3d'}} />
+              <p className="text-zinc-600 text-xs mt-1">Los pagos anteriores a esta fecha no se descontarán del saldo base.</p>
+            </div>
+            {syncMsg && <p className={`text-sm text-center ${syncMsg.startsWith('✅') ? 'text-emerald-400' : 'text-red-400'}`}>{syncMsg}</p>}
+            <div className="flex gap-2">
+              <button onClick={() => { setPopupSync(false); setSyncMsg('') }}
+                className="flex-1 bg-zinc-800 text-white text-sm py-3 rounded-xl">
+                Omitir
+              </button>
+              <button onClick={ejecutarSyncInicial} disabled={syncLoading || !syncFecha}
+                className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm py-3 rounded-xl font-semibold">
+                {syncLoading ? 'Sincronizando...' : 'Sincronizar'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

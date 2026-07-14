@@ -702,28 +702,70 @@ export default function ConfiguracionPage() {
             {passwordFields}
           </Seccion>
 
-          <Seccion titulo="Recibos" icono="🖨️" isOpen={seccionAbierta === 'recibos'} onToggle={() => toggleSeccion('recibos')}>
+          <Seccion titulo="Despachos" icono="🚚" isOpen={seccionAbierta === 'entregas'} onToggle={() => toggleSeccion('entregas')}>
+            <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide mb-3">Bodega y Despachos</p>
+
             <div>
-              <label className={labelClass}>Ancho de papel</label>
-              <div className="flex gap-2 flex-wrap">
-                {anchoBtns.map(b => (
-                  <button key={b.v} onClick={() => setCfgEmpAncho(b.v)}
-                    className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${cfgEmpAncho === b.v ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white'}`}>
-                    {b.l}
-                  </button>
+              <label className={labelClass}>Ciudad entrega local</label>
+              <select value={ciudadEntregaLocal} onChange={e => setCiudadEntregaLocal(e.target.value)} className={inputClass}>
+                <option value="">Sin entrega local (todo por transportadora)</option>
+                {[...new Set((clientes || []).map((c: any) => c.ciudad?.split('/').pop()?.trim()).filter(Boolean))].sort().map((ciudad: any) => (
+                  <option key={ciudad} value={ciudad}>{ciudad}</option>
                 ))}
+              </select>
+              <p className="text-zinc-600 text-xs mt-1">Órdenes con esta ciudad se asignan a repartidor local; las demás van por transportadora.</p>
+            </div>
+            <div>
+              <label className={labelClass}>Días historial bodega</label>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setDiasHistorialBodega(Math.max(1, diasHistorialBodega - 1))} className="w-8 h-8 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-lg font-bold flex items-center justify-center">−</button>
+                <span className="text-white font-semibold w-8 text-center">{diasHistorialBodega}</span>
+                <button onClick={() => setDiasHistorialBodega(Math.min(90, diasHistorialBodega + 1))} className="w-8 h-8 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-lg font-bold flex items-center justify-center">+</button>
               </div>
             </div>
-            <div>
-              <label className={labelClass}>Prefijo recibo</label>
-              <input value={cfgEmpPrefijo} onChange={e => setCfgEmpPrefijo(e.target.value.toUpperCase())} placeholder="REC" maxLength={6} className={inputClass} />
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <p className="text-white text-sm">Permitir que bodega envíe a despacho</p>
+                <p className="text-zinc-500 text-xs">El rol bodega puede asignar repartidor o ingresar guía</p>
+              </div>
+              <button onClick={() => setBodegaPuedeEnviar(p => !p)}
+                className={`relative w-11 h-6 rounded-full transition-colors ${bodegaPuedeEnviar ? 'bg-emerald-600' : 'bg-zinc-700'}`}>
+                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${bodegaPuedeEnviar ? 'translate-x-5' : ''}`} />
+              </button>
             </div>
-            {msgRecibosEmp && <p className="text-sm text-emerald-400">{msgRecibosEmp}</p>}
-            {btnGuardar(guardarRecibosEmpresa, savingRecibosEmp, savingRecibosEmp)}
+
+            {msgRutas && <p className="text-sm text-emerald-400">{msgRutas}</p>}
+            {btnGuardar(guardarConfigEntregas, savingRutas, savingRutas)}
+
+            {/* Config transportadora */}
+            <div className="mt-6 pt-4 border-t border-zinc-800 space-y-3">
+              <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide">Transportadora de ciudades</p>
+              <div>
+                <label className="text-zinc-400 text-xs mb-1 block">Nombre de la transportadora</label>
+                <input value={transportadora} onChange={e => setTransportadora(e.target.value)}
+                  placeholder="Nombre de la transportadora"
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500" />
+              </div>
+              <div>
+                <label className="text-zinc-400 text-xs mb-1 block">URL base de seguimiento</label>
+                <input value={urlBase} onChange={e => setUrlBase(e.target.value)}
+                  placeholder="https://..."
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500" />
+                <p className="text-zinc-600 text-xs mt-1">El código escaneado se agrega al final de esta URL</p>
+              </div>
+              {urlBase && transportadora && (
+                <div className="bg-zinc-900 rounded-xl px-3 py-2 border border-zinc-800">
+                  <p className="text-zinc-500 text-xs mb-1">Vista previa del link</p>
+                  <p className="text-blue-400 text-xs break-all">{urlBase}{'<codigo_guia>'}</p>
+                </div>
+              )}
+              {msgDespachos && <p className="text-sm text-emerald-400">{msgDespachos}</p>}
+              {btnGuardar(guardarConfigDespachos, savingDespachos, savingDespachos)}
+            </div>
           </Seccion>
 
-          <Seccion titulo="Despachos" icono="🚚" isOpen={seccionAbierta === 'entregas'} onToggle={() => toggleSeccion('entregas')}>
-            <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide mb-3">Automatización — solo aplica a rol Despachos</p>
+          <Seccion titulo="Turnos" icono="⏱️" isOpen={seccionAbierta === 'turnos'} onToggle={() => toggleSeccion('turnos')}>
+            <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide mb-3">Rutas</p>
 
             <div className="flex items-center justify-between py-2">
               <div>
@@ -786,8 +828,7 @@ export default function ConfiguracionPage() {
             )}
 
             <hr className="border-zinc-800 my-3" />
-
-            <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide mb-3">Turnos — Vendedores y Supervisores</p>
+            <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide mb-3">Vendedores y Supervisores</p>
 
             <div className="flex items-center justify-between py-2">
               <div>
@@ -811,69 +852,9 @@ export default function ConfiguracionPage() {
               </button>
             </div>
 
-            <p className="text-zinc-600 text-xs mt-1 mb-3">Usa las mismas horas y días configurados arriba para Despachos.</p>
-
-            <hr className="border-zinc-800 my-3" />
-
-            <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide mb-3">Bodega y Despachos</p>
-
-            <div>
-              <label className={labelClass}>Ciudad entrega local</label>
-              <select value={ciudadEntregaLocal} onChange={e => setCiudadEntregaLocal(e.target.value)} className={inputClass}>
-                <option value="">Sin entrega local (todo por transportadora)</option>
-                {[...new Set((clientes || []).map((c: any) => c.ciudad?.split('/').pop()?.trim()).filter(Boolean))].sort().map((ciudad: any) => (
-                  <option key={ciudad} value={ciudad}>{ciudad}</option>
-                ))}
-              </select>
-              <p className="text-zinc-600 text-xs mt-1">Órdenes con esta ciudad se asignan a repartidor local; las demás van por transportadora.</p>
-            </div>
-            <div>
-              <label className={labelClass}>Días historial bodega</label>
-              <div className="flex items-center gap-3">
-                <button onClick={() => setDiasHistorialBodega(Math.max(1, diasHistorialBodega - 1))} className="w-8 h-8 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-lg font-bold flex items-center justify-center">−</button>
-                <span className="text-white font-semibold w-8 text-center">{diasHistorialBodega}</span>
-                <button onClick={() => setDiasHistorialBodega(Math.min(90, diasHistorialBodega + 1))} className="w-8 h-8 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-lg font-bold flex items-center justify-center">+</button>
-              </div>
-            </div>
-            <div className="flex items-center justify-between py-2">
-              <div>
-                <p className="text-white text-sm">Permitir que bodega envíe a despacho</p>
-                <p className="text-zinc-500 text-xs">El rol bodega puede asignar repartidor o ingresar guía</p>
-              </div>
-              <button onClick={() => setBodegaPuedeEnviar(p => !p)}
-                className={`relative w-11 h-6 rounded-full transition-colors ${bodegaPuedeEnviar ? 'bg-emerald-600' : 'bg-zinc-700'}`}>
-                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${bodegaPuedeEnviar ? 'translate-x-5' : ''}`} />
-              </button>
-            </div>
-
+            <p className="text-zinc-600 text-xs mt-1 mb-3">Usa las mismas horas y días configurados en Despachos.</p>
             {msgRutas && <p className="text-sm text-emerald-400">{msgRutas}</p>}
             {btnGuardar(guardarConfigEntregas, savingRutas, savingRutas)}
-
-            {/* Config transportadora */}
-            <div className="mt-6 pt-4 border-t border-zinc-800 space-y-3">
-              <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide">Transportadora de ciudades</p>
-              <div>
-                <label className="text-zinc-400 text-xs mb-1 block">Nombre de la transportadora</label>
-                <input value={transportadora} onChange={e => setTransportadora(e.target.value)}
-                  placeholder="Nombre de la transportadora"
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500" />
-              </div>
-              <div>
-                <label className="text-zinc-400 text-xs mb-1 block">URL base de seguimiento</label>
-                <input value={urlBase} onChange={e => setUrlBase(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500" />
-                <p className="text-zinc-600 text-xs mt-1">El código escaneado se agrega al final de esta URL</p>
-              </div>
-              {urlBase && transportadora && (
-                <div className="bg-zinc-900 rounded-xl px-3 py-2 border border-zinc-800">
-                  <p className="text-zinc-500 text-xs mb-1">Vista previa del link</p>
-                  <p className="text-blue-400 text-xs break-all">{urlBase}{'<codigo_guia>'}</p>
-                </div>
-              )}
-              {msgDespachos && <p className="text-sm text-emerald-400">{msgDespachos}</p>}
-              {btnGuardar(guardarConfigDespachos, savingDespachos, savingDespachos)}
-            </div>
           </Seccion>
 
           <Seccion titulo="Modo de integración" icono="⚙️" isOpen={seccionAbierta === 'integracion'} onToggle={() => toggleSeccion('integracion')}>
@@ -967,10 +948,7 @@ export default function ConfiguracionPage() {
                           className={`bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 font-semibold px-4 py-2 rounded-xl text-sm transition-colors ${sincronizandoNocturno ? 'btn-shimmer' : ''}`}>
                           {sincronizandoNocturno ? 'Sincronizando...' : '🌙 Sync Nocturno'}
                         </button>
-                        <button onClick={desconectarERP}
-                          className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 font-semibold px-4 py-2 rounded-xl text-sm">
-                          Desconectar API
-                        </button>
+
                       </div>
                     </>
                   ) : (
@@ -1033,10 +1011,7 @@ export default function ConfiguracionPage() {
                           ))}
                         </div>
                       )}
-                      <button onClick={desconectarApi}
-                        className="bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 font-semibold px-4 py-2 rounded-xl text-sm">
-                        Desconectar API
-                      </button>
+
                     </>
 
                   ) : pasoApi === 1 ? (
@@ -1247,25 +1222,6 @@ export default function ConfiguracionPage() {
             {passwordFields}
           </Seccion>
 
-          <Seccion titulo="Recibos" icono="🖨️" isOpen={seccionAbierta === 'recibos'} onToggle={() => toggleSeccion('recibos')}>
-            <div>
-              <label className={labelClass}>Ancho de papel</label>
-              <div className="flex gap-2 flex-wrap">
-                {anchoBtns.map(b => (
-                  <button key={b.v} onClick={() => setCfgEmpAncho(b.v)}
-                    className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${cfgEmpAncho === b.v ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white'}`}>
-                    {b.l}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div>
-              <label className={labelClass}>Prefijo recibo</label>
-              <input value={cfgEmpPrefijo} onChange={e => setCfgEmpPrefijo(e.target.value.toUpperCase())} placeholder="REC" maxLength={6} className={inputClass} />
-            </div>
-            {msgRecibosEmp && <p className="text-sm text-emerald-400">{msgRecibosEmp}</p>}
-            {btnGuardar(guardarRecibosEmpresa, savingRecibosEmp, savingRecibosEmp)}
-          </Seccion>
         </>
       )}
 

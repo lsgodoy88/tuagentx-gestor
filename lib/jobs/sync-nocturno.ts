@@ -109,7 +109,7 @@ export async function reconciliarDeuda(u: ReconciliarInput, integracionId: strin
     saldoUptresOriginal: u.saldo,        // referencia cruda UpTres — solo para confrontar
     externalUpdatedAt: u.externalUpdatedAt ?? null,
     receivableAt: u.receivableAt ?? null,
-    fechaVencimiento: u.fechaVencimiento ?? null,
+    // fechaVencimiento: write-once — se añade condicionalmente abajo si no existe aún
     sincronizadoEl: new Date(),
     data: u.data,
   }
@@ -142,9 +142,15 @@ export async function reconciliarDeuda(u: ReconciliarInput, integracionId: strin
       aplicacionesPendientes.map((a: any) => a.id),
       u.receivableAt ?? new Date()
     )
+    const existente1 = await (prisma as any).syncDeuda.findUnique({ where: whereSd, select: { fechaVencimiento: true } })
     return (prisma as any).syncDeuda.update({
       where: whereSd,
-      data: { ...baseUpdate, saldo: u.saldo, condition: false }
+      data: {
+        ...baseUpdate,
+        saldo: u.saldo,
+        condition: false,
+        ...(!existente1?.fechaVencimiento && u.fechaVencimiento ? { fechaVencimiento: u.fechaVencimiento } : {})
+      }
     })
   }
 
@@ -178,9 +184,14 @@ export async function reconciliarDeuda(u: ReconciliarInput, integracionId: strin
 
   // Siempre actualizar metadata. saldo (referencia UpTres) se actualiza siempre —
   // es solo referencia para confrontación, no afecta lo que ve el vendedor.
+  const existente2 = await (prisma as any).syncDeuda.findUnique({ where: whereSd, select: { fechaVencimiento: true } })
   return (prisma as any).syncDeuda.update({
     where: whereSd,
-    data: { ...baseUpdate, saldo: u.saldo }
+    data: {
+      ...baseUpdate,
+      saldo: u.saldo,
+      ...(!existente2?.fechaVencimiento && u.fechaVencimiento ? { fechaVencimiento: u.fechaVencimiento } : {})
+    }
   })
 }
 
@@ -237,7 +248,7 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
     saldoAnterior: a.PagoCartera?.saldoAnterior ?? null,
   }))
   const nSaldoMap = calcularNSaldoBatch(
-    deudas.map((d: any) => ({ id: d.id, valor: d.valor, numeroFactura: d.numeroFactura, nSaldo: d.nSaldo, saldo: d.saldo })),
+    deudas.map((d: any) => ({ id: d.id, valor: d.valor, numeroFactura: d.numeroFactura, nSaldo: d.nSaldo, saldo: d.saldo, nSaldoBase: d.nSaldoBase, nSaldoBaseAt: d.nSaldoBaseAt })),
     apls, saldosInicialesLumeli, empresaId
   )
 

@@ -4,6 +4,7 @@ vi.mock('@/lib/prisma', () => ({
   prisma: {
     syncDeuda: {
       update: vi.fn(),
+      findUnique: vi.fn().mockResolvedValue({ fechaVencimiento: null }),
     },
     pagoCarteraDeuda: {
       findMany: vi.fn(),

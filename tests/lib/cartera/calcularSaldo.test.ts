@@ -110,3 +110,80 @@ describe('calcularNSaldoBatch — Rama 1 (Lumeli)', () => {
     expect(result['d1'].nSaldo).toBe(0)
   })
 })
+
+// ── Rama 0: sync inicial vendedor — nSaldoBase - pagos post-nSaldoBaseAt ──
+
+describe('calcularNSaldoBatch — Rama 0 (sync inicial vendedor)', () => {
+  const BASE_AT = new Date('2026-07-04T05:00:00Z')
+
+  const deudaConBase = (id: string, valor: number, nSaldoBase: number, extra = {}) =>
+    ({ id, valor, numeroFactura: 1, nSaldo: valor, saldo: valor, nSaldoBase, nSaldoBaseAt: BASE_AT, ...extra })
+
+  it('sin pagos posteriores → devuelve nSaldoBase exacto', () => {
+    const d = deudaConBase('d1', 1018200, 708200)
+    const result = calcularNSaldoBatch([d], [], {}, EMPRESA_LUMELI)
+    expect(result['d1'].nSaldo).toBe(708200)
+  })
+
+  it('pago posterior a nSaldoBaseAt → se descuenta de nSaldoBase', () => {
+    const d = deudaConBase('d1', 1018200, 708200)
+    const pagoPost = pago('d1', 100000, new Date('2026-07-10T10:00:00Z'))
+    const result = calcularNSaldoBatch([d], [pagoPost], {}, EMPRESA_LUMELI)
+    expect(result['d1'].nSaldo).toBe(608200)
+  })
+
+  it('pago ANTERIOR a nSaldoBaseAt → NO se descuenta (ya en nSaldoBase)', () => {
+    const d = deudaConBase('d1', 1018200, 708200)
+    const pagoAntes = pago('d1', 100000, new Date('2026-07-01T10:00:00Z'))
+    const result = calcularNSaldoBatch([d], [pagoAntes], {}, EMPRESA_LUMELI)
+    expect(result['d1'].nSaldo).toBe(708200)
+  })
+
+  it('múltiples pagos — solo los posteriores se descuentan', () => {
+    const d = deudaConBase('d1', 1018200, 708200)
+    const pagoAntes = pago('d1', 50000, new Date('2026-07-01T10:00:00Z'))
+    const pagoPost1 = pago('d1', 100000, new Date('2026-07-10T10:00:00Z'))
+    const pagoPost2 = pago('d1', 80000, new Date('2026-07-12T10:00:00Z'))
+    const result = calcularNSaldoBatch([d], [pagoAntes, pagoPost1, pagoPost2], {}, EMPRESA_LUMELI)
+    expect(result['d1'].nSaldo).toBe(708200 - 100000 - 80000)
+  })
+
+  it('Rama 0 tiene prioridad sobre Rama 1 (Lumeli con saldoInicial)', () => {
+    // Aunque la factura tenga saldoInicial en Lumeli, si tiene nSaldoBase → Rama 0
+    const d = deudaConBase('d1', 428815, 350000, { numeroFactura: 9469 })
+    const saldosIniciales = { 9469: 428815 }
+    const pagoPost = pago('d1', 50000, new Date('2026-07-10T10:00:00Z'))
+    const result = calcularNSaldoBatch([d], [pagoPost], saldosIniciales, EMPRESA_LUMELI)
+    expect(result['d1'].nSaldo).toBe(300000) // 350000 - 50000 (Rama 0)
+    expect(result['d1'].nSaldo).not.toBe(428815 - 50000) // NO Rama 1
+  })
+
+  it('Rama 0 funciona también para Leche', () => {
+    const d = deudaConBase('d1', 1017600, 497600, { numeroFactura: 3418 })
+    const pagoPost = pago('d1', 200000, new Date('2026-07-10T10:00:00Z'))
+    const result = calcularNSaldoBatch([d], [pagoPost], {}, EMPRESA_LECHE)
+    expect(result['d1'].nSaldo).toBe(297600)
+  })
+
+  it('resultado no negativo aunque pagos superen nSaldoBase', () => {
+    const d = deudaConBase('d1', 1000000, 200000)
+    const pagoPost = pago('d1', 300000, new Date('2026-07-10T10:00:00Z'))
+    const result = calcularNSaldoBatch([d], [pagoPost], {}, EMPRESA_LECHE)
+    expect(result['d1'].nSaldo).toBe(0)
+  })
+
+  it('deuda sin nSaldoBase → no entra a Rama 0 (cae en Rama 2)', () => {
+    const d = deuda('d1', 500000, 1, { nSaldo: 500000, saldo: 500000, nSaldoBase: null, nSaldoBaseAt: null })
+    const result = calcularNSaldoBatch([d], [], {}, EMPRESA_LECHE)
+    expect(result['d1'].nSaldo).toBe(500000) // Rama 2
+  })
+
+  it('mezcla: una deuda con base y otra sin — cada una por su rama', () => {
+    const dConBase = deudaConBase('d1', 1018200, 708200)
+    const dSinBase = deuda('d2', 500000, 2, { nSaldo: 500000, saldo: 500000 })
+    const pagoPost = pago('d1', 100000, new Date('2026-07-10T10:00:00Z'))
+    const result = calcularNSaldoBatch([dConBase, dSinBase], [pagoPost], {}, EMPRESA_LECHE)
+    expect(result['d1'].nSaldo).toBe(608200) // Rama 0
+    expect(result['d2'].nSaldo).toBe(500000) // Rama 2
+  })
+})

@@ -20,6 +20,8 @@ export interface DeudaParaSaldo {
   numeroFactura: number | string
   nSaldo?: number | null
   saldo?: number | null
+  nSaldoBase?: number | null    // write-once: base de saldo al sync inicial del vendedor
+  nSaldoBaseAt?: Date | string | null // fecha de inicio de pagos gestor
 }
 
 export interface AplicacionPago {
@@ -47,6 +49,14 @@ export function calcularNSaldoBatch(
   const totalPagado: Record<string, number> = {}
   const totalPostCorte: Record<string, number> = {}
 
+  // mapa deudaId → nSaldoBaseAt para Rama 0
+  const baseAtMap: Record<string, Date> = {}
+  for (const d of deudas) {
+    if (d.nSaldoBase != null && d.nSaldoBaseAt) {
+      baseAtMap[d.id] = new Date(d.nSaldoBaseAt)
+    }
+  }
+
   for (const a of aplicaciones) {
     const monto = Number(a.montoAplicado || 0)
     totalPagado[a.syncDeudaId] = (totalPagado[a.syncDeudaId] || 0) + monto
@@ -62,7 +72,14 @@ export function calcularNSaldoBatch(
     const tienePagosLocales = totalPagado[d.id] !== undefined
     let nSaldo: number
 
-    if (empresaId === EMPRESA_LUMELI && saldoInicialLumeli !== undefined) {
+    if (d.nSaldoBase != null && baseAtMap[d.id]) {
+      // Rama 0: sync inicial del vendedor — nSaldoBase menos pagos posteriores a nSaldoBaseAt
+      const baseAt = baseAtMap[d.id]
+      const pagosPostBase = aplicaciones
+        .filter(a => a.syncDeudaId === d.id && new Date(a.createdAt) > baseAt)
+        .reduce((s, a) => s + Number(a.montoAplicado || 0), 0)
+      nSaldo = Math.max(0, Number(d.nSaldoBase) - pagosPostBase)
+    } else if (empresaId === EMPRESA_LUMELI && saldoInicialLumeli !== undefined) {
       // Rama 1: Lumeli — saldoInicial del corte menos pagos post-corte
       nSaldo = Math.max(0, saldoInicialLumeli - (totalPostCorte[d.id] || 0))
     } else {

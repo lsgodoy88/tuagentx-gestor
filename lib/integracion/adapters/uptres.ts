@@ -197,7 +197,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
 
   async fetchDeudas(desde?: Date): Promise<DeudaExterna[]> {
     const params: Record<string, string> = {
-      fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt',
+      fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt,receivableAt',
       includeTotal: 'false',
     }
     if (desde) {
