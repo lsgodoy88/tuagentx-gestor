@@ -1,27 +1,19 @@
 import { prisma, DB_SCHEMA } from '@/lib/prisma'
 import { Prisma } from '@/app/generated/prisma'
-import { calcularNSaldoBatch, EMPRESA_LUMELI, CORTE_LUMELI } from '@/lib/cartera/calcularSaldo'
+import { calcularNSaldoBatch } from '@/lib/cartera/calcularSaldo'
 
 /**
  * Calcula nSaldo v3 para un conjunto de SyncDeuda IDs.
  * Delega a calcularNSaldoBatch — fuente unica de verdad.
  */
 export async function calcularNSaldoPorDeuda(
-  deudas: Array<{ id: string; valor: number | string; numeroFactura: number | string; nSaldo?: number | null; saldo?: number | null }>,
+  deudas: Array<{ id: string; valor: number | string; numeroFactura: number | string; nSaldo?: number | null; saldo?: number | null; nSaldoBase?: number | null; nSaldoBaseAt?: Date | string | null }>,
   empresaId: string
 ): Promise<Record<string, number>> {
   if (!deudas.length) return {}
   const ids = deudas.map(d => d.id)
 
-  let saldosInicialesLumeli: Record<number, number> = {}
-  if (empresaId === EMPRESA_LUMELI) {
-    const filas: any[] = await prisma.$queryRaw`
-      SELECT "numeroFactura", "saldoInicial"
-      FROM ${Prisma.raw(DB_SCHEMA)}."LumeliSaldoInicial0206"`
-    for (const f of filas) {
-      saldosInicialesLumeli[Number(f.numeroFactura ?? f.numerofactura)] = Number(f.saldoInicial ?? f.saldoinicial)
-    }
-  }
+
 
   const aplicaciones = await (prisma as any).pagoCarteraDeuda.findMany({
     where: { syncDeudaId: { in: ids } },
@@ -39,7 +31,7 @@ export async function calcularNSaldoPorDeuda(
     saldoAnterior: a.PagoCartera?.saldoAnterior ?? null,
   }))
 
-  const batch = calcularNSaldoBatch(deudas, apls, saldosInicialesLumeli, empresaId)
+  const batch = calcularNSaldoBatch(deudas, apls)
   const result: Record<string, number> = {}
   for (const [id, r] of Object.entries(batch)) result[id] = r.nSaldo
   return result
@@ -361,15 +353,7 @@ export async function actualizarCache(
 
   const ahora = new Date()
 
-  let saldosInicialesLumeli: Record<number, number> = {}
-  if (empresaId === EMPRESA_LUMELI) {
-    const filas = await (prisma as any).$queryRaw`
-      SELECT "numeroFactura", "saldoInicial" FROM ${Prisma.raw(DB_SCHEMA)}."LumeliSaldoInicial0206"
-    `
-    for (const f of filas as any[]) {
-      saldosInicialesLumeli[Number(f.numeroFactura ?? f.numerofactura)] = Number(f.saldoInicial ?? f.saldoinicial)
-    }
-  }
+
 
   for (const apiId of apiIdsArr) {
     const cliente = clienteMap[apiId]
@@ -404,8 +388,8 @@ export async function actualizarCache(
       orderBy: { createdAt: 'asc' }
     })).map((a: any) => ({ syncDeudaId: a.syncDeudaId, montoAplicado: a.montoAplicado, createdAt: a.createdAt })) : []
     const nSaldoMapCliente = calcularNSaldoBatch(
-      deudasCliente.map((d: any) => ({ id: d.id, valor: d.valor, numeroFactura: d.numeroFactura, nSaldo: d.nSaldo, saldo: d.saldo })),
-      aplsCliente, saldosInicialesLumeli, empresaId
+      deudasCliente.map((d: any) => ({ id: d.id, valor: d.valor, numeroFactura: d.numeroFactura, nSaldo: d.nSaldo, saldo: d.saldo, nSaldoBase: d.nSaldoBase, nSaldoBaseAt: d.nSaldoBaseAt })),
+      aplsCliente
     )
 
     const deudasDetalle = deudasCliente

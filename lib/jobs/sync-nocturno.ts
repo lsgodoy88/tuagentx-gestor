@@ -10,7 +10,7 @@ import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 import { calcularEstado } from '@/lib/cartera'
 import { nowBogota } from '@/lib/fechas'
-import { calcularNSaldoBatch, EMPRESA_LUMELI as LUMELI_ID, CORTE_LUMELI as CORTE_LUMELI_0206 } from '@/lib/cartera/calcularSaldo'
+import { calcularNSaldoBatch } from '@/lib/cartera/calcularSaldo'
 import { actualizarDeudasInactivas } from '@/lib/integracion/sync'
 import { recalcularVentasMesImpulsos } from '@/lib/integracion/venta-mes'
 import { syncProductosEmpresa } from '@/lib/jobs/sync-delta'
@@ -97,6 +97,7 @@ export interface ReconciliarInput {
   externalUpdatedAt?: Date | null
   receivableAt?: Date | null
   fechaVencimiento?: Date | null
+  fechaVencimientoActual?: Date | null  // valor actual en BD — evita findUnique en reconciliarDeuda
   data?: any
 }
 
@@ -142,14 +143,13 @@ export async function reconciliarDeuda(u: ReconciliarInput, integracionId: strin
       aplicacionesPendientes.map((a: any) => a.id),
       u.receivableAt ?? new Date()
     )
-    const existente1 = await (prisma as any).syncDeuda.findUnique({ where: whereSd, select: { fechaVencimiento: true } })
     return (prisma as any).syncDeuda.update({
       where: whereSd,
       data: {
         ...baseUpdate,
         saldo: u.saldo,
         condition: false,
-        ...(!existente1?.fechaVencimiento && u.fechaVencimiento ? { fechaVencimiento: u.fechaVencimiento } : {})
+        ...(!u.fechaVencimientoActual && u.fechaVencimiento ? { fechaVencimiento: u.fechaVencimiento } : {})
       }
     })
   }
@@ -184,13 +184,12 @@ export async function reconciliarDeuda(u: ReconciliarInput, integracionId: strin
 
   // Siempre actualizar metadata. saldo (referencia UpTres) se actualiza siempre —
   // es solo referencia para confrontación, no afecta lo que ve el vendedor.
-  const existente2 = await (prisma as any).syncDeuda.findUnique({ where: whereSd, select: { fechaVencimiento: true } })
   return (prisma as any).syncDeuda.update({
     where: whereSd,
     data: {
       ...baseUpdate,
       saldo: u.saldo,
-      ...(!existente2?.fechaVencimiento && u.fechaVencimiento ? { fechaVencimiento: u.fechaVencimiento } : {})
+      ...(!u.fechaVencimientoActual && u.fechaVencimiento ? { fechaVencimiento: u.fechaVencimiento } : {})
     }
   })
 }
@@ -218,22 +217,7 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
   // 02_06_2026.xlsx, verificado: 511/511 facturas existían en BD, 0 huérfanas).
   // Para las facturas que YA EXISTÍAN en ese corte: nSaldo = saldoInicial
   // (LumeliSaldoInicial0206) − SUM(pagos nuestros con createdAt > corte).
-  // El archivo YA refleja correctamente cualquier abono anterior al corte
-  // (nuestro o externo) — confirmado con casos reales (valor=saldoInicial
-  // cuando no había abonos previos; saldoInicial<valor cuando sí los había).
-  // Para facturas NUEVAS (creadas después del corte) o de OTRA empresa
-  // (Leche, sin archivo equivalente): sigue el fix v2 (ancla saldoAnterior
-  // si hay pago nuestro, saldo crudo si no) — sin cambio.
-  // Saldos iniciales Lumeli
-  let saldosInicialesLumeli: Record<number, number> = {}
-  if (empresaId === LUMELI_ID) {
-    const filas = await (prisma as any).$queryRaw`
-      SELECT "numeroFactura", "saldoInicial" FROM gestor."LumeliSaldoInicial0206"
-    `
-    for (const f of filas as any[]) {
-      saldosInicialesLumeli[f.numeroFactura] = Number(f.saldoInicial)
-    }
-  }
+
 
   const sdIds = deudas.map((d: any) => d.id)
   const todasLasAplicaciones = sdIds.length > 0 ? await (prisma as any).pagoCarteraDeuda.findMany({
@@ -249,7 +233,7 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
   }))
   const nSaldoMap = calcularNSaldoBatch(
     deudas.map((d: any) => ({ id: d.id, valor: d.valor, numeroFactura: d.numeroFactura, nSaldo: d.nSaldo, saldo: d.saldo, nSaldoBase: d.nSaldoBase, nSaldoBaseAt: d.nSaldoBaseAt })),
-    apls, saldosInicialesLumeli, empresaId
+    apls
   )
 
   const apiIds = [...new Set(deudas.map((d: any) => d.clienteApiId))]
@@ -307,7 +291,9 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
         const valor = Number(d.valor)
         const nSaldo = nSaldoMap[d.id]?.nSaldo ?? Math.max(0, Number(d.nSaldo ?? d.saldo ?? d.valor))
         const { estado } = calcularEstado(nSaldo, valor, Number(d.abono), d.fechaVencimiento)
-        return { id: d.id, externalId: d.externalId, numeroOrden: d.numeroOrden, numeroFactura: d.numeroFactura, valor, saldo: nSaldo, abono: Number(d.abono), diasCredito: d.diasCredito, fechaVencimiento: d.fechaVencimiento, estado, _nSaldo: nSaldo }
+        // Si tiene nSaldoBase → abonos externos reflejados como valor-nSaldo (igual que Carlos con LumeliSaldoInicial)
+        const abonoEfectivo = d.nSaldoBase != null ? Math.max(0, valor - nSaldo) : Number(d.abono)
+        return { id: d.id, externalId: d.externalId, numeroOrden: d.numeroOrden, numeroFactura: d.numeroFactura, valor, saldo: nSaldo, abono: abonoEfectivo, diasCredito: d.diasCredito, fechaVencimiento: d.fechaVencimiento, estado, _nSaldo: nSaldo }
       })
       .filter((d: any) => d._nSaldo > 0) // FIX 26/06: ya no se muestra si nuestra propia cuenta da 0
 
@@ -399,7 +385,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
       const externalIds = deudas.map((d: any) => String(d.uid || d._id))
       const existentes = await (prisma as any).syncDeuda.findMany({
         where: { integracionId: intg.id, externalId: { in: externalIds } },
-        select: { id: true, externalId: true, saldo: true, saldoUptresOriginal: true, clienteApiId: true }
+        select: { id: true, externalId: true, saldo: true, saldoUptresOriginal: true, clienteApiId: true, fechaVencimiento: true }
       })
       const existentesMap = new Map(existentes.map((e: any) => [e.externalId, e]))
       const existentesSet = new Set(existentes.map((e: any) => e.externalId))
@@ -419,6 +405,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
           toUpdate.push({
             externalId, saldo, valor, externalUpdatedAt, receivableAt, data: d,
             fechaVencimiento: d.fPago ? new Date(d.fPago) : null,
+            fechaVencimientoActual: sdLocal.fechaVencimiento ?? null,
             condicionUpTres: Boolean(d.condicionUpTres !== false),
             sdId: sdLocal.id,
             clienteApiId: d.cliente?.uid || sdLocal.clienteApiId || '',
@@ -459,6 +446,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
           condicionUpTres: u.condicionUpTres, saldoUptresAnterior: u.saldoUptresAnterior,
           saldoLocalActual: u.saldoLocalActual, externalUpdatedAt: u.externalUpdatedAt,
           receivableAt: u.receivableAt, data: u.data,
+          fechaVencimientoActual: u.fechaVencimientoActual,
         }, intg.id)))
       }
 
@@ -483,7 +471,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
             const extIdsConPago = deudasConPago.map((d: any) => String(d.uid || d._id))
             const sdExistentes = await (prisma as any).syncDeuda.findMany({
               where: { integracionId: intg.id, externalId: { in: extIdsConPago } },
-              select: { id: true, externalId: true, saldo: true, saldoUptresOriginal: true }
+              select: { id: true, externalId: true, saldo: true, saldoUptresOriginal: true, fechaVencimiento: true }
             })
             const sdMap = new Map(sdExistentes.map((sd: any) => [sd.externalId, sd]))
             for (const d of deudasConPago) {
@@ -501,6 +489,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
                 externalUpdatedAt: (d as any).fModificado ? new Date((d as any).fModificado) : null,
                 receivableAt: (d as any).receivableAt ? new Date((d as any).receivableAt) : null,
                 data: d,
+                fechaVencimientoActual: sdLocal.fechaVencimiento ?? null,
               }, intg.id)
             }
           }

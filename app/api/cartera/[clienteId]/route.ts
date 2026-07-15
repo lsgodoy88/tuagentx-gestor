@@ -6,7 +6,6 @@ import { getEmpresaId } from '@/lib/auth-helpers'
 import { calcularEstado } from '@/lib/cartera'
 import { calcularNSaldoPorDeuda } from '@/lib/integracion/sync'
 
-const CORTE_LUMELI = new Date('2026-06-01T05:00:00Z').getTime() // sin offset: Prisma devuelve TIMESTAMP sin TZ como UTC
 const LUMELI_ID = 'cmn7oiutk0001vmega46373b4'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ clienteId: string }> }) {
@@ -47,7 +46,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
     // reconstruirCartera() — fuente única de verdad para el saldo que ve el vendedor.
     // nSaldo v3 — una sola query para todas las deudas (no N+1)
     const nSaldoMap = await calcularNSaldoPorDeuda(
-      deudas.map((d: any) => ({ id: d.id, valor: d.valor, numeroFactura: d.numeroFactura, nSaldo: d.nSaldo, saldo: d.saldo })),
+      deudas.map((d: any) => ({ id: d.id, valor: d.valor, numeroFactura: d.numeroFactura, nSaldo: d.nSaldo, saldo: d.saldo, nSaldoBase: d.nSaldoBase, nSaldoBaseAt: d.nSaldoBaseAt })),
       empresaId
     )
 
