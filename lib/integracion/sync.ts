@@ -388,7 +388,7 @@ export async function actualizarCache(
       orderBy: { createdAt: 'asc' }
     })).map((a: any) => ({ syncDeudaId: a.syncDeudaId, montoAplicado: a.montoAplicado, createdAt: a.createdAt })) : []
     const nSaldoMapCliente = calcularNSaldoBatch(
-      deudasCliente.map((d: any) => ({ id: d.id, valor: d.valor, numeroFactura: d.numeroFactura, nSaldo: d.nSaldo, saldo: d.saldo, nSaldoBase: d.nSaldoBase, nSaldoBaseAt: d.nSaldoBaseAt })),
+      deudasCliente.map((d: any) => ({ id: d.id, valor: d.valor, numeroFactura: d.numeroFactura, nSaldo: d.nSaldo, saldo: d.saldo, nSaldoBase: d.nSaldoBase, nSaldoBaseAt: d.nSaldoBaseAt, ajusteManual: d.ajusteManual })),
       aplsCliente
     )
 

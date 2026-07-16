@@ -36,7 +36,27 @@ describe('sync-nocturno — reconciliarDeuda (misión reducida)', () => {
 
   // ── MISIÓN 1: condition=false ──────────────────────────────────────────────
 
-  it('condicionUpTres=false → marca aplicaciones pendientes/enviadas como recibido, saldo=0, condition=false', async () => {
+  it('condicionUpTres=false sin receivableAt → cierreUptres, saldo=0, condition=false', async () => {
+    vi.mocked((prisma as any).pagoCarteraDeuda.findMany)
+      .mockResolvedValueOnce([{ id: 'apl-1' }])
+      .mockResolvedValueOnce([{ pagoId: 'p1' }])
+      .mockResolvedValueOnce([{ envioEstado: 'cierreUptres' }])
+    vi.mocked((prisma as any).pagoCarteraDeuda.updateMany).mockResolvedValue({ count: 1 })
+    vi.mocked((prisma as any).pagoCartera.update).mockResolvedValue({})
+    vi.mocked((prisma as any).syncDeuda.update).mockResolvedValue({})
+
+    await reconciliarDeuda(base({ saldo: 0, condicionUpTres: false }), INT_ID)
+
+    expect((prisma as any).pagoCarteraDeuda.updateMany).toHaveBeenCalledWith({
+      where: { id: { in: ['apl-1'] } },
+      data: { envioEstado: 'cierreUptres' },
+    })
+    expect((prisma as any).syncDeuda.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ saldo: 0, condition: false }) })
+    )
+  })
+
+  it('condicionUpTres=false CON receivableAt → recibido, saldo=0, condition=false', async () => {
     vi.mocked((prisma as any).pagoCarteraDeuda.findMany)
       .mockResolvedValueOnce([{ id: 'apl-1' }])
       .mockResolvedValueOnce([{ pagoId: 'p1' }])
@@ -45,7 +65,7 @@ describe('sync-nocturno — reconciliarDeuda (misión reducida)', () => {
     vi.mocked((prisma as any).pagoCartera.update).mockResolvedValue({})
     vi.mocked((prisma as any).syncDeuda.update).mockResolvedValue({})
 
-    await reconciliarDeuda(base({ saldo: 0, condicionUpTres: false }), INT_ID)
+    await reconciliarDeuda(base({ saldo: 0, condicionUpTres: false, receivableAt: new Date('2026-07-10') }), INT_ID)
 
     expect((prisma as any).pagoCarteraDeuda.updateMany).toHaveBeenCalledWith({
       where: { id: { in: ['apl-1'] } },
@@ -257,5 +277,27 @@ describe('sync-nocturno — derivarEnvioEstado', () => {
 
   it('recibo sin aplicaciones → pendiente', () => {
     expect(derivarEnvioEstado([])).toBe('pendiente')
+  })
+
+  it('cierreUptres solo → cierreUptres', () => {
+    expect(derivarEnvioEstado([{ envioEstado: 'cierreUptres' }])).toBe('cierreUptres')
+  })
+
+  it('mezcla recibido + cierreUptres → cierreUptres', () => {
+    expect(derivarEnvioEstado([
+      { envioEstado: 'recibido' }, { envioEstado: 'cierreUptres' },
+    ])).toBe('cierreUptres')
+  })
+
+  it('mezcla cierreUptres + enviado → enviado', () => {
+    expect(derivarEnvioEstado([
+      { envioEstado: 'cierreUptres' }, { envioEstado: 'enviado' },
+    ])).toBe('enviado')
+  })
+
+  it('mezcla cierreUptres + pendiente → pendiente', () => {
+    expect(derivarEnvioEstado([
+      { envioEstado: 'cierreUptres' }, { envioEstado: 'pendiente' },
+    ])).toBe('pendiente')
   })
 })

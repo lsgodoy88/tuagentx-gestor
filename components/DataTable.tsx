@@ -9,6 +9,7 @@ export interface ColDef<T = any> {
   minWidth?: number      // px mínimo al resize (default 40)
   render: (row: T) => React.ReactNode
   renderSub?: (subRow: any, row: T) => React.ReactNode  // para sub-filas
+  hidden?: boolean   // ocultar columna condicionalmente
 }
 
 interface DataTableProps<T = any> {
@@ -26,7 +27,7 @@ interface DataTableProps<T = any> {
 
 // ── Estilos base ─────────────────────────────────────────────────
 const TH: React.CSSProperties = {
-  padding: '7px 6px',
+  padding: '7px 3px',
   fontSize: 14, fontWeight: 500,
   color: 'white',
   letterSpacing: 0,
@@ -41,7 +42,7 @@ const TH: React.CSSProperties = {
 }
 
 const TD: React.CSSProperties = {
-  padding: '8px 6px',
+  padding: '8px 3px',
   fontSize: 14, fontWeight: 500,
   color: 'white',
   textAlign: 'center',
@@ -55,9 +56,10 @@ const CHECKBOX_W = 32  // px fijo para la columna de checkbox
 
 // ── Componente ───────────────────────────────────────────────────
 export default function DataTable<T>({
-  columns, rows, rowKey, selected, onToggle, onSelectAll, subRows,
+  columns: columnsProp, rows, rowKey, selected, onToggle, onSelectAll, subRows,
   loading, storageKey, onRowClick,
 }: DataTableProps<T>) {
+  const columns = columnsProp.filter(col => !col.hidden)
 
   // Anchos de columnas — inicializa desde localStorage si hay storageKey
   const [widths, setWidths] = useState<number[]>(() => {

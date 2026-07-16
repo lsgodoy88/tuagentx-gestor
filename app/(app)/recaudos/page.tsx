@@ -100,7 +100,9 @@ function getColumns(ctx: {
   onLightbox:    (url: string) => void
   voucherUrls:   Record<string, string>
   cargarVoucherUrl: (id: string, key: string) => void
+  tab: string
 }): ColDef<Pago>[] {
+  const isRevisar = ctx.tab === 'revisar'
   return [
     {
       key: 'vendedor', label: 'Vend.', width: 60, minWidth: 40,
@@ -112,9 +114,9 @@ function getColumns(ctx: {
       ),
     },
     {
-      key: 'fecha', label: 'Fecha', width: 70, minWidth: 55,
+      key: 'fecha', label: isRevisar ? 'Envío' : 'Fecha', width: 70, minWidth: 55,
       render: p => (
-        <span style={{ fontFamily: 'monospace' }}>{fmtFecha(p.createdAt)}</span>
+        <span style={{ fontFamily: 'monospace' }}>{fmtFecha(isRevisar && p.envioFecha ? p.envioFecha : p.createdAt)}</span>
       ),
     },
     {
@@ -156,7 +158,7 @@ function getColumns(ctx: {
       renderSub: (sub) => <span style={{ fontFamily: 'monospace' }}>{sub.numeroFactura || '—'}</span>,
     },
     {
-      key: 'saldoAntes', label: 'Saldo', width: 95, minWidth: 70,
+      key: 'saldoAntes', hidden: isRevisar, label: 'Saldo', width: 95, minWidth: 70,
       render: p => {
         const detalles: any[] = Array.isArray((p as any).reciboPago?.detalles) ? (p as any).reciboPago.detalles : []
         const saldo = detalles.length > 0 ? detalles[0].saldoAntes : p.saldoAnterior
@@ -171,7 +173,7 @@ function getColumns(ctx: {
       // FIX 30/06: detalles[].montoAplicado es BRUTO (snapshot reciboPago, igual
       // que PagoCarteraDeuda) — debe restarse detalles[].descuento para obtener
       // el neto realmente recibido, igual patrón que /cartera tab Bonus.
-      key: 'efectivo', label: 'Efect.', width: 90, minWidth: 70,
+      key: 'efectivo', hidden: isRevisar, label: 'Efect.', width: 90, minWidth: 70,
       render: p => {
         const detalles: any[] = Array.isArray((p as any).reciboPago?.detalles) ? (p as any).reciboPago.detalles : []
         const monto = detalles.length > 0 ? Number(detalles[0].montoAplicado) - Number(detalles[0].descuento || 0) : p.monto
@@ -187,7 +189,7 @@ function getColumns(ctx: {
       },
     },
     {
-      key: 'transferencia', label: 'Transf.', width: 90, minWidth: 70,
+      key: 'transferencia', hidden: isRevisar, label: 'Transf.', width: 90, minWidth: 70,
       render: p => {
         const detalles: any[] = Array.isArray((p as any).reciboPago?.detalles) ? (p as any).reciboPago.detalles : []
         const monto = detalles.length > 0 ? Number(detalles[0].montoAplicado) - Number(detalles[0].descuento || 0) : p.monto
@@ -203,7 +205,7 @@ function getColumns(ctx: {
       },
     },
     {
-      key: 'descuento', label: 'Desc.', width: 90, minWidth: 60,
+      key: 'descuento', hidden: isRevisar, label: 'Desc.', width: 90, minWidth: 60,
       render: p => {
         const detalles: any[] = Array.isArray((p as any).reciboPago?.detalles) ? (p as any).reciboPago.detalles : []
         const d = detalles.length > 0 ? Number(detalles[0].descuento || 0) : Number(p.descuento || 0)
@@ -215,13 +217,37 @@ function getColumns(ctx: {
       },
     },
     {
-      key: 'saldoDespues', label: 'Nuevo Saldo', width: 105, minWidth: 75,
+      key: 'saldoDespues', hidden: isRevisar, label: 'Nuevo Saldo', width: 105, minWidth: 75,
       render: p => {
         const detalles: any[] = Array.isArray((p as any).reciboPago?.detalles) ? (p as any).reciboPago.detalles : []
         const saldo = detalles.length > 0 ? detalles[0].saldoDespues : ((p as any).reciboPago?.saldoNuevo ?? null)
         return <span style={{ color: '#86efac', fontWeight: 700 }}>{saldo != null ? fmtMonto(saldo) : '—'}</span>
       },
       renderSub: (sub) => <span style={{ color: '#86efac', fontWeight: 700 }}>{sub.saldoDespues != null ? fmtMonto(sub.saldoDespues) : '—'}</span>,
+    },
+    {
+      key: 'dif', label: 'Diferencias', width: 100, minWidth: 75, hidden: !isRevisar,
+      render: p => {
+        const n = Number((p as any).nSaldo ?? 0), u = Number((p as any).saldoUptres ?? 0)
+        const d = n - u
+        return <span style={{ fontWeight: 700, color: d > 0 ? '#f87171' : d < 0 ? '#34d399' : '#6b7280' }}>{fmtMonto(Math.abs(d))}</span>
+      },
+      renderSub: (sub) => {
+        const n = Number(sub.nSaldo ?? 0), u = Number(sub.saldoUptres ?? 0)
+        const d = n - u
+        if (Math.abs(d) < 1) return <span style={{ color: '#4b5563' }}>—</span>
+        return <span style={{ fontWeight: 700, color: d > 0 ? '#f87171' : '#34d399' }}>{fmtMonto(Math.abs(d))}</span>
+      },
+    },
+    {
+      key: 'uptres', label: 'UpTres', width: 100, minWidth: 75, hidden: !isRevisar,
+      render: p => <span style={{ color: '#fff' }}>{fmtMonto(Number((p as any).saldoUptres ?? 0))}</span>,
+      renderSub: (sub) => { const d = Math.abs(Number(sub.nSaldo??0)-Number(sub.saldoUptres??0)); return d < 1 ? <span style={{color:'#4b5563'}}>—</span> : <span style={{color:'#fff'}}>{fmtMonto(Number(sub.saldoUptres??0))}</span> },
+    },
+    {
+      key: 'gestor', label: 'Gestor', width: 100, minWidth: 75, hidden: !isRevisar,
+      render: p => <span style={{ color: '#fff' }}>{fmtMonto(Number((p as any).nSaldo ?? 0))}</span>,
+      renderSub: (sub) => { const d = Math.abs(Number(sub.nSaldo??0)-Number(sub.saldoUptres??0)); return d < 1 ? <span style={{color:'#4b5563'}}>—</span> : <span style={{color:'#fff'}}>{fmtMonto(Number(sub.nSaldo??0))}</span> },
     },
   ]
 }
@@ -236,6 +262,11 @@ export default function RecaudosPage() {
 
   const [tab,                 setTab]                 = useState<'pendiente' | 'enviado' | 'revisar'>('pendiente')
   const [fecha,               setFecha]               = useState<string>('')
+  const [modalAjuste, setModalAjuste] = useState(null as {syncDeudaId:string;montoSugerido:number;cliente:string;factura:number}|null)
+  const [ajusteMonto, setAjusteMonto] = useState("")
+  const [ajusteNota, setAjusteNota] = useState("")
+  const [ajusteLoading, setAjusteLoading] = useState(false)
+  const [ajusteMsg, setAjusteMsg] = useState("")
   const [pagos,               setPagos]               = useState<Pago[]>([])
   const [nextCursor,          setNextCursor]          = useState<string | null>(null)
   const [hasMore,             setHasMore]             = useState(false)
@@ -313,7 +344,18 @@ export default function RecaudosPage() {
   const tabRef = useRef(tab)
   useEffect(() => { tabRef.current = tab }, [tab])
 
-  const fetchPagos = useCallback(async (cursor: string | null = null) => {
+  async function ejecutarAjuste() {
+    if (!modalAjuste || !ajusteMonto || !ajusteNota.trim()) return
+    setAjusteLoading(true); setAjusteMsg("")
+    const res = await fetch("/api/recaudos/ajuste", {method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({syncDeudaId:modalAjuste.syncDeudaId,monto:Number(ajusteMonto),nota:ajusteNota.trim()})})
+    const data = await res.json()
+    setAjusteLoading(false)
+    if (data.error) { setAjusteMsg("Error: " + data.error); return }
+    setAjusteMsg("✅ Ajuste aplicado")
+    setTimeout(() => { setModalAjuste(null); setAjusteMonto(""); setAjusteNota(""); setAjusteMsg(""); fetchPagos(null) }, 1500)
+  }
+
+    const fetchPagos = useCallback(async (cursor: string | null = null) => {
     if (!isAdmin) return
     const tabSnapshot = tab // capturar tab al inicio del fetch
     const params = new URLSearchParams()
@@ -378,6 +420,7 @@ export default function RecaudosPage() {
   }, [])
 
   function iniciarLongPress(pagoId: string) {
+    if (tab === 'revisar') return
     longPressTimer.current = setTimeout(() => setMarcadoEliminar(pagoId), 600)
   }
   function cancelarLongPress() {
@@ -507,7 +550,7 @@ export default function RecaudosPage() {
   }
   if (!isAdmin) return null
 
-  const cols = getColumns({  onLightbox: setLightboxUrl, voucherUrls, cargarVoucherUrl })
+  const cols = getColumns({  onLightbox: setLightboxUrl, voucherUrls, cargarVoucherUrl, tab })
   if (tab === 'enviado') {
     cols.push({
       key: 'envioFechaCol', label: 'Envío', width: 110, minWidth: 80,
@@ -577,8 +620,8 @@ export default function RecaudosPage() {
             style={{position:'absolute',opacity:0,pointerEvents:'none',width:0,height:0}}
           />
         </div>
-        {/* Eliminar por recibo — busca y elimina sin importar filtro de vista activo */}
-        <div style={{position:'relative',flexShrink:0}} data-popover-eliminar>
+        {/* Eliminar por recibo — oculto en tab Revisar */}
+        {tab !== 'revisar' && <div style={{position:'relative',flexShrink:0}} data-popover-eliminar>
           <button
             onClick={() => modalEliminarPaso === 'cerrado' ? abrirModalEliminar() : cerrarModalEliminar()}
             title="Eliminar por recibo"
@@ -653,7 +696,7 @@ export default function RecaudosPage() {
               )}
             </div>
           )}
-        </div>
+        </div>}
       </div>
 
       {/* ── DESKTOP: DataTable ─────────────────────────────────── */}
@@ -669,9 +712,12 @@ export default function RecaudosPage() {
             loading={loading}
             storageKey="recaudos"
             subRows={p => {
-              // Multi-factura: cada elemento de reciboPago.detalles ya trae
-              // numeroFactura/saldoAntes/montoAplicado/descuento/saldoDespues —
-              // mismo formato leído por columnas Factura/Saldo/Pago/Desc./Nuevo Saldo.
+              // En tab Revisar: sub-filas desde _facturas (tienen nSaldo/saldoUptres por factura)
+              // En otras tabs: desde reciboPago.detalles (tienen saldoAntes/saldoDespues)
+              if (tab === 'revisar') {
+                const facts: any[] = Array.isArray((p as any)._facturas) ? (p as any)._facturas : []
+                return facts.length > 1 ? facts.slice(1) : []
+              }
               const detalles: any[] = Array.isArray((p as any).reciboPago?.detalles) ? (p as any).reciboPago.detalles : []
               return detalles.length > 1 ? detalles.slice(1) : []
             }}
@@ -694,7 +740,7 @@ export default function RecaudosPage() {
             <div className="space-y-2">
               {pagos.map(pago => {
                 const enEnvio       = enviando.has(pago.id)
-                const yaEnviado     = pago.envioEstado === 'enviado' || pago.envioEstado === 'recibido'
+                const yaEnviado     = pago.envioEstado === 'enviado' || pago.envioEstado === 'recibido' || pago.envioEstado === 'cierreUptres'
                 const tieneVariacion = pago.envioEstado === 'variacion'
                 const abierto       = abiertos.includes(pago.id)
                 const seleccionado  = seleccionados.has(pago.id)
@@ -738,24 +784,20 @@ export default function RecaudosPage() {
                             onClick={e => { e.stopPropagation(); abrirRecibo(pago.id) }}
                             style={{ fontSize: 13, lineHeight: 1, flexShrink: 0 }}
                             title="Ver recibo">🖨️</span>
-                          {pago.numeroRecibo || '—'} · {fmtFecha(pago.createdAt)} · Fact. {pago.numeroFactura || '—'}
+                          {pago.numeroRecibo || '—'} · {fmtFecha(tab === 'revisar' && pago.envioFecha ? pago.envioFecha : pago.createdAt)} · Fact. {pago.numeroFactura || '—'}
                         </p>
                         <p className="text-white font-semibold text-sm truncate leading-tight mt-0.5">
                           {pago.Cartera?.Cliente?.nombre || (pago as any).cliente?.nombre || (pago as any).clienteNombre || '—'}
                         </p>
                       </div>
-                      {/* Iconos método / días UpTres en Revisar */}
-                      <div className="flex items-center gap-0.5 flex-shrink-0 text-base leading-none">
-                        {tab !== 'revisar' && (
-                          <>
-                            {pago.metodopago === 'efectivo'      && <span>💵</span>}
-                            {pago.metodopago === 'transferencia' && <span>📲</span>}
-                            {pago.descuento && Number(pago.descuento) > 0 && (
-                              <span className="text-orange-400 text-xs font-bold ml-0.5">%</span>
-                            )}
-                          </>
+                      {/* Iconos método — ocultos en tab Revisar */}
+                      {tab !== "revisar" && (<div className="flex items-center gap-0.5 flex-shrink-0 text-base leading-none">
+                        {pago.metodopago === 'efectivo'      && <span>💵</span>}
+                        {pago.metodopago === 'transferencia' && <span>📲</span>}
+                        {pago.descuento && Number(pago.descuento) > 0 && (
+                          <span className="text-orange-400 text-xs font-bold ml-0.5">%</span>
                         )}
-                      </div>
+                      </div>)}
                       {/* Botón / estado */}
                       <div className="flex-shrink-0" onClick={e => e.stopPropagation()}>
                         {tieneVariacion && (
@@ -770,16 +812,26 @@ export default function RecaudosPage() {
                             {enEnvio ? '...' : 'Enviar'}
                           </button>
                         )}
-                        {pago.envioEstado === 'enviado' && tab !== 'revisar' && <span className="text-blue-400 text-xs font-semibold whitespace-nowrap">✔</span>}
-                        {pago.envioEstado === 'recibido' && tab !== 'revisar' && <span className="text-emerald-400 text-xs font-semibold whitespace-nowrap">✔✔</span>}
+                        {tab !== 'revisar' && pago.envioEstado === 'enviado'  && <span className="text-blue-400 text-xs font-semibold whitespace-nowrap">✔</span>}
+                        {tab !== 'revisar' && pago.envioEstado === 'recibido' && <span className="text-emerald-400 text-xs font-semibold whitespace-nowrap">✔✔</span>}
+                        {tab !== 'revisar' && pago.envioEstado === 'cierreUptres' && <span className="text-zinc-400 text-xs font-semibold whitespace-nowrap" title="Deuda cerrada en UpTres">✔✔</span>}
+                        {tab !== 'revisar' && pago.envioEstado === 'enviando' && <span className="text-white text-xs animate-pulse">Enviando...</span>}
                         {tab === 'revisar' && (() => {
-                          const rv = (pago as any).receivableAt
-                          if (!rv) return <span className="text-zinc-600 text-xs">—</span>
-                          const dias = Math.floor((Date.now() - new Date(rv).getTime()) / 86400000)
+                          const ef = pago.envioFecha
+                          if (!ef) return <span className="text-zinc-600 text-xs">—</span>
+                          const dias = Math.floor((Date.now() - new Date(ef).getTime()) / 86400000)
                           const color = dias > 20 ? '#ef4444' : dias > 10 ? '#f59e0b' : '#6b7280'
-                          return <span style={{fontSize:11, fontWeight:700, color}}>{dias}</span>
-                        })()}
-                        {pago.envioEstado === 'enviando' && <span className="text-white text-xs animate-pulse">Enviando...</span>}
+                          return <span style={{fontSize:15,fontWeight:800,color,marginLeft:6}}>{dias}d</span>
+                        })()} 
+                        {tab === "revisar" && (pago as any).syncDeudaId && !(pago as any).ajusteManual && (
+                          <button onClick={e => { e.stopPropagation(); const diff=Math.max(0,Number((pago as any).nSaldo||0)-Number((pago as any).saldoUptres||0)); setAjusteMonto(String(diff||"")); setAjusteNota(""); setAjusteMsg(""); setModalAjuste({syncDeudaId:(pago as any).syncDeudaId,montoSugerido:diff,cliente:pago.Cartera?.Cliente?.nombre||(pago as any).clienteNombre||"",factura:pago.numeroFactura||0}) }}
+                            className="text-xs px-2 py-0.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700">
+                            📝
+                          </button>
+                        )}
+                        {tab === "revisar" && (pago as any).ajusteManual && (
+                          <span className="text-xs text-emerald-400 font-semibold">📝 Ajustado</span>
+                        )}
                       </div>
                     </div>
                     {/* Panel expandido */}
@@ -810,6 +862,20 @@ export default function RecaudosPage() {
                           })()}
                         </div>
                         {pago.notas && <p className="text-white text-xs mt-1">{pago.notas}</p>}
+                        {tab === "revisar" && (() => {
+                          const nSaldo = Number((pago as any).nSaldo ?? 0)
+                          const saldoUptres = Number((pago as any).saldoUptres ?? 0)
+                          const diff = nSaldo - saldoUptres
+                          return (
+                            <div className="rounded-lg border border-zinc-700 px-3 py-2">
+                              <div className="flex items-center justify-between w-full text-xs gap-1">
+                                <span className="text-zinc-400 shrink-0">Dif: <span className={diff > 0 ? "font-bold font-mono text-red-400" : diff < 0 ? "font-bold font-mono text-emerald-400" : "font-bold font-mono text-zinc-500"}>{diff > 0 ? "+" : ""}{fmtMonto(diff)}</span></span>
+                                <span className="text-zinc-500 shrink-0">UpTres: <span className="text-white font-mono">{fmtMonto(saldoUptres)}</span></span>
+                                <span className="text-zinc-500 shrink-0">Bd: <span className="text-white font-mono">{fmtMonto(nSaldo)}</span></span>
+                              </div>
+                            </div>
+                          )
+                        })()}
                         {tieneVariacion && (
                           <VariacionPanel variacion={pago.envioVariacion} pagoId={pago.id}
                             onDetalle={id => setDetalleVariacion(id)} />
@@ -899,6 +965,32 @@ export default function RecaudosPage() {
           </div>
         )
       })()}
+
+
+      {modalAjuste && (
+        <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-sm p-6 space-y-4">
+            <div className="text-center">
+              <div className="text-2xl mb-1">📝</div>
+              <h3 className="text-white font-bold text-sm">Ajuste manual</h3>
+              <p className="text-zinc-500 text-xs mt-1">{modalAjuste.cliente} · Fact. {modalAjuste.factura}</p>
+            </div>
+            <div>
+              <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Monto del ajuste</label>
+              <input type="number" value={ajusteMonto} onChange={e => setAjusteMonto(e.target.value)} placeholder={`Sugerido: $${modalAjuste.montoSugerido.toLocaleString('es-CO')}`} className="w-full rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500" style={{background:'#0d1220',border:'1px solid #1e2a3d'}} />
+            </div>
+            <div>
+              <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Nota <span className="text-red-400">*</span></label>
+              <input value={ajusteNota} onChange={e => setAjusteNota(e.target.value)} placeholder="Ej: Nota crédito UpTres, descuento comercial..." className="w-full rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500" style={{background:'#0d1220',border:'1px solid #1e2a3d'}} />
+            </div>
+            {ajusteMsg && <p className={ajusteMsg.startsWith('✅') ? 'text-sm text-center text-emerald-400' : 'text-sm text-center text-red-400'}>{ajusteMsg}</p>}
+            <div className="flex gap-2">
+              <button onClick={() => { setModalAjuste(null); setAjusteMonto(''); setAjusteNota('') }} className="flex-1 bg-zinc-800 text-white text-sm py-3 rounded-xl">Cancelar</button>
+              <button onClick={ejecutarAjuste} disabled={ajusteLoading || !ajusteMonto || !ajusteNota.trim()} className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm py-3 rounded-xl font-semibold">{ajusteLoading ? 'Aplicando...' : 'Aplicar'}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )

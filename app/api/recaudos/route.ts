@@ -29,6 +29,8 @@ export async function GET(req: NextRequest) {
   const useCursor = !!cursor || searchParams.has('cursor') || (searchParams.has('limit') && !searchParams.has('page'))
   const skip = useCursor ? undefined : (page - 1) * limit
 
+  const nSaldoBySdLocal = new Map<string, number>()
+  const saldoUptresBySdLocal = new Map<string, number>()
   const where: any = {
     OR: [
       { Cartera: { empresaId } },
@@ -76,8 +78,9 @@ export async function GET(req: NextRequest) {
     }
 
     // 2. Para esas SyncDeudas: calcular nSaldo real vs saldo UpTres
+    // Excluir condition=false Y saldo=0 — UpTres las cerró, no hay discrepancia real
     const syncDeudasCandidatas = await (prisma as any).syncDeuda.findMany({
-      where: { id: { in: Array.from(sdIdsConEnviado) } },
+      where: { id: { in: Array.from(sdIdsConEnviado) }, NOT: { condition: false, saldo: 0 } },
       select: { id: true, valor: true, saldo: true, receivableAt: true }
     })
 
@@ -107,9 +110,10 @@ export async function GET(req: NextRequest) {
         .filter((a: any) => a.envioEstado === 'enviado' && a.envioFecha)
         .reduce((max: number, a: any) => Math.max(max, new Date(a.envioFecha).getTime()), 0)
       if (ultimoAbono === 0) continue
-      if (ultimoAbono === 0) continue // no tiene envíos con fecha
       sdIdsParaRevisar.push(sd.id)
       receivableAtBySd.set(sd.id, sd.receivableAt ?? null)
+      nSaldoBySdLocal.set(sd.id, nSaldo)
+      saldoUptresBySdLocal.set(sd.id, saldoUpTres)
     }
     if (sdIdsParaRevisar.length === 0) {
       // Sin discrepancias — retornar lista vacía
@@ -156,7 +160,7 @@ export async function GET(req: NextRequest) {
     const hasMore = pagos.length > limit
     const data = hasMore ? pagos.slice(0, limit) : pagos
     const nextCursor = hasMore ? data[data.length - 1].id : null
-    const dataHidratada = await hidratarSync(data, empresaId)
+    const dataHidratada = await hidratarSync(data, empresaId, nSaldoBySdLocal, saldoUptresBySdLocal)
     return NextResponse.json({ pagos: dataHidratada, nextCursor, hasMore })
   }
 
@@ -164,11 +168,11 @@ export async function GET(req: NextRequest) {
     prisma.pagoCartera.findMany({ where, skip, take: limit, orderBy: { createdAt: 'desc' }, include }),
     prisma.pagoCartera.count({ where }),
   ])
-  const pagosHidratados = await hidratarSync(pagos, empresaId)
+  const pagosHidratados = await hidratarSync(pagos, empresaId, nSaldoBySdLocal, saldoUptresBySdLocal)
   return NextResponse.json({ pagos: pagosHidratados, total, page, pages: Math.ceil(total / limit) })
 }
 
-async function hidratarSync(pagos: any[], empresaId: string) {
+async function hidratarSync(pagos: any[], empresaId: string, nSaldoBySd?: Map<string, number>, saldoUptresBySd?: Map<string, number>) {
   const syncPagos = pagos.filter((p: any) => !p.carteraId)
   if (syncPagos.length === 0) return pagos
   // Mapear pago.id -> primera Aplicacion
@@ -198,23 +202,38 @@ async function hidratarSync(pagos: any[], empresaId: string) {
     // Facturas aplicadas a este pago (todas sus PagoCarteraDeuda)
     const _facturas = apps
       .filter((a: any) => a.pagoId === p.id && a.numeroFactura != null)
-      .map((a: any) => ({ numeroFactura: a.numeroFactura, montoAplicado: a.montoAplicado, descuento: a.descuento ?? null }))
+      .map((a: any) => {
+        const sdA: any = sdMap.get(a.syncDeudaId)
+        const nSaldoA = (nSaldoBySd && a.syncDeudaId && nSaldoBySd.has(a.syncDeudaId)) ? nSaldoBySd.get(a.syncDeudaId)! : (sdA?.nSaldo != null ? Number(sdA.nSaldo) : null)
+        const saldoUptresA = (saldoUptresBySd && a.syncDeudaId && saldoUptresBySd.has(a.syncDeudaId)) ? saldoUptresBySd.get(a.syncDeudaId)! : (sdA?.saldo != null ? Number(sdA.saldo) : null)
+        return { numeroFactura: a.numeroFactura, montoAplicado: a.montoAplicado, descuento: a.descuento ?? null, syncDeudaId: a.syncDeudaId, nSaldo: nSaldoA, saldoUptres: saldoUptresA, ajusteManual: sdA?.ajusteManual != null ? Number(sdA.ajusteManual) : null }
+      })
     // Prioridad: datos congelados en PagoCartera
     if (p.clienteApiId) {
       const cli: any = cliMap.get(p.clienteApiId)
       // Buscar receivableAt de la primera SyncDeuda de este pago
-      const faFirst = firstApp.get(p.id)
+      // Para revisar: usar la primera factura CON discrepancia real como fila principal
+      const appsDelPago = apps.filter((a: any) => a.pagoId === p.id)
+      const faConDisc = appsDelPago.find((a: any) => nSaldoBySd && nSaldoBySd.has(a.syncDeudaId))
+      const faFirst = faConDisc || firstApp.get(p.id)
       const sdFirst: any = faFirst ? sdMap.get(faFirst.syncDeudaId) : null
       const receivableAt = sdFirst?.receivableAt ?? null
-      if (cli) return { ...p, _facturas, receivableAt, cliente: { id: cli.id, nombre: cli.nombre, nit: cli.nit, telefono: cli.telefono } }
+      const syncDeudaId = faFirst?.syncDeudaId ?? null
+      const nSaldo = (nSaldoBySd && syncDeudaId && nSaldoBySd.has(syncDeudaId)) ? nSaldoBySd.get(syncDeudaId)! : (sdFirst?.nSaldo != null ? Number(sdFirst.nSaldo) : null)
+      const saldoUptres = (saldoUptresBySd && syncDeudaId && saldoUptresBySd.has(syncDeudaId)) ? saldoUptresBySd.get(syncDeudaId)! : (sdFirst?.saldo != null ? Number(sdFirst.saldo) : null)
+      const ajusteManual = sdFirst?.ajusteManual != null ? Number(sdFirst.ajusteManual) : null
+      if (cli) return { ...p, _facturas, receivableAt, nSaldo, saldoUptres, syncDeudaId, ajusteManual, cliente: { id: cli.id, nombre: cli.nombre, nit: cli.nit, telefono: cli.telefono } }
       // Sin cliente en BD pero con nombre congelado
-      if (p.clienteNombre) return { ...p, _facturas, receivableAt, cliente: { nombre: p.clienteNombre } }
+      if (p.clienteNombre) return { ...p, _facturas, receivableAt, nSaldo, saldoUptres, syncDeudaId, ajusteManual, cliente: { nombre: p.clienteNombre } }
     }
     // Fallback pagos viejos
     const fa = firstApp.get(p.id)
     if (!fa) return { ...p, _facturas }
     const sd: any = sdMap.get(fa.syncDeudaId)
     const cli: any = sd ? cliMap.get(sd.clienteApiId) : null
-    return { ...p, _facturas, receivableAt: sd?.receivableAt ?? null, cliente: cli ? { id: cli.id, nombre: cli.nombre, nit: cli.nit, telefono: cli.telefono } : null }
+    const nSaldoFb = (nSaldoBySd && sd?.id && nSaldoBySd.has(sd.id)) ? nSaldoBySd.get(sd.id)! : (sd?.nSaldo != null ? Number(sd.nSaldo) : null)
+    const saldoUptresFb = (saldoUptresBySd && sd?.id && saldoUptresBySd.has(sd.id)) ? saldoUptresBySd.get(sd.id)! : (sd?.saldo != null ? Number(sd.saldo) : null)
+    const ajusteManualFb = sd?.ajusteManual != null ? Number(sd.ajusteManual) : null
+    return { ...p, _facturas, receivableAt: sd?.receivableAt ?? null, nSaldo: nSaldoFb, saldoUptres: saldoUptresFb, syncDeudaId: sd?.id ?? null, ajusteManual: ajusteManualFb, cliente: cli ? { id: cli.id, nombre: cli.nombre, nit: cli.nit, telefono: cli.telefono } : null }
   })
 }

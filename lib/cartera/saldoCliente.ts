@@ -50,7 +50,7 @@ export async function getSaldoCliente(
         id: true, externalId: true, numeroFactura: true,
         valor: true, nSaldo: true, saldo: true, condition: true,
         fechaVencimiento: true, diasCredito: true, empleadoExternalId: true,
-        nSaldoBase: true, nSaldoBaseAt: true
+        nSaldoBase: true, nSaldoBaseAt: true, ajusteManual: true
       }
     })
 
@@ -58,7 +58,7 @@ export async function getSaldoCliente(
 
     // Calcular nSaldo real usando función central
     const nSaldoMap = await calcularNSaldoPorDeuda(
-      deudas.map((d: any) => ({ id: d.id, valor: d.valor, numeroFactura: d.numeroFactura, nSaldo: d.nSaldo, saldo: d.saldo, nSaldoBase: d.nSaldoBase, nSaldoBaseAt: d.nSaldoBaseAt })),
+      deudas.map((d: any) => ({ id: d.id, valor: d.valor, numeroFactura: d.numeroFactura, nSaldo: d.nSaldo, saldo: d.saldo, nSaldoBase: d.nSaldoBase, nSaldoBaseAt: d.nSaldoBaseAt, ajusteManual: d.ajusteManual })),
       empresaId
     )
 

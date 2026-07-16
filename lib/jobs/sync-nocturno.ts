@@ -22,10 +22,14 @@ import { syncProductosEmpresa } from '@/lib/jobs/sync-delta'
 // Reglas: todas las facturas 'recibido' → 'recibido'. Todas al menos 'enviado'
 // (mezcla de enviado/recibido, sin pendientes) → 'enviado'. Cualquier otra
 // combinación (al menos una 'pendiente') → 'pendiente'.
-export function derivarEnvioEstado(aplicaciones: { envioEstado: string }[]): 'pendiente' | 'enviado' | 'recibido' {
+export function derivarEnvioEstado(aplicaciones: { envioEstado: string }[]): 'pendiente' | 'enviado' | 'recibido' | 'cierreUptres' {
   if (aplicaciones.length === 0) return 'pendiente'
-  if (aplicaciones.every(a => a.envioEstado === 'recibido')) return 'recibido'
-  if (aplicaciones.every(a => a.envioEstado === 'recibido' || a.envioEstado === 'enviado')) return 'enviado'
+  const terminados = ['recibido', 'cierreUptres']
+  if (aplicaciones.every(a => terminados.includes(a.envioEstado))) {
+    // Si alguno es cierreUptres → el recibo padre queda cierreUptres
+    return aplicaciones.some(a => a.envioEstado === 'cierreUptres') ? 'cierreUptres' : 'recibido'
+  }
+  if (aplicaciones.every(a => terminados.includes(a.envioEstado) || a.envioEstado === 'enviado')) return 'enviado'
   return 'pendiente'
 }
 
@@ -131,6 +135,21 @@ export async function reconciliarDeuda(u: ReconciliarInput, integracionId: strin
     await Promise.all(pagoIds.map((p: any) => recalcularEnvioEstadoPago(p.pagoId)))
   }
 
+  // Helper: marcar aplicaciones como cierreUptres (deuda cerrada sin receivableAt explícito)
+  async function marcarAplicacionesCierreUptres(aplicacionIds: string[]) {
+    if (aplicacionIds.length === 0) return
+    await (prisma as any).pagoCarteraDeuda.updateMany({
+      where: { id: { in: aplicacionIds } },
+      data: { envioEstado: 'cierreUptres' }
+    })
+    const pagoIds = await (prisma as any).pagoCarteraDeuda.findMany({
+      where: { id: { in: aplicacionIds } },
+      select: { pagoId: true },
+      distinct: ['pagoId']
+    })
+    await Promise.all(pagoIds.map((p: any) => recalcularEnvioEstadoPago(p.pagoId)))
+  }
+
   // ── MISIÓN 1: UpTres certifica deuda saldada ──────────────────────────────
   // Única vez que UpTres tiene autoridad sobre condition. nSaldo lo fijará
   // reconstruirCartera en 0 porque condition=false excluye la deuda.
@@ -139,10 +158,16 @@ export async function reconciliarDeuda(u: ReconciliarInput, integracionId: strin
       where: { syncDeudaId: u.sdId, envioEstado: { in: ['pendiente', 'enviado'] } },
       select: { id: true }
     })
-    await marcarAplicacionesRecibidasYRecalcular(
-      aplicacionesPendientes.map((a: any) => a.id),
-      u.receivableAt ?? new Date()
-    )
+    if (u.receivableAt) {
+      // UpTres confirmó con receivableAt explícito → recibido
+      await marcarAplicacionesRecibidasYRecalcular(
+        aplicacionesPendientes.map((a: any) => a.id),
+        u.receivableAt
+      )
+    } else {
+      // Deuda cerrada sin receivableAt → cierreUptres (pago llegó pero sin señal individual)
+      await marcarAplicacionesCierreUptres(aplicacionesPendientes.map((a: any) => a.id))
+    }
     return (prisma as any).syncDeuda.update({
       where: whereSd,
       data: {
@@ -232,7 +257,7 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
     saldoAnterior: a.PagoCartera?.saldoAnterior ?? null,
   }))
   const nSaldoMap = calcularNSaldoBatch(
-    deudas.map((d: any) => ({ id: d.id, valor: d.valor, numeroFactura: d.numeroFactura, nSaldo: d.nSaldo, saldo: d.saldo, nSaldoBase: d.nSaldoBase, nSaldoBaseAt: d.nSaldoBaseAt })),
+    deudas.map((d: any) => ({ id: d.id, valor: d.valor, numeroFactura: d.numeroFactura, nSaldo: d.nSaldo, saldo: d.saldo, nSaldoBase: d.nSaldoBase, nSaldoBaseAt: d.nSaldoBaseAt, ajusteManual: d.ajusteManual })),
     apls
   )
 

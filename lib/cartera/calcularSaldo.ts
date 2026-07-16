@@ -17,6 +17,7 @@ export interface DeudaParaSaldo {
   saldo?: number | null
   nSaldoBase?: number | null    // write-once: base de saldo al sync inicial del vendedor
   nSaldoBaseAt?: Date | string | null // fecha de inicio de pagos gestor
+  ajusteManual?: number | null  // ajuste manual admin — reduce nSaldo
 }
 
 export interface AplicacionPago {
@@ -84,6 +85,9 @@ export function calcularNSaldoBatch(
       nSaldo = Math.max(0, Number(d.nSaldo ?? d.saldo ?? d.valor))
     }
 
+    // Ajuste manual admin — aplica en todas las ramas
+    const ajusteAdmin = Number(d.ajusteManual || 0)
+    if (ajusteAdmin > 0) nSaldo = Math.max(0, nSaldo - ajusteAdmin)
     result[d.id] = { nSaldo, tienePagosLocales, anclaUsada: null }
   }
 

@@ -2840,6 +2840,9 @@ model SyncDeuda {
   nSaldo              Decimal?   @db.Decimal(14, 2) // saldo real calculado localmente (nSaldo v3) — fuente de verdad para recibos
   nSaldoBase          Decimal?   @db.Decimal(14, 2) // base de saldo al momento de sync inicial del vendedor (write-once)
   nSaldoBaseAt        DateTime?                   // fecha de inicio de pagos gestor — solo pagos posteriores a esta fecha se descuentan
+  ajusteManual        Decimal?   @db.Decimal(14, 2) // ajuste manual admin — reduce nSaldo (nota crédito interna, descuento, cortesía)
+  ajusteNota          String?                     // razón obligatoria del ajuste
+  ajusteFecha         DateTime?                   // cuándo se aplicó el ajuste
   abono              Decimal     @default(0) @db.Decimal(14, 2)
   diasCredito        Int?
   fechaVencimiento   DateTime?
