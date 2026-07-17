@@ -53,6 +53,7 @@ export default function EmpleadosPage() {
     { key: 'verRutas',          label: 'Ver rutas' },
     { key: 'asignarRutas',      label: 'Asignar rutas a entregas' },
     { key: 'verReportes',       label: 'Ver reportes' },
+  { key: 'verBitacora',       label: 'Ver bitácora' },
   ]
   const [permisos, setPermisos] = useState<Record<string, boolean>>({})
   const [puedeCapturarGps, setPuedeCapturarGps] = useState(false)
@@ -189,7 +190,7 @@ export default function EmpleadosPage() {
       const res = await fetch('/api/empleados', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: editando.id, nombre, email: emailEdit || undefined, telefono, password: password || undefined, vendedorId: vendedorId || null, puedeCapturarGps, ciudades: ciudadesAsignadas, listaIds, vendedorIds: (slotRol === 'supervisor' || editando?.rol === 'supervisor') ? vendedorIds : undefined, permisos: (slotRol === 'supervisor' || editando?.rol === 'supervisor') ? permisos : undefined, etiqueta: (slotRol === 'supervisor' || editando?.rol === 'supervisor') ? etiqueta : undefined, apiId: apiIdSeleccionado || undefined, confirmarReduccionListas })
+        body: JSON.stringify({ id: editando.id, nombre, email: emailEdit || undefined, telefono, password: password || undefined, vendedorId: vendedorId || null, puedeCapturarGps, ciudades: ciudadesAsignadas, listaIds, vendedorIds: (slotRol === 'supervisor' || editando?.rol === 'supervisor') ? vendedorIds : undefined, permisos: permisos, etiqueta: (slotRol === 'supervisor' || editando?.rol === 'supervisor') ? etiqueta : undefined, apiId: apiIdSeleccionado || undefined, confirmarReduccionListas })
       })
       const data = await res.json()
       if (data.error === 'REDUCCION_LISTAS_SIN_CONFIRMAR') {
@@ -208,7 +209,7 @@ export default function EmpleadosPage() {
       const res = await fetch('/api/empleados', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre, rol: slotRol, telefono, password, vendedorId: vendedorId || null, ciudades: ciudadesAsignadas, listaIds, vendedorIds: slotRol === 'supervisor' ? vendedorIds : undefined, permisos: slotRol === 'supervisor' ? permisos : undefined, etiqueta: slotRol === 'supervisor' ? etiqueta : undefined })
+        body: JSON.stringify({ nombre, rol: slotRol, telefono, password, vendedorId: vendedorId || null, ciudades: ciudadesAsignadas, listaIds, vendedorIds: slotRol === 'supervisor' ? vendedorIds : undefined, permisos: permisos, etiqueta: slotRol === 'supervisor' ? etiqueta : undefined })
       })
       const data = await res.json()
       setLoading(false)
@@ -737,7 +738,7 @@ export default function EmpleadosPage() {
                     </div>
                   </div>
                 )}
-                {(slotRol === 'supervisor' || editando?.rol === 'supervisor') && (
+                {(['supervisor','vendedor','bodega','impulsadora','entregas'].includes(slotRol) || ['supervisor','vendedor','bodega','impulsadora','entregas'].includes(editando?.rol)) && (
                   <div>
                     <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Permisos</label>
                     <div className="space-y-2  rounded-xl p-3" style={{background:"#0d1220",border:"1px solid #1e2a3d"}}>
