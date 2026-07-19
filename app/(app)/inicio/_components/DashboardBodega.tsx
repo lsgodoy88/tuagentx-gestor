@@ -59,18 +59,18 @@ export default function DashboardBodega({ user }: { user: any }) {
               </div>
               <div className="grid grid-cols-3 gap-2">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-amber-400 flex items-center justify-center gap-1.5">
+                  <p className="text-lg font-bold text-amber-400 flex items-center justify-center gap-1.5">
                     <CountUp end={e.pendientes} />
                     {e.pendientes > 0 && <LiveDot color="amber" />}
                   </p>
                   <p className="text-zinc-200 text-xs">🟡 Pendientes</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-emerald-400"><CountUp end={e.alistados} /></p>
+                  <p className="text-lg font-bold text-emerald-400"><CountUp end={e.alistados} /></p>
                   <p className="text-zinc-200 text-xs">🟢 Alistados</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-400"><CountUp end={e.entregados} /></p>
+                  <p className="text-lg font-bold text-blue-400"><CountUp end={e.entregados} /></p>
                   <p className="text-zinc-200 text-xs">✅ Entregados</p>
                 </div>
               </div>

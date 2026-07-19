@@ -525,7 +525,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
 
       {/* Bienvenido — solo cuando no hay turno y ya cargó */}
       {!turno && !cargandoTurno && (
-        <h1 className="text-lg font-bold text-white px-1 text-center">Bienvenido, {user?.name?.split(' ')[0]}{user?.empresaNombre ? <span className="text-zinc-400 font-normal text-lg"> · {user.empresaNombre}</span> : ''}</h1>
+        <h1 className="text-base font-bold text-white px-1 text-center">Bienvenido, {user?.name?.split(' ')[0]}{user?.empresaNombre ? <span className="text-zinc-400 font-normal text-lg"> · {user.empresaNombre}</span> : ''}</h1>
       )}
 
       {/* Turno — skeleton exacto mientras carga (misma altura que el pill) */}
@@ -674,11 +674,11 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
               <div className="px-4 pt-4 pb-3">
                 <p className="text-zinc-400 text-xs font-semibold tracking-wide mb-1 truncate">{ruta.nombre}</p>
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="flex items-center gap-1.5"><span className="text-2xl font-black text-white tabular-nums">{totalClientes}</span><span className="text-zinc-500 text-xs leading-tight">total</span></div>
+                  <div className="flex items-center gap-1.5"><span className="text-lg font-black text-white tabular-nums">{totalClientes}</span><span className="text-zinc-500 text-xs leading-tight">total</span></div>
                   <div className="w-px h-6 bg-zinc-700" />
-                  <div className="flex items-center gap-1.5"><span className="text-2xl font-black text-emerald-400 tabular-nums">{ejecutadosRuta}</span><span className="text-zinc-500 text-xs leading-tight">listos</span></div>
+                  <div className="flex items-center gap-1.5"><span className="text-lg font-black text-emerald-400 tabular-nums">{ejecutadosRuta}</span><span className="text-zinc-500 text-xs leading-tight">listos</span></div>
                   <div className="w-px h-6 bg-zinc-700" />
-                  <div className="flex items-center gap-1.5"><span className="text-2xl font-black text-zinc-400 tabular-nums">{totalClientes - ejecutadosRuta}</span><span className="text-zinc-500 text-xs leading-tight">pendientes</span></div>
+                  <div className="flex items-center gap-1.5"><span className="text-lg font-black text-zinc-400 tabular-nums">{totalClientes - ejecutadosRuta}</span><span className="text-zinc-500 text-xs leading-tight">pendientes</span></div>
                 </div>
                 <div className="w-full bg-zinc-800 rounded-full h-1.5 overflow-hidden">
                   <div className="bg-emerald-500 h-1.5 rounded-full " style={{width: totalClientes > 0 ? (ejecutadosRuta/totalClientes*100) + '%' : '0%'}} />
@@ -718,9 +718,9 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
             <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
               <div className="flex items-center justify-center gap-1.5 mb-2"><span className="text-sm">💼</span><span className="text-white text-sm font-bold tracking-wide">Ventas</span></div>
               <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-emerald-400 text-lg font-bold"><span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={Math.round(statsVendedor.ordenes?.montoMes||0)} prefix='$' /> : '—'}</span></span>
+                <span className="text-emerald-400 text-base font-bold"><span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={Math.round(statsVendedor.ordenes?.montoMes||0)} prefix='$' /> : '—'}</span></span>
                 <span className="text-white/40 text-base font-light">/</span>
-                <span className="text-white text-lg font-bold">{statsVendedor ? (statsVendedor.ordenes?.metaVentaMes > 0 ? '$'+Math.round(statsVendedor.ordenes.metaVentaMes).toLocaleString('es-CO') : '—') : '—'}</span>
+                <span className="text-white text-base font-bold">{statsVendedor ? (statsVendedor.ordenes?.metaVentaMes > 0 ? '$'+Math.round(statsVendedor.ordenes.metaVentaMes).toLocaleString('es-CO') : '—') : '—'}</span>
               </div>
               <div className="flex justify-center gap-4 mt-1"><span className="text-white text-xs">mes</span><span className="text-white text-xs">meta</span></div>
             </div>
@@ -735,9 +735,9 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
             <div style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center'}}>
               <div className="flex items-center justify-center gap-1.5 mb-2"><span className="text-sm">💰</span><span className="text-white text-sm font-bold tracking-wide">Recaudo</span></div>
               <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-blue-400 text-lg font-bold"><span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={Math.round(statsVendedor.recaudo?.mes||0)} prefix='$' /> : '—'}</span></span>
+                <span className="text-blue-400 text-base font-bold"><span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={Math.round(statsVendedor.recaudo?.mes||0)} prefix='$' /> : '—'}</span></span>
                 <span className="text-white/40 text-base font-light">/</span>
-                <span className="text-white text-lg font-bold">{statsVendedor ? (statsVendedor.recaudo?.meta > 0 ? '$'+Math.round(statsVendedor.recaudo.meta).toLocaleString('es-CO') : '—') : '—'}</span>
+                <span className="text-white text-base font-bold">{statsVendedor ? (statsVendedor.recaudo?.meta > 0 ? '$'+Math.round(statsVendedor.recaudo.meta).toLocaleString('es-CO') : '—') : '—'}</span>
               </div>
               <div className="flex justify-center gap-4 mt-1"><span className="text-white text-xs">mes</span><span className="text-white text-xs">meta</span></div>
             </div>
@@ -976,7 +976,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
           <div className="rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto overscroll-contain" style={{background:"rgba(15,23,42,0.85)",border:"1px solid rgba(59,130,246,0.50)"}}>
             <div className="flex items-center justify-between px-4 pt-2.5 pb-2.5 border-b" style={{borderColor:"rgba(59,130,246,0.30)"}}>
               <h3 className="text-white font-bold text-lg">💵 Recaudo rápido</h3>
-              <button onClick={() => { setModalRecaudoRapido(false); setRrCliente(null); setRrSinDeuda(false) }} className="text-zinc-500 hover:text-white text-xl">×</button>
+              <button onClick={() => { setModalRecaudoRapido(false); setRrCliente(null); setRrSinDeuda(false) }} className="text-zinc-500 hover:text-white text-lg">×</button>
             </div>
             <div className="px-4 py-4 space-y-3">
               {!rrCliente ? (

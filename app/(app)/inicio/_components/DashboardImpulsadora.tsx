@@ -102,7 +102,7 @@ export default function DashboardImpulsadora() {
   return (
     <div className="max-w-2xl mx-auto space-y-6 pb-24 md:pb-0">
       <div>
-        <h1 className="text-2xl font-bold text-white">Hola, {user?.name}</h1>
+        <h1 className="text-lg font-bold text-white">Hola, {user?.name}</h1>
         <p className="text-zinc-400 text-sm">{DIAS[new Date().getDay()]} - {new Date().toLocaleDateString('es-CO', {day:'numeric', month:'long', timeZone: 'America/Bogota'})}</p>
       </div>
 
@@ -130,7 +130,7 @@ export default function DashboardImpulsadora() {
                 <p className="text-zinc-400 text-xs font-semibold mb-1">
                   {puntoActual.estado === 'pendiente' ? 'PROXIMO PUNTO' : 'EN PUNTO'}
                 </p>
-                <p className="text-white text-xl font-bold">{puntoActual.rc.cliente.nombre}</p>
+                <p className="text-white text-lg font-bold">{puntoActual.rc.cliente.nombre}</p>
                 {puntoActual.rc.cliente.nombreComercial && (
                   <p className="text-zinc-400 text-sm">{puntoActual.rc.cliente.nombreComercial}</p>
                 )}

@@ -1,3 +1,33 @@
+/**
+ * diasv: días entre hoy y fecha de vencimiento
+ *   positivo → aún no vence
+ *   negativo → ya venció hace |diasv| días
+ *   null     → sin fecha de vencimiento
+ */
+export function calcularDiasV(fechaVencimiento: Date | null | undefined): number | null {
+  if (!fechaVencimiento) return null
+  const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
+  const fv = new Date(fechaVencimiento); fv.setHours(0, 0, 0, 0)
+  return Math.floor((fv.getTime() - hoy.getTime()) / 86400000)
+}
+
+/**
+ * edadcartera: rango de mora basado en diasv
+ *   diasv >= 0          → '0-30'   (vigente)
+ *   -30 <= diasv < 0    → '31-60'
+ *   -60 <= diasv < -30  → '61-90'
+ *   -90 <= diasv < -60  → '91-120'
+ *   diasv < -90         → '+120'
+ */
+export function calcularEdadCartera(diasv: number | null): string {
+  if (diasv === null) return '0-30'
+  if (diasv >= 0)   return '0-30'
+  if (diasv >= -30) return '31-60'
+  if (diasv >= -60) return '61-90'
+  if (diasv >= -90) return '91-120'
+  return '+120'
+}
+
 export function calcularEstado(
   saldoPendiente: number,
   valorFactura: number,

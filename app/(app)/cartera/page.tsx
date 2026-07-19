@@ -7,7 +7,7 @@ import { saveCache, loadCache, clearCache } from '@/lib/offlineCache'
 import { useSession } from 'next-auth/react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Parser } from 'expr-eval'
-import { calcularEstado, estadoMasCritico } from '@/lib/cartera'
+import { calcularEstado, estadoMasCritico, calcularDiasV, calcularEdadCartera } from '@/lib/cartera'
 import { CountUp, LiveDot, LoadingBorder } from '@/components/FX'
 import InputMoneda from '@/components/InputMoneda'
 import SelectorMes from '@/components/SelectorMes'
@@ -78,6 +78,11 @@ export default function CarteraPage() {
   )
   const [isDesktopPagos, setIsDesktopPagos] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : false)
   const [mesAnalisis, setMesAnalisis] = useState(mesBogota())
+  const [snapMesInicio, setSnapMesInicio] = useState(mesBogota())
+  const [snapAnioInicio, setSnapAnioInicio] = useState(anioBogota())
+  const [snapMesFin, setSnapMesFin] = useState(mesBogota())
+  const [snapAnioFin, setSnapAnioFin] = useState(anioBogota())
+  const [generandoSnap, setGenerandoSnap] = useState(false)
   const [anioAnalisis, setAnioAnalisis] = useState(anioBogota())
   const [mesSel, setMesSel] = useState(mesBogota())
   const [anioSel, setAnioSel] = useState(anioBogota())
@@ -322,6 +327,36 @@ export default function CarteraPage() {
     }
     return acc
   }, {} as Record<string, number>)
+
+  // Edades de cartera por diasv
+  const EDADES = ['0-30','31-60','61-90','91-120','+120'] as const
+  type Edad = typeof EDADES[number]
+
+  // Vendedor: totales globales por edad
+  const porEdad = carteras.reduce((acc, c) => {
+    for (const d of (c.DetalleCartera || [])) {
+      const saldo = Math.max(0, Number(d.saldoPendiente ?? 0))
+      if (saldo <= 0) continue
+      const diasv = calcularDiasV(d.fechaVencimiento ? new Date(d.fechaVencimiento) : null)
+      const edad = calcularEdadCartera(diasv) as Edad
+      acc[edad] = (acc[edad] ?? 0) + saldo
+    }
+    return acc
+  }, {} as Record<Edad, number>)
+
+  // Admin: por vendedor
+  const porEdadVendedor = esAdmin ? carteras.reduce((acc, c) => {
+    const nombre = c.empleadoNombre || 'Sin vendedor'
+    if (!acc[nombre]) acc[nombre] = {} as Record<Edad, number>
+    for (const d of (c.DetalleCartera || [])) {
+      const saldo = Math.max(0, Number(d.saldoPendiente ?? 0))
+      if (saldo <= 0) continue
+      const diasv = calcularDiasV(d.fechaVencimiento ? new Date(d.fechaVencimiento) : null)
+      const edad = calcularEdadCartera(diasv) as Edad
+      acc[nombre][edad] = (acc[nombre][edad] ?? 0) + saldo
+    }
+    return acc
+  }, {} as Record<string, Record<Edad, number>>) : {}
 
   const totalPendiente = totalReal ? totalReal.saldoPendiente : carteras.reduce((s, c) => s + Number(c.saldoPendiente), 0)
 
@@ -784,6 +819,51 @@ export default function CarteraPage() {
               >
                 🔍
               </button>
+              <button
+                onClick={async () => {
+                  try {
+                    const r = await fetch('/api/cartera/pdf')
+                    if (!r.ok) { alert('Error generando PDF'); return }
+                    const d = await r.json()
+                    const { default: jsPDF } = await import('jspdf')
+                    const { default: autoTable } = await import('jspdf-autotable')
+                    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' })
+                    const fmtNum = (n: number) => n.toLocaleString('es-CO')
+                    doc.setFontSize(10)
+                    doc.setFont('helvetica', 'bold')
+                    doc.text(`${d.empresa} — ${d.vendedor}`, 14, 14)
+                    doc.setFont('helvetica', 'normal')
+                    doc.setFontSize(8)
+                    doc.text(`Generado: ${new Date(d.generadoEn).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}`, 14, 20)
+                    const pageW = doc.internal.pageSize.getWidth()
+                    const margin = 5
+                    autoTable(doc, {
+                      startY: 22,
+                      margin: { left: margin, right: margin, top: 5, bottom: 5 },
+                      head: [['Orden','Factura','Elect.','F. Fact.','Cliente','Dirección','Celular','Ciudad','Venta','Saldo','F. Vence','Edad']],
+                      body: d.filas.map((f: any) => [f.orden, f.factura, f.electronica, f.fechaFactura, f.cliente, f.direccion, f.celular, f.ciudad, fmtNum(f.venta), fmtNum(f.saldo), f.fechaVence, f.edadcartera]),
+                      foot: [['','','','','','','','','Total', fmtNum(d.totalSaldo),'','']],
+                      tableWidth: pageW - margin * 2,
+                      styles: { fontSize: 7, cellPadding: 1.5, overflow: 'ellipsize', lineWidth: 0.1, lineColor: [220,220,220] },
+                      headStyles: { fillColor: [255,255,255], textColor: 0, fontStyle: 'bold', lineWidth: 0.1, lineColor: [180,180,180] },
+                      footStyles: { fillColor: [255,255,255], textColor: 0, fontStyle: 'bold' },
+                      columnStyles: {
+                        4: { cellWidth: 'auto' },
+                        5: { cellWidth: 'auto' },
+                        8: { halign: 'right' },
+                        9: { halign: 'right' },
+                      },
+                    })
+                    const fecha = new Date().toISOString().slice(0,10)
+                    doc.save(`cartera-${d.vendedor.replace(/\s+/g,'-')}-${fecha}.pdf`)
+                  } catch(e) { alert('Error: ' + e) }
+                }}
+                style={{ background: '#060a24', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '12px', padding: '10px 14px' }}
+                className="text-white text-lg hover:border-emerald-500 transition-colors"
+                title="Descargar PDF cartera"
+              >
+                📥
+              </button>
             </div>
 
             {/* Meta del mes — vendedor: card destacada con cartera, %, meta y cumplimiento */}
@@ -852,34 +932,379 @@ export default function CarteraPage() {
 
             {/* Estadísticas — grid 3 col desktop */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Estado de cartera con barras */}
-            <div style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.25)",borderRadius:16,padding:16}}>
-              <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-3">Estado de cartera</p>
-              <div className="space-y-2.5">
-                {([
-                  ['critica','⛔ Crítica','#ef4444'],
-                  ['mora','🔴 En mora','#fb7185'],
-                  ['vencida','🟠 Vencida','#fb923c'],
-                  ['pendiente','🟡 Pendiente','#fbbf24'],
-                  ['abonada','🔵 Abonada','#60a5fa'],
-                  ['pagada','✅ Pagada','#34d399'],
-                ] as const).map(([est, label, color]) => {
-                  const monto = porEst[est] ?? 0
-                  const pct = totalCartera > 0 ? Math.round((monto / totalCartera) * 100) : 0
-                  return (
-                    <div key={est}>
-                      <div className="flex justify-between items-center mb-1">
-                        <span className="text-xs text-zinc-300">{label}</span>
-                        <span className="text-xs font-bold text-white">{fmt(monto)} <span className="text-zinc-600">({pct}%)</span></span>
-                      </div>
-                      <div className="h-1.5 rounded-full overflow-hidden" style={{background:"#0f2540"}}>
-                        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
+            {/* Edades de cartera */}
+            <div style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.25)",borderRadius:16,padding:16}} className={esAdmin ? 'md:col-span-3' : ''}>
+              <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-3">📊 Edades de cartera</p>
+              {esAdmin ? (
+                /* Admin: tabla con scroll horizontal — fila por vendedor, columnas = edades */
+                <div style={{overflowX:'auto'}}>
+                  <table style={{width:'100%',borderCollapse:'collapse',fontSize:13,minWidth:500}}>
+                    <thead>
+                      <tr style={{borderBottom:'1px solid rgba(59,130,246,0.2)'}}>
+                        <th style={{textAlign:'left',padding:'8px 10px',color:'#9ca3af',fontWeight:700,fontSize:17}}>Vendedor</th>
+                        {EDADES.map(e => <th key={e} style={{textAlign:'right',padding:'8px 10px',color:'#9ca3af',fontWeight:700,fontSize:17,whiteSpace:'nowrap'}}>{e}</th>)}
+                        <th style={{textAlign:'right',padding:'8px 10px',color:'#9ca3af',fontWeight:700,fontSize:17}}>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(Object.entries(porEdadVendedor) as [string, Record<Edad,number>][]).sort((a,b) => {
+                        const ta = EDADES.reduce((s,e) => s+(a[1][e]??0),0)
+                        const tb = EDADES.reduce((s,e) => s+(b[1][e]??0),0)
+                        return tb - ta
+                      }).map(([nombre, edades]) => {
+                        const total = EDADES.reduce((s,e) => s+(edades[e]??0),0)
+                        return (
+                          <tr key={nombre} style={{borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
+                            <td style={{padding:'7px 10px',color:'#e2e8f0',fontSize:15,maxWidth:160,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{nombre}</td>
+                            {EDADES.map(e => (
+                              <td key={e} style={{textAlign:'right',padding:'7px 10px',fontWeight:(edades[e]??0)>0?600:400,color:(edades[e]??0)>0?(e==='+120'?'#ef4444':e==='91-120'?'#fb923c':e==='61-90'?'#fbbf24':'#e2e8f0'):'#374151',fontSize:15,whiteSpace:'nowrap'}}>
+                                {(edades[e]??0)>0 ? fmt(edades[e]) : '—'}
+                              </td>
+                            ))}
+                            <td style={{textAlign:'right',padding:'7px 10px',color:'#60a5fa',fontWeight:700,fontSize:15,whiteSpace:'nowrap'}}>{fmt(total)}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                    <tfoot>
+                      <tr style={{borderTop:'2px solid rgba(59,130,246,0.4)',background:'rgba(59,130,246,0.05)'}}>
+                        <td style={{padding:'8px 10px',color:'white',fontWeight:700,fontSize:17}}>Total</td>
+                        {EDADES.map(e => (
+                          <td key={e} style={{textAlign:'right',padding:'8px 10px',color:e==='+120'?'#ef4444':e==='91-120'?'#fb923c':e==='61-90'?'#fbbf24':'#60a5fa',fontWeight:700,fontSize:17,whiteSpace:'nowrap'}}>
+                            {(porEdad[e]??0)>0 ? fmt(porEdad[e]) : '—'}
+                          </td>
+                        ))}
+                        <td style={{textAlign:'right',padding:'8px 10px',color:'#60a5fa',fontWeight:700,fontSize:17,whiteSpace:'nowrap'}}>{fmt(EDADES.reduce((s,e)=>s+(porEdad[e]??0),0))}</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              ) : (
+                /* Vendedor: filas por edad */
+                <div className="space-y-3">
+                  {(() => {
+                    const totalEdades = EDADES.reduce((s,e) => s+(porEdad[e]??0), 0)
+                    return (
+                      <>
+                        {EDADES.map(e => {
+                          const monto = porEdad[e] ?? 0
+                          const pct = totalEdades > 0 ? Math.round((monto/totalEdades)*100) : 0
+                          const color = e==='+120'?'#ef4444':e==='91-120'?'#fb923c':e==='61-90'?'#fbbf24':e==='31-60'?'#fb7185':'#60a5fa'
+                          return (
+                            <div key={e}>
+                              <div className="flex justify-between items-center mb-1.5">
+                                <span style={{fontSize:15,color:'#cbd5e1',fontWeight:500}}>{e} días</span>
+                                <span style={{fontSize:15,fontWeight:700,color:'white'}}>{fmt(monto)} <span style={{color:'#6b7280',fontSize:13}}>({pct}%)</span></span>
+                              </div>
+                              <div className="h-2 rounded-full overflow-hidden" style={{background:'#0f2540'}}>
+                                <div className="h-full rounded-full transition-all" style={{width:`${pct}%`,background:color}} />
+                              </div>
+                            </div>
+                          )
+                        })}
+                        <div style={{borderTop:'2px solid rgba(59,130,246,0.4)',paddingTop:10,marginTop:4,display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                          <span style={{fontSize:16,color:'white',fontWeight:700}}>Total</span>
+                          <span style={{fontSize:16,fontWeight:700,color:'#60a5fa'}}>{fmt(totalEdades)}</span>
+                        </div>
+                      </>
+                    )
+                  })()}
+                </div>
+              )}
             </div>
+
+            {/* Reporte histórico edades */}
+            {esAdmin && (
+              <div className="md:col-span-3" style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.25)",borderRadius:16,padding:16}}>
+                <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-3">📅 Reporte histórico de edades</p>
+                <div style={{display:'flex',gap:12,alignItems:'flex-end',flexWrap:'wrap',width:'100%'}}>
+                  <div style={{flex:2,minWidth:0}}>
+                    <p className="text-zinc-400 text-sm font-semibold mb-2">Inicio</p>
+                    <select value={snapMesInicio} onChange={e => setSnapMesInicio(Number(e.target.value))}
+                      style={{width:'100%',background:'#0d1220',border:'1px solid #1e2a3d',borderRadius:10,color:'white',padding:'10px 12px',fontSize:16}}>
+                      {MESES.map((m,i) => <option key={i+1} value={i+1}>{m}</option>)}
+                    </select>
+                  </div>
+                  <div style={{width:72}}>
+                    <p className="text-zinc-400 text-sm font-semibold mb-2">&nbsp;</p>
+                    <select value={snapAnioInicio} onChange={e => setSnapAnioInicio(Number(e.target.value))}
+                      style={{width:'100%',background:'#0d1220',border:'1px solid #1e2a3d',borderRadius:10,color:'white',padding:'10px 12px',fontSize:16}}>
+                      {[2025,2026,2027].map(a => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                  </div>
+                  <div style={{flex:2,minWidth:0}}>
+                    <p className="text-zinc-400 text-sm font-semibold mb-2">Fin</p>
+                    <select value={snapMesFin} onChange={e => setSnapMesFin(Number(e.target.value))}
+                      style={{width:'100%',background:'#0d1220',border:'1px solid #1e2a3d',borderRadius:10,color:'white',padding:'10px 12px',fontSize:16}}>
+                      {MESES.map((m,i) => <option key={i+1} value={i+1}>{m}</option>)}
+                    </select>
+                  </div>
+                  <div style={{width:72}}>
+                    <p className="text-zinc-400 text-sm font-semibold mb-2">&nbsp;</p>
+                    <select value={snapAnioFin} onChange={e => setSnapAnioFin(Number(e.target.value))}
+                      style={{width:'100%',background:'#0d1220',border:'1px solid #1e2a3d',borderRadius:10,color:'white',padding:'10px 12px',fontSize:16}}>
+                      {[2025,2026,2027].map(a => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                  </div>
+                  <button
+                    disabled={generandoSnap}
+                    onClick={async () => {
+                      setGenerandoSnap(true)
+                      try {
+                        // 1. Guardar snapshot del mes actual
+                        await fetch('/api/cartera/edades-snapshot', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ mes: mesAnalisis, anio: anioAnalisis }) })
+                        // 2. Traer snapshots del rango
+                        const r = await fetch(`/api/cartera/edades-snapshot?mesInicio=${snapMesInicio}&anioInicio=${snapAnioInicio}&mesFin=${snapMesFin}&anioFin=${snapAnioFin}`)
+                        const d = await r.json()
+                        console.log('snapshot response:', JSON.stringify(d))
+                        if (!d.snapshots?.length) { alert('Sin datos. Respuesta: '+JSON.stringify(d)); return }
+                        // 3. Generar PDF
+                        const { default: jsPDF } = await import('jspdf')
+                        const { default: autoTable } = await import('jspdf-autotable')
+                        const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' })
+                        doc.setFontSize(18); doc.setFont('helvetica','bold')
+                        doc.text(`Edades de cartera — ${MESES[snapMesInicio-1]} ${snapAnioInicio} a ${MESES[snapMesFin-1]} ${snapAnioFin}`, 14, 14)
+                        doc.setFont('helvetica','normal'); doc.setFontSize(8)
+                        doc.text(`Generado: ${new Date().toLocaleString('es-CO',{timeZone:'America/Bogota'})}`, 14, 20)
+                        // Vendedores únicos por nombre — deduplicado con Set
+                        const vendedoresSet = new Set<string>()
+                        for (const s of d.snapshots) {
+                          for (const v of (s.datos?.vendedores||[])) {
+                            vendedoresSet.add(v.nombre)
+                          }
+                        }
+                        const todosVendedores = Array.from(vendedoresSet)
+                                                const edadesL = ['0-30','31-60','61-90','91-120','+120']
+                        const fmtM = (n: number) => n > 0 ? (n/1000000).toFixed(2) : '—'
+                        // Layout: hoja1 = Mes+V1, hoja2..N-1 = 2 vendedores, hojaFinal = resto+Total
+                        const margin3 = 10
+                        const mesW = 40
+                        const edadW = 23
+                        const totalColW = 28
+                        const pageW = doc.internal.pageSize.getWidth()
+                        const usableW = pageW - margin3 * 2
+
+                        // Construir grupos de vendedores por hoja
+                        const grupos: string[][] = []
+                        grupos.push([todosVendedores[0]])  // hoja 1: solo 1 vendedor
+                        for (let i = 1; i < todosVendedores.length; i += 2) {
+                          grupos.push(todosVendedores.slice(i, i + 2))
+                        }
+
+                        const tblStyles = {
+                          styles: { fontSize: 18, cellPadding: {top:2,bottom:2,left:1,right:1}, overflow: 'ellipsize', lineWidth: 0.3, lineColor: [0,0,0], halign: 'center' as const, fillColor: [255,255,255] },
+                          headStyles: { fillColor: [255,255,255], textColor: [0,0,0], fontStyle: 'bold' as const, lineWidth: 0.3, lineColor: [0,0,0], halign: 'center' as const, fontSize: 18, cellPadding: {top:2,bottom:2,left:1,right:1} },
+                          bodyStyles: { fontSize: 18, cellPadding: {top:2,bottom:2,left:1,right:1}, halign: 'center' as const, fillColor: [255,255,255], lineWidth: 0.3, lineColor: [0,0,0] },
+                          alternateRowStyles: { fillColor: [255,255,255] },
+                        }
+
+                        const buildTable = (vendedoresGrupo: string[], incluyeTotal: boolean, incluyeMes: boolean) => {
+                          const nV = vendedoresGrupo.length
+                          const h1 = incluyeMes ? ['Mes'] : []
+                          const h2 = incluyeMes ? [''] : []
+                          for (const vn of vendedoresGrupo) {
+                            h1.push(vn, '', '', '', '')
+                            h2.push(...edadesL)
+                          }
+                          if (incluyeTotal) { h1.push('Total'); h2.push('') }
+
+                          const rows = d.snapshots.map((s: any) => {
+                            const vMap = new Map((s.datos?.vendedores||[]).map((v: any) => [v.nombre, v]))
+                            let totalMes = 0
+                            // total siempre sobre todos los vendedores
+                            for (const vn of todosVendedores) {
+                              const vd = vMap.get(vn) as any
+                              edadesL.forEach(e => { totalMes += vd?.[e] ?? 0 })
+                            }
+                            const row: string[] = incluyeMes ? [MESES[s.mes-1] + ' ' + s.anio] : []
+                            for (const vn of vendedoresGrupo) {
+                              const vd = vMap.get(vn) as any
+                              edadesL.forEach(e => row.push(fmtM(vd?.[e] ?? 0)))
+                            }
+                            if (incluyeTotal) row.push(fmtM(totalMes))
+                            return row
+                          })
+
+                          const nCols = (incluyeMes ? 1 : 0) + nV * 5 + (incluyeTotal ? 1 : 0)
+                          const colStyles: any = {}
+                          let ci = 0
+                          if (incluyeMes) { colStyles[ci] = { cellWidth: mesW, fontStyle: 'bold', halign: 'center' }; ci++ }
+                          for (let v = 0; v < nV; v++) {
+                            for (let e = 0; e < 5; e++) { colStyles[ci] = { cellWidth: edadW }; ci++ }
+                          }
+                          if (incluyeTotal) colStyles[ci] = { cellWidth: totalColW, textColor: [37,99,235], halign: 'center' }
+
+                          const tblW = (incluyeMes ? mesW : 0) + nV*5*edadW + (incluyeTotal ? totalColW : 0)
+
+                          return {
+                            head: [h1, h2], body: rows,
+                            tableWidth: tblW,
+                            margin: { left: margin3, right: margin3 },
+                            ...tblStyles,
+                            columnStyles: colStyles,
+                            didParseCell: (data: any) => {
+                              if (data.section === 'head' && data.row.index === 0) {
+                                const offset = incluyeMes ? 1 : 0
+                                const idx = data.column.index
+                                if (incluyeTotal && idx === h1.length - 1) {
+                                  data.cell.styles.textColor = [37,99,235]
+                                  data.cell.styles.halign = 'center'
+                                  data.cell.colSpan = 1
+                                } else if (idx >= offset) {
+                                  const vIdx = (idx - offset) % 5
+                                  if (vIdx === 0) {
+                                    // Primera celda del grupo: colSpan 5 con nombre
+                                    data.cell.colSpan = 5
+                                    data.cell.styles.halign = 'center'
+                                    data.cell.styles.fontStyle = 'bold'
+                                  } else {
+                                    // Celdas 2-5 del grupo: ocultar
+                                    data.cell.text = []
+                                    data.cell.styles.lineWidth = 0
+                                  }
+                                }
+                              }
+                              if (incluyeTotal && data.section === 'body' && data.column.index === h1.length - 1) {
+                                data.cell.styles.fontStyle = 'bold'
+                                data.cell.styles.textColor = [37,99,235]
+                              }
+                            },
+                          }
+                        }
+
+                        // ── Tabla con valor + % intercalados ──
+                        const buildDeltaTable = (vendedoresGrupo: string[], incluyeTotal: boolean, incluyeMes: boolean) => {
+                          const nV = vendedoresGrupo.length
+                          const h1: string[] = incluyeMes ? ['Mes'] : []
+                          const h2: string[] = incluyeMes ? [''] : []
+                          for (const vn of vendedoresGrupo) {
+                            h1.push(vn, '', '', '', '')
+                            h2.push(...edadesL)
+                          }
+                          if (incluyeTotal) { h1.push('Total'); h2.push('') }
+
+                          const rows: any[] = []
+                          d.snapshots.forEach((s: any, idx: number) => {
+                            const vMap = new Map((s.datos?.vendedores||[]).map((v: any) => [v.nombre, v]))
+                            const prev = idx > 0 ? d.snapshots[idx-1] : null
+                            const prevVMap = prev ? new Map((prev.datos?.vendedores||[]).map((v: any) => [v.nombre, v])) : null
+
+                            // Fila valor
+                            const valRow: any[] = incluyeMes ? [{ content: MESES[s.mes-1] + ' ' + s.anio, rowSpan: 2, styles: { fontStyle: 'bold', valign: 'middle', halign: 'center' } }] : []
+                            let totalMes = 0
+                            for (const vn of todosVendedores) {
+                              const vd = vMap.get(vn) as any
+                              edadesL.forEach(e => { totalMes += vd?.[e] ?? 0 })
+                            }
+                            for (const vn of vendedoresGrupo) {
+                              const vd = vMap.get(vn) as any
+                              edadesL.forEach(e => valRow.push(fmtM(vd?.[e] ?? 0)))
+                            }
+                            if (incluyeTotal) valRow.push({ content: fmtM(totalMes), styles: { textColor: [37,99,235] } })
+                            rows.push(valRow)
+
+                            // Fila delta
+                            const deltaRow: any[] = []
+                            if (!prevVMap) {
+                              // Primer mes: solo •
+                              for (const vn of vendedoresGrupo) {
+                                edadesL.forEach(() => deltaRow.push({ content: '•', styles: { halign: 'center', textColor: [150,150,150], fontSize: 10, lineWidth: 0 } }))
+                              }
+                              if (incluyeTotal) deltaRow.push({ content: '•', styles: { halign: 'center', textColor: [150,150,150], fontSize: 10, lineWidth: 0 } })
+                            } else {
+                              let prevTotal = 0, curTotal = 0
+                              for (const vn of todosVendedores) {
+                                const pv = prevVMap.get(vn) as any; const cv = vMap.get(vn) as any
+                                edadesL.forEach(e => { prevTotal += pv?.[e]??0; curTotal += cv?.[e]??0 })
+                              }
+                              for (const vn of vendedoresGrupo) {
+                                const pvd = prevVMap.get(vn) as any
+                                const cvd = vMap.get(vn) as any
+                                edadesL.forEach(e => {
+                                  const prev2 = pvd?.[e] ?? 0; const cur = cvd?.[e] ?? 0
+                                  if (prev2 === 0) { deltaRow.push({ content: '—', styles: { halign: 'center', fontSize: 18, lineWidth: 0 } }); return }
+                                  const pct = Math.round(((cur - prev2) / prev2) * 100)
+                                  const subio = pct > 0
+                                  const txt = (subio ? '+' : '-') + Math.abs(pct) + '%'
+                                  deltaRow.push({ content: txt, styles: { halign: 'center', fontSize: 15, textColor: subio ? [220,38,38] : [22,163,74], lineWidth: 0 } })
+                                })
+                              }
+                              if (incluyeTotal) {
+                                const pct = prevTotal > 0 ? Math.round(((curTotal - prevTotal) / prevTotal) * 100) : 0
+                                const subio = pct > 0
+                                deltaRow.push({ content: (subio?'+':'-')+Math.abs(pct)+'%', styles: { halign:'center', fontSize:15, textColor: subio?[220,38,38]:[22,163,74], lineWidth:0 } })
+                              }
+                            }
+                            rows.push(deltaRow)
+                          })
+
+                          const colStyles: any = {}
+                          let ci = 0
+                          if (incluyeMes) { colStyles[ci] = { cellWidth: mesW, fontStyle: 'bold', halign: 'center' }; ci++ }
+                          for (let v = 0; v < nV; v++) {
+                            for (let e = 0; e < 5; e++) { colStyles[ci] = { cellWidth: edadW }; ci++ }
+                          }
+                          if (incluyeTotal) colStyles[ci] = { cellWidth: totalColW, textColor: [37,99,235], halign: 'center' }
+                          const tblW = (incluyeMes ? mesW : 0) + nV*5*edadW + (incluyeTotal ? totalColW : 0)
+
+                          return {
+                            head: [h1, h2], body: rows,
+                            tableWidth: tblW,
+                            margin: { left: margin3, right: margin3 },
+                            ...tblStyles,
+                            columnStyles: colStyles,
+                            didParseCell: (data: any) => {
+                              // Forzar fondo blanco en todas las celdas
+                              data.cell.styles.fillColor = [255,255,255]
+                              if (data.section === 'head' && data.row.index === 0) {
+                                const offset = incluyeMes ? 1 : 0
+                                const idx = data.column.index
+                                if (incluyeTotal && idx === h1.length - 1) {
+                                  data.cell.styles.textColor = [37,99,235]; data.cell.styles.halign = 'center'
+                                } else if (idx >= offset) {
+                                  const vIdx = (idx - offset) % 5
+                                  if (vIdx === 0) { data.cell.colSpan = 5; data.cell.styles.halign = 'center'; data.cell.styles.fontStyle = 'bold' }
+                                  else { data.cell.text = []; data.cell.styles.lineWidth = 0 }
+                                }
+                              }
+                              if (data.section === 'body') {
+                                const esFilaValor = data.row.index % 2 === 0
+                                const esCeldaMes = incluyeMes && data.column.index === 0
+                                if (esCeldaMes) {
+                                  // Mes cubre 2 filas — borde completo
+                                  data.cell.styles.lineWidth = 0.3
+                                  data.cell.styles.lineColor = [0,0,0]
+                                } else {
+                                  // Entre fila valor y fila %: sin borde
+                                  data.cell.styles.lineWidth = esFilaValor
+                                    ? { top: 0.3, right: 0.3, bottom: 0, left: 0.3 }
+                                    : { top: 0, right: 0.3, bottom: 0.3, left: 0.3 }
+                                  data.cell.styles.lineColor = [0,0,0]
+                                }
+                              }
+                            },
+                          }
+                        }
+
+                        // Generar tablas — una sola estructura con valor + % intercalados
+                        for (let g = 0; g < grupos.length; g++) {
+                          const esUltimo = g === grupos.length - 1
+                          const incluyeMesHoja = g === 0
+                          if (g > 0) doc.addPage()
+                          const cfg = buildDeltaTable(grupos[g], esUltimo, incluyeMesHoja)
+                          autoTable(doc, { ...cfg, startY: g === 0 ? 30 : 15 } as any)
+                        }
+
+                        doc.save(`edades-cartera-${snapMesInicio}-${snapAnioInicio}-a-${snapMesFin}-${snapAnioFin}.pdf`)
+                      } catch(e: any) { alert('Error: '+e.message) }
+                      finally { setGenerandoSnap(false) }
+                    }}
+                    style={{alignSelf:'flex-end',background:'rgba(59,130,246,0.2)',border:'1px solid rgba(59,130,246,0.4)',borderRadius:10,color:'#60a5fa',padding:'12px 20px',fontSize:16,fontWeight:700,cursor:'pointer'}}>
+                    {generandoSnap ? '⏳ Generando...' : '📥 Descargar PDF'}
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Vista por vendedor — solo admin/supervisor */}
             {esAdmin && vendedoresMes.length > 0 && (
@@ -950,67 +1375,7 @@ export default function CarteraPage() {
             )}
             </div>{/* fin grid estadísticas */}
 
-            {/* Asignar meta — solo admin/supervisor */}
-            {esAdmin && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-                <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-3">🎯 Asignar meta — {MESES[mes-1]} {anio}</p>
-                <div className="space-y-3">
-                  <select
-                    value={metaForm.empleadoId}
-                    onChange={e => {
-                      const id = e.target.value
-                      const base = id ? carteras
-                        .filter((c: any) => c.empleadoId === id)
-                        .reduce((s: number, c: any) => s + (c.DetalleCartera || []).reduce((a: number, d: any) => {
-                          if (d.estado === 'pagada') return a
-                          return a + Math.max(0, Number(d.valorFactura ?? d.valor ?? 0) - Number(d.abonos ?? 0))
-                        }, 0), 0) : 0
-                      setMetaForm(f => ({ ...f, empleadoId: id, carteraBase: id ? String(base) : '', metaPct: '' }))
-                    }}
-                    className="w-full bg-zinc-800 border border-zinc-700 text-white text-sm px-3 py-2.5 rounded-xl outline-none focus:border-emerald-500">
-                    <option value="">Seleccionar vendedor...</option>
-                    {vendedores.map((v: any) => (
-                      <option key={v.id} value={v.id}>{v.nombre}</option>
-                    ))}
-                  </select>
 
-                  {metaForm.empleadoId && (
-                    <>
-                      <div className="grid grid-cols-[4fr_1fr] gap-2">
-                        <div>
-                          <p className="text-zinc-500 text-xs mb-1">Cartera base {vendedorSelNombre ? `(${vendedorSelNombre})` : ''}</p>
-                          <div className="flex gap-2 items-center">
-                            <span className="text-zinc-400 font-bold flex-shrink-0">$</span>
-                            <input
-                              value={metaForm.carteraBase}
-                              onChange={e => setMetaForm(f => ({ ...f, carteraBase: e.target.value }))}
-                              type="number" min="0"
-                              className="w-full bg-zinc-800 border border-zinc-700 text-white text-sm px-3 py-2.5 rounded-xl outline-none focus:border-emerald-500" />
-                          </div>
-                        </div>
-                        <div>
-                          <p className="text-zinc-500 text-xs mb-1">%</p>
-                          <input
-                            value={metaForm.metaPct}
-                            onChange={e => setMetaForm(f => ({ ...f, metaPct: e.target.value }))}
-                            placeholder="80"
-                            type="number" min="1" max="100"
-                            className="w-full bg-zinc-800 border border-zinc-700 text-white text-sm px-3 py-2.5 rounded-xl outline-none focus:border-emerald-500" />
-                        </div>
-                      </div>
-                      {metaForm.empleadoId && metaForm.metaPct && (
-                        <p className="text-emerald-400 text-sm font-semibold">Meta: {fmt(metaCalculadaPesos)}</p>
-                      )}
-                    </>
-                  )}
-
-                  <button onClick={guardarMeta} disabled={guardandoMeta || !metaForm.empleadoId || !metaForm.metaPct}
-                    className={`w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-bold py-3 rounded-xl text-sm transition-colors ${(guardandoMeta || !metaForm.empleadoId || !metaForm.metaPct) ? 'btn-shimmer' : ''}`}>
-                    {guardandoMeta ? 'Guardando...' : '💾 Guardar meta'}
-                  </button>
-                </div>
-              </div>
-            )}
           </div>
         )
       })()}

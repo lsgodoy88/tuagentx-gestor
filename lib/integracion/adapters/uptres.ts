@@ -202,8 +202,11 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     }
     if (desde) {
       // Delta: convertir a fecha Bogotá (UTC-5) antes de truncar — evita desfase de día
+      // Restamos 1 día adicional para capturar pedidos tomados ayer y facturados hoy:
+      // UpTres filtra /cartera por createdAt (fecha del pedido), no por updatedAt (facturación).
       const desdeBogota = new Date(desde.getTime() - 5 * 60 * 60 * 1000)
-      params.from = desdeBogota.toISOString().split('T')[0]
+      const desdeBogotaMenos1 = new Date(desdeBogota.getTime() - 24 * 60 * 60 * 1000)
+      params.from = desdeBogotaMenos1.toISOString().split('T')[0]
       const manana = new Date(); manana.setDate(manana.getDate() + 1)
       params.to = manana.toISOString().split('T')[0]
     }

@@ -67,9 +67,9 @@ function CardRingDrill({ emoji, label, valorHoy, valorMes, metaMes, realMes, col
             <span className="text-white text-sm font-bold tracking-wide">{label}</span>
           </div>
           <div className="flex items-baseline justify-center gap-1.5">
-            <span className="text-lg font-bold" style={{color}}><CountUp end={Math.round(valorHoy)} prefix="$" instant={instant} /></span>
+            <span className="text-base font-bold" style={{color}}><CountUp end={Math.round(valorHoy)} prefix="$" instant={instant} /></span>
             <span className="text-white/40 text-base font-light">/</span>
-            <span className="text-white text-lg font-bold"><CountUp end={Math.round(valorMes)} prefix="$" instant={instant} /></span>
+            <span className="text-white text-base font-bold"><CountUp end={Math.round(valorMes)} prefix="$" instant={instant} /></span>
           </div>
           <div className="flex justify-center gap-4 mt-1">
             <span className="text-white text-xs">{labelHoy}</span>
@@ -206,7 +206,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
     return (
       <div className="space-y-6 pb-20 max-w-5xl mx-auto">
         <div>
-          <h1 className="text-lg font-bold text-white">Bienvenido, {user?.name?.split(' ')[0]}</h1>
+          <h1 className="text-base font-bold text-white">Bienvenido, {user?.name?.split(' ')[0]}</h1>
           <p className="text-zinc-400 text-sm mt-1">Superadmin</p>
         </div>
         <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl px-4 py-4 flex items-center justify-between">
@@ -214,7 +214,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
             <p className="text-emerald-400 font-semibold text-lg">💰 Facturación mensual</p>
             <p className="text-zinc-400 text-xs mt-0.5">{resumenFinanciero?.resumenEmpresas?.length || 0} empresa{resumenFinanciero?.resumenEmpresas?.length !== 1 ? 's' : ''} activa{resumenFinanciero?.resumenEmpresas?.length !== 1 ? 's' : ''}</p>
           </div>
-          <p className="text-emerald-400 font-bold text-2xl">${totalMensual.toLocaleString('es-CO')}</p>
+          <p className="text-emerald-400 font-bold text-lg">${totalMensual.toLocaleString('es-CO')}</p>
         </div>
         <div className="rounded-2xl overflow-hidden card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
           <div className="px-4 py-3 border-b border-zinc-800">
@@ -279,7 +279,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
 
   return (
     <div className="space-y-3 pb-20 md:pb-0 md:max-w-2xl md:mx-auto">
-      <h1 className="text-lg font-bold text-white px-1">Bienvenido, {user?.name?.split(' ')[0]}</h1>
+      <h1 className="text-base font-bold text-white px-1">Bienvenido, {user?.name?.split(' ')[0]}</h1>
       {(isEmpresa || isSupervisor) && (
         <div className="space-y-6">
           <div>
@@ -291,9 +291,9 @@ export default function DashboardAdmin({ user }: { user: any }) {
                 <span className="text-white text-sm font-bold tracking-wide">Vendedores</span>
               </div>
               <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-white text-lg font-bold"><CountUp end={stats.vendedoresActivos||0} /></span>
+                <span className="text-white text-base font-bold"><CountUp end={stats.vendedoresActivos||0} /></span>
                 <span className="text-white/40 text-base font-light">/</span>
-                <span className="text-white text-lg font-bold"><CountUp end={stats.totalVendedores||0} /></span>
+                <span className="text-white text-base font-bold"><CountUp end={stats.totalVendedores||0} /></span>
               </div>
               <div className="flex justify-center gap-4 mt-1">
                 <span className="text-white text-xs">en turno</span>
@@ -307,9 +307,9 @@ export default function DashboardAdmin({ user }: { user: any }) {
                 <span className="text-white text-sm font-bold tracking-wide">Impulsos</span>
               </div>
               <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-amber-400 text-lg font-bold"><CountUp end={stats.impulsosActivos||0} /></span>
+                <span className="text-amber-400 text-base font-bold"><CountUp end={stats.impulsosActivos||0} /></span>
                 <span className="text-white/40 text-base font-light">/</span>
-                <span className="text-white text-lg font-bold"><CountUp end={stats.totalImpulsos||0} /></span>
+                <span className="text-white text-base font-bold"><CountUp end={stats.totalImpulsos||0} /></span>
               </div>
               <div className="flex justify-center gap-4 mt-1">
                 <span className="text-white text-xs">activas</span>
@@ -323,9 +323,9 @@ export default function DashboardAdmin({ user }: { user: any }) {
                 <span className="text-white text-sm font-bold tracking-wide">Visitas</span>
               </div>
               <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-white text-lg font-bold"><CountUp end={stats.visitasHoyTotal||0} /></span>
+                <span className="text-white text-base font-bold"><CountUp end={stats.visitasHoyTotal||0} /></span>
                 <span className="text-white/40 text-base font-light">/</span>
-                <span className="text-white text-lg font-bold"><CountUp end={stats.visitasAyer||0} /></span>
+                <span className="text-white text-base font-bold"><CountUp end={stats.visitasAyer||0} /></span>
               </div>
               <div className="flex justify-center gap-4 mt-1">
                 <span className="text-white text-xs">hoy</span>
@@ -339,9 +339,9 @@ export default function DashboardAdmin({ user }: { user: any }) {
                 <span className="text-white text-sm font-bold tracking-wide">Órdenes hoy</span>
               </div>
               <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-emerald-400 text-lg font-bold"><CountUp end={stats.ordenesDespachadasHoy||0} /></span>
+                <span className="text-emerald-400 text-base font-bold"><CountUp end={stats.ordenesDespachadasHoy||0} /></span>
                 <span className="text-white/40 text-base font-light">/</span>
-                <span className="text-white text-lg font-bold"><CountUp end={stats.ordenesFact||0} /></span>
+                <span className="text-white text-base font-bold"><CountUp end={stats.ordenesFact||0} /></span>
               </div>
               <div className="flex justify-center gap-4 mt-1">
                 <span className="text-white text-xs">despacho</span>
@@ -426,7 +426,7 @@ className='card-glass' style={{background:'rgba(255,255,255,0.08)',border:'1px s
               <p className="text-white font-semibold">Rutas activas</p>
               <p className="text-zinc-500 text-xs mt-0.5">Sin cerrar</p>
             </div>
-            <p className="text-lg font-bold text-white">{stats.rutasActivas || 0}</p>
+            <p className="text-base font-bold text-white">{stats.rutasActivas || 0}</p>
           </div>
           </div>
           <div className="space-y-6">

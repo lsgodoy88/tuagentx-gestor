@@ -86,6 +86,7 @@ export default function EmpleadosPage() {
   const [popupSync, setPopupSync] = useState(false)
   const [syncEmpleadoId, setSyncEmpleadoId] = useState('')
   const [syncFecha, setSyncFecha] = useState('')
+  const [syncPrimerRecibo, setSyncPrimerRecibo] = useState<{numeroRecibo:string, fecha:string}|null>(null)
   const [syncLoading, setSyncLoading] = useState(false)
   const [syncMsg, setSyncMsg] = useState('')
   const [metasEmpleadoId, setMetasEmpleadoId] = useState('')
@@ -215,7 +216,7 @@ export default function EmpleadosPage() {
       setLoading(false)
       if (data.error) { setError(data.error); return }
       setResultado(data)
-      // Si el empleado tiene apiId y lista → preparar popup sync
+      // Si el empleado tiene apiId y lista → preparar popup sync (solo si no tiene syncInicioAt)
       if (data.id && apiIdSeleccionado && listaIds.length > 0) {
         setSyncEmpleadoId(data.id)
         setSyncFecha(new Date().toISOString().split('T')[0])
@@ -624,8 +625,20 @@ export default function EmpleadosPage() {
                   </div>
                 </div>
                 {syncEmpleadoId && !popupSync && (
-                  <button onClick={() => setPopupSync(true)}
-                    className="w-full bg-blue-600 hover:bg-blue-500 text-white text-sm py-3 rounded-xl font-semibold">
+                  <button onClick={async () => {
+                    // Buscar primer recibo del vendedor
+                    try {
+                      const r = await fetch(`/api/empleados/primer-recibo?empleadoId=${syncEmpleadoId}`)
+                      const d = await r.json()
+                      if (d.numeroRecibo && d.fecha) {
+                        setSyncPrimerRecibo({ numeroRecibo: d.numeroRecibo, fecha: d.fecha })
+                        setSyncFecha(d.fecha.split('T')[0])
+                      } else {
+                        setSyncPrimerRecibo(null)
+                      }
+                    } catch { setSyncPrimerRecibo(null) }
+                    setPopupSync(true)
+                  }} className="w-full bg-blue-600 hover:bg-blue-500 text-white text-sm py-3 rounded-xl font-semibold">
                     📊 Sincronizar cartera inicial
                   </button>
                 )}
@@ -974,6 +987,9 @@ export default function EmpleadosPage() {
                 className="w-full rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500"
                 style={{background:'#0d1220', border:'1px solid #1e2a3d'}} />
               <p className="text-zinc-600 text-xs mt-1">Los pagos anteriores a esta fecha no se descontarán del saldo base.</p>
+              {syncPrimerRecibo && (
+                <p className="text-amber-400 text-xs mt-2">⚠️ Primer recibo detectado: <strong>{syncPrimerRecibo.numeroRecibo}</strong> del {new Date(syncPrimerRecibo.fecha).toLocaleDateString('es-CO')}. Se usó como fecha de inicio.</p>
+              )}
             </div>
             {syncMsg && <p className={`text-sm text-center ${syncMsg.startsWith('✅') ? 'text-emerald-400' : 'text-red-400'}`}>{syncMsg}</p>}
             <div className="flex gap-2">
