@@ -122,6 +122,10 @@ export default function CarteraPage() {
   const [hayMas, setHayMas] = useState(false)
   const [paginaActual, setPaginaActual] = useState(1)
   const [totalReal, setTotalReal] = useState<{saldoPendiente:number, saldoTotal:number, clientes:number} | null>(null)
+  const [porEdadApi, setPorEdadApi] = useState<Record<string,number>>({})
+  const [porEdadVendedorApi, setPorEdadVendedorApi] = useState<Record<string,Record<string,number>>>({})
+  const [edadesCargadas, setEdadesCargadas] = useState(false)
+  const [cargandoEdades, setCargandoEdades] = useState(false)
   const [cargandoMas, setCargandoMas] = useState(false)
   const [sincronizando, setSincronizando] = useState(false)
   type SyncLogItem = { id: string; inicio: string; fin: string|null; duracionMs: number; clientesActualizados: number; empleadosSincronizados: number; deudasSincronizadas: number; zombis: number; pagosConfrontados: number; disparadoPor: string; estado: string; errores: any }
@@ -188,6 +192,7 @@ export default function CarteraPage() {
         const { r1, r2, r3 } = cached.data
         setCarteras(r1.carteras || [])
         setHayMas((r1.pages ?? 1) > 1)
+
         setPagos(r2.pagos || [])
         setMetas(r3.metas || [])
         const age = Math.floor((Date.now() - cached.savedAt) / 60_000)
@@ -203,6 +208,7 @@ export default function CarteraPage() {
             saveCache('cartera', { r1: nr1, r2: nr2, r3: nr3 })
             setCarteras(nr1.carteras || [])
             setHayMas((nr1.pages ?? 1) > 1)
+
             if (nr1.totalSaldoPendiente !== undefined) setTotalReal({ saldoPendiente: nr1.totalSaldoPendiente, saldoTotal: nr1.totalSaldoTotal, clientes: nr1.total || 0 })
             setPagos(nr2.pagos || [])
             setMetas(nr3.metas || [])
@@ -328,35 +334,17 @@ export default function CarteraPage() {
     return acc
   }, {} as Record<string, number>)
 
-  // Edades de cartera por diasv
+  // Edades de cartera — desde API (todas las deudas, no solo la página)
   const EDADES = ['0-30','31-60','61-90','91-120','+120'] as const
   type Edad = typeof EDADES[number]
+  const porEdad = porEdadApi as Record<Edad, number>
 
-  // Vendedor: totales globales por edad
-  const porEdad = carteras.reduce((acc, c) => {
-    for (const d of (c.DetalleCartera || [])) {
-      const saldo = Math.max(0, Number(d.saldoPendiente ?? 0))
-      if (saldo <= 0) continue
-      const diasv = calcularDiasV(d.fechaVencimiento ? new Date(d.fechaVencimiento) : null)
-      const edad = calcularEdadCartera(diasv) as Edad
-      acc[edad] = (acc[edad] ?? 0) + saldo
-    }
-    return acc
-  }, {} as Record<Edad, number>)
-
-  // Admin: por vendedor
-  const porEdadVendedor = esAdmin ? carteras.reduce((acc, c) => {
-    const nombre = c.empleadoNombre || 'Sin vendedor'
-    if (!acc[nombre]) acc[nombre] = {} as Record<Edad, number>
-    for (const d of (c.DetalleCartera || [])) {
-      const saldo = Math.max(0, Number(d.saldoPendiente ?? 0))
-      if (saldo <= 0) continue
-      const diasv = calcularDiasV(d.fechaVencimiento ? new Date(d.fechaVencimiento) : null)
-      const edad = calcularEdadCartera(diasv) as Edad
-      acc[nombre][edad] = (acc[nombre][edad] ?? 0) + saldo
-    }
-    return acc
-  }, {} as Record<string, Record<Edad, number>>) : {}
+  // Admin: por vendedor — desde API
+  // Filtrar 'Sin vendedor' — deudas de apiIds sin Empleado en BD
+  const porEdadVendedor = Object.fromEntries(
+    Object.entries(porEdadVendedorApi as Record<string, Record<Edad, number>>)
+      .filter(([nombre]) => nombre !== 'Sin vendedor')
+  ) as Record<string, Record<Edad, number>>
 
   const totalPendiente = totalReal ? totalReal.saldoPendiente : carteras.reduce((s, c) => s + Number(c.saldoPendiente), 0)
 
@@ -934,8 +922,29 @@ export default function CarteraPage() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Edades de cartera */}
             <div style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.25)",borderRadius:16,padding:16}} className={esAdmin ? 'md:col-span-3' : ''}>
-              <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest mb-3">📊 Edades de cartera</p>
-              {esAdmin ? (
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-zinc-400 text-xs font-bold uppercase tracking-widest">📊 Edades de cartera</p>
+                {!edadesCargadas && (
+                  <button
+                    onClick={async () => {
+                      setCargandoEdades(true)
+                      try {
+                        const r = await fetch('/api/cartera/edades')
+                        const d = await r.json()
+                        if (d.porEdad) setPorEdadApi(d.porEdad)
+                        if (d.porEdadVendedor) setPorEdadVendedorApi(d.porEdadVendedor)
+                        setEdadesCargadas(true)
+                      } catch(e) { console.error(e) }
+                      finally { setCargandoEdades(false) }
+                    }}
+                    style={{background:'rgba(59,130,246,0.15)',border:'1px solid rgba(59,130,246,0.3)',borderRadius:8,color:'#60a5fa',padding:'5px 12px',fontSize:12,fontWeight:600,cursor:'pointer'}}>
+                    {cargandoEdades ? '⏳...' : '📊 Mostrar edades'}
+                  </button>
+                )}
+              </div>
+              {!edadesCargadas ? (
+                <p style={{color:'#374151',fontSize:13,textAlign:'center',padding:'8px 0'}}>Toca "Mostrar edades" para cargar</p>
+              ) : esAdmin ? (
                 /* Admin: tabla con scroll horizontal — fila por vendedor, columnas = edades */
                 <div style={{overflowX:'auto'}}>
                   <table style={{width:'100%',borderCollapse:'collapse',fontSize:13,minWidth:500}}>
@@ -1077,10 +1086,13 @@ export default function CarteraPage() {
                                                 const edadesL = ['0-30','31-60','61-90','91-120','+120']
                         const fmtM = (n: number) => n > 0 ? (n/1000000).toFixed(2) : '—'
                         // Layout: hoja1 = Mes+V1, hoja2..N-1 = 2 vendedores, hojaFinal = resto+Total
-                        const margin3 = 10
-                        const mesW = 40
-                        const edadW = 23
-                        const totalColW = 28
+                        const margin3 = 6
+                        const mesW = 36
+                        const totalColW = 22
+                        const edadW = 22
+                        // Ancho por hoja: Mes+Total + 1 vendedor(hoja1) o 2 vendedores(resto)
+                        // hoja1: mesW + totalColW + 1*(5*edadW+totalColW) = 38+26+136 = 200mm < 279 ✅
+                        // hoja2+: 2*(5*edadW+totalColW) = 2*136 = 272mm < 279 ✅
                         const pageW = doc.internal.pageSize.getWidth()
                         const usableW = pageW - margin3 * 2
 
@@ -1093,48 +1105,52 @@ export default function CarteraPage() {
 
                         const tblStyles = {
                           styles: { fontSize: 18, cellPadding: {top:2,bottom:2,left:1,right:1}, overflow: 'ellipsize', lineWidth: 0.3, lineColor: [0,0,0], halign: 'center' as const, fillColor: [255,255,255] },
-                          headStyles: { fillColor: [255,255,255], textColor: [0,0,0], fontStyle: 'bold' as const, lineWidth: 0.3, lineColor: [0,0,0], halign: 'center' as const, fontSize: 18, cellPadding: {top:2,bottom:2,left:1,right:1} },
+                          headStyles: { fillColor: [255,255,255], textColor: [0,0,0], fontStyle: 'bold' as const, lineWidth: 0.3, lineColor: [0,0,0], halign: 'center' as const, fontSize: 16, cellPadding: {top:2,bottom:2,left:1,right:1} },
                           bodyStyles: { fontSize: 18, cellPadding: {top:2,bottom:2,left:1,right:1}, halign: 'center' as const, fillColor: [255,255,255], lineWidth: 0.3, lineColor: [0,0,0] },
                           alternateRowStyles: { fillColor: [255,255,255] },
                         }
 
                         const buildTable = (vendedoresGrupo: string[], incluyeTotal: boolean, incluyeMes: boolean) => {
                           const nV = vendedoresGrupo.length
-                          const h1 = incluyeMes ? ['Mes'] : []
-                          const h2 = incluyeMes ? [''] : []
-                          for (const vn of vendedoresGrupo) {
-                            h1.push(vn, '', '', '', '')
-                            h2.push(...edadesL)
-                          }
+                          // Estructura: Mes | Total(mes) | V1(0-30..+120|Total) | V2(...|Total) | ...
+                          const h1: string[] = []
+                          const h2: string[] = []
+                          if (incluyeMes) { h1.push('Mes'); h2.push('') }
                           if (incluyeTotal) { h1.push('Total'); h2.push('') }
+                          for (const vn of vendedoresGrupo) {
+                            h1.push(vn, '', '', '', '', 'Total')
+                            h2.push(...edadesL, '')
+                          }
 
                           const rows = d.snapshots.map((s: any) => {
                             const vMap = new Map((s.datos?.vendedores||[]).map((v: any) => [v.nombre, v]))
+                            // Total del mes = suma de todos los vendedores
                             let totalMes = 0
-                            // total siempre sobre todos los vendedores
                             for (const vn of todosVendedores) {
                               const vd = vMap.get(vn) as any
                               edadesL.forEach(e => { totalMes += vd?.[e] ?? 0 })
                             }
-                            const row: string[] = incluyeMes ? [MESES[s.mes-1] + ' ' + s.anio] : []
+                            const row: string[] = []
+                            if (incluyeMes) row.push(MESES[s.mes-1] + ' ' + s.anio)
+                            if (incluyeTotal) row.push(fmtM(totalMes))
                             for (const vn of vendedoresGrupo) {
                               const vd = vMap.get(vn) as any
-                              edadesL.forEach(e => row.push(fmtM(vd?.[e] ?? 0)))
+                              let totalV = 0
+                              edadesL.forEach(e => { const v = vd?.[e] ?? 0; totalV += v; row.push(fmtM(v)) })
+                              row.push(fmtM(totalV))
                             }
-                            if (incluyeTotal) row.push(fmtM(totalMes))
                             return row
                           })
 
-                          const nCols = (incluyeMes ? 1 : 0) + nV * 5 + (incluyeTotal ? 1 : 0)
                           const colStyles: any = {}
                           let ci = 0
                           if (incluyeMes) { colStyles[ci] = { cellWidth: mesW, fontStyle: 'bold', halign: 'center' }; ci++ }
+                          if (incluyeTotal) { colStyles[ci] = { cellWidth: totalColW, textColor: [37,99,235], halign: 'center' }; ci++ }
                           for (let v = 0; v < nV; v++) {
                             for (let e = 0; e < 5; e++) { colStyles[ci] = { cellWidth: edadW }; ci++ }
+                            colStyles[ci] = { cellWidth: totalColW, textColor: [37,99,235], halign: 'center' }; ci++
                           }
-                          if (incluyeTotal) colStyles[ci] = { cellWidth: totalColW, textColor: [37,99,235], halign: 'center' }
-
-                          const tblW = (incluyeMes ? mesW : 0) + nV*5*edadW + (incluyeTotal ? totalColW : 0)
+                          const tblW = (incluyeMes ? mesW : 0) + (incluyeTotal ? totalColW : 0) + nV*(5*edadW + totalColW)
 
                           return {
                             head: [h1, h2], body: rows,
@@ -1144,29 +1160,42 @@ export default function CarteraPage() {
                             columnStyles: colStyles,
                             didParseCell: (data: any) => {
                               if (data.section === 'head' && data.row.index === 0) {
-                                const offset = incluyeMes ? 1 : 0
+                                const offset = (incluyeMes ? 1 : 0) + (incluyeTotal ? 1 : 0)
                                 const idx = data.column.index
-                                if (incluyeTotal && idx === h1.length - 1) {
+                                // Total mes: columna 1 (si hay mes)
+                                if (incluyeTotal && incluyeMes && idx === 1) {
                                   data.cell.styles.textColor = [37,99,235]
                                   data.cell.styles.halign = 'center'
-                                  data.cell.colSpan = 1
                                 } else if (idx >= offset) {
-                                  const vIdx = (idx - offset) % 5
+                                  // Vendedores: grupos de 6 (5 edades + 1 Total)
+                                  const vIdx = (idx - offset) % 6
                                   if (vIdx === 0) {
-                                    // Primera celda del grupo: colSpan 5 con nombre
+                                    // Primera celda: colSpan 5 con nombre vendedor
                                     data.cell.colSpan = 5
                                     data.cell.styles.halign = 'center'
                                     data.cell.styles.fontStyle = 'bold'
+                                  } else if (vIdx === 5) {
+                                    // 6ta celda: Total vendedor
+                                    data.cell.styles.textColor = [37,99,235]
+                                    data.cell.styles.halign = 'center'
                                   } else {
-                                    // Celdas 2-5 del grupo: ocultar
                                     data.cell.text = []
                                     data.cell.styles.lineWidth = 0
                                   }
                                 }
                               }
-                              if (incluyeTotal && data.section === 'body' && data.column.index === h1.length - 1) {
-                                data.cell.styles.fontStyle = 'bold'
-                                data.cell.styles.textColor = [37,99,235]
+                              // Colorear totales en body
+                              if (data.section === 'body') {
+                                const offset = (incluyeMes ? 1 : 0) + (incluyeTotal ? 1 : 0)
+                                const idx = data.column.index
+                                const esTotalMes = incluyeTotal && incluyeMes && idx === 1
+                                const esTotalV = idx >= offset && (idx - offset) % 6 === 5
+                                if (esTotalMes || esTotalV) {
+                                  data.cell.styles.textColor = [37,99,235]
+                                }
+                                if (incluyeTotal && incluyeMes && idx === 1) {
+                                  data.cell.styles.fontStyle = 'bold'
+                                }
                               }
                             },
                           }
@@ -1175,13 +1204,15 @@ export default function CarteraPage() {
                         // ── Tabla con valor + % intercalados ──
                         const buildDeltaTable = (vendedoresGrupo: string[], incluyeTotal: boolean, incluyeMes: boolean) => {
                           const nV = vendedoresGrupo.length
-                          const h1: string[] = incluyeMes ? ['Mes'] : []
-                          const h2: string[] = incluyeMes ? [''] : []
-                          for (const vn of vendedoresGrupo) {
-                            h1.push(vn, '', '', '', '')
-                            h2.push(...edadesL)
-                          }
+                          // Estructura: Mes | Total(mes) | V1(0-30..+120|Total) | V2(...|Total)
+                          const h1: string[] = []
+                          const h2: string[] = []
+                          if (incluyeMes) { h1.push('Mes'); h2.push('') }
                           if (incluyeTotal) { h1.push('Total'); h2.push('') }
+                          for (const vn of vendedoresGrupo) {
+                            h1.push(vn, '', '', '', '', 'Total')
+                            h2.push(...edadesL, '')
+                          }
 
                           const rows: any[] = []
                           d.snapshots.forEach((s: any, idx: number) => {
@@ -1196,11 +1227,15 @@ export default function CarteraPage() {
                               const vd = vMap.get(vn) as any
                               edadesL.forEach(e => { totalMes += vd?.[e] ?? 0 })
                             }
+                            // Guardar totalMes en snapshot para % consistente
+                            ;(s as any)._totalMes = totalMes
+                            if (incluyeTotal) valRow.push({ content: fmtM(totalMes), styles: { textColor: [37,99,235] } })
                             for (const vn of vendedoresGrupo) {
                               const vd = vMap.get(vn) as any
-                              edadesL.forEach(e => valRow.push(fmtM(vd?.[e] ?? 0)))
+                              let totalV = 0
+                              edadesL.forEach(e => { const v = vd?.[e] ?? 0; totalV += v; valRow.push(fmtM(v)) })
+                              valRow.push({ content: fmtM(totalV), styles: { textColor: [37,99,235] } })
                             }
-                            if (incluyeTotal) valRow.push({ content: fmtM(totalMes), styles: { textColor: [37,99,235] } })
                             rows.push(valRow)
 
                             // Fila delta
@@ -1230,7 +1265,10 @@ export default function CarteraPage() {
                                 })
                               }
                               if (incluyeTotal) {
-                                const pct = prevTotal > 0 ? Math.round(((curTotal - prevTotal) / prevTotal) * 100) : 0
+                                // Usar totales ya calculados para consistencia
+                                const prevTotalMes = (prev as any)._totalMes ?? prevTotal
+                                const curTotalMes = (s as any)._totalMes ?? curTotal
+                                const pct = prevTotalMes > 0 ? Math.round(((curTotalMes - prevTotalMes) / prevTotalMes) * 100) : 0
                                 const subio = pct > 0
                                 deltaRow.push({ content: (subio?'+':'-')+Math.abs(pct)+'%', styles: { halign:'center', fontSize:15, textColor: subio?[220,38,38]:[22,163,74], lineWidth:0 } })
                               }
@@ -1241,11 +1279,12 @@ export default function CarteraPage() {
                           const colStyles: any = {}
                           let ci = 0
                           if (incluyeMes) { colStyles[ci] = { cellWidth: mesW, fontStyle: 'bold', halign: 'center' }; ci++ }
+                          if (incluyeTotal) { colStyles[ci] = { cellWidth: totalColW, textColor: [37,99,235], halign: 'center' }; ci++ }
                           for (let v = 0; v < nV; v++) {
                             for (let e = 0; e < 5; e++) { colStyles[ci] = { cellWidth: edadW }; ci++ }
+                            colStyles[ci] = { cellWidth: totalColW, textColor: [37,99,235], halign: 'center' }; ci++
                           }
-                          if (incluyeTotal) colStyles[ci] = { cellWidth: totalColW, textColor: [37,99,235], halign: 'center' }
-                          const tblW = (incluyeMes ? mesW : 0) + nV*5*edadW + (incluyeTotal ? totalColW : 0)
+                          const tblW = (incluyeMes ? mesW : 0) + (incluyeTotal ? totalColW : 0) + nV*(5*edadW + totalColW)
 
                           return {
                             head: [h1, h2], body: rows,
@@ -1254,16 +1293,16 @@ export default function CarteraPage() {
                             ...tblStyles,
                             columnStyles: colStyles,
                             didParseCell: (data: any) => {
-                              // Forzar fondo blanco en todas las celdas
                               data.cell.styles.fillColor = [255,255,255]
                               if (data.section === 'head' && data.row.index === 0) {
-                                const offset = incluyeMes ? 1 : 0
+                                const offset = (incluyeMes ? 1 : 0) + (incluyeTotal ? 1 : 0)
                                 const idx = data.column.index
-                                if (incluyeTotal && idx === h1.length - 1) {
+                                if (incluyeTotal && incluyeMes && idx === 1) {
                                   data.cell.styles.textColor = [37,99,235]; data.cell.styles.halign = 'center'
                                 } else if (idx >= offset) {
-                                  const vIdx = (idx - offset) % 5
+                                  const vIdx = (idx - offset) % 6
                                   if (vIdx === 0) { data.cell.colSpan = 5; data.cell.styles.halign = 'center'; data.cell.styles.fontStyle = 'bold' }
+                                  else if (vIdx === 5) { data.cell.styles.textColor = [37,99,235]; data.cell.styles.halign = 'center' }
                                   else { data.cell.text = []; data.cell.styles.lineWidth = 0 }
                                 }
                               }
@@ -1288,10 +1327,11 @@ export default function CarteraPage() {
 
                         // Generar tablas — una sola estructura con valor + % intercalados
                         for (let g = 0; g < grupos.length; g++) {
-                          const esUltimo = g === grupos.length - 1
                           const incluyeMesHoja = g === 0
+                          // Total general: solo en hoja 1. Hojas 2+: solo total por vendedor (incluido en cada grupo)
+                          const incluyeTotalGeneral = g === 0
                           if (g > 0) doc.addPage()
-                          const cfg = buildDeltaTable(grupos[g], esUltimo, incluyeMesHoja)
+                          const cfg = buildDeltaTable(grupos[g], incluyeTotalGeneral, incluyeMesHoja)
                           autoTable(doc, { ...cfg, startY: g === 0 ? 30 : 15 } as any)
                         }
 

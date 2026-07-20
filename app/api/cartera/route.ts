@@ -7,6 +7,7 @@ import { Prisma } from '@/app/generated/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
 import { calcularEstado } from '@/lib/cartera'
 
+
 export async function GET(req: NextRequest) {
   try {
 
