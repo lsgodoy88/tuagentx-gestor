@@ -50,7 +50,7 @@ export async function GET() {
         // Un solo query con subquery — 0 filas en memoria
         const rows: any[] = await prisma.$queryRaw`
           SELECT
-            COALESCE(SUM(cc."saldoTotal"), 0)     AS "totalCartera",
+            COALESCE(SUM(cc."saldoPendiente"), 0) AS "totalCartera",
             COALESCE(SUM(cc."saldoPendiente"), 0)  AS "totalPendiente",
             COUNT(cc."clienteApiId")::int           AS clientes
           FROM ${Prisma.raw(DB_SCHEMA)}."CarteraCache" cc
@@ -75,7 +75,7 @@ export async function GET() {
         _sum: { saldoPendiente: true, saldoTotal: true },
         _count: { clienteId: true }
       })
-      totalCartera   = Number(agg._sum.saldoTotal    || 0)
+      totalCartera   = Number(agg._sum.saldoPendiente || 0)
       totalPendiente = Number(agg._sum.saldoPendiente || 0)
       clientes       = Number(agg._count.clienteId    || 0)
     }
@@ -89,7 +89,7 @@ export async function GET() {
       _sum: { saldoPendiente: true, saldoTotal: true },
       _count: { id: true }
     })
-    totalCartera   = Number(agg._sum.saldoTotal    || 0)
+    totalCartera   = Number(agg._sum.saldoPendiente || 0)
     totalPendiente = Number(agg._sum.saldoPendiente || 0)
     clientes       = Number(agg._count.id           || 0)
   }

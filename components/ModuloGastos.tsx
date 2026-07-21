@@ -222,6 +222,17 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
         </div>
       </div>
 
+      {!isAdmin && !mes && (
+        <div className="flex gap-2">
+          {(['hoy','semana','mes'] as const).map(f => (
+            <button key={f} onClick={() => setFiltro(f)}
+              className={"flex-1 py-2 rounded-xl text-sm font-semibold transition-colors " + (filtro === f ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-white')}>
+              {f === 'hoy' ? 'Hoy' : f === 'semana' ? 'Semana' : 'Mes'}
+            </button>
+          ))}
+        </div>
+      )}
+
       {error && (
         <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-2.5 text-red-400 text-sm">
           {error}
