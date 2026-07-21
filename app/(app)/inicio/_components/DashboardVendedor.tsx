@@ -751,32 +751,47 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
           return (
         <div>
           <button onClick={() => setMostrarImpulsadoras(v => !v)}
-            className='card-glass' style={{background:'rgba(255,255,255,0.08)',border:`1px solid ${tieneAlerta ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.30)'}`,boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
-            <span className="text-white font-semibold text-sm">⚡ Impulsos{tieneAlerta && <span className="ml-2 text-red-400 text-xs font-bold">● Alerta</span>}</span>
-            <span className="text-zinc-500 text-xs">{mostrarImpulsadoras ? '▲ Ocultar' : '▼ Ver'}</span>
+            className='card-glass' style={{background:'rgba(255,255,255,0.08)',border:`1px solid ${tieneAlerta ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.30)'}`,boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',borderRadius:16,width:'100%',padding:'12px 16px',cursor:'pointer'}}>
+            <div className="flex items-center justify-between">
+              <span className="text-white font-semibold text-sm">⚡ Impulsos{tieneAlerta && <span className="ml-2 text-red-400 text-xs font-bold">● Alerta</span>}</span>
+              <span className="text-zinc-500 text-xs">{mostrarImpulsadoras ? '▲ Ocultar' : '▼ Ver'}</span>
+            </div>
+            {!mostrarImpulsadoras && (statsVendedor?.cumplimiento?.length ?? 0) > 0 && (
+              <div className="mt-2 space-y-1">
+                {(statsVendedor?.cumplimiento ?? []).map((imp: any) => {
+                  const p = imp.totalMetaMes > 0 ? Math.round((imp.totalVentaMes/imp.totalMetaMes)*100) : null
+                  const pColor = p === null ? 'text-zinc-500' : p>=100 ? 'text-emerald-400' : p>=70 ? 'text-yellow-400' : 'text-red-400'
+                  return (
+                    <div key={imp.id} className="flex items-center gap-2">
+                      <div className={"w-1.5 h-1.5 rounded-full flex-shrink-0 " + (imp.turnoActivo ? "bg-emerald-500" : "bg-zinc-600")} />
+                      <span className="text-white text-[15px] truncate flex-1 text-left">{imp.nombre}</span>
+                      {imp.totalVentaMes > 0 && <span className="text-emerald-400 text-[15px] font-semibold flex-shrink-0">${imp.totalVentaMes.toLocaleString('es-CO')}</span>}
+                      {p !== null && <span className={"text-[15px] font-bold flex-shrink-0 " + pColor}>{p}%</span>}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </button>
           {mostrarImpulsadoras && (
-            <div className="mt-2 space-y-3 rounded-2xl p-3" style={{background:'rgba(255,255,255,0.08)',border:`1px solid ${tieneAlerta ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.12)'}`}}>
+            <div className="mt-2 space-y-3">
           {!statsVendedor ? (
-            <>{[0,1].map(i => <div key={i} className="h-16 rounded-xl bg-zinc-800/40" />)}</>
+            <>{[0,1].map(i => <div key={i} className="h-16 rounded-xl" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.12)'}} />)}</>
           ) : (statsVendedor.cumplimiento?.length ?? 0) === 0 ? (
             <p className="text-zinc-500 text-xs text-center py-2">Sin impulsadoras asignadas</p>
           ) : statsVendedor.cumplimiento.map((imp: any) => {
             const diasSemana = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado']
             const diaHoy = diasSemana[new Date().getDay()]
+            const alertaHora = imp.todosLosPuntos?.some((pt: any) => pt.alertaHora)
             return (
-          <CardSub key={imp.id} alerta={false} className="p-3" style={{
-            background:'rgba(30,36,58,0.99)',
-            border: `1px solid ${imp.todosLosPuntos?.some((pt: any) => pt.alertaHora) ? 'rgba(239,68,68,0.55)' : imp.puntoActual ? 'rgba(16,185,129,0.55)' : 'rgba(255,255,255,0.12)'}`,
-          }}>
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <div className={"w-2 h-2 rounded-full " + (imp.turnoActivo ? "bg-emerald-500" : "bg-zinc-600")} />
-                <p className="text-white text-sm font-medium">{imp.nombre}</p>
-              </div>
-              {imp.todosLosPuntos?.some((pt: any) => pt.alertaHora) && (
-                <span className="text-red-400 text-xs font-bold">⏰ Retraso</span>
-              )}
+          <CardSub key={imp.id} alerta={alertaHora} className="p-3">
+            <div className="flex items-center gap-2 w-full mb-2">
+              <div className={"w-2 h-2 rounded-full flex-shrink-0 " + (imp.turnoActivo ? "bg-emerald-500" : "bg-zinc-600")} />
+              <p className="text-white text-[15px] font-medium truncate flex-1 min-w-0">{imp.nombre}</p>
+              {imp.totalVentaMes > 0 && <span className="text-emerald-400 text-[15px] font-semibold flex-shrink-0">${imp.totalVentaMes.toLocaleString('es-CO')}</span>}
+              {imp.todosLosPuntos?.some((pt: any) => pt.alertaHora)
+                ? <span className="text-red-400 text-[15px] font-bold flex-shrink-0">⏰</span>
+                : imp.totalMetaMes > 0 && (() => { const p = Math.round((imp.totalVentaMes/imp.totalMetaMes)*100); return <span className={"text-[15px] font-bold flex-shrink-0 " + (p>=100?'text-emerald-400':p>=70?'text-yellow-400':'text-red-400')}>{p}%</span> })()}
             </div>
             {imp.totalPuntos > 0 && (
               <div className="space-y-2">
@@ -788,9 +803,18 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
                 </div>
                 {imp.puntoActual && <div style={{background:"rgba(148,160,185,0.28)",border:"1px solid rgba(148,180,255,0.35)",borderRadius:8,padding:"8px 12px"}}>
                   <div className="flex items-center gap-1">
-                    <div style={{width:'50%'}} className="min-w-0">
-                      <p className="text-emerald-400 text-sm font-medium truncate">{imp.puntoActual.nombre}</p>
-                      {imp.puntoActual.nombreComercial && <p className="text-zinc-500 text-xs truncate">{imp.puntoActual.nombreComercial}</p>}
+                    <div className="flex-1 min-w-0 flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-emerald-400 text-sm font-medium truncate">{imp.puntoActual.nombre}</p>
+                        {imp.puntoActual.nombreComercial && <p className="text-zinc-500 text-xs truncate">{imp.puntoActual.nombreComercial}</p>}
+                        {(imp.puntoActual.metaVenta > 0 || imp.puntoActual.ventaMes > 0) && (
+                          <div className="flex gap-3 mt-1">
+                            {imp.puntoActual.metaVenta > 0 && <span className="text-zinc-400 text-xs">Meta <span className="text-white font-semibold">${imp.puntoActual.metaVenta.toLocaleString('es-CO')}</span></span>}
+                            {imp.puntoActual.ventaMes > 0 && <span className="text-zinc-400 text-xs">Logrado <span className={imp.puntoActual.ventaMes >= imp.puntoActual.metaVenta && imp.puntoActual.metaVenta > 0 ? 'text-emerald-400 font-semibold' : 'text-blue-400 font-semibold'}>${imp.puntoActual.ventaMes.toLocaleString('es-CO')}</span></span>}
+                          </div>
+                        )}
+                      </div>
+                      {imp.puntoActual.metaVenta > 0 && (() => { const p = Math.round((imp.puntoActual.ventaMes/imp.puntoActual.metaVenta)*100); return <span className={"text-sm font-bold flex-shrink-0 " + (p>=100?'text-emerald-400':p>=70?'text-yellow-400':'text-red-400')}>{p}%</span> })()}
                     </div>
                     <div style={{width:'25%'}} className="text-center"><p className="text-zinc-500 text-[10px] uppercase tracking-wide">Entrada</p><p className="text-white text-xs font-medium">{imp.puntoActual.horaEntrada ? new Date(imp.puntoActual.horaEntrada).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'}) : '--:--'}</p></div>
                     <div style={{width:'25%'}} className="text-center"><p className="text-zinc-500 text-[10px] uppercase tracking-wide">Salida</p><p className="text-white text-xs font-medium">{imp.puntoActual.horaSalida ? new Date(imp.puntoActual.horaSalida).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'}) : '--:--'}</p></div>
@@ -805,15 +829,35 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
                       </p>
                     )}
                   </div>
-                  <p className="text-white text-sm font-medium truncate">{imp.proximoPunto.nombre}</p>
-                  {imp.proximoPunto.nombreComercial && <p className="text-zinc-500 text-xs">{imp.proximoPunto.nombreComercial}</p>}
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-white text-sm font-medium truncate">{imp.proximoPunto.nombre}</p>
+                      {imp.proximoPunto.nombreComercial && <p className="text-zinc-500 text-xs">{imp.proximoPunto.nombreComercial}</p>}
+                      {(imp.proximoPunto.metaVenta > 0 || imp.proximoPunto.ventaMes > 0) && (
+                        <div className="flex gap-3 mt-1">
+                          {imp.proximoPunto.metaVenta > 0 && <span className="text-zinc-400 text-xs">Meta <span className="text-white font-semibold">${imp.proximoPunto.metaVenta.toLocaleString('es-CO')}</span></span>}
+                          {imp.proximoPunto.ventaMes > 0 && <span className="text-zinc-400 text-xs">Logrado <span className={imp.proximoPunto.ventaMes >= imp.proximoPunto.metaVenta && imp.proximoPunto.metaVenta > 0 ? 'text-emerald-400 font-semibold' : 'text-blue-400 font-semibold'}>${imp.proximoPunto.ventaMes.toLocaleString('es-CO')}</span></span>}
+                        </div>
+                      )}
+                    </div>
+                    {imp.proximoPunto.metaVenta > 0 && (() => { const p = Math.round(((imp.proximoPunto.ventaMes||0)/imp.proximoPunto.metaVenta)*100); return <span className={"text-sm font-bold flex-shrink-0 " + (p>=100?'text-emerald-400':p>=70?'text-yellow-400':'text-red-400')}>{p}%</span> })()}
+                  </div>
                 </div>}
                 {imp.puntosCompletados?.length > 0 && imp.puntosCompletados.map((pc: any, i: number) => (
                   <div key={i} style={{background:"rgba(16,185,129,0.12)",border:"1px solid rgba(16,185,129,0.35)",borderRadius:8,padding:"8px 12px"}}>
                     <div className="flex items-center gap-1">
-                      <div style={{width:'50%'}} className="min-w-0">
-                        <p className="text-emerald-400 text-xs font-medium truncate">✅ {pc.nombre}</p>
-                        {pc.nombreComercial && <p className="text-zinc-500 text-xs truncate">{pc.nombreComercial}</p>}
+                      <div className="flex-1 min-w-0 flex items-center gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-emerald-400 text-xs font-medium truncate">✅ {pc.nombre}</p>
+                          {pc.nombreComercial && <p className="text-zinc-500 text-xs truncate">{pc.nombreComercial}</p>}
+                          {(pc.metaVenta > 0 || pc.ventaMes > 0) && (
+                            <div className="flex gap-3 mt-1">
+                              {pc.metaVenta > 0 && <span className="text-zinc-400 text-xs">Meta <span className="text-white font-semibold">${pc.metaVenta.toLocaleString('es-CO')}</span></span>}
+                              {pc.ventaMes > 0 && <span className="text-zinc-400 text-xs">Logrado <span className={pc.ventaMes >= pc.metaVenta && pc.metaVenta > 0 ? 'text-emerald-400 font-semibold' : 'text-blue-400 font-semibold'}>${pc.ventaMes.toLocaleString('es-CO')}</span></span>}
+                            </div>
+                          )}
+                        </div>
+                        {pc.metaVenta > 0 && (() => { const p = Math.round((pc.ventaMes/pc.metaVenta)*100); return <span className={"text-sm font-bold flex-shrink-0 " + (p>=100?'text-emerald-400':p>=70?'text-yellow-400':'text-red-400')}>{p}%</span> })()}
                       </div>
                       <div style={{width:'25%'}} className="text-center"><p className="text-zinc-500 text-[10px] uppercase tracking-wide">Entrada</p><p className="text-white text-xs font-medium">{new Date(pc.horaEntrada).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'})}</p></div>
                       <div style={{width:'25%'}} className="text-center"><p className="text-zinc-500 text-[10px] uppercase tracking-wide">Salida</p><p className="text-white text-xs font-medium">{new Date(pc.horaSalida).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'})}</p></div>
@@ -837,7 +881,18 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
                                 <span className={"w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold flex-shrink-0 " + (pt.estado === 'completado' ? 'bg-emerald-500 text-black' : pt.estado === 'dentro' ? 'bg-emerald-500/30 text-emerald-300' : pt.alertaHora ? 'bg-red-500/30 text-red-300' : 'bg-zinc-700 text-zinc-300')}>
                                   {pt.estado === 'completado' ? '✓' : pt.orden + 1}
                                 </span>
-                                <span className={"text-xs truncate flex-1 " + (pt.estado === 'completado' ? 'text-zinc-500' : 'text-white')}>{pt.nombre}</span>
+                                <div className="flex-1 min-w-0 flex items-center gap-2">
+                                  <div className="flex-1 min-w-0">
+                                    <span className={"text-xs truncate block " + (pt.estado === 'completado' ? 'text-zinc-500' : 'text-white')}>{pt.nombre}</span>
+                                    {(pt.metaVenta > 0 || pt.ventaMes > 0) && (
+                                      <div className="flex gap-3 mt-0.5">
+                                        {pt.metaVenta > 0 && <span className="text-zinc-400 text-xs">Meta <span className="text-white font-semibold">${pt.metaVenta.toLocaleString('es-CO')}</span></span>}
+                                        {pt.ventaMes > 0 && <span className="text-zinc-400 text-xs">Logrado <span className={pt.ventaMes >= pt.metaVenta && pt.metaVenta > 0 ? 'text-emerald-400 font-semibold' : 'text-blue-400 font-semibold'}>${pt.ventaMes.toLocaleString('es-CO')}</span></span>}
+                                      </div>
+                                    )}
+                                  </div>
+                                  {pt.metaVenta > 0 && (() => { const p = Math.round(((pt.ventaMes||0)/pt.metaVenta)*100); return <span className={"text-sm font-bold flex-shrink-0 " + (p>=100?'text-emerald-400':p>=70?'text-yellow-400':'text-red-400')}>{p}%</span> })()}
+                                </div>
                                 {pt.horaEntradaPlan && (
                                   <span className={"text-[10px] font-bold flex-shrink-0 " + (pt.alertaHora ? "text-red-400" : "text-amber-400")}>
                                     {pt.alertaHora ? "⏰ " : "🕐 "}{fmtHora12(pt.horaEntradaPlan)}
@@ -877,43 +932,30 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
         ) : (
           <div className="space-y-4">
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-          <p className="text-white font-bold mb-3">Últimos 6 días</p>
-          <div className="overflow-x-auto">
-            <div className="flex items-center gap-2 mb-2 pb-1 border-b border-zinc-700">
-          <p className="text-zinc-500 text-xs w-14 flex-shrink-0">Dia</p><p className="text-zinc-500 text-xs flex-1"></p>
-          <p className="text-zinc-500 text-xs w-6 text-right">Vis.</p><p className="text-zinc-500 text-xs w-16 text-right">Ventas</p><p className="text-zinc-500 text-xs w-16 text-right">Recaudo</p>
-            </div>
-            <div className="space-y-2">
-          {statsVendedor.dias.slice().reverse().map((d: any) => (
-            <div key={d.fecha} className="flex items-center gap-1">
-          <p className="text-zinc-400 text-xs w-14 flex-shrink-0 capitalize">{d.label}</p>
-          <div className="flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden"><div className="bg-emerald-500 h-2 rounded-full" style={{width: d.total > 0 ? Math.min(100,d.total*10)+'%' : '0%'}} /></div>
-          <p className="text-white text-xs w-6 text-right">{d.total}</p>
-          <p className="text-emerald-400 text-xs w-16 text-right">{d.montoVentas > 0 ? '$'+d.montoVentas.toLocaleString('es-CO') : '—'}</p>
-          <p className="text-blue-400 text-xs w-16 text-right">{d.montoCobros > 0 ? '$'+d.montoCobros.toLocaleString('es-CO') : '—'}</p>
-            </div>
-          ))}
-            </div>
-          </div>
-        </div>
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
           <p className="text-white font-bold mb-3">Últimos 6 meses</p>
           <div className="overflow-x-auto">
-            <div className="flex items-center gap-2 mb-2 pb-1 border-b border-zinc-700">
-          <p className="text-zinc-500 text-xs w-14 flex-shrink-0">Mes</p><p className="text-zinc-500 text-xs flex-1"></p>
-          <p className="text-zinc-500 text-xs w-6 text-right">Vis.</p><p className="text-zinc-500 text-xs w-16 text-right">Ventas</p><p className="text-zinc-500 text-xs w-16 text-right">Recaudo</p>
-            </div>
-            <div className="space-y-2">
-          {statsVendedor.meses.slice().reverse().map((m: any) => (
-            <div key={m.label} className="flex items-center gap-1">
-          <p className="text-zinc-400 text-xs w-14 flex-shrink-0 capitalize">{m.label}</p>
-          <div className="flex-1 bg-zinc-800 rounded-full h-2 overflow-hidden"><div className="bg-blue-500 h-2 rounded-full" style={{width: m.total > 0 ? Math.min(100,m.total*2)+'%' : '0%'}} /></div>
-          <p className="text-white text-xs w-6 text-right">{m.total}</p>
-          <p className="text-emerald-400 text-xs w-16 text-right">{m.montoVentas > 0 ? '$'+m.montoVentas.toLocaleString('es-CO') : '—'}</p>
-          <p className="text-blue-400 text-xs w-16 text-right">{m.montoCobros > 0 ? '$'+m.montoCobros.toLocaleString('es-CO') : '—'}</p>
-            </div>
-          ))}
-            </div>
+            <table className="w-full text-xs min-w-[320px]">
+              <thead>
+                <tr className="border-b border-zinc-700">
+                  <th className="text-zinc-500 font-normal text-left py-1 pr-2">Mes</th>
+                  <th className="text-zinc-500 font-normal text-right py-1 px-2">Visitas</th>
+                  <th className="text-zinc-500 font-normal text-right py-1 px-2">Ventas</th>
+                  <th className="text-zinc-500 font-normal text-right py-1 px-2">Recaudo</th>
+                  <th className="text-zinc-500 font-normal text-right py-1 pl-2">Descuentos</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-800">
+                {statsVendedor.meses.slice().reverse().map((m: any) => (
+                  <tr key={m.label}>
+                    <td className="text-zinc-400 capitalize py-1.5 pr-2">{m.label}</td>
+                    <td className="text-white text-right py-1.5 px-2">{m.total > 0 ? m.total : '—'}</td>
+                    <td className="text-emerald-400 text-right py-1.5 px-2">{m.montoVentas > 0 ? '$'+m.montoVentas.toLocaleString('es-CO') : '—'}</td>
+                    <td className="text-blue-400 text-right py-1.5 px-2">{m.montoCobros > 0 ? '$'+m.montoCobros.toLocaleString('es-CO') : '—'}</td>
+                    <td className="text-amber-400 text-right py-1.5 pl-2">{m.montoDescuentos > 0 ? '$'+m.montoDescuentos.toLocaleString('es-CO') : '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </div>
           </div>

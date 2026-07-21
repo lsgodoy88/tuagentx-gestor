@@ -250,7 +250,8 @@ model VisitaResumen {
   entregas      Int      @default(0)
   // Montos
   montoVentas   Float    @default(0)
-  montoCobros   Float    @default(0)
+  montoCobros      Float    @default(0)
+  monto_descuentos  Float    @default(0)
   // Control
   actualizadoEn DateTime @updatedAt
 

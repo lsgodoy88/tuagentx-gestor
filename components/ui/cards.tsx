@@ -68,9 +68,9 @@ export function CardCountAdmin({
         <span className="text-white text-sm font-bold tracking-wide">{label}</span>
       </div>
       <div className="flex items-baseline justify-center gap-1.5">
-        <span className={`${primaryColor} ${compact ? 'text-sm' : 'text-lg'} font-bold`}>{primary}</span>
+        <span className={`${primaryColor} text-lg font-bold`}>{primary}</span>
         <span className="text-white/40 text-base font-light">/</span>
-        <span className={`text-white ${compact ? 'text-sm' : 'text-lg'} font-bold`}>{secondary}</span>
+        <span className={`text-white text-lg font-bold`}>{secondary}</span>
       </div>
       <div className="flex justify-center gap-4 mt-1">
         <span className="text-white/70 text-sm font-medium">{primaryLabel}</span>
