@@ -5,8 +5,9 @@ import { fechaHoyBogota } from '@/lib/fechas'
 type TipoVisita = 'visita' | 'venta' | 'cobro' | 'entrega' | string
 
 interface DeltaVisita {
-  tipo:   TipoVisita
-  monto?: number | null
+  tipo:        TipoVisita
+  monto?:      number | null
+  descuento?:  number | null
 }
 
 // ── Helpers de fecha ──────────────────────────────────────────────────────
@@ -38,7 +39,8 @@ export async function actualizarResumenVisita(
     const esCobro   = delta.tipo === 'cobro'
     const esEntrega = delta.tipo === 'entrega'
     const esVisita  = delta.tipo === 'visita'
-    const monto     = Number(delta.monto ?? 0)
+    const monto     = Number(delta.monto    ?? 0)
+    const descuento = Number(delta.descuento ?? 0)
 
     const incrementDia = {
       total:            1,
@@ -46,8 +48,9 @@ export async function actualizarResumenVisita(
       ventas:           esVenta    ? 1 : 0,
       cobros:           esCobro    ? 1 : 0,
       entregas:         esEntrega  ? 1 : 0,
-      montoVentas:      esVenta    ? monto : 0,
-      montoCobros:      esCobro    ? monto : 0,
+      montoVentas:      esVenta ? monto : 0,
+      montoCobros:      esCobro ? monto : 0,
+      monto_descuentos: esCobro ? descuento : 0,
     }
 
     // Día y mes en paralelo — ambos son atómicos con increment
@@ -63,6 +66,7 @@ export async function actualizarResumenVisita(
           entregas:    { increment: esEntrega  ? 1 : 0 },
           montoVentas:      { increment: esVenta ? monto : 0 },
           montoCobros:      { increment: esCobro ? monto : 0 },
+          monto_descuentos: { increment: esCobro ? descuento : 0 },
         },
       }),
       (prisma as any).visitaResumen.upsert({
@@ -76,6 +80,7 @@ export async function actualizarResumenVisita(
           entregas:    { increment: esEntrega  ? 1 : 0 },
           montoVentas:      { increment: esVenta ? monto : 0 },
           montoCobros:      { increment: esCobro ? monto : 0 },
+          monto_descuentos: { increment: esCobro ? descuento : 0 },
         },
       }),
     ])
