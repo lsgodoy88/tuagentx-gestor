@@ -327,7 +327,7 @@ export async function POST(req: NextRequest) {
     `g:v:${user.id}:${fechaHoyBogota()}`
   )
 
-  actualizarResumenVisita(user.id, { tipo: 'cobro', monto: montoNum, descuento: descuentoNum }, fechaHoyBogota()).catch(() => {})
+  actualizarResumenVisita(user.id, { tipo: 'cobro', monto: montoNum }, fechaHoyBogota()).catch(() => {})
 
   return NextResponse.json({ pago, anchoPapel } satisfies PagoSyncResponse)
 }

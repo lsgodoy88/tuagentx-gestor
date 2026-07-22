@@ -368,15 +368,15 @@ export default function SaldosPage() {
                           ? <input value={fila.concepto} onChange={e => setFila(i, 'concepto', e.target.value.toUpperCase())} onBlur={() => onBlurFila(i)} autoFocus={filasEditando.has(i)} style={{ background: 'transparent', color: '#d1d5db', outline: 'none', width: '100%', fontSize: 13 }} />
                           : <span style={{ color: '#d1d5db', fontSize: 13 }}>{fila.concepto || '—'}</span>}
                       </td>
-                      <td style={{ ...tdStyle, textAlign: 'right', whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()} onDoubleClick={() => intentarEditar(i)}>
+                      <td style={{ ...tdStyle, textAlign: 'right', whiteSpace: 'nowrap', borderLeft: '2px solid rgba(52,211,153,0.20)' }} onClick={e => e.stopPropagation()} onDoubleClick={() => intentarEditar(i)}>
                         {esEditable(i)
-                          ? <input type="text" inputMode="numeric" value={formatCOP(fila.ingreso)} onChange={e => { const v = parseCOP(e.target.value); setFilas(p => p.map((f, idx) => idx === i ? { ...f, ingreso: v, egreso: '' } : f)) }} onBlur={() => onBlurFila(i)} style={{ background: 'rgba(16,42,30,0.6)', color: '#34d399', outline: 'none', width: '100%', fontSize: 13, textAlign: 'right', borderRadius: 6, padding: '2px 6px' }} />
-                          : <span style={{ color: '#34d399', fontSize: 13 }}>{fila.ingreso ? formatCOP(fila.ingreso) : '—'}</span>}
+                          ? <input type="text" inputMode="numeric" value={formatCOP(fila.ingreso)} onChange={e => { const v = parseCOP(e.target.value); setFilas(p => p.map((f, idx) => idx === i ? { ...f, ingreso: v, egreso: '' } : f)) }} onBlur={() => onBlurFila(i)} style={{ background: fila.ingreso ? 'rgba(16,42,30,0.6)' : 'transparent', color: '#34d399', outline: 'none', width: '100%', fontSize: 13, textAlign: 'right', borderRadius: 6, padding: '2px 6px' }} />
+                          : fila.ingreso ? <span style={{ color: '#34d399', fontSize: 13 }}>{formatCOP(fila.ingreso)}</span> : null}
                       </td>
-                      <td style={{ ...tdStyle, textAlign: 'right', whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()} onDoubleClick={() => intentarEditar(i)}>
+                      <td style={{ ...tdStyle, textAlign: 'right', whiteSpace: 'nowrap', borderLeft: '2px solid rgba(248,113,113,0.20)' }} onClick={e => e.stopPropagation()} onDoubleClick={() => intentarEditar(i)}>
                         {esEditable(i)
-                          ? <input type="text" inputMode="numeric" value={formatCOP(fila.egreso)} onChange={e => { const v = parseCOP(e.target.value); setFilas(p => p.map((f, idx) => idx === i ? { ...f, egreso: v, ingreso: '' } : f)) }} onBlur={() => onBlurFila(i)} style={{ background: 'rgba(42,16,16,0.6)', color: '#f87171', outline: 'none', width: '100%', fontSize: 13, textAlign: 'right', borderRadius: 6, padding: '2px 6px' }} />
-                          : <span style={{ color: '#f87171', fontSize: 13 }}>{fila.egreso ? formatCOP(fila.egreso) : '—'}</span>}
+                          ? <input type="text" inputMode="numeric" value={formatCOP(fila.egreso)} onChange={e => { const v = parseCOP(e.target.value); setFilas(p => p.map((f, idx) => idx === i ? { ...f, egreso: v, ingreso: '' } : f)) }} onBlur={() => onBlurFila(i)} style={{ background: fila.egreso ? 'rgba(42,16,16,0.6)' : 'transparent', color: '#f87171', outline: 'none', width: '100%', fontSize: 13, textAlign: 'right', borderRadius: 6, padding: '2px 6px' }} />
+                          : fila.egreso ? <span style={{ color: '#f87171', fontSize: 13 }}>{formatCOP(fila.egreso)}</span> : null}
                       </td>
                       <td className="hidden md:table-cell" style={{ ...tdStyle, whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()}>
                         {esEditable(i)
@@ -417,8 +417,8 @@ export default function SaldosPage() {
                             {esPrimera ? fmtFechaCorta(g.fecha) : ''}
                           </td>
                           <td style={{ ...tdStyle, fontSize: 13, color: '#d1d5db', whiteSpace: 'nowrap' }}>{fila.concepto || '—'}</td>
-                          <td style={{ ...tdStyle, textAlign: 'right', color: '#34d399', fontSize: 13, whiteSpace: 'nowrap' }}>{fila.ingreso ? formatCOP(fila.ingreso) : '—'}</td>
-                          <td style={{ ...tdStyle, textAlign: 'right', color: '#f87171', fontSize: 13, whiteSpace: 'nowrap' }}>{fila.egreso ? formatCOP(fila.egreso) : '—'}</td>
+                          <td style={{ ...tdStyle, textAlign: 'right', fontSize: 13, whiteSpace: 'nowrap', borderLeft: '2px solid rgba(52,211,153,0.20)' }}>{fila.ingreso ? <span style={{color:'#34d399'}}>{formatCOP(fila.ingreso)}</span> : null}</td>
+                          <td style={{ ...tdStyle, textAlign: 'right', fontSize: 13, whiteSpace: 'nowrap', borderLeft: '2px solid rgba(248,113,113,0.20)' }}>{fila.egreso ? <span style={{color:'#f87171'}}>{formatCOP(fila.egreso)}</span> : null}</td>
                           <td className="hidden md:table-cell" style={{ ...tdStyle, color: '#9ca3af', fontSize: 12, whiteSpace: 'nowrap' }}>{fila.categoria || '—'}</td>
                         </tr>
                       )

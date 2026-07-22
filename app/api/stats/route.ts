@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
 import { withCache } from '@/lib/cache'
+import { calcularSaldoActual, calcularEgresosMes } from '@/lib/saldos'
 
 export async function GET() {
   try {
@@ -167,6 +168,8 @@ export async function GET() {
     metaVentaMes,
     metaRecaudoMes,
     recaudoPorVendedor,
+    saldos:   await calcularSaldoActual(empresaId),
+    egresos:  await calcularEgresosMes(empresaId, mesBogota(), anioBogota()),
   }
   return stats satisfies AdminStats
   }) // withCache

@@ -112,7 +112,7 @@ export function CardDarkStrong({ children, className = '', style }: CardDarkProp
 export function CardCountAdminSkeleton({ compact = false }: { compact?: boolean }) {
   return (
     <div
-      className="rounded-2xl p-4 flex flex-col items-center justify-center min-h-[110px]"
+      className="rounded-2xl px-4 card-compact flex flex-col items-center justify-center"
       style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' } as CSSProperties}
     >
       {/* shimmer en los datos — correcto */}

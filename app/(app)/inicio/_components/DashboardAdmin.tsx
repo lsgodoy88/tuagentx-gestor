@@ -179,12 +179,13 @@ export default function DashboardAdmin({ user }: { user: any }) {
 
   async function cargarEstadisticas() {
     setMostrarEstadisticas(prev => !prev)
-    if (!mostrarEstadisticas) {
-      try {
-        const d = await fetch('/api/stats').then(r => r.json())
-        setStats(d)
-      } catch {}
-    }
+  }
+
+  async function recargarEstadisticas() {
+    try {
+      const d = await fetch('/api/stats').then(r => r.json())
+      setStats(d)
+    } catch {}
   }
 
   async function dispararSync() {
@@ -281,43 +282,58 @@ export default function DashboardAdmin({ user }: { user: any }) {
     <div className="space-y-3 pb-20 md:pb-0 md:max-w-2xl md:mx-auto">
       <h1 className="text-base font-bold text-white px-1">Bienvenido, {user?.name?.split(' ')[0]}</h1>
       {(isEmpresa || isSupervisor) && (
-        <div className="space-y-6">
+        <div className="space-y-3">
+
+          <div className="space-y-3">
+            {stats?.saldos && (
+              <div className="rounded-2xl px-4 card-compact hover-lift card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}
+                onClick={() => router.push('/ingresos')} role="button">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <span className="text-sm">💰</span>
+                  <span className="text-white text-sm font-bold tracking-wide">Saldos</span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: 'Efectivo', valor: stats.saldos.efectivo, color: 'text-emerald-400' },
+                    { label: 'Bancos',   valor: stats.saldos.bancos,   color: 'text-blue-400' },
+                    { label: 'Otros',    valor: stats.saldos.otros,    color: 'text-amber-400' },
+                  ].map(({ label, valor, color }) => (
+                    <div key={label} className="flex flex-col items-center">
+                      <p className="text-zinc-400 text-xs mb-1">{label}</p>
+                      <p className={`${color} text-sm font-bold text-center`}>${Math.abs(valor).toLocaleString('es-CO')}</p>
+                      {valor < 0 && <p className="text-red-400 text-[10px]">negativo</p>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {stats?.egresos && (
+              <div className="rounded-2xl px-4 card-compact hover-lift card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}
+                onClick={() => router.push('/egresos')} role="button">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <span className="text-sm">📋</span>
+                  <span className="text-white text-sm font-bold tracking-wide">Egresos del mes</span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    { label: 'Total',     valor: stats.egresos.total,     color: 'text-white' },
+                    { label: 'Pagado',    valor: stats.egresos.pagado,    color: 'text-emerald-400' },
+                    { label: 'Pendiente', valor: stats.egresos.pendiente, color: stats.egresos.pendiente > 0 ? 'text-red-400' : 'text-zinc-400' },
+                  ].map(({ label, valor, color }) => (
+                    <div key={label} className="flex flex-col items-center">
+                      <p className="text-zinc-400 text-xs mb-1">{label}</p>
+                      <p className={`${color} text-sm font-bold text-center`}>${valor.toLocaleString('es-CO')}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           <div>
           <div className="grid grid-cols-2 gap-3">
 
-            <div className="rounded-2xl p-4 hover-lift card-glass flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
-              <div className="flex items-center justify-center gap-1.5 mb-2">
-                <span className="text-sm">🛍️</span>
-                <span className="text-white text-sm font-bold tracking-wide">Vendedores</span>
-              </div>
-              <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-white text-base font-bold"><CountUp end={stats.vendedoresActivos||0} /></span>
-                <span className="text-white/40 text-base font-light">/</span>
-                <span className="text-white text-base font-bold"><CountUp end={stats.totalVendedores||0} /></span>
-              </div>
-              <div className="flex justify-center gap-4 mt-1">
-                <span className="text-white text-xs">en turno</span>
-                <span className="text-white text-xs">activos</span>
-              </div>
-            </div>
-
-            <div className="rounded-2xl p-4 hover-lift card-glass flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
-              <div className="flex items-center justify-center gap-1.5 mb-2">
-                <span className="text-sm">⚡</span>
-                <span className="text-white text-sm font-bold tracking-wide">Impulsos</span>
-              </div>
-              <div className="flex items-baseline justify-center gap-1.5">
-                <span className="text-amber-400 text-base font-bold"><CountUp end={stats.impulsosActivos||0} /></span>
-                <span className="text-white/40 text-base font-light">/</span>
-                <span className="text-white text-base font-bold"><CountUp end={stats.totalImpulsos||0} /></span>
-              </div>
-              <div className="flex justify-center gap-4 mt-1">
-                <span className="text-white text-xs">activas</span>
-                <span className="text-white text-xs">total</span>
-              </div>
-            </div>
-
-            <div className="rounded-2xl p-4 hover-lift card-glass flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div className="rounded-2xl px-4 card-compact hover-lift card-glass flex flex-col items-center justify-center" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">👁️</span>
                 <span className="text-white text-sm font-bold tracking-wide">Visitas</span>
@@ -333,7 +349,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
               </div>
             </div>
 
-            <div className="rounded-2xl p-4 hover-lift card-glass flex flex-col items-center justify-center min-h-[110px]" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div className="rounded-2xl px-4 card-compact hover-lift card-glass flex flex-col items-center justify-center" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">📦</span>
                 <span className="text-white text-sm font-bold tracking-wide">Órdenes hoy</span>
@@ -382,183 +398,65 @@ className='card-glass' style={{background:'rgba(255,255,255,0.08)',border:'1px s
             <span className="text-zinc-500 text-xs">{mostrarEstadisticas ? '▲ Ocultar' : '▼ Ver'}</span>
           </button>
 
-          {mostrarEstadisticas ? (
-          <div className="md:grid md:grid-cols-2 md:gap-6 space-y-6 md:space-y-0" style={{}}>
-          <div className="space-y-6">
-          {stats.visitasPorDia && stats.visitasPorDia.length > 0 && (
-            <div className="rounded-2xl p-4 card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
-              <p className="text-white font-semibold text-sm mb-4">Visitas últimos 7 días</p>
-              <div className="space-y-2">
-                {(() => {
-                  const max = Math.max(...(stats.visitasPorDia || []).map((d: any) => d.cantidad), 1)
-                  return (stats.visitasPorDia || []).map((d: any) => (
-                    <div key={d.dia} className="flex items-center gap-3">
-                      <div className="text-zinc-500 text-xs w-16 flex-shrink-0">{d.dia}</div>
-                      <div className="flex-1 bg-zinc-800 rounded-full h-2">
-                        <div className="h-2 rounded-full bg-blue-500" style={{ width: ((d.cantidad / max) * 100) + '%' }} />
-                      </div>
-                      <div className="text-white text-xs w-4 text-right">{d.cantidad}</div>
-                    </div>
-                  ))
-                })()}
-              </div>
-            </div>
-          )}
-          {stats.topEmpleados && stats.topEmpleados.length > 0 && (
-            <div className="rounded-2xl overflow-hidden card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
-              <div className="px-4 py-3 border-b border-zinc-800">
-                <p className="text-white font-semibold text-sm">Top vendedores - 30 dias</p>
-              </div>
-              {(stats.topEmpleados || []).map((e: any, i: number) => (
-                <div key={e.nombre} className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 last:border-0">
-                  <div className="w-6 h-6 rounded-full bg-zinc-700 flex items-center justify-center text-xs font-bold text-zinc-400">{i + 1}</div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm font-medium truncate">{e.nombre}</p>
-                    <p className="text-zinc-500 text-xs">{e.ventas} ventas</p>
-                  </div>
-                  <p className="text-emerald-400 font-semibold text-sm">${e.monto.toLocaleString('es-CO')}</p>
+          {mostrarEstadisticas && (() => {
+            // Combinar ventas y cobros por vendedor
+            const ventasMap: Record<string, number> = {}
+            const cobrosMap: Record<string, number> = {};
+            (stats.topEmpleados || []).forEach((e: any) => { ventasMap[e.nombre] = e.monto })
+            ;(stats.recaudoPorVendedor || []).forEach((e: any) => { cobrosMap[e.nombre] = e.monto })
+            const nombres = [...new Set([
+              ...(stats.topEmpleados || []).map((e: any) => e.nombre),
+              ...(stats.recaudoPorVendedor || []).map((e: any) => e.nombre),
+            ])]
+            const datos = nombres.map(n => ({
+              nombre: n,
+              corto: n.split(' ')[0],
+              ventas: ventasMap[n] || 0,
+              cobros: cobrosMap[n] || 0,
+            }))
+            const maxVal = Math.max(...datos.flatMap(d => [d.ventas, d.cobros]), 1)
+            const fmt = (v: number) => v >= 1_000_000
+              ? '$' + (v/1_000_000).toFixed(1).replace('.0','') + 'M'
+              : v >= 1_000 ? '$' + Math.round(v/1_000) + 'K' : '$' + v
+            const BAR_H = 140
+
+            return (
+              <div className="rounded-2xl overflow-hidden card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+                <div className="px-4 py-3 flex items-center justify-between border-b border-zinc-800">
+                  <p className="text-white font-semibold text-sm">Ventas vs Cobros</p>
+                  <button onClick={recargarEstadisticas} className="text-zinc-400 hover:text-white text-xs">↻ Actualizar</button>
                 </div>
-              ))}
-            </div>
-          )}
-          <div className="rounded-2xl p-4 card-glass flex items-center justify-between" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
-            <div>
-              <p className="text-white font-semibold">Rutas activas</p>
-              <p className="text-zinc-500 text-xs mt-0.5">Sin cerrar</p>
-            </div>
-            <p className="text-base font-bold text-white">{stats.rutasActivas || 0}</p>
-          </div>
-          </div>
-          <div className="space-y-6">
-          {/* Monitor empleados en turno */}
-          {monitor.length > 0 && (
-            <div className="space-y-4">
-              {['vendedor', 'impulsadora', 'entregas'].map(rol => {
-                const empleadosRol = monitor.filter((m: any) => m.rol === rol)
-                if (empleadosRol.length === 0) return null
-                const titulo = rol === 'vendedor' ? 'Vendedores' : rol === 'impulsadora' ? 'Impulsadoras' : 'Entregas'
-                return (
-                  <div key={rol} className="rounded-2xl overflow-hidden card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
-                    <div className="px-4 py-3 border-b border-zinc-800">
-                      <p className="text-white font-semibold text-sm">{titulo} en turno</p>
-                    </div>
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-xs">
-                        <thead>
-                          <tr style={{background:"#0d1220",borderBottom:"1px solid #1e2a3d"}}>
-                            <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:'white',textAlign:'left',whiteSpace:'nowrap' as const,overflow:'hidden' as const}}>Empleado</th>
-                            <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:'white',textAlign:'left',whiteSpace:'nowrap' as const,overflow:'hidden' as const}}>Inicio turno</th>
-                            <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:'white',textAlign:'left',whiteSpace:'nowrap' as const,overflow:'hidden' as const}}>Ultima visita</th>
-                            <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:'white',textAlign:'left',whiteSpace:'nowrap' as const,overflow:'hidden' as const}}>Proximo</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {empleadosRol.map((m: any) => (
-                            <tr key={m.empleado} style={{background:"#141c2e",borderBottom:"1px solid #1e2a3d"}}>
-                              <td className="px-3 py-2">
-                                <p className="text-white font-medium whitespace-nowrap">{m.empleado}</p>
-                                {m.ruta && <p className="text-blue-400 mt-0.5">{m.ruta}</p>}
-                                {m.totalRuta > 0 && <p className="text-zinc-500">{m.visitados}/{m.totalRuta}</p>}
-                              </td>
-                              <td className="px-3 py-2 whitespace-nowrap">
-                                <p className="text-white">{new Date(m.inicioTurno).toLocaleTimeString('es-CO', {hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota'})}</p>
-                                {m.latInicio && m.lngInicio && (
-                                  <a href={'https://www.google.com/maps?q=' + m.latInicio + ',' + m.lngInicio} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">📍 ver</a>
-                                )}
-                              </td>
-                              <td className="px-3 py-2">
-                                {m.ultimaVisita ? (
-                                  <div>
-                                    <p className="text-white whitespace-nowrap">{new Date(m.ultimaVisita.hora).toLocaleTimeString('es-CO', {hour: '2-digit', minute: '2-digit', timeZone: 'America/Bogota'})} - {m.ultimaVisita.cliente}</p>
-                                    <p className="text-zinc-500 capitalize">{m.ultimaVisita.tipo}</p>
-                                    {m.ultimaVisita.lat && m.ultimaVisita.lng && (
-                                      <a href={'https://www.google.com/maps?q=' + m.ultimaVisita.lat + ',' + m.ultimaVisita.lng} target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:text-blue-300">📍 ver</a>
-                                    )}
-                                  </div>
-                                ) : <span className="text-zinc-600">Sin visitas</span>}
-                              </td>
-                              <td className="px-3 py-2">
-                                {m.proximoPendiente ? (
-                                  <p className="text-emerald-400 whitespace-nowrap">{m.proximoPendiente}</p>
-                                ) : <span className="text-zinc-600">-</span>}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                <div className="px-4 py-4 overflow-x-auto">
+                  <div className="flex items-end gap-4" style={{minWidth: datos.length * 72}}>
+                    {datos.map(d => (
+                      <div key={d.nombre} className="flex flex-col items-center gap-1" style={{flex:'0 0 auto',width:64}}>
+                        {/* Barras paralelas */}
+                        <div className="flex items-end gap-0.5" style={{height:BAR_H}}>
+                          {/* Ventas */}
+                          <div className="flex flex-col items-center justify-end" style={{width:26,height:BAR_H}}>
+                            <span className="text-emerald-400 text-[9px] mb-0.5">{fmt(d.ventas)}</span>
+                            <div className="w-full rounded-t-sm bg-emerald-500" style={{height: Math.max(2, Math.round((d.ventas/maxVal)*BAR_H*0.75))}} />
+                          </div>
+                          {/* Cobros */}
+                          <div className="flex flex-col items-center justify-end" style={{width:26,height:BAR_H}}>
+                            <span className="text-blue-400 text-[9px] mb-0.5">{fmt(d.cobros)}</span>
+                            <div className="w-full rounded-t-sm bg-blue-500" style={{height: Math.max(2, Math.round((d.cobros/maxVal)*BAR_H*0.75))}} />
+                          </div>
+                        </div>
+                        {/* Nombre */}
+                        <p className="text-zinc-400 text-[10px] text-center truncate w-full">{d.corto}</p>
+                      </div>
+                    ))}
                   </div>
-                )
-              })}
-            </div>
-          )}
-          {/* Tabla 7 dias x vendedor */}
-          {stats.vendedores7 && stats.vendedores7.length > 0 && (
-            <div className="rounded-2xl overflow-hidden card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
-              <div className="px-4 py-3 border-b border-zinc-800">
-                <p className="text-white font-semibold text-sm">Visitas por vendedor - ultimos 7 dias</p>
+                  {/* Leyenda */}
+                  <div className="flex items-center gap-4 mt-3">
+                    <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-emerald-500"/><span className="text-zinc-400 text-xs">Ventas</span></div>
+                    <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-blue-500"/><span className="text-zinc-400 text-xs">Cobros</span></div>
+                  </div>
+                </div>
               </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr style={{background:"#0d1220",borderBottom:"1px solid #1e2a3d"}}>
-                      <th className="px-3 py-2 text-left text-zinc-500 font-medium w-24">Dia</th>
-                      {(stats.vendedores7 || []).map((v: string) => (
-                        <th key={v} className="px-3 py-2 text-center text-zinc-400 font-medium whitespace-nowrap">{v}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(stats.tabla7dias || []).map((row: any) => (
-                      <tr key={row.dia} style={{background:"#141c2e",borderBottom:"1px solid #1e2a3d"}}>
-                        <td className="px-3 py-2 text-zinc-400 whitespace-nowrap">{row.dia}</td>
-                        {(stats.vendedores7 || []).map((v: string) => (
-                          <td key={v} className="px-3 py-2 text-center text-white font-medium">
-                            {row[v] > 0 ? row[v] : <span className="text-zinc-700">-</span>}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-          {/* Tabla 7 meses x vendedor */}
-          {stats.vendedores7m && stats.vendedores7m.length > 0 && (
-            <div className="rounded-2xl overflow-hidden card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
-              <div className="px-4 py-3 border-b border-zinc-800">
-                <p className="text-white font-semibold text-sm">Visitas por vendedor - ultimos 7 meses</p>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr style={{background:"#0d1220",borderBottom:"1px solid #1e2a3d"}}>
-                      <th className="px-3 py-2 text-left text-zinc-500 font-medium w-24">Mes</th>
-                      {(stats.vendedores7m || []).map((v: string) => (
-                        <th key={v} className="px-3 py-2 text-center text-zinc-400 font-medium whitespace-nowrap">{v}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {(stats.tabla7meses || []).map((row: any) => (
-                      <tr key={row.mes} style={{background:"#141c2e",borderBottom:"1px solid #1e2a3d"}}>
-                        <td className="px-3 py-2 text-zinc-400 whitespace-nowrap">{row.mes}</td>
-                        {(stats.vendedores7m || []).map((v: string) => (
-                          <td key={v} className="px-3 py-2 text-center text-white font-medium">
-                            {row[v] > 0 ? row[v] : <span className="text-zinc-700">-</span>}
-                          </td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-          </div>
-          </div>
-          ) : null}
+            )
+          })()}
         </div>
       )}
       {/* bodega → DashboardBodega (componente separado) */}

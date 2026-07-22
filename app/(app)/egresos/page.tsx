@@ -51,7 +51,7 @@ function NumInput({ value, onChange, onBlur, width = 90 }: { value: string; onCh
 }
 
 
-function Tabla({ cat, mes, anio }: { cat: { key: string; label: string }; mes: number; anio: number }) {
+function Tabla({ cat, mes, anio, scrollRefs }: { cat: { key: string; label: string }; mes: number; anio: number; scrollRefs: React.MutableRefObject<HTMLDivElement[]> }) {
   const [filas, setFilas] = useState<Fila[]>([])
   const [editando, setEditando] = useState<Record<number, boolean>>({})
   const [saved, setSaved] = useState<Record<number, boolean>>({})
@@ -130,7 +130,12 @@ function Tabla({ cat, mes, anio }: { cat: { key: string; label: string }; mes: n
   function onBlurFila(idx: number) {
     // Guardar al salir de cualquier celda si hay concepto o valor
     const f = filas[idx]
-    if (f.concepto || f.valor) guardar(idx)
+    if (f.concepto || f.valor) {
+      guardar(idx)
+    } else if (f.esNueva) {
+      // Fila nueva vacía — anular
+      setTimeout(() => setFilas(prev => prev.filter((_, i) => i !== idx)), 150)
+    }
   }
 
   async function guardar(idx: number) {
@@ -170,7 +175,12 @@ function Tabla({ cat, mes, anio }: { cat: { key: string; label: string }; mes: n
         <span className={`text-sm font-bold ${totalSaldo > 0 ? 'text-amber-400' : 'text-zinc-500'}`}>{fmt(totalSaldo)}</span>
       </div>
       <div className="rounded-2xl border border-zinc-800 overflow-hidden" style={{ background: '#0f1623' }}>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto" ref={el => {
+            if (!el) return
+            const refs = scrollRefs.current
+            if (!refs.includes(el)) refs.push(el)
+            el.onscroll = () => refs.forEach(r => { if (r !== el) r.scrollLeft = el.scrollLeft })
+          }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
             <thead>
               <tr>
@@ -206,7 +216,7 @@ function Tabla({ cat, mes, anio }: { cat: { key: string; label: string }; mes: n
                       {isEdit ? <NumInput value={f.retencion} onChange={v => set(idx,'retencion',v)} onBlur={() => onBlurFila(idx)} width={80} /> : parseInt(f.retencion) > 0 ? fmt(f.retencion) : ''}
                     </td>
                     <td style={tdStyle}>
-                      {isEdit ? <NumInput value={f.abonoPago} onChange={v => set(idx,'abonoPago',v)} onBlur={() => onBlurFila(idx)} /> : f.abonoPago ? fmt(f.abonoPago) : ''}
+                      {(isEdit && f.medioPago === 'EFECTIVO') ? <NumInput value={f.abonoPago} onChange={v => set(idx,'abonoPago',v)} onBlur={() => onBlurFila(idx)} /> : f.abonoPago ? fmt(f.abonoPago) : ''}
                     </td>
                     <td style={tdStyle}>
                       {isEdit ? <NumInput value={f.descuento} onChange={v => set(idx,'descuento',v)} onBlur={() => onBlurFila(idx)} width={80} /> : parseInt(f.descuento) > 0 ? fmt(f.descuento) : ''}
@@ -316,6 +326,7 @@ export default function EgresosPage() {
   const [showCal, setShowCal] = useState(false)
   const [filtroGastos, setFiltroGastos] = useState<'hoy'|'semana'|'mes'>('mes')
   const [reloadKey, setReloadKey] = useState(0)
+  const scrollRefs = useRef<HTMLDivElement[]>([])
   const triggerGastos = useRef<(() => void) | null>(null)
   const calRef = useRef<HTMLDivElement>(null)
   const [tab, setTab] = useState<'egresos' | 'gastos'>('egresos')
@@ -360,7 +371,7 @@ export default function EgresosPage() {
         </div>
       </div>
       {tab === 'egresos'
-        ? CATEGORIAS.map(cat => <Tabla key={`${cat.key}-${reloadKey}`} cat={cat} mes={mes} anio={anio} />)
+        ? CATEGORIAS.map(cat => <Tabla key={`${cat.key}-${reloadKey}`} cat={cat} mes={mes} anio={anio} scrollRefs={scrollRefs} />)
         : <ModuloGastos isAdmin={isAdmin} hideButton triggerRef={triggerGastos} mes={filtroGastos==='mes' ? mes : undefined} anio={filtroGastos==='mes' ? anio : undefined} filtroRapido={filtroGastos !== 'mes' ? filtroGastos : undefined} />}
     </div>
   )

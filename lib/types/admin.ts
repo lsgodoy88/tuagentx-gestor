@@ -86,4 +86,6 @@ export interface AdminStats extends AdminStatsKpi {
   metaRecaudoMes: number
   /** Recaudo del mes por vendedor */
   recaudoPorVendedor: { nombre: string, monto: number }[]
+  saldos?:  { efectivo: number, bancos: number, otros: number }
+  egresos?: { total: number, pagado: number, pendiente: number }
 }

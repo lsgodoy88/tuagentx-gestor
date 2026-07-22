@@ -183,6 +183,12 @@ body {
 .hover-lift {
   transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
 }
+
+/* card-compact — padding vertical reducido para cards de dashboard */
+.card-compact {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
 .hover-lift:hover {
   transform: translateY(-2px);
 }
