@@ -184,6 +184,11 @@ body {
   transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
 }
 
+/* select-active — borde rojo cuando tiene valor de filtro activo */
+.select-active {
+  border-color: rgba(239,68,68,0.55) !important;
+}
+
 /* card-compact — padding vertical reducido para cards de dashboard */
 .card-compact {
   padding-top: 10px;

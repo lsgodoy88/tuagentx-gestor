@@ -553,7 +553,7 @@ export default function ClientesPage() {
           className="flex-1 min-w-0 bg-zinc-900 border border-zinc-800 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" />
         {listas.length > 0 && (
           <select value={filtroLista} onChange={e => { const v = e.target.value; setFiltroLista(v); loadClientes(buscar, null, v) }}
-            className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-300 outline-none focus:border-emerald-500 cursor-pointer">
+            className={`bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2.5 text-sm text-zinc-300 outline-none focus:border-emerald-500 cursor-pointer ${filtroLista ? "select-active" : ""}`}>
             <option value="">Lista: Todas</option>
             {listas.map((l: any) => <option key={l.id} value={l.id}>{l.nombre}</option>)}
           </select>

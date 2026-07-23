@@ -3047,7 +3047,7 @@ model ComisionCalculo {
 model Gasto {
   id              String    @id @default(cuid())
   empresaId       String
-  empleadoId      String
+  empleadoId      String?
   fechaAgregacion DateTime  @default(now())
   fechaDoc        DateTime?
   concepto        String
@@ -3058,7 +3058,7 @@ model Gasto {
   ciudad          String?
   createdAt       DateTime  @default(now())
   empresa         Empresa   @relation(fields: [empresaId], references: [id])
-  empleado        Empleado  @relation(fields: [empleadoId], references: [id])
+  empleado        Empleado? @relation(fields: [empleadoId], references: [id])
 
   @@index([empresaId, empleadoId])
   @@map("Gasto")

@@ -218,19 +218,19 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <h1 className="text-white text-xl font-bold">🧾 Gastos</h1>
-          <button onClick={() => setShowManual(true)} disabled={subiendo}
-            className="w-7 h-7 rounded-full border border-zinc-700 hover:border-zinc-400 flex items-center justify-center text-zinc-500 hover:text-zinc-200 text-base transition-colors">+</button>
+          {gastos.length === 0 && <button onClick={() => setShowManual(true)} disabled={subiendo}
+            className="w-7 h-7 rounded-full border border-zinc-700 hover:border-zinc-400 flex items-center justify-center text-zinc-500 hover:text-zinc-200 text-base transition-colors">+</button>}
         </div>
         <div className="flex items-center gap-3 ml-auto">
           <select value={tipoFiltro} onChange={e => setTipoFiltro(e.target.value)}
             className="rounded-lg px-2 py-1 text-zinc-300 outline-none"
-            style={{background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.10)', fontSize:'0.8rem'}}>
+            style={{background:'rgba(255,255,255,0.10)', border: tipoFiltro ? '1px solid rgba(239,68,68,0.55)' : '1px solid rgba(255,255,255,0.15)', fontSize:'0.88rem', padding:'6px 8px'}}>
             <option value="">Todas</option>
             {tipos.map(t => <option key={t.id} value={t.label}>{t.label}</option>)}
           </select>
-          <button onClick={() => setShowTipos(true)}
-            className="text-sm px-2.5 py-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 transition-colors"
-            style={{border:'1px solid rgba(255,255,255,0.08)'}}>⚙️</button>
+          {isAdmin && <button onClick={() => setShowTipos(true)}
+            className="rounded-lg text-zinc-500 hover:text-zinc-200 transition-colors"
+            style={{fontSize:"1rem", padding:"6px 10px", border:'1px solid rgba(255,255,255,0.08)'}}>⚙️</button>}
           <input ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden"
             onChange={e => { if (e.target.files?.[0]) handleArchivo(e.target.files[0]) }} />
           {showTipos && (
@@ -270,6 +270,12 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
             </div>
           )}
           <GastoManual open={showManual} onClose={() => setShowManual(false)} onAdicionado={() => { setShowManual(false); cargarGastos() }} />
+          {!hideButton && (
+            <button onClick={() => fileInputRef.current?.click()} disabled={subiendo}
+              className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-semibold px-3 py-1.5 rounded-xl transition-colors">
+              {subiendo ? 'Analizando...' : '📎 Adjuntar'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -277,7 +283,8 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
         <div className="flex gap-2">
           {(['hoy','semana','mes'] as const).map(f => (
             <button key={f} onClick={() => setFiltro(f)}
-              className={"flex-1 py-2 rounded-xl text-sm font-semibold transition-colors " + (filtro === f ? 'bg-blue-600 text-white' : 'bg-zinc-800 text-zinc-400 hover:text-white')}>
+              className={"flex-1 py-2 rounded-xl text-sm font-semibold transition-colors " + (filtro === f ? 'bg-blue-600 text-white border border-blue-500' : 'text-zinc-400 hover:text-white')}
+            style={filtro !== f ? {background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.10)'} : {}}>
               {f === 'hoy' ? 'Hoy' : f === 'semana' ? 'Semana' : 'Mes'}
             </button>
           ))}
@@ -303,18 +310,23 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
         <div className="space-y-5">
           {gruposPorEmpleado!.map(grupo => (
             <div key={grupo.empleado?.id || 'sin-empleado'} className="space-y-1">
-              <div className="flex items-center justify-between px-1">
-                <h2 className="text-sm font-bold text-white">👤 {grupo.empleado?.nombre || 'Sin empleado'}</h2>
+              <div className="flex items-center justify-between">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-xl" style={{border:'1px solid rgba(255,255,255,0.10)'}}>
+                  <span>👤</span>
+                  <h2 className="text-sm font-bold text-white">{grupo.empleado?.nombre || 'Sin empleado'}</h2>
+                </div>
                 <span className="text-sm font-bold text-amber-400">
                   {fmt(grupo.gastos.reduce((s, g) => s + Number(g.valor), 0))}
                 </span>
               </div>
-              <TablaGasto gastos={grupo.gastos} />
+              <TablaGasto gastos={grupo.gastos} onAgregar={() => setShowManual(true)} />
             </div>
           ))}
         </div>
       ) : (
-        <TablaGasto gastos={gastos} />
+        <>
+          <TablaGasto gastos={gastos} onAgregar={() => setShowManual(true)} />
+        </>
       )}
 
       {/* Popup confirmación de gasto reconocido por IA */}
@@ -343,14 +355,19 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
             </div>
 
             <div>
-              <label className="text-zinc-400 text-xs font-semibold block mb-1">Ciudad</label>
-              <CiudadBuscador value={borradorCiudad} onChange={setBorradorCiudad} />
+              <label className="text-zinc-400 text-xs font-semibold block mb-1">Tipo</label>
+              <select
+                value={borradorTipo}
+                onChange={e => setBorradorTipo(e.target.value)}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500">
+                <option value="">Selecciona un tipo</option>
+                {tipos.map(t => <option key={t.id} value={t.label}>{t.label}</option>)}
+              </select>
             </div>
 
             <div>
-              <label className="text-zinc-400 text-xs font-semibold block mb-1">Valor</label>
-              <InputMoneda value={borradorValor} onChange={setBorradorValor}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500" />
+              <label className="text-zinc-400 text-xs font-semibold block mb-1">Ciudad</label>
+              <CiudadBuscador value={borradorCiudad} onChange={setBorradorCiudad} />
             </div>
 
             <div>
@@ -364,14 +381,9 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
             </div>
 
             <div>
-              <label className="text-zinc-400 text-xs font-semibold block mb-1">Tipo</label>
-              <select
-                value={borradorTipo}
-                onChange={e => setBorradorTipo(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500">
-                <option value="">Selecciona un tipo</option>
-                {tipos.map(t => <option key={t.id} value={t.label}>{t.label}</option>)}
-              </select>
+              <label className="text-zinc-400 text-xs font-semibold block mb-1">Valor</label>
+              <InputMoneda value={borradorValor} onChange={setBorradorValor}
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500" />
             </div>
 
             <div className="flex gap-2 pt-1">
@@ -393,24 +405,25 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
 }
 
 const thG: React.CSSProperties = {
-  padding: '8px 10px', fontSize: 13, fontWeight: 500, color: 'white',
-  whiteSpace: 'nowrap', overflow: 'hidden', borderRight: '1px solid #1e2a3d',
-  background: '#0d1220', userSelect: 'none',
+  padding: '10px 10px', fontSize: 12, fontWeight: 600, color: '#94a3b8',
+  whiteSpace: 'nowrap', overflow: 'hidden', borderBottom: '1px solid #1e2a3d',
+  background: '#0a1020', userSelect: 'none',
 }
 const tdG: React.CSSProperties = {
   padding: '9px 10px', fontSize: 13, borderBottom: '1px solid #131c2e',
+  borderLeft: '2px solid rgba(255,255,255,0.07)',
   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
 }
 
-function TablaGasto({ gastos }: { gastos: Gasto[] }) {
+function TablaGasto({ gastos, onAgregar }: { gastos: Gasto[], onAgregar?: () => void }) {
   const total = gastos.reduce((s, g) => s + Number(g.valor), 0)
   return (
-    <div className="rounded-xl border border-zinc-800 overflow-hidden">
+    <div className="rounded-2xl border border-zinc-800 overflow-hidden" style={{ background: '#0f1623' }}>
       <div className="overflow-x-auto">
         <table className="w-full text-sm" style={{ minWidth: 600, background: '#0a0f1a' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid #1e2a3d' }}>
-              {['FECHA REG.','FECHA DOC.','CONCEPTO','TIPO','CIUDAD','VALOR','VER'].map(h => (
+              {['FECHA REG.','CONCEPTO','TIPO','CIUDAD','FECHA DOC.','VALOR','VER'].map(h => (
                 <th key={h} style={{ ...thG, textAlign: h === 'VALOR' ? 'right' : 'left' }}>{h}</th>
               ))}
             </tr>
@@ -418,19 +431,25 @@ function TablaGasto({ gastos }: { gastos: Gasto[] }) {
           <tbody>
             {gastos.map(g => (
               <tr key={g.id} style={{ background: '#0a0f1a' }}>
-                <td style={{ ...tdG, color: '#94a3b8' }}>{fmtFechaAgregacion(g.fechaAgregacion)}</td>
-                <td style={{ ...tdG, color: '#6b7280' }}>{g.fechaDoc ? fmtFechaDoc(g.fechaDoc) : '—'}</td>
+                <td style={{ ...tdG, color: 'white' }}>{fmtFechaAgregacion(g.fechaAgregacion)}</td>
                 <td style={{ ...tdG, color: 'white', fontWeight: 500, maxWidth: 200 }}>{g.concepto}</td>
-                <td style={{ ...tdG, color: '#94a3b8' }}>{g.tipo}</td>
-                <td style={{ ...tdG, color: '#6b7280', fontSize: 11 }}>{(g as any).ciudad ? (g as any).ciudad.split('/').pop() : '—'}</td>
+                <td style={{ ...tdG, color: 'white' }}>{g.tipo}</td>
+                <td style={{ ...tdG, color: 'white', fontSize: 11 }}>{(g as any).ciudad ? (g as any).ciudad.split('/').pop() : '—'}</td>
+                <td style={{ ...tdG, color: 'white' }}>{g.fechaDoc ? fmtFechaDoc(g.fechaDoc) : '—'}</td>
                 <td style={{ ...tdG, color: '#34d399', fontWeight: 700, textAlign: 'right' }}>{fmt(Number(g.valor))}</td>
-                <td style={{ ...tdG, textAlign: 'center' }}><VerEvidencia evidenciaKey={g.evidenciaKey} /></td>
+                <td style={{ ...tdG, textAlign: 'center' }}>{g.evidenciaKey !== 'manual' && <VerEvidencia evidenciaKey={g.evidenciaKey} />}</td>
               </tr>
             ))}
             <tr style={{ background: '#0d1220', borderTop: '1px solid #1e2a3d' }}>
-              <td colSpan={5} style={{ ...tdG, color: '#6b7280', fontSize: 12 }}>Total · {gastos.length} registros</td>
-              <td style={{ ...tdG, color: '#fbbf24', fontWeight: 700, textAlign: 'right' }}>{fmt(total)}</td>
-              <td style={tdG}/>
+              <td style={{ ...tdG, borderLeft: 'none' }}>
+                {onAgregar && (
+                  <button onClick={onAgregar}
+                    className="flex items-center justify-center w-5 h-5 rounded-full border border-zinc-700 hover:border-zinc-400 text-zinc-500 hover:text-zinc-200 text-sm transition-colors">+</button>
+                )}
+              </td>
+              <td colSpan={4} style={{ ...tdG, borderLeft: 'none' }} />
+              <td style={{ ...tdG, borderLeft: 'none', color: '#fbbf24', fontWeight: 700, textAlign: 'right' }}>{fmt(total)}</td>
+              <td style={{ ...tdG, borderLeft: 'none' }}/>
             </tr>
           </tbody>
         </table>

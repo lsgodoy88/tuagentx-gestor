@@ -4,7 +4,6 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN, empleadoCampoScope } from '@/lib/auth-helpers'
 
-const TIPOS_VALIDOS = ['Viaticos', 'Eventos', 'Papeleria', 'Otros'] as const
 
 // GET — lista de gastos con scope por rol
 export async function GET(req: NextRequest) {
@@ -21,6 +20,7 @@ export async function GET(req: NextRequest) {
   const anioF = sp.get('anio') ? parseInt(sp.get('anio')!) : null
   const filtro = sp.get('filtro') // 'hoy' | 'semana'
   const empleadoIdParam = sp.get('empleadoId') // solo admin
+  const tipoParam = sp.get('tipo') || null
 
   // Rango de fechas Bogotá
   const ahoraBogota = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Bogota' }))
@@ -42,8 +42,9 @@ export async function GET(req: NextRequest) {
     ? { empleadoId: empleadoIdForzado }
     : (empleadoIdParam ? { empleadoId: empleadoIdParam } : {})
 
+  const tipoWhere = tipoParam ? { tipo: tipoParam } : {}
   const gastos = await (prisma as any).gasto.findMany({
-    where: { empresaId, ...empWhere, ...fechaWhere },
+    where: { empresaId, ...empWhere, ...fechaWhere, ...tipoWhere },
     include: { empleado: { select: { id: true, nombre: true } } },
     orderBy: { fechaAgregacion: 'desc' },
   })
@@ -62,36 +63,42 @@ export async function POST(req: NextRequest) {
   const empresaId = getEmpresaId(user)
   const body = await req.json()
   const { concepto, valor, tipo, fechaDoc, evidenciaKey, datosIA, empleadoId, ciudad } = body
+  console.log('[POST /api/gastos]', { concepto, valor, tipo, ciudad, evidenciaKey })
 
   if (!concepto || !valor || !evidenciaKey) {
     return NextResponse.json({ error: 'concepto, valor y evidenciaKey requeridos' }, { status: 400 })
   }
-  if (!tipo || !TIPOS_VALIDOS.includes(tipo)) {
-    return NextResponse.json({ error: `tipo requerido, debe ser uno de: ${TIPOS_VALIDOS.join(', ')}` }, { status: 400 })
+  if (!tipo) {
+    return NextResponse.json({ error: 'tipo requerido' }, { status: 400 })
   }
 
   // empleadoIdForzado !== null => vendedor/impulsadora, SIEMPRE su propio id,
   // ignora cualquier empleadoId que venga en el body (evita suplantación).
-  const empleadoIdFinal = empleadoIdForzado || empleadoId || user.id
+  // Para roles admin, empleadoId es opcional (gasto sin empleado específico)
+  const empleadoIdFinal = empleadoIdForzado || (ROLES_ADMIN.includes(user.role) ? (empleadoId || null) : user.id)
   if (!empleadoIdForzado && !ROLES_ADMIN.includes(user.role)) {
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   }
 
-  const gasto = await (prisma as any).gasto.create({
-    data: {
-      empresaId,
-      empleadoId: empleadoIdFinal,
-      concepto,
-      tipo,
-      valor,
-      fechaDoc: fechaDoc ? new Date(fechaDoc) : null,
-      evidenciaKey,
-      datosIA: datosIA || undefined,
-      ciudad: ciudad || undefined,
-    },
-  })
-
-  return NextResponse.json({ ok: true, gasto })
+  try {
+    const gasto = await (prisma as any).gasto.create({
+      data: {
+        empresaId,
+        empleadoId: empleadoIdFinal || undefined,
+        concepto,
+        tipo,
+        valor,
+        fechaDoc: fechaDoc ? new Date(fechaDoc) : null,
+        evidenciaKey,
+        datosIA: datosIA || undefined,
+        ciudad: ciudad || undefined,
+      },
+    })
+    return NextResponse.json({ ok: true, gasto })
+  } catch (e: any) {
+    console.error('[POST /api/gastos error]', e?.message)
+    return NextResponse.json({ error: e?.message || 'Error interno' }, { status: 500 })
+  }
 }
 
 // PUT — editar gasto (SOLO admin; el dueño no puede editar su propio gasto)
@@ -105,10 +112,6 @@ export async function PUT(req: NextRequest) {
   const body = await req.json()
   const { id, concepto, valor, tipo, fechaDoc, ciudad } = body
   if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
-  if (tipo !== undefined && !TIPOS_VALIDOS.includes(tipo)) {
-    return NextResponse.json({ error: `tipo debe ser uno de: ${TIPOS_VALIDOS.join(', ')}` }, { status: 400 })
-  }
-
   // Verifica que el gasto pertenezca a la empresa del admin antes de editar
   const existente = await (prisma as any).gasto.findUnique({ where: { id } })
   if (!existente || existente.empresaId !== empresaId) {

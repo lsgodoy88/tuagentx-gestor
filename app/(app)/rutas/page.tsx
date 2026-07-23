@@ -413,6 +413,7 @@ export default function RutasPage() {
               )}
             </div>
             <select value={visEmpleadoFiltro} onChange={e => { setVisEmpleadoFiltro(e.target.value); buscarVisitas(1) }}
+              className={visEmpleadoFiltro ? 'select-active' : ''}
               style={{background:'#1e243a',border:'1px solid #1e3a5f',borderRadius:10,padding:'7px 10px',color:'white',fontSize:12,outline:'none',cursor:'pointer'}}>
               <option value="">Todos los empleados</option>
               {visEmpleados.filter((e: any) => e.activo).map((e: any) => (

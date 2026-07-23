@@ -231,7 +231,7 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate }: { cat: { id:string; 
                       {isEdit ? <input type="date" value={f.fechaPago} onChange={e => set(idx,'fechaPago',e.target.value)} onBlur={() => onBlurFila(idx)} style={{ background:'transparent',color:'white',border:'none',outline:'none',width:110,fontSize:13 }} /> : fmtFecha(f.fechaPago)}
                     </td>
                     <td style={{ ...tdStyle, color: '#a78bfa', borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
-                      <select value={f.medioPago} onChange={e => { set(idx,'medioPago',e.target.value); if(f.id) fetch('/api/egresos',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:f.id,medioPago:e.target.value})}) }} style={{ background:'transparent',color:'#a78bfa',border:'none',outline:'none',fontSize:12,borderRadius:6,padding:'2px 2px',cursor:'pointer' }}><option value="">—</option>{MEDIOS.map(m => <option key={m} value={m} style={{background:'#1e2030'}}>{m}</option>)}</select>
+                      <select value={f.medioPago} onChange={e => { set(idx,'medioPago',e.target.value); if(f.id) fetch('/api/egresos',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:f.id,medioPago:e.target.value})}) }} className={f.medioPago ? 'select-active' : ''} style={{ background:'rgba(255,255,255,0.06)',color:'#a78bfa',border:'1px solid rgba(255,255,255,0.10)',outline:'none',fontSize:12,borderRadius:6,padding:'2px 4px',cursor:'pointer' }}><option value="">—</option>{MEDIOS.map(m => <option key={m} value={m} style={{background:'#1e2030'}}>{m}</option>)}</select>
                     </td>
                     <td style={tdStyle}>
                       {f.id && (
@@ -265,17 +265,17 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate }: { cat: { id:string; 
             </tbody>
             <tfoot>
               <tr style={{ borderTop: '2px solid #1e2a3d', background: '#0a1020' }}>
-                <td style={tdStyle}>
+                <td style={{ ...tdStyle, borderLeft: 'none' }}>
                   <button onClick={() => setFilas(p => [...p, filaVacia(cat.key)])}
                     className="flex items-center justify-center w-5 h-5 rounded-full border border-zinc-700 hover:border-zinc-400 text-zinc-500 hover:text-zinc-200 text-sm transition-colors">+</button>
                 </td>
-                <td style={tdStyle} />
-                <td style={{ ...tdStyle, fontWeight:700, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>{fmt(tot('valor'))}</td>
-                <td style={{ ...tdStyle, fontWeight:700, color:'#f97316' }}>{tot('retencion') > 0 ? fmt(tot('retencion')) : ''}</td>
-                <td style={{ ...tdStyle, fontWeight:700, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>{tot('abonoPago') > 0 ? fmt(tot('abonoPago')) : ''}</td>
-                <td style={{ ...tdStyle, fontWeight:700, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>{tot('descuento') > 0 ? fmt(tot('descuento')) : ''}</td>
-                <td style={{ ...tdStyle, fontWeight:700, color:'#f59e0b', borderLeft: '2px solid rgba(255,255,255,0.07)' }}>{fmt(tot('saldo'))}</td>
-                <td colSpan={4} />
+                <td style={{ ...tdStyle, borderLeft: 'none' }} />
+                <td style={{ ...tdStyle, fontWeight:700, borderLeft: 'none' }}>{fmt(tot('valor'))}</td>
+                <td style={{ ...tdStyle, fontWeight:700, borderLeft: 'none', color:'#f97316' }}>{tot('retencion') > 0 ? fmt(tot('retencion')) : ''}</td>
+                <td style={{ ...tdStyle, fontWeight:700, borderLeft: 'none' }}>{tot('abonoPago') > 0 ? fmt(tot('abonoPago')) : ''}</td>
+                <td style={{ ...tdStyle, fontWeight:700, borderLeft: 'none' }}>{tot('descuento') > 0 ? fmt(tot('descuento')) : ''}</td>
+                <td style={{ ...tdStyle, fontWeight:700, borderLeft: 'none', color:'#f59e0b' }}>{fmt(tot('saldo'))}</td>
+                <td colSpan={4} style={{ borderLeft: 'none' }} />
               </tr>
             </tfoot>
           </table>
@@ -413,12 +413,12 @@ export default function EgresosPage() {
               fetch('/api/egresos/categorias', { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id, label, emoji}) })
                 .then(() => setReloadKey(k => k+1))
             }} />)}
-            {/* Botón gestión de categorías */}
-            <button onClick={() => setShowCategorias(true)}
+            {/* Botón gestión de categorías — solo admin */}
+            {isAdmin && <button onClick={() => setShowCategorias(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-zinc-500 hover:text-zinc-200 text-xs transition-colors"
               style={{border:'1px solid rgba(255,255,255,0.08)'}}>
               ⚙️ <span>Categorías</span>
-            </button>
+            </button>}
 
             {/* Popup gestión categorías */}
             {showCategorias && (

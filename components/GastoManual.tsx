@@ -29,7 +29,7 @@ export default function GastoManual({ open, onClose, onAdicionado }: Props) {
   }
 
   async function confirmar() {
-    if (!concepto.trim() || !valor || !tipo || !ciudad.trim()) { setError('Completa concepto, valor, tipo y ciudad.'); return }
+    if (!concepto.trim() || !valor || !tipo || !ciudad.trim() || !fechaDoc) { setError('Completa todos los campos.'); return }
     setGuardando(true); setError('')
     try {
       const hoy = new Date().toISOString().split('T')[0]
@@ -41,14 +41,17 @@ export default function GastoManual({ open, onClose, onAdicionado }: Props) {
           valor: parseFloat(valor) || 0,
           tipo: tipo,
           ciudad: ciudad.trim() || undefined,
-          fechaDoc: fechaDoc || hoy,
+          fechaDoc: fechaDoc,
           evidenciaKey: 'manual',
         }),
       })
-      if (!res.ok) throw new Error(await res.text())
+      const data = await res.json()
+      console.log('[GastoManual res]', res.status, data)
+      if (!res.ok) { setError('Error ' + res.status + ': ' + (data?.error || JSON.stringify(data))); return }
       cerrar(); onAdicionado()
-    } catch {
-      setError('Error al guardar.')
+    } catch (e: any) {
+      console.error('[GastoManual catch]', e)
+      setError('Error de red: ' + (e?.message || String(e)))
     } finally {
       setGuardando(false)
     }
@@ -62,6 +65,13 @@ export default function GastoManual({ open, onClose, onAdicionado }: Props) {
             <h3 className="text-white font-semibold text-base">Gasto manual</h3>
 
             <div>
+              <label className="text-zinc-400 text-xs font-semibold block mb-1">Concepto</label>
+              <input autoFocus type="text" value={concepto} onChange={e => setConcepto(e.target.value)}
+                placeholder="Ej: Tiquete, almuerzo, papelería..."
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500" />
+            </div>
+
+            <div>
               <label className="text-zinc-400 text-xs font-semibold block mb-1">Tipo</label>
               <select value={tipo} onChange={e => setTipo(e.target.value)}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500">
@@ -71,9 +81,13 @@ export default function GastoManual({ open, onClose, onAdicionado }: Props) {
             </div>
 
             <div>
-              <label className="text-zinc-400 text-xs font-semibold block mb-1">Concepto</label>
-              <input autoFocus type="text" value={concepto} onChange={e => setConcepto(e.target.value)}
-                placeholder="Ej: Tiquete, almuerzo, papelería..."
+              <label className="text-zinc-400 text-xs font-semibold block mb-1">Ciudad</label>
+              <CiudadBuscador value={ciudad} onChange={setCiudad} />
+            </div>
+
+            <div>
+              <label className="text-zinc-400 text-xs font-semibold block mb-1">Fecha del recibo</label>
+              <input type="date" value={fechaDoc} onChange={e => setFechaDoc(e.target.value)}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500" />
             </div>
 
@@ -83,22 +97,11 @@ export default function GastoManual({ open, onClose, onAdicionado }: Props) {
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500" />
             </div>
 
-            <div>
-              <label className="text-zinc-400 text-xs font-semibold block mb-1">Ciudad</label>
-              <CiudadBuscador value={ciudad} onChange={setCiudad} />
-            </div>
-
-            <div>
-              <label className="text-zinc-400 text-xs font-semibold block mb-1">Fecha (opcional)</label>
-              <input type="date" value={fechaDoc} onChange={e => setFechaDoc(e.target.value)}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500" />
-            </div>
-
             {error && <p className="text-red-400 text-xs">{error}</p>}
 
             <div className="flex gap-2 pt-1">
               <button onClick={cerrar} className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-sm py-2.5 rounded-xl transition-colors">Cancelar</button>
-              <button onClick={confirmar} disabled={!concepto.trim() || !valor || !tipo || !ciudad.trim() || guardando}
+              <button onClick={confirmar} disabled={!concepto.trim() || !valor || !tipo || !ciudad.trim() || !fechaDoc || guardando}
                 className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors">
                 {guardando ? 'Guardando...' : 'Agregar gasto'}
               </button>
