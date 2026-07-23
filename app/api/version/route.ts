@@ -1,11 +1,17 @@
-import { NextResponse } from 'next/server';
-import { VERSION_INFO } from '@/lib/version';
+import { NextResponse } from 'next/server'
+import { readFileSync } from 'fs'
+import { join } from 'path'
 
-export const dynamic = 'force-static';
-export const revalidate = false;
+export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  return NextResponse.json(VERSION_INFO, {
-    headers: { 'Cache-Control': 'public, max-age=60, s-maxage=60' },
-  });
+  try {
+    const raw = readFileSync(join(process.cwd(), 'public', 'version.json'), 'utf8')
+    const info = JSON.parse(raw)
+    return NextResponse.json(info, {
+      headers: { 'Cache-Control': 'no-store' }
+    })
+  } catch {
+    return NextResponse.json({ commit: 'unknown', version: '?', env: 'production' })
+  }
 }
