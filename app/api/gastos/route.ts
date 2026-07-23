@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
 
   const empresaId = getEmpresaId(user)
   const body = await req.json()
-  const { concepto, valor, tipo, fechaDoc, evidenciaKey, datosIA, empleadoId } = body
+  const { concepto, valor, tipo, fechaDoc, evidenciaKey, datosIA, empleadoId, ciudad } = body
 
   if (!concepto || !valor || !evidenciaKey) {
     return NextResponse.json({ error: 'concepto, valor y evidenciaKey requeridos' }, { status: 400 })
@@ -87,6 +87,7 @@ export async function POST(req: NextRequest) {
       fechaDoc: fechaDoc ? new Date(fechaDoc) : null,
       evidenciaKey,
       datosIA: datosIA || undefined,
+      ciudad: ciudad || undefined,
     },
   })
 
@@ -102,7 +103,7 @@ export async function PUT(req: NextRequest) {
 
   const empresaId = getEmpresaId(user)
   const body = await req.json()
-  const { id, concepto, valor, tipo, fechaDoc } = body
+  const { id, concepto, valor, tipo, fechaDoc, ciudad } = body
   if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
   if (tipo !== undefined && !TIPOS_VALIDOS.includes(tipo)) {
     return NextResponse.json({ error: `tipo debe ser uno de: ${TIPOS_VALIDOS.join(', ')}` }, { status: 400 })
@@ -120,6 +121,7 @@ export async function PUT(req: NextRequest) {
       ...(concepto !== undefined ? { concepto } : {}),
       ...(valor !== undefined ? { valor } : {}),
       ...(tipo !== undefined ? { tipo } : {}),
+      ...(ciudad !== undefined ? { ciudad } : {}),
       ...(fechaDoc !== undefined ? { fechaDoc: fechaDoc ? new Date(fechaDoc) : null } : {}),
     },
   })

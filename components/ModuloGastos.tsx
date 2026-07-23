@@ -1,6 +1,8 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import InputMoneda from '@/components/InputMoneda'
+import CiudadBuscador from '@/components/CiudadBuscador'
+import GastoManual from '@/components/GastoManual'
 
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
 
@@ -25,11 +27,8 @@ function fmtFechaAgregacion(iso: string): string {
   return `${dia}/${mes}/${anio}`
 }
 
-const TIPOS_GASTO = ['Viáticos', 'Eventos', 'Papelería', 'Otros'] as const
 // Backend usa valores sin tilde (TIPOS_VALIDOS en route.ts) por compatibilidad
 // ASCII en CHECK constraint de BD — se mapea aquí en el límite UI↔API.
-const TIPO_UI_A_API: Record<string, string> = { 'Viáticos': 'Viaticos', 'Eventos': 'Eventos', 'Papelería': 'Papeleria', 'Otros': 'Otros' }
-const TIPO_API_A_UI: Record<string, string> = { 'Viaticos': 'Viáticos', 'Eventos': 'Eventos', 'Papeleria': 'Papelería', 'Otros': 'Otros' }
 
 type Gasto = {
   id: string
@@ -66,13 +65,22 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
   const [borradorValor, setBorradorValor] = useState('')
   const [borradorFechaDoc, setBorradorFechaDoc] = useState('')
   const [borradorTipo, setBorradorTipo] = useState('')
+  const [borradorCiudad, setBorradorCiudad] = useState('')
 
   const fileInputRef   = useRef<HTMLInputElement>(null)
+  const [showManual, setShowManual] = useState(false)
+  const [tipoFiltro, setTipoFiltro] = useState('')
+  const [tipos, setTipos] = useState<{id:string,label:string}[]>([])
+  const [showTipos, setShowTipos] = useState(false)
+  const [nuevoTipo, setNuevoTipo] = useState('')
   const camaraInputRef = useRef<HTMLInputElement>(null)
   if (triggerRef) (triggerRef as any).current = () => fileInputRef.current?.click()
 
   useEffect(() => { if (filtroRapido) setFiltro(filtroRapido) }, [filtroRapido])
-  useEffect(() => { cargarGastos() }, [filtro, empleadoFiltro, mes, anio])
+  useEffect(() => {
+    fetch('/api/gastos/tipos').then(r => r.json()).then(d => { if (d.tipos) setTipos(d.tipos) }).catch(() => {})
+  }, [])
+  useEffect(() => { cargarGastos() }, [filtro, empleadoFiltro, tipoFiltro, mes, anio])
   useEffect(() => {
     if (isAdmin) {
       fetch('/api/empleados?rol=vendedor&activo=true').then(r=>r.json()).then(d=>{
@@ -89,6 +97,7 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
       if (filtro !== 'mes' && !mes) sp.set('filtro', filtro)
       else if (mes && anio) { sp.set('mes', String(mes)); sp.set('anio', String(anio)) }
       if (empleadoFiltro) sp.set('empleadoId', empleadoFiltro)
+      if (tipoFiltro) sp.set('tipo', tipoFiltro)
       const res = await fetch('/api/gastos?' + sp.toString())
       const data = await res.json()
       setGastos(data.gastos || [])
@@ -142,6 +151,7 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
       setEvidenciaKey(data.key)
       setDatosIA(data.datosIA)
       setBorradorConcepto(data.datosIA?.concepto || '')
+    setBorradorCiudad(data.datosIA?.ciudad || '')
       setBorradorValor(data.datosIA?.valor ? String(Math.round(data.datosIA.valor)) : '')
       setBorradorFechaDoc(data.datosIA?.fecha || '')
       setPopupAbierto(true)
@@ -155,7 +165,7 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
   }
 
   async function confirmarAdicionGasto() {
-    if (!borradorConcepto.trim() || !borradorValor || !borradorTipo) return
+    if (!borradorConcepto.trim() || !borradorValor || !borradorTipo || !borradorCiudad) return
     try {
       const res = await fetch('/api/gastos', {
         method: 'POST',
@@ -163,7 +173,8 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
         body: JSON.stringify({
           concepto: borradorConcepto.trim(),
           valor: parseFloat(borradorValor),
-          tipo: TIPO_UI_A_API[borradorTipo] || borradorTipo,
+          tipo: borradorTipo,
+          ciudad: borradorCiudad.trim() || undefined,
           fechaDoc: borradorFechaDoc || null,
           evidenciaKey,
           datosIA,
@@ -186,6 +197,7 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
     setBorradorValor('')
     setBorradorFechaDoc('')
     setBorradorTipo('')
+    setBorradorCiudad('')
   }
 
   // Admin: una tabla por empleado (igual patrón que /egresos por categoría).
@@ -204,21 +216,60 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
   return (
     <div className="space-y-4 max-w-5xl mx-auto">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div>
+        <div className="flex items-center gap-3">
           <h1 className="text-white text-xl font-bold">🧾 Gastos</h1>
-          <p className="text-zinc-400 text-sm mt-0.5">
-            {isAdmin ? 'Gastos de todo el equipo' : 'Tus gastos registrados'}
-          </p>
+          <button onClick={() => setShowManual(true)} disabled={subiendo}
+            className="w-7 h-7 rounded-full border border-zinc-700 hover:border-zinc-400 flex items-center justify-center text-zinc-500 hover:text-zinc-200 text-base transition-colors">+</button>
         </div>
-        <div>
+        <div className="flex items-center gap-3 ml-auto">
+          <select value={tipoFiltro} onChange={e => setTipoFiltro(e.target.value)}
+            className="rounded-lg px-2 py-1 text-zinc-300 outline-none"
+            style={{background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.10)', fontSize:'0.8rem'}}>
+            <option value="">Todas</option>
+            {tipos.map(t => <option key={t.id} value={t.label}>{t.label}</option>)}
+          </select>
+          <button onClick={() => setShowTipos(true)}
+            className="text-sm px-2.5 py-1.5 rounded-lg text-zinc-500 hover:text-zinc-200 transition-colors"
+            style={{border:'1px solid rgba(255,255,255,0.08)'}}>⚙️</button>
           <input ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden"
             onChange={e => { if (e.target.files?.[0]) handleArchivo(e.target.files[0]) }} />
-          {!hideButton && <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={subiendo}
-            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors">
-            {subiendo ? 'Analizando con IA...' : '📎 Adjuntar gasto'}
-          </button>}
+          {showTipos && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{background:'rgba(0,0,0,0.6)'}} onClick={() => setShowTipos(false)}>
+              <div className="rounded-2xl p-5 space-y-3 w-full max-w-sm" style={{background:'#0f1623', border:'1px solid rgba(255,255,255,0.12)'}} onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between mb-1">
+                  <p className="text-white text-sm font-bold">Tipos de gasto</p>
+                  <button onClick={() => setShowTipos(false)} className="text-zinc-500 hover:text-white text-lg leading-none">✕</button>
+                </div>
+                {tipos.map(t => (
+                  <div key={t.id} className="flex items-center gap-2">
+                    <input value={t.label} onChange={e => setTipos(prev => prev.map(x => x.id===t.id ? {...x, label: e.target.value} : x))}
+                      style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:6,color:'white',flex:1,fontSize:13,padding:'5px 8px'}} />
+                    <button onClick={async () => {
+                      await fetch('/api/gastos/tipos', {method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id:t.id, label:t.label})})
+                      fetch('/api/gastos/tipos').then(r => r.json()).then(d => { if (d.tipos) setTipos(d.tipos) })
+                    }} className="text-emerald-400 text-xs px-2 py-1.5 rounded-lg hover:bg-emerald-400/10 transition-colors font-bold">✓</button>
+                    <button onClick={async () => {
+                      const r = await fetch('/api/gastos/tipos', {method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id:t.id})})
+                      const d = await r.json()
+                      if (d.error) alert(d.error)
+                      else fetch('/api/gastos/tipos').then(r => r.json()).then(d => { if (d.tipos) setTipos(d.tipos) })
+                    }} className="text-red-400 text-xs px-2 py-1.5 rounded-lg hover:bg-red-400/10 transition-colors">✕</button>
+                  </div>
+                ))}
+                <div className="flex items-center gap-2 pt-3 border-t border-zinc-800">
+                  <input value={nuevoTipo} onChange={e => setNuevoTipo(e.target.value)}
+                    placeholder="Nuevo tipo..." style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:6,color:'white',flex:1,fontSize:13,padding:'5px 8px'}} />
+                  <button onClick={async () => {
+                    if (!nuevoTipo.trim()) return
+                    await fetch('/api/gastos/tipos', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({label: nuevoTipo.trim()})})
+                    setNuevoTipo('')
+                    fetch('/api/gastos/tipos').then(r => r.json()).then(d => { if (d.tipos) setTipos(d.tipos) })
+                  }} className="text-emerald-400 text-xs px-3 py-1.5 rounded-lg font-bold transition-colors" style={{border:'1px solid rgba(52,211,153,0.30)'}}>+</button>
+                </div>
+              </div>
+            </div>
+          )}
+          <GastoManual open={showManual} onClose={() => setShowManual(false)} onAdicionado={() => { setShowManual(false); cargarGastos() }} />
         </div>
       </div>
 
@@ -271,8 +322,8 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.6)' }}
           onClick={cerrarPopup}>
           <div onClick={e => e.stopPropagation()}
-            className="w-full max-w-sm rounded-2xl p-5 space-y-4"
-            style={{ background: '#141c2e', border: '1px solid #1e2a3d' }}>
+            className="w-full max-w-sm rounded-2xl p-5 space-y-4 overflow-y-auto"
+            style={{ background: '#141c2e', border: '1px solid #1e2a3d', maxHeight: '90vh' }}>
             <h3 className="text-white font-semibold text-base">Confirmar gasto</h3>
             {!datosIA?.concepto && !datosIA?.valor && (
               <p className="text-amber-400 text-xs bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2">
@@ -289,6 +340,11 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
                 placeholder="Ej: Combustible, peaje, papelería..."
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500"
               />
+            </div>
+
+            <div>
+              <label className="text-zinc-400 text-xs font-semibold block mb-1">Ciudad</label>
+              <CiudadBuscador value={borradorCiudad} onChange={setBorradorCiudad} />
             </div>
 
             <div>
@@ -314,7 +370,7 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
                 onChange={e => setBorradorTipo(e.target.value)}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500">
                 <option value="">Selecciona un tipo</option>
-                {TIPOS_GASTO.map(t => <option key={t} value={t}>{t}</option>)}
+                {tipos.map(t => <option key={t.id} value={t.label}>{t.label}</option>)}
               </select>
             </div>
 
@@ -324,7 +380,7 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
                 Cancelar
               </button>
               <button onClick={confirmarAdicionGasto}
-                disabled={!borradorConcepto.trim() || !borradorValor || !borradorTipo}
+                disabled={!borradorConcepto.trim() || !borradorValor || !borradorTipo || !borradorCiudad}
                 className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors">
                 Adicionar gasto
               </button>
@@ -354,7 +410,7 @@ function TablaGasto({ gastos }: { gastos: Gasto[] }) {
         <table className="w-full text-sm" style={{ minWidth: 600, background: '#0a0f1a' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid #1e2a3d' }}>
-              {['FECHA REG.','FECHA DOC.','CONCEPTO','TIPO','VALOR','VER'].map(h => (
+              {['FECHA REG.','FECHA DOC.','CONCEPTO','TIPO','CIUDAD','VALOR','VER'].map(h => (
                 <th key={h} style={{ ...thG, textAlign: h === 'VALOR' ? 'right' : 'left' }}>{h}</th>
               ))}
             </tr>
@@ -365,13 +421,14 @@ function TablaGasto({ gastos }: { gastos: Gasto[] }) {
                 <td style={{ ...tdG, color: '#94a3b8' }}>{fmtFechaAgregacion(g.fechaAgregacion)}</td>
                 <td style={{ ...tdG, color: '#6b7280' }}>{g.fechaDoc ? fmtFechaDoc(g.fechaDoc) : '—'}</td>
                 <td style={{ ...tdG, color: 'white', fontWeight: 500, maxWidth: 200 }}>{g.concepto}</td>
-                <td style={{ ...tdG, color: '#94a3b8' }}>{TIPO_API_A_UI[g.tipo] || g.tipo}</td>
+                <td style={{ ...tdG, color: '#94a3b8' }}>{g.tipo}</td>
+                <td style={{ ...tdG, color: '#6b7280', fontSize: 11 }}>{(g as any).ciudad ? (g as any).ciudad.split('/').pop() : '—'}</td>
                 <td style={{ ...tdG, color: '#34d399', fontWeight: 700, textAlign: 'right' }}>{fmt(Number(g.valor))}</td>
                 <td style={{ ...tdG, textAlign: 'center' }}><VerEvidencia evidenciaKey={g.evidenciaKey} /></td>
               </tr>
             ))}
             <tr style={{ background: '#0d1220', borderTop: '1px solid #1e2a3d' }}>
-              <td colSpan={4} style={{ ...tdG, color: '#6b7280', fontSize: 12 }}>Total · {gastos.length} registros</td>
+              <td colSpan={5} style={{ ...tdG, color: '#6b7280', fontSize: 12 }}>Total · {gastos.length} registros</td>
               <td style={{ ...tdG, color: '#fbbf24', fontWeight: 700, textAlign: 'right' }}>{fmt(total)}</td>
               <td style={tdG}/>
             </tr>

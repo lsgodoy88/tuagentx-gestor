@@ -5,12 +5,7 @@ import ModuloGastos from '@/components/ModuloGastos'
 import AbonoEgreso from '@/components/AbonoEgreso'
 import AdjuntarEgreso from '@/components/AdjuntarEgreso'
 
-const CATEGORIAS = [
-  { key: 'nomina',        label: '👥 Nómina' },
-  { key: 'gastos_fijos',  label: '🏢 Gastos Fijos' },
-  { key: 'gastos_varios', label: '📦 Gastos Varios' },
-  { key: 'proveedores',   label: '🤝 Proveedores' },
-]
+// CATEGORIAS ahora es dinámico — se carga desde /api/egresos/categorias
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 const MEDIOS = ['BANCO','NEQUI','DAVIPLATA','EFECTIVO','TRANSFERENCIA','PSE']
 
@@ -51,7 +46,9 @@ function NumInput({ value, onChange, onBlur, width = 90 }: { value: string; onCh
 }
 
 
-function Tabla({ cat, mes, anio, scrollRefs }: { cat: { key: string; label: string }; mes: number; anio: number; scrollRefs: React.MutableRefObject<HTMLDivElement[]> }) {
+function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate }: { cat: { id:string; key: string; label: string; emoji: string }; mes: number; anio: number; scrollRefs: React.MutableRefObject<HTMLDivElement[]>; onCatUpdate?: (id:string, label:string, emoji:string) => void }) {
+  const [editandoTitulo, setEditandoTitulo] = React.useState(false)
+  const [nuevoLabel, setNuevoLabel] = React.useState(cat.label)
   const [filas, setFilas] = useState<Fila[]>([])
   const [editando, setEditando] = useState<Record<number, boolean>>({})
   const [saved, setSaved] = useState<Record<number, boolean>>({})
@@ -128,12 +125,12 @@ function Tabla({ cat, mes, anio, scrollRefs }: { cat: { key: string; label: stri
   }
 
   function onBlurFila(idx: number) {
-    // Guardar al salir de cualquier celda si hay concepto o valor
     const f = filas[idx]
-    if (f.concepto || f.valor) {
+    const tieneContenido = !!(f.concepto || f.valor)
+    if (tieneContenido) {
       guardar(idx)
     } else if (f.esNueva) {
-      // Fila nueva vacía — anular
+      // Fila nueva sin concepto ni valor (fecha no cuenta) — anular
       setTimeout(() => setFilas(prev => prev.filter((_, i) => i !== idx)), 150)
     }
   }
@@ -169,10 +166,16 @@ function Tabla({ cat, mes, anio, scrollRefs }: { cat: { key: string; label: stri
 
   return (
     <div className="space-y-1">
-      {/* Título + total saldo */}
-      <div className="flex items-center justify-between px-1">
-        <h2 className="text-sm font-bold text-white">{cat.label}</h2>
-        <span className={`text-sm font-bold ${totalSaldo > 0 ? 'text-amber-400' : 'text-zinc-500'}`}>{fmt(totalSaldo)}</span>
+      {/* Título — doble clic para editar */}
+      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-xl" style={{border:'1px solid rgba(255,255,255,0.10)'}}>
+        <span>{cat.emoji}</span>
+        {editandoTitulo
+          ? <input autoFocus value={nuevoLabel} onChange={e => setNuevoLabel(e.target.value)}
+              onBlur={() => { setEditandoTitulo(false); if (nuevoLabel.trim() && nuevoLabel !== cat.label) onCatUpdate?.(cat.id, nuevoLabel.trim(), cat.emoji) }}
+              onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') { setNuevoLabel(cat.label); setEditandoTitulo(false) } }}
+              style={{ background:'transparent', border:'none', outline:'none', fontSize:14, fontWeight:700, color:'white', width: Math.max(80, nuevoLabel.length * 9) }} />
+          : <h2 className="text-sm font-bold text-white cursor-pointer" onDoubleClick={() => setEditandoTitulo(true)} title="Doble clic para editar">{nuevoLabel}</h2>
+        }
       </div>
       <div className="rounded-2xl border border-zinc-800 overflow-hidden" style={{ background: '#0f1623' }}>
         <div className="overflow-x-auto" ref={el => {
@@ -197,10 +200,10 @@ function Tabla({ cat, mes, anio, scrollRefs }: { cat: { key: string; label: stri
                 return (
                   <tr key={f.id || `n-${idx}`} style={{ background: saved[idx] ? 'rgba(34,197,94,0.15)' : rowBg, transition: 'background 0.3s' }}
                     onDoubleClick={() => !f.esNueva && setEditando(p => ({ ...p, [idx]: true }))}>
-                    <td style={tdStyle}>
+                    <td style={{ ...tdStyle, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
                       {isEdit ? <input type="date" value={f.fecha} onChange={e => set(idx,'fecha',e.target.value)} onBlur={() => onBlurFila(idx)} style={{ background:'transparent',color:'white',border:'none',outline:'none',width:110,fontSize:13 }} /> : fmtFecha(f.fecha)}
                     </td>
-                    <td style={{ ...tdStyle, minWidth: 200 }}>
+                    <td style={{ ...tdStyle, minWidth: 200, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:4 }}>
                         {f.evidenciaKey && !isEdit && (
                           <button onClick={async () => { const r = await fetch(`/api/egresos/url?key=${encodeURIComponent(f.evidenciaKey)}`); const d = await r.json(); if(d.url) window.open(d.url, '_blank') }} title="Ver factura"
@@ -209,25 +212,25 @@ function Tabla({ cat, mes, anio, scrollRefs }: { cat: { key: string; label: stri
                         {isEdit ? <input value={f.concepto} onChange={e => set(idx,'concepto',e.target.value.toUpperCase())} onBlur={() => guardar(idx)} autoFocus={f.esNueva} style={{ background:'transparent',color:'white',border:'none',outline:'none',width:'100%',fontSize:13 }} placeholder="Concepto..." /> : <span style={{ fontWeight: pagado ? 700 : 500 }}>{f.concepto}</span>}
                       </div>
                     </td>
-                    <td style={tdStyle}>
+                    <td style={{ ...tdStyle, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
                       {isEdit ? <NumInput value={f.valor} onChange={v => set(idx,'valor',v)} onBlur={() => onBlurFila(idx)} /> : f.valor ? fmt(f.valor) : ''}
                     </td>
-                    <td style={{ ...tdStyle, color: parseInt(f.retencion) > 0 ? '#f97316' : 'white' }}>
+                    <td style={{ ...tdStyle, color: parseInt(f.retencion) > 0 ? '#f97316' : 'white', borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
                       {isEdit ? <NumInput value={f.retencion} onChange={v => set(idx,'retencion',v)} onBlur={() => onBlurFila(idx)} width={80} /> : parseInt(f.retencion) > 0 ? fmt(f.retencion) : ''}
                     </td>
-                    <td style={tdStyle}>
+                    <td style={{ ...tdStyle, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
                       {(isEdit && f.medioPago === 'EFECTIVO') ? <NumInput value={f.abonoPago} onChange={v => set(idx,'abonoPago',v)} onBlur={() => onBlurFila(idx)} /> : f.abonoPago ? fmt(f.abonoPago) : ''}
                     </td>
-                    <td style={tdStyle}>
+                    <td style={{ ...tdStyle, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
                       {isEdit ? <NumInput value={f.descuento} onChange={v => set(idx,'descuento',v)} onBlur={() => onBlurFila(idx)} width={80} /> : parseInt(f.descuento) > 0 ? fmt(f.descuento) : ''}
                     </td>
-                    <td style={{ ...tdStyle, color: parseInt(f.saldo) > 0 ? '#f59e0b' : 'white' }}>
-                      {fmt(f.saldo)}
+                    <td style={{ ...tdStyle, color: parseInt(f.saldo) > 0 ? '#f59e0b' : 'white', borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
+                      {parseInt(f.saldo) !== 0 ? fmt(f.saldo) : ''}
                     </td>
-                    <td style={tdStyle}>
+                    <td style={{ ...tdStyle, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
                       {isEdit ? <input type="date" value={f.fechaPago} onChange={e => set(idx,'fechaPago',e.target.value)} onBlur={() => onBlurFila(idx)} style={{ background:'transparent',color:'white',border:'none',outline:'none',width:110,fontSize:13 }} /> : fmtFecha(f.fechaPago)}
                     </td>
-                    <td style={{ ...tdStyle, color: '#a78bfa' }}>
+                    <td style={{ ...tdStyle, color: '#a78bfa', borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
                       <select value={f.medioPago} onChange={e => { set(idx,'medioPago',e.target.value); if(f.id) fetch('/api/egresos',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:f.id,medioPago:e.target.value})}) }} style={{ background:'transparent',color:'#a78bfa',border:'none',outline:'none',fontSize:12,borderRadius:6,padding:'2px 2px',cursor:'pointer' }}><option value="">—</option>{MEDIOS.map(m => <option key={m} value={m} style={{background:'#1e2030'}}>{m}</option>)}</select>
                     </td>
                     <td style={tdStyle}>
@@ -262,22 +265,23 @@ function Tabla({ cat, mes, anio, scrollRefs }: { cat: { key: string; label: stri
             </tbody>
             <tfoot>
               <tr style={{ borderTop: '2px solid #1e2a3d', background: '#0a1020' }}>
-                <td style={tdStyle} /><td style={tdStyle} />
-                <td style={{ ...tdStyle, fontWeight:700 }}>{fmt(tot('valor'))}</td>
+                <td style={tdStyle}>
+                  <button onClick={() => setFilas(p => [...p, filaVacia(cat.key)])}
+                    className="flex items-center justify-center w-5 h-5 rounded-full border border-zinc-700 hover:border-zinc-400 text-zinc-500 hover:text-zinc-200 text-sm transition-colors">+</button>
+                </td>
+                <td style={tdStyle} />
+                <td style={{ ...tdStyle, fontWeight:700, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>{fmt(tot('valor'))}</td>
                 <td style={{ ...tdStyle, fontWeight:700, color:'#f97316' }}>{tot('retencion') > 0 ? fmt(tot('retencion')) : ''}</td>
-                <td style={{ ...tdStyle, fontWeight:700 }}>{fmt(tot('abonoPago'))}</td>
-                <td style={{ ...tdStyle, fontWeight:700 }}>{tot('descuento') > 0 ? fmt(tot('descuento')) : '$0'}</td>
-                <td style={{ ...tdStyle, fontWeight:700, color:'#f59e0b' }}>{fmt(tot('saldo'))}</td>
+                <td style={{ ...tdStyle, fontWeight:700, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>{tot('abonoPago') > 0 ? fmt(tot('abonoPago')) : ''}</td>
+                <td style={{ ...tdStyle, fontWeight:700, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>{tot('descuento') > 0 ? fmt(tot('descuento')) : ''}</td>
+                <td style={{ ...tdStyle, fontWeight:700, color:'#f59e0b', borderLeft: '2px solid rgba(255,255,255,0.07)' }}>{fmt(tot('saldo'))}</td>
                 <td colSpan={4} />
               </tr>
             </tfoot>
           </table>
         </div>
-        <button onClick={() => setFilas(p => [...p, filaVacia(cat.key)])}
-          className="w-full py-2 text-zinc-500 hover:text-zinc-300 text-xs border-t border-zinc-800 transition-colors">
-          + Agregar fila
-        </button>
       </div>
+
     </div>
   )
 }
@@ -326,7 +330,24 @@ export default function EgresosPage() {
   const [showCal, setShowCal] = useState(false)
   const [filtroGastos, setFiltroGastos] = useState<'hoy'|'semana'|'mes'>('mes')
   const [reloadKey, setReloadKey] = useState(0)
+  const [totalGeneral, setTotalGeneral] = useState<{total:number,pagado:number,pendiente:number}|null>(null)
+  const [categorias, setCategorias] = useState<{id:string,key:string,label:string,emoji:string}[]>([])
+  const [showCategorias, setShowCategorias] = useState(false)
+  const [nuevaCat, setNuevaCat] = useState({ label: '', emoji: '📋' })
+
+  useEffect(() => {
+    fetch('/api/egresos/categorias').then(r => r.json()).then(d => {
+      if (d.categorias) setCategorias(d.categorias)
+    }).catch(() => {})
+  }, [reloadKey])
   const scrollRefs = useRef<HTMLDivElement[]>([])
+
+  useEffect(() => {
+    fetch(`/api/egresos?mes=${mes}&anio=${anio}&totalOnly=1`)
+      .then(r => r.json())
+      .then(d => { if (d.total !== undefined) setTotalGeneral({ total: d.total, pagado: d.pagado, pendiente: d.pendiente }) })
+      .catch(() => {})
+  }, [mes, anio, reloadKey])
   const triggerGastos = useRef<(() => void) | null>(null)
   const calRef = useRef<HTMLDivElement>(null)
   const [tab, setTab] = useState<'egresos' | 'gastos'>('egresos')
@@ -356,23 +377,93 @@ export default function EgresosPage() {
           )}
           {tab === 'gastos' && (
             <button onClick={() => triggerGastos.current?.()}
-              className="flex items-center justify-center disabled:opacity-50 transition-colors h-full flex-shrink-0"
+              className="flex items-center justify-center transition-colors h-full flex-shrink-0"
               style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, padding:'0 4px' }}>
               📎
             </button>
           )}
           <div className="relative flex-shrink-0 flex" ref={calRef}>
             <button onClick={() => setShowCal(s => !s)}
-              className="flex items-center gap-1.5 bg-zinc-800 border border-zinc-700 text-white text-xs font-semibold px-3 rounded-xl hover:bg-zinc-700 transition-colors flex-1">
-              📅 {MESES[mes-1].slice(0,3)} {anio}
+              className="flex items-center justify-center bg-zinc-800 border border-zinc-700 text-white text-lg font-semibold px-3 rounded-xl hover:bg-zinc-700 transition-colors flex-1">
+              📅
             </button>
             {showCal && <CalendarioPopup mes={mes} anio={anio} onChange={(m,a) => { setMes(m); setAnio(a); setFiltroGastos('mes') }} onClose={() => setShowCal(false)} onFiltroRapido={(f) => setFiltroGastos(f)} />}
           </div>
         </div>
       </div>
       {tab === 'egresos'
-        ? CATEGORIAS.map(cat => <Tabla key={`${cat.key}-${reloadKey}`} cat={cat} mes={mes} anio={anio} scrollRefs={scrollRefs} />)
-        : <ModuloGastos isAdmin={isAdmin} hideButton triggerRef={triggerGastos} mes={filtroGastos==='mes' ? mes : undefined} anio={filtroGastos==='mes' ? anio : undefined} filtroRapido={filtroGastos !== 'mes' ? filtroGastos : undefined} />}
+        ? <div className="space-y-4">
+            {totalGeneral !== null && (
+              <div className="flex justify-between px-4 py-2 mb-3 rounded-xl" style={{border:'1px solid rgba(255,255,255,0.10)'}}>
+                <div className="flex flex-col items-center">
+                  <span className="text-zinc-400 text-xs">Total</span>
+                  <span className="text-white text-sm font-bold">{fmt(totalGeneral.total)}</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <span className="text-zinc-400 text-xs">Pagado</span>
+                  <span className="text-emerald-400 text-sm font-bold">{totalGeneral.pagado > 0 ? fmt(totalGeneral.pagado) : '—'}</span>
+                </div>
+                <div className="flex flex-col items-center">
+                  <span className="text-zinc-400 text-xs">Pendiente</span>
+                  <span className={`text-sm font-bold ${totalGeneral.pendiente > 0 ? 'text-red-400' : 'text-zinc-500'}`}>{fmt(totalGeneral.pendiente)}</span>
+                </div>
+              </div>
+            )}
+            {categorias.map(cat => <Tabla key={`${cat.key}-${reloadKey}`} cat={cat} mes={mes} anio={anio} scrollRefs={scrollRefs} onCatUpdate={(id, label, emoji) => {
+              fetch('/api/egresos/categorias', { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id, label, emoji}) })
+                .then(() => setReloadKey(k => k+1))
+            }} />)}
+            {/* Botón gestión de categorías */}
+            <button onClick={() => setShowCategorias(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-zinc-500 hover:text-zinc-200 text-xs transition-colors"
+              style={{border:'1px solid rgba(255,255,255,0.08)'}}>
+              ⚙️ <span>Categorías</span>
+            </button>
+
+            {/* Popup gestión categorías */}
+            {showCategorias && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{background:'rgba(0,0,0,0.6)'}} onClick={() => setShowCategorias(false)}>
+                <div className="rounded-2xl p-5 space-y-3 w-full max-w-sm" style={{background:'#0f1623', border:'1px solid rgba(255,255,255,0.12)'}} onClick={e => e.stopPropagation()}>
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-white text-sm font-bold">Categorías de egresos</p>
+                    <button onClick={() => setShowCategorias(false)} className="text-zinc-500 hover:text-white text-lg leading-none">✕</button>
+                  </div>
+                  {categorias.map(cat => (
+                    <div key={cat.id} className="flex items-center gap-2">
+                      <input value={cat.emoji} onChange={e => setCategorias(prev => prev.map(c => c.id===cat.id ? {...c, emoji: e.target.value} : c))}
+                        style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:6,color:'white',width:40,textAlign:'center',fontSize:16,padding:'4px'}} />
+                      <input value={cat.label} onChange={e => setCategorias(prev => prev.map(c => c.id===cat.id ? {...c, label: e.target.value} : c))}
+                        style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:6,color:'white',flex:1,fontSize:13,padding:'5px 8px'}} />
+                      <button onClick={async () => {
+                        await fetch('/api/egresos/categorias', {method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id:cat.id, label:cat.label, emoji:cat.emoji})})
+                        setReloadKey(k => k+1)
+                      }} className="text-emerald-400 text-xs px-2 py-1.5 rounded-lg hover:bg-emerald-400/10 transition-colors font-bold">✓</button>
+                      <button onClick={async () => {
+                        const r = await fetch('/api/egresos/categorias', {method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id:cat.id})})
+                        const d = await r.json()
+                        if (d.error) alert(d.error)
+                        else { setReloadKey(k => k+1); setShowCategorias(false) }
+                      }} className="text-red-400 text-xs px-2 py-1.5 rounded-lg hover:bg-red-400/10 transition-colors">✕</button>
+                    </div>
+                  ))}
+                  <div className="flex items-center gap-2 pt-3 border-t border-zinc-800">
+                    <input value={nuevaCat.emoji} onChange={e => setNuevaCat(p => ({...p, emoji: e.target.value}))}
+                      style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:6,color:'white',width:40,textAlign:'center',fontSize:16,padding:'4px'}} />
+                    <input value={nuevaCat.label} onChange={e => setNuevaCat(p => ({...p, label: e.target.value}))}
+                      placeholder="Nueva categoría..." style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:6,color:'white',flex:1,fontSize:13,padding:'5px 8px'}} />
+                    <button onClick={async () => {
+                      if (!nuevaCat.label.trim()) return
+                      await fetch('/api/egresos/categorias', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(nuevaCat)})
+                      setNuevaCat({ label: '', emoji: '📋' })
+                      setReloadKey(k => k+1)
+                    }} className="text-emerald-400 text-xs px-3 py-1.5 rounded-lg font-bold transition-colors" style={{border:'1px solid rgba(52,211,153,0.30)'}}>+</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        : <ModuloGastos isAdmin={isAdmin} hideButton triggerRef={triggerGastos} mes={filtroGastos==='mes' ? mes : undefined} anio={filtroGastos==='mes' ? anio : undefined} filtroRapido={filtroGastos !== 'mes' ? filtroGastos : undefined} />
+      }
     </div>
   )
 }

@@ -18,6 +18,16 @@ export async function GET(req: NextRequest) {
   const where: any = { empresaId, mes, anio }
   if (categoria) where.categoria = categoria
 
+  // totalOnly — para el total general en EgresosPage
+  if (searchParams.get('totalOnly') === '1') {
+    const agg = await (prisma as any).egreso.aggregate({ where, _sum: { valor: true, abonoPago: true, saldo: true } })
+    return NextResponse.json({
+      total:     Math.round(Number(agg._sum.valor    || 0)),
+      pagado:    Math.round(Number(agg._sum.abonoPago || 0)),
+      pendiente: Math.round(Number(agg._sum.saldo    || 0)),
+    })
+  }
+
   const egresos = await (prisma as any).egreso.findMany({
     where, orderBy: { fecha: 'asc' },
     include: { _count: { select: { abonos: true } } }
