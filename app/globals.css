@@ -688,3 +688,18 @@ input[type="date"] { appearance: none; -webkit-appearance: none; }
 .fade-in-data {
   animation: fade-in-up 0.25s ease-out both;
 }
+
+/* ── TaXBot robot — entrada + flotación ── */
+@keyframes robot-entrada {
+  0%   { transform: translateY(60px); opacity: 0; }
+  60%  { transform: translateY(-8px); opacity: 1; }
+  80%  { transform: translateY(4px); }
+  100% { transform: translateY(0px); }
+}
+@keyframes robot-flotacion {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-5px); }
+}
+.robot-taxbot {
+  animation: robot-entrada 0.7s cubic-bezier(0.34,1.56,0.64,1) 0.3s both;
+}

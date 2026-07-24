@@ -169,7 +169,8 @@ export default function DashboardAdmin({ user }: { user: any }) {
 
     const cached = getCached()
     if (cached && !vieneDelLogin()) {
-      if (cached.stats) { setStats(cached.stats); setFromCache(true) }
+      // Invalidar cache si le faltan campos nuevos (saldos, egresos)
+      if (cached.stats && cached.stats.saldos && cached.stats.egresos) { setStats(cached.stats); setFromCache(true) }
     }
 
     Promise.all(adminFetches).then(([s]) => {

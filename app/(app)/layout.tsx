@@ -1,6 +1,7 @@
 'use client'
 import React from 'react'
 import AsistenteGestor from '@/components/AsistenteGestor'
+import RobotIcon from '@/components/RobotIcon'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
 import { useEffect, useState, useRef } from 'react'
@@ -361,12 +362,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         <div className="flex-shrink-0 border-t border-[#1c1c20] p-2 space-y-0.5">
-          {isEmpresa && (
+          {(isEmpresa || isSupervisor || isEmpleado) && (
             <button onClick={() => setAsistenteAbierto(true)}
-              title={!sidebarExpanded ? 'TuAgentX' : ''}
+              title={!sidebarExpanded ? 'TaXBot' : ''}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-zinc-300 hover:text-white hover:bg-[#18181b] transition-colors ${!sidebarExpanded ? 'justify-center' : ''}`}>
-              <span className="relative flex-shrink-0">🤖<span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full border border-[#0f0f11]" /></span>
-              {sidebarExpanded && <span className="truncate">TuAgentX</span>}
+              <span className="relative flex-shrink-0"><RobotIcon size={18} /><span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full border border-[#0f0f11]" /></span>
+              {sidebarExpanded && <span className="truncate">TaXBot</span>}
             </button>
           )}
           <div className="relative">
@@ -588,6 +589,53 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </span>
             </div>
           </button>
+
+          {/* Robot TaXBot — banda derecha, solo en dashboard */}
+          {(isEmpresa || isSupervisor || isEmpleado) && pathname === '/inicio' && (
+            <button
+              className="fixed z-[3001] md:hidden robot-taxbot"
+              onClick={() => setAsistenteAbierto(true)}
+              style={{
+                bottom: 0, right: 16,
+                width: 52, height: 42,
+                background: 'none', border: 'none', padding: 0, cursor: 'pointer',
+                display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+              }}>
+              <div style={{
+                width: 52, height: 42,
+                background: 'rgba(30,36,58,0.99)',
+                border: '1.5px solid rgba(59,130,246,0.35)',
+                borderBottom: 'none',
+                borderRadius: '18px 18px 0 0',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                position: 'relative',
+              }}>
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  {/* Antena */}
+                  <line x1="12" y1="2" x2="12" y2="5" stroke="#60a5fa" strokeWidth="1.5" strokeLinecap="round"/>
+                  <circle cx="12" cy="1.5" r="1" fill="#60a5fa"/>
+                  {/* Cabeza */}
+                  <rect x="4" y="5" width="16" height="11" rx="3" fill="#1e3a6e" stroke="#3b82f6" strokeWidth="1.2"/>
+                  {/* Ojos */}
+                  <circle cx="9" cy="10" r="2" fill="#60a5fa"/>
+                  <circle cx="15" cy="10" r="2" fill="#60a5fa"/>
+                  <circle cx="9.7" cy="9.3" r="0.7" fill="white"/>
+                  <circle cx="15.7" cy="9.3" r="0.7" fill="white"/>
+                  {/* Boca */}
+                  <rect x="8.5" y="13" width="7" height="1.2" rx="0.6" fill="#60a5fa"/>
+                  {/* Cuerpo */}
+                  <rect x="7" y="16" width="10" height="6" rx="2" fill="#1e3a6e" stroke="#3b82f6" strokeWidth="1.2"/>
+                  {/* Botón cuerpo */}
+                  <circle cx="12" cy="19" r="1.2" fill="#60a5fa"/>
+                  {/* Brazos */}
+                  <rect x="3" y="17" width="4" height="2.5" rx="1.2" fill="#1e3a6e" stroke="#3b82f6" strokeWidth="1"/>
+                  <rect x="17" y="17" width="4" height="2.5" rx="1.2" fill="#1e3a6e" stroke="#3b82f6" strokeWidth="1"/>
+                </svg>
+                {/* Dot verde online */}
+                <span style={{position:'absolute',top:6,right:10,width:8,height:8,background:'#34d399',borderRadius:'50%',border:'2px solid rgba(30,36,58,0.99)',boxShadow:'0 0 4px #34d399'}}/>
+              </div>
+            </button>
+          )}
         </>
       )}
 
@@ -612,7 +660,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <style>{`@keyframes spinR { to { transform: rotate(-360deg) } }`}</style>
         </div>
       )}
-      {asistenteAbierto && <AsistenteGestor onClose={() => setAsistenteAbierto(false)} />}
+      {(isEmpresa || isSupervisor || isEmpleado) && <AsistenteGestor onClose={() => setAsistenteAbierto(false)} rol={user?.role} visible={asistenteAbierto} />}
 
     </div>
     </>

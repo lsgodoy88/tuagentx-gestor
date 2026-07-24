@@ -208,41 +208,56 @@ export default function ModalRecaudo({
                     {/* Transferencia */}
                     {linea.metodoPago === 'transferencia' && (
                       <div className="space-y-3">
-                        <input type="file" accept="image/*,application/pdf" className="hidden"
-                          ref={el => { if (el) fileInputRefs.current.set(linea.id, el); else fileInputRefs.current.delete(linea.id) }}
-                          onChange={async e => {
-                          const file = e.target.files?.[0]
-                          if (!file) return
-                          // Marcar cargando
-                          onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, cargandoVoucher: true } : l))
-                          try {
-                            const archivoBase64 = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = ev => res(ev.target?.result as string); r.onerror = rej; r.readAsDataURL(file) })
-                            const tempId = crypto.randomUUID()
-                            const resp = await fetch('/api/cartera/voucher', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archivoBase64, mimeType: file.type, pagoId: tempId }) })
-                            const data = await resp.json()
-                            const pagos: any[] = Array.isArray(data.pagos) && data.pagos.length > 0 ? data.pagos : [data.datosIA]
-                            if (pagos.length <= 1) {
-                              onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, voucherKey: data.key, voucherDatosIA: pagos[0], cargandoVoucher: false, monto: pagos[0]?.valor ? String(Math.round(pagos[0].valor)) : l.monto } : l))
-                            } else {
-                              onSetLineasPago(prev => {
-                                const idx = prev.findIndex(l => l.id === linea.id)
-                                if (idx === -1) return prev
-                                const nuevas = pagos.map((p: any, i: number) => ({ ...crearLinea(), id: i === 0 ? linea.id : crypto.randomUUID(), metodoPago: 'transferencia' as const, voucherKey: data.key, voucherDatosIA: p, cargandoVoucher: false, monto: p?.valor ? String(Math.round(p.valor)) : '' }))
-                                const result = [...prev.slice(0, idx), ...nuevas, ...prev.slice(idx + 1)]
-                                return result
-                              })
-                            }
-                          } catch(err) {
-                            console.error('[modal] error voucher:', err)
-                            onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, cargandoVoucher: false } : l))
-                          }
-                        }} />
-
                         {!linea.voucherKey && !linea.cargandoVoucher && (
-                          <button onClick={() => fileInputRefs.current.get(linea.id)?.click()}
-                            className="w-full bg-zinc-500/30 border border-dashed border-zinc-400/40 rounded-xl py-2.5 text-zinc-300 text-sm hover:text-white hover:border-zinc-300 transition-colors">
+                          <label className="w-full bg-zinc-500/30 border border-dashed border-zinc-400/40 rounded-xl py-2.5 text-zinc-300 text-sm hover:text-white hover:border-zinc-300 transition-colors flex items-center justify-center cursor-pointer">
                             📎 Adjuntar comprobante
-                          </button>
+                            <input type="file" accept="image/*,application/pdf" className="hidden"
+                              onChange={async e => {
+                              const file = e.target.files?.[0]
+                              if (!file) return
+                              onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, cargandoVoucher: true } : l))
+                              try {
+                                const archivoBase64 = await new Promise<string>((res, rej) => {
+                                  const r = new FileReader()
+                                  r.onerror = rej
+                                  r.onload = ev => {
+                                    const raw = ev.target?.result as string
+                                    // Comprimir en canvas para reducir payload en móvil
+                                    const img = new Image()
+                                    img.onerror = () => res(raw) // fallback sin comprimir
+                                    img.onload = () => {
+                                      const MAX = 1400
+                                      const scale = Math.min(1, MAX / Math.max(img.width, img.height))
+                                      const canvas = document.createElement('canvas')
+                                      canvas.width = Math.round(img.width * scale)
+                                      canvas.height = Math.round(img.height * scale)
+                                      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+                                      res(canvas.toDataURL('image/jpeg', 0.82))
+                                    }
+                                    img.src = raw
+                                  }
+                                  r.readAsDataURL(file)
+                                })
+                                const tempId = crypto.randomUUID()
+                                const resp = await fetch('/api/cartera/voucher', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archivoBase64, mimeType: file.type, pagoId: tempId }) })
+                                const data = await resp.json()
+                                const pagos: any[] = Array.isArray(data.pagos) && data.pagos.length > 0 ? data.pagos : [data.datosIA]
+                                if (pagos.length <= 1) {
+                                  onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, voucherKey: data.key, voucherDatosIA: pagos[0], cargandoVoucher: false, monto: pagos[0]?.valor ? String(Math.round(pagos[0].valor)) : l.monto } : l))
+                                } else {
+                                  onSetLineasPago(prev => {
+                                    const idx = prev.findIndex(l => l.id === linea.id)
+                                    if (idx === -1) return prev
+                                    const nuevas = pagos.map((p: any, i: number) => ({ ...crearLinea(), id: i === 0 ? linea.id : crypto.randomUUID(), metodoPago: 'transferencia' as const, voucherKey: data.key, voucherDatosIA: p, cargandoVoucher: false, monto: p?.valor ? String(Math.round(p.valor)) : '' }))
+                                    return [...prev.slice(0, idx), ...nuevas, ...prev.slice(idx + 1)]
+                                  })
+                                }
+                              } catch(err) {
+                                console.error('[modal] error voucher:', err)
+                                onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, cargandoVoucher: false } : l))
+                              }
+                            }} />
+                          </label>
                         )}
                         {linea.cargandoVoucher && (
                           <div className="bg-zinc-500/40 border border-blue-500/25 rounded-xl px-4 py-3 text-zinc-300 text-sm text-center animate-pulse">
@@ -259,9 +274,6 @@ export default function ModalRecaudo({
                             <div className="flex items-center justify-between">
                               <span className="text-emerald-400 text-xs font-semibold">✅ Comprobante procesado</span>
                               <button onClick={() => {
-                                // Resetear el input file para permitir subir el mismo archivo de nuevo
-                                const inp = fileInputRefs.current.get(linea.id)
-                                if (inp) inp.value = ''
                                 onSetLineasPago(prev => prev.map(l =>
                                   l.id === linea.id ? { ...l, voucherKey: null, voucherDatosIA: null, monto: '' } : l
                                 ))

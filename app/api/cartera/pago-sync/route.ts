@@ -4,6 +4,7 @@ import { aplicarPagoEnCache } from '@/lib/integracion/sync'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { invalidarContextoVendedor, invalidarContextoEmpresa } from '@/lib/taxbot-invalidar'
 import { getEmpresaId } from '@/lib/auth-helpers'
 import { generarReciboToken } from '@/lib/recibos'
 import { calcularEstado } from '@/lib/cartera'
@@ -328,6 +329,8 @@ export async function POST(req: NextRequest) {
   )
 
   actualizarResumenVisita(user.id, { tipo: 'cobro', monto: montoNum, descuento: descuentoNum }, fechaHoyBogota()).catch(() => {})
+  invalidarContextoVendedor(empId).catch(() => {})
+  invalidarContextoEmpresa(empresaId).catch(() => {})
 
   return NextResponse.json({ pago, anchoPapel } satisfies PagoSyncResponse)
 }

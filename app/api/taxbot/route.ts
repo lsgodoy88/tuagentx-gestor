@@ -85,11 +85,16 @@ export async function POST(req: NextRequest) {
   const empresaId = getEmpresaId(user)
   const rol = user.role
 
-  // Solo empresa y supervisor pueden usar TaXBot con poderes
-  if (!['empresa', 'supervisor'].includes(rol))
+  // empresa, supervisor y empleados de campo pueden usar TaXBot
+  if (!['empresa', 'supervisor', 'vendedor', 'entregas', 'impulsadora'].includes(rol))
     return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
 
-  const { mensaje, historial, accionDirecta, accionParams } = await req.json()
+  const { mensaje, historial, accionDirecta, accionParams, reset } = await req.json()
+
+  // Empleados de campo no pueden ejecutar acciones directas de empresa
+  const esEmpleadoCampo = ['vendedor', 'entregas', 'impulsadora'].includes(rol)
+  if (esEmpleadoCampo && accionDirecta && !['sync_logs'].includes(accionDirecta))
+    return NextResponse.json({ error: 'Sin acceso a esta acción' }, { status: 403 })
 
   // Acción directa desde el frontend (confirmación previa)
   if (accionDirecta) {
@@ -97,19 +102,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ accionResultado: resultado })
   }
 
-  // Llamar al cerebro en Master
-  const cerebroRes = await fetch(`${MASTER_URL}/api/taxbot/cerebro-empresa`, {
+  // Llamar al daemon TaXBot
+  const TAXBOT_URL = process.env.TAXBOT_DAEMON_URL ?? 'http://localhost:3025'
+  const cerebroRes = await fetch(`${TAXBOT_URL}/cerebro-interno`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-taxbot-internal': MASTER_KEY,
-    },
+    headers: { 'Content-Type': 'application/json', 'x-taxbot-internal': process.env.TAXBOT_INTERNAL_KEY ?? '' },
     body: JSON.stringify({
       empresaId,
       empresaNombre: user.empresaNombre ?? '',
       rol,
+      empleadoId: user.id ?? null,
       mensaje,
-      historial: historial ?? [],
+      reset: reset ?? false,
+      // historial manejado por el daemon en Redis
     }),
   })
 

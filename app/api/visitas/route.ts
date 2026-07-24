@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { invalidarContextoVendedor } from '@/lib/taxbot-invalidar'
 import { nowBogota, fechaHoyBogota, inicioDiaBogota, finDiaBogota } from '@/lib/fechas'
 import { invalidateKeys } from '@/lib/cache'
 import { subirFirma } from '@/lib/r2'
@@ -158,6 +159,7 @@ export async function POST(req: NextRequest) {
   // Actualizar resumen de visitas (best-effort)
   const fechaBogotaStr = visita.fechaBogota ? new Date(visita.fechaBogota).toISOString().split('T')[0] : null
   actualizarResumenVisita(user.id, { tipo: tipo || 'visita', monto }, fechaBogotaStr).catch(() => {})
+  invalidarContextoVendedor(user.id).catch(() => {})
 
   await audit('VISITA_REGISTRADA', user.email, `Tipo: ${tipo} | Cliente: ${clienteId} | Libre: ${esLibre}`, user.id, user.empresaId)
   // Invalidar caché de stats afectados por esta visita

@@ -521,7 +521,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
 
   // ── JSX ──────────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-3 pb-20 md:max-w-2xl md:mx-auto">
+    <div className="space-y-3 pb-4 md:max-w-2xl md:mx-auto">
 
       {/* Bienvenido — solo cuando no hay turno y ya cargó */}
       {!turno && !cargandoTurno && (
@@ -917,55 +917,8 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
         </div>
           )
         })()}
-
-        {/* Estadísticas */}
-        <button onClick={() => setMostrarEstadisticasVendedor(v => !v)}
-          className='card-glass' style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
-          <span className="text-white font-semibold text-sm">📊 Estadísticas</span>
-          <span className="text-zinc-500 text-xs">{mostrarEstadisticasVendedor ? '▲ Ocultar' : '▼ Ver'}</span>
-        </button>
-        {mostrarEstadisticasVendedor && (!statsVendedor ? (
-          <div className="space-y-3">
-            <div className="h-24 rounded-2xl bg-zinc-900 border border-zinc-800" />
-            <div className="h-24 rounded-2xl bg-zinc-900 border border-zinc-800" />
-          </div>
-        ) : (
-          <div className="space-y-4">
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
-          <p className="text-white font-bold mb-3">Últimos 6 meses</p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs min-w-[320px]">
-              <thead>
-                <tr className="border-b border-zinc-700">
-                  <th className="text-zinc-500 font-normal text-left py-1 pr-2">Mes</th>
-                  <th className="text-zinc-500 font-normal text-right py-1 px-2">Visitas</th>
-                  <th className="text-zinc-500 font-normal text-right py-1 px-2">Ventas</th>
-                  <th className="text-zinc-500 font-normal text-right py-1 px-2">Recaudo</th>
-                  <th className="text-zinc-500 font-normal text-right py-1 pl-2">Descuentos</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-800">
-                {statsVendedor.meses.slice().reverse().map((m: any) => (
-                  <tr key={m.label}>
-                    <td className="text-zinc-400 capitalize py-1.5 pr-2">{m.label}</td>
-                    <td className="text-white text-right py-1.5 px-2">{m.total > 0 ? m.total : '—'}</td>
-                    <td className="text-emerald-400 text-right py-1.5 px-2">{m.montoVentas > 0 ? '$'+m.montoVentas.toLocaleString('es-CO') : '—'}</td>
-                    <td className="text-blue-400 text-right py-1.5 px-2">{m.montoCobros > 0 ? '$'+m.montoCobros.toLocaleString('es-CO') : '—'}</td>
-                    <td className="text-amber-400 text-right py-1.5 pl-2">{m.montoDescuentos > 0 ? '$'+m.montoDescuentos.toLocaleString('es-CO') : '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-          </div>
-        ))}
-
         </div>
       </div>}
-
-
-
       </div></div>{/* fin colapsable */}
 
       {/* ── Modales ── */}

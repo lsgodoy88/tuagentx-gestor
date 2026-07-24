@@ -7,20 +7,18 @@ import { pdfPrimerarPaginaAJpg } from '@/lib/pdfAJpg'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
-const PROMPT_EXTRACCION = `Analiza esta imagen. Puede contener UNO o VARIOS recibos/comprobantes de pago.
+const PROMPT_EXTRACCION = `Analiza esta imagen de comprobante(s) de pago colombiano(s).
 
-IMPORTANTE: Si ves múltiples recibos (aunque estén lado a lado o superpuestos), devuelve UN objeto por cada recibo.
+REGLAS CRITICAS:
+- valor: busca el monto mas destacado (VALOR, TOTAL, MONTO). En Colombia los puntos son miles: $300.000 = 300000, $2.000.000 = 2000000. NUNCA devuelvas null si hay numero visible.
+- fecha: puede venir como "JUL 22 2026 14:18:12", "22/07/2026", "2026-07-22" — convierte siempre a "YYYY-MM-DD HH:mm:ss"
+- banco: extrae la red o entidad (Redeban, Bancolombia, Nequi, Daviplata, PSE, Efecty, etc.). Para Corresponsal Bancario incluye ambas: "Redeban / Bancolombia"
+- referencia: prioridad RECIBO > RRN > APRO > No. transaccion
 
-Para cada recibo extrae:
-- valor: número total pagado (en Colombia los puntos son miles: 2.000.000 = dos millones)
-- fecha: formato YYYY-MM-DD HH:mm:ss
-- banco: entidad o red de pago
-- referencia: número de recibo, transacción o aprobación
+Si hay VARIOS recibos devuelve UN objeto por cada uno. Si solo hay uno, array de un elemento.
 
-Responde ÚNICAMENTE con un array JSON válido, sin texto adicional, sin backticks:
-[{"valor": 2000000, "fecha": "2026-07-02 13:00:00", "banco": "Redeban", "referencia": "202503"}, {"valor": 1753950, "fecha": "2026-07-02 13:00:25", "banco": "Redeban", "referencia": "202504"}]
-
-Si solo hay un recibo, igual devuelve array con un elemento.`
+Responde UNICAMENTE con array JSON valido, sin texto, sin backticks:
+[{"valor": 300000, "fecha": "2026-07-22 14:18:12", "banco": "Redeban / Bancolombia", "referencia": "017706"}]`
 
 export type DatosIAPago = {
   valor: number | null

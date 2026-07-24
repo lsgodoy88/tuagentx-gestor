@@ -458,10 +458,10 @@ export default function CarteraPage() {
       .filter((d: any) => d.estado !== 'pagada')
       .sort((a: any, b: any) => { const fa = a.fechaVencimiento ? new Date(a.fechaVencimiento).getTime() : Infinity; const fb = b.fechaVencimiento ? new Date(b.fechaVencimiento).getTime() : Infinity; return fa - fb })
     setFacturasSeleccionadas(pendientes[0]?.id ? [pendientes[0].id] : [])
-    // No resetear lineasPago si ya tiene voucher o múltiples líneas (voucher procesado durante el fetch)
+    // No resetear lineasPago si ya tiene voucher, está cargando, o tiene múltiples líneas
     setLineasPago(prev => {
-      const tieneVoucher = prev.some(l => l.voucherKey || l.voucherDatosIA || l.cargandoVoucher)
-      if (tieneVoucher || prev.length > 1) return prev
+      const activa = prev.some(l => l.voucherKey || l.voucherDatosIA || l.cargandoVoucher || l.monto)
+      if (activa || prev.length > 1) return prev
       return [crearLinea()]
     })
   }
