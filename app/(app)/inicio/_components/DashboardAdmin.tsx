@@ -4,7 +4,7 @@ import { CountUp, LiveDot } from '@/components/FX'
 import { CardKPIGroup, CardCountAdmin, CardCountAdminSkeleton } from '@/components/ui/cards'
 import { useRouter } from 'next/navigation'
 
-const CACHE_KEY_BASE = 'inicio_admin_cache'
+const CACHE_KEY_BASE = 'inicio_admin_cache_v2'
 const CACHE_TTL = 10 * 60 * 1000
 const CACHE_TTL_PRECIOS = 30 * 60 * 1000
 
@@ -391,73 +391,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
            
           />
 
-          {/* Botón Estadísticas */}
-          <button
-            onClick={cargarEstadisticas}
-className='card-glass' style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',borderRadius:16,width:'100%',display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',cursor:'pointer'}}>
-            <span className="text-white font-semibold text-sm">📊 Estadísticas</span>
-            <span className="text-zinc-500 text-xs">{mostrarEstadisticas ? '▲ Ocultar' : '▼ Ver'}</span>
-          </button>
 
-          {mostrarEstadisticas && (() => {
-            // Combinar ventas y cobros por vendedor
-            const ventasMap: Record<string, number> = {}
-            const cobrosMap: Record<string, number> = {};
-            (stats.topEmpleados || []).forEach((e: any) => { ventasMap[e.nombre] = e.monto })
-            ;(stats.recaudoPorVendedor || []).forEach((e: any) => { cobrosMap[e.nombre] = e.monto })
-            const nombres = [...new Set([
-              ...(stats.topEmpleados || []).map((e: any) => e.nombre),
-              ...(stats.recaudoPorVendedor || []).map((e: any) => e.nombre),
-            ])]
-            const datos = nombres.map(n => ({
-              nombre: n,
-              corto: n.split(' ')[0],
-              ventas: ventasMap[n] || 0,
-              cobros: cobrosMap[n] || 0,
-            }))
-            const maxVal = Math.max(...datos.flatMap(d => [d.ventas, d.cobros]), 1)
-            const fmt = (v: number) => v >= 1_000_000
-              ? '$' + (v/1_000_000).toFixed(1).replace('.0','') + 'M'
-              : v >= 1_000 ? '$' + Math.round(v/1_000) + 'K' : '$' + v
-            const BAR_H = 140
-
-            return (
-              <div className="rounded-2xl overflow-hidden card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
-                <div className="px-4 py-3 flex items-center justify-between border-b border-zinc-800">
-                  <p className="text-white font-semibold text-sm">Ventas vs Cobros</p>
-                  <button onClick={recargarEstadisticas} className="text-zinc-400 hover:text-white text-xs">↻ Actualizar</button>
-                </div>
-                <div className="px-4 py-4 overflow-x-auto">
-                  <div className="flex items-end gap-4" style={{minWidth: datos.length * 72}}>
-                    {datos.map(d => (
-                      <div key={d.nombre} className="flex flex-col items-center gap-1" style={{flex:'0 0 auto',width:64}}>
-                        {/* Barras paralelas */}
-                        <div className="flex items-end gap-0.5" style={{height:BAR_H}}>
-                          {/* Ventas */}
-                          <div className="flex flex-col items-center justify-end" style={{width:26,height:BAR_H}}>
-                            <span className="text-emerald-400 text-[9px] mb-0.5">{fmt(d.ventas)}</span>
-                            <div className="w-full rounded-t-sm bg-emerald-500" style={{height: Math.max(2, Math.round((d.ventas/maxVal)*BAR_H*0.75))}} />
-                          </div>
-                          {/* Cobros */}
-                          <div className="flex flex-col items-center justify-end" style={{width:26,height:BAR_H}}>
-                            <span className="text-blue-400 text-[9px] mb-0.5">{fmt(d.cobros)}</span>
-                            <div className="w-full rounded-t-sm bg-blue-500" style={{height: Math.max(2, Math.round((d.cobros/maxVal)*BAR_H*0.75))}} />
-                          </div>
-                        </div>
-                        {/* Nombre */}
-                        <p className="text-zinc-400 text-[10px] text-center truncate w-full">{d.corto}</p>
-                      </div>
-                    ))}
-                  </div>
-                  {/* Leyenda */}
-                  <div className="flex items-center gap-4 mt-3">
-                    <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-emerald-500"/><span className="text-zinc-400 text-xs">Ventas</span></div>
-                    <div className="flex items-center gap-1.5"><div className="w-3 h-3 rounded-sm bg-blue-500"/><span className="text-zinc-400 text-xs">Cobros</span></div>
-                  </div>
-                </div>
-              </div>
-            )
-          })()}
         </div>
       )}
       {/* bodega → DashboardBodega (componente separado) */}
