@@ -20,9 +20,10 @@ export async function withCache<T>(
     // No cachear si el resultado es un objeto con todos los valores numéricos en cero
     // Evita cachear stats vacíos post-restart antes de que la BD esté lista
     const serialized = JSON.stringify(data)
-    const allZero = typeof data === 'object' && data !== null &&
-      Object.values(data as any).every(v => v === 0 || v === null || v === undefined ||
-        (typeof v === 'object' && v !== null && Object.values(v as any).every(vv => vv === 0 || vv === null)))
+    // Solo no cachear si los campos numéricos de primer nivel son todos cero
+    // (indica BD aún no lista post-restart). Sub-objetos como saldos/egresos no cuentan.
+    const numericValues = Object.values(data as any).filter(v => typeof v === 'number')
+    const allZero = numericValues.length > 0 && numericValues.every(v => v === 0)
     if (!allZero) {
       await redis.setex(key, ttlSeconds, serialized)
     }
