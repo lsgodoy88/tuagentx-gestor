@@ -16,7 +16,8 @@ export async function GET() {
   const user = session.user as any
   const empresaId = getEmpresaId(user)
 
-  const cacheKey = `g:${empresaId}:stats:${fechaHoyBogota()}`
+  const STATS_VERSION = 'v3' // incrementar al cambiar estructura del objeto stats
+  const cacheKey = `g:${empresaId}:stats:${STATS_VERSION}:${fechaHoyBogota()}`
 
   const stats = await withCache(cacheKey, 60, async () => {
   const hoy = inicioDiaBogota()
@@ -178,6 +179,7 @@ export async function GET() {
     calcularEgresosMes(empresaId, mesBogota(), anioBogota()).catch(() => ({ total: 0, pagado: 0, pendiente: 0 })),
   ])
 
+  if (!stats || (stats as any).error) return NextResponse.json({ error: 'Error calculando stats' }, { status: 500 })
   const res = NextResponse.json({ ...stats, saldos, egresos })
   res.headers.set('Cache-Control', 'private, no-store')
   return res
