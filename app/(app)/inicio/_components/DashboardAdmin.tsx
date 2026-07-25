@@ -163,20 +163,18 @@ export default function DashboardAdmin({ user }: { user: any }) {
       return
     }
 
-    const adminFetches: Promise<any>[] = [
-      fetch('/api/stats').then(r => r.json()).catch(() => null),
-    ]
-    if (isEmpresa || isSupervisor) adminFetches.push(fetch('/api/integracion/estado').then(r => r.json()).catch(() => null))
-
-    const cached = getCached()
-    if (cached && !vieneDelLogin()) {
-      // Invalidar cache si le faltan campos nuevos (saldos, egresos)
-      if (cached.stats && cached.stats.saldos && cached.stats.egresos) { setStats(cached.stats); setFromCache(true) }
-    }
-
-    Promise.all(adminFetches).then(([s]) => {
-      if (s) { setStats(s); setCached({ stats: s }) }
+    // Stats — siempre del API, nunca del cache (igual que DashboardVendedor)
+    const currentUserId = user?.id
+    fetch('/api/stats').then(r => r.json()).catch(() => null).then(s => {
+      if (user?.id !== currentUserId) return
+      if (s && !s.error) setStats(s)
     })
+    if (isEmpresa || isSupervisor) {
+      fetch('/api/integracion/estado').then(r => r.json()).catch(() => null).then(d => {
+        if (user?.id !== currentUserId) return
+        if (d) setCached({ integracion: d })
+      })
+    }
   }, [user])
 
   async function cargarEstadisticas() {
