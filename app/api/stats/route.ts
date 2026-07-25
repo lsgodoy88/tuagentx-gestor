@@ -168,13 +168,17 @@ export async function GET() {
     metaVentaMes,
     metaRecaudoMes,
     recaudoPorVendedor,
-    saldos:   await calcularSaldoActual(empresaId),
-    egresos:  await calcularEgresosMes(empresaId, mesBogota(), anioBogota()),
   }
   return stats satisfies AdminStats
   }) // withCache
 
-  const res = NextResponse.json(stats)
+  // Saldos y egresos FUERA del withCache — siempre frescos, nunca quedan atrapados en cache viejo
+  const [saldos, egresos] = await Promise.all([
+    calcularSaldoActual(empresaId).catch(() => ({ efectivo: 0, bancos: 0, otros: 0 })),
+    calcularEgresosMes(empresaId, mesBogota(), anioBogota()).catch(() => ({ total: 0, pagado: 0, pendiente: 0 })),
+  ])
+
+  const res = NextResponse.json({ ...stats, saldos, egresos })
   res.headers.set('Cache-Control', 'private, no-store')
   return res
   } catch (err: any) {
