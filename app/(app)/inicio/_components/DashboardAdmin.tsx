@@ -285,7 +285,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
         <div className="space-y-3">
 
           <div className="space-y-3">
-            {stats?.saldos && (
+            {stats && (
               <div className="rounded-2xl px-4 card-compact hover-lift card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}
                 onClick={() => router.push('/ingresos')} role="button">
                 <div className="flex items-center gap-1.5 mb-2">
@@ -294,9 +294,9 @@ export default function DashboardAdmin({ user }: { user: any }) {
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   {[
-                    { label: 'Efectivo', valor: stats.saldos.efectivo, color: 'text-emerald-400' },
-                    { label: 'Bancos',   valor: stats.saldos.bancos,   color: 'text-blue-400' },
-                    { label: 'Otros',    valor: stats.saldos.otros,    color: 'text-amber-400' },
+                    { label: 'Efectivo', valor: stats.saldos?.efectivo ?? 0, color: 'text-emerald-400' },
+                    { label: 'Bancos',   valor: stats.saldos?.bancos ?? 0,   color: 'text-blue-400' },
+                    { label: 'Otros',    valor: stats.saldos?.otros ?? 0,    color: 'text-amber-400' },
                   ].map(({ label, valor, color }) => (
                     <div key={label} className="flex flex-col items-center">
                       <p className="text-zinc-400 text-xs mb-1">{label}</p>
@@ -307,7 +307,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
                 </div>
               </div>
             )}
-            {stats?.egresos && (
+            {stats && (
               <div className="rounded-2xl px-4 card-compact hover-lift card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}
                 onClick={() => router.push('/egresos')} role="button">
                 <div className="flex items-center gap-1.5 mb-2">
@@ -316,9 +316,9 @@ export default function DashboardAdmin({ user }: { user: any }) {
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   {[
-                    { label: 'Total',     valor: stats.egresos.total,     color: 'text-white' },
-                    { label: 'Pagado',    valor: stats.egresos.pagado,    color: 'text-emerald-400' },
-                    { label: 'Pendiente', valor: stats.egresos.pendiente, color: stats.egresos.pendiente > 0 ? 'text-red-400' : 'text-zinc-400' },
+                    { label: 'Total',     valor: stats.egresos?.total ?? 0,     color: 'text-white' },
+                    { label: 'Pagado',    valor: stats.egresos?.pagado ?? 0,    color: 'text-emerald-400' },
+                    { label: 'Pendiente', valor: stats.egresos?.pendiente ?? 0, color: (stats.egresos?.pendiente ?? 0) > 0 ? 'text-red-400' : 'text-zinc-400' },
                   ].map(({ label, valor, color }) => (
                     <div key={label} className="flex flex-col items-center">
                       <p className="text-zinc-400 text-xs mb-1">{label}</p>
