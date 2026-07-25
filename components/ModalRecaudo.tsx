@@ -363,7 +363,33 @@ export default function ModalRecaudo({
                 const saldoRestante = montoSeleccionado - totalPagado - totalDescuento
                 return (
                   <div className="bg-zinc-500/40 border border-blue-500/25 rounded-xl px-4 py-3 space-y-1.5">
-                    <p className="text-zinc-300 text-sm font-semibold uppercase tracking-wide mb-2">Resumen</p>
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-zinc-300 text-sm font-semibold uppercase tracking-wide">Resumen</p>
+                      {(() => {
+                        // Simular FIFO igual que la API — solo mostrar facturas que el monto cubre
+                        const totalAplicado = contables.reduce((s, l) => s + Number(l.monto || 0), 0) +
+                          Object.values(descuentosPorFactura).reduce((s: number, v) => s + Number(v || 0), 0)
+                        const factsOrdenadas = (detalleData?.DetalleCartera || [])
+                          .filter((d: any) => facturasSeleccionadas.includes(d.id) && d.estado !== 'pagada')
+                          .sort((a: any, b: any) => {
+                            const fa = a.fechaVencimiento ? new Date(a.fechaVencimiento).getTime() : Infinity
+                            const fb = b.fechaVencimiento ? new Date(b.fechaVencimiento).getTime() : Infinity
+                            return fa - fb
+                          })
+                        let restante = totalAplicado
+                        const factsAplicadas: string[] = []
+                        for (const d of factsOrdenadas) {
+                          if (restante <= 0) break
+                          const saldo = Number(d.nSaldo ?? d.saldo ?? 0)
+                          if (saldo <= 0) continue
+                          if (d.numeroFactura) factsAplicadas.push(String(d.numeroFactura))
+                          restante -= Math.min(saldo, restante)
+                        }
+                        return factsAplicadas.length > 0
+                          ? <span className="text-zinc-400 text-xs font-mono">{factsAplicadas.join(' · ')}</span>
+                          : null
+                      })()}
+                    </div>
                     {contables.map((l, i) => (
                       <div key={l.id} className="flex justify-between items-center text-sm">
                         <span className="text-zinc-500">Pago {i + 1} · {l.metodoPago === 'efectivo' ? 'Efectivo' : 'Transferencia'}</span>

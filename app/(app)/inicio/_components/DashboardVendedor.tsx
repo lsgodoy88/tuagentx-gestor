@@ -409,7 +409,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
     if (!dc) { setDetalleData(null); return }
     const { calcularEstado } = await import('@/lib/cartera')
     dc.DetalleCartera = (dc.deudas || []).map((d: any) => ({
-      id: d.externalId, syncDeudaId: d.id, valorFactura: d.valor, abonos: d.valor - d.saldoReal, saldoPendiente: d.saldoReal,
+      id: d.id, syncDeudaId: d.id, valorFactura: d.valor, abonos: d.valor - d.saldoReal, saldoPendiente: d.saldoReal,
       ...(() => {
         const saldo = Math.max(0, d.saldoReal), vf = Number(d.valor||0), ab = vf - saldo
         const fv = d.fechaVencimiento ? new Date(d.fechaVencimiento) : null

@@ -435,7 +435,7 @@ export default function CarteraPage() {
     const dc = data.cartera
     if (!dc) { setDetalleData(null); return }
     dc.DetalleCartera = (dc.deudas || []).map((d: any) => ({
-      id: d.externalId,
+      id: d.id,
       syncDeudaId: d.id,
       valorFactura: d.valor,
       abonos: d.valor - d.saldoReal,

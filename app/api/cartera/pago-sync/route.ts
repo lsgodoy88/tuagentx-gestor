@@ -109,11 +109,12 @@ export async function POST(req: NextRequest) {
   })
   const integracionIdActual = integracionRow?.id || null
 
-  // Buscar deudas por externalId — si no vienen, buscar todas las activas del cliente (FIFO)
-  const externalIds = Array.isArray(syncDeudaIds) ? syncDeudaIds : []
+  // Buscar deudas por id interno (SyncDeuda.id) — si no vienen, buscar todas las activas del cliente (FIFO)
+  // Frontend envía SyncDeuda.id (estandarizado) — buscar directamente por id interno
+  const syncIds = Array.isArray(syncDeudaIds) ? syncDeudaIds : []
   const deudas = await (prisma as any).syncDeuda.findMany({
-    where: externalIds.length > 0
-      ? { externalId: { in: externalIds }, clienteApiId }
+    where: syncIds.length > 0
+      ? { id: { in: syncIds }, clienteApiId }
       : { clienteApiId, ...(integracionIdActual ? { integracionId: integracionIdActual } : {}), condition: true, saldo: { gt: 0 } },
     orderBy: [{ fechaVencimiento: 'asc' }, { numeroFactura: 'asc' }],
   })

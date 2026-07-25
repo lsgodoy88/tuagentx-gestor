@@ -4,11 +4,11 @@ import RobotIcon from '@/components/RobotIcon'
 
 type Msg = { rol: 'user' | 'bot'; texto: string; accion?: string; requiereConfirm?: boolean }
 
-interface Props { onClose: () => void; rol?: string; visible?: boolean }
+interface Props { onClose: () => void; rol?: string; visible?: boolean; userId?: string }
 
 
 
-export default function AsistenteGestor({ onClose, rol, visible }: Props) {
+export default function AsistenteGestor({ onClose, rol, visible, userId }: Props) {
   const esVendedor = ['vendedor','entregas','impulsadora'].includes(rol || '')
   const bienvenida = esVendedor
     ? '¡Hola! Soy TaXBot\nTu asistente de TuAgentX. Puedo consultarte tu recaudo, clientes con saldo, visitas y pagos.\n\n¿En qué te ayudo?'
@@ -16,6 +16,25 @@ export default function AsistenteGestor({ onClose, rol, visible }: Props) {
   const [msgs, setMsgs] = useState<Msg[]>([{ rol: 'bot', texto: bienvenida }])
   const [input, setInput]         = useState('')
   const [cargando, setCargando]   = useState(false)
+  const LIMITE_DIARIO = 5
+  const [enviados, setEnviados] = useState(() => {
+    try {
+      const hoy = new Date().toISOString().slice(0,10)
+      const raw = localStorage.getItem('taxbot_cnt_' + (userId || 'u'))
+      if (!raw) return 0
+      const { fecha, count } = JSON.parse(raw)
+      return fecha === hoy ? count : 0
+    } catch { return 0 }
+  })
+
+  function incrementarContador() {
+    try {
+      const hoy = new Date().toISOString().slice(0,10)
+      const next = enviados + 1
+      localStorage.setItem('taxbot_cnt_' + (userId || 'u'), JSON.stringify({ fecha: hoy, count: next }))
+      setEnviados(next)
+    } catch {}
+  }
   const [pendiente, setPendiente] = useState<{ accion: string; texto: string } | null>(null)
   const endRef = useRef<HTMLDivElement | null>(null)
 
@@ -28,6 +47,11 @@ export default function AsistenteGestor({ onClose, rol, visible }: Props) {
   async function enviar(textoOverride?: string) {
     const texto = (textoOverride ?? input).trim()
     if (!texto || cargando) return
+    if (enviados >= LIMITE_DIARIO) {
+      setMsgs(prev => [...prev, { rol: 'bot', texto: 'Alcanzaste el límite de ' + LIMITE_DIARIO + ' mensajes por día. Vuelve mañana.' }])
+      return
+    }
+    incrementarContador()
     setInput('')
     const nuevaMsgs: Msg[] = [...msgs, { rol: 'user', texto }]
     setMsgs(nuevaMsgs)
@@ -154,7 +178,25 @@ export default function AsistenteGestor({ onClose, rol, visible }: Props) {
 
         {/* Input */}
         <div className="p-4 border-t border-zinc-800">
-          <div className="flex gap-2">
+          <div className="flex gap-2 items-center">
+            {/* Contador circular */}
+            <div style={{position:'relative',width:40,height:40,flexShrink:0}}>
+              <svg width="40" height="40" viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="15" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="2.5"/>
+                <circle cx="18" cy="18" r="15" fill="none"
+                  stroke={enviados >= LIMITE_DIARIO ? '#ef4444' : '#3b82f6'}
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeDasharray={`${(enviados / LIMITE_DIARIO) * 94.2} 94.2`}
+                  style={{transformOrigin:'18px 18px', transform:'rotate(-90deg)'}}
+                />
+              </svg>
+              <span style={{
+                position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',
+                fontSize:13,fontWeight:800,color: enviados >= LIMITE_DIARIO ? '#ef4444' : '#94a3b8',
+                letterSpacing:'-0.5px'
+              }}>{enviados}/{LIMITE_DIARIO}</span>
+            </div>
             <input
               value={input}
               onChange={e => setInput(e.target.value)}

@@ -660,7 +660,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <style>{`@keyframes spinR { to { transform: rotate(-360deg) } }`}</style>
         </div>
       )}
-      {(isEmpresa || isSupervisor || isEmpleado) && <AsistenteGestor onClose={() => setAsistenteAbierto(false)} rol={user?.role} visible={asistenteAbierto} />}
+      {(isEmpresa || isSupervisor || isEmpleado) && <AsistenteGestor onClose={() => setAsistenteAbierto(false)} rol={user?.role} visible={asistenteAbierto} userId={user?.id} />}
 
     </div>
     </>

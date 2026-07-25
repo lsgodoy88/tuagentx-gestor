@@ -4,6 +4,7 @@ import { CountUp, LiveDot } from '@/components/FX'
 import { CardKPIGroup, CardCountAdmin, CardCountAdminSkeleton } from '@/components/ui/cards'
 import { useRouter } from 'next/navigation'
 
+// CACHE_KEY_BASE incluye el commit — se invalida automáticamente en cada deploy
 const CACHE_KEY_BASE = 'inicio_admin_cache_v2'
 const CACHE_TTL = 10 * 60 * 1000
 const CACHE_TTL_PRECIOS = 30 * 60 * 1000
