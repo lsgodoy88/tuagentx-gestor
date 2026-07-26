@@ -44,7 +44,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const empresa = await (prisma as any).empresa.findFirst({ where: { id: empresaId }, select: { nombre: true } })
 
   const body = await req.json()
-  const { estado, fotoAlistamiento, repartidorId, guiaTransporte, transportadora, firmaBase64 } = body
+  const { estado, fotoAlistamiento, repartidorId, guiaTransporte, transportadora, firmaBase64, num_cajas } = body
 
   const update: Record<string, unknown> = {}
 
@@ -84,6 +84,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   if (repartidorId !== undefined) update.repartidorId = repartidorId || null
+  if (num_cajas !== undefined && Number.isInteger(num_cajas) && num_cajas >= 1) update.num_cajas = num_cajas
   if (guiaTransporte !== undefined) update.guiaTransporte = guiaTransporte
   if (transportadora !== undefined) update.transportadora = transportadora
 

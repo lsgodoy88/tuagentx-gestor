@@ -26,11 +26,17 @@ export async function GET(req: NextRequest) {
 
   const rows = await prisma.$queryRawUnsafe<any[]>(`
     SELECT l.id, l."numeroFactura", l."clienteNombre", l.modo, l."guiaTransporte", l.transportadora, l."despachadoEl",
-           o."alistadoEl", o.ciudad, o."fotosAlistamiento", o."fotoAlistamiento"
+           o."alistadoEl", o.ciudad, o."fotosAlistamiento", o."fotoAlistamiento",
+           o.id as "ordenId", o."fechaOrden", o."fechaFactura", o.direccion,
+           o."num_cajas", o."entregadoEl", o."firmaEntrega",
+           ap.nombre as "alistadoPorNombre",
+           rp.nombre as "repartidorNombre"
     FROM ${DB_SCHEMA}."DespachoLog" l
     LEFT JOIN ${DB_SCHEMA}."OrdenDespacho" o
       ON o."numeroFactura" = l."numeroFactura"
       AND o."empresaId" = $2
+    LEFT JOIN ${DB_SCHEMA}."Empleado" ap ON ap.id = o."alistadoPorId"
+    LEFT JOIN ${DB_SCHEMA}."Empleado" rp ON rp.id = o."repartidorId" 
     WHERE l."empresaId" = $2
       ${cursor ? `AND l."despachadoEl" < (SELECT "despachadoEl" FROM ${DB_SCHEMA}."DespachoLog" WHERE id = '${cursor.replace(/'/g,"''")}' LIMIT 1)` : ''}
     ORDER BY l."despachadoEl" DESC
@@ -48,7 +54,14 @@ export async function GET(req: NextRequest) {
     alistadoEl: r.alistadoEl instanceof Date ? r.alistadoEl.toISOString() : r.alistadoEl ? (String(r.alistadoEl).endsWith('Z') ? String(r.alistadoEl) : String(r.alistadoEl) + 'Z') : null,
     ciudad: r.ciudad || null,
     fotosAlistamiento: r.fotosAlistamiento || null,
-    fotoAlistamiento: r.fotoAlistamiento || null
+    fotoAlistamiento: r.fotoAlistamiento || null,
+    direccion: r.direccion || null,
+    fechaOrden: r.fechaOrden instanceof Date ? r.fechaOrden.toISOString() : r.fechaOrden || null,
+    fechaFactura: r.fechaFactura instanceof Date ? r.fechaFactura.toISOString() : r.fechaFactura || null,
+    entregadoEl: r.entregadoEl instanceof Date ? r.entregadoEl.toISOString() : r.entregadoEl || null,
+    num_cajas: r.num_cajas ?? 0,
+    alistadoPor: r.alistadoPorNombre ? { nombre: r.alistadoPorNombre } : null,
+    repartidor: r.repartidorNombre ? { nombre: r.repartidorNombre } : null
   }))
   return NextResponse.json({ data: serialized, nextCursor, hayMas })
 }

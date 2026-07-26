@@ -439,6 +439,25 @@ export async function POST(req: NextRequest) {
       const todasDeudas = [...deudas, ...deudasInactivas]
       if (todasDeudas.length > 0) await sincronizarDeudas(todasDeudas, integracion.id, empresaId)
       await actualizarCache(new Set([clienteApiId]), integracion.id, empresaId)
+
+      // Actualizar datos maestros del cliente desde la primera deuda que traiga nombre/NIT
+      const conNombre = todasDeudas.find((d: any) => d.clienteNombreApi || d.clienteNit)
+      if (conNombre) {
+        const updates: any = {}
+        if (conNombre.clienteNombreApi) updates.nombre = conNombre.clienteNombreApi
+        if (conNombre.clienteNit) updates.nit = conNombre.clienteNit
+        if (Object.keys(updates).length > 0) {
+          await (prisma as any).cliente.updateMany({
+            where: { apiId: clienteApiId, empresaId },
+            data: updates,
+          })
+          await (prisma as any).carteraCache.updateMany({
+            where: { clienteApiId, integracionId: integracion.id },
+            data: { ...(updates.nombre ? { nombre: updates.nombre } : {}) },
+          })
+        }
+      }
+
       return NextResponse.json({ ok: true, deudas: todasDeudas.length })
 
     } else {

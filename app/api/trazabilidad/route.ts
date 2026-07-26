@@ -43,7 +43,13 @@ function buildWhereSQL(where: any): { sql: string; params: any[] } {
   } else if (empresaId) {
     parts.push(`"empresaId" = \$${i++}`); params.push(empresaId)
   }
-  if (where.estado) { parts.push(`"estado" = \$${i++}`); params.push(where.estado) }
+  if (where.estado) {
+    if (where.estado === 'despachado') {
+      parts.push(`"estado" IN ('despachado','en_transito')`)
+    } else {
+      parts.push(`"estado" = \$${i++}`); params.push(where.estado)
+    }
+  }
   if (where.vendedorApiId) { parts.push(`"vendedorApiId" = \$${i++}`); params.push(where.vendedorApiId) }
   if (where.fechaOrdenBogota?.gte) { parts.push(`"fechaOrdenBogota" >= \$${i++}`); params.push(where.fechaOrdenBogota.gte) }
   if (where.fechaOrdenBogota?.lte) { parts.push(`"fechaOrdenBogota" <= \$${i++}`); params.push(where.fechaOrdenBogota.lte) }
@@ -263,6 +269,9 @@ export async function GET(req: NextRequest) {
     fotosAlistamiento: true,
     firmaEntrega: true,
     repartidorId: true,
+    guiaTransporte: true,
+    num_cajas: true,
+    direccion: true,
     alistadoPor: { select: { nombre: true } },
     repartidor: { select: { nombre: true } },
     visitas: {

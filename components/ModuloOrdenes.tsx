@@ -94,6 +94,11 @@ export default function ModuloOrdenes() {
   const [msgSync, setMsgSync] = useState('')
   const [saving, setSaving] = useState<Record<string, boolean>>({})
   const [tabActivo, setTabActivo] = useState<'pendiente'|'alistado'|'despachado'>('pendiente')
+  function cambiarTab(tab: 'pendiente'|'alistado'|'despachado') {
+    setTabActivo(tab)
+    setCiudadFiltro('')
+    setSeleccionados([])
+  }
 
   const {
     despachosPorTab, setDespachosPorTab,
@@ -114,6 +119,7 @@ export default function ModuloOrdenes() {
   const [expanded, setExpanded] = useState<Record<string, boolean>>({})
   const [editTransporte, setEditTransporte] = useState<Record<string, { transportadora: string; guia: string }>>({})
   const [editRepartidor, setEditRepartidor] = useState<Record<string, string>>({})
+  const [cajasEdit, setCajasEdit] = useState<Record<string, number>>({})
   const [galeria, setGaleria] = useState<{ fotos: string[], index: number, fecha?: string | null, esFirma?: boolean } | null>(null)
   const [galeriaLoading, setGaleriaLoading] = useState(false)
 
@@ -496,8 +502,14 @@ export default function ModuloOrdenes() {
 
   async function guardarTransporte(id: string) {
     const t = editTransporte[id]
-    if (!t) return
-    await patchOrden(id, { transportadora: t.transportadora, guiaTransporte: t.guia, estado: 'en_transito' })
+    const cajas = cajasEdit[id] ?? 0
+    if (cajas <= 0) return
+    await patchOrden(id, {
+      transportadora: t?.transportadora,
+      guiaTransporte: t?.guia || null,
+      num_cajas: cajas,
+      estado: 'en_transito'
+    })
     setEditTransporte(p => { const n = { ...p }; delete n[id]; return n })
     setExpanded(p => ({ ...p, [id]: false }))
   }
@@ -628,7 +640,7 @@ export default function ModuloOrdenes() {
             { id: 'despachado', label: 'DESPACHADOS', count: despachados.length, activeC: 'bg-blue-600',   countC: 'text-white' },
           ] as const).map(p => (
             <button key={p.id}
-              onClick={() => { setTabActivo(p.id as any); if (p.id === 'despachado' && despachoLog.length === 0) cargarDespachoLog(true) }}
+              onClick={() => { cambiarTab(p.id as any); if (p.id === 'despachado' && despachoLog.length === 0) cargarDespachoLog(true) }}
               className={`flex-1 flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl transition-all ${
                 tabActivo === p.id ? p.activeC : 'hover:bg-zinc-800'
               }`}>
@@ -684,12 +696,18 @@ export default function ModuloOrdenes() {
                   onTouchEnd={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null } }}
                   onTouchMove={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null } }}
                   onClick={modoSeleccion && d.estado === 'alistado' && (ciudadLocal ? (d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? '') === ciudadLocal.trim().toLowerCase() : true) ? () => setSeleccionados(prev => prev.includes(d.id) ? prev.filter(x => x !== d.id) : [...prev, d.id]) : undefined}>
-                  <div className="px-4 py-3 flex items-center gap-2">
-                    <div className="flex-1 min-w-0 flex items-center gap-1.5 overflow-hidden">
-                      <span className="text-white font-mono text-xs flex-shrink-0">#{d.numeroFactura || d.numeroOrden}</span>
-                      <span className="text-zinc-700 flex-shrink-0">·</span>
-                      <span className="text-white font-semibold text-sm truncate flex-1">{nombreCorto(d.clienteNombre)}</span>
-                      {ciudadNombre && <span className="text-zinc-400 text-xs flex-shrink-0 ml-1">{ciudadNombre}</span>}
+                  <div className={`px-4 py-3 flex items-center gap-2 ${d.estado === 'alistado' ? 'cursor-pointer select-none' : ''}`}
+                    onClick={d.estado === 'alistado' ? () => toggleExpanded(d.id) : undefined}>
+                    <div className="flex-1 min-w-0 flex flex-col gap-0.5 overflow-hidden">
+                      <div className="flex items-center gap-1.5 overflow-hidden">
+                        <span className="text-white font-mono text-xs flex-shrink-0">#{d.numeroFactura || d.numeroOrden}</span>
+                        <span className="text-zinc-700 flex-shrink-0">·</span>
+                        <span className="text-white font-semibold text-sm truncate flex-1">{nombreCorto(d.clienteNombre)}</span>
+                        {ciudadNombre && <span className="text-zinc-400 text-xs flex-shrink-0 ml-1">{ciudadNombre}</span>}
+                      </div>
+                      {d.direccion && (
+                        <span className="text-zinc-500 text-xs truncate block">{d.direccion}</span>
+                      )}
                     </div>
                   </div>
 
@@ -708,42 +726,54 @@ export default function ModuloOrdenes() {
                   )}
 
                   {d.estado === 'alistado' && (
-                    <div className="px-4 pb-3 pt-1 border-t border-zinc-800/60">
-                      <div className="flex items-center gap-3 mt-1 flex-wrap">
-                        {btnFoto}
-                        <button onClick={() => toggleExpanded(d.id)}
-                          className="flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors">
-                          🚚 Enviar {isExpanded ? '▲' : '▼'}
-                        </button>
-                        {d.alistadoEl && (
-                          <span className="text-zinc-300 text-xs">Alistado {formatFechaCorta(d.alistadoEl)}</span>
-                        )}
-                
-                      </div>
+                    <div className="px-4 pb-1.5 pt-1 border-t border-zinc-800/60">
+                      {/* Barra: foto + fecha + dropdown modo */}
+                      {(() => {
+                        const ciudadB = d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''
+                        const esLocalB = ciudadLocal ? ciudadB === ciudadLocal.trim().toLowerCase() : false
+                        const modoB = modoEnvio[d.id] ?? (esLocalB ? 'local' : 'transportadora')
+                        const opcionesB = esLocalB
+                          ? [{ v: 'local', label: '🚚 Local' }, { v: 'transportadora', label: '📦 Guía' }, { v: 'personal', label: '🤝 Personal' }]
+                          : [{ v: 'transportadora', label: '📦 Guía' }, { v: 'personal', label: '🤝 Personal' }]
+                        const labelB = opcionesB.find(o => o.v === modoB)?.label ?? opcionesB[0].label
+                        return (
+                          <div className="flex items-center gap-2 mt-1">
+                            {btnFoto}
+                            {d.alistadoEl && (
+                              <span className="text-zinc-400 text-xs flex-1">{formatFechaCorta(d.alistadoEl)}</span>
+                            )}
+                            <div className="relative ml-auto">
+                              <select
+                                value={modoB}
+                                onChange={e => {
+                                  setModoEnvio(p => ({ ...p, [d.id]: e.target.value }))
+                                  if (!isExpanded) toggleExpanded(d.id)
+                                }}
+                                className="appearance-none bg-zinc-800 border border-zinc-700 text-zinc-300 text-xs font-semibold rounded-xl pl-3 pr-7 py-1.5 outline-none cursor-pointer"
+                                style={{ WebkitAppearance: 'none' }}>
+                                {opcionesB.map(o => (
+                                  <option key={o.v} value={o.v}>{o.label}</option>
+                                ))}
+                              </select>
+                              <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-zinc-400 text-xs">▼</span>
+                            </div>
+                          </div>
+                        )
+                      })()}
+                      <div className="flex flex-col gap-3 mt-2">
 
+                      </div>
                       {isExpanded && (
-                        <div className="mt-3 space-y-3">
-                          {/* Selector modo envío */}
+                        <div className="mt-2 space-y-3">
+                          {/* Panel cajas para fuera de localidad en modo local */}
                           {(() => {
                             const ciudadOrdenModo = d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''
                             const esLocalModo = ciudadLocal ? ciudadOrdenModo === ciudadLocal.trim().toLowerCase() : false
                             const modoActual = modoEnvio[d.id] ?? (esLocalModo ? 'local' : 'transportadora')
-                            return (
-                              <div className="grid grid-cols-3 gap-1.5">
-                                <button onClick={() => setModoEnvio(p => ({ ...p, [d.id]: 'local' }))}
-                                  className={`py-2 rounded-xl text-xs font-semibold border transition-colors ${modoActual === 'local' ? 'bg-blue-600 border-blue-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
-                                  🚚 Local
-                                </button>
-                                <button onClick={() => setModoEnvio(p => ({ ...p, [d.id]: 'transportadora' }))}
-                                  className={`py-2 rounded-xl text-xs font-semibold border transition-colors ${modoActual === 'transportadora' ? 'bg-orange-600 border-orange-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
-                                  📦 Guía
-                                </button>
-                                <button onClick={() => setModoEnvio(p => ({ ...p, [d.id]: 'personal' }))}
-                                  className={`py-2 rounded-xl text-xs font-semibold border transition-colors ${modoActual === 'personal' ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400'}`}>
-                                  🤝 Personal
-                                </button>
-                              </div>
-                            )
+                            const cajasFuera = cajasEdit[d.id] ?? d.num_cajas ?? 1
+                            if (!esLocalModo && modoActual === 'local') return null
+                            if (!esLocalModo) return null // modo viene del dropdown, no mostrar nada extra aquí
+                            return null
                           })()}
 
                           {/* Local — una línea */}
@@ -754,19 +784,28 @@ export default function ModuloOrdenes() {
                             if (esLocalidad2 && repartidores.length === 1 && !editRepartidor[d.id]) {
                               setTimeout(() => setEditRepartidor(p => ({ ...p, [d.id]: repartidores[0].id })), 0)
                             }
+                            if (!esLocalidad2) {
+                              const cajas = cajasEdit[d.id] ?? d.num_cajas ?? 1
+                              return (
+                                <div className="flex items-center gap-2">
+                                  <button onClick={() => setCajasEdit(p => ({ ...p, [d.id]: Math.max(1, (p[d.id] ?? d.num_cajas ?? 1) - 1) }))}
+                                    className="w-8 h-8 rounded-xl bg-zinc-800 border border-zinc-700 text-white text-base font-bold flex items-center justify-center hover:bg-zinc-700">−</button>
+                                  <span className="text-white text-xs font-semibold min-w-[52px] text-center">{cajas} {cajas === 1 ? 'caja' : 'cajas'}</span>
+                                  <button onClick={async () => {
+                                    const n = (cajasEdit[d.id] ?? d.num_cajas ?? 1) + 1
+                                    setCajasEdit(p => ({ ...p, [d.id]: n }))
+                                    await patchOrden(d.id, { num_cajas: n })
+                                  }} className="w-8 h-8 rounded-xl bg-zinc-800 border border-zinc-700 text-white text-base font-bold flex items-center justify-center hover:bg-zinc-700">+</button>
+                                </div>
+                              )
+                            }
                             return (
                               <div className="space-y-1.5">
-                                {!esLocalidad2 && (
-                                  <p className="text-amber-400 text-xs font-semibold">
-                                    {ciudadLocal ? '⚠️ Ciudad fuera de localidad — usa Guía o Personal' : '⚠️ Configura la ciudad local en Configuración → Despachos'}
-                                  </p>
-                                )}
                                 <div className="flex gap-2 items-center">
                                   <select
                                     value={editRepartidor[d.id] ?? ''}
                                     onChange={e => setEditRepartidor(p => ({ ...p, [d.id]: e.target.value }))}
-                                    disabled={!esLocalidad2}
-                                    className="flex-1  rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-blue-500 disabled:opacity-40" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
+                                    className="flex-1 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-blue-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                                     <option value="">— Repartidor —</option>
                                     {repartidores.map((r: any) => (
                                       <option key={r.id} value={r.id}>{r.nombre}</option>
@@ -785,33 +824,54 @@ export default function ModuloOrdenes() {
                           {/* Guía — una línea */}
                           {(() => { const cm = d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''; const eloc = ciudadLocal ? cm === ciudadLocal.trim().toLowerCase() : false; return (modoEnvio[d.id] ?? (eloc ? 'local' : 'transportadora')) === 'transportadora' })() && (
                             <div className="space-y-1.5">
-                              <div className="flex gap-2">
-                                <input
-                                  value={editTransporte[d.id]?.guia ?? ''}
-                                  onChange={e => setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], guia: e.target.value } }))}
-                                  placeholder="# Guía o código"
-                                  inputMode="text"
-                                  className="flex-1 min-w-0 bg-zinc-800 border border-orange-500/60 rounded-xl px-3 py-2.5 text-white text-xs outline-none focus:border-orange-500"
-                                />
-                                <button
-                                  title="Escanear código de barras"
-                                  onClick={() => setEscanerOrdenId(d.id)}
-                                  className="bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 text-white px-3 py-2.5 rounded-xl flex items-center justify-center">
-                                  <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current">
-                                    <rect x="1" y="4" width="2" height="16"/><rect x="4" y="4" width="1" height="16"/>
-                                    <rect x="6" y="4" width="2" height="16"/><rect x="9" y="4" width="1" height="16"/>
-                                    <rect x="11" y="4" width="3" height="16"/><rect x="15" y="4" width="1" height="16"/>
-                                    <rect x="17" y="4" width="2" height="16"/><rect x="20" y="4" width="1" height="16"/>
-                                    <rect x="22" y="4" width="1" height="16"/>
-                                  </svg>
-                                </button>
-                                <button onClick={() => guardarTransporte(d.id)}
-                                  disabled={isSaving || !editTransporte[d.id]?.guia}
-                                  className="bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold px-4 py-2.5 rounded-xl text-xs transition-colors">
-                                  {isSaving ? '...' : '📦 Enviar'}
-                                </button>
-                              </div>
+                              {(() => {
+                                const cajas = cajasEdit[d.id] ?? 0
+                                const guia = editTransporte[d.id]?.guia ?? ''
+                                const puedeEnviar = cajas > 0
+                                return (
+                                  <div className="flex gap-1.5 items-center">
+                                    {/* Cajas — default 0 = 📦, + activa */}
+                                    <button onClick={() => setCajasEdit(p => ({ ...p, [d.id]: Math.max(0, (p[d.id] ?? 0) - 1) }))}
+                                      disabled={cajas === 0}
+                                      className="w-9 h-9 rounded-xl bg-zinc-800 border border-zinc-700 text-white text-base font-bold flex items-center justify-center hover:bg-zinc-700 disabled:opacity-30 flex-shrink-0">−</button>
+                                    <span className="text-white text-sm flex-shrink-0 min-w-[20px] text-center">
+                                      <span className="text-base">{cajas === 0 ? '📦' : `${cajas}c`}</span>
+                                    </span>
+                                    <button onClick={async () => {
+                                      const n = (cajasEdit[d.id] ?? 0) + 1
+                                      setCajasEdit(p => ({ ...p, [d.id]: n }))
+                                      await patchOrden(d.id, { num_cajas: n })
+                                    }} className="w-9 h-9 rounded-xl bg-zinc-800 border border-zinc-700 text-white text-base font-bold flex items-center justify-center hover:bg-zinc-700 flex-shrink-0">+</button>
 
+                                    {/* Guía — opcional: si tiene código muestra texto, si no solo escáner */}
+                                    {guia ? (
+                                      <span className="flex-1 min-w-0 text-white text-xs font-mono truncate px-2 py-2 bg-zinc-800 border border-orange-500/40 rounded-xl cursor-pointer"
+                                        onClick={() => setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], guia: '' } }))}>
+                                        {guia} ✕
+                                      </span>
+                                    ) : (
+                                      <button title="Escanear guía" onClick={() => setEscanerOrdenId(d.id)}
+                                        className="flex-1 min-w-0 bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 text-white py-2 rounded-xl flex items-center justify-center gap-2" >
+                                        <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current flex-shrink-0">
+                                          <rect x="1" y="4" width="2" height="16"/><rect x="4" y="4" width="1" height="16"/>
+                                          <rect x="6" y="4" width="2" height="16"/><rect x="9" y="4" width="1" height="16"/>
+                                          <rect x="11" y="4" width="3" height="16"/><rect x="15" y="4" width="1" height="16"/>
+                                          <rect x="17" y="4" width="2" height="16"/><rect x="20" y="4" width="1" height="16"/>
+                                          <rect x="22" y="4" width="1" height="16"/>
+                                        </svg>
+                                        
+                                      </button>
+                                    )}
+
+                                    {/* Enviar — solo si cajas > 0 */}
+                                    <button onClick={() => guardarTransporte(d.id)}
+                                      disabled={isSaving || !puedeEnviar}
+                                      className="bg-orange-600 hover:bg-orange-500 disabled:opacity-30 text-white font-bold px-2.5 py-2 rounded-xl text-xs transition-colors flex-shrink-0 whitespace-nowrap">
+                                      📦 Enviar
+                                    </button>
+                                  </div>
+                                )
+                              })()}
                             </div>
                           )}
 
@@ -841,23 +901,85 @@ export default function ModuloOrdenes() {
                     </div>
                   )}
 
-                  {d.estado === 'en_entrega' && (
-                    <div className="px-4 pb-3 pt-1 border-t border-zinc-800/60 flex items-center gap-2 mt-1">
-                      {btnFoto}
-                      <span className="w-5 text-base flex-shrink-0">🚚</span>
-                      <span className="text-zinc-400 text-xs w-16 flex-shrink-0">{formatHora(d.alistadoEl)}</span>
-                      <span className="text-zinc-500 text-xs">{formatFechaCorta(d.despachadoEl ?? d.alistadoEl)}</span>
-                    </div>
-                  )}
-
-                  {d.estado === 'en_transito' && (
-                    <div className="px-4 pb-3 pt-1 border-t border-zinc-800/60 flex items-center gap-2 mt-1">
-                      {btnFoto}
-                      <span className="w-5 text-base flex-shrink-0">📦</span>
-                      <span className="text-zinc-400 text-xs w-16 flex-shrink-0">{formatHora(d.alistadoEl)}</span>
-                      <span className="text-zinc-500 text-xs truncate">{d.guiaTransporte ? '#' + d.guiaTransporte : formatFechaCorta(d.despachadoEl ?? d.alistadoEl)}</span>
-                    </div>
-                  )}
+                  {(d.estado === 'en_entrega' || d.estado === 'en_transito') && (() => {
+                    const isExpD = expanded[d.id] || false
+                    const cajas = cajasEdit[d.id] ?? d.num_cajas ?? 0
+                    const guia = editTransporte[d.id]?.guia ?? d.guiaTransporte ?? ''
+                    const despachadoEl = d.despachadoEl ?? d.alistadoEl
+                    return (
+                      <div className="border-t border-zinc-800/60">
+                        {/* Barra tappable */}
+                        <div className="px-4 py-1.5 flex items-center gap-2 cursor-pointer select-none"
+                          onClick={() => setExpanded(p => ({ ...p, [d.id]: !p[d.id] }))}>
+                          <span className="text-zinc-500 text-xs">🚚</span>
+                          <span className="text-zinc-400 text-xs flex-1">
+                            {d.guiaTransporte ? '#' + d.guiaTransporte : formatFechaCorta(despachadoEl)}
+                            {d.num_cajas > 0 && <span className="ml-2 text-zinc-500">{d.num_cajas} caja{d.num_cajas > 1 ? 's' : ''}</span>}
+                          </span>
+                          <span className="text-zinc-500 text-xs">{isExpD ? '▲' : '▼'}</span>
+                        </div>
+                        {/* Timeline desplegado */}
+                        {isExpD && (
+                          <div className="px-4 pb-3 space-y-0.5 border-t border-zinc-800/40 pt-2">
+                            {[
+                              { icon: '📋', label: 'Orden',      fecha: d.fechaOrden,    quien: null },
+                              { icon: '🧾', label: 'Facturado',  fecha: d.fechaFactura,  quien: null },
+                              { icon: '📦', label: 'Alistado',   fecha: d.alistadoEl,    quien: d.alistadoPor?.nombre || null },
+                              { icon: '🚚', label: 'Despachado', fecha: despachadoEl,    quien: [d.repartidor?.nombre, d.num_cajas > 0 ? `${d.num_cajas} caja${d.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · ') },
+                              { icon: '✅', label: 'Entregado',  fecha: d.entregadoEl,   quien: null },
+                            ].map((e, i) => (
+                              <div key={i} className="flex items-center gap-2 py-1">
+                                <span className="text-base flex-shrink-0">{e.icon}</span>
+                                <span className="text-zinc-400 text-xs w-20 flex-shrink-0">{e.label}</span>
+                                <span className="text-white text-xs flex-shrink-0">{e.fecha ? formatFechaCorta(e.fecha) : '—'}</span>
+                                {e.quien && <span className="text-zinc-500 text-xs truncate flex-1">{e.quien}</span>}
+                              </div>
+                            ))}
+                            {/* Guía + cajas editables */}
+                            <div className="flex gap-1.5 items-center mt-2 pt-2 border-t border-zinc-800/40">
+                              <button onClick={() => setCajasEdit(p => ({ ...p, [d.id]: Math.max(0, (p[d.id] ?? d.num_cajas ?? 0) - 1) }))}
+                                className="w-9 h-9 rounded-xl bg-zinc-800 border border-zinc-700 text-white text-base font-bold flex items-center justify-center hover:bg-zinc-700 flex-shrink-0">−</button>
+                              <span className="text-white text-sm flex-shrink-0 min-w-[24px] text-center">
+                                {cajas === 0 ? '📦' : `${cajas}c`}
+                              </span>
+                              <button onClick={async () => {
+                                const n = (cajasEdit[d.id] ?? d.num_cajas ?? 0) + 1
+                                setCajasEdit(p => ({ ...p, [d.id]: n }))
+                                await patchOrden(d.id, { num_cajas: n })
+                              }} className="w-9 h-9 rounded-xl bg-zinc-800 border border-zinc-700 text-white text-base font-bold flex items-center justify-center hover:bg-zinc-700 flex-shrink-0">+</button>
+                              {guia ? (
+                                <span className="flex-1 min-w-0 text-white text-xs font-mono truncate px-2 py-2 bg-zinc-800 border border-orange-500/40 rounded-xl cursor-pointer"
+                                  onClick={() => setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], guia: '' } }))}>
+                                  {guia} ✕
+                                </span>
+                              ) : (
+                                <button onClick={() => setEscanerOrdenId(d.id)}
+                                  className="flex-1 min-w-0 bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 text-white py-2 rounded-xl flex items-center justify-center gap-2">
+                                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current flex-shrink-0">
+                                    <rect x="1" y="4" width="2" height="16"/><rect x="4" y="4" width="1" height="16"/>
+                                    <rect x="6" y="4" width="2" height="16"/><rect x="9" y="4" width="1" height="16"/>
+                                    <rect x="11" y="4" width="3" height="16"/><rect x="15" y="4" width="1" height="16"/>
+                                    <rect x="17" y="4" width="2" height="16"/><rect x="20" y="4" width="1" height="16"/>
+                                    <rect x="22" y="4" width="1" height="16"/>
+                                  </svg>
+                                  <span className="text-zinc-400 text-xs">Añadir guía</span>
+                                </button>
+                              )}
+                              {(guia !== (d.guiaTransporte ?? '') || (cajasEdit[d.id] !== undefined && cajasEdit[d.id] !== d.num_cajas)) && (
+                                <button onClick={async () => {
+                                  await patchOrden(d.id, { guiaTransporte: guia || null, num_cajas: cajas })
+                                  setEditTransporte(p => { const n = {...p}; delete n[d.id]; return n })
+                                }} disabled={isSaving}
+                                  className="bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold px-2.5 py-2 rounded-xl text-xs flex-shrink-0 whitespace-nowrap">
+                                  💾
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
 
                   {d.estado === 'entregado' && (
                     <div className="px-4 pb-3 pt-1 border-t border-zinc-800/60 mt-1">
@@ -890,12 +1012,17 @@ export default function ModuloOrdenes() {
           {despachoLog.length === 0 ? (
             null
           ) : (() => {
-            const todasFacturas = [...despachoLog, ...pendientes, ...alistados, ...despachados]
+            const logFiltrado = ciudadFiltro
+              ? despachoLog.filter((l: any) => l.ciudad === ciudadFiltro)
+              : despachoLog
+            const todasFacturas = ciudadFiltro
+              ? logFiltrado
+              : [...despachoLog, ...pendientes, ...alistados, ...despachados]
             const allNums = todasFacturas.map((x: any) => parseInt(x.numeroFactura)).filter((n: number) => !isNaN(n))
             if (allNums.length === 0) return null
             const rangeMax = Math.max(...allNums)
             const rangeMin = Math.min(...allNums)
-            const logMap = new Map(despachoLog.map((l: any) => [parseInt(l.numeroFactura), l]))
+            const logMap = new Map(logFiltrado.map((l: any) => [parseInt(l.numeroFactura), l]))
             // nums ya calculado arriba con todasFacturas
             const max = rangeMax
             const min = rangeMin
@@ -913,38 +1040,74 @@ export default function ModuloOrdenes() {
               // Usar datos del log directamente (tiene JOIN con OrdenDespacho)
               const fotos2: string[] = (log.fotosAlistamiento as string[] | null) || (log.fotoAlistamiento ? [log.fotoAlistamiento] : [])
               const ciudad2 = log.ciudad?.split('/').pop()?.trim() || null
+              const isExpLog = expanded[log.id] || false
+              const cajasLog = cajasEdit[log.id] ?? log.num_cajas ?? 0
+              const guiaLog = editTransporte[log.id]?.guia ?? log.guiaTransporte ?? ''
               return (
-                <div key={n} className="bg-zinc-900 border border-zinc-800 rounded-2xl flex items-stretch px-3 py-2.5 gap-2">
-                  {/* Columna izquierda — # factura centrado verticalmente */}
-                  <div className="w-10 flex-shrink-0 flex items-center justify-end pr-2 border-r border-zinc-800">
-                    <span className="text-white font-mono text-xs">#{log.numeroFactura}</span>
-                  </div>
-                  {/* Columna derecha — L1 nombre/ciudad + L2 datos */}
-                  <div className="flex-1 min-w-0 flex flex-col justify-center gap-0.5">
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-white font-semibold text-sm truncate flex-1">{nombreCorto(log.clienteNombre)}</span>
-                      {ciudad2 && <span className="text-zinc-400 text-xs flex-shrink-0">{ciudad2}</span>}
+                <div key={n} className="bg-zinc-900 border border-zinc-800 border-l-4 border-l-zinc-500 rounded-2xl overflow-hidden">
+                  {/* Header tappable */}
+                  <div className="px-4 py-3 flex items-start gap-2 cursor-pointer select-none"
+                    onClick={() => setExpanded(p => ({ ...p, [log.id]: !p[log.id] }))}>
+                    <div className="flex-1 min-w-0 flex flex-col gap-0.5 overflow-hidden">
+                      <div className="flex items-center gap-1.5 overflow-hidden">
+                        <span className="text-white font-mono text-xs flex-shrink-0">#{log.numeroFactura}</span>
+                        <span className="text-zinc-700 flex-shrink-0">·</span>
+                        <span className="text-white font-semibold text-sm truncate flex-1">{nombreCorto(log.clienteNombre)}</span>
+                        {ciudad2 && <span className="text-zinc-400 text-xs flex-shrink-0">{ciudad2}</span>}
+                      </div>
+                      {log.direccion && <span className="text-zinc-500 text-xs truncate block">{log.direccion}</span>}
                     </div>
-                    <div className="flex items-center gap-2">
-                      {/* 📷 + cantidad */}
-                      <button
-                        onClick={fotos2.length > 0 ? () => abrirGaleriaConUrls(fotos2, log.alistadoEl) : undefined}
-                        disabled={fotos2.length === 0}
-                        className="w-7 flex-shrink-0 flex items-center gap-0.5 text-zinc-400 hover:text-white text-xs disabled:opacity-30 disabled:cursor-default">
-                        📷{fotos2.length > 1 ? <span className="text-[10px] font-bold leading-none">{fotos2.length}</span> : null}
-                      </button>
-                      {/* Fecha + hora alistado */}
-                      <span className="text-zinc-500 text-xs whitespace-nowrap flex-shrink-0">
-                        {log.alistadoEl ? formatFechaCorta(log.alistadoEl) : '—'}
-                      </span>
-                      {/* Icono modo despacho */}
-                      <span className="text-sm flex-shrink-0">{log.modo === 'personal' ? '🤝' : log.modo === 'transportadora' ? '📦' : '🚚'}</span>
-                      {/* Fecha + hora despacho */}
-                      <span className="text-zinc-400 text-xs whitespace-nowrap flex-shrink-0">
-                        {formatFechaCorta(log.despachadoEl)}
-                      </span>
-                    </div>
+                    <span className="text-zinc-500 text-xs mt-0.5">{isExpLog ? '▲' : '▼'}</span>
                   </div>
+
+                  {/* Timeline desplegado */}
+                  {isExpLog && (
+                    <div className="px-4 pb-3 space-y-0.5 border-t border-zinc-800/40 pt-2">
+                      {[
+                        { icon: '📋', label: 'Orden',      fecha: log.fechaOrden,    quien: null },
+                        { icon: '🧾', label: 'Facturado',  fecha: log.fechaFactura,  quien: null },
+                        { icon: '📦', label: 'Alistado',   fecha: log.alistadoEl,    quien: log.alistadoPor?.nombre || null,
+                          accion: fotos2.length > 0 ? () => abrirGaleriaConUrls(fotos2, log.alistadoEl) : null },
+                        { icon: '🚚', label: 'Despachado', fecha: log.despachadoEl,  quien: [log.repartidor?.nombre, log.num_cajas > 0 ? `${log.num_cajas} caja${log.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · '), esDespacho: true },
+                        { icon: '✅', label: 'Entregado',  fecha: log.entregadoEl,   quien: null },
+                      ].map((e: any, i) => (
+                        <div key={i} className="flex items-center gap-2 py-1">
+                          <span className="text-base flex-shrink-0">{e.icon}</span>
+                          <span className="text-zinc-400 text-xs w-20 flex-shrink-0">{e.label}</span>
+                          <span className="text-white text-xs flex-shrink-0">{e.fecha ? formatFechaCorta(e.fecha) : '—'}</span>
+                          {e.quien && <span className="text-zinc-500 text-xs truncate flex-1">{e.quien}</span>}
+                          {e.accion && <button onClick={ev => { ev.stopPropagation(); e.accion!() }} className="text-zinc-400 hover:text-white text-xs">🖼️</button>}
+                          {(e as any).esDespacho && !log.guiaTransporte && !guiaLog && (
+                            <button onClick={() => setEscanerOrdenId(log.id)} className="text-zinc-500 hover:text-white flex-shrink-0">
+                              <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
+                                <rect x="1" y="4" width="2" height="16"/><rect x="4" y="4" width="1" height="16"/>
+                                <rect x="6" y="4" width="2" height="16"/><rect x="9" y="4" width="1" height="16"/>
+                                <rect x="11" y="4" width="3" height="16"/><rect x="15" y="4" width="1" height="16"/>
+                                <rect x="17" y="4" width="2" height="16"/><rect x="20" y="4" width="1" height="16"/>
+                                <rect x="22" y="4" width="1" height="16"/>
+                              </svg>
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      {/* Guardar guía si fue escaneada */}
+                      {guiaLog && guiaLog !== log.guiaTransporte && (
+                        <div className="flex gap-2 items-center mt-1 pt-2 border-t border-zinc-800/40">
+                          <span className="flex-1 text-white text-xs font-mono truncate px-2 py-1.5 bg-zinc-800 border border-orange-500/40 rounded-xl cursor-pointer"
+                            onClick={() => setEditTransporte(p => ({ ...p, [log.id]: { ...p[log.id], guia: '' } }))}>
+                            {guiaLog} ✕
+                          </span>
+                          <button onClick={async () => {
+                            await patchOrden(log.id, { guiaTransporte: guiaLog })
+                            setEditTransporte(p => { const nv = {...p}; delete nv[log.id]; return nv })
+                          }} disabled={saving[log.id]}
+                            className="bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold px-3 py-2 rounded-xl text-xs flex-shrink-0">
+                            💾
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )
             })

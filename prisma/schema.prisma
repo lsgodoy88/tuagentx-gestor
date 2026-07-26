@@ -2962,6 +2962,7 @@ model OrdenDespacho {
   origenSync        String?           // 'delta' | 'nocturno' | 'backfill' | 'manual' | 'recuperada'
   urlSeguimiento    String?           // URL completa de seguimiento: urlBase + guiaTransporte
   smsEnviado        Boolean           @default(false) // SMS de factura enviado al cliente
+  num_cajas         Int               @default(0)
   reconciliadoEn    DateTime?         // cuándo se marcó isFacturada=true por reconciliador
   createdAt         DateTime          @default(now())
   empresaVinculada  EmpresaVinculada? @relation(fields: [origenVinculadaId], references: [id])

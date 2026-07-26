@@ -22,31 +22,39 @@ function hace7() {
 }
 
 const ESTADOS = [
-  { value: '', label: 'Todos' },
-  { value: 'pendiente', label: 'Pendiente' },
-  { value: 'alistado', label: 'Alistado' },
-  { value: 'despachado', label: 'Despachado' },
-  { value: 'en_entrega', label: 'En entrega' },
-  { value: 'en_transito', label: 'En tránsito' },
-  { value: 'entregado', label: 'Entregado' },
+  { value: '',            label: 'Todos' },
+  { value: 'pendiente',   label: 'Pendiente' },
+  { value: 'alistado',    label: 'Alistado' },
+  { value: 'despachado',  label: 'Despachado' },
+  { value: 'en_entrega',  label: 'Despacho local' },
+  { value: 'entregado',   label: 'Entregado' },
 ]
+
+const COLOR_ESTADO: Record<string, string> = {
+  pendiente:   'text-white',
+  alistado:    'text-amber-400',
+  despachado:  'text-emerald-400',
+  en_transito: 'text-emerald-400',
+  en_entrega:  'text-teal-400',
+  entregado:   'text-blue-400',
+}
 
 const ICONO_ESTADO: Record<string, string> = {
   pendiente: '🟡',
   alistado: '🟢',
   despachado: '🚚',
   en_entrega: '🚚',
-  en_transito: '🚛',
+  en_transito: '🚚',
   entregado: '✅',
 }
 
 const LABEL_ESTADO: Record<string, string> = {
-  pendiente: 'Pendiente',
-  alistado: 'Alistado',
-  despachado: 'Despachado',
-  en_entrega: 'En entrega',
-  en_transito: 'En tránsito',
-  entregado: 'Entregado',
+  pendiente:   'Pendiente',
+  alistado:    'Alistado',
+  despachado:  'Despachado',
+  en_transito: 'Despachado',
+  en_entrega:  'Despacho local',
+  entregado:   'Entregado',
 }
 
 const BADGE_ESTADO: Record<string, string> = {
@@ -54,7 +62,7 @@ const BADGE_ESTADO: Record<string, string> = {
   alistado: 'bg-amber-500/15 text-amber-400',
   despachado: 'bg-blue-500/15 text-blue-400',
   en_entrega: 'bg-blue-500/15 text-blue-400',
-  en_transito: 'bg-violet-500/15 text-violet-400',
+  en_transito: 'bg-blue-500/15 text-blue-400',
   entregado: 'bg-emerald-500/15 text-emerald-400',
 }
 
@@ -91,7 +99,7 @@ function getOrdenColumns(ctx: {
       key: 'estado', label: 'EST', width: 32, minWidth: 26,
       render: (o: any) => (
         <span style={{ fontSize: 13, lineHeight: 1 }} title={LABEL_ESTADO[o.estado] || o.estado}>
-          {ICONO_ESTADO[o.estado] || '⚪'}
+          <span className={COLOR_ESTADO[o.estado] || 'text-white'}>▼</span>
         </span>
       ),
     },
@@ -182,7 +190,6 @@ export default function TrazabilidadPage() {
   }
   const [sincronizando, setSincronizando] = useState(false)
   const [syncMsg, setSyncMsg] = useState<string | null>(null)
-  const [guiaOpen, setGuiaOpen] = useState(false)
 
   function cambiarDias(delta: number) {
     const nuevo = Math.min(30, Math.max(1, diasHistorial + delta))
@@ -245,8 +252,8 @@ export default function TrazabilidadPage() {
 
   useEffect(() => { cargar(null) }, [q, estado])
 
-  async function buscar() {
-    const texto = qInput.trim()
+  async function buscar(override?: string) {
+    const texto = (override ?? qInput).trim()
     if (!texto) { setQ(''); setOrdenesBusqueda(null); setFuenteBusqueda(null); return }
 
     // Capa 1: buscar en memoria (ordenes ya cargadas)
@@ -273,12 +280,25 @@ export default function TrazabilidadPage() {
     }
   }
 
+  const [fechaFiltro, setFechaFiltro] = useState<string>('')
+
   function limpiarBusqueda() {
     setQInput(''); setOrdenesBusqueda(null); setFuenteBusqueda(null); setQ('')
   }
   function limpiar() { setQ(''); setQInput(''); setEstado(''); setDiasHistorial(7); setOrdenesBusqueda(null); setFuenteBusqueda(null) }
 
-  const sourceOrdenes = ordenesBusqueda !== null ? ordenesBusqueda : ordenes
+  const sourceOrdenes = (() => {
+    const base = ordenesBusqueda !== null ? ordenesBusqueda : ordenes
+    if (!fechaFiltro) return base
+    return base.filter((o: any) => {
+      // Elegir campo según estado activo
+      const campo = estado === 'entregado' ? o.entregadoEl
+        : (estado === 'alistado') ? o.alistadoEl
+        : (estado === 'despachado' || estado === 'en_transito' || estado === 'en_entrega') ? (o.despachadoEl || o.alistadoEl)
+        : (o.fechaOrden || o.alistadoEl || o.despachadoEl || o.entregadoEl)
+      return campo && campo.slice(0, 10) === fechaFiltro
+    })
+  })()
   const pagedOrdenes     = sourceOrdenes.slice(page * PAGE_SIZE_TRAZ, (page + 1) * PAGE_SIZE_TRAZ)
   const totalPagesTraz   = Math.max(1, Math.ceil(sourceOrdenes.length / PAGE_SIZE_TRAZ))
 
@@ -299,80 +319,72 @@ export default function TrazabilidadPage() {
           📦 Inventario
         </button>
 
-        {/* Guía de estados */}
-        <div style={{ position: 'relative', flexShrink: 0 }}>
-          <button onClick={() => setGuiaOpen(v => !v)}
-            className="tab-btn flex-shrink-0 px-3 py-2 text-xs font-semibold"
-            title="Guía de estados">
-            ❓
-          </button>
-          {guiaOpen && (
-            <div
-              onClick={() => setGuiaOpen(false)}
-              style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
-          )}
-          {guiaOpen && (
-            <div style={{ position: 'absolute', right: 0, top: 'calc(100% + 6px)', zIndex: 50, background: 'rgba(15,15,22,0.97)', border: '1px solid rgba(59,130,246,0.35)', borderRadius: 12, padding: '12px 16px', minWidth: 210, boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Estados</p>
-              {[
-                { icon: '🟡', label: 'Pendiente',   desc: 'Orden registrada, sin alistar' },
-                { icon: '🟢', label: 'Alistado',    desc: 'Listo en bodega'              },
-                { icon: '🚚', label: 'Despachado',  desc: 'Salió de bodega'              },
-                { icon: '🚛', label: 'En tránsito', desc: 'En ruta al cliente'           },
-                { icon: '✅', label: 'Entregado',   desc: 'Recibido por cliente'         },
-              ].map(e => (
-                <div key={e.label} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                  <span style={{ fontSize: 16, flexShrink: 0 }}>{e.icon}</span>
-                  <div>
-                    <p style={{ fontSize: 12, fontWeight: 700, color: 'white', lineHeight: 1.2 }}>{e.label}</p>
-                    <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', lineHeight: 1.2 }}>{e.desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+
       </div>
 
       {tabPrincipal === 'inventario' && <StockPage />}
 
       {tabPrincipal === 'despachos' && (<>
 
-      {/* Filtros */}
-      <div className="space-y-2">
-        <div className="flex gap-2">
-          <input
-            value={qInput}
-            onChange={e => setQInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && buscar()}
-            placeholder="# orden o cliente..."
-            className={`flex-1 min-w-0 bg-[#0d1220] rounded-lg px-3 py-2 text-white text-sm focus:outline-none ${qInput ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}
-          />
-          <select value={estado} onChange={e => setEstado(e.target.value)}
-            className={`bg-[#0d1220] rounded-lg px-3 py-2 text-white text-sm focus:outline-none ${estado ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}>
-            {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
-          </select>
-          <button onClick={buscar}
-            className="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl">
-            🔍
-          </button>
-        </div>
-        <div className="flex gap-2 items-center">
-          <span className="text-zinc-400 text-xs whitespace-nowrap px-2 flex-1">
-            <span className="text-white font-semibold">{ordenesBusqueda !== null ? ordenesBusqueda.length : total}</span> órdenes
-            {fuenteBusqueda === 'memoria' && <span className="text-zinc-500"> · en pantalla</span>}
-            {fuenteBusqueda === 'bd' && <span className="text-zinc-500"> · BD</span>}
-            {fuenteBusqueda === 'no_encontrado' && <span className="text-zinc-500"> · no encontrada</span>}
-          </span>
+      {/* Filtros — una sola línea */}
+      <div className="flex gap-2 items-center">
+        {/* Búsqueda automática ≥3 dígitos */}
+        <input
+          value={qInput}
+          onChange={e => {
+            const v = e.target.value
+            setQInput(v)
+            if (/^\d{3,}$/.test(v.trim())) {
+              setQ(v.trim()); buscar(v.trim())
+            } else if (v.trim().length >= 3 && !/^\d+$/.test(v.trim())) {
+              setQ(v.trim()); buscar(v.trim())
+            } else if (v === '') {
+              setQ(''); setOrdenesBusqueda(null); setFuenteBusqueda(null)
+            }
+          }}
+          placeholder="# orden o cliente..."
+          className={`flex-1 min-w-0 bg-[#0d1220] rounded-lg px-3 py-2 text-white text-sm focus:outline-none ${qInput ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}
+        />
+        {/* Selector estado */}
+        <select value={estado} onChange={e => setEstado(e.target.value)}
+          className={`bg-[#0d1220] rounded-lg px-2 py-2 text-white text-sm focus:outline-none flex-shrink-0 ${estado ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}>
+          {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
+        </select>
+        {/* Filtro fecha — número del día, long-press anula */}
+        {(() => {
+          let longTimer: ReturnType<typeof setTimeout> | null = null
+          return (
+            <label
+              className={`relative flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer select-none ${fechaFiltro ? "border border-amber-500 bg-[#0d1220]" : "border border-[#1e2a3d] bg-[#0d1220]"}`}
+              onTouchStart={() => { longTimer = setTimeout(() => { setFechaFiltro(''); longTimer = null }, 600) }}
+              onTouchEnd={e => {
+                if (longTimer) { clearTimeout(longTimer); longTimer = null; e.preventDefault(); (e.currentTarget.querySelector('input') as HTMLInputElement)?.showPicker?.() }
+                else { e.preventDefault() }
+              }}
+              onTouchMove={() => { if (longTimer) { clearTimeout(longTimer); longTimer = null } }}>
+              <input
+                type="date"
+                value={fechaFiltro}
+                onChange={e => setFechaFiltro(e.target.value)}
+                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                style={{WebkitAppearance:'none'}}
+              />
+              <span className="text-sm font-bold" style={{color: fechaFiltro ? '#f59e0b' : 'white'}}>
+                {fechaFiltro ? new Date(fechaFiltro + 'T12:00:00').getDate() : new Date().getDate()}
+              </span>
+            </label>
+          )
+        })()}
+      </div>
+      {/* Filtros activos — solo si hay algo que mostrar */}
+      {(ordenesBusqueda !== null || buscandoProfundo) && (
+        <div className="flex items-center gap-2 px-1">
           {buscandoProfundo && <span className="text-zinc-500 text-xs animate-pulse">Buscando...</span>}
           {ordenesBusqueda !== null && (
-            <button onClick={limpiarBusqueda} className="text-zinc-500 hover:text-white text-xs">✕</button>
-          )}
-          {(q || estado || desde !== hace7() || hasta !== hoy()) && (
-            <button onClick={limpiar} className="text-zinc-500 hover:text-white text-xs px-2">Limpiar</button>
+            <button onClick={limpiarBusqueda} className="text-zinc-500 hover:text-white text-xs">✕ búsqueda</button>
           )}
         </div>
-      </div>
+      )}
 
       {/* Resultados */}
       {loading ? (
@@ -433,7 +445,7 @@ export default function TrazabilidadPage() {
                 icon: '🚚',
                 label: 'Despachado',
                 fecha: !['pendiente', 'alistado'].includes(orden.estado) ? orden.alistadoEl : null,
-                quien: repartidorNombre,
+                quien: [repartidorNombre, (orden.num_cajas > 0 && !['pendiente','alistado'].includes(orden.estado)) ? `${orden.num_cajas} caja${orden.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · '),
                 accion: orden.urlSeguimiento ? () => window.open(orden.urlSeguimiento, '_blank') : null,
                 accionLabel: orden.urlSeguimiento ? '🔗' : '',
               },
@@ -458,21 +470,27 @@ export default function TrazabilidadPage() {
             return (
               <div key={orden.id} className={`rounded-2xl overflow-hidden transition-all`} style={{background:'#060a24',border:isSeleccionada?'1px solid rgba(59,130,246,0.60)':'1px solid rgba(59,130,246,0.25)',borderRadius:14}}>
                 {/* Header — siempre visible, clickeable */}
-                <div onClick={() => toggleExpandido(orden.id, orden)} className="flex items-center gap-2 p-3 cursor-pointer hover:bg-zinc-800/50 transition-colors">
-                  <span className="text-zinc-400 font-mono text-xs flex-shrink-0">#{orden.numeroFactura || orden.numeroOrden}</span>
-                  {orden.clienteNombre === 'Sin nombre' ? (
-                    <span className="text-amber-400 text-xs font-semibold truncate flex-1">⚠️ ERROR DE DATOS</span>
-                  ) : (
-                    <span className="text-white text-sm font-semibold truncate flex-1">{orden.clienteNombre}</span>
-                  )}
-                  <span className="text-zinc-400 text-xs flex-shrink-0">{orden.ciudad}</span>
-                  <span className="flex-shrink-0">{ICONO_ESTADO[orden.estado] || '⚪'}</span>
-                  <span className="text-zinc-500 text-xs flex-shrink-0">{abierto ? '▲' : '▼'}</span>
+                <div onClick={() => toggleExpandido(orden.id, orden)} className="flex items-start gap-2 p-3 cursor-pointer hover:bg-zinc-800/50 transition-colors">
+                  <div className="flex-1 min-w-0 flex flex-col gap-0.5 overflow-hidden">
+                    <div className="flex items-center gap-2 overflow-hidden">
+                      <span className="text-white font-mono text-xs flex-shrink-0">#{orden.numeroFactura || orden.numeroOrden}</span>
+                      {orden.clienteNombre === 'Sin nombre' ? (
+                        <span className="text-amber-400 text-xs font-semibold truncate flex-1">⚠️ ERROR DE DATOS</span>
+                      ) : (
+                        <span className="text-white text-sm font-semibold truncate flex-1">{orden.clienteNombre}</span>
+                      )}
+                      <span className="text-zinc-400 text-xs flex-shrink-0">{orden.ciudad}</span>
+                    </div>
+                  </div>
+                  <span className={`flex-shrink-0 mt-0.5 text-xs ${COLOR_ESTADO[orden.estado] || 'text-white'}`}>{abierto ? '▲' : '▼'}</span>
                 </div>
 
                 {/* Timeline — solo si expandido */}
                 {abierto && (
                   <div className="px-3 pb-3 border-t border-zinc-800 pt-2 space-y-0.5">
+                    {orden.direccion && (
+                      <p className="text-zinc-500 text-xs pb-1">{orden.direccion}</p>
+                    )}
                     {etapas.map((etapa, i) => (
                       <div key={i} className="flex items-center gap-2 py-1.5">
                         <span className="text-base flex-shrink-0">{etapa.icon}</span>
