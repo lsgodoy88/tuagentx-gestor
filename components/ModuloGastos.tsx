@@ -49,11 +49,19 @@ type DatosIAGasto = { valor: number | null; fecha: string | null; concepto: stri
  * dentro de /egresos (admin/supervisor) — mismo componente, mismo
  * comportamiento, sin duplicar lógica.
  */
-export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, mes, anio, filtroRapido }: { isAdmin: boolean, hideButton?: boolean, triggerRef?: React.RefObject<(() => void) | null>, mes?: number, anio?: number, filtroRapido?: 'hoy'|'semana' }) {
+export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, mes, anio }: { isAdmin: boolean, hideButton?: boolean, triggerRef?: React.RefObject<(() => void) | null>, mes?: number, anio?: number }) {
   const [gastos, setGastos] = useState<Gasto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [filtro, setFiltro] = useState<'hoy'|'semana'|'mes'>(filtroRapido ?? 'semana')
+  const _hoy = new Date()
+  const _dom = new Date(_hoy); _dom.setDate(_hoy.getDate() - _hoy.getDay())
+  const _sab = new Date(_dom); _sab.setDate(_dom.getDate() + 6)
+  const toISO = (d: Date) => d.toISOString().slice(0, 10)
+  const defaultDesde = toISO(_dom)
+  const defaultHasta = toISO(_sab)
+  const [fechaDesde, setFechaDesde] = useState(defaultDesde)
+  const [fechaHasta, setFechaHasta] = useState(defaultHasta)
+  const filtroModificado = fechaDesde !== defaultDesde || fechaHasta !== defaultHasta
   const [empleadoFiltro, setEmpleadoFiltro] = useState('')
   const [empleados, setEmpleados] = useState<{id:string,nombre:string}[]>([])
 
@@ -76,11 +84,11 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
   const camaraInputRef = useRef<HTMLInputElement>(null)
   if (triggerRef) (triggerRef as any).current = () => fileInputRef.current?.click()
 
-  useEffect(() => { if (filtroRapido) setFiltro(filtroRapido) }, [filtroRapido])
+
   useEffect(() => {
     fetch('/api/gastos/tipos').then(r => r.json()).then(d => { if (d.tipos) setTipos(d.tipos) }).catch(() => {})
   }, [])
-  useEffect(() => { cargarGastos() }, [filtro, empleadoFiltro, tipoFiltro, mes, anio])
+  useEffect(() => { cargarGastos() }, [fechaDesde, fechaHasta, empleadoFiltro, tipoFiltro, mes, anio])
   useEffect(() => {
     if (isAdmin) {
       fetch('/api/empleados?rol=vendedor&activo=true').then(r=>r.json()).then(d=>{
@@ -94,8 +102,8 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
     setLoading(true)
     try {
       const sp = new URLSearchParams()
-      if (filtro !== 'mes' && !mes) sp.set('filtro', filtro)
-      else if (mes && anio) { sp.set('mes', String(mes)); sp.set('anio', String(anio)) }
+      if (mes && anio) { sp.set('mes', String(mes)); sp.set('anio', String(anio)) }
+      else { sp.set('desde', fechaDesde); sp.set('hasta', fechaHasta) }
       if (empleadoFiltro) sp.set('empleadoId', empleadoFiltro)
       if (tipoFiltro) sp.set('tipo', tipoFiltro)
       const res = await fetch('/api/gastos?' + sp.toString())
@@ -215,19 +223,12 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
 
   return (
     <div className="space-y-4 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between flex-wrap gap-3">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <h1 className="text-white text-xl font-bold">🧾 Gastos</h1>
-          {gastos.length === 0 && <button onClick={() => setShowManual(true)} disabled={subiendo}
-            className="w-7 h-7 rounded-full border border-zinc-700 hover:border-zinc-400 flex items-center justify-center text-zinc-500 hover:text-zinc-200 text-base transition-colors">+</button>}
         </div>
-        <div className="flex items-center gap-3 ml-auto">
-          <select value={tipoFiltro} onChange={e => setTipoFiltro(e.target.value)}
-            className="rounded-lg px-2 py-1 text-zinc-300 outline-none"
-            style={{background:'rgba(255,255,255,0.10)', border: tipoFiltro ? '1px solid rgba(239,68,68,0.55)' : '1px solid rgba(255,255,255,0.15)', fontSize:'0.88rem', padding:'6px 8px'}}>
-            <option value="">Todas</option>
-            {tipos.map(t => <option key={t.id} value={t.label}>{t.label}</option>)}
-          </select>
+        <div className="flex items-center gap-2 ml-auto">
           {isAdmin && <button onClick={() => setShowTipos(true)}
             className="rounded-lg text-zinc-500 hover:text-zinc-200 transition-colors"
             style={{fontSize:"1rem", padding:"6px 10px", border:'1px solid rgba(255,255,255,0.08)'}}>⚙️</button>}
@@ -270,24 +271,36 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
             </div>
           )}
           <GastoManual open={showManual} onClose={() => setShowManual(false)} onAdicionado={() => { setShowManual(false); cargarGastos() }} />
+          <button onClick={() => setShowManual(true)} disabled={subiendo}
+            className="text-white text-sm font-semibold px-3 py-1.5 rounded-xl transition-colors border border-zinc-700 hover:border-zinc-500"
+            style={{background:'rgba(255,255,255,0.06)'}}>
+            ✍🏼 Nuevo
+          </button>
           {!hideButton && (
             <button onClick={() => fileInputRef.current?.click()} disabled={subiendo}
-              className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-semibold px-3 py-1.5 rounded-xl transition-colors">
-              {subiendo ? 'Analizando...' : '📎 Adjuntar'}
+              className="text-white text-sm font-semibold px-3 py-1.5 rounded-xl transition-colors border border-zinc-700 hover:border-zinc-500 disabled:opacity-50"
+              style={{background:'rgba(255,255,255,0.06)'}}>
+              {subiendo ? '⏳ Analizando...' : '📎 Adjuntar'}
             </button>
           )}
         </div>
       </div>
 
-      {!isAdmin && !mes && (
-        <div className="flex gap-2">
-          {(['hoy','semana','mes'] as const).map(f => (
-            <button key={f} onClick={() => setFiltro(f)}
-              className={"flex-1 py-2 rounded-xl text-sm font-semibold transition-colors " + (filtro === f ? 'bg-blue-600 text-white border border-blue-500' : 'text-zinc-400 hover:text-white')}
-            style={filtro !== f ? {background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.10)'} : {}}>
-              {f === 'hoy' ? 'Hoy' : f === 'semana' ? 'Semana' : 'Mes'}
-            </button>
-          ))}
+      {/* Filtros — segunda línea */}
+      {!mes && (
+        <div className="flex gap-2 items-center">
+          <input type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)}
+            className={`bg-[#0d1220] rounded-lg px-3 py-2 text-white text-sm focus:outline-none flex-1 min-w-0 ${filtroModificado ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}
+            style={{colorScheme:'dark'}} />
+          <span className="text-zinc-500 text-sm flex-shrink-0">—</span>
+          <input type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)}
+            className={`bg-[#0d1220] rounded-lg px-3 py-2 text-white text-sm focus:outline-none flex-1 min-w-0 ${filtroModificado ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}
+            style={{colorScheme:'dark'}} />
+          <select value={tipoFiltro} onChange={e => setTipoFiltro(e.target.value)}
+            className={`bg-[#0d1220] rounded-lg px-2 py-2 text-white text-sm focus:outline-none flex-shrink-0 ${tipoFiltro ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}>
+            <option value="">Tipo</option>
+            {tipos.map(t => <option key={t.id} value={t.label}>{t.label}</option>)}
+          </select>
         </div>
       )}
 

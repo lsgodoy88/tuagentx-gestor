@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
     const isNum = /^\d+$/.test(q.trim())
     where.OR = isNum
       ? [{ Cartera: { Cliente: { nombre: { contains: q, mode: 'insensitive' } } } }, { Aplicaciones: { some: { numeroFactura: parseInt(q) } } }, { numeroRecibo: { contains: q, mode: 'insensitive' } }]
-      : [{ Cartera: { Cliente: { nombre: { contains: q, mode: 'insensitive' } } } }, { numeroRecibo: { contains: q, mode: 'insensitive' } }]
+      : [{ Cartera: { Cliente: { nombre: { contains: q, mode: 'insensitive' } } } }, { clienteNombre: { contains: q, mode: 'insensitive' } }, { numeroRecibo: { contains: q, mode: 'insensitive' } }]
   }
   if (numeroRecibo) {
     where.numeroRecibo = numeroRecibo

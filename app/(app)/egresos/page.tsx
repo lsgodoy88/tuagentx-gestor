@@ -328,7 +328,6 @@ export default function EgresosPage() {
   const [mes, setMes] = useState(hoy.getMonth() + 1)
   const [anio, setAnio] = useState(hoy.getFullYear())
   const [showCal, setShowCal] = useState(false)
-  const [filtroGastos, setFiltroGastos] = useState<'hoy'|'semana'|'mes'>('mes')
   const [reloadKey, setReloadKey] = useState(0)
   const [totalGeneral, setTotalGeneral] = useState<{total:number,pagado:number,pendiente:number}|null>(null)
   const [categorias, setCategorias] = useState<{id:string,key:string,label:string,emoji:string}[]>([])
@@ -387,7 +386,7 @@ export default function EgresosPage() {
               className="flex items-center justify-center bg-zinc-800 border border-zinc-700 text-white text-lg font-semibold px-3 rounded-xl hover:bg-zinc-700 transition-colors flex-1">
               📅
             </button>
-            {showCal && <CalendarioPopup mes={mes} anio={anio} onChange={(m,a) => { setMes(m); setAnio(a); setFiltroGastos('mes') }} onClose={() => setShowCal(false)} onFiltroRapido={(f) => setFiltroGastos(f)} />}
+            {showCal && <CalendarioPopup mes={mes} anio={anio} onChange={(m,a) => { setMes(m); setAnio(a) }} onClose={() => setShowCal(false)} />}
           </div>
         </div>
       </div>
@@ -462,7 +461,7 @@ export default function EgresosPage() {
               </div>
             )}
           </div>
-        : <ModuloGastos isAdmin={isAdmin} hideButton triggerRef={triggerGastos} mes={filtroGastos==='mes' ? mes : undefined} anio={filtroGastos==='mes' ? anio : undefined} filtroRapido={filtroGastos !== 'mes' ? filtroGastos : undefined} />
+        : <ModuloGastos isAdmin={isAdmin} hideButton triggerRef={triggerGastos} mes={mes} anio={anio} />
       }
     </div>
   )

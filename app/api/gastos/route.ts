@@ -28,8 +28,15 @@ export async function GET(req: NextRequest) {
   const manana = new Date(hoySolo); manana.setDate(hoySolo.getDate() + 1)
   const lunes = new Date(hoySolo); lunes.setDate(hoySolo.getDate() - ((hoySolo.getDay() + 6) % 7))
 
+  const desdeParam = sp.get('desde') // YYYY-MM-DD
+  const hastaParam = sp.get('hasta') // YYYY-MM-DD
+
   let fechaWhere = {}
-  if (filtro === 'hoy') fechaWhere = { fechaAgregacion: { gte: hoySolo, lt: manana } }
+  if (desdeParam && hastaParam) {
+    const desde = new Date(desdeParam + 'T00:00:00')
+    const hasta = new Date(hastaParam + 'T23:59:59.999')
+    fechaWhere = { fechaAgregacion: { gte: desde, lte: hasta } }
+  } else if (filtro === 'hoy') fechaWhere = { fechaAgregacion: { gte: hoySolo, lt: manana } }
   else if (filtro === 'semana') fechaWhere = { fechaAgregacion: { gte: lunes, lt: manana } }
   else if (mesF && anioF) {
     const inicio = new Date(anioF, mesF - 1, 1)

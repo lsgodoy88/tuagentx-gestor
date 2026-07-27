@@ -254,7 +254,7 @@ export default function CarteraPage() {
   }
 
   useEffect(() => {
-    if (!busquedaPagos.trim()) { setPagosGlobal([]); return }
+    if (!busquedaPagos.trim() || busquedaPagos.trim().length < 3) { setPagosGlobal([]); return }
     const q = busquedaPagos.trim()
     const timer = setTimeout(async () => {
       setLoadingPagosGlobal(true)
@@ -1699,7 +1699,11 @@ export default function CarteraPage() {
         )}
 
         {/* Tabla scroll horizontal — funciona en móvil y desktop */}
-        {pagos.length === 0 ? (
+        {loadingPagosGlobal ? (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-10 text-center">
+            <p className="text-zinc-400 text-sm">Buscando pagos...</p>
+          </div>
+        ) : pagos.length === 0 && !busquedaPagos ? (
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-10 text-center">
             <p className="text-3xl mb-2">💳</p>
             <p className="text-zinc-400">Sin pagos en este período</p>
@@ -1707,7 +1711,8 @@ export default function CarteraPage() {
         ) : (() => {
           // Pre-calcular totales
           let totEfectivo = 0, totTransf = 0, totDesc = 0
-          const _pagosBase = busquedaPagos.trim() ? pagosGlobal : pagos
+          const qTrim = busquedaPagos.trim()
+          const _pagosBase = qTrim.length >= 3 ? pagosGlobal : pagos
           const pagosFiltrados = _pagosBase
 
           const rows = pagosFiltrados.map((p: any) => {
