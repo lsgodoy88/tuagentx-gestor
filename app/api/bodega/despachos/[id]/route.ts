@@ -4,9 +4,9 @@ import { getServerSession } from 'next-auth'
 import { invalidatePattern } from '@/lib/cache'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
+import { getOrCreateRutaHoy } from '@/lib/rutas/getOrCreateRutaHoy'
 import { getEmpresaId, ROLES_ADMIN_BODEGA } from '@/lib/auth-helpers'
 import { subirR2, registrarDespachoLog, esDespachado } from '@/lib/bodega'
-import { nowBogota } from '@/lib/fechas'
 
 const ROLES = ROLES_ADMIN_BODEGA
 
@@ -128,42 +128,21 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         where: { nit: orden.clienteNit, empresaId: empresaIdOrden },
       })
       if (cliente) {
-        // Buscar ruta activa del día
-        let rutaEmpleado = await tx.rutaEmpleado.findFirst({
-          where: { empleadoId: repartidorId, ruta: { cerrada: false, empresaId: empresaIdOrden } },
-          select: { rutaId: true }
-        })
-
-        // Si no existe, crear ruta del día para el repartidor
-        if (!rutaEmpleado) {
-          const repartidor = await tx.empleado.findUnique({
-            where: { id: repartidorId }, select: { nombre: true }
-          })
-          const hoy = nowBogota()
-          const dd = String(hoy.getDate()).padStart(2,'0')
-          const mm = String(hoy.getMonth()+1).padStart(2,'0')
-          const yyyy = hoy.getFullYear()
-          const rutaNueva = await tx.ruta.create({
-            data: {
-              nombre: `${repartidor?.nombre || 'Repartidor'}-${dd}-${mm}-${yyyy}`,
-              fecha: new Date(new Date().toISOString().split('T')[0] + 'T05:00:00.000Z'),
-              empresaId: empresaIdOrden,
-              empleados: { create: [{ empleadoId: repartidorId }] }
-            }
-          })
-          rutaEmpleado = { rutaId: rutaNueva.id }
-        }
+        // Obtener o crear ruta de hoy del repartidor (fuente única: getOrCreateRutaHoy)
+        // Nota: getOrCreateRutaHoy no acepta tx de Prisma (corre fuera de la transacción)
+        // Es aceptable: la asignación de ruta es idempotente y no es parte del core financiero
+        const rutaId = await getOrCreateRutaHoy(repartidorId, empresaIdOrden)
 
         // La clave de unicidad es la factura — mismo cliente puede tener N facturas distintas
         // o venir de Lumeli y de Leche el mismo día
         const notaOrden = `Bodega/${empresa?.nombre || 'Bodega'} #${orden.numeroFactura || orden.numeroOrden}`
         const yaEnRuta = await tx.rutaCliente.findFirst({
-          where: { rutaId: rutaEmpleado.rutaId, notas: notaOrden }
+          where: { rutaId, notas: notaOrden }
         })
         if (!yaEnRuta) {
           await tx.rutaCliente.create({
             data: {
-              rutaId: rutaEmpleado.rutaId,
+              rutaId,
               clienteId: cliente.id,
               orden: 999,
               notas: notaOrden,

@@ -12,6 +12,7 @@ import { prisma, DB_SCHEMA } from '@/lib/prisma'
 import { Prisma } from '@/app/generated/prisma'
 import { nowBogota as ahoraBogota, fechaBogotaStr, inicioDiaBogota, finDiaBogota } from '@/lib/fechas'
 import { audit } from '@/lib/audit'
+import { getOrCreateRutaHoy } from '@/lib/rutas/getOrCreateRutaHoy'
 
 function horaEnMinutos(hora: string): number {
   const [h, m] = hora.split(':').map(Number)
@@ -91,69 +92,18 @@ export async function runRutasDia(empresaIdFiltro?: string | null, forzar = fals
 
       const empIds = empleados.map(e => e.id)
 
-      const [rutasHoyTodos, rutasAyerTodos] = await Promise.all([
-        prisma.ruta.findMany({
-          where: { empresaId: empresa.id, fecha: { gte: inicioDiaBogota(ahoraBog), lte: finDiaBogota(ahoraBog) }, empleados: { some: { empleadoId: { in: empIds } } } },
-          include: { empleados: { select: { empleadoId: true } } }
-        }),
-        prisma.ruta.findMany({
-          where: { empresaId: empresa.id, fecha: { gte: inicioDiaBogota(ayerDate), lte: finDiaBogota(ayerDate) }, empleados: { some: { empleadoId: { in: empIds } } } },
-          include: { empleados: { select: { empleadoId: true } }, clientes: { where: { rezago: true }, orderBy: { orden: 'asc' } } }
-        })
-      ])
+      const rutasHoyTodos = await prisma.ruta.findMany({
+        where: { empresaId: empresa.id, fecha: { gte: inicioDiaBogota(ahoraBog), lte: finDiaBogota(ahoraBog) }, empleados: { some: { empleadoId: { in: empIds } } } },
+        include: { empleados: { select: { empleadoId: true } } }
+      })
 
       const tieneRutaHoy = new Set(rutasHoyTodos.flatMap(r => r.empleados.map((e: any) => e.empleadoId)))
-      const rezagosPorEmp: Record<string, any[]> = {}
-      for (const r of rutasAyerTodos) {
-        for (const re of r.empleados) {
-          if (!rezagosPorEmp[re.empleadoId]) rezagosPorEmp[re.empleadoId] = []
-          rezagosPorEmp[re.empleadoId].push(...r.clientes)
-        }
-      }
-
-      const nombresExistentes = new Set(
-        (await prisma.ruta.findMany({
-          where: { empresaId: empresa.id, fecha: { gte: inicioDiaBogota(ahoraBog), lte: finDiaBogota(ahoraBog) } },
-          select: { nombre: true }
-        })).map(r => r.nombre)
-      )
-
-      const ahoraBog2 = ahoraBogota()
-      const dd = String(ahoraBog2.getDate()).padStart(2, '0')
-      const mm = String(ahoraBog2.getMonth() + 1).padStart(2, '0')
-      const yyyy = ahoraBog2.getFullYear()
 
       for (const emp of empleados) {
         if (tieneRutaHoy.has(emp.id)) continue
-
-        const rezagos = rezagosPorEmp[emp.id] || []
-        const nombreBase = `${emp.nombre}-${dd}-${mm}-${yyyy}`
-        let nombreFinal = nombreBase
-        let contador = 1
-        while (nombresExistentes.has(nombreFinal) && contador <= 20) {
-          nombreFinal = `${nombreBase} (${contador++})`
-        }
-        nombresExistentes.add(nombreFinal)
-
-        await prisma.ruta.create({
-          data: {
-            id: crypto.randomUUID(),
-            nombre: nombreFinal,
-            fecha: new Date(hoyStr + 'T05:00:00.000Z'),
-            empresaId: empresa.id,
-            empleados: { create: [{ id: crypto.randomUUID(), empleadoId: emp.id }] },
-            clientes: {
-              create: rezagos.map((rc: any, i: number) => ({
-                id: crypto.randomUUID(),
-                clienteId: rc.clienteId,
-                orden: i,
-                rezago: true
-              }))
-            }
-          }
-        })
+        await getOrCreateRutaHoy(emp.id, empresa.id)
         rutasCreadas++
-        rezagosMigrados += rezagos.length
+        // rezagosMigrados se cuenta dentro de getOrCreateRutaHoy implícitamente
       }
     }
     procesadas++

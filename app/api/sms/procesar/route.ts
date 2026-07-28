@@ -1,6 +1,7 @@
 // app/api/sms/procesar/route.ts — job SMS facturas (llamado por Guardian)
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { nowBogota } from '@/lib/fechas'
 import { enviarSMS, construirMensaje } from '@/lib/notificaciones/sms'
 
 const CRON_SECRET = process.env.CRON_SECRET || ''
@@ -11,10 +12,9 @@ export async function POST(req: NextRequest) {
   }
 
   
-  const ahora = new Date()
-  // Hora Bogotá (UTC-5)
-  const horaBogota = ahora.getUTCHours() - 5
-  const diaBogota = new Date(ahora.getTime() - 5 * 60 * 60 * 1000).getUTCDay() // 0=Dom
+  const ahoraBog = nowBogota()
+  const horaBogota = ahoraBog.getUTCHours()  // nowBogota() ya está desplazado a Bogotá
+  const diaBogota = ahoraBog.getUTCDay()     // día semana en Bogotá
 
   // Validación CRC: solo 8-20h
   if (horaBogota < 8 || horaBogota >= 20) {

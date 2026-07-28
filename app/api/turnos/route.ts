@@ -4,7 +4,7 @@ import { invalidateKeys } from '@/lib/cache'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
-import { runRutasDia } from '@/lib/jobs/rutas-dia'
+import { getOrCreateRutaHoy } from '@/lib/rutas/getOrCreateRutaHoy'
 import { audit } from '@/lib/audit'
 
 export async function GET() {
@@ -54,26 +54,11 @@ export async function POST(req: NextRequest) {
       })
     })
     await audit('TURNO_INICIADO', user.email, `Turno: ${turno.id}`, user.id, user.empresaId)
-    // Crear o reabrir ruta del día si es rol entregas
+    // Obtener o crear ruta del día al iniciar turno (solo entregas)
     if (user.role === 'entregas') {
       ;(async () => {
         try {
-          const hoyStr = fechaHoyBogota()
-          const rutaHoy = await prisma.ruta.findFirst({
-            where: {
-              empleados: { some: { empleadoId: user.id } },
-              fecha: {
-                gte: new Date(hoyStr + 'T05:00:00.000Z'),
-                lte: new Date(hoyStr + 'T28:59:59.999Z'),
-              }
-            },
-            orderBy: { fecha: 'desc' }
-          })
-          if (rutaHoy && rutaHoy.cerrada) {
-            await prisma.ruta.update({ where: { id: rutaHoy.id }, data: { cerrada: false, cerradaEl: null } })
-          } else if (!rutaHoy) {
-            await runRutasDia(user.empresaId, true)
-          }
+          await getOrCreateRutaHoy(user.id, user.empresaId)
         } catch {}
       })()
     }
@@ -86,6 +71,24 @@ export async function POST(req: NextRequest) {
       where: { empleadoId: user.id, activo: true },
       data: { activo: false, fin: new Date(), finBogota: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Bogota' }), latFin: lat || null, lngFin: lng || null }
     })
+    // Cerrar ruta activa de hoy al cerrar turno (solo entregas)
+    if (user.role === 'entregas') {
+      ;(async () => {
+        try {
+          const hoyStr = fechaHoyBogota()
+          const hoyInicio = new Date(hoyStr + 'T05:00:00.000Z')
+          const mananaInicio = new Date(hoyInicio.getTime() + 86400000)
+          await prisma.ruta.updateMany({
+            where: {
+              cerrada: false,
+              empleados: { some: { empleadoId: user.id } },
+              fecha: { gte: hoyInicio, lt: mananaInicio }
+            },
+            data: { cerrada: true, cerradaEl: new Date() }
+          })
+        } catch {}
+      })()
+    }
     await audit('TURNO_CERRADO', user.email, `Turno cerrado`, user.id, user.empresaId)
     await invalidateKeys(`g:${user.empresaId}:stats:${fechaHoyBogota()}`, `g:v:${user.id}:${fechaHoyBogota()}`)
     return NextResponse.json({ ok: true })
