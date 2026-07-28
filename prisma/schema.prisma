@@ -2990,9 +2990,12 @@ model DespachoLog {
   numeroFactura     String
   clienteNombre     String?
   modo              String
-  guiaTransporte    String?
-  transportadora    String?
-  despachadoEl      DateTime @default(now())
+  guiaTransporte      String?
+  transportadora      String?
+  observacion         String?
+  despachadoPorId     String?
+  despachadoPorNombre String?
+  despachadoEl        DateTime @default(now())
   empresa           Empresa  @relation("DespachoLogEmpresa", fields: [empresaId], references: [id])
 
   @@index([empresaId, despachadoEl(sort: Desc)])
