@@ -593,3 +593,33 @@ export async function fetchProductosUptres(
   }
   return todos
 }
+
+/**
+ * fetchNotasCredito — trae NC desde UpTres endpoint /ncventas
+ * Insert-only: el delta no pisa registros existentes (externalId = orderNumber)
+ * condition=true filtra solo NC activas
+ */
+export async function fetchNotasCredito(
+  apiKey: string,
+  token: string,
+  desde?: Date
+): Promise<any[]> {
+  const manana = new Date(); manana.setDate(manana.getDate() + 1)
+  const params = new URLSearchParams({
+    fields: 'id,orderNumber,electronicNumber,electronicDocument,electronicType,resolution,prefix,notePrefix,cufe,cufeInvoice,customerName,customerDocument,customerVerificationDigit,customerEmail,customerPhone,customerAddress,customerCity,customerDepartment,subtotal,total,discount,totalItems,iva,iva19Base,iva19,iva5Base,iva5,exempt,excluded,consumptionTaxBase,consumptionTax,withholdingTax,withholdingTaxType,withholdingICA,withholdingICAType,paymentMethod,paymentType,creditDays,electronic,sent,accounted,active,condition,note,createdAt,updatedAt,paymentDate,electronicDate,items',
+    condition: 'true',
+    includeTotal: 'true',
+    limit: '80',
+    from: desde
+      ? new Date(desde.getTime() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
+      : '2020-01-01',
+    to: manana.toISOString().split('T')[0],
+  })
+
+  const res = await fetch(`${BASE}/ncventas?${params}`, {
+    headers: { Authorization: `Bearer ${token}`, 'x-api-key': apiKey },
+  })
+  if (!res.ok) throw new Error(`fetchNotasCredito HTTP ${res.status}`)
+  const data = await res.json()
+  return Array.isArray(data) ? data : (data.data ?? data.items ?? [])
+}

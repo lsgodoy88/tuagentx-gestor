@@ -44,9 +44,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const empresa = await (prisma as any).empresa.findFirst({ where: { id: empresaId }, select: { nombre: true } })
 
   const body = await req.json()
-  const { estado, fotoAlistamiento, repartidorId, guiaTransporte, transportadora, firmaBase64, num_cajas } = body
+  const { estado, fotoAlistamiento, repartidorId, guiaTransporte, transportadora, firmaBase64, num_cajas, observacion, clearFotos } = body
 
   const update: Record<string, unknown> = {}
+
+  // Limpiar fotos (cancelar countdown)
+  if (clearFotos) {
+    update.fotosAlistamiento = []
+    update.fotoAlistamiento = null
+  }
 
   // Foto alistamiento
   if (fotoAlistamiento && typeof fotoAlistamiento === 'string' && fotoAlistamiento.startsWith('data:')) {
@@ -84,6 +90,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   }
 
   if (repartidorId !== undefined) update.repartidorId = repartidorId || null
+  if (observacion !== undefined) update.observacion = observacion || null
   if (num_cajas !== undefined && Number.isInteger(num_cajas) && num_cajas >= 1) update.num_cajas = num_cajas
   if (guiaTransporte !== undefined) update.guiaTransporte = guiaTransporte
   if (transportadora !== undefined) update.transportadora = transportadora
@@ -171,7 +178,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   // Registrar en DespachoLog — fire and forget
   if (esDespachado(updated.estado)) {
-    registrarDespachoLog({ empresaId, ...updated })
+    const despachador = empleadoId
+      ? await prisma.empleado.findUnique({ where: { id: empleadoId }, select: { nombre: true } }).catch(() => null)
+      : null
+    registrarDespachoLog({
+      empresaId,
+      ...updated,
+      despachadoPorId: empleadoId ?? null,
+      despachadoPorNombre: despachador?.nombre ?? (user.name ?? null),
+    })
   }
 
   // Enviar push a repartidor si se asignó a su ruta

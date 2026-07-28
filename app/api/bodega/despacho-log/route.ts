@@ -25,10 +25,10 @@ export async function GET(req: NextRequest) {
   const empresaIdOrden = await resolverEmpresaIdOrigen(prisma, empresaId, origenId)
 
   const rows = await prisma.$queryRawUnsafe<any[]>(`
-    SELECT l.id, l."numeroFactura", l."clienteNombre", l.modo, l."guiaTransporte", l.transportadora, l."despachadoEl",
+    SELECT l.id, l."numeroFactura", l."clienteNombre", l.modo, l."guiaTransporte", l.transportadora, l."despachadoEl", l."despachadoPorNombre",
            o."alistadoEl", o.ciudad, o."fotosAlistamiento", o."fotoAlistamiento",
            o.id as "ordenId", o."fechaOrden", o."fechaFactura", o.direccion,
-           o."num_cajas", o."entregadoEl", o."firmaEntrega",
+           o."num_cajas", o."entregadoEl", o."firmaEntrega", COALESCE(l."observacion", o."observacion") as observacion,
            ap.nombre as "alistadoPorNombre",
            rp.nombre as "repartidorNombre"
     FROM ${DB_SCHEMA}."DespachoLog" l

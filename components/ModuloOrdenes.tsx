@@ -96,7 +96,7 @@ export default function ModuloOrdenes() {
   const [tabActivo, setTabActivo] = useState<'pendiente'|'alistado'|'despachado'>('pendiente')
   function cambiarTab(tab: 'pendiente'|'alistado'|'despachado') {
     setTabActivo(tab)
-    setCiudadFiltro('')
+    setEnvioFiltro('todos')
     setSeleccionados([])
   }
 
@@ -155,14 +155,19 @@ export default function ModuloOrdenes() {
   const [soportaZoom, setSoportaZoom] = useState(false)
   const [asignarTodasRepartidor, setAsignarTodasRepartidor] = useState('')
   const [busqueda, setBusqueda] = useState('')
-  const [ciudadFiltro, setCiudadFiltro] = useState('')
+  const [envioFiltro, setEnvioFiltro] = useState<'todos' | 'local' | 'guia'>('todos')
+  const [fechaFiltro, setFechaFiltro] = useState<string>('')
   const [seleccionados, setSeleccionados] = useState<string[]>([])
   const [modoSeleccion, setModoSeleccion] = useState(false)
   const [modalEnviarMasivo, setModalEnviarMasivo] = useState(false)
   const [busquedaRemota, setBusquedaRemota] = useState<any[]>([])
   const [buscandoRemoto, setBuscandoRemoto] = useState(false)
   const [asignandoTodas, setAsignandoTodas] = useState(false)
-  const [modoEnvio, setModoEnvio] = useState<Record<string, 'local' | 'transportadora' | 'personal'>>({})
+  const [modoEnvio, setModoEnvio] = useState<Record<string, 'local' | 'transportadora' | 'personal'>>({})  
+  const [obsEdit, setObsEdit] = useState<Record<string, string>>({})
+  const [modalFirmaUrl, setModalFirmaUrl] = useState<string | null>(null)
+  const [modalObsTexto, setModalObsTexto] = useState<string | null>(null)
+  const [obsPopup, setObsPopup] = useState<string | null>(null)
   const [firmaData, setFirmaData] = useState<Record<string, string>>({})
   const [escanerOrdenId, setEscanerOrdenId] = useState<string | null>(null)
   const [firmaDibujando, setFirmaDibujando] = useState<Record<string, boolean>>({})
@@ -448,9 +453,28 @@ export default function ModuloOrdenes() {
     }
     setCountdownSec(null)
     setCamaraActiva(false)
-    setCamaraOrdenId(null)
     setPreview(null)
+    // Revertir fotos en BD
+    const ordenId = camaraOrdenId
+    setCamaraOrdenId(null)
     setFotosCapturadas([])
+    if (ordenId) {
+      fetch(`/api/bodega/despachos/${ordenId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clearFotos: true }),
+      }).then(r => r.json()).then(data => {
+        if (data.orden) {
+          setDespachosPorTab(prev => {
+            const next = { ...prev }
+            for (const tab of Object.keys(next)) {
+              next[tab] = next[tab].map((d: any) => d.id === ordenId ? { ...d, ...data.orden } : d)
+            }
+            return next
+          })
+        }
+      }).catch(() => {})
+    }
   }
 
   function cerrarCamara() {
@@ -472,7 +496,7 @@ export default function ModuloOrdenes() {
   async function asignarRepartidor(id: string) {
     const rid = editRepartidor[id]
     if (!rid) return
-    await patchOrden(id, { repartidorId: rid, estado: 'en_entrega' })
+    await patchOrden(id, { repartidorId: rid, estado: 'en_entrega', observacion: obsEdit[id] || null })
     setEditRepartidor(p => { const n = { ...p }; delete n[id]; return n })
     setExpanded(p => ({ ...p, [id]: false }))
   }
@@ -503,12 +527,14 @@ export default function ModuloOrdenes() {
   async function guardarTransporte(id: string) {
     const t = editTransporte[id]
     const cajas = cajasEdit[id] ?? 0
-    if (cajas <= 0) return
+    const obs = obsEdit[id] || null
+    if (cajas <= 0 && !obs) return
     await patchOrden(id, {
       transportadora: t?.transportadora,
       guiaTransporte: t?.guia || null,
       num_cajas: cajas,
-      estado: 'en_transito'
+      estado: 'en_transito',
+      observacion: obsEdit[id] || null
     })
     setEditTransporte(p => { const n = { ...p }; delete n[id]; return n })
     setExpanded(p => ({ ...p, [id]: false }))
@@ -522,13 +548,18 @@ export default function ModuloOrdenes() {
     const despachosVisibles = useMemo(() => {
       const base = tabActivo === 'pendiente' ? pendientes : tabActivo === 'alistado' ? alistados : despachados
       return base.filter(d => {
-        if (ciudadFiltro && d.ciudad !== ciudadFiltro) return false
+        if (envioFiltro !== 'todos') {
+          const esLocal = ciudadLocal && d.ciudad &&
+            d.ciudad.split('/').pop()?.trim().toLowerCase() === ciudadLocal?.trim().toLowerCase()
+          if (envioFiltro === 'local' && !esLocal) return false
+          if (envioFiltro === 'guia' && esLocal) return false
+        }
         if (!busqueda) return true
         const q = busqueda.toLowerCase()
         return (d.clienteNombre || '').toLowerCase().includes(q) ||
                (d.numeroFactura || '').toLowerCase().includes(q)
       })
-    }, [tabActivo, pendientes, alistados, despachados, busqueda, ciudadFiltro])
+    }, [tabActivo, pendientes, alistados, despachados, busqueda, envioFiltro, ciudadLocal])
 
   async function syncOrdenes() {
     limpiarCache()
@@ -608,26 +639,35 @@ export default function ModuloOrdenes() {
           placeholder="Cliente u orden..."
           className={`min-w-0 flex-1 bg-[#0d1220] text-white rounded-lg px-3 py-2 text-sm focus:outline-none ${busqueda ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}
         />
-        {(() => {
-          const todasCiudades = [...new Set(
-            Object.values(despachosPorTab).flat().filter((d: any) => d.ciudad).map((d: any) => d.ciudad as string)
-          )].sort()
-          if (todasCiudades.length <= 1) return null
+        {ciudadLocal && (
+          <select value={envioFiltro} onChange={e => { setEnvioFiltro(e.target.value as any); setSeleccionados([]) }}
+            className={`flex-shrink-0 w-28 bg-[#0d1220] text-white rounded-lg px-2 py-2 text-sm focus:outline-none ${envioFiltro !== 'todos' ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}>
+            <option value="todos">📍 Envío</option>
+            <option value="local">🏠 Local</option>
+            <option value="guia">🚛 Guía</option>
+          </select>
+        )}
+
+        {tabActivo === 'despachado' && (() => {
+          let longTimer: ReturnType<typeof setTimeout> | null = null
           return (
-            <select value={ciudadFiltro} onChange={e => { setCiudadFiltro(e.target.value); setSeleccionados([]) }}
-              className={`flex-shrink-0 w-28 bg-[#0d1220] text-white rounded-lg px-2 py-2 text-sm focus:outline-none ${ciudadFiltro ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}>
-              <option value="">Ciudad</option>
-              {todasCiudades.map(ciudad => <option key={ciudad} value={ciudad}>{ciudad.split('/').pop()?.trim()}</option>)}
-            </select>
+            <label
+              className={`relative flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer select-none ${fechaFiltro ? 'border border-amber-500 bg-[#0d1220]' : 'border border-[#1e2a3d] bg-[#0d1220]'}`}
+              onTouchStart={() => { longTimer = setTimeout(() => { setFechaFiltro(''); longTimer = null }, 600) }}
+              onTouchEnd={e => {
+                if (longTimer) { clearTimeout(longTimer); longTimer = null; e.preventDefault();(e.currentTarget.querySelector('input') as HTMLInputElement)?.showPicker?.() }
+                else { e.preventDefault() }
+              }}
+              onTouchMove={() => { if (longTimer) { clearTimeout(longTimer); longTimer = null } }}>
+              <input type="date" value={fechaFiltro} onChange={e => setFechaFiltro(e.target.value)}
+                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                style={{WebkitAppearance:'none'}} />
+              <span className="text-sm font-bold" style={{color: fechaFiltro ? '#f59e0b' : 'white'}}>
+                {fechaFiltro ? new Date(fechaFiltro + 'T12:00:00').getDate() : new Date().getDate()}
+              </span>
+            </label>
           )
         })()}
-
-        <button
-          onClick={() => { setBusqueda(''); setCiudadFiltro(''); setSeleccionados([]) }}
-          title="Limpiar filtros"
-          className="flex items-center justify-center flex-shrink-0 bg-[#0d1220] border border-[#1e2a3d] hover:border-zinc-500 text-zinc-400 hover:text-white rounded-lg px-3 py-2 text-sm transition-colors">
-          ✕
-        </button>
       </div>
 
 
@@ -812,25 +852,33 @@ export default function ModuloOrdenes() {
                                     ))}
                                   </select>
                                   <button onClick={() => asignarRepartidor(d.id)}
-                                    disabled={isSaving || !editRepartidor[d.id]}
+                                    disabled={isSaving || (!editRepartidor[d.id] && !obsEdit[d.id])}
                                     className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors flex-shrink-0">
                                     {isSaving ? '...' : '🚀 Enviar'}
                                   </button>
                                 </div>
+                                <textarea
+                                  rows={2}
+                                  placeholder="Observación (opcional)..."
+                                  value={obsEdit[d.id] ?? ''}
+                                  onChange={e => setObsEdit(p => ({ ...p, [d.id]: e.target.value }))}
+                                  className="w-full bg-blue-950/40 border border-blue-500/30 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-blue-400 resize-none"
+                                />
                               </div>
                             )
                           })()}
 
                           {/* Guía — una línea */}
                           {(() => { const cm = d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''; const eloc = ciudadLocal ? cm === ciudadLocal.trim().toLowerCase() : false; return (modoEnvio[d.id] ?? (eloc ? 'local' : 'transportadora')) === 'transportadora' })() && (
-                            <div className="space-y-1.5">
+                            <div className="space-y-1.5 pb-2">
                               {(() => {
                                 const cajas = cajasEdit[d.id] ?? 0
                                 const guia = editTransporte[d.id]?.guia ?? ''
                                 const puedeEnviar = cajas > 0
                                 return (
+                                  <>
+                                  {/* Línea 1: Cajas + 🔻 Opciones + Enviar */}
                                   <div className="flex gap-1.5 items-center">
-                                    {/* Cajas — default 0 = 📦, + activa */}
                                     <button onClick={() => setCajasEdit(p => ({ ...p, [d.id]: Math.max(0, (p[d.id] ?? 0) - 1) }))}
                                       disabled={cajas === 0}
                                       className="w-9 h-9 rounded-xl bg-zinc-800 border border-zinc-700 text-white text-base font-bold flex items-center justify-center hover:bg-zinc-700 disabled:opacity-30 flex-shrink-0">−</button>
@@ -842,34 +890,54 @@ export default function ModuloOrdenes() {
                                       setCajasEdit(p => ({ ...p, [d.id]: n }))
                                       await patchOrden(d.id, { num_cajas: n })
                                     }} className="w-9 h-9 rounded-xl bg-zinc-800 border border-zinc-700 text-white text-base font-bold flex items-center justify-center hover:bg-zinc-700 flex-shrink-0">+</button>
-
-                                    {/* Guía — opcional: si tiene código muestra texto, si no solo escáner */}
-                                    {guia ? (
-                                      <span className="flex-1 min-w-0 text-white text-xs font-mono truncate px-2 py-2 bg-zinc-800 border border-orange-500/40 rounded-xl cursor-pointer"
-                                        onClick={() => setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], guia: '' } }))}>
-                                        {guia} ✕
-                                      </span>
-                                    ) : (
-                                      <button title="Escanear guía" onClick={() => setEscanerOrdenId(d.id)}
-                                        className="flex-1 min-w-0 bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 text-white py-2 rounded-xl flex items-center justify-center gap-2" >
-                                        <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current flex-shrink-0">
-                                          <rect x="1" y="4" width="2" height="16"/><rect x="4" y="4" width="1" height="16"/>
-                                          <rect x="6" y="4" width="2" height="16"/><rect x="9" y="4" width="1" height="16"/>
-                                          <rect x="11" y="4" width="3" height="16"/><rect x="15" y="4" width="1" height="16"/>
-                                          <rect x="17" y="4" width="2" height="16"/><rect x="20" y="4" width="1" height="16"/>
-                                          <rect x="22" y="4" width="1" height="16"/>
-                                        </svg>
-                                        
-                                      </button>
-                                    )}
-
-                                    {/* Enviar — solo si cajas > 0 */}
+                                    <span className="flex-1" />
+                                    <button onClick={() => setObsPopup(obsPopup === d.id ? null : d.id)}
+                                      className={`h-9 px-3 rounded-xl border text-xs font-semibold transition-colors flex-shrink-0 flex items-center justify-center ${obsEdit[d.id] || guia ? 'border-blue-500 text-blue-300 bg-blue-950/30' : 'border-zinc-700 text-zinc-400 bg-zinc-800 hover:bg-zinc-700'}`}>
+                                      🔻 Opciones
+                                    </button>
+                                    <span className="flex-1" />
                                     <button onClick={() => guardarTransporte(d.id)}
-                                      disabled={isSaving || !puedeEnviar}
+                                      disabled={isSaving || (!puedeEnviar && !obsEdit[d.id])}
                                       className="bg-orange-600 hover:bg-orange-500 disabled:opacity-30 text-white font-bold px-2.5 py-2 rounded-xl text-xs transition-colors flex-shrink-0 whitespace-nowrap">
                                       📦 Enviar
                                     </button>
                                   </div>
+                                  {/* Línea 2: desplegable al tocar Opciones */}
+                                  {obsPopup === d.id && (
+                                    <div className="flex gap-1.5 items-center mt-1">
+                                      <div className="relative flex-1">
+                                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-base pointer-events-none">✍🏼</span>
+                                        <input
+                                          autoFocus
+                                          type="text"
+                                          maxLength={120}
+                                          placeholder="Observación..."
+                                          value={obsEdit[d.id] ?? ''}
+                                          onChange={e => setObsEdit(p => ({ ...p, [d.id]: e.target.value }))}
+                                          onKeyDown={e => { if (e.key === 'Enter') setObsPopup(null) }}
+                                          className="w-full bg-blue-950/40 border border-blue-500/30 rounded-xl pl-8 pr-3 py-2 text-white text-xs outline-none focus:border-blue-400"
+                                        />
+                                      </div>
+                                      {guia ? (
+                                        <span className="text-white text-xs font-mono truncate px-2 py-2 bg-zinc-800 border border-orange-500/40 rounded-xl cursor-pointer flex-shrink-0 max-w-[100px]"
+                                          onClick={() => setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], guia: '' } }))}>
+                                          {guia} ✕
+                                        </span>
+                                      ) : (
+                                        <button title="Escanear guía" onClick={() => setEscanerOrdenId(d.id)}
+                                          className="w-9 h-9 bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 text-white rounded-xl flex items-center justify-center flex-shrink-0">
+                                          <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
+                                            <rect x="1" y="4" width="2" height="16"/><rect x="4" y="4" width="1" height="16"/>
+                                            <rect x="6" y="4" width="2" height="16"/><rect x="9" y="4" width="1" height="16"/>
+                                            <rect x="11" y="4" width="3" height="16"/><rect x="15" y="4" width="1" height="16"/>
+                                            <rect x="17" y="4" width="2" height="16"/><rect x="20" y="4" width="1" height="16"/>
+                                            <rect x="22" y="4" width="1" height="16"/>
+                                          </svg>
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                                  </>
                                 )
                               })()}
                             </div>
@@ -877,23 +945,41 @@ export default function ModuloOrdenes() {
 
                           {/* Entrega personal con firma */}
                           {(() => { const cm2 = d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''; const eloc2 = ciudadLocal ? cm2 === ciudadLocal.trim().toLowerCase() : false; return (modoEnvio[d.id] ?? (eloc2 ? 'local' : 'transportadora')) === 'personal' })() && (
-                            <div className="space-y-2">
-                              {(() => {
-                                const ordenId = d.id
-                                return (
-                                  <FirmaCanvas
-                                    firma={firmaData[ordenId] || null}
-                                    onFirma={async (dataUrl) => {
-                                      if (dataUrl) {
-                                        setFirmaData(p => ({...p, [ordenId]: dataUrl}))
-                                        await patchOrden(ordenId, { estado: 'entregado', entregadoEl: new Date().toISOString(), firmaBase64: dataUrl })
-                                      } else {
-                                        setFirmaData(p => { const n = {...p}; delete n[ordenId]; return n })
-                                      }
-                                    }}
+                            <div className="space-y-1.5 pb-2">
+                              {/* Línea: ✍🏼 obs + 🖊️ Firmar */}
+                              <div className="flex gap-1.5 items-center">
+                                <div className="relative flex-1">
+                                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-base pointer-events-none">✍🏼</span>
+                                  <input
+                                    type="text"
+                                    maxLength={120}
+                                    placeholder="Observación..."
+                                    value={obsEdit[d.id] ?? ''}
+                                    onChange={e => setObsEdit(p => ({ ...p, [d.id]: e.target.value }))}
+                                    className="w-full bg-blue-950/40 border border-blue-500/30 rounded-xl pl-8 pr-3 py-2 text-white text-xs outline-none focus:border-blue-400"
                                   />
-                                )
-                              })()}
+                                </div>
+                                <button onClick={() => setObsPopup(`firma-${d.id}`)}
+                                  className="h-9 px-3 rounded-xl border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold flex-shrink-0 flex items-center justify-center gap-1">
+                                  🖊️ Firmar
+                                </button>
+                              </div>
+                              {obsPopup === `firma-${d.id}` && (
+                                <FirmaCanvas
+                                  autoOpen
+                                  firma={firmaData[d.id] || null}
+                                  onFirma={async (dataUrl) => {
+                                    if (dataUrl) {
+                                      setFirmaData(p => ({...p, [d.id]: dataUrl}))
+                                      await patchOrden(d.id, { estado: 'entregado', entregadoEl: new Date().toISOString(), firmaBase64: dataUrl, observacion: obsEdit[d.id] || null })
+                                      setObsPopup(null)
+                                    } else {
+                                      setFirmaData(p => { const n = {...p}; delete n[d.id]; return n })
+                                      setObsPopup(null)
+                                    }
+                                  }}
+                                />
+                              )}
                             </div>
                           )}
                         </div>
@@ -925,14 +1011,22 @@ export default function ModuloOrdenes() {
                               { icon: '📋', label: 'Orden',      fecha: d.fechaOrden,    quien: null },
                               { icon: '🧾', label: 'Facturado',  fecha: d.fechaFactura,  quien: null },
                               { icon: '📦', label: 'Alistado',   fecha: d.alistadoEl,    quien: d.alistadoPor?.nombre || null },
-                              { icon: '🚚', label: 'Despachado', fecha: despachadoEl,    quien: [d.repartidor?.nombre, d.num_cajas > 0 ? `${d.num_cajas} caja${d.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · ') },
+                              { icon: '🚚', label: 'Despachado', fecha: despachadoEl, quien: [d.repartidor?.nombre, d.num_cajas > 0 && !d.firmaEntrega ? `${d.num_cajas} caja${d.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · '), firmaEntrega: d.firmaEntrega, observacion: d.observacion, alistadoPorNombre: d.alistadoPor?.nombre },
                               { icon: '✅', label: 'Entregado',  fecha: d.entregadoEl,   quien: null },
-                            ].map((e, i) => (
+                            ].map((e: any, i) => (
                               <div key={i} className="flex items-center gap-2 py-1">
                                 <span className="text-base flex-shrink-0">{e.icon}</span>
-                                <span className="text-zinc-400 text-xs w-20 flex-shrink-0">{e.label}</span>
+                                <span className="text-zinc-400 text-xs w-[72px] flex-shrink-0">{e.label}</span>
                                 <span className="text-white text-xs flex-shrink-0">{e.fecha ? formatFechaCorta(e.fecha) : '—'}</span>
                                 {e.quien && <span className="text-zinc-500 text-xs truncate flex-1">{e.quien}</span>}
+                                {e.firmaEntrega && (
+                                  <button onClick={() => setModalFirmaUrl(e.firmaEntrega)}
+                                    className="text-zinc-400 hover:text-white text-base flex-shrink-0">🤝</button>
+                                )}
+                                {!e.firmaEntrega && e.observacion && (
+                                  <button onClick={() => setModalObsTexto(e.observacion)}
+                                    className="text-zinc-400 hover:text-white text-base flex-shrink-0">✍🏼</button>
+                                )}
                               </div>
                             ))}
                             {/* Guía + cajas editables */}
@@ -1012,30 +1106,40 @@ export default function ModuloOrdenes() {
           {despachoLog.length === 0 ? (
             null
           ) : (() => {
-            const logFiltrado = ciudadFiltro
-              ? despachoLog.filter((l: any) => l.ciudad === ciudadFiltro)
-              : despachoLog
-            const todasFacturas = ciudadFiltro
-              ? logFiltrado
-              : [...despachoLog, ...pendientes, ...alistados, ...despachados]
+            const hayFiltro = envioFiltro !== 'todos' || !!fechaFiltro
+            const logMap = new Map(despachoLog.map((l: any) => [parseInt(l.numeroFactura), l]))
+            const todasFacturas = [...despachoLog, ...pendientes, ...alistados, ...despachados]
             const allNums = todasFacturas.map((x: any) => parseInt(x.numeroFactura)).filter((n: number) => !isNaN(n))
             if (allNums.length === 0) return null
             const rangeMax = Math.max(...allNums)
             const rangeMin = Math.min(...allNums)
-            const logMap = new Map(logFiltrado.map((l: any) => [parseInt(l.numeroFactura), l]))
-            // nums ya calculado arriba con todasFacturas
-            const max = rangeMax
-            const min = rangeMin
             const filas: number[] = []
-            for (let n = max; n >= min; n--) filas.push(n)
+            for (let n = rangeMax; n >= rangeMin; n--) filas.push(n)
             return filas.map(n => {
               const log = logMap.get(n)
               if (!log) {
+                if (hayFiltro) return null
                 return (
                   <div key={n} className="bg-zinc-900/40 border border-zinc-800/40 rounded-xl flex items-center px-3 py-2">
                     <span className="w-10 text-white/40 font-mono text-xs flex-shrink-0 text-right">#{n}</span>
                   </div>
                 )
+              }
+              // Aplicar filtros al log
+              if (envioFiltro !== 'todos') {
+                const esLocal = ciudadLocal && log.ciudad &&
+                  log.ciudad.split('/').pop()?.trim().toLowerCase() === ciudadLocal?.trim().toLowerCase()
+                if (envioFiltro === 'local' && !esLocal) return null
+                if (envioFiltro === 'guia' && esLocal) return null
+              }
+              if (fechaFiltro) {
+                if (!log.despachadoEl) return null
+                const d = new Date(log.despachadoEl)
+                const bogota = new Date(d.getTime() - 5 * 60 * 60 * 1000)
+                const yy = bogota.getUTCFullYear()
+                const mm = String(bogota.getUTCMonth() + 1).padStart(2, '0')
+                const dd = String(bogota.getUTCDate()).padStart(2, '0')
+                if (`${yy}-${mm}-${dd}` !== fechaFiltro) return null
               }
               // Usar datos del log directamente (tiene JOIN con OrdenDespacho)
               const fotos2: string[] = (log.fotosAlistamiento as string[] | null) || (log.fotoAlistamiento ? [log.fotoAlistamiento] : [])
@@ -1068,16 +1172,24 @@ export default function ModuloOrdenes() {
                         { icon: '🧾', label: 'Facturado',  fecha: log.fechaFactura,  quien: null },
                         { icon: '📦', label: 'Alistado',   fecha: log.alistadoEl,    quien: log.alistadoPor?.nombre || null,
                           accion: fotos2.length > 0 ? () => abrirGaleriaConUrls(fotos2, log.alistadoEl) : null },
-                        { icon: '🚚', label: 'Despachado', fecha: log.despachadoEl,  quien: [log.repartidor?.nombre, log.num_cajas > 0 ? `${log.num_cajas} caja${log.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · '), esDespacho: true },
+                        { icon: '🚚', label: 'Despachado', fecha: log.despachadoEl, quien: [log.despachadoPorNombre || log.repartidor?.nombre, log.num_cajas > 0 && !log.firmaEntrega ? `${log.num_cajas} caja${log.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · '), esDespacho: true, firmaEntrega: log.firmaEntrega, observacion: log.observacion },
                         { icon: '✅', label: 'Entregado',  fecha: log.entregadoEl,   quien: null },
                       ].map((e: any, i) => (
                         <div key={i} className="flex items-center gap-2 py-1">
                           <span className="text-base flex-shrink-0">{e.icon}</span>
-                          <span className="text-zinc-400 text-xs w-20 flex-shrink-0">{e.label}</span>
+                          <span className="text-zinc-400 text-xs w-[72px] flex-shrink-0">{e.label}</span>
                           <span className="text-white text-xs flex-shrink-0">{e.fecha ? formatFechaCorta(e.fecha) : '—'}</span>
                           {e.quien && <span className="text-zinc-500 text-xs truncate flex-1">{e.quien}</span>}
                           {e.accion && <button onClick={ev => { ev.stopPropagation(); e.accion!() }} className="text-zinc-400 hover:text-white text-xs">🖼️</button>}
-                          {(e as any).esDespacho && !log.guiaTransporte && !guiaLog && (
+                          {e.firmaEntrega && (
+                            <button onClick={() => setModalFirmaUrl(e.firmaEntrega)}
+                              className="text-zinc-400 hover:text-white text-base flex-shrink-0">🤝</button>
+                          )}
+                          {!e.firmaEntrega && e.observacion && (
+                            <button onClick={() => setModalObsTexto(e.observacion)}
+                              className="text-zinc-400 hover:text-white text-base flex-shrink-0">✍🏼</button>
+                          )}
+                          {e.esDespacho && !e.firmaEntrega && !e.observacion && !log.guiaTransporte && !guiaLog && (
                             <button onClick={() => setEscanerOrdenId(log.id)} className="text-zinc-500 hover:text-white flex-shrink-0">
                               <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
                                 <rect x="1" y="4" width="2" height="16"/><rect x="4" y="4" width="1" height="16"/>
@@ -1348,6 +1460,31 @@ export default function ModuloOrdenes() {
       {toastEnvio && (
         <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-[9999] bg-emerald-600 text-white text-sm font-semibold px-5 py-3 rounded-2xl shadow-2xl flex items-center gap-2 fade-up">
           <span>✓</span> {toastEnvio}
+        </div>
+      )}
+
+      {/* Modal firma */}
+      {modalFirmaUrl && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 p-4"
+          onClick={() => setModalFirmaUrl(null)}>
+          <div className="relative max-w-sm w-full bg-white rounded-2xl p-3" onClick={e => e.stopPropagation()}>
+            <img src={modalFirmaUrl} alt="Firma" className="w-full object-contain rounded-xl max-h-[60vh]" />
+            <button onClick={() => setModalFirmaUrl(null)}
+              className="absolute top-2 right-2 bg-black/50 text-white rounded-full w-8 h-8 flex items-center justify-center text-sm">✕</button>
+          </div>
+        </div>
+      )}
+
+      {/* Modal observación */}
+      {modalObsTexto && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 p-6"
+          onClick={() => setModalObsTexto(null)}>
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl px-5 py-4 max-w-sm w-full" onClick={e => e.stopPropagation()}>
+            <p className="text-zinc-400 text-xs mb-2">✍🏼 Observación</p>
+            <p className="text-white text-sm">{modalObsTexto}</p>
+            <button onClick={() => setModalObsTexto(null)}
+              className="mt-4 w-full bg-zinc-800 text-zinc-300 py-2 rounded-xl text-xs">Cerrar</button>
+          </div>
         </div>
       )}
     </>

@@ -67,6 +67,7 @@ export default function BodegaPage() {
   const [syncing, setSyncing] = useState(false)
   const [msgSync, setMsgSync] = useState('')
   const [origenSel, setOrigenSel] = useState('propia')
+  const [filtroEnvio, setFiltroEnvio] = useState<'todos' | 'local' | 'guia'>('todos')
   const [diasHistorial, setDiasHistorial] = useState<number>(() => { if (typeof window === 'undefined') return 10; const v = parseInt(localStorage.getItem('diasHistorialVista') || '10'); return Math.min(30, Math.max(1, v)) })
 
   function cambiarDias(delta: number) {
@@ -393,6 +394,26 @@ export default function BodegaPage() {
             )
           })()}
 
+          {/* Filtro local / guía */}
+          {ciudadLocal && (
+            <div className="flex gap-2">
+              {([
+                { id: 'todos',  label: 'Todos' },
+                { id: 'local',  label: '🏠 Local' },
+                { id: 'guia',   label: '🚛 Guía' },
+              ] as const).map(f => (
+                <button key={f.id} onClick={() => setFiltroEnvio(f.id)}
+                  className={`px-3 py-1 rounded-xl text-xs font-semibold border transition-colors ${
+                    filtroEnvio === f.id
+                      ? 'bg-indigo-600 border-indigo-600 text-white'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:bg-zinc-700'
+                  }`}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Selector empresa */}
           {empresasOrigen.length > 1 && (
             <select value={origenSel} onChange={e => setOrigenSel(e.target.value)}
@@ -417,7 +438,13 @@ export default function BodegaPage() {
               <p className="text-zinc-300 text-sm">Sin órdenes en el período configurado</p>
             </div>
           ) : (() => {
-            const despachosVisibles = despachosPorTab[ESTADO_POR_SUBTAB[subTab]] || []
+            const despachosRaw = despachosPorTab[ESTADO_POR_SUBTAB[subTab]] || []
+            const despachosVisibles = despachosRaw.filter((d: any) => {
+              if (filtroEnvio === 'todos') return true
+              const esLocal = ciudadLocal && d.ciudad &&
+                d.ciudad.split('/').pop()?.trim().toLowerCase() === ciudadLocal.trim().toLowerCase()
+              return filtroEnvio === 'local' ? esLocal : !esLocal
+            })
             return (
               <>
                 {subTab === 'alistados' && despachosVisibles.length > 0 && puedeEnviar && (
@@ -468,7 +495,6 @@ export default function BodegaPage() {
                       <span className="text-white font-mono text-xs flex-shrink-0">#{d.numeroFactura || d.numeroOrden}</span>
                       <span className="text-zinc-700 flex-shrink-0">·</span>
                       <span className="text-white font-semibold text-sm truncate flex-1">{nombreCorto(d.clienteNombre)}</span>
-                      {ciudadNombre && <span className="text-zinc-400 text-xs flex-shrink-0 ml-1">{ciudadNombre}</span>}
                     </div>
 
                   </div>

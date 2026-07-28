@@ -134,14 +134,17 @@ export function registrarDespachoLog(orden: {
   guiaTransporte?: string | null
   transportadora?: string | null
   repartidorId?: string | null
+  observacion?: string | null
+  despachadoPorId?: string | null
+  despachadoPorNombre?: string | null
 }): void {
   const modo = inferirModo(orden)
   prisma.$executeRawUnsafe(
     `INSERT INTO ${DB_SCHEMA}."DespachoLog"
        (id, "empresaId", "origenVinculadaId", "numeroFactura", "clienteNombre",
-        modo, "guiaTransporte", transportadora, "despachadoEl")
+        modo, "guiaTransporte", transportadora, observacion, "despachadoPorId", "despachadoPorNombre", "despachadoEl")
      VALUES
-       (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7,
+       (gen_random_uuid()::text, $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
         (NOW() AT TIME ZONE 'UTC'))
      ON CONFLICT DO NOTHING`,
     orden.empresaId,
@@ -151,6 +154,9 @@ export function registrarDespachoLog(orden: {
     modo,
     orden.guiaTransporte ?? null,
     orden.transportadora ?? null,
+    orden.observacion ?? null,
+    orden.despachadoPorId ?? null,
+    orden.despachadoPorNombre ?? null,
   ).catch((err: unknown) => {
     console.error('[DespachoLog] Error al registrar:', err)
   })

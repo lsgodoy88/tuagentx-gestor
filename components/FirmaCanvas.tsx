@@ -4,9 +4,10 @@ import { useRef, useEffect, useState } from 'react'
 interface Props {
   onFirma: (dataUrl: string | null) => void
   firma: string | null
+  autoOpen?: boolean
 }
 
-export default function FirmaCanvas({ onFirma, firma }: Props) {
+export default function FirmaCanvas({ onFirma, firma, autoOpen }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [modalAbierto, setModalAbierto] = useState(false)
   const [firmado, setFirmado] = useState(false)
@@ -16,6 +17,10 @@ export default function FirmaCanvas({ onFirma, firma }: Props) {
   useEffect(() => {
     if (modalAbierto) setTimeout(() => iniciarCanvas(), 150)
   }, [modalAbierto])
+
+  useEffect(() => {
+    if (autoOpen) setModalAbierto(true)
+  }, [])
 
   function iniciarCanvas() {
     const canvas = canvasRef.current

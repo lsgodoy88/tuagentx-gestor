@@ -4,7 +4,7 @@
  * Sin dependencia de gestor HTTP — accede directo a BD y adapters
  */
 import { prisma } from '@/lib/prisma'
-import { UpTresAdapter, parseFechaUptresBogota, fetchProductosUptres } from '@/lib/integracion/adapters/uptres'
+import { UpTresAdapter, parseFechaUptresBogota, fetchProductosUptres, fetchNotasCredito } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 import { invalidatePattern } from '@/lib/cache'
 import { reconstruirCartera } from '@/lib/jobs/sync-nocturno'
@@ -170,6 +170,34 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     }
   } catch (err: any) { console.error('[delta] deudas error:', err.message); erroresParciales.push('deudas: ' + err.message) }
 
+  // Notas Crédito — insert-only por orderNumber (nunca pisa registros existentes)
+  let ncNuevas: any[] = []
+  try {
+    const maxNc = await (prisma as any).syncNotaCredito.findFirst({
+      where: { integracionId },
+      orderBy: { externalUpdatedAt: 'desc' },
+      select: { externalUpdatedAt: true, sincronizadoEl: true }
+    })
+    const baseNc = maxNc?.externalUpdatedAt || maxNc?.sincronizadoEl || new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+    const desdeNc = new Date(baseNc.getTime() - 60 * 60 * 1000) // 1h overlap
+    const authRes = await fetch('https://serviceuptres.cloud/external/v1/auth/api', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ apiKey, apiSecret })
+    }).then(r => r.json())
+    if (authRes.ok && authRes.token) {
+      const ncsExt = await fetchNotasCredito(apiKey, authRes.token, desdeNc)
+      if (ncsExt.length > 0) {
+        const extIds = ncsExt.map((n: any) => String(n.orderNumber)).filter(Boolean)
+        const existentesNc = await (prisma as any).syncNotaCredito.findMany({
+          where: { integracionId, externalId: { in: extIds } },
+          select: { externalId: true }
+        })
+        const existentesNcSet = new Set(existentesNc.map((n: any) => n.externalId))
+        ncNuevas = ncsExt.filter((n: any) => n.orderNumber && !existentesNcSet.has(String(n.orderNumber)))
+      }
+    }
+  } catch (err: any) { console.error('[delta] notas-credito error:', err.message); erroresParciales.push('notas-credito: ' + err.message) }
+
   const canceladasIds = ordenesValidas.filter((o: any) => (o as any).isActiva === false).map((o: any) => String(o.uid || o._id))
 
   // Validación consecutivos
@@ -203,6 +231,62 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
       if (nuevasDeudas.length > 0) {
         const deudaRows = nuevasDeudas.map((d: any) => ({ integracionId, externalId: String(d.uid || d._id), clienteApiId: d.cliente?.uid || '', empleadoExternalId: d.empleado?.uid || null, numeroOrden: d.numeroOrden ? parseInt(String(d.numeroOrden)) : null, numeroFactura: d.numeroFacturado ? parseInt(String(d.numeroFacturado)) : null, valor: parseFloat(d.vTotal ?? '0'), saldo: parseFloat(d.vSaldo ?? '0'), diasCredito: d.dias ? parseInt(String(d.dias)) : null, fechaVencimiento: d.fPago ? new Date(d.fPago) : null, condition: true, data: d, externalUpdatedAt: d.fModificado ? new Date(d.fModificado) : null, receivableAt: d.receivableAt ? new Date(d.receivableAt) : null, sincronizadoEl: new Date(), createdAtBogota: d.fCreado ? toBogota(new Date(d.fCreado as string)) : toBogota(new Date()) }))
         await tx.syncDeuda.createMany({ data: deudaRows, skipDuplicates: true })
+      }
+      if (ncNuevas.length > 0) {
+        const ncRows = ncNuevas.map((n: any) => ({
+          integracionId,
+          empresaId: destino,
+          externalId: String(n.orderNumber),
+          clienteApiId: n.customerDocument || '',
+          electronicNumber: n.electronicNumber || null,
+          electronicDocument: n.electronicDocument || null,
+          electronicType: n.electronicType || null,
+          resolution: n.resolution || null,
+          prefix: n.prefix || null,
+          notePrefix: n.notePrefix || null,
+          cufe: n.cufe || null,
+          cufeInvoice: n.cufeInvoice || null, // PENDIENTE: confirmar campo vínculo NC→factura con UpTres
+          customerName: n.customerName || null,
+          customerDocument: n.customerDocument || null,
+          customerEmail: n.customerEmail || null,
+          customerPhone: n.customerPhone || null,
+          customerAddress: n.customerAddress || null,
+          customerCity: n.customerCity || null,
+          customerDepartment: n.customerDepartment || null,
+          subtotal: n.subtotal ? parseFloat(n.subtotal) : null,
+          total: parseFloat(n.total ?? '0'),
+          discount: n.discount ? parseFloat(n.discount) : null,
+          totalItems: n.totalItems ? parseInt(n.totalItems) : null,
+          iva: n.iva ? parseFloat(n.iva) : null,
+          iva19: n.iva19 ? parseFloat(n.iva19) : null,
+          iva19Base: n.iva19Base ? parseFloat(n.iva19Base) : null,
+          iva5: n.iva5 ? parseFloat(n.iva5) : null,
+          iva5Base: n.iva5Base ? parseFloat(n.iva5Base) : null,
+          exempt: n.exempt ? parseFloat(n.exempt) : null,
+          excluded: n.excluded ? parseFloat(n.excluded) : null,
+          consumptionTaxBase: n.consumptionTaxBase ? parseFloat(n.consumptionTaxBase) : null,
+          consumptionTax: n.consumptionTax ? parseFloat(n.consumptionTax) : null,
+          withholdingTax: n.withholdingTax ? parseFloat(n.withholdingTax) : null,
+          withholdingTaxType: n.withholdingTaxType || null,
+          withholdingICA: n.withholdingICA ? parseFloat(n.withholdingICA) : null,
+          withholdingICAType: n.withholdingICAType || null,
+          paymentMethod: n.paymentMethod || null,
+          paymentType: n.paymentType || null,
+          creditDays: n.creditDays ? parseInt(n.creditDays) : null,
+          electronic: n.electronic ?? null,
+          sent: n.sent ?? null,
+          accounted: n.accounted ?? null,
+          active: n.active ?? null,
+          condition: n.condition !== false,
+          note: n.note || null,
+          items: n.items ?? null,
+          paymentDate: n.paymentDate ? new Date(n.paymentDate) : null,
+          electronicDate: n.electronicDate ? new Date(n.electronicDate) : null,
+          externalCreatedAt: n.createdAt ? new Date(n.createdAt) : null,
+          externalUpdatedAt: n.updatedAt ? new Date(n.updatedAt) : null,
+          sincronizadoEl: new Date(),
+        }))
+        await tx.syncNotaCredito.createMany({ data: ncRows, skipDuplicates: true })
       }
       await tx.empresa.update({ where: { id: destino }, data: { ultimaSyncBodega: proximoDesde } })
     }, { timeout: 30000 })

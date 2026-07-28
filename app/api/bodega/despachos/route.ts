@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
           ciudad: true, direccion: true, telefono: true, estado: true, fechaOrden: true, fechaFactura: true, isFacturada: true,
           alistadoEl: true, entregadoEl: true, fotoAlistamiento: true, fotosAlistamiento: true,
           firmaEntrega: true, fotoEntrega: true, repartidorId: true, transportadora: true,
-          guiaTransporte: true, vendedorApiId: true, clienteApiId: true, origenVinculadaId: true, num_cajas: true,
+          guiaTransporte: true, vendedorApiId: true, clienteApiId: true, origenVinculadaId: true, num_cajas: true, observacion: true,
           alistadoPor: { select: { id: true, nombre: true } },
           repartidor:  { select: { id: true, nombre: true } },
         }
