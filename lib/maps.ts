@@ -75,6 +75,7 @@ function expandir(raw: string): string {
     // Diagonal
     [/\bDG\b/gi, 'Diagonal'],
     // Manzana
+    [/\bMANZ\b/gi, 'Manzana'],
     [/\bMZ\b/gi, 'Manzana'],
     // Edificio
     [/\bED\b/gi, 'Edificio'],
@@ -95,20 +96,55 @@ function expandir(raw: string): string {
 }
 
 /**
- * Elimina referencias internas que confunden a Google Maps:
- * Local X, Local #X, LC X — con cualquier identificador alfanumérico.
+ * Normaliza dirección colombiana para Google Maps.
+ *
+ * Regla simple y robusta:
+ * 1. Si tiene vía (Carrera/Calle/etc) → extraer TipoVia+Número+Cruce + barrio si existe
+ * 2. Si no tiene vía → extraer nombre de barrio/sector (eliminar Manzana/Casa/Bloque)
  */
 function limpiarParaMaps(dir: string): string {
-  return dir
-    // "Local 3", "Local 1CENTRO", "Local #3", "Local A2" — hasta fin de token
-    .replace(/\bLocal\s+#?\w+/gi, '')
-    // # en direcciones colombianas (ej: "Carrera 15 # 9-57") → espacio
-    .replace(/#/g, ' ')
-    // Espacios dobles residuales
-    .replace(/\s{2,}/g, ' ')
-    .trim()
-    // Palabras genéricas de barrio al final que confunden a Google Maps
-    .replace(/\b(CENTRO|NORTE|SUR|OCCIDENTE|ORIENTE|ORIENTAL|OCCIDENTAL)\s*$/i, '')
-    // Coma o espacio colgante al final (segunda pasada, por si quedó algo)
+  // 1. Detectar si tiene vía principal
+  // Pre-limpiar referencias de urbanización antes de extraer componentes viales
+  const dirClean = dir.replace(/\bManzana\s+\w+/gi, '').replace(/\bCasa\s+\d+\w*/gi, '').replace(/\s{2,}/g, ' ').trim()
+  const matchVia = dir.match(
+    /^((?:Carrera|Calle|Diagonal|Transversal|Avenida|Kilom[eé]tro)\s+[\w]+(?:\s+[\w]+)?)\s*/i
+  )
+
+  // 2. Detectar número de cruce colombiano: # XX-XX o XX-XX
+  const matchCruce = dir.match(/(?:#\s*)(\d+[A-Z]?(?:\s*[-\u2013]\s*\d+[A-Z]?)?)/i)
+  // Cruce solo válido si hay # explícito (evita tomar número de calle como cruce)
+
+  // 3. Detectar barrio: texto precedido de "Barrio" o al final tras refs de urbanización
+  const matchBarrio = dir.match(
+    /\bBarrio\s+([A-ZÁÉÍÓÚ][A-ZÁÉÍÓÚ\w\s]{1,35}?)(?:\s+(?:PARTE\s+(?:ALTA|BAJA)|\d*\s*ETAPA|\d*\s*ETP|PTE\s+(?:ALTA|BAJA)))?\s*$/i
+  )
+
+  let resultado: string
+
+  if (matchVia) {
+    const via = matchVia[1].trim()
+    const cruce = matchCruce ? matchCruce[1].trim() : ''
+    const barrio = matchBarrio ? matchBarrio[1].trim() : ''
+    resultado = [via, cruce, barrio].filter(Boolean).join(' ').replace(/\bBarrio\s+/gi, '').replace(/\bManzana\s+\w+/gi, '').replace(/\s{2,}/g, ' ').trim()
+  } else {
+    // Sin vía: extraer solo barrio/sector
+    resultado = dir
+      .replace(/\b(Manzana|MZ|MZN|MANZ)\s+\w+/gi, '')
+      .replace(/\b(Casa|CS)\s+\w+/gi, '')
+      .replace(/\b(Bloque|BL|SMZ|Super\s+Manzana)\s+\w+/gi, '')
+      .replace(/(Lote|Lt)\s+\S+/gi, '')
+      .replace(/Local\s+#?\w+/gi, '')
+      .replace(/Apartamento\s+#?\w+/gi, '')
+      .replace(/\b(\d+\s*ETAPA|ETAPA\s*\d+|\d+\s*ETP|ETP\s*\d+|PARTE\s+(?:ALTA|BAJA)|PTE\s+(?:ALTA|BAJA))\b/gi, '')
+      .replace(/Barrio\s+/gi, '')
+      .replace(/\s{2,}/g, ' ')
+      .trim()
+      .replace(/[,\s]+$/, '')
+  }
+
+  // Limpieza final
+  return resultado
+    .replace(/(CENTRO|NORTE|SUR|OCCIDENTE|ORIENTE|ORIENTAL|OCCIDENTAL)\s*$/i, '')
     .replace(/[,\s]+$/, '')
+    .trim()
 }

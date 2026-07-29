@@ -46,9 +46,12 @@ function NumInput({ value, onChange, onBlur, width = 90 }: { value: string; onCh
 }
 
 
-function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate }: { cat: { id:string; key: string; label: string; emoji: string }; mes: number; anio: number; scrollRefs: React.MutableRefObject<HTMLDivElement[]>; onCatUpdate?: (id:string, label:string, emoji:string) => void }) {
+function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { cat: { id:string; key: string; label: string; emoji: string }; mes: number; anio: number; scrollRefs: React.MutableRefObject<HTMLDivElement[]>; onCatUpdate?: (id:string, label:string, emoji:string) => void; isAdmin?: boolean }) {
   const [editandoTitulo, setEditandoTitulo] = React.useState(false)
   const [nuevoLabel, setNuevoLabel] = React.useState(cat.label)
+  const [modoEliminar, setModoEliminar] = useState(false)
+  const [filaEliminar, setFilaEliminar] = useState<string | null>(null)
+  const [eliminando, setEliminando] = useState(false)
   const [filas, setFilas] = useState<Fila[]>([])
   const [editando, setEditando] = useState<Record<number, boolean>>({})
   const [saved, setSaved] = useState<Record<number, boolean>>({})
@@ -164,6 +167,20 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate }: { cat: { id:string; 
   const tot = (campo: keyof Fila) => filas.filter(f => f.concepto || f.valor).reduce((s, f) => s + (parseInt(String(f[campo])) || 0), 0)
   const totalSaldo = tot('saldo')
 
+  async function eliminarEgreso(id: string) {
+    setEliminando(true)
+    try {
+      const res = await fetch('/api/egresos', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+      const d = await res.json()
+      if (d.ok) {
+        setFilas(prev => prev.filter(f => f.id !== id))
+        setFilaEliminar(null)
+      }
+    } finally {
+      setEliminando(false)
+    }
+  }
+
   return (
     <div className="space-y-1">
       {/* Título — doble clic para editar */}
@@ -176,6 +193,7 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate }: { cat: { id:string; 
               style={{ background:'transparent', border:'none', outline:'none', fontSize:14, fontWeight:700, color:'white', width: Math.max(80, nuevoLabel.length * 9) }} />
           : <h2 className="text-sm font-bold text-white cursor-pointer" onDoubleClick={() => setEditandoTitulo(true)} title="Doble clic para editar">{nuevoLabel}</h2>
         }
+
       </div>
       <div className="rounded-2xl border border-zinc-800 overflow-hidden" style={{ background: '#0f1623' }}>
         <div className="overflow-x-auto" ref={el => {
@@ -198,8 +216,22 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate }: { cat: { id:string; 
                 const isEdit = editando[idx] || f.esNueva
                 const rowBg = f.autorizado ? 'rgba(34,197,94,0.12)' : pagado ? 'rgba(34,197,94,0.05)' : 'transparent'
                 return (
-                  <tr key={f.id || `n-${idx}`} style={{ background: saved[idx] ? 'rgba(34,197,94,0.15)' : rowBg, transition: 'background 0.3s' }}
-                    onDoubleClick={() => !f.esNueva && setEditando(p => ({ ...p, [idx]: true }))}>
+                  <tr key={f.id || `n-${idx}`}
+                    style={{ background: saved[idx] ? 'rgba(34,197,94,0.15)' : rowBg, transition: 'background 0.3s', outline: filaEliminar === f.id ? '2px solid #ef4444' : 'none', position: 'relative' }}
+                    onDoubleClick={() => { if (modoEliminar) return; !f.esNueva && setEditando(p => ({ ...p, [idx]: true })) }}
+                    onClick={() => { if (modoEliminar && f.id) setFilaEliminar(fid => fid === f.id ? null : f.id) }}>
+                    {/* Popover eliminar */}
+                    {modoEliminar && filaEliminar === f.id && (
+                      <td colSpan={0} style={{ padding: 0, border: 'none', position: 'static' }}>
+                        <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: -2, right: 8, zIndex: 20, display: 'flex', gap: 6, alignItems: 'center', background: '#0f1623', border: '1px solid #ef4444', borderRadius: 8, padding: '4px 8px', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
+                          <button onClick={() => eliminarEgreso(f.id!)} disabled={eliminando}
+                            style={{ background: '#dc2626', color: 'white', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: eliminando ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 4 }}>
+                            🗑️ {eliminando ? 'Eliminando...' : 'Eliminar'}
+                          </button>
+                          <button onClick={() => setFilaEliminar(null)} style={{ background: '#3f3f46', color: 'white', border: 'none', borderRadius: 6, padding: '4px 8px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>✕</button>
+                        </div>
+                      </td>
+                    )}
                     <td style={{ ...tdStyle, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
                       {isEdit ? <input type="date" value={f.fecha} onChange={e => set(idx,'fecha',e.target.value)} onBlur={() => onBlurFila(idx)} style={{ background:'transparent',color:'white',border:'none',outline:'none',width:110,fontSize:13 }} /> : fmtFecha(f.fecha)}
                     </td>
@@ -275,7 +307,13 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate }: { cat: { id:string; 
                 <td style={{ ...tdStyle, fontWeight:700, borderLeft: 'none' }}>{tot('abonoPago') > 0 ? fmt(tot('abonoPago')) : ''}</td>
                 <td style={{ ...tdStyle, fontWeight:700, borderLeft: 'none' }}>{tot('descuento') > 0 ? fmt(tot('descuento')) : ''}</td>
                 <td style={{ ...tdStyle, fontWeight:700, borderLeft: 'none', color:'#f59e0b' }}>{fmt(tot('saldo'))}</td>
-                <td colSpan={4} style={{ borderLeft: 'none' }} />
+                <td colSpan={3} style={{ borderLeft: 'none' }} />
+                <td style={{ borderLeft: 'none', padding: '0 10px', textAlign: 'right' }}>
+                  {isAdmin && (
+                    <button onClick={() => { setModoEliminar(m => !m); setFilaEliminar(null) }}
+                      className={`flex items-center justify-center w-5 h-5 rounded-full border text-sm transition-colors ${modoEliminar ? 'border-red-500 text-red-400 hover:border-red-400' : 'border-zinc-700 hover:border-zinc-400 text-zinc-500 hover:text-zinc-200'}`} style={{ marginLeft: 'auto' }}>−</button>
+                  )}
+                </td>
               </tr>
             </tfoot>
           </table>
@@ -351,6 +389,7 @@ export default function EgresosPage() {
   const calRef = useRef<HTMLDivElement>(null)
   const [tab, setTab] = useState<'egresos' | 'gastos'>('egresos')
 
+
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (calRef.current && !calRef.current.contains(e.target as Node)) setShowCal(false)
@@ -408,7 +447,7 @@ export default function EgresosPage() {
                 </div>
               </div>
             )}
-            {categorias.map(cat => <Tabla key={`${cat.key}-${reloadKey}`} cat={cat} mes={mes} anio={anio} scrollRefs={scrollRefs} onCatUpdate={(id, label, emoji) => {
+            {categorias.map(cat => <Tabla key={`${cat.key}-${reloadKey}`} cat={cat} mes={mes} anio={anio} scrollRefs={scrollRefs} isAdmin={isAdmin} onCatUpdate={(id, label, emoji) => {
               fetch('/api/egresos/categorias', { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id, label, emoji}) })
                 .then(() => setReloadKey(k => k+1))
             }} />)}

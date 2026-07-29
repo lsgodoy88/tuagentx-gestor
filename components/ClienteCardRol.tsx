@@ -16,6 +16,7 @@ interface Cliente {
   lng?: number | null
   ubicacionReal?: boolean | null
   latTmp?: number | null
+  lngTmp?: number | null
   maps?: string | null
   apiId?: string | null
 }
@@ -294,59 +295,34 @@ export default function ClienteCardRol({ cliente: c, rol, onVisita, onEntregar, 
                 </div>
                 {(() => {
                   const hasGps = c.lat != null && c.lng != null
-                  const hasMaps = !!c.maps
-                  const mapsUrl = c.maps || null
-                  if (hasGps) {
-                    return (
-                      <div style={{ position: 'relative', flexShrink: 0 }}>
-                        <button
-                          onClick={e => { e.stopPropagation(); if (mapsUrl) window.open(mapsUrl) }}
-                          style={{
-                            width: 30, height: 30, borderRadius: 8,
-                            background: 'rgba(5,150,105,0.15)',
-                            border: '1px solid rgba(5,150,105,0.3)',
-                            color: '#34d399', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 14,
-                          }}
-                        >🗺️</button>
-                        <span style={{
-                          position: 'absolute', top: -4, right: -4,
-                          width: 13, height: 13, borderRadius: '50%',
-                          background: '#059669', border: '2px solid #111',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 7, fontWeight: 900, color: '#fff', lineHeight: 1,
-                        }}>✓</span>
-                      </div>
-                    )
-                  }
-                  if (hasMaps) {
-                    return (
+                  // URL prioridad: lat/lng real → latTmp/lngTmp → maps (expandido por lib/maps.ts)
+                  const mapsUrl: string | null = hasGps
+                    ? `https://maps.google.com/maps?q=${c.lat},${c.lng}`
+                    : (c.latTmp != null && c.lngTmp != null)
+                      ? `https://maps.google.com/maps?q=${c.latTmp},${c.lngTmp}`
+                      : c.maps || null
+                  return (
+                    <div style={{ position: 'relative', flexShrink: 0 }}>
                       <button
-                        onClick={e => { e.stopPropagation(); window.open(mapsUrl!) }}
+                        onClick={e => { e.stopPropagation(); if (mapsUrl) window.open(mapsUrl) }}
                         style={{
-                          width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-                          background: 'rgba(37,99,235,0.15)',
-                          border: '1px solid rgba(37,99,235,0.3)',
-                          color: '#60a5fa', cursor: 'pointer',
+                          width: 30, height: 30, borderRadius: 8,
+                          background: mapsUrl ? 'rgba(5,150,105,0.15)' : 'rgba(113,113,122,0.10)',
+                          border: mapsUrl ? '1px solid rgba(5,150,105,0.3)' : '1px solid rgba(113,113,122,0.2)',
+                          color: mapsUrl ? '#34d399' : '#71717a',
+                          cursor: mapsUrl ? 'pointer' : 'default',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           fontSize: 14,
                         }}
                       >🗺️</button>
-                    )
-                  }
-                  return (
-                    <button
-                      disabled
-                      style={{
-                        width: 30, height: 30, borderRadius: 8, flexShrink: 0,
-                        background: '#18181b',
-                        border: '1px solid #27272a',
-                        color: '#ffffff', cursor: 'not-allowed',
+                      {hasGps && <span style={{
+                        position: 'absolute', top: -4, right: -4,
+                        width: 13, height: 13, borderRadius: '50%',
+                        background: '#059669', border: '2px solid #111',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 14,
-                      }}
-                    >🗺️</button>
+                        fontSize: 7, fontWeight: 900, color: '#fff', lineHeight: 1,
+                      }}>✓</span>}
+                    </div>
                   )
                 })()}
               </div>

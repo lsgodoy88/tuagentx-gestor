@@ -7,6 +7,7 @@ import { crearAdaptador, sincronizarDeudas, actualizarCache, marcarZombis, refre
 import { decrypt } from '@/lib/crypto-uptres'
 import { recalcularVentasMesImpulsos } from '@/lib/integracion/venta-mes'
 import { runIntegracionDelta } from '@/lib/jobs/integracion-delta'
+import { expandirDireccion } from '@/lib/maps'
 
 function resolverConfig(config: any): Record<string, string> {
   return {
@@ -76,7 +77,14 @@ async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor
       const dir = (c as any).dir || undefined
       const tel = (c as any).nCel || undefined
       const empId = (c as any).employeeId || null
-      if (dir && dir !== (ex.direccion || undefined)) cambio.direccion = dir
+      if (dir && dir !== (ex.direccion || undefined)) {
+        cambio.direccion = dir
+        // Regenerar maps con la nueva dirección + departamento de UpTres
+        const depUp = (c as any).departamento || ex.departamento || undefined
+        const ciudUp = (c as any).ciudad || ex.ciudad || undefined
+        const mapsRegen = expandirDireccion(dir, depUp ? `${depUp}/${ciudUp}` : ciudUp)
+        if (mapsRegen) cambio.maps = mapsRegen
+      }
       if (tel && tel !== (ex.telefono || undefined)) cambio.telefono = tel
       // Si no tiene lista asignada localmente, buscar por employeeId de UpTres
       if (!ex.listaId && empId && mapaEmpleadoLista[empId]) cambio.listaId = mapaEmpleadoLista[empId]
@@ -84,15 +92,20 @@ async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor
       toUpdateCli.push({ id: ex.id, data: cambio })
     } else {
       const empId = (c as any).employeeId || null
+      const dirNueva = (c as any).dir || undefined
+      const ciudadNueva = (c as any).ciudad || undefined
+      const depNueva = (c as any).departamento || undefined
+      const mapsNuevo = expandirDireccion(dirNueva, depNueva ? `${depNueva}/${ciudadNueva}` : ciudadNueva) || undefined
       toCreateCli.push({
         nombre, nit: doc, empresaId,
         apiId: uid,
-        ciudad: (c as any).ciudad || undefined,
-        departamento: (c as any).departamento || undefined,
-        direccion: (c as any).dir || undefined,
+        ciudad: ciudadNueva,
+        departamento: depNueva,
+        direccion: dirNueva,
         telefono: (c as any).nCel || undefined,
         email: (c as any).email || undefined,
         listaId: (empId && mapaEmpleadoLista[empId]) ? mapaEmpleadoLista[empId] : undefined,
+        maps: mapsNuevo,
       })
     }
   }
@@ -292,20 +305,25 @@ async function ejecutarInicial(integracion: any, adapter: any, empresaId: string
     const uid = ((c._id as string) || (c.uid as string))?.trim()
     if (!doc || !uid) continue
     const nombre = (((c as any).name || '') + ' ' + ((c as any).lastName || '')).trim() || 'Sin nombre'
+    const dirC = (c as any).dir || undefined
+    const ciudadC = (c as any).ciudad || undefined
+    const depC = (c as any).departamento || undefined
+    const mapsC = expandirDireccion(dirC, depC ? `${depC}/${ciudadC}` : ciudadC) || undefined
     const data = {
       apiId: uid,
-      ciudad: (c as any).ciudad || undefined,
-      departamento: (c as any).departamento || undefined,
-      direccion: (c as any).dir || undefined,
+      ciudad: ciudadC,
+      departamento: depC,
+      direccion: dirC,
       telefono: (c as any).nCel || undefined,
       email: (c as any).email || undefined,
+      maps: mapsC,
     }
     if (mapaExistentes[doc]) {
       // Solo actualizar direccion y telefono — el resto se congela
       const cambio: any = {}
-      const dir = (c as any).dir || undefined
+      const dir = dirC
       const tel = (c as any).nCel || undefined
-      if (dir) cambio.direccion = dir
+      if (dir) { cambio.direccion = dir; if (mapsC) cambio.maps = mapsC }
       if (tel) cambio.telefono = tel
       if (Object.keys(cambio).length > 0) toUpdate.push({ id: mapaExistentes[doc], data: cambio })
     } else {

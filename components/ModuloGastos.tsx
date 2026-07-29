@@ -232,6 +232,7 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
           {isAdmin && <button onClick={() => setShowTipos(true)}
             className="rounded-lg text-zinc-500 hover:text-zinc-200 transition-colors"
             style={{fontSize:"1rem", padding:"6px 10px", border:'1px solid rgba(255,255,255,0.08)'}}>⚙️</button>}
+
           <input ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden"
             onChange={e => { if (e.target.files?.[0]) handleArchivo(e.target.files[0]) }} />
           {showTipos && (
@@ -332,13 +333,13 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
                   {fmt(grupo.gastos.reduce((s, g) => s + Number(g.valor), 0))}
                 </span>
               </div>
-              <TablaGasto gastos={grupo.gastos} onAgregar={() => setShowManual(true)} />
+              <TablaGasto gastos={grupo.gastos} onAgregar={() => setShowManual(true)} isAdmin={isAdmin} onEliminar={id => setGastos(prev => prev.filter(g => g.id !== id))} />
             </div>
           ))}
         </div>
       ) : (
         <>
-          <TablaGasto gastos={gastos} onAgregar={() => setShowManual(true)} />
+          <TablaGasto gastos={gastos} onAgregar={() => setShowManual(true)} isAdmin={isAdmin} onEliminar={id => setGastos(prev => prev.filter(g => g.id !== id))} />
         </>
       )}
 
@@ -428,7 +429,22 @@ const tdG: React.CSSProperties = {
   whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
 }
 
-function TablaGasto({ gastos, onAgregar }: { gastos: Gasto[], onAgregar?: () => void }) {
+function TablaGasto({ gastos, onAgregar, isAdmin = false, onEliminar }: { gastos: Gasto[], onAgregar?: () => void, isAdmin?: boolean, onEliminar?: (id: string) => void }) {
+  const [modoEliminar, setModoEliminar] = useState(false)
+  const [gastoEliminar, setGastoEliminar] = useState<string | null>(null)
+  const [eliminando, setEliminando] = useState(false)
+
+  async function eliminarGasto(id: string) {
+    setEliminando(true)
+    try {
+      const res = await fetch(`/api/gastos?id=${id}`, { method: 'DELETE' })
+      const d = await res.json()
+      if (d.ok) { onEliminar?.(id); setGastoEliminar(null) }
+    } finally {
+      setEliminando(false)
+    }
+  }
+
   const total = gastos.reduce((s, g) => s + Number(g.valor), 0)
   return (
     <div className="rounded-2xl border border-zinc-800 overflow-hidden" style={{ background: '#0f1623' }}>
@@ -439,11 +455,26 @@ function TablaGasto({ gastos, onAgregar }: { gastos: Gasto[], onAgregar?: () => 
               {['FECHA REG.','CONCEPTO','TIPO','CIUDAD','FECHA DOC.','VALOR','VER'].map(h => (
                 <th key={h} style={{ ...thG, textAlign: h === 'VALOR' ? 'right' : 'left' }}>{h}</th>
               ))}
+
             </tr>
           </thead>
           <tbody>
             {gastos.map(g => (
-              <tr key={g.id} style={{ background: '#0a0f1a' }}>
+              <tr key={g.id}
+                style={{ background: '#0a0f1a', outline: gastoEliminar === g.id ? '2px solid #ef4444' : 'none', position: 'relative', cursor: modoEliminar ? 'pointer' : 'default' }}
+                onClick={() => { if (modoEliminar) setGastoEliminar(id => id === g.id ? null : g.id) }}>
+                {/* Popover eliminar gasto */}
+                {modoEliminar && gastoEliminar === g.id && (
+                  <td colSpan={0} style={{ padding: 0, border: 'none', position: 'static' }}>
+                    <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', top: -2, right: 8, zIndex: 20, display: 'flex', gap: 6, alignItems: 'center', background: '#0f1623', border: '1px solid #ef4444', borderRadius: 8, padding: '4px 8px', boxShadow: '0 4px 20px rgba(0,0,0,0.5)' }}>
+                      <button onClick={() => eliminarGasto(g.id)} disabled={eliminando}
+                        style={{ background: '#dc2626', color: 'white', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 12, fontWeight: 700, cursor: 'pointer', opacity: eliminando ? 0.5 : 1, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        🗑️ {eliminando ? 'Eliminando...' : 'Eliminar'}
+                      </button>
+                      <button onClick={() => setGastoEliminar(null)} style={{ background: '#3f3f46', color: 'white', border: 'none', borderRadius: 6, padding: '4px 8px', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>✕</button>
+                    </div>
+                  </td>
+                )}
                 <td style={{ ...tdG, color: 'white' }}>{fmtFechaAgregacion(g.fechaAgregacion)}</td>
                 <td style={{ ...tdG, color: 'white', fontWeight: 500, maxWidth: 200 }}>{g.concepto}</td>
                 <td style={{ ...tdG, color: 'white' }}>{g.tipo}</td>
@@ -463,6 +494,12 @@ function TablaGasto({ gastos, onAgregar }: { gastos: Gasto[], onAgregar?: () => 
               <td colSpan={4} style={{ ...tdG, borderLeft: 'none' }} />
               <td style={{ ...tdG, borderLeft: 'none', color: '#fbbf24', fontWeight: 700, textAlign: 'right' }}>{fmt(total)}</td>
               <td style={{ ...tdG, borderLeft: 'none' }}/>
+              {isAdmin && (
+                <td style={{ ...tdG, borderLeft: 'none', padding: '0 10px', textAlign: 'right' }}>
+                  <button onClick={() => { setModoEliminar(m => !m); setGastoEliminar(null) }}
+                    className={`flex items-center justify-center w-5 h-5 rounded-full border text-sm transition-colors ${modoEliminar ? 'border-red-500 text-red-400 hover:border-red-400' : 'border-zinc-700 hover:border-zinc-400 text-zinc-500 hover:text-zinc-200'}`} style={{ marginLeft: 'auto' }}>−</button>
+                </td>
+              )}
             </tr>
           </tbody>
         </table>

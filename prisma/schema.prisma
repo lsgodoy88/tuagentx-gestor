@@ -3390,52 +3390,10 @@ model SyncNotaCredito {
   empresaId           String
   externalId          String      // orderNumber — consecutivo único NC en UpTres
   clienteApiId        String      // customerDocument → vincula al Cliente
-  electronicNumber    String?     // consecutivo electrónico DIAN
-  electronicDocument  String?
-  electronicType      String?
-  resolution          String?
-  prefix              String?
-  notePrefix          String?
-  cufe                String?
-  cufeInvoice         String?     // CUFE factura relacionada — vínculo NC→factura (PENDIENTE confirmar campo numérico con UpTres)
-  customerName        String?     // congelado al momento del sync
-  customerDocument    String?
-  customerEmail       String?
-  customerPhone       String?
-  customerAddress     String?
-  customerCity        String?
-  customerDepartment  String?
-  subtotal            Decimal?    @db.Decimal(14, 2)
+  cufeInvoice         String?     // CUFE factura relacionada — vínculo NC→factura (PENDIENTE confirmar con UpTres)
   total               Decimal     @db.Decimal(14, 2)
-  discount            Decimal?    @db.Decimal(14, 2)
-  totalItems          Int?
-  iva                 Decimal?    @db.Decimal(14, 2)
-  iva19               Decimal?    @db.Decimal(14, 2)
-  iva19Base           Decimal?    @db.Decimal(14, 2)
-  iva5                Decimal?    @db.Decimal(14, 2)
-  iva5Base            Decimal?    @db.Decimal(14, 2)
-  exempt              Decimal?    @db.Decimal(14, 2)
-  excluded            Decimal?    @db.Decimal(14, 2)
-  consumptionTaxBase  Decimal?    @db.Decimal(14, 2)
-  consumptionTax      Decimal?    @db.Decimal(14, 2)
-  withholdingTax      Decimal?    @db.Decimal(14, 2)
-  withholdingTaxType  String?
-  withholdingICA      Decimal?    @db.Decimal(14, 2)
-  withholdingICAType  String?
-  paymentMethod       String?
-  paymentType         String?
-  creditDays          Int?
-  electronic          Boolean?
-  sent                Boolean?
-  accounted           Boolean?
-  active              Boolean?
-  condition           Boolean     @default(true)  // false = NC anulada, no descuenta
-  note                String?
-  items               Json?       // estructura completa de productos
-  paymentDate         DateTime?
-  electronicDate      DateTime?
-  externalCreatedAt   DateTime?   // createdAt del documento en UpTres
-  externalUpdatedAt   DateTime?   // updatedAt de UpTres
+  condition           Boolean     @default(true)  // false = NC anulada
+  externalCreatedAt   DateTime?
   sincronizadoEl      DateTime    @default(now())
   integracion         Integracion @relation(fields: [integracionId], references: [id])
 
