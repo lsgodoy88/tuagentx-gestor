@@ -855,7 +855,7 @@ export default function ModuloOrdenes() {
                                   </select>
                                   <button onClick={() => asignarRepartidor(d.id)}
                                     disabled={isSaving || (!editRepartidor[d.id] && !obsEdit[d.id])}
-                                    className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-bold px-3 py-2 rounded-xl text-xs transition-colors flex-shrink-0">
+                                    className="h-9 px-3 rounded-xl border border-blue-700 bg-blue-900/40 hover:bg-blue-800/60 text-blue-300 text-xs font-semibold flex-shrink-0 flex items-center justify-center gap-1 disabled:opacity-30 disabled:cursor-not-allowed">
                                     {isSaving ? '...' : '🚀 Enviar'}
                                   </button>
                                 </div>
@@ -900,7 +900,7 @@ export default function ModuloOrdenes() {
                                     <span className="flex-1" />
                                     <button onClick={() => guardarTransporte(d.id)}
                                       disabled={isSaving || (!puedeEnviar && !obsEdit[d.id])}
-                                      className="bg-orange-600 hover:bg-orange-500 disabled:opacity-30 text-white font-bold px-2.5 py-2 rounded-xl text-xs transition-colors flex-shrink-0 whitespace-nowrap">
+                                      className="h-9 px-2.5 rounded-xl border border-amber-600 bg-amber-900/40 hover:bg-amber-800/60 text-amber-300 text-xs font-semibold flex-shrink-0 flex items-center justify-center gap-1 disabled:opacity-30 disabled:cursor-not-allowed whitespace-nowrap">
                                       📦 Enviar
                                     </button>
                                   </div>
@@ -921,7 +921,7 @@ export default function ModuloOrdenes() {
                                         />
                                       </div>
                                       {guia ? (
-                                        <span className="text-white text-xs font-mono truncate px-2 py-2 bg-zinc-800 border border-orange-500/40 rounded-xl cursor-pointer flex-shrink-0 max-w-[100px]"
+                                        <span className="text-white text-xs font-mono px-2 py-2 bg-zinc-800 border border-amber-500/40 rounded-xl cursor-pointer flex-shrink-0"
                                           onClick={() => setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], guia: '' } }))}>
                                           {guia} ✕
                                         </span>
@@ -964,6 +964,12 @@ export default function ModuloOrdenes() {
                                 <button onClick={() => setObsPopup(`firma-${d.id}`)}
                                   className="h-9 px-3 rounded-xl border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold flex-shrink-0 flex items-center justify-center gap-1">
                                   🖊️ Firmar
+                                </button>
+                                <button
+                                  disabled={isSaving || !obsEdit[d.id]}
+                                  onClick={async () => { await patchOrden(d.id, { estado: 'entregado', entregadoEl: new Date().toISOString(), observacion: obsEdit[d.id] || null }) }}
+                                  className="h-9 px-3 rounded-xl border border-emerald-700 bg-emerald-900/40 hover:bg-emerald-800/60 text-emerald-300 text-xs font-semibold flex-shrink-0 flex items-center justify-center gap-1 disabled:opacity-30 disabled:cursor-not-allowed">
+                                  🤝 Enviar
                                 </button>
                               </div>
                               {obsPopup === `firma-${d.id}` && (

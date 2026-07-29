@@ -175,10 +175,10 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   try {
     const maxNc = await (prisma as any).syncNotaCredito.findFirst({
       where: { integracionId },
-      orderBy: { externalUpdatedAt: 'desc' },
-      select: { externalUpdatedAt: true, sincronizadoEl: true }
+      orderBy: { sincronizadoEl: 'desc' },
+      select: { sincronizadoEl: true }
     })
-    const baseNc = maxNc?.externalUpdatedAt || maxNc?.sincronizadoEl || new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+    const baseNc = maxNc?.sincronizadoEl || new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
     const desdeNc = new Date(baseNc.getTime() - 60 * 60 * 1000) // 1h overlap
     const authRes = await fetch('https://serviceuptres.cloud/external/v1/auth/api', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
