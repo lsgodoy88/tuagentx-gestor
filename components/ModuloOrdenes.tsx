@@ -496,7 +496,8 @@ export default function ModuloOrdenes() {
   async function asignarRepartidor(id: string) {
     const rid = editRepartidor[id]
     if (!rid) return
-    await patchOrden(id, { repartidorId: rid, estado: 'en_entrega', observacion: obsEdit[id] || null })
+    const cajasLocal = cajasEdit[id] ?? 0
+    await patchOrden(id, { repartidorId: rid, estado: 'en_entrega', observacion: obsEdit[id] || null, num_cajas: cajasLocal })
     setEditRepartidor(p => { const n = { ...p }; delete n[id]; return n })
     setExpanded(p => ({ ...p, [id]: false }))
   }
@@ -658,13 +659,14 @@ export default function ModuloOrdenes() {
                 if (longTimer) { clearTimeout(longTimer); longTimer = null; e.preventDefault();(e.currentTarget.querySelector('input') as HTMLInputElement)?.showPicker?.() }
                 else { e.preventDefault() }
               }}
-              onTouchMove={() => { if (longTimer) { clearTimeout(longTimer); longTimer = null } }}>
+              onTouchMove={() => { if (longTimer) { clearTimeout(longTimer); longTimer = null } }}
+              onClick={e => { try { (e.currentTarget.querySelector('input') as HTMLInputElement)?.showPicker?.() } catch {} }}>
+              <span className="text-sm font-bold pointer-events-none" style={{color: fechaFiltro ? '#f59e0b' : 'white'}}>
+                {fechaFiltro ? new Date(fechaFiltro + 'T12:00:00').getDate() : new Date().getDate()}
+              </span>
               <input type="date" value={fechaFiltro} onChange={e => setFechaFiltro(e.target.value)}
                 className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
                 style={{WebkitAppearance:'none'}} />
-              <span className="text-sm font-bold" style={{color: fechaFiltro ? '#f59e0b' : 'white'}}>
-                {fechaFiltro ? new Date(fechaFiltro + 'T12:00:00').getDate() : new Date().getDate()}
-              </span>
             </label>
           )
         })()}
@@ -825,14 +827,14 @@ export default function ModuloOrdenes() {
                               setTimeout(() => setEditRepartidor(p => ({ ...p, [d.id]: repartidores[0].id })), 0)
                             }
                             if (!esLocalidad2) {
-                              const cajas = cajasEdit[d.id] ?? d.num_cajas ?? 1
+                              const cajas = cajasEdit[d.id] ?? d.num_cajas ?? 0
                               return (
                                 <div className="flex items-center gap-2">
-                                  <button onClick={() => setCajasEdit(p => ({ ...p, [d.id]: Math.max(1, (p[d.id] ?? d.num_cajas ?? 1) - 1) }))}
+                                  <button onClick={() => setCajasEdit(p => ({ ...p, [d.id]: Math.max(0, (p[d.id] ?? d.num_cajas ?? 0) - 1) }))}
                                     className="w-8 h-8 rounded-xl bg-zinc-800 border border-zinc-700 text-white text-base font-bold flex items-center justify-center hover:bg-zinc-700">−</button>
                                   <span className="text-white text-xs font-semibold min-w-[52px] text-center">{cajas} {cajas === 1 ? 'caja' : 'cajas'}</span>
                                   <button onClick={async () => {
-                                    const n = (cajasEdit[d.id] ?? d.num_cajas ?? 1) + 1
+                                    const n = (cajasEdit[d.id] ?? d.num_cajas ?? 0) + 1
                                     setCajasEdit(p => ({ ...p, [d.id]: n }))
                                     await patchOrden(d.id, { num_cajas: n })
                                   }} className="w-8 h-8 rounded-xl bg-zinc-800 border border-zinc-700 text-white text-base font-bold flex items-center justify-center hover:bg-zinc-700">+</button>

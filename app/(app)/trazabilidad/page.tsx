@@ -71,6 +71,7 @@ const PAGE_SIZE_TRAZ = 20
 function getOrdenColumns(ctx: {
   setFotoModal: (url: string | null) => void
   abrirFoto: (key: string) => void
+  abrirGaleria?: (keys: string[], idx?: number, fecha?: string | null) => void
   setFirmaModal: (url: string | null) => void
   esVendedor: boolean
 }): ColDef<any>[] {
@@ -115,7 +116,7 @@ function getOrdenColumns(ctx: {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>{o.alistadoEl ? fmtFecha(o.alistadoEl) : '—'}</span>
             {fotos.length > 0 && (
-              <button onClick={e => { e.stopPropagation(); ctx.abrirFoto(fotos[0]) }}
+              <button onClick={e => { e.stopPropagation(); ctx.abrirGaleria ? ctx.abrirGaleria(fotos, 0, o.alistadoEl) : ctx.abrirFoto(fotos[0]) }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 14, padding: 0, lineHeight: 1 }} title="Fotos">🖼️</button>
             )}
           </div>
@@ -179,6 +180,25 @@ export default function TrazabilidadPage() {
   const [expandido, setExpandido] = useState<Record<string, boolean>>({})
   const [ordenSeleccionada, setOrdenSeleccionada] = useState<any>(null)
   const [fotoModal, setFotoModal] = useState<string | null>(null)
+  const [fotosGaleria, setFotosGaleria] = useState<string[]>([])
+  const [fotoIdx, setFotoIdx] = useState(0)
+  const [galeriaFecha, setGaleriaFecha] = useState<string | null>(null)
+  async function abrirGaleria(keys: string[], idx = 0, fecha?: string | null) {
+    setFotoModal('loading')
+    try {
+      const urls = await Promise.all(keys.map(async (key) => {
+        if (key.startsWith('data:') || key.startsWith('http')) return key
+        if (key.startsWith('/fotos/') || key.startsWith('/api/fotos/')) return key.startsWith('/api/fotos/') ? key.replace('/api/fotos/', '/fotos/') : key
+        const res = await fetch(`/api/egresos/url?key=${encodeURIComponent(key)}`)
+        const d = await res.json()
+        return d.url || key
+      }))
+      setFotosGaleria(urls)
+      setFotoIdx(idx)
+      setFotoModal(urls[idx] ?? null)
+      setGaleriaFecha(fecha ?? null)
+    } catch { setFotoModal(null) }
+  }
   async function abrirFoto(key: string) {
     if (!key) return
     if (key.startsWith('data:') || key.startsWith('http')) { setFotoModal(key); return }
@@ -361,7 +381,11 @@ export default function TrazabilidadPage() {
                 if (longTimer) { clearTimeout(longTimer); longTimer = null; e.preventDefault(); (e.currentTarget.querySelector('input') as HTMLInputElement)?.showPicker?.() }
                 else { e.preventDefault() }
               }}
-              onTouchMove={() => { if (longTimer) { clearTimeout(longTimer); longTimer = null } }}>
+              onTouchMove={() => { if (longTimer) { clearTimeout(longTimer); longTimer = null } }}
+              onClick={e => { try { (e.currentTarget.querySelector('input') as HTMLInputElement)?.showPicker?.() } catch {} }}>
+              <span className="text-sm font-bold pointer-events-none" style={{color: fechaFiltro ? '#f59e0b' : 'white'}}>
+                {fechaFiltro ? new Date(fechaFiltro + 'T12:00:00').getDate() : new Date().getDate()}
+              </span>
               <input
                 type="date"
                 value={fechaFiltro}
@@ -369,9 +393,6 @@ export default function TrazabilidadPage() {
                 className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
                 style={{WebkitAppearance:'none'}}
               />
-              <span className="text-sm font-bold" style={{color: fechaFiltro ? '#f59e0b' : 'white'}}>
-                {fechaFiltro ? new Date(fechaFiltro + 'T12:00:00').getDate() : new Date().getDate()}
-              </span>
             </label>
           )
         })()}
@@ -397,7 +418,7 @@ export default function TrazabilidadPage() {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(59,130,246,0.25)' }}>
                 <DataTable
-                  columns={getOrdenColumns({ setFotoModal, abrirFoto, setFirmaModal, esVendedor })}
+                  columns={getOrdenColumns({ setFotoModal, abrirFoto, abrirGaleria, setFirmaModal, esVendedor })}
                   rows={pagedOrdenes}
                   rowKey={(o: any) => o.id}
                   onRowClick={(o: any) => setOrdenSeleccionada(o)}
@@ -438,14 +459,14 @@ export default function TrazabilidadPage() {
                 label: 'Alistado',
                 fecha: orden.alistadoEl,
                 quien: orden.alistadoPor?.nombre || null,
-                accion: fotos.length > 0 ? () => abrirFoto(fotos[0]) : null,
+                accion: fotos.length > 0 ? () => abrirGaleria(fotos, 0, orden.alistadoEl) : null,
                 accionLabel: '🖼️',
               },
               {
                 icon: '🚚',
                 label: 'Despachado',
                 fecha: !['pendiente', 'alistado'].includes(orden.estado) ? orden.alistadoEl : null,
-                quien: [repartidorNombre, (orden.num_cajas > 0 && !['pendiente','alistado'].includes(orden.estado)) ? `${orden.num_cajas} caja${orden.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · '),
+                quien: [(orden.despachadoPorNombre || null), (orden.num_cajas > 0 && !['pendiente','alistado'].includes(orden.estado)) ? `${orden.num_cajas} caja${orden.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · '),
                 accion: orden.urlSeguimiento ? () => window.open(orden.urlSeguimiento, '_blank') : null,
                 accionLabel: orden.urlSeguimiento ? '🔗' : '',
               },
@@ -555,16 +576,41 @@ export default function TrazabilidadPage() {
       </>)}
 
       {/* Modal foto */}
-      {fotoModal && (
-        <div className="fixed inset-0 bg-black/95 z-[1000] flex items-center justify-center p-4"
-          onClick={() => setFotoModal(null)}>
-          <div className="relative max-w-2xl w-full" onClick={e => e.stopPropagation()}>
-            <button onClick={() => setFotoModal(null)}
-              className="absolute top-2 right-2 bg-black/60 text-white rounded-full w-8 h-8 flex items-center justify-center text-lg z-10">
-              ✕
-            </button>
-            <img src={fotoModal} alt="Foto alistamiento" className="w-full rounded-2xl object-contain max-h-[80vh]" />
+      {fotoModal === 'loading' && (
+        <div className="fixed inset-0 bg-black z-[1000] flex items-center justify-center">
+          <span className="text-white text-sm">Cargando...</span>
+        </div>
+      )}
+      {fotoModal && fotoModal !== 'loading' && (
+        <div className="fixed inset-0 bg-black z-[1000] flex flex-col">
+          <div className="flex items-center justify-between px-4 py-3">
+            <div>
+              <span className="text-zinc-400 text-sm">🖼️ Foto{fotosGaleria.length > 1 ? ` ${fotoIdx + 1}/${fotosGaleria.length}` : ''}</span>
+              {galeriaFecha && <p className="text-zinc-300 text-xs">{fmtFecha(galeriaFecha)}</p>}
+            </div>
+            <button onClick={() => { setFotoModal(null); setFotosGaleria([]); setFotoIdx(0); setGaleriaFecha(null) }} className="text-white text-2xl">✕</button>
           </div>
+          <div className="flex-1 flex items-center justify-center relative overflow-hidden">
+            <img src={fotoModal} alt="Foto alistamiento" className="max-w-full max-h-full object-contain" />
+            {fotoIdx > 0 && (
+              <button onClick={() => { const i = fotoIdx - 1; setFotoIdx(i); setFotoModal(fotosGaleria[i]) }}
+                className="absolute left-2 bg-black/50 text-white w-10 h-10 rounded-full flex items-center justify-center text-xl">‹</button>
+            )}
+            {fotoIdx < fotosGaleria.length - 1 && (
+              <button onClick={() => { const i = fotoIdx + 1; setFotoIdx(i); setFotoModal(fotosGaleria[i]) }}
+                className="absolute right-2 bg-black/50 text-white w-10 h-10 rounded-full flex items-center justify-center text-xl">›</button>
+            )}
+          </div>
+          {fotosGaleria.length > 1 && (
+            <div className="flex gap-2 p-3 overflow-x-auto">
+              {fotosGaleria.map((f, i) => (
+                <button key={i} onClick={() => { setFotoIdx(i); setFotoModal(f) }}
+                  className={`flex-shrink-0 w-14 h-14 rounded-lg overflow-hidden border-2 ${i === fotoIdx ? 'border-emerald-500' : 'border-transparent'}`}>
+                  <img src={f} className="w-full h-full object-cover" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 

@@ -253,7 +253,22 @@ export async function GET(req: NextRequest) {
     if (hastaFn) where.fechaOrdenBogota.lte = hastaFn
   }
 
-  const baseSelect = {
+  async function enrichConDespacho(ordenes: any[], empresaId: string) {
+  const facturas = ordenes.map(o => o.numeroFactura).filter(Boolean)
+  if (!facturas.length) return ordenes
+  const logs: any[] = await (prisma as any).despachoLog.findMany({
+    where: { empresaId, numeroFactura: { in: facturas } },
+    select: { numeroFactura: true, despachadoPorNombre: true },
+    orderBy: { despachadoEl: 'desc' },
+  })
+  const logMap = new Map<string, string>()
+  for (const l of logs) {
+    if (!logMap.has(l.numeroFactura) && l.despachadoPorNombre) logMap.set(l.numeroFactura, l.despachadoPorNombre)
+  }
+  return ordenes.map(o => ({ ...o, despachadoPorNombre: logMap.get(o.numeroFactura) ?? null }))
+}
+
+const baseSelect = {
     id: true,
     numeroOrden: true,
     numeroFactura: true,
@@ -310,7 +325,8 @@ export async function GET(req: NextRequest) {
       select: baseSelect,
     })
     const orderMap = new Map(finalIds.map((id, i) => [id, i]))
-    const data = ordenesRaw.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0))
+    const dataSorted = ordenesRaw.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0))
+    const data = await enrichConDespacho(dataSorted, user.empresaId)
     const nextCursor = hasMore ? data[data.length - 1].id : null
     return NextResponse.json({ ordenes: data, nextCursor, hasMore })
   }
@@ -334,6 +350,7 @@ export async function GET(req: NextRequest) {
     select: baseSelect,
   })
   const orderMap = new Map(finalIds.map((id, i) => [id, i]))
-  const ordenes = ordenesRaw.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0))
+  const ordenesSorted = ordenesRaw.sort((a, b) => (orderMap.get(a.id) ?? 0) - (orderMap.get(b.id) ?? 0))
+  const ordenes = await enrichConDespacho(ordenesSorted, user.empresaId)
   return NextResponse.json({ ordenes, total, page, pages: Math.ceil(total / PAGE_SIZE) })
 }
