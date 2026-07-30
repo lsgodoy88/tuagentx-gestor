@@ -25,6 +25,7 @@ export default function MapaRutaPage() {
 
   // Modal visita
   const [clienteModal, setClienteModal] = useState<any>(null)
+  const [rutaIniciada, setRutaIniciada] = useState(false)
   const [distanciaLejos, setDistanciaLejos] = useState(false)
 
   const [detalleId, setDetalleId] = useState<string|null>(null)
@@ -52,6 +53,7 @@ export default function MapaRutaPage() {
     const fechaRuta = rutaRes?.fecha ? new Date(new Date(rutaRes.fecha).getTime() - 5*60*60*1000).toISOString().split('T')[0] : hoyStr
     const visitasRes = await fetch(`/api/visitas/todas?fecha=${fechaRuta}`).then(r => r.json())
     setRuta(rutaRes)
+    setRutaIniciada(rutaRes?.iniciada === true)
     setClientesOrdenados(rutaRes?.clientes?.map((rc: any) => {
       const notas = rc.notas || null
       const mN = notas?.match(/#(\d+)/); const mE = notas?.match(/^Bodega\/([^#]+)/)
@@ -174,7 +176,7 @@ export default function MapaRutaPage() {
       <div className="flex items-center gap-3 p-3 border-b border-zinc-800 flex-shrink-0">
         <button onClick={() => router.back()} className="text-zinc-400 hover:text-white text-lg">←</button>
         <div className="flex-1 min-w-0">
-          <p className="text-white font-bold text-base truncate">{ruta.nombre}</p>
+          <p className="text-white font-bold text-base">Ruta de hoy</p>
           <p className="text-zinc-400 text-sm mt-0.5">{ejecutados} ejecutadas · {pendientes} pendientes</p>
         </div>
 
@@ -202,6 +204,7 @@ export default function MapaRutaPage() {
             clientesEjecutados={clientesEjecutadosIds}
             ubicacionInicio={ubicacion}
             onClienteClick={(c) => {
+              if (isEntregas && !rutaIniciada) return
               setClienteModal(c)
               if (ubicacion && (c.lat || c.latTmp) && (c.lng || c.lngTmp)) {
                 const cLat = c.lat || c.latTmp
@@ -239,6 +242,7 @@ export default function MapaRutaPage() {
 
           function abrirEntrega() {
             if (esEjecutado) return
+            if (isEntregas && !rutaIniciada) return
             setClienteModal(c)
             if (ubicacion && (c.lat || c.latTmp) && (c.lng || c.lngTmp)) {
               const cLat = c.lat || c.latTmp; const cLng = c.lng || c.lngTmp

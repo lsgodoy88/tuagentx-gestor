@@ -248,14 +248,24 @@ export async function POST(req: NextRequest) {
     for (const a of aplicaciones) {
       const sdActual = await tx.syncDeuda.findUnique({
         where: { id: a.syncDeudaId },
-        select: { saldo: true, abono: true }
+        select: { saldo: true, abono: true, nSaldo: true, nSaldoBase: true }
       })
       if (!sdActual) continue
       const nuevoSaldo = Math.max(0, Number(sdActual.saldo) - a.montoAplicado)
       const nuevoAbono = Number(sdActual.abono || 0) + a.montoAplicado
+      // Actualizar nSaldo si no tiene nSaldoBase (Rama 2) — fuente de verdad post-pago
+      const tieneBase = sdActual.nSaldoBase != null
+      const nuevoNSaldo = tieneBase
+        ? undefined  // Rama 0: nSaldo se calcula desde nSaldoBase en runtime, no persistir
+        : Math.max(0, (sdActual.nSaldo != null ? Number(sdActual.nSaldo) : Number(sdActual.saldo)) - a.montoAplicado)
       await tx.syncDeuda.update({
         where: { id: a.syncDeudaId },
-        data: { saldo: nuevoSaldo, abono: nuevoAbono, condition: nuevoSaldo > 0 }
+        data: {
+          saldo: nuevoSaldo,
+          abono: nuevoAbono,
+          condition: nuevoSaldo > 0,
+          ...(nuevoNSaldo !== undefined ? { nSaldo: nuevoNSaldo } : {})
+        }
       })
     }
 
