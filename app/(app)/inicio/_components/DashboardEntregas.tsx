@@ -21,6 +21,11 @@ export default function DashboardEntregas({ user }: { user: any }) {
   const [bloqueadoTurno,    setBloqueadoTurno]    = useState(false)
   const [obteniendoGps,     setObteniendoGps]     = useState(false)
   const [puedeCapturarGps,  setPuedeCapturarGps]  = useState(false)
+  const [rutaIniciada,      setRutaIniciada]      = useState(false)
+  const [accionandoRuta,    setAccionandoRuta]    = useState(false)
+  const [todasRutasHoyIds,  setTodasRutasHoyIds]  = useState<string[]>([])
+  const [rutaMañana,        setRutaMañana]        = useState<any>(null)
+  const [confirmCerrar,     setConfirmCerrar]     = useState(false)
 
   const hoyStr = new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]
   const fechaRuta = ruta?.fecha
@@ -40,17 +45,13 @@ export default function DashboardEntregas({ user }: { user: any }) {
   const rutaCompletada = totalClientes > 0 && ejecutadosRuta >= totalClientes
 
   const cargarRuta = useCallback(async () => {
-    const hoy = new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]
-    const r = await fetch('/api/rutas/mi-ruta').then(r => r.json()).catch(() => null)
-    const fechaVisitas = r?.fecha
-      ? new Date(new Date(r.fecha).getTime() - 5*60*60*1000).toISOString().split('T')[0]
-      : hoy
-    const [, v] = await Promise.all([
-      Promise.resolve(r),
-      fetch('/api/visitas/todas?fecha=' + fechaVisitas).then(r => r.json()).catch(() => null),
-    ])
+    const data = await fetch('/api/rutas/mi-ruta').then(r => r.json()).catch(() => null)
+    const r = data?.rutaHoy ?? null
+    setRutaMañana(data?.rutaMañana ?? null)
     if (r) {
       setRuta(r)
+      setRutaIniciada(r.iniciada === true)
+      setTodasRutasHoyIds(r._todasRutasHoyIds || [r.id])
       setClientesOrdenados(r.clientes?.map((rc: any) => ({
         ...rc.cliente,
         supervisorEtiqueta: rc.supervisorEtiqueta || null,
@@ -58,6 +59,9 @@ export default function DashboardEntregas({ user }: { user: any }) {
         orden: rc.orden,
         notas: rc.notas || null,
         ordenDespachoId: rc.ordenDespachoId || null,
+        observacion: rc.observacion || null,
+        ordenEstado: rc.ordenEstado || null,
+        entregadoEl: rc.entregadoEl || null,
         numeroFactura: rc.numeroFactura || (() => { const m = (rc.notas||'').match(/#(\d+)/); return m ? m[1] : null })(),
         empresaOrigen: rc.empresaOrigen || (() => { const m = (rc.notas||'').match(/^Bodega\/([^#]+)/); return m ? m[1].trim() : null })(),
         alistadoPor: rc.alistadoPor || null,
@@ -65,19 +69,18 @@ export default function DashboardEntregas({ user }: { user: any }) {
         ordenCreadaEl: rc.ordenCreadaEl || null,
       })) || [])
     }
-    if (v) setVisitasRuta(Array.isArray(v?.visitas) ? v.visitas : Array.isArray(v) ? v : [])
   }, [])
 
   useEffect(() => {
     Promise.all([
       fetch('/api/turnos').then(r => r.json()),
       fetch('/api/me').then(r => r.json()),
+      cargarRuta(),
     ]).then(([t, me]) => {
       setTurno(t)
       setCargandoTurno(false)
       setPuedeCapturarGps(me?.puedeCapturarGps === true)
     })
-    cargarRuta()
   }, [cargarRuta])
 
   async function getUbicacion() {
@@ -110,6 +113,29 @@ export default function DashboardEntregas({ user }: { user: any }) {
     setTurno(null); setBloqueadoTurno(false)
   }
 
+  async function cerrarRuta() {
+    if (!ruta || accionandoRuta) return
+    setAccionandoRuta(true)
+    setConfirmCerrar(false)
+    await fetch(`/api/rutas/${ruta.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accion: 'cerrar', rutaIds: todasRutasHoyIds })
+    })
+    await cargarRuta()
+    setAccionandoRuta(false)
+  }
+
+  async function iniciarRuta() {
+    if (!ruta || accionandoRuta) return
+    setAccionandoRuta(true)
+    await fetch(`/api/rutas/${ruta.id}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ accion: 'iniciar', rutaIds: todasRutasHoyIds })
+    })
+    setRutaIniciada(true)
+    setAccionandoRuta(false)
+  }
+
   return (
     <div className="space-y-3 pb-20 md:max-w-2xl md:mx-auto">
       {!turno && !cargandoTurno && <SaludoBlock nombre={user?.name} />}
@@ -125,27 +151,29 @@ export default function DashboardEntregas({ user }: { user: any }) {
       {/* Ruta del día */}
       {ruta && totalClientes > 0 && (
         <div className="rounded-2xl overflow-hidden card-glass" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)'}}>
-          <div className="px-4 py-3 border-b border-white/20 flex items-center justify-between">
-            <Link href="/mapa-ruta" className="text-white font-bold hover:text-emerald-400 transition-colors">📦 Ruta de hoy →</Link>
+          {!rutaIniciada && (
+            <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between gap-3 bg-emerald-500/10">
+              <p className="text-emerald-300 text-sm">Inicia tu ruta para comenzar las entregas</p>
+              <button onClick={iniciarRuta} disabled={accionandoRuta}
+                className="flex-shrink-0 bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold px-4 py-2 rounded-xl disabled:opacity-50 transition-colors">
+                {accionandoRuta ? '...' : '🚀 Iniciar'}
+              </button>
+            </div>
+          )}
+          <Link href="/mapa-ruta" className="px-4 py-3 border-b border-white/20 flex items-center justify-between hover:bg-white/5 transition-colors">
+            <span className="text-white font-bold">📦 Ruta de hoy →</span>
             <span className="text-white text-sm font-semibold">{ejecutadosRuta}/{totalClientes} entregas</span>
-          </div>
+          </Link>
           <div className="divide-y divide-white/20">
             {clientesOrdenados.slice().sort((a, b) => {
-              const eA = ordenesEntregadas.has(a.ordenDespachoId) || visitasRuta.some(v => v.clienteId === a.id)
-              const eB = ordenesEntregadas.has(b.ordenDespachoId) || visitasRuta.some(v => v.clienteId === b.id)
+              const eA = a.ordenEstado === 'entregado' || ordenesEntregadas.has(a.ordenDespachoId)
+              const eB = b.ordenEstado === 'entregado' || ordenesEntregadas.has(b.ordenDespachoId)
               if (eA !== eB) return eA ? 1 : -1
               return a.orden - b.orden
             }).map(c => {
-              const visitaEntrega = visitasRuta.find(v => {
-                  if (v.clienteId !== c.id) return false
-                  const fv = v.fechaBogota
-                    ? new Date(v.fechaBogota).toISOString().split('T')[0]
-                    : new Date(new Date(v.createdAt).getTime() - 5*60*60*1000).toISOString().split('T')[0]
-                  return fv === fechaRuta
-                })
-              const entregado = ordenesEntregadas.has(c.ordenDespachoId) || !!visitaEntrega
-              const horaEntrega = visitaEntrega?.fechaBogota
-                ? new Date(visitaEntrega.fechaBogota).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' })
+              const entregado = c.ordenEstado === 'entregado' || ordenesEntregadas.has(c.ordenDespachoId)
+              const horaEntrega = c.entregadoEl
+                ? new Date(c.entregadoEl).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' })
                 : null
               return (
                 <EntregaCard
@@ -159,6 +187,8 @@ export default function DashboardEntregas({ user }: { user: any }) {
                   entregado={entregado}
                   horaEntrega={horaEntrega}
                   turnoActivo={!!turno}
+                  rutaActiva={rutaIniciada}
+                  observacion={c.observacion}
                   onEntregar={() => {
                     setClienteModal(c)
                     const cLat = c.lat || c.latTmp
@@ -182,8 +212,94 @@ export default function DashboardEntregas({ user }: { user: any }) {
               <p className="text-emerald-400 text-sm font-semibold text-center">✅ Ruta completada</p>
             </div>
           )}
+          {rutaIniciada && !ruta?.cerrada && (
+            <div className="px-4 py-3 border-t border-white/10 flex justify-end">
+              <button onClick={() => setConfirmCerrar(true)} disabled={accionandoRuta}
+                className="text-red-400 hover:text-red-300 text-sm font-bold disabled:opacity-30 transition-colors">
+                Cerrar ruta de hoy
+              </button>
+            </div>
+          )}
         </div>
       )}
+
+      {/* Ruta mañana */}
+      {rutaMañana && rutaMañana.clientes?.length > 0 && (
+        <div className="rounded-2xl overflow-hidden" style={{background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)'}}>
+          <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
+            <span className="text-zinc-400 font-semibold text-sm">🗓 Mañana — En espera</span>
+            <span className="text-zinc-500 text-xs">{rutaMañana.clientes.length} orden{rutaMañana.clientes.length !== 1 ? 'es' : ''}</span>
+          </div>
+          <div className="divide-y divide-white/5">
+            {rutaMañana.clientes.map((rc: any) => {
+              const nombre = rc.cliente?.nombre || rc.nombre || '—'
+              const empresaOrigen = rc.empresaOrigen || (() => { const m = (rc.notas||'').match(/^Bodega\/([^#]+)/); return m ? m[1].trim() : null })()
+              const numeroFactura = rc.numeroFactura || (() => { const m = (rc.notas||'').match(/#(\d+)/); return m ? m[1] : null })()
+              const notaBodega = empresaOrigen
+                ? `Bodega/${empresaOrigen}${numeroFactura ? ` F_${numeroFactura}` : ''}`
+                : numeroFactura ? `F_${numeroFactura}` : rc.notas || null
+              const horaEnviado = rc.ordenCreadaEl
+                ? new Date(rc.ordenCreadaEl).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true, timeZone: 'America/Bogota' })
+                : null
+              const direccion = rc.cliente?.direccion || null
+              const telefono = rc.cliente?.telefono || null
+              const observacion = rc.observacion || null
+              return (
+                <div key={rc.id} className="px-4 py-2.5">
+                  {/* L1 — hora enviado + nombre */}
+                  <div className="flex items-center gap-2 mb-0.5">
+                    {horaEnviado && <span className="text-emerald-400 text-xs font-semibold flex-shrink-0">{horaEnviado}</span>}
+                    <p className="text-white font-bold text-sm truncate flex-1">{nombre}</p>
+                  </div>
+                  {/* L2 — dirección */}
+                  {direccion && <p className="text-zinc-400 text-sm truncate mb-0.5">{direccion}</p>}
+                  {/* L3 — factura + teléfono */}
+                  {(notaBodega || telefono) && (
+                    <div className="flex items-center justify-between">
+                      {notaBodega && <p className="text-zinc-300 text-xs truncate flex-1">{notaBodega}</p>}
+                      {telefono && <span className="text-red-400 text-xs flex-shrink-0 ml-2">✆ {telefono}</span>}
+                    </div>
+                  )}
+                  {observacion && <p className="text-zinc-500 text-xs mt-0.5 truncate">✍🏼 {observacion}</p>}
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Modal confirmar cerrar ruta */}
+      {confirmCerrar && (() => {
+        const pendientesCount = clientesOrdenados.filter(c => c.ordenEstado !== 'entregado' && !ordenesEntregadas.has(c.ordenDespachoId)).length
+        const entregadosCount = clientesOrdenados.length - pendientesCount
+        return (
+          <div className="fixed inset-0 bg-black/70 z-50 flex items-end">
+            <div className="bg-zinc-900 border border-zinc-700 rounded-t-2xl w-full p-5 space-y-4">
+              <p className="text-white font-semibold text-base">¿Cerrar ruta de hoy?</p>
+              <div className="bg-zinc-800 rounded-xl p-3 space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="text-zinc-400">✓ Entregadas</span>
+                  <span className="text-emerald-400 font-semibold">{entregadosCount}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-zinc-400">⏳ Pendientes → mañana</span>
+                  <span className="text-amber-400 font-semibold">{pendientesCount}</span>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => setConfirmCerrar(false)}
+                  className="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 text-sm font-semibold">
+                  Cancelar
+                </button>
+                <button onClick={cerrarRuta}
+                  className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-sm font-semibold">
+                  Cerrar ruta
+                </button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Modal entrega */}
       <ModalVisita
@@ -193,7 +309,9 @@ export default function DashboardEntregas({ user }: { user: any }) {
         facturaPreset={clienteModal?.numeroFactura || undefined}
         empresaOrigen={clienteModal?.empresaOrigen || undefined}
         onRegistrado={() => {
-          if (clienteModal?.ordenDespachoId) setOrdenesEntregadas(prev => new Set([...prev, clienteModal.ordenDespachoId]))
+          const oid = clienteModal?.ordenDespachoId
+          if (oid) setOrdenesEntregadas(prev => new Set([...prev, oid]))
+          setClienteModal(null)
           cargarRuta()
         }}
         clienteInicial={clienteModal}

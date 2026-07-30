@@ -112,24 +112,8 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
 
   const deudaToCreate: any[] = []
 
-  // Clientes nuevos
+  // Clientes — movido al nocturno (UpTres updatedAt retorna epoch, delta traía todo)
   let clientesNuevos = 0
-  try {
-    const maxClienteBogota = await (prisma as any).cliente.findFirst({ where: { empresaId: destino, creadoEnBogota: { not: null } }, orderBy: { creadoEnBogota: 'desc' }, select: { creadoEnBogota: true } })
-    const baseCli = maxClienteBogota?.creadoEnBogota || empresa?.ultimaSyncBodega || new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-    const desdeCli = new Date(baseCli.getTime() - 30 * 60 * 1000)
-    const clientesExt = await adapter.fetchClientes(desdeCli)
-    if (clientesExt.length > 0) {
-      const apiIds = clientesExt.map((c: any) => c.uid).filter(Boolean)
-      const existentesApiId = await (prisma as any).cliente.findMany({ where: { empresaId: destino, apiId: { in: apiIds } }, select: { apiId: true } })
-      const existentesSet2 = new Set(existentesApiId.map((e: any) => e.apiId))
-      const nuevosCli = clientesExt.filter((c: any) => c.uid && !existentesSet2.has(c.uid))
-      if (nuevosCli.length > 0) {
-        await (prisma as any).cliente.createMany({ data: nuevosCli.map((c: any) => ({ nombre: `${c.name || ''} ${c.lastName || ''}`.trim() || 'Sin nombre', nombreComercial: c.nombreComercial || null, direccion: c.dir || null, telefono: c.nCel || null, email: c.email || null, ciudad: c.ciudad || null, departamento: c.departamento || null, apiId: c.uid, empresaId: destino, creadoEnBogota: c.fModificado ? toBogota(new Date(c.fModificado)) : toBogota(new Date()) })), skipDuplicates: true })
-        clientesNuevos = nuevosCli.length
-      }
-    }
-  } catch (err: any) { console.error('[delta] clientes error:', err.message); erroresParciales.push('clientes: ' + err.message) }
 
   // Empleados
   let empleadosActualizados = 0

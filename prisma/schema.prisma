@@ -274,6 +274,7 @@ model Ruta {
   createdAt          DateTime          @default(now())
   cerrada            Boolean           @default(false)
   cerradaEl          DateTime?
+  iniciada           Boolean           @default(false)
   empresa            Empresa           @relation(fields: [empresaId], references: [id])
   subEmpresa         SubEmpresa?       @relation(fields: [subEmpresaId], references: [id])
   empresaVinculada   EmpresaVinculada? @relation(fields: [empresaVinculadaId], references: [id])
@@ -307,6 +308,7 @@ model RutaCliente {
   supervisorEtiqueta String?
   notas              String?
   ejecutado          Boolean  @default(false)
+  posible_entrega    DateTime? @db.Date
   cliente            Cliente  @relation(fields: [clienteId], references: [id])
   ruta               Ruta     @relation(fields: [rutaId], references: [id])
 

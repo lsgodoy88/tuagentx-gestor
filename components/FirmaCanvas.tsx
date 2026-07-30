@@ -11,6 +11,7 @@ export default function FirmaCanvas({ onFirma, firma, autoOpen }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [modalAbierto, setModalAbierto] = useState(false)
   const [firmado, setFirmado] = useState(false)
+  const [textoRecibe, setTextoRecibe] = useState('')
   const dibujando = useRef(false)
   const ultimoPos = useRef<{x: number, y: number} | null>(null)
 
@@ -92,6 +93,7 @@ export default function FirmaCanvas({ onFirma, firma, autoOpen }: Props) {
 
   function limpiar() {
     setFirmado(false)
+    setTextoRecibe('')
     iniciarCanvas()
     onFirma(null)
   }
@@ -99,7 +101,71 @@ export default function FirmaCanvas({ onFirma, firma, autoOpen }: Props) {
   function confirmar() {
     const canvas = canvasRef.current
     if (!canvas) return
-    const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
+    // Dibujar texto en la parte superior del canvas si hay texto
+    if (textoRecibe.trim()) {
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        const padding = 20
+        const fontSize = Math.round(canvas.width * 0.07)
+        ctx.font = `bold ${fontSize}px sans-serif`
+        ctx.fillStyle = '#1a1a1a'
+        ctx.textAlign = 'center'
+        ctx.fillText(`Recibe: ${textoRecibe.trim()}`, canvas.width / 2, fontSize + padding)
+        // Línea separadora con espacio amplio
+        const lineY = fontSize + padding + 40
+        ctx.strokeStyle = '#a1a1aa'
+        ctx.lineWidth = 1.5
+        ctx.beginPath()
+        ctx.moveTo(padding, lineY)
+        ctx.lineTo(canvas.width - padding, lineY)
+        ctx.stroke()
+      }
+    }
+    // Recortar al área con contenido + padding
+    const ctx2 = canvas.getContext('2d')
+    if (ctx2) {
+      const imgData = ctx2.getImageData(0, 0, canvas.width, canvas.height)
+      const { data, width, height } = imgData
+      let minX = width, minY = height, maxX = 0, maxY = 0
+      for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+          const alpha = data[(y * width + x) * 4 + 3]
+          // pixel no blanco (r<240 o g<240 o b<240)
+          const r = data[(y * width + x) * 4]
+          const g = data[(y * width + x) * 4 + 1]
+          const b = data[(y * width + x) * 4 + 2]
+          if (r < 240 || g < 240 || b < 240) {
+            if (x < minX) minX = x
+            if (x > maxX) maxX = x
+            if (y < minY) minY = y
+            if (y > maxY) maxY = y
+          }
+        }
+      }
+      const pad = 20
+      minX = Math.max(0, minX - pad)
+      minY = Math.max(0, minY - pad)
+      maxX = Math.min(width, maxX + pad)
+      maxY = Math.min(height, maxY + pad)
+      const cropW = maxX - minX
+      const cropH = maxY - minY
+      if (cropW > 10 && cropH > 10) {
+        const offscreen = document.createElement('canvas')
+        offscreen.width = cropW
+        offscreen.height = cropH
+        const octx = offscreen.getContext('2d')
+        if (octx) {
+          octx.fillStyle = '#ffffff'
+          octx.fillRect(0, 0, cropW, cropH)
+          octx.drawImage(canvas, minX, minY, cropW, cropH, 0, 0, cropW, cropH)
+          const dataUrl = offscreen.toDataURL('image/jpeg', 0.9)
+          onFirma(dataUrl)
+          if (navigator.vibrate) navigator.vibrate(30)
+          return
+        }
+      }
+    }
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.9)
     onFirma(dataUrl)
     if (navigator.vibrate) navigator.vibrate(30)
     setModalAbierto(false)
@@ -148,9 +214,23 @@ export default function FirmaCanvas({ onFirma, firma, autoOpen }: Props) {
             </div>
           </div>
 
+          <div style={{ padding: '0 12px 8px' }}>
+            <input
+              type="text"
+              value={textoRecibe}
+              onChange={e => setTextoRecibe(e.target.value)}
+              placeholder="Nombre de quien recibe (opcional)"
+              style={{
+                width: '100%', padding: '12px 16px', borderRadius: '10px',
+                background: '#ffffff', border: '1px solid #d4d4d8',
+                color: '#111', fontSize: '20px', outline: 'none', boxSizing: 'border-box',
+                fontWeight: 500, textAlign: 'center'
+              }}
+            />
+          </div>
           <div style={{
             flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-            padding: '12px'
+            padding: '0 12px 12px'
           }}>
             <div style={{
               width: '100%', height: '100%',
@@ -171,7 +251,7 @@ export default function FirmaCanvas({ onFirma, firma, autoOpen }: Props) {
             </div>
           </div>
 
-          <div style={{padding:'12px 16px', borderTop:'1px solid #27272a', flexShrink:0}}>
+          <div style={{padding:'12px 16px 56px 16px', borderTop:'1px solid #27272a', flexShrink:0}}>
             <p style={{color:'#71717a',fontSize:'11px',textAlign:'center',marginBottom:'8px'}}>
               🔄 Gira el teléfono horizontalmente para más espacio
             </p>

@@ -20,76 +20,86 @@ interface EntregaCardProps {
   horaEntrega?: string | null
   onEntregar?: () => void
   turnoActivo?: boolean
+  rutaActiva?: boolean
+  observacion?: string | null
 }
 
 export default function EntregaCard({
   cliente, numeroFactura, empresaOrigen,
-  rezago, entregado, horaEntrega, onEntregar, turnoActivo
+  rezago, entregado, horaEntrega, onEntregar, turnoActivo, rutaActiva, observacion
 }: EntregaCardProps) {
+  const tieneGpsReal = !!cliente.lat && !!cliente.lng
   const lat = cliente.lat || cliente.latTmp
   const lng = cliente.lng || cliente.lngTmp
   const mapsUrl = lat && lng ? `https://www.google.com/maps?q=${lat},${lng}` : null
   const notaBodega = empresaOrigen
-    ? `Bodega/${empresaOrigen}${numeroFactura ? ` #${numeroFactura}` : ''}`
-    : numeroFactura ? `#${numeroFactura}` : null
+    ? `Bodega/${empresaOrigen}${numeroFactura ? ` F_${numeroFactura}` : ''}`
+    : numeroFactura ? `F_${numeroFactura}` : null
 
   return (
-    <div className={`px-4 py-3 ${rezago && !entregado ? 'border-l-2 border-amber-500 bg-amber-500/5' : ''}`}>
+    <div className={`px-4 py-3 ${rezago && !entregado ? 'border-l-2 border-amber-500 bg-amber-500/5' : ''} ${rutaActiva && onEntregar && !entregado ? 'cursor-pointer active:opacity-80' : ''}`}
+      onClick={rutaActiva && onEntregar && !entregado ? onEntregar : undefined}>
 
-      {/* L1 — nombre */}
+      {/* L1 — nombre + mapa */}
       <div className="flex items-center justify-between gap-3 mb-1">
-        <p className={`font-bold text-base leading-snug flex-1 ${rezago ? 'text-white' : 'text-white'}`}>
-          {cliente.nombre}
+        <p className="font-bold text-base leading-snug flex-1 flex items-center gap-1.5">
+          {entregado && <span className="text-emerald-400 text-base">✓</span>}
+          <span className={entregado ? "text-zinc-400" : "text-white"}>{cliente.nombre}</span>
           {rezago && !entregado && (
             <span className="ml-2 text-[10px] font-bold text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded align-middle">rezago</span>
           )}
         </p>
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <button onClick={e => { e.stopPropagation(); if (mapsUrl) window.open(mapsUrl) }}
+            style={{
+              width: 30, height: 30, borderRadius: 8,
+              background: mapsUrl ? 'rgba(5,150,105,0.15)' : 'rgba(113,113,122,0.10)',
+              border: mapsUrl ? '1px solid rgba(5,150,105,0.3)' : '1px solid rgba(113,113,122,0.2)',
+              cursor: mapsUrl ? 'pointer' : 'default',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14,
+            }}>🗺️</button>
+          {tieneGpsReal && <span style={{
+            position: 'absolute', top: -4, right: -4,
+            width: 13, height: 13, borderRadius: '50%',
+            background: '#059669', border: '1px solid #fff',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 7, fontWeight: 900, color: '#fff', lineHeight: 1,
+          }}>✓</span>}
+        </div>
       </div>
 
-      {/* L2 — dirección */}
+      {/* L2 — dirección + hora entrega */}
       {cliente.direccion && (
-        <p className="text-white text-sm flex items-center gap-1.5 mb-1">
-          <span>📍</span>
-          <span className="flex-1 truncate uppercase">
-            {cliente.direccion}{cliente.ciudad ? ` ${cliente.ciudad}` : ''}
-          </span>
-          {mapsUrl && (
-            <a href={mapsUrl} target="_blank" rel="noopener noreferrer"
-              onClick={e => e.stopPropagation()}
-              className="text-emerald-400 font-semibold hover:text-emerald-300 flex-shrink-0">
-              Maps
-            </a>
+        <p className="text-zinc-400 text-sm flex items-center gap-1.5 mb-1">
+          <span className="flex-1 truncate uppercase">{cliente.direccion}</span>
+          {entregado && horaEntrega && (
+            <span className="text-emerald-400 text-xs font-semibold flex-shrink-0">{horaEntrega}</span>
           )}
         </p>
       )}
 
-      {/* L3+L4 — bodega/teléfono + botón/check derecha */}
+      {/* L3 — bodega + teléfono misma línea */}
       <div className="flex items-end justify-between gap-2">
-        <div className="flex-1 min-w-0 space-y-0.5">
+        <div className="flex-1 min-w-0">
           {notaBodega && (
-            <p className="text-white text-sm flex items-center gap-1.5">
-              <span>📦</span><span className="truncate">{notaBodega}</span>
-            </p>
+            <div className="flex items-center justify-between gap-2 mb-0.5">
+              <p className="text-white text-sm flex items-center gap-1.5 min-w-0">
+                <span className="truncate">{notaBodega}</span>
+              </p>
+              {cliente.telefono && (
+                <a href={`tel:${cliente.telefono}`} onClick={e => e.stopPropagation()}
+                  className="text-white text-sm flex items-center gap-1 flex-shrink-0">
+                  <span className="text-red-400 font-bold">✆</span>{cliente.telefono}
+                </a>
+              )}
+            </div>
           )}
-          {cliente.telefono && (
-            <p className="text-sm flex items-center gap-1.5">
-              <span>📞</span>
-              <a href={`tel:${cliente.telefono}`} onClick={e => e.stopPropagation()} className="text-white">
-                {cliente.telefono}
-              </a>
-            </p>
+          {/* L4 — observación */}
+          {observacion && (
+            <p className="text-zinc-400 text-xs mt-0.5 truncate">✍🏼 {observacion}</p>
           )}
         </div>
-        {entregado ? (
-          <div className="flex flex-col items-center flex-shrink-0 gap-0.5">
-            {horaEntrega && <span className="text-emerald-400 text-xs font-semibold">{horaEntrega}</span>}
-          </div>
-        ) : turnoActivo && onEntregar ? (
-          <button onClick={onEntregar}
-            className={`flex-shrink-0 text-white text-xs font-semibold px-4 py-1.5 rounded-lg ${rezago ? 'bg-amber-500 hover:bg-amber-400' : 'bg-emerald-600 hover:bg-emerald-500'}`}>
-            Entregar
-          </button>
-        ) : null}
+
       </div>
 
     </div>

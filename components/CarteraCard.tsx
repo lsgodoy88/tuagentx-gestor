@@ -139,7 +139,7 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onSync, 
                 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ fontSize: 12, color: '#ffffff' }}>
-                      {d.numeroFactura ? `#${d.numeroFactura}` : d.numeroOrden ? `#${d.numeroOrden}` : `Deuda ${i+1}`}
+                      {d.numeroFactura || d.numeroOrden || `Deuda ${i+1}`}
                     </span>
                     {d.fechaVencimiento && (
                       <span style={{ fontSize: 11, color: '#ffffff', marginLeft: 6 }}>

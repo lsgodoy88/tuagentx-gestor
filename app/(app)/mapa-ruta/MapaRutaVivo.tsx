@@ -131,7 +131,7 @@ export default function MapaRutaVivo({ clientes, clientesEjecutados, ubicacionIn
           </div>
         </div>
       )}
-      <MapContainer center={centro} zoom={14} style={{ height: '100%', width: '100%' }}>
+      <MapContainer center={centro} zoom={14} zoomControl={false} style={{ height: '100%', width: '100%' }}>
       <TileLayer
         url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
         attribution='&copy; <a href="https://carto.com/">CARTO</a>'
@@ -175,7 +175,7 @@ export default function MapaRutaVivo({ clientes, clientesEjecutados, ubicacionIn
                     <button
                       onClick={() => onClienteClick(c)}
                       style={{ marginTop: '6px', background: '#059669', color: 'white', border: 'none', borderRadius: '8px', padding: '4px 10px', fontSize: '12px', cursor: 'pointer', width: '100%' }}>
-                      + Registrar visita
+                      Entregar
                     </button>
                   )}
                 </div>
@@ -201,7 +201,7 @@ export default function MapaRutaVivo({ clientes, clientesEjecutados, ubicacionIn
                     <button
                       onClick={() => onClienteClick(c)}
                       style={{ marginTop: '6px', background: '#059669', color: 'white', border: 'none', borderRadius: '8px', padding: '4px 10px', fontSize: '12px', cursor: 'pointer', width: '100%' }}>
-                      + Registrar visita
+                      Entregar
                     </button>
                   )}
                 </div>

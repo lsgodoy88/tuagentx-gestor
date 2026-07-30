@@ -80,7 +80,7 @@ function getOrdenColumns(ctx: {
       key: 'factura', label: 'Factura', width: 58, minWidth: 44,
       render: (o: any) => (
         <span style={{ fontFamily: 'monospace', fontWeight: 700 }}>
-          #{o.numeroFactura || o.numeroOrden}
+          F_{o.numeroFactura || o.numeroOrden}
         </span>
       ),
     },
@@ -494,7 +494,7 @@ export default function TrazabilidadPage() {
                 <div onClick={() => toggleExpandido(orden.id, orden)} className="flex items-start gap-2 p-3 cursor-pointer hover:bg-zinc-800/50 transition-colors">
                   <div className="flex-1 min-w-0 flex flex-col gap-0.5 overflow-hidden">
                     <div className="flex items-center gap-2 overflow-hidden">
-                      <span className="text-white font-mono text-xs flex-shrink-0">#{orden.numeroFactura || orden.numeroOrden}</span>
+                      <span className="text-white font-mono text-xs flex-shrink-0">F_{orden.numeroFactura || orden.numeroOrden}</span>
                       {orden.clienteNombre === 'Sin nombre' ? (
                         <span className="text-amber-400 text-xs font-semibold truncate flex-1">⚠️ ERROR DE DATOS</span>
                       ) : (

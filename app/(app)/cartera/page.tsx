@@ -1515,7 +1515,7 @@ export default function CarteraPage() {
                               )}
                               {/* Factura */}
                               <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",fontFamily:"monospace",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d",textAlign:"center"}}>
-                                {d.numeroFactura ? `#${d.numeroFactura}` : d.numeroOrden ? `#${d.numeroOrden}` : '—'}
+                                {d.numeroFactura ? `${d.numeroFactura}` : d.numeroOrden ? `${d.numeroOrden}` : '—'}
                               </td>
                               {/* Vencimiento */}
                               <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",fontFamily:"monospace",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d",textAlign:"center"}}>
@@ -1767,7 +1767,7 @@ export default function CarteraPage() {
                               </button>
                             </td>
                             <td style={{...tdBase, fontFamily:"monospace"}}>
-                              {primeraFact ? `#${primeraFact.numeroFactura}` : '—'}
+                              {primeraFact ? primeraFact.numeroFactura : '—'}
                             </td>
                             <td style={{...tdBase, maxWidth:160, overflow:"hidden", textOverflow:"ellipsis"}}>
                               {p.clienteNombre || p.cartera?.cliente?.nombre || p.Cartera?.Cliente?.nombre || '—'}
@@ -1792,7 +1792,7 @@ export default function CarteraPage() {
                                 <td style={{...tdSub, ...bSub}}></td>
                                 <td style={{...tdSub, ...bSub}}></td>
                                 <td style={{...tdSub, ...bSub, fontFamily:'monospace', color:'rgba(147,197,253,0.50)', fontSize:13}}>
-                                  #{sf.numeroFactura}
+                                  {sf.numeroFactura}
                                 </td>
                                 <td style={{...tdSub, ...bSub}}>
                                   <span style={{marginRight:10}}>

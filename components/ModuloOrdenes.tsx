@@ -742,7 +742,7 @@ export default function ModuloOrdenes() {
                     onClick={d.estado === 'alistado' ? () => toggleExpanded(d.id) : undefined}>
                     <div className="flex-1 min-w-0 flex flex-col gap-0.5 overflow-hidden">
                       <div className="flex items-center gap-1.5 overflow-hidden">
-                        <span className="text-white font-mono text-xs flex-shrink-0">#{d.numeroFactura || d.numeroOrden}</span>
+                        <span className="text-white font-mono text-xs flex-shrink-0">F_{d.numeroFactura || d.numeroOrden}</span>
                         <span className="text-zinc-700 flex-shrink-0">·</span>
                         <span className="text-white font-semibold text-sm truncate flex-1">{nombreCorto(d.clienteNombre)}</span>
                         {ciudadNombre && <span className="text-zinc-400 text-xs flex-shrink-0 ml-1">{ciudadNombre}</span>}
@@ -1129,7 +1129,7 @@ export default function ModuloOrdenes() {
                 if (hayFiltro) return null
                 return (
                   <div key={n} className="bg-zinc-900/40 border border-zinc-800/40 rounded-xl flex items-center px-3 py-2">
-                    <span className="w-10 text-white/40 font-mono text-xs flex-shrink-0 text-right">#{n}</span>
+                    <span className="w-10 text-white/40 font-mono text-xs flex-shrink-0 text-right">F_{n}</span>
                   </div>
                 )
               }
@@ -1162,7 +1162,7 @@ export default function ModuloOrdenes() {
                     onClick={() => setExpanded(p => ({ ...p, [log.id]: !p[log.id] }))}>
                     <div className="flex-1 min-w-0 flex flex-col gap-0.5 overflow-hidden">
                       <div className="flex items-center gap-1.5 overflow-hidden">
-                        <span className="text-white font-mono text-xs flex-shrink-0">#{log.numeroFactura}</span>
+                        <span className="text-white font-mono text-xs flex-shrink-0">F_{log.numeroFactura}</span>
                         <span className="text-zinc-700 flex-shrink-0">·</span>
                         <span className="text-white font-semibold text-sm truncate flex-1">{nombreCorto(log.clienteNombre)}</span>
                         {ciudad2 && <span className="text-zinc-400 text-xs flex-shrink-0">{ciudad2}</span>}

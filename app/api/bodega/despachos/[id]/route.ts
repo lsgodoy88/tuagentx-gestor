@@ -131,11 +131,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         // Obtener o crear ruta de hoy del repartidor (fuente única: getOrCreateRutaHoy)
         // Nota: getOrCreateRutaHoy no acepta tx de Prisma (corre fuera de la transacción)
         // Es aceptable: la asignación de ruta es idempotente y no es parte del core financiero
-        const rutaId = await getOrCreateRutaHoy(repartidorId, empresaIdOrden)
+        const { rutaId, posible_entrega } = await getOrCreateRutaHoy(repartidorId, empresaIdOrden)
 
         // La clave de unicidad es la factura — mismo cliente puede tener N facturas distintas
         // o venir de Lumeli y de Leche el mismo día
-        const notaOrden = `Bodega/${empresa?.nombre || 'Bodega'} #${orden.numeroFactura || orden.numeroOrden}`
+        // Nombre = empresa DUEÑA de la orden (no quien despacha)
+        const empresaOrden = empresaIdOrden !== empresaId
+          ? await (prisma as any).empresa.findFirst({ where: { id: empresaIdOrden }, select: { nombre: true } })
+          : empresa
+        const notaOrden = `Bodega/${empresaOrden?.nombre || empresa?.nombre || 'Bodega'} #${orden.numeroFactura || orden.numeroOrden}`
         const yaEnRuta = await tx.rutaCliente.findFirst({
           where: { rutaId, notas: notaOrden }
         })
@@ -146,6 +150,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
               clienteId: cliente.id,
               orden: 999,
               notas: notaOrden,
+              posible_entrega,
             },
           })
         }

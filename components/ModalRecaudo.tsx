@@ -322,7 +322,7 @@ export default function ModalRecaudo({
                           const key = d.syncDeudaId || d.id
                           return (
                             <div key={key} className="space-y-1.5">
-                              <label className="text-zinc-300 text-sm font-semibold block">Fact. #{d.numeroFactura}</label>
+                              <label className="text-zinc-300 text-sm font-semibold block">Fact. {d.numeroFactura}</label>
                               <InputMoneda
                                 value={descuentosPorFactura[key] || ''}
                                 placeholder="0"

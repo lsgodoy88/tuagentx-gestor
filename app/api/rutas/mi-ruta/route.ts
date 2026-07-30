@@ -1,8 +1,14 @@
+/**
+ * GET /api/rutas/mi-ruta
+ * Devuelve rutaHoy y rutaMañana consolidando TODAS las rutas del empleado
+ * (puede haber rutas de múltiples empresas vinculadas el mismo día).
+ */
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { expandirDireccion } from '@/lib/maps'
+import { nowBogota, inicioDiaBogota, finDiaBogota } from '@/lib/fechas'
 
 const DELAY_MS = 1100
 function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)) }
@@ -29,103 +35,169 @@ async function geocodificarCliente(clienteId: string, direccion: string | null |
   return null
 }
 
+const RC_SELECT = {
+  id: true, clienteId: true, orden: true, notas: true,
+  rezago: true, asignadoEn: true, posible_entrega: true,
+  cliente: {
+    select: {
+      id: true, nombre: true, nombreComercial: true,
+      direccion: true, ciudad: true, telefono: true,
+      nit: true, lat: true, lng: true, latTmp: true, lngTmp: true
+    }
+  }
+}
+
+async function enrichRutaClientes(clientes: any[]) {
+  const numerosNotas = clientes
+    .filter((rc: any) => rc.notas?.startsWith('Bodega/'))
+    .map((rc: any) => { const m = rc.notas!.match(/#(\d+)/); return m ? m[1] : null })
+    .filter(Boolean) as string[]
+
+  if (numerosNotas.length === 0) return clientes
+
+  // Sin filtro empresaId — órdenes pueden ser de cualquier empresa vinculada
+  const [porFactura, porOrden] = await Promise.all([
+    prisma.ordenDespacho.findMany({
+      where: { numeroFactura: { in: numerosNotas }, estado: { in: ['pendiente', 'alistado', 'en_entrega', 'entregado'] } },
+      select: { id: true, numeroFactura: true, numeroOrden: true, empresaId: true, observacion: true, estado: true, entregadoEl: true,
+        alistadoPor: { select: { nombre: true } },
+        empresaVinculada: { select: { nombre: true } }, createdAt: true }
+    }),
+    prisma.ordenDespacho.findMany({
+      where: { numeroOrden: { in: numerosNotas }, numeroFactura: null, estado: { in: ['pendiente', 'alistado', 'en_entrega', 'entregado'] } },
+      select: { id: true, numeroFactura: true, numeroOrden: true, empresaId: true, observacion: true, estado: true, entregadoEl: true,
+        alistadoPor: { select: { nombre: true } },
+        empresaVinculada: { select: { nombre: true } }, createdAt: true }
+    })
+  ])
+
+  const mapOrdenes = new Map<string, any>()
+  for (const o of [...porFactura, ...porOrden]) {
+    if (o.numeroFactura) mapOrdenes.set(o.numeroFactura, o)
+    if (o.numeroOrden) mapOrdenes.set(o.numeroOrden, o)
+  }
+
+  return clientes.map((rc: any) => {
+    if (!rc.notas?.startsWith('Bodega/')) return rc
+    const m = rc.notas.match(/#(\d+)/)
+    const num = m ? m[1] : rc.notas.split('/')[1]?.split(' ')[0]
+    const empresaNota = rc.notas.replace('Bodega/', '').replace(/#\d+/, '').trim()
+    const orden = mapOrdenes.get(num)
+    return {
+      ...rc,
+      ordenDespachoId: orden?.id || null,
+      observacion: orden?.observacion || null,
+      ordenEstado: orden?.estado || null,
+      entregadoEl: orden?.entregadoEl || null,
+      numeroFactura: orden?.numeroFactura || null,
+      empresaOrigen: orden?.empresaVinculada?.nombre || empresaNota || null,
+      alistadoPor: orden?.alistadoPor?.nombre || null,
+      ordenCreadaEl: orden?.createdAt || null,
+    }
+  })
+}
+
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json(null)
   const user = session.user as any
 
-  const ruta = await prisma.ruta.findFirst({
-    where: { empleados: { some: { empleadoId: user.id } }, cerrada: false },
-    orderBy: { fecha: 'desc' },
-    select: {
-      id: true, cerrada: true, nombre: true, createdAt: true, fecha: true,
-      clientes: {
-        select: {
-          id: true, clienteId: true, orden: true, notas: true,
-          rezago: true, asignadoEn: true,
-          cliente: {
-            select: {
-              id: true, nombre: true, nombreComercial: true,
-              direccion: true, ciudad: true, telefono: true,
-              nit: true, lat: true, lng: true, latTmp: true, lngTmp: true
-            }
-          }
-        },
-        orderBy: { orden: 'asc' }
+  const ahoraBog = nowBogota()
+  const hoyInicio = inicioDiaBogota(ahoraBog)
+  const mananaInicio = finDiaBogota(ahoraBog)
+  const pasadoInicio = finDiaBogota(new Date(ahoraBog.getTime() + 24 * 60 * 60 * 1000))
+
+  // Ajuste lazy: RutaCliente con posible_entrega < hoy y ruta no iniciada → actualizar a hoy
+  // Esto permite que órdenes de días anteriores aparezcan como "de hoy" si no se inició la ruta
+  const rezagosViejos = await prisma.rutaCliente.findMany({
+    where: {
+      OR: [{ posible_entrega: { lt: hoyInicio } }, { posible_entrega: null }],
+      ruta: {
+        cerrada: false,
+        iniciada: false,
+        empleados: { some: { empleadoId: user.id } }
       }
     },
+    select: { id: true }
   })
-
-  if (ruta) {
-    // Extraer números de factura/orden desde notas "Bodega/EMPRESA #XXXX"
-    const numerosNotas = ruta.clientes
-      .filter(rc => rc.notas?.startsWith('Bodega/'))
-      .map(rc => { const m = rc.notas!.match(/#(\d+)/); return m ? m[1] : null })
-      .filter(Boolean) as string[]
-
-    if (numerosNotas.length > 0) {
-      // Buscar por numeroFactura primero (fuente de verdad), fallback a numeroOrden
-      const [porFactura, porOrden] = await Promise.all([
-        prisma.ordenDespacho.findMany({
-          where: {
-            empresaId: user.empresaId,
-            numeroFactura: { in: numerosNotas },
-            estado: { in: ['pendiente', 'alistado', 'en_entrega'] }
-          },
-          select: {
-            id: true, numeroFactura: true, numeroOrden: true,
-            alistadoPorId: true,
-            alistadoPor: { select: { nombre: true } },
-            origenVinculadaId: true,
-            empresaVinculada: { select: { nombre: true } },
-            createdAt: true,
-          }
-        }),
-        prisma.ordenDespacho.findMany({
-          where: {
-            empresaId: user.empresaId,
-            numeroOrden: { in: numerosNotas },
-            numeroFactura: null, // solo las que no tienen factura
-            estado: { in: ['pendiente', 'alistado', 'en_entrega'] }
-          },
-          select: {
-            id: true, numeroFactura: true, numeroOrden: true,
-            alistadoPorId: true,
-            alistadoPor: { select: { nombre: true } },
-            origenVinculadaId: true,
-            empresaVinculada: { select: { nombre: true } },
-            createdAt: true,
-          }
-        })
-      ])
-
-      // Mapa por el número que aparece en la nota
-      const mapOrdenes = new Map<string, typeof porFactura[0]>()
-      for (const o of [...porFactura, ...porOrden]) {
-        if (o.numeroFactura) mapOrdenes.set(o.numeroFactura, o)
-        if (o.numeroOrden)   mapOrdenes.set(o.numeroOrden, o)
-      }
-
-      // Parsear la empresa origen desde la nota: "Bodega/Lumeli #6889"
-      for (const rc of ruta.clientes) {
-        if (!rc.notas?.startsWith('Bodega/')) continue
-        const m = rc.notas.match(/#(\d+)/)
-        const num = m ? m[1] : rc.notas.split('/')[1]?.split(' ')[0]
-        const empresaNota = rc.notas.replace('Bodega/', '').replace(/#\d+/, '').trim()
-        const orden = mapOrdenes.get(num)
-
-        ;(rc as any).ordenDespachoId = orden?.id || null
-        ;(rc as any).numeroFactura    = orden?.numeroFactura || null
-        ;(rc as any).empresaOrigen    = orden?.empresaVinculada?.nombre || empresaNota || null
-        ;(rc as any).alistadoPor      = orden?.alistadoPor?.nombre || null
-        ;(rc as any).ordenCreadaEl    = orden?.createdAt || null
-      }
-    }
+  if (rezagosViejos.length > 0) {
+    await prisma.rutaCliente.updateMany({
+      where: { id: { in: rezagosViejos.map((r: any) => r.id) } },
+      data: { posible_entrega: hoyInicio }
+    })
   }
 
-  // Geocodificación en background para entregas
-  if (ruta && user.role === 'entregas') {
-    const sinCoords = ruta.clientes.filter(rc =>
+  // También actualizar fecha de la ruta si es de día anterior y no iniciada
+  await prisma.ruta.updateMany({
+    where: {
+      cerrada: false,
+      iniciada: false,
+      fecha: { lt: hoyInicio },
+      empleados: { some: { empleadoId: user.id } }
+    },
+    data: { fecha: hoyInicio }
+  })
+
+  // Todas las rutas del empleado — sin filtrar empresaId
+  const rutasLinks = await prisma.rutaEmpleado.findMany({
+    where: { empleadoId: user.id },
+    select: {
+      ruta: {
+        select: {
+          id: true, nombre: true, fecha: true, cerrada: true, iniciada: true, empresaId: true,
+          clientes: { select: RC_SELECT, orderBy: { orden: 'asc' } }
+        }
+      }
+    }
+  })
+
+  const todasRutas = rutasLinks.map((l: any) => l.ruta)
+
+  // Rutas HOY (puede haber varias por empresa vinculada) — iniciada si alguna lo está
+  const rutasHoy = todasRutas.filter((r: any) =>
+    !r.cerrada &&
+    r.fecha &&
+    new Date(r.fecha) >= hoyInicio &&
+    new Date(r.fecha) < mananaInicio
+  )
+
+  // Rutas MAÑANA
+  const rutasMañana = todasRutas.filter((r: any) =>
+    !r.cerrada &&
+    r.fecha &&
+    new Date(r.fecha) >= mananaInicio &&
+    new Date(r.fecha) < pasadoInicio
+  )
+
+  // Consolidar clientes de todas las rutas hoy/mañana
+  // Ordenar: rezagos primero, luego por orden
+  const clientesHoyRaw = rutasHoy
+    .flatMap((r: any) => r.clientes.map((rc: any) => ({ ...rc, _rutaId: r.id, _rutaIniciada: r.iniciada })))
+    .sort((a: any, b: any) => {
+      if (a.rezago && !b.rezago) return -1
+      if (!a.rezago && b.rezago) return 1
+      return a.orden - b.orden
+    })
+
+  const clientesMañanaRaw = rutasMañana
+    .flatMap((r: any) => r.clientes.map((rc: any) => ({ ...rc, _rutaId: r.id })))
+    .sort((a: any, b: any) => a.orden - b.orden)
+
+  // Iniciada = true si alguna ruta hoy está iniciada
+  const iniciada = rutasHoy.some((r: any) => r.iniciada)
+  const cerrada = rutasHoy.length > 0 && rutasHoy.every((r: any) => r.cerrada)
+
+  // Ruta principal (primera de hoy, para PATCH iniciar/cerrar)
+  const rutaPrincipal = rutasHoy[0] ?? null
+
+  const [clientesHoy, clientesMañana] = await Promise.all([
+    enrichRutaClientes(clientesHoyRaw),
+    enrichRutaClientes(clientesMañanaRaw)
+  ])
+
+  // Geocodificación lazy en background
+  if (user.role === 'entregas' && clientesHoyRaw.length > 0) {
+    const sinCoords = clientesHoyRaw.filter((rc: any) =>
       !rc.cliente.lat && !rc.cliente.lng && !rc.cliente.latTmp && !rc.cliente.lngTmp
     )
     if (sinCoords.length > 0) {
@@ -138,5 +210,18 @@ export async function GET() {
     }
   }
 
-  return NextResponse.json(ruta)
+  return NextResponse.json({
+    rutaHoy: rutaPrincipal ? {
+      ...rutaPrincipal,
+      iniciada,
+      cerrada,
+      clientes: clientesHoy,
+      _todasRutasHoyIds: rutasHoy.map((r: any) => r.id)
+    } : null,
+    rutaMañana: rutasMañana.length > 0 ? {
+      ...rutasMañana[0],
+      clientes: clientesMañana,
+      _todasRutasMañanaIds: rutasMañana.map((r: any) => r.id)
+    } : null,
+  })
 }

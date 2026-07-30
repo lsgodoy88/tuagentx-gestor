@@ -46,7 +46,8 @@ export default function MapaRutaPage() {
   }, [])
 
   async function loadData() {
-    const rutaRes = await fetch('/api/rutas/mi-ruta').then(r => r.json())
+    const data = await fetch('/api/rutas/mi-ruta').then(r => r.json())
+    const rutaRes = data?.rutaHoy ?? null
     const hoyStr = new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]
     const fechaRuta = rutaRes?.fecha ? new Date(new Date(rutaRes.fecha).getTime() - 5*60*60*1000).toISOString().split('T')[0] : hoyStr
     const visitasRes = await fetch(`/api/visitas/todas?fecha=${fechaRuta}`).then(r => r.json())
@@ -54,7 +55,7 @@ export default function MapaRutaPage() {
     setClientesOrdenados(rutaRes?.clientes?.map((rc: any) => {
       const notas = rc.notas || null
       const mN = notas?.match(/#(\d+)/); const mE = notas?.match(/^Bodega\/([^#]+)/)
-      return { ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, ordenNumero: rc.ordenNumero || null, notas, ordenDespachoId: rc.ordenDespachoId || null, numeroFactura: mN ? mN[1] : null, empresaOrigen: mE ? mE[1].trim() : null }
+      return { ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, ordenNumero: rc.ordenNumero || null, notas, ordenDespachoId: rc.ordenDespachoId || null, ordenEstado: rc.ordenEstado || null, numeroFactura: mN ? mN[1] : null, empresaOrigen: mE ? mE[1].trim() : null }
     }) || [])
     setVisitas(Array.isArray(visitasRes) ? visitasRes : (visitasRes?.visitas ?? []))
     setLoading(false)
@@ -94,6 +95,9 @@ export default function MapaRutaPage() {
   const fechaRuta = ruta?.fecha ? new Date(new Date(ruta.fecha).getTime() - 5*60*60*1000).toISOString().split('T')[0] : hoyStr
 
   function ejecutado(clienteId: string) {
+    // Fuente de verdad: ordenEstado o visita del día
+    const cliente = clientesOrdenados.find(c => c.id === clienteId)
+    if (cliente?.ordenEstado === 'entregado') return true
     return visitas.some(v => {
       if (v.clienteId !== clienteId) return false
       const fv = v.fechaBogota ? v.fechaBogota.split('T')[0] : new Date(new Date(v.createdAt).getTime() - 5*60*60*1000).toISOString().split('T')[0]
@@ -114,7 +118,7 @@ export default function MapaRutaPage() {
     const clientes = ruta.clientes.map((rc: any) => {
       const notas = rc.notas || null
       const mN = notas?.match(/#(\d+)/); const mE = notas?.match(/^Bodega\/([^#]+)/)
-      return { ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, ordenNumero: rc.ordenNumero || null, notas, ordenDespachoId: rc.ordenDespachoId || null, numeroFactura: mN ? mN[1] : null, empresaOrigen: mE ? mE[1].trim() : null }
+      return { ...rc.cliente, supervisorEtiqueta: rc.supervisorEtiqueta || null, ordenNumero: rc.ordenNumero || null, notas, ordenDespachoId: rc.ordenDespachoId || null, ordenEstado: rc.ordenEstado || null, numeroFactura: mN ? mN[1] : null, empresaOrigen: mE ? mE[1].trim() : null }
     })
     const res = await fetch('/api/rutas/optimizar', {
       method: 'POST',
@@ -122,7 +126,13 @@ export default function MapaRutaPage() {
       body: JSON.stringify({ clientes, latInicio: ubicacion.lat, lngInicio: ubicacion.lng })
     }).then(r => r.json())
     setOptimizando(false)
-    if (res.orden) setClientesOrdenados(res.orden)
+    if (res.orden) {
+      // Preservar ordenEstado al reordenar — es la fuente de verdad
+      setClientesOrdenados(res.orden.map((c: any) => {
+        const original = clientesOrdenados.find((o: any) => o.id === c.id)
+        return { ...c, ordenEstado: original?.ordenEstado || c.ordenEstado || null }
+      }))
+    }
   }
 
   if (loading) return (
@@ -213,10 +223,7 @@ export default function MapaRutaPage() {
       </div>
 
       <div className="space-y-2">
-        <p className="text-zinc-400 text-xs font-semibold">
-          {filtro === 'pendientes' ? '⏳ PENDIENTES' : filtro === 'ejecutadas' ? '✅ EJECUTADAS' : '🗺 TODOS'}
-          {' '}{clientesFiltrados.length} punto{clientesFiltrados.length !== 1 ? 's' : ''}
-        </p>
+
         {clientesFiltrados.map((c: any) => {
           const esEjecutado = clientesEjecutadosIds.includes(c.id)
           const expandido = detalleId === c.id
@@ -225,62 +232,44 @@ export default function MapaRutaPage() {
             const fv = v.fechaBogota ? v.fechaBogota.split('T')[0] : new Date(new Date(v.createdAt).getTime() - 5*60*60*1000).toISOString().split('T')[0]
             return fv === fechaRuta
           })
+          const idx = clientesFiltrados.indexOf(c) + 1
+          const notaBodega = c.empresaOrigen
+            ? `Bodega/${c.empresaOrigen}${c.numeroFactura ? ` F_${c.numeroFactura}` : ''}`
+            : c.numeroFactura ? `F_${c.numeroFactura}` : c.notas || null
+
+          function abrirEntrega() {
+            if (esEjecutado) return
+            setClienteModal(c)
+            if (ubicacion && (c.lat || c.latTmp) && (c.lng || c.lngTmp)) {
+              const cLat = c.lat || c.latTmp; const cLng = c.lng || c.lngTmp
+              const R = 6371000
+              const dLat = (cLat - ubicacion.lat) * Math.PI / 180
+              const dLng = (cLng - ubicacion.lng) * Math.PI / 180
+              const a = Math.sin(dLat/2)**2 + Math.cos(ubicacion.lat*Math.PI/180)*Math.cos(cLat*Math.PI/180)*Math.sin(dLng/2)**2
+              setDistanciaLejos(R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a)) > 300)
+            } else { setDistanciaLejos(false) }
+          }
+
           return (
-            <div key={c.id} className={"rounded-xl border overflow-hidden " + (esEjecutado ? "bg-zinc-900 border-zinc-700/30" : "bg-zinc-900 border-zinc-800")}>
-              <div className="p-3" onClick={() => esEjecutado && setDetalleId(expandido ? null : c.id)} style={{cursor: esEjecutado ? 'pointer' : 'default'}}>
-                <div className="flex items-start gap-3">
-                  <div className={"w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0 " + (esEjecutado ? "bg-emerald-600" : "bg-blue-600")} style={{color:'white'}}>
-                    {esEjecutado ? '✓' : clientesFiltrados.indexOf(c) + 1}
-                  </div>
-                  <div className="flex-1 min-w-0 relative">
-                    <div className="flex items-center gap-2 min-w-0 pr-20">
-                      <p className="text-white text-sm font-medium truncate">{c.nombre}</p>
-                      {c.supervisorEtiqueta && (
-                        <span className="text-xs font-semibold px-1.5 py-0.5 rounded-md flex-shrink-0"
-                          style={{ backgroundColor: etiquetaColor(c.supervisorEtiqueta) + '33', color: etiquetaColor(c.supervisorEtiqueta), border: `1px solid ${etiquetaColor(c.supervisorEtiqueta)}66` }}>
-                          {c.supervisorEtiqueta}
-                        </span>
-                      )}
-                    </div>
-                    {c.direccion && <p className="text-zinc-500 text-xs truncate pr-20">📍 {c.direccion}</p>}
-                    <div className="flex items-end justify-between gap-2 mt-0.5">
-                      <div className="min-w-0 flex-1">
-                        {c.notas && <p className="text-zinc-400 text-xs truncate">📦 {c.notas}</p>}
-                        {c.telefono && <a href={"tel:" + c.telefono} onClick={e => e.stopPropagation()} className="text-emerald-400 text-xs hover:text-emerald-300">📞 {c.telefono}</a>}
-                      </div>
-                      {esEjecutado ? (
-                        <span className="text-zinc-500 text-xs flex-shrink-0">{expandido ? '▲' : '▼'}</span>
-                      ) : (
-                        <button onClick={(e) => { e.stopPropagation()
-                          setClienteModal(c)
-                          if (ubicacion && (c.lat || c.latTmp) && (c.lng || c.lngTmp)) {
-                            const cLat = c.lat || c.latTmp
-                            const cLng = c.lng || c.lngTmp
-                            const R = 6371000
-                            const dLat = (cLat - ubicacion.lat) * Math.PI / 180
-                            const dLng = (cLng - ubicacion.lng) * Math.PI / 180
-                            const a = Math.sin(dLat/2)*Math.sin(dLat/2) + Math.cos(ubicacion.lat*Math.PI/180)*Math.cos(cLat*Math.PI/180)*Math.sin(dLng/2)*Math.sin(dLng/2)
-                            const dist = R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a))
-                            setDistanciaLejos(dist > 300)
-                          } else { setDistanciaLejos(false) }
-                        }}
-                          className={"flex-shrink-0 text-white text-xs font-semibold px-4 py-1.5 rounded-lg " + (c.rezago ? "bg-amber-500 hover:bg-amber-400" : "bg-emerald-600 hover:bg-emerald-500")}>
-                          Entregar
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {expandido && (
-                <div className="border-t border-zinc-800 px-3 pb-3 pt-2 space-y-2">
-                  {visitasCliente.length > 0 ? visitasCliente.map((v: any) => (
-                    <TarjetaVisita key={v.id} visita={v} mostrarCliente={false} />
-                  )) : (
-                    <p className="text-zinc-500 text-xs text-center py-2">Sin visitas registradas hoy</p>
+            <div key={c.id}
+              onClick={abrirEntrega}
+              className={"rounded-xl border px-3 py-2.5 w-full flex items-center gap-3 " + (esEjecutado ? "bg-zinc-900 border-zinc-700/30" : "bg-zinc-900 border-zinc-800 cursor-pointer active:opacity-80")}>
+              {/* Número — span 3 filas */}
+              <span className={"w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 self-center " + (esEjecutado ? "bg-emerald-600 text-white" : "bg-blue-600 text-white")}>
+                {esEjecutado ? '✓' : idx}
+              </span>
+              {/* Contenido 3 líneas */}
+              <div className="flex-1 min-w-0">
+                <p className={"font-semibold text-sm truncate " + (esEjecutado ? "text-zinc-400" : "text-white")}>{c.nombre}</p>
+                {c.direccion && <p className="text-white text-xs truncate">{c.direccion}</p>}
+                <div className="flex items-center justify-between">
+                  {notaBodega && <p className="text-white text-xs truncate flex-1">{notaBodega}</p>}
+                  {c.telefono && (
+                    <a href={"tel:" + c.telefono} onClick={e => e.stopPropagation()}
+                      className="text-red-400 text-xs flex-shrink-0 ml-2">✆ {c.telefono}</a>
                   )}
                 </div>
-              )}
+              </div>
             </div>
           )
         })}
