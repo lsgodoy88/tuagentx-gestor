@@ -25,6 +25,7 @@ export default function DashboardEntregas({ user }: { user: any }) {
   const [accionandoRuta,    setAccionandoRuta]    = useState(false)
   const [todasRutasHoyIds,  setTodasRutasHoyIds]  = useState<string[]>([])
   const [rutaMañana,        setRutaMañana]        = useState<any>(null)
+  const [adelantarRc,       setAdelantarRc]       = useState<any>(null)
   const [confirmCerrar,     setConfirmCerrar]     = useState(false)
 
   const hoyStr = new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]
@@ -245,7 +246,7 @@ export default function DashboardEntregas({ user }: { user: any }) {
               const telefono = rc.cliente?.telefono || null
               const observacion = rc.observacion || null
               return (
-                <div key={rc.id} className="px-4 py-2.5">
+                <div key={rc.id} className="px-4 py-2.5 cursor-pointer active:opacity-70" onClick={() => rutaIniciada && setAdelantarRc(rc)}>
                   {/* L1 — hora enviado + nombre */}
                   <div className="flex items-center gap-2 mb-0.5">
                     {horaEnviado && <span className="text-emerald-400 text-xs font-semibold flex-shrink-0">{horaEnviado}</span>}
@@ -268,13 +269,44 @@ export default function DashboardEntregas({ user }: { user: any }) {
         </div>
       )}
 
+      {/* Modal adelantar orden a hoy */}
+      {adelantarRc && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full p-5 space-y-4">
+            <p className="text-white font-semibold text-base">¿Agregar a la ruta de hoy?</p>
+            <div className="bg-zinc-800 rounded-xl p-3 space-y-1">
+              <p className="text-white text-sm font-semibold truncate">{adelantarRc.cliente?.nombre || adelantarRc.nombre || '—'}</p>
+              {(adelantarRc.cliente?.direccion) && <p className="text-zinc-400 text-xs truncate">{adelantarRc.cliente.direccion}</p>}
+              {(() => { const emp = adelantarRc.empresaOrigen || (adelantarRc.notas||'').match(/^Bodega\/([^#]+)/)?.[1]?.trim(); const num = adelantarRc.numeroFactura || (adelantarRc.notas||'').match(/#(\d+)/)?.[1]; const nota = emp ? `Bodega/${emp}${num ? ` F_${num}` : ''}` : num ? `F_${num}` : null; return nota ? <p className="text-zinc-400 text-xs truncate">{nota}</p> : null })()}
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setAdelantarRc(null)}
+                className="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 text-sm font-semibold">
+                Cancelar
+              </button>
+              <button onClick={async () => {
+                if (!rutaMañana) return
+                await fetch(`/api/rutas/${rutaMañana.id}/adelantar`, {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ rutaClienteIds: [adelantarRc.id] })
+                })
+                setAdelantarRc(null)
+                cargarRuta()
+              }} className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold">
+                Sí, agregar a hoy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal confirmar cerrar ruta */}
       {confirmCerrar && (() => {
         const pendientesCount = clientesOrdenados.filter(c => c.ordenEstado !== 'entregado' && !ordenesEntregadas.has(c.ordenDespachoId)).length
         const entregadosCount = clientesOrdenados.length - pendientesCount
         return (
-          <div className="fixed inset-0 bg-black/70 z-50 flex items-end">
-            <div className="bg-zinc-900 border border-zinc-700 rounded-t-2xl w-full p-5 space-y-4">
+          <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4">
+            <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full p-5 space-y-4">
               <p className="text-white font-semibold text-base">¿Cerrar ruta de hoy?</p>
               <div className="bg-zinc-800 rounded-xl p-3 space-y-1">
                 <div className="flex justify-between text-sm">

@@ -153,9 +153,8 @@ export async function GET() {
 
   const todasRutas = rutasLinks.map((l: any) => l.ruta)
 
-  // Rutas HOY (puede haber varias por empresa vinculada) — iniciada si alguna lo está
+  // Rutas HOY — incluye cerradas para mostrar entregados del día completo
   const rutasHoy = todasRutas.filter((r: any) =>
-    !r.cerrada &&
     r.fecha &&
     new Date(r.fecha) >= hoyInicio &&
     new Date(r.fecha) < mananaInicio
@@ -163,7 +162,7 @@ export async function GET() {
 
   // Rutas MAÑANA
   const rutasMañana = todasRutas.filter((r: any) =>
-    !r.cerrada &&
+    !r.cerrada && // mañana sí filtramos cerradas — son pendientes reales
     r.fecha &&
     new Date(r.fecha) >= mananaInicio &&
     new Date(r.fecha) < pasadoInicio
@@ -183,12 +182,13 @@ export async function GET() {
     .flatMap((r: any) => r.clientes.map((rc: any) => ({ ...rc, _rutaId: r.id })))
     .sort((a: any, b: any) => a.orden - b.orden)
 
-  // Iniciada = true si alguna ruta hoy está iniciada
-  const iniciada = rutasHoy.some((r: any) => r.iniciada)
+  // Iniciada = true si alguna ruta hoy está iniciada y no cerrada
+  const iniciada = rutasHoy.some((r: any) => r.iniciada && !r.cerrada)
   const cerrada = rutasHoy.length > 0 && rutasHoy.every((r: any) => r.cerrada)
+  // Ruta principal = primera NO cerrada de hoy (para PATCH iniciar/cerrar)
+  const rutaAbierta = rutasHoy.find((r: any) => !r.cerrada)
 
-  // Ruta principal (primera de hoy, para PATCH iniciar/cerrar)
-  const rutaPrincipal = rutasHoy[0] ?? null
+  const rutaPrincipal = rutaAbierta ?? rutasHoy[0] ?? null
 
   const [clientesHoy, clientesMañana] = await Promise.all([
     enrichRutaClientes(clientesHoyRaw),
@@ -216,7 +216,7 @@ export async function GET() {
       iniciada,
       cerrada,
       clientes: clientesHoy,
-      _todasRutasHoyIds: rutasHoy.map((r: any) => r.id)
+      _todasRutasHoyIds: rutasHoy.filter((r: any) => !r.cerrada).map((r: any) => r.id)
     } : null,
     rutaMañana: rutasMañana.length > 0 ? {
       ...rutasMañana[0],

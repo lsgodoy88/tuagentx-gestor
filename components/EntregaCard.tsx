@@ -83,13 +83,13 @@ export default function EntregaCard({
         <div className="flex-1 min-w-0">
           {notaBodega && (
             <div className="flex items-center justify-between gap-2 mb-0.5">
-              <p className="text-white text-sm flex items-center gap-1.5 min-w-0">
+              <p className={`text-sm flex items-center gap-1.5 min-w-0 ${entregado ? 'text-zinc-400' : 'text-white'}`}>
                 <span className="truncate">{notaBodega}</span>
               </p>
               {cliente.telefono && (
                 <a href={`tel:${cliente.telefono}`} onClick={e => e.stopPropagation()}
-                  className="text-white text-sm flex items-center gap-1 flex-shrink-0">
-                  <span className="text-red-400 font-bold">✆</span>{cliente.telefono}
+                  className={`text-sm flex items-center gap-1 flex-shrink-0 ${entregado ? 'text-zinc-400' : 'text-white'}`}>
+                  <span className={`font-bold ${entregado ? 'text-zinc-500' : 'text-red-400'}`}>✆</span>{cliente.telefono}
                 </a>
               )}
             </div>

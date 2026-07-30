@@ -59,9 +59,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       })
       const visitadosSet = new Set(visitasHoy.map((v: any) => v.clienteId))
 
+      // Verificar también ordenEstado — fuente de verdad para entregado
+      const notasOrdenes = rutasHoy.flatMap((r: any) => r.clientes.map((rc: any) => rc.notas)).filter(Boolean)
+      const numerosFactura = notasOrdenes.map((n: string) => { const m = n.match(/#(\d+)/); return m ? m[1] : null }).filter((x): x is string => x !== null)
+      const ordenesEntregadas = numerosFactura.length > 0
+        ? await prisma.ordenDespacho.findMany({
+            where: { numeroFactura: { in: numerosFactura }, estado: 'entregado' },
+            select: { numeroFactura: true }
+          })
+        : []
+      const facturasEntregadas = new Set(ordenesEntregadas.map((o: any) => o.numeroFactura))
+
       const pendientes = rutasHoy.flatMap((r: any) =>
-        r.clientes.filter((rc: any) => !visitadosSet.has(rc.clienteId))
-          .map((rc: any) => ({ ...rc, _empresaId: (r as any).empresaId }))
+        r.clientes.filter((rc: any) => {
+          if (visitadosSet.has(rc.clienteId)) return false
+          const m = (rc.notas || '').match(/#(\d+)/)
+          if (m && facturasEntregadas.has(m[1])) return false
+          return true
+        }).map((rc: any) => ({ ...rc, _empresaId: (r as any).empresaId }))
       )
 
       // Por cada empresa, buscar/crear ruta mañana y migrar sus pendientes
