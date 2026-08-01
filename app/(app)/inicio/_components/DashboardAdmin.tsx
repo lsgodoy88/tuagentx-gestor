@@ -45,10 +45,11 @@ function RingChart({ pct, color, size = 72, stroke = 7, instant = false }: { pct
 }
 
 // ── Card con anillo + drill-down barras ──────────────────────
-function CardRingDrill({ emoji, label, valorHoy, valorMes, metaMes, realMes, color, vendedores, labelHoy, labelMes, instant = false }:
+function CardRingDrill({ emoji, label, valorHoy, valorMes, metaMes, realMes, color, vendedores, labelHoy, labelMes, instant = false, href }:
   { emoji:string, label:string, valorHoy:number, valorMes:number, metaMes:number, realMes?:number, color:string,
-    vendedores:{nombre:string,monto:number,meta?:number|null}[], labelHoy:string, labelMes:string, instant?:boolean }) {
+    vendedores:{nombre:string,monto:number,meta?:number|null}[], labelHoy:string, labelMes:string, instant?:boolean, href?:string }) {
   const [open, setOpen] = useState(false)
+  const router = useRouter()
   const pct = metaMes > 0 ? Math.min(Math.round(((realMes ?? valorHoy)/metaMes)*100), 100) : 0
   const max = Math.max(...vendedores.map(v=>v.monto), 1)
   return (
@@ -107,6 +108,11 @@ function CardRingDrill({ emoji, label, valorHoy, valorMes, metaMes, realMes, col
                   )
                 })
             }
+            {href && (
+              <button onClick={() => router.push(href)} style={{marginTop:10,width:'100%',background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.12)',borderRadius:8,padding:'6px 0',color:'#9ca3af',fontSize:12,cursor:'pointer',textAlign:'center'}}>
+                Ver histórico →
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -376,6 +382,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
             color="#34d399"
             vendedores={stats.topEmpleados||[]}
             labelHoy="mes" labelMes="meta"
+            href="/ventas"
            
           />
 

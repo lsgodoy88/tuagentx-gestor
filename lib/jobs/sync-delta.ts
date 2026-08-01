@@ -374,6 +374,14 @@ export async function syncProductosEmpresa(
   let upserted = 0
   for (let i = 0; i < productos.length; i += BATCH) {
     const batch = productos.slice(i, i + BATCH)
+    // Capturar inventory previo antes del upsert para detectar cruces de umbral
+    const batchIds = batch.map(p => p.id)
+    const prevRows: { id: string; inventory: number; stockMinimo: number | null }[] = await (prisma as any).$queryRawUnsafe(
+      `SELECT id, inventory, "stockMinimo" FROM ${DB_SCHEMA}."Producto" WHERE id = ANY($1)`,
+      batchIds
+    )
+    const prevMap = new Map(prevRows.map(r => [r.id, r]))
+
     const batchResults = await Promise.all(batch.map(p =>
       (prisma as any).$queryRawUnsafe(`
         INSERT INTO ${DB_SCHEMA}."Producto" (
@@ -403,9 +411,7 @@ export async function syncProductosEmpresa(
           descripcion        = EXCLUDED.descripcion,
           "externalUpdatedAt"= EXCLUDED."externalUpdatedAt",
           "updatedAt"        = EXCLUDED."updatedAt"
-        RETURNING id, nombre, "stockMinimo",
-          inventory AS nuevo_inv,
-          (SELECT inventory FROM ${DB_SCHEMA}."Producto" p2 WHERE p2.id = EXCLUDED.id) AS anterior_inv
+        RETURNING id, nombre, "stockMinimo", inventory AS nuevo_inv
       `,
         p.id,
         empresaId,
@@ -436,7 +442,8 @@ export async function syncProductosEmpresa(
     const snapshots: any[] = []
     for (const rows of batchResults) {
       for (const row of (rows as any[])) {
-        const anterior = row.anterior_inv
+        const prev = prevMap.get(row.id)
+        const anterior = prev?.inventory ?? null
         const nuevo = row.nuevo_inv
         const minimo = row.stockMinimo
         if (anterior === null || anterior === nuevo) continue

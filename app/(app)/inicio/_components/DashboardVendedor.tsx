@@ -710,7 +710,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
               primaryLabel="desp hoy" secondaryLabel="fact hoy" primaryColor="text-amber-400" />
           </div>
           {/* Ventas — 20% anillo + 80% valores */}
-          <div className="rounded-2xl hover-lift card-glass" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',padding:'14px 16px',display:'flex',alignItems:'center',minHeight:110}}>
+          <div className="rounded-2xl hover-lift card-glass" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',padding:'14px 16px',display:'flex',alignItems:'center',minHeight:110,cursor:'pointer'}} onClick={() => router.push('/ventas')}>
             <div style={{width:'20%',display:'flex',justifyContent:'center',alignItems:'center',flexShrink:0}}>
               <RingChart key={`v-${statsVendedor?.ordenes?.montoMes||0}`} pct={(statsVendedor?.ordenes?.metaVentaMes ?? 0) > 0 ? Math.round(((statsVendedor?.ordenes?.montoMes ?? 0) / statsVendedor!.ordenes!.metaVentaMes!) * 100) : 0} color="#34d399" />
             </div>
