@@ -171,8 +171,50 @@ export async function POST(req: NextRequest) {
   // en su dashboard (card Impulsos) — invalidar también su cache, o queda desactualizado
   // hasta que expire el TTL de 600s (causa raíz: bug visto 19/06 con Cindy/Carlos)
   if (user.role === 'impulsadora') {
-    const empPropio = await (prisma.empleado as any).findUnique({ where: { id: user.id }, select: { vendedorId: true } })
-    if (empPropio?.vendedorId) keysInvalidar.push(`g:v:${empPropio.vendedorId}:${fechaHoyBogota()}`)
+    const empPropio = await (prisma.empleado as any).findUnique({ where: { id: user.id }, select: { vendedorId: true, nombre: true } })
+    if (empPropio?.vendedorId) {
+      keysInvalidar.push(`g:v:${empPropio.vendedorId}:${fechaHoyBogota()}`)
+      // Push entrada al vendedor responsable — solo tipo entrada
+      if (tipo === 'entrada') {
+        setImmediate(async () => {
+          try {
+            const { enviarPushEmpleados, enviarPushAdmin } = await import('@/lib/push')
+            const { getRegla } = await import('@/lib/notif-reglas')
+            const regla = await getRegla('impulso_entrada', user.empresaId)
+            if (regla.activa && regla.roles.length > 0) {
+              // Siempre notifica al vendedor responsable si 'vendedor' está en roles
+              // Para otros roles, busca empleados del rol en la empresa
+              const ids: string[] = []
+              if (regla.roles.includes('vendedor')) ids.push(empPropio.vendedorId)
+              const otrosRoles = regla.roles.filter((r: string) => r !== 'vendedor')
+              if (otrosRoles.length > 0) {
+                const otros = await (prisma.empleado as any).findMany({
+                  where: { empresaId: user.empresaId, rol: { in: otrosRoles } },
+                  select: { id: true }
+                })
+                ids.push(...otros.map((e: any) => e.id))
+              }
+              const nombreCliente = cli?.nombre || 'Cliente'
+              const novedad = nota ? ` · ${nota}` : ''
+              await enviarPushEmpleados(
+                [...new Set(ids)],
+                `📍 IMPULSO: ${empPropio.nombre || user.name}`,
+                `Entrada en: ${nombreCliente}${novedad}`,
+                '/dashboard/impulsos'
+              )
+              if (regla.roles.includes('empresa')) {
+                await enviarPushAdmin(
+                  user.empresaId,
+                  `📍 IMPULSO: ${empPropio.nombre || user.name}`,
+                  `Entrada en: ${nombreCliente}${novedad}`,
+                  '/dashboard/impulsos'
+                )
+              }
+            }
+          } catch {}
+        })
+      }
+    }
   }
   await invalidateKeys(...keysInvalidar)
   return NextResponse.json({ ok: true, visita, alertaDistancia })

@@ -8,15 +8,22 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
-  if (!['vendedor', 'impulsadora', 'supervisor', 'entregas'].includes(user.role)) {
+  if (!['vendedor', 'impulsadora', 'supervisor', 'entregas', 'bodega', 'empresa'].includes(user.role)) {
     return NextResponse.json({ ok: true })
   }
   const { endpoint, keys } = await req.json()
   try {
-    await prisma.$executeRaw`
-      INSERT INTO ${Prisma.raw(DB_SCHEMA)}."PushSuscripcion" (id, "empleadoId", endpoint, p256dh, auth, "createdAt")
-      VALUES (gen_random_uuid()::text, ${user.id}, ${endpoint}, ${keys.p256dh}, ${keys.auth}, NOW())
-      ON CONFLICT (endpoint) DO UPDATE SET "empleadoId" = EXCLUDED."empleadoId", "createdAt" = NOW()`
+    if (user.role === 'empresa') {
+      await prisma.$executeRaw`
+        INSERT INTO ${Prisma.raw(DB_SCHEMA)}."PushSuscripcionAdmin" (id, "empresaId", endpoint, p256dh, auth, "createdAt")
+        VALUES (gen_random_uuid()::text, ${user.id}, ${endpoint}, ${keys.p256dh}, ${keys.auth}, NOW())
+        ON CONFLICT (endpoint) DO UPDATE SET "empresaId" = EXCLUDED."empresaId", "createdAt" = NOW()`
+    } else {
+      await prisma.$executeRaw`
+        INSERT INTO ${Prisma.raw(DB_SCHEMA)}."PushSuscripcion" (id, "empleadoId", endpoint, p256dh, auth, "createdAt")
+        VALUES (gen_random_uuid()::text, ${user.id}, ${endpoint}, ${keys.p256dh}, ${keys.auth}, NOW())
+        ON CONFLICT (endpoint) DO UPDATE SET "empleadoId" = EXCLUDED."empleadoId", "createdAt" = NOW()`
+    }
   } catch (e) {
   }
   return NextResponse.json({ ok: true })

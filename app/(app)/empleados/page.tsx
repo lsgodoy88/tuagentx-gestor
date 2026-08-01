@@ -42,6 +42,11 @@ export default function EmpleadosPage() {
 
   const [vendedorId, setVendedorId] = useState('')
   const [listaIds, setListaIds] = useState<string[]>([])
+  const [notifReglas, setNotifReglas] = useState<any[]>([])
+  const [notifLoading, setNotifLoading] = useState(false)
+  const [notifGuardando, setNotifGuardando] = useState<string | null>(null)
+  const [notifTesting, setNotifTesting] = useState<string | null>(null)
+  const [rolesConSub, setRolesConSub] = useState<string[]>([])
   const [listas, setListas] = useState<any[]>([])
   const [vendedorIds, setVendedorIds] = useState<string[]>([])
   const [etiqueta, setEtiqueta] = useState('')
@@ -74,7 +79,7 @@ export default function EmpleadosPage() {
   const [apiIdSeleccionado, setApiIdSeleccionado] = useState('')
 
   // Tab principal
-  const [tabPrincipal, setTabPrincipal] = useState<'rutas' | 'equipo' | 'metas'>('rutas')
+  const [tabPrincipal, setTabPrincipal] = useState<'rutas' | 'equipo' | 'metas' | 'notifica'>('rutas')
   // Metas
   const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
   const fmtMeta = (v: string) => {
@@ -250,6 +255,39 @@ export default function EmpleadosPage() {
     return slugify(n) + '@' + slugify(empresaNombre)
   }
 
+  async function testNotifRegla(reglaId: string) {
+    setNotifTesting(reglaId)
+    await fetch('/api/notif-reglas/test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: reglaId }) })
+    setNotifTesting(null)
+  }
+
+  async function cargarNotifReglas() {
+    setNotifLoading(true)
+    const d = await fetch('/api/notif-reglas').then(r => r.json()).catch(() => ({ reglas: [] }))
+    setNotifReglas(d.reglas || [])
+    setRolesConSub(d.rolesConSub || [])
+    setNotifLoading(false)
+  }
+
+  async function toggleNotifRol(reglaId: string, rol: string, checked: boolean) {
+    const regla = notifReglas.find((r: any) => r.id === reglaId)
+    if (!regla) return
+    const roles = checked ? [...regla.roles, rol] : regla.roles.filter((r: string) => r !== rol)
+    setNotifReglas(prev => prev.map((r: any) => r.id === reglaId ? { ...r, roles } : r))
+    setNotifGuardando(reglaId)
+    await fetch('/api/notif-reglas', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: reglaId, roles, activa: regla.activa }) })
+    setNotifGuardando(null)
+  }
+
+  async function toggleNotifActiva(reglaId: string, activa: boolean) {
+    const regla = notifReglas.find((r: any) => r.id === reglaId)
+    if (!regla) return
+    setNotifReglas(prev => prev.map((r: any) => r.id === reglaId ? { ...r, activa } : r))
+    setNotifGuardando(reglaId)
+    await fetch('/api/notif-reglas', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: reglaId, roles: regla.roles, activa }) })
+    setNotifGuardando(null)
+  }
+
   async function cargarMetas(empId: string, anio: number) {
     if (!empId) return
     setMetasCargando(true)
@@ -296,6 +334,12 @@ export default function EmpleadosPage() {
           className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'metas' ? 'tab-active' : 'text-white hover:text-white'}`}>
           🎯 Metas
         </button>
+        {esAdmin && (
+          <button onClick={() => { setTabPrincipal('notifica'); if (notifReglas.length === 0) cargarNotifReglas() }}
+            className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'notifica' ? 'tab-active' : 'text-white hover:text-white'}`}>
+            🔔 Notif.
+          </button>
+        )}
       </div>
 
       {/* Tab Rutas */}
@@ -972,6 +1016,83 @@ export default function EmpleadosPage() {
         </div>
       )}
 
+
+      {tabPrincipal === 'notifica' && esAdmin && (
+        <div className="fade-up space-y-3">
+          {/* Header */}
+          <div className="flex items-center gap-2">
+            <span className="text-white font-semibold text-sm">Reglas de notificaciones push</span>
+            {/* Tooltip siglas */}
+            <div className="relative group">
+              <button className="w-5 h-5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-400 text-xs flex items-center justify-center">?</button>
+              <div className="absolute left-0 top-7 z-50 hidden group-hover:block bg-zinc-900 border border-zinc-700 rounded-xl p-3 w-48 shadow-xl">
+                <p className="text-zinc-300 text-xs font-semibold mb-2">Columnas</p>
+                {[['A','Admin'],['S','Supervisor'],['V','Vendedor'],['I','Impulsadora'],['E','Entregas'],['B','Bodega']].map(([k,v]) => (
+                  <p key={k} className="text-zinc-400 text-xs"><span className="text-white font-bold">{k}</span> = {v}</p>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {notifLoading ? (
+            <p className="text-zinc-500 text-sm">Cargando...</p>
+          ) : (
+            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+              <div className="overflow-x-auto">
+              {/* Cabecera */}
+              <div style={{display:"grid", gridTemplateColumns:"260px repeat(6,36px) 48px 52px", gap:4, padding:"8px 16px", borderBottom:"1px solid #27272a"}}>
+                <span className="text-zinc-500 text-xs">Evento</span>
+                {[['A','empresa','Admin'],['S','supervisor','Supervisor'],['V','vendedor','Vendedor'],['I','impulsadora','Impulsadora'],['E','entregas','Entregas'],['B','bodega','Bodega']].map(([k,rol,v]) => (
+                  <div key={k} className="relative flex justify-center items-center">
+                    <span className="text-zinc-500 text-xs text-center" title={v}>{k}</span>
+                    {rolesConSub.includes(rol) && (
+                      <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-green-500" title={`${v} tiene suscripción activa`} />
+                    )}
+                  </div>
+                ))}
+                <span className="text-zinc-500 text-xs text-center">On</span>
+                <span className="text-zinc-500 text-xs text-center">Test</span>
+              </div>
+              {/* Filas */}
+              {notifReglas.map((regla: any) => (
+                <div key={regla.id} style={{display:"grid", gridTemplateColumns:"260px repeat(6,36px) 48px 52px", gap:4, padding:"10px 16px", borderBottom:"1px solid rgba(39,39,42,0.5)", alignItems:"center", opacity: regla.activa ? 1 : 0.4}}>
+                  <span className="text-white text-xs whitespace-nowrap pr-4">{regla.label}</span>
+                  {['empresa','supervisor','vendedor','impulsadora','entregas','bodega'].map(rol => (
+                    <div key={rol} className="flex justify-center">
+                      <input
+                        type="checkbox"
+                        checked={regla.roles.includes(rol)}
+                        disabled={!regla.activa || notifGuardando === regla.id}
+                        onChange={e => toggleNotifRol(regla.id, rol, e.target.checked)}
+                        className="w-4 h-4 accent-blue-500 cursor-pointer disabled:cursor-not-allowed"
+                      />
+                    </div>
+                  ))}
+                  {/* Toggle activa */}
+                  <div className="flex justify-center">
+                    <button
+                      onClick={() => toggleNotifActiva(regla.id, !regla.activa)}
+                      disabled={notifGuardando === regla.id}
+                      className={`w-9 h-5 rounded-full transition-colors relative ${regla.activa ? 'bg-blue-600' : 'bg-zinc-700'}`}>
+                      <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${regla.activa ? 'left-4' : 'left-0.5'}`} />
+                    </button>
+                  </div>
+                  {/* Botón test */}
+                  <div className="flex justify-center">
+                    <button
+                      onClick={() => testNotifRegla(regla.id)}
+                      disabled={notifTesting === regla.id}
+                      className="px-2 py-1 text-xs rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold transition-colors disabled:opacity-40">
+                      {notifTesting === regla.id ? '...' : 'Test'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+              </div>{/* overflow-x-auto */}
+            </div>
+          )}
+        </div>
+      )}
 
       {popupSync && (
         <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-50 p-4">

@@ -157,6 +157,9 @@ export default function ModuloOrdenes() {
   const [busqueda, setBusqueda] = useState('')
   const [envioFiltro, setEnvioFiltro] = useState<'todos' | 'local' | 'guia'>('todos')
   const [fechaFiltro, setFechaFiltro] = useState<string>('')
+  const [ordenDesc, setOrdenDesc] = useState<'asc'|'desc'|null>(null)
+  const [popupFechaOpen, setPopupFechaOpen] = useState(false)
+  const popupFechaRef = useRef<HTMLDivElement>(null)
   const [seleccionados, setSeleccionados] = useState<string[]>([])
   const [modoSeleccion, setModoSeleccion] = useState(false)
   const [modalEnviarMasivo, setModalEnviarMasivo] = useState(false)
@@ -181,6 +184,18 @@ export default function ModuloOrdenes() {
   const esAdmin = user?.role === 'empresa' || user?.role === 'supervisor'
 
   // Bloquear botón físico atrás del móvil cuando la cámara está abierta
+  useEffect(() => {
+    if (!popupFechaOpen) return
+    function handleClick(e: Event) {
+      if (popupFechaRef.current && !popupFechaRef.current.contains(e.target as Node)) {
+        setPopupFechaOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClick)
+    document.addEventListener('touchstart', handleClick)
+    return () => { document.removeEventListener('mousedown', handleClick); document.removeEventListener('touchstart', handleClick) }
+  }, [popupFechaOpen])
+
   useEffect(() => {
     if (!camaraActiva) return
     const bloquear = (e: PopStateEvent) => {
@@ -649,27 +664,34 @@ export default function ModuloOrdenes() {
           </select>
         )}
 
-        {tabActivo === 'despachado' && (() => {
-          let longTimer: ReturnType<typeof setTimeout> | null = null
-          return (
-            <label
-              className={`relative flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer select-none ${fechaFiltro ? 'border border-amber-500 bg-[#0d1220]' : 'border border-[#1e2a3d] bg-[#0d1220]'}`}
-              onTouchStart={() => { longTimer = setTimeout(() => { setFechaFiltro(''); longTimer = null }, 600) }}
-              onTouchEnd={e => {
-                if (longTimer) { clearTimeout(longTimer); longTimer = null; e.preventDefault();(e.currentTarget.querySelector('input') as HTMLInputElement)?.showPicker?.() }
-                else { e.preventDefault() }
-              }}
-              onTouchMove={() => { if (longTimer) { clearTimeout(longTimer); longTimer = null } }}
-              onClick={e => { try { (e.currentTarget.querySelector('input') as HTMLInputElement)?.showPicker?.() } catch {} }}>
-              <span className="text-sm font-bold pointer-events-none" style={{color: fechaFiltro ? '#f59e0b' : 'white'}}>
-                {fechaFiltro ? new Date(fechaFiltro + 'T12:00:00').getDate() : new Date().getDate()}
-              </span>
-              <input type="date" value={fechaFiltro} onChange={e => setFechaFiltro(e.target.value)}
-                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                style={{WebkitAppearance:'none'}} />
-            </label>
-          )
-        })()}
+        {tabActivo === 'despachado' && (
+          <div className="relative flex-shrink-0" ref={popupFechaRef}>
+            <button
+              onClick={() => setPopupFechaOpen(v => !v)}
+              className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm"
+              style={{background:'#0d1220', border: fechaFiltro ? '1px solid #f59e0b' : '1px solid #1e2a3d', color: fechaFiltro ? '#f59e0b' : 'white'}}>
+              {fechaFiltro ? new Date(fechaFiltro + 'T12:00:00').getDate() : new Date().getDate()}
+            </button>
+            {popupFechaOpen && (
+              <div className="absolute right-0 top-12 z-50 flex items-center gap-2 px-3 py-2 rounded-xl shadow-xl"
+                style={{background:'#0d1220', border:'1px solid #1e2a3d', minWidth: 'max-content'}}>
+                <label className="relative flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer font-bold text-sm"
+                  style={{background:'#111827', border:'1px solid #1e2a3d', color: fechaFiltro ? '#f59e0b' : 'white'}}>
+                  {fechaFiltro ? new Date(fechaFiltro + 'T12:00:00').getDate() : new Date().getDate()}
+                  <input type="date" value={fechaFiltro}
+                    onChange={e => setFechaFiltro(e.target.value)}
+                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
+                    style={{WebkitAppearance:'none'}} />
+                </label>
+                <button onClick={() => setOrdenDesc(v => v === null ? 'desc' : null)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-base"
+                  style={{background:'#111827', border:'1px solid #1e2a3d', opacity: ordenDesc ? 1 : 0.35}}>
+                  ⬇️
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
 
@@ -1114,7 +1136,7 @@ export default function ModuloOrdenes() {
           {despachoLog.length === 0 ? (
             null
           ) : (() => {
-            const hayFiltro = envioFiltro !== 'todos' || !!fechaFiltro
+            const hayFiltro = envioFiltro !== 'todos' || !!fechaFiltro || !!busqueda
             const logMap = new Map(despachoLog.map((l: any) => [parseInt(l.numeroFactura), l]))
             const todasFacturas = [...despachoLog, ...pendientes, ...alistados, ...despachados]
             const allNums = todasFacturas.map((x: any) => parseInt(x.numeroFactura)).filter((n: number) => !isNaN(n))
@@ -1122,18 +1144,36 @@ export default function ModuloOrdenes() {
             const rangeMax = Math.max(...allNums)
             const rangeMin = Math.min(...allNums)
             const filas: number[] = []
-            for (let n = rangeMax; n >= rangeMin; n--) filas.push(n)
+            if (ordenDesc !== null) {
+              // Orden por fecha de despacho — sin huecos
+              const logsOrdenados = [...despachoLog].sort((a: any, b: any) => {
+                const ta = a.despachadoEl ? new Date(a.despachadoEl).getTime() : 0
+                const tb = b.despachadoEl ? new Date(b.despachadoEl).getTime() : 0
+                return ordenDesc === 'asc' ? ta - tb : tb - ta
+              })
+              logsOrdenados.forEach((l: any) => { const n = parseInt(l.numeroFactura); if (!isNaN(n)) filas.push(n) })
+            } else {
+              for (let n = rangeMax; n >= rangeMin; n--) filas.push(n)
+            }
             return filas.map(n => {
               const log = logMap.get(n)
               if (!log) {
-                if (hayFiltro) return null
+                if (hayFiltro || ordenDesc !== null) return null
                 return (
-                  <div key={n} className="bg-zinc-900/40 border border-zinc-800/40 rounded-xl flex items-center px-3 py-2">
-                    <span className="w-10 text-white/40 font-mono text-xs flex-shrink-0 text-right">F_{n}</span>
+                  <div key={n} className="bg-zinc-900 border border-zinc-800 rounded-2xl flex items-center px-4 py-3">
+                    <span className="text-white/40 font-mono text-xs">F_{n}</span>
                   </div>
                 )
               }
               // Aplicar filtros al log
+              if (busqueda) {
+                const q = busqueda.toLowerCase()
+                const match = (log.clienteNombre || '').toLowerCase().includes(q) ||
+                              (log.numeroFactura || '').toString().includes(q) ||
+                              (log.ciudad || '').toLowerCase().includes(q) ||
+                              (log.guiaTransporte || '').toLowerCase().includes(q)
+                if (!match) return null
+              }
               if (envioFiltro !== 'todos') {
                 const esLocal = ciudadLocal && log.ciudad &&
                   log.ciudad.split('/').pop()?.trim().toLowerCase() === ciudadLocal?.trim().toLowerCase()

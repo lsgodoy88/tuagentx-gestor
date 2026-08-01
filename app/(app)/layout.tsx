@@ -86,7 +86,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     useEffect(() => {
     if (!user) return
     const role = user.role as string
-    const necesitaNotif = ['empresa', 'supervisor', 'vendedor', 'entregas', 'impulsadora'].includes(role)
+    const necesitaNotif = ['empresa', 'supervisor', 'vendedor', 'entregas', 'impulsadora', 'bodega'].includes(role)
     const necesitaGps   = ['vendedor', 'entregas', 'impulsadora'].includes(role)
     async function pedirPermisos() {
       if (necesitaGps && navigator.geolocation) {

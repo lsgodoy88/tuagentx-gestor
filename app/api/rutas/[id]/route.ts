@@ -4,7 +4,6 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
 import { nowBogota, inicioDiaBogota, finDiaBogota } from '@/lib/fechas'
-import { enviarPushEmpleados } from '@/lib/push'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -143,23 +142,6 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       await prisma.ruta.updateMany({
         where: { id: { in: idsAOperar }, empresaId: empresaId },
         data: { cerrada: true, cerradaEl: new Date() }
-      })
-
-      // Push a bodega/admin
-      setImmediate(async () => {
-        try {
-          const admins = await prisma.empleado.findMany({
-            where: { empresaId, rol: { in: ['empresa', 'supervisor', 'bodega'] } },
-            select: { id: true }
-          })
-          const empleado = await prisma.empleado.findUnique({ where: { id: user.id }, select: { nombre: true } })
-          await enviarPushEmpleados(
-            admins.map((a: any) => a.id),
-            'Ruta cerrada',
-            `${empleado?.nombre || 'Repartidor'} cerró su ruta · ${pendientes.length} pendiente${pendientes.length !== 1 ? 's' : ''} pasados a mañana`,
-            '/bodega'
-          )
-        } catch {}
       })
 
       return NextResponse.json({ ok: true, pendientesMigrados: pendientes.length })

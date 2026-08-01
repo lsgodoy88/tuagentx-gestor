@@ -1,4 +1,4 @@
-const VERSION = 'v1.0'
+const VERSION = 'v1.2'
 
 self.addEventListener('install', (e) => {
   self.skipWaiting()
@@ -19,6 +19,9 @@ self.addEventListener('push', function(e) {
       body: data.body || '',
       icon: '/favicon.ico',
       badge: '/favicon.ico',
+      requireInteraction: true,
+      tag: data.tag || ('notif-' + Date.now()),
+      renotify: false,
       data: { url: data.url || '/dashboard' }
     })
   )

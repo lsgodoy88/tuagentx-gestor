@@ -24,8 +24,45 @@ export async function enviarPushEmpleados(empleadoIds: string[], titulo: string,
         { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
         JSON.stringify({ title: titulo, body: cuerpo, url })
       )
-    } catch (e) {
-      console.log('Push error:', e)
+    } catch (e: any) {
+      const status = e?.statusCode ?? e?.status
+      if (status === 410 || status === 404) {
+        // Suscripción expirada o cancelada — limpiar DB
+        await prisma.$executeRaw`
+          DELETE FROM ${Prisma.raw(DB_SCHEMA)}."PushSuscripcion" WHERE endpoint = ${sub.endpoint}`
+          .catch(() => {})
+      } else {
+        console.log('Push error:', e)
+      }
+    }
+  }
+}
+
+export async function enviarPushAdmin(empresaId: string, titulo: string, cuerpo: string, url = '/dashboard') {
+  let subs: any[] = []
+  try {
+    subs = await prisma.$queryRaw<any[]>`
+      SELECT * FROM ${Prisma.raw(DB_SCHEMA)}."PushSuscripcionAdmin" WHERE "empresaId" = ${empresaId}`
+  } catch (e) {
+    console.error('PushAdmin query error:', e)
+    return
+  }
+
+  for (const sub of subs) {
+    try {
+      await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
+        JSON.stringify({ title: titulo, body: cuerpo, url })
+      )
+    } catch (e: any) {
+      const status = e?.statusCode ?? e?.status
+      if (status === 410 || status === 404) {
+        await prisma.$executeRaw`
+          DELETE FROM ${Prisma.raw(DB_SCHEMA)}."PushSuscripcionAdmin" WHERE endpoint = ${sub.endpoint}`
+          .catch(() => {})
+      } else {
+        console.log('PushAdmin error:', e)
+      }
     }
   }
 }

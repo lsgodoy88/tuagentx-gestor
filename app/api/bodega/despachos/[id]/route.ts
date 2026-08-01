@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { enviarPushEmpleados } from '@/lib/push'
 import { getServerSession } from 'next-auth'
 import { invalidatePattern } from '@/lib/cache'
 import { authOptions } from '@/lib/auth'
@@ -184,19 +183,56 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       })
       repartidorNombre = rep?.nombre || null
       rutaAsignada = true
-      // Push en background — no bloquear el response
-      setImmediate(() => {
-        const factura = updated.numeroFactura || updated.numeroOrden
-        const cliente = updated.clienteNombre || 'Cliente'
-        enviarPushEmpleados(
-          [repartidorId],
-          'Nueva entrega asignada',
-          `${cliente} · Fac. ${factura}`,
-          '/inicio'
-        ).catch(() => {})
-      })
     } catch {}
   }
+
+  // Push notificaciones por tipo de despacho — fire and forget
+  setImmediate(async () => {
+    try {
+      const { enviarPushEmpleados, enviarPushAdmin } = await import('@/lib/push')
+      const { getRegla } = await import('@/lib/notif-reglas')
+      const factura = updated.numeroFactura || updated.numeroOrden
+      const cliente = updated.clienteNombre || 'Cliente'
+
+      if (updated.estado === 'en_transito') {
+        const regla = await getRegla('despacho_guia', empresaId)
+        if (regla.activa && regla.roles.length > 0) {
+          const destinatarios = await prisma.empleado.findMany({
+            where: { empresaId, rol: { in: regla.roles } },
+            select: { id: true }
+          })
+          const cajas = updated.num_cajas ? `${updated.num_cajas} caja${updated.num_cajas !== 1 ? 's' : ''}` : 'sin cajas'
+          const obs = (updated as any).observacion ? ` · ${(updated as any).observacion}` : ''
+          await enviarPushEmpleados(
+            destinatarios.map((a: any) => a.id),
+            `🚛 Guía: ${cliente}`,
+            `${cajas}${obs}`,
+            '/bodega'
+          )
+          if (regla.roles.includes('empresa')) {
+            await enviarPushAdmin(empresaId, `🚛 Guía: ${cliente}`, `${cajas}${obs}`, '/bodega')
+          }
+        }
+      } else if (updated.estado === 'en_entrega') {
+        const regla = await getRegla('despacho_local', empresaId)
+        if (regla.activa && regla.roles.length > 0) {
+          const destinatarios = await prisma.empleado.findMany({
+            where: { empresaId, rol: { in: regla.roles } },
+            select: { id: true }
+          })
+          await enviarPushEmpleados(
+            destinatarios.map((e: any) => e.id),
+            '🏠 Nueva entrega local',
+            `${cliente} · ${factura}`,
+            '/inicio'
+          )
+          if (regla.roles.includes('empresa')) {
+            await enviarPushAdmin(empresaId, '🏠 Nueva entrega local', `${cliente} · ${factura}`, '/inicio')
+          }
+        }
+      }
+    } catch {}
+  })
 
   // Invalidar cache de stats — una entrega afecta los contadores de órdenes
   await invalidatePattern(`g:${empresaId}:stats:*`)

@@ -219,15 +219,6 @@ export async function PATCH(req: NextRequest) {
     }
   })
 
-  // Notificar empleados
-  const { enviarPushEmpleados } = await import('@/lib/push')
-  await enviarPushEmpleados(
-    empleadoIds,
-    '🗺️ Ruta actualizada',
-    `Tu ruta "${nombre}" ha sido actualizada`,
-    '/mi-ruta'
-  )
-
   return NextResponse.json({ ok: true, ruta })
   } catch (err: any) {
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })

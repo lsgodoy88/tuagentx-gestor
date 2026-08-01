@@ -3405,3 +3405,29 @@ model SyncNotaCredito {
   @@index([integracionId])
   @@map("SyncNotaCredito")
 }
+
+
+model NotifRegla {
+  id        String   @id  // ej: 'despacho_guia'
+  empresaId String
+  label     String
+  roles     String[]
+  activa    Boolean  @default(true)
+  updatedAt DateTime @updatedAt
+
+  @@unique([id, empresaId])
+  @@index([empresaId])
+  @@map("NotifRegla")
+}
+model PushSuscripcionAdmin {
+  id        String   @id
+  empresaId String
+  endpoint  String
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+
+  @@unique([endpoint])
+  @@index([empresaId])
+  @@map("PushSuscripcionAdmin")
+}

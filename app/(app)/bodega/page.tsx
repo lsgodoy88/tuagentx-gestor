@@ -88,6 +88,8 @@ export default function BodegaPage() {
   const [soportaZoom, setSoportaZoom] = useState(false)
   const [asignarTodasRepartidor, setAsignarTodasRepartidor] = useState('')
   const [asignandoTodas, setAsignandoTodas] = useState(false)
+  const [busqueda, setBusqueda] = useState('')
+  const [ordenDesc, setOrdenDesc] = useState(true)
   const montado = useRef(false)
   const videoRef = useRef<HTMLVideoElement>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -348,6 +350,12 @@ export default function BodegaPage() {
             <button onClick={() => cambiarDias(1)} disabled={diasHistorial >= 30}
               className="w-6 h-6 flex items-center justify-center text-zinc-400 hover:text-white disabled:opacity-30 text-sm font-bold">+</button>
           </div>
+          <button onClick={() => setOrdenDesc(v => !v)}
+            className="flex items-center justify-center rounded-xl px-2 py-1 text-white text-sm font-bold"
+            style={{background:"#0d1220",border:"1px solid #1e2a3d"}}
+            title={ordenDesc ? 'Más reciente primero' : 'Más antiguo primero'}>
+            {ordenDesc ? '🔻' : '🔺'}
+          </button>
           <button onClick={sync} disabled={syncing}
             className={`flex items-center gap-1.5 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-zinc-300 border border-zinc-700 font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors ${syncing ? 'btn-shimmer' : ''}`}>
             <SyncIcon spinning={syncing} className="w-3.5 h-3.5 text-blue-400" />
@@ -439,12 +447,29 @@ export default function BodegaPage() {
             </div>
           ) : (() => {
             const despachosRaw = despachosPorTab[ESTADO_POR_SUBTAB[subTab]] || []
-            const despachosVisibles = despachosRaw.filter((d: any) => {
-              if (filtroEnvio === 'todos') return true
-              const esLocal = ciudadLocal && d.ciudad &&
-                d.ciudad.split('/').pop()?.trim().toLowerCase() === ciudadLocal.trim().toLowerCase()
-              return filtroEnvio === 'local' ? esLocal : !esLocal
-            })
+            const q = busqueda.toLowerCase().trim()
+            const despachosVisibles = despachosRaw
+              .filter((d: any) => {
+                if (filtroEnvio !== 'todos') {
+                  const esLocal = ciudadLocal && d.ciudad &&
+                    d.ciudad.split('/').pop()?.trim().toLowerCase() === ciudadLocal.trim().toLowerCase()
+                  if (filtroEnvio === 'local' && !esLocal) return false
+                  if (filtroEnvio === 'guia' && esLocal) return false
+                }
+                if (!q) return true
+                return (
+                  d.cliente?.toLowerCase().includes(q) ||
+                  d.factura?.toLowerCase().includes(q) ||
+                  d.guia?.toLowerCase().includes(q) ||
+                  d.ciudad?.toLowerCase().includes(q) ||
+                  d.repartidorNombre?.toLowerCase().includes(q)
+                )
+              })
+              .sort((a: any, b: any) => {
+                const ta = new Date(a.fechaOrden ?? a.createdAt).getTime()
+                const tb = new Date(b.fechaOrden ?? b.createdAt).getTime()
+                return ordenDesc ? tb - ta : ta - tb
+              })
             return (
               <>
                 {subTab === 'alistados' && despachosVisibles.length > 0 && puedeEnviar && (
