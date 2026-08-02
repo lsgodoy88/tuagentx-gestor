@@ -42,9 +42,9 @@ const COLOR_ESTADO: Record<string, string> = {
 const ICONO_ESTADO: Record<string, string> = {
   pendiente: '🟡',
   alistado: '🟢',
-  despachado: '🚚',
+  despachado: '🚛',
   en_entrega: '🚚',
-  en_transito: '🚚',
+  en_transito: '🚛',
   entregado: '✅',
 }
 
@@ -462,14 +462,14 @@ export default function TrazabilidadPage() {
                 accion: fotos.length > 0 ? () => abrirGaleria(fotos, 0, orden.alistadoEl) : null,
                 accionLabel: '🖼️',
               },
-              {
-                icon: '🚚',
-                label: 'Despachado',
+              ...(!orden.guiaTransporte && !orden.repartidorId && orden.estado === 'entregado' ? [] : [{
+                icon: orden.guiaTransporte ? '🚛' : '🚚',
+                label: orden.guiaTransporte ? 'Transporte' : 'Despacho',
                 fecha: !['pendiente', 'alistado'].includes(orden.estado) ? orden.alistadoEl : null,
                 quien: [(orden.despachadoPorNombre || null), (orden.num_cajas > 0 && !['pendiente','alistado'].includes(orden.estado)) ? `${orden.num_cajas} caja${orden.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · '),
                 accion: orden.urlSeguimiento ? () => window.open(orden.urlSeguimiento, '_blank') : null,
                 accionLabel: orden.urlSeguimiento ? '🔗' : '',
-              },
+              }]),
               {
                 icon: '✅',
                 label: 'Entregado',
@@ -515,7 +515,7 @@ export default function TrazabilidadPage() {
                     {etapas.map((etapa, i) => (
                       <div key={i} className="flex items-center gap-2 py-1.5">
                         <span className="text-base flex-shrink-0">{etapa.icon}</span>
-                        <span className="text-zinc-400 text-xs w-20 flex-shrink-0">{etapa.label}</span>
+                        <span className="text-zinc-400 text-xs w-[60px] flex-shrink-0">{etapa.label}</span>
                         <span className="text-white text-xs flex-shrink-0">{etapa.fecha ? fmtFecha(etapa.fecha) : '—'}</span>
                         <span className="text-zinc-500 text-xs truncate flex-1">{etapa.quien || ''}</span>
                         {etapa.accion && (

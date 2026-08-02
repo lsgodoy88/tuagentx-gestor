@@ -12,9 +12,10 @@ const fmtShort = (n: number) => {
   if (n >= 1_000) return '$' + (n / 1_000).toFixed(0) + 'K'
   return fmt(n)
 }
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 const fmtMes = (k: string) => {
   const [y, m] = k.split('-')
-  return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })
+  return `${MESES[Number(m) - 1]} ${y}`
 }
 
 function TablaVentas({ meses }: { meses: Mes[] }) {

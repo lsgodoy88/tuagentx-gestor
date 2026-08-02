@@ -113,9 +113,16 @@ export function inferirModo(orden: {
   guiaTransporte?: string | null
   transportadora?: string | null
   repartidorId?: string | null
+  ciudad?: string | null
+  ciudadEntregaLocal?: string | null
 }): ModoDespacho {
   if (orden.firmaEntrega) return 'personal'
   if (orden.guiaTransporte || orden.transportadora) return 'transportadora'
+  // Si hay ciudad disponible, comparar con ciudad de bodega
+  if (orden.ciudad && orden.ciudadEntregaLocal) {
+    const esLocal = orden.ciudad.trim().toUpperCase() === orden.ciudadEntregaLocal.trim().toUpperCase()
+    return esLocal ? 'repartidor' : 'transportadora'
+  }
   return 'repartidor'
 }
 

@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { getOrCreateRutaHoy } from '@/lib/rutas/getOrCreateRutaHoy'
 import { getEmpresaId, ROLES_ADMIN_BODEGA } from '@/lib/auth-helpers'
 import { subirR2, registrarDespachoLog, esDespachado } from '@/lib/bodega'
+import { DB_SCHEMA } from '@/lib/prisma'
 
 const ROLES = ROLES_ADMIN_BODEGA
 
@@ -164,12 +165,26 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const despachador = empleadoId
       ? await prisma.empleado.findUnique({ where: { id: empleadoId }, select: { nombre: true } }).catch(() => null)
       : null
-    registrarDespachoLog({
-      empresaId,
-      ...updated,
-      despachadoPorId: empleadoId ?? null,
-      despachadoPorNombre: despachador?.nombre ?? (user.name ?? null),
-    })
+    const empresaMeta = await (prisma as any).empresa.findUnique({ where: { id: empresaId }, select: { ciudadEntregaLocal: true } }).catch(() => null)
+    // Si solo se actualiza guía, actualizar el log existente en vez de crear uno nuevo
+    const soloGuia = guiaTransporte !== undefined && !estado
+    if (soloGuia) {
+      try {
+        const updateResult = await (prisma as any).$queryRawUnsafe(
+          `UPDATE ${DB_SCHEMA}."DespachoLog" SET "guiaTransporte" = $1 WHERE "empresaId" = $2 AND "numeroFactura" = $3 AND "despachadoEl" = (SELECT MAX("despachadoEl") FROM ${DB_SCHEMA}."DespachoLog" WHERE "empresaId" = $2 AND "numeroFactura" = $3) RETURNING id`,
+          updated.guiaTransporte ?? null, empresaId, updated.numeroFactura
+        )
+        console.log('[guia update log] rows updated:', updateResult?.length ?? 0)
+      } catch (e) { console.error('[guia update log] error', e) }
+    } else {
+      registrarDespachoLog({
+        empresaId,
+        ...updated,
+        ciudadEntregaLocal: empresaMeta?.ciudadEntregaLocal ?? null,
+        despachadoPorId: empleadoId ?? null,
+        despachadoPorNombre: despachador?.nombre ?? (user.name ?? null),
+      })
+    }
   }
 
   // Enviar push a repartidor si se asignó a su ruta

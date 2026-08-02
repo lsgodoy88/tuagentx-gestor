@@ -15,73 +15,59 @@ export async function GET() {
       return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
     const empresaId = getEmpresaId(user)
-    const DB_SCHEMA = process.env.DB_SCHEMA || 'gestor'
     const esVendedor = role === 'vendedor'
     const apiId = user.apiId as string | null
     const empId = user.id as string | null
+    const DB_SCHEMA = process.env.DB_SCHEMA || 'gestor'
+
+    // Leer snapshots de ventas
+    const ventasWhere = esVendedor && apiId
+      ? `WHERE empresa_id = $1 AND tipo = 'ventas' AND vendedor_api_id = $2`
+      : `WHERE empresa_id = $1 AND tipo = 'ventas'`
 
     const ventasRows: any[] = esVendedor && apiId
-      ? await (prisma as any).$queryRawUnsafe(`
-          SELECT DATE_TRUNC('month', od."createdAt" AT TIME ZONE 'America/Bogota') AS mes,
-            od."vendedorApiId" AS vendedor_api_id, e.nombre,
-            SUM(od."totalOrden")::float AS ventas, COUNT(*)::int AS ordenes
-          FROM ${DB_SCHEMA}."OrdenDespacho" od
-          LEFT JOIN ${DB_SCHEMA}."Empleado" e ON e."apiId" = od."vendedorApiId"
-          WHERE od."empresaId" = $1 AND od."vendedorApiId" = $2
-          GROUP BY 1,2,3 ORDER BY 1 DESC, 4 DESC`, empresaId, apiId)
-      : await (prisma as any).$queryRawUnsafe(`
-          SELECT DATE_TRUNC('month', od."createdAt" AT TIME ZONE 'America/Bogota') AS mes,
-            od."vendedorApiId" AS vendedor_api_id, e.nombre,
-            SUM(od."totalOrden")::float AS ventas, COUNT(*)::int AS ordenes
-          FROM ${DB_SCHEMA}."OrdenDespacho" od
-          LEFT JOIN ${DB_SCHEMA}."Empleado" e ON e."apiId" = od."vendedorApiId"
-          WHERE od."empresaId" = $1
-          GROUP BY 1,2,3 ORDER BY 1 DESC, 4 DESC`, empresaId)
+      ? await (prisma as any).$queryRawUnsafe(
+          `SELECT mes, vendedor_api_id, entidad_nombre, datos FROM ${DB_SCHEMA}."SnapshotMes" WHERE empresa_id = $1 AND tipo = 'ventas' AND vendedor_api_id = $2 ORDER BY mes DESC`,
+          empresaId, apiId)
+      : await (prisma as any).$queryRawUnsafe(
+          `SELECT mes, vendedor_api_id, entidad_nombre, datos FROM ${DB_SCHEMA}."SnapshotMes" WHERE empresa_id = $1 AND tipo = 'ventas' ORDER BY mes DESC`,
+          empresaId)
 
+    // Leer snapshots de recaudo
     const recaudosRows: any[] = esVendedor && empId
-      ? await (prisma as any).$queryRawUnsafe(`
-          SELECT DATE_TRUNC('month', v."fechaBogota" AT TIME ZONE 'America/Bogota') AS mes,
-            v."empleadoId" AS empleado_id, e.nombre,
-            SUM(v.monto)::float AS recaudo, COUNT(*)::int AS cobros
-          FROM ${DB_SCHEMA}."Visita" v
-          JOIN ${DB_SCHEMA}."Empleado" e ON e.id = v."empleadoId"
-          WHERE e."empresaId" = $1 AND v."empleadoId" = $2 AND v.tipo = 'cobro'
-          GROUP BY 1,2,3 ORDER BY 1 DESC, 4 DESC`, empresaId, empId)
-      : await (prisma as any).$queryRawUnsafe(`
-          SELECT DATE_TRUNC('month', v."fechaBogota" AT TIME ZONE 'America/Bogota') AS mes,
-            v."empleadoId" AS empleado_id, e.nombre,
-            SUM(v.monto)::float AS recaudo, COUNT(*)::int AS cobros
-          FROM ${DB_SCHEMA}."Visita" v
-          JOIN ${DB_SCHEMA}."Empleado" e ON e.id = v."empleadoId"
-          WHERE e."empresaId" = $1 AND v.tipo = 'cobro'
-          GROUP BY 1,2,3 ORDER BY 1 DESC, 4 DESC`, empresaId)
+      ? await (prisma as any).$queryRawUnsafe(
+          `SELECT mes, empleado_id, entidad_nombre, datos FROM ${DB_SCHEMA}."SnapshotMes" WHERE empresa_id = $1 AND tipo = 'recaudo' AND (empleado_id = $2 OR vendedor_api_id = $3) ORDER BY mes DESC`,
+          empresaId, empId, apiId)
+      : await (prisma as any).$queryRawUnsafe(
+          `SELECT mes, empleado_id, entidad_nombre, datos FROM ${DB_SCHEMA}."SnapshotMes" WHERE empresa_id = $1 AND tipo = 'recaudo' ORDER BY mes DESC`,
+          empresaId)
 
-    const mesKey = (d: Date) => { const dt = new Date(d); return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}` }
-    const mesMap = new Map<string, { mes:string; totalVentas:number; totalRecaudo:number; vendedores:Record<string,any> }>()
+    // Agrupar por mes
+    const mesMap = new Map<string, { mes: string; totalVentas: number; totalRecaudo: number; vendedores: Record<string, any> }>()
 
     for (const r of ventasRows) {
-      const k = mesKey(r.mes)
-      if (!mesMap.has(k)) mesMap.set(k, { mes:k, totalVentas:0, totalRecaudo:0, vendedores:{} })
-      const e = mesMap.get(k)!
-      if (!e.vendedores[r.vendedor_api_id]) e.vendedores[r.vendedor_api_id] = { nombre: r.nombre||'Sin asignar', ventas:0, recaudo:0, ordenes:0, cobros:0 }
-      e.vendedores[r.vendedor_api_id].ventas += r.ventas
-      e.vendedores[r.vendedor_api_id].ordenes += r.ordenes
-      e.totalVentas += r.ventas
+      if (!mesMap.has(r.mes)) mesMap.set(r.mes, { mes: r.mes, totalVentas: 0, totalRecaudo: 0, vendedores: {} })
+      const e = mesMap.get(r.mes)!
+      const k = r.vendedor_api_id
+      if (!e.vendedores[k]) e.vendedores[k] = { nombre: r.entidad_nombre, ventas: 0, recaudo: 0, ordenes: 0, cobros: 0 }
+      e.vendedores[k].ventas += r.datos.total ?? 0
+      e.vendedores[k].ordenes += r.datos.ordenes ?? 0
+      e.totalVentas += r.datos.total ?? 0
     }
 
     for (const r of recaudosRows) {
-      const k = mesKey(r.mes)
-      if (!mesMap.has(k)) mesMap.set(k, { mes:k, totalVentas:0, totalRecaudo:0, vendedores:{} })
-      const e = mesMap.get(k)!
-      if (!e.vendedores[r.empleado_id]) e.vendedores[r.empleado_id] = { nombre: r.nombre||'Sin asignar', ventas:0, recaudo:0, ordenes:0, cobros:0 }
-      e.vendedores[r.empleado_id].recaudo += r.recaudo
-      e.vendedores[r.empleado_id].cobros += r.cobros
-      e.totalRecaudo += r.recaudo
+      if (!mesMap.has(r.mes)) mesMap.set(r.mes, { mes: r.mes, totalVentas: 0, totalRecaudo: 0, vendedores: {} })
+      const e = mesMap.get(r.mes)!
+      const k = r.empleado_id
+      if (!e.vendedores[k]) e.vendedores[k] = { nombre: r.entidad_nombre, ventas: 0, recaudo: 0, ordenes: 0, cobros: 0 }
+      e.vendedores[k].recaudo += r.datos.total ?? 0
+      e.vendedores[k].cobros += r.datos.cobros ?? 0
+      e.totalRecaudo += r.datos.total ?? 0
     }
 
     const meses = Array.from(mesMap.values())
-      .map(m => ({ ...m, vendedores: Object.values(m.vendedores).sort((a:any,b:any) => b.ventas - a.ventas) }))
-      .sort((a,b) => b.mes.localeCompare(a.mes))
+      .map(m => ({ ...m, vendedores: Object.values(m.vendedores).sort((a: any, b: any) => b.ventas - a.ventas) }))
+      .sort((a, b) => b.mes.localeCompare(a.mes))
 
     const res = NextResponse.json({ meses })
     res.headers.set('Cache-Control', 'private, no-store')

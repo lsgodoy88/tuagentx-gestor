@@ -58,6 +58,7 @@ model Empresa {
   smsLogs             SmsLog[]
   stockSnapshots      StockSnapshot[]
   carteraEdadSnapshots CarteraEdadSnapshot[]
+  snapshotsMes         SnapshotMes[]
   ordenesDespacho     OrdenDespacho[]
   ventasMes           VentaMesCliente[]
   despachoLogs        DespachoLog[]       @relation("DespachoLogEmpresa")
@@ -3334,6 +3335,23 @@ model StockSnapshot {
 
   @@index([empresaId, estado, createdAt])
   @@map("StockSnapshot")
+}
+
+model SnapshotMes {
+  id              String   @id @default(cuid())
+  empresa_id      String
+  mes             String   // '2026-07'
+  tipo            String   // 'ventas' | 'recaudo' | 'comision' | 'impulso' | ...
+  empleado_id     String?  // para recaudo, comision, impulso
+  vendedor_api_id String?  // para ventas (OrdenDespacho.vendedorApiId)
+  entidad_nombre  String   // guardado en snapshot, sin depender de JOIN futuro
+  datos           Json     // libre por tipo: {total, ordenes} | {total, cobros} | ...
+  creado_en       DateTime @default(now())
+  updated_en      DateTime @updatedAt
+  empresa         Empresa  @relation(fields: [empresa_id], references: [id])
+
+  @@index([empresa_id, mes, tipo])
+  @@map("SnapshotMes")
 }
 
 model CarteraEdadSnapshot {

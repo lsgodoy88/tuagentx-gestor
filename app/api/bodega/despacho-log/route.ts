@@ -30,13 +30,15 @@ export async function GET(req: NextRequest) {
            o.id as "ordenId", o."fechaOrden", o."fechaFactura", o.direccion,
            o."num_cajas", o."entregadoEl", o."firmaEntrega", COALESCE(l."observacion", o."observacion") as observacion,
            ap.nombre as "alistadoPorNombre",
-           rp.nombre as "repartidorNombre"
+           rp.nombre as "repartidorNombre",
+           vnd.nombre as "vendedorNombre"
     FROM ${DB_SCHEMA}."DespachoLog" l
     LEFT JOIN ${DB_SCHEMA}."OrdenDespacho" o
       ON o."numeroFactura" = l."numeroFactura"
       AND o."empresaId" = $2
     LEFT JOIN ${DB_SCHEMA}."Empleado" ap ON ap.id = o."alistadoPorId"
-    LEFT JOIN ${DB_SCHEMA}."Empleado" rp ON rp.id = o."repartidorId" 
+    LEFT JOIN ${DB_SCHEMA}."Empleado" rp ON rp.id = o."repartidorId"
+    LEFT JOIN ${DB_SCHEMA}."Empleado" vnd ON vnd."apiId" = o."vendedorApiId" AND vnd."empresaId" = $2
     WHERE l."empresaId" = $2
       ${cursor ? `AND l."despachadoEl" < (SELECT "despachadoEl" FROM ${DB_SCHEMA}."DespachoLog" WHERE id = '${cursor.replace(/'/g,"''")}' LIMIT 1)` : ''}
     ORDER BY l."despachadoEl" DESC

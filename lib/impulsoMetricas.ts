@@ -110,28 +110,22 @@ export async function calcularImpulsadorasMes(
 
     const ventasPorCliente: Record<string, number> = {}
 
-    const conApiId = clientes.filter((c: any) => c.apiId)
-    const sinApiId = clientes.filter((c: any) => !c.apiId)
-
-    if (conApiId.length > 0) {
-      const apiIds = conApiId.map((c: any) => c.apiId)
-      const apiIdToClienteId = Object.fromEntries(conApiId.map((c: any) => [c.apiId, c.id]))
-
-      const deudas = await (prisma as any).syncDeuda.findMany({
-        where: {
-          clienteApiId: { in: apiIds },
-          modificadoEn: { gte: inicioMes, lte: finMes },
-          condition: true,
-        },
-        select: { clienteApiId: true, valor: true }
-      })
-
-      for (const d of deudas) {
-        const cid = apiIdToClienteId[d.clienteApiId]
-        if (!cid) continue
-        ventasPorCliente[cid] = (ventasPorCliente[cid] || 0) + Number(d.valor)
-      }
+    // Fuente única: VentaMesCliente — acumulado real por mes, independiente
+    // de cuándo se sincronizó UpTres. Reemplaza SyncDeuda.modificadoEn que
+    // fallaba cuando la sincronización ocurría después del cierre del mes.
+    const mesLabel = fecha.slice(0, 7) // '2026-07'
+    const ventasMes = await (prisma as any).ventaMesCliente.findMany({
+      where: { clienteId: { in: clienteIds }, mes: mesLabel },
+      select: { clienteId: true, totalVenta: true }
+    })
+    for (const v of ventasMes) {
+      ventasPorCliente[v.clienteId] = Number(v.totalVenta || 0)
     }
+
+    // Fallback para clientes sin apiId que no tienen VentaMesCliente: usar Visita
+    const conVentaMes = new Set(ventasMes.map((v: any) => v.clienteId))
+    const sinVentaMes = clienteIds.filter((id: string) => !conVentaMes.has(id))
+    const sinApiId = clientes.filter((c: any) => !c.apiId && sinVentaMes.includes(c.id))
 
     if (sinApiId.length > 0) {
       const ids = sinApiId.map((c: any) => c.id)

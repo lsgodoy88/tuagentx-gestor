@@ -158,8 +158,10 @@ export default function ModuloOrdenes() {
   const [envioFiltro, setEnvioFiltro] = useState<'todos' | 'local' | 'guia'>('todos')
   const [fechaFiltro, setFechaFiltro] = useState<string>('')
   const [ordenDesc, setOrdenDesc] = useState<'asc'|'desc'|null>(null)
+  const [ciudadFiltro, setCiudadFiltro] = useState<string>('')
   const [popupFechaOpen, setPopupFechaOpen] = useState(false)
   const popupFechaRef = useRef<HTMLDivElement>(null)
+  const inputFechaRef = useRef<HTMLInputElement>(null)
   const [seleccionados, setSeleccionados] = useState<string[]>([])
   const [modoSeleccion, setModoSeleccion] = useState(false)
   const [modalEnviarMasivo, setModalEnviarMasivo] = useState(false)
@@ -171,8 +173,12 @@ export default function ModuloOrdenes() {
   const [modalFirmaUrl, setModalFirmaUrl] = useState<string | null>(null)
   const [modalObsTexto, setModalObsTexto] = useState<string | null>(null)
   const [obsPopup, setObsPopup] = useState<string | null>(null)
+  const [guiaPopup, setGuiaPopup] = useState<string | null>(null)
+  const [obsPopupLog, setObsPopupLog] = useState<string | null>(null)
+  const [guiaEditando, setGuiaEditando] = useState<string | null>(null)
   const [firmaData, setFirmaData] = useState<Record<string, string>>({})
   const [escanerOrdenId, setEscanerOrdenId] = useState<string | null>(null)
+  const [escanerLogId, setEscanerLogId] = useState<string | null>(null)
   const [firmaDibujando, setFirmaDibujando] = useState<Record<string, boolean>>({})
   const firmaCanvasRefs = useRef<Record<string, HTMLCanvasElement | null>>({})
 
@@ -669,20 +675,36 @@ export default function ModuloOrdenes() {
             <button
               onClick={() => setPopupFechaOpen(v => !v)}
               className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm"
-              style={{background:'#0d1220', border: fechaFiltro ? '1px solid #f59e0b' : '1px solid #1e2a3d', color: fechaFiltro ? '#f59e0b' : 'white'}}>
-              {fechaFiltro ? new Date(fechaFiltro + 'T12:00:00').getDate() : new Date().getDate()}
+              style={{background:'#0d1220', border: (fechaFiltro || ordenDesc !== null || ciudadFiltro) ? '1px solid #ef4444' : '1px solid #1e2a3d', color: 'white'}}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2l-6 6v6l-4-2v-4L4 8V6z"/></svg>
             </button>
             {popupFechaOpen && (
               <div className="absolute right-0 top-12 z-50 flex items-center gap-2 px-3 py-2 rounded-xl shadow-xl"
                 style={{background:'#0d1220', border:'1px solid #1e2a3d', minWidth: 'max-content'}}>
-                <label className="relative flex items-center justify-center w-8 h-8 rounded-lg cursor-pointer font-bold text-sm"
-                  style={{background:'#111827', border:'1px solid #1e2a3d', color: fechaFiltro ? '#f59e0b' : 'white'}}>
-                  {fechaFiltro ? new Date(fechaFiltro + 'T12:00:00').getDate() : new Date().getDate()}
-                  <input type="date" value={fechaFiltro}
-                    onChange={e => setFechaFiltro(e.target.value)}
-                    className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                    style={{WebkitAppearance:'none'}} />
-                </label>
+                <div className="relative">
+                  <button
+                    onClick={() => inputFechaRef.current?.showPicker?.()}
+                    className="flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm cursor-pointer"
+                    style={{background:'#111827', border:'1px solid #1e2a3d', color: fechaFiltro ? '#f59e0b' : 'white'}}>
+                    {fechaFiltro ? new Date(fechaFiltro + 'T12:00:00').getDate() : new Date().getDate()}
+                  </button>
+                  <input type="date" ref={inputFechaRef} value={fechaFiltro}
+                    onChange={e => { setFechaFiltro(e.target.value); setPopupFechaOpen(false) }}
+                    className="absolute opacity-0 pointer-events-none"
+                    style={{top:0, left:0, width:1, height:1}} />
+                </div>
+                {(() => {
+                  const ciudades = [...new Set(despachoLog.map((l:any) => l.ciudad?.trim()).filter(Boolean))].sort()
+                  if (ciudades.length === 0) return null
+                  return (
+                    <select value={ciudadFiltro} onChange={e => setCiudadFiltro(e.target.value)}
+                      className="rounded-lg text-xs outline-none cursor-pointer"
+                      style={{background:'#111827', border: ciudadFiltro ? '1px solid #ef4444' : '1px solid #1e2a3d', color: ciudadFiltro ? '#ef4444' : '#9ca3af', padding:'6px 8px', maxWidth:120}}>
+                      <option value=''>Ciudad</option>
+                      {ciudades.map((c:string) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  )
+                })()}
                 <button onClick={() => setOrdenDesc(v => v === null ? 'desc' : null)}
                   className="w-8 h-8 rounded-lg flex items-center justify-center text-base"
                   style={{background:'#111827', border:'1px solid #1e2a3d', opacity: ordenDesc ? 1 : 0.35}}>
@@ -1041,12 +1063,12 @@ export default function ModuloOrdenes() {
                               { icon: '📋', label: 'Orden',      fecha: d.fechaOrden,    quien: null },
                               { icon: '🧾', label: 'Facturado',  fecha: d.fechaFactura,  quien: null },
                               { icon: '📦', label: 'Alistado',   fecha: d.alistadoEl,    quien: d.alistadoPor?.nombre || null },
-                              { icon: '🚚', label: 'Despachado', fecha: despachadoEl, quien: [d.repartidor?.nombre, d.num_cajas > 0 && !d.firmaEntrega ? `${d.num_cajas} caja${d.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · '), firmaEntrega: d.firmaEntrega, observacion: d.observacion, alistadoPorNombre: d.alistadoPor?.nombre },
+                              ...(!d.guiaTransporte && !d.repartidorId && d.estado === 'entregado' ? [] : [{ icon: d.guiaTransporte ? '🚛' : '🚚', label: d.guiaTransporte ? 'Transporte' : 'Despacho', fecha: despachadoEl, quien: [d.repartidor?.nombre, d.num_cajas > 0 && !d.firmaEntrega ? `${d.num_cajas} caja${d.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · '), firmaEntrega: d.firmaEntrega, observacion: d.observacion, alistadoPorNombre: d.alistadoPor?.nombre }]),
                               { icon: '✅', label: 'Entregado',  fecha: d.entregadoEl,   quien: null },
                             ].map((e: any, i) => (
                               <div key={i} className="flex items-center gap-2 py-1">
                                 <span className="text-base flex-shrink-0">{e.icon}</span>
-                                <span className="text-zinc-400 text-xs w-[72px] flex-shrink-0">{e.label}</span>
+                                <span className="text-zinc-400 text-xs w-[60px] flex-shrink-0">{e.label}</span>
                                 <span className="text-white text-xs flex-shrink-0">{e.fecha ? formatFechaCorta(e.fecha) : '—'}</span>
                                 {e.quien && <span className="text-zinc-500 text-xs truncate flex-1">{e.quien}</span>}
                                 {e.firmaEntrega && (
@@ -1071,34 +1093,42 @@ export default function ModuloOrdenes() {
                                 setCajasEdit(p => ({ ...p, [d.id]: n }))
                                 await patchOrden(d.id, { num_cajas: n })
                               }} className="w-9 h-9 rounded-xl bg-zinc-800 border border-zinc-700 text-white text-base font-bold flex items-center justify-center hover:bg-zinc-700 flex-shrink-0">+</button>
-                              {guia ? (
-                                <span className="flex-1 min-w-0 text-white text-xs font-mono truncate px-2 py-2 bg-zinc-800 border border-orange-500/40 rounded-xl cursor-pointer"
-                                  onClick={() => setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], guia: '' } }))}>
-                                  {guia} ✕
-                                </span>
-                              ) : (
-                                <button onClick={() => setEscanerOrdenId(d.id)}
-                                  className="flex-1 min-w-0 bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 text-white py-2 rounded-xl flex items-center justify-center gap-2">
-                                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current flex-shrink-0">
+                              <button onClick={() => setGuiaPopup(guiaPopup === d.id ? null : d.id)}
+                                className={`flex-1 min-w-0 py-2 rounded-xl flex items-center justify-center gap-2 border text-xs ${guia ? 'bg-zinc-800 border-orange-500/40 text-orange-300' : 'bg-zinc-700 hover:bg-zinc-600 border-zinc-600 text-white'}`}>
+                                <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current flex-shrink-0">
+                                  <rect x="1" y="4" width="2" height="16"/><rect x="4" y="4" width="1" height="16"/>
+                                  <rect x="6" y="4" width="2" height="16"/><rect x="9" y="4" width="1" height="16"/>
+                                  <rect x="11" y="4" width="3" height="16"/><rect x="15" y="4" width="1" height="16"/>
+                                  <rect x="17" y="4" width="2" height="16"/><rect x="20" y="4" width="1" height="16"/>
+                                  <rect x="22" y="4" width="1" height="16"/>
+                                </svg>
+                                <span className="font-mono truncate">{guia || 'Guía'}</span>
+                              </button>
+                            </div>
+                            {guiaPopup === d.id && (
+                              <div className="flex gap-1.5 items-center mt-2">
+                                <input autoFocus type="text" placeholder="Número de guía..."
+                                  value={guia}
+                                  onChange={e => setEditTransporte(p => ({ ...p, [d.id]: { ...p[d.id], guia: e.target.value } }))}
+                                  onKeyDown={e => { if (e.key === 'Enter') setGuiaPopup(null) }}
+                                  className="flex-1 bg-orange-950/30 border border-orange-500/30 rounded-xl px-3 py-2 text-white text-xs font-mono outline-none focus:border-orange-400" />
+                                <button title="Escanear" onClick={() => setEscanerOrdenId(d.id)}
+                                  className="w-9 h-9 bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 text-white rounded-xl flex items-center justify-center flex-shrink-0">
+                                  <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
                                     <rect x="1" y="4" width="2" height="16"/><rect x="4" y="4" width="1" height="16"/>
                                     <rect x="6" y="4" width="2" height="16"/><rect x="9" y="4" width="1" height="16"/>
                                     <rect x="11" y="4" width="3" height="16"/><rect x="15" y="4" width="1" height="16"/>
                                     <rect x="17" y="4" width="2" height="16"/><rect x="20" y="4" width="1" height="16"/>
                                     <rect x="22" y="4" width="1" height="16"/>
                                   </svg>
-                                  <span className="text-zinc-400 text-xs">Añadir guía</span>
                                 </button>
-                              )}
-                              {(guia !== (d.guiaTransporte ?? '') || (cajasEdit[d.id] !== undefined && cajasEdit[d.id] !== d.num_cajas)) && (
-                                <button onClick={async () => {
-                                  await patchOrden(d.id, { guiaTransporte: guia || null, num_cajas: cajas })
-                                  setEditTransporte(p => { const n = {...p}; delete n[d.id]; return n })
-                                }} disabled={isSaving}
-                                  className="bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold px-2.5 py-2 rounded-xl text-xs flex-shrink-0 whitespace-nowrap">
+                                <button onClick={async () => { await patchOrden(d.id, { guiaTransporte: guia || null, num_cajas: cajas }); setEditTransporte(p => { const n = {...p}; delete n[d.id]; return n }); setGuiaPopup(null) }}
+                                  disabled={isSaving || guia === (d.guiaTransporte ?? '')}
+                                  className="w-9 h-9 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white rounded-xl flex items-center justify-center flex-shrink-0">
                                   💾
                                 </button>
-                              )}
-                            </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1136,16 +1166,15 @@ export default function ModuloOrdenes() {
           {despachoLog.length === 0 ? (
             null
           ) : (() => {
-            const hayFiltro = envioFiltro !== 'todos' || !!fechaFiltro || !!busqueda
-            const logMap = new Map(despachoLog.map((l: any) => [parseInt(l.numeroFactura), l]))
-            const todasFacturas = [...despachoLog, ...pendientes, ...alistados, ...despachados]
-            const allNums = todasFacturas.map((x: any) => parseInt(x.numeroFactura)).filter((n: number) => !isNaN(n))
+            const hayFiltro = envioFiltro !== 'todos' || !!fechaFiltro || !!busqueda || !!ciudadFiltro
+            // Deduplicar por numeroFactura usando string (parseInt falla con prefijos como "F_")
+            const logMap = new Map(despachoLog.map((l: any) => [String(l.numeroFactura), l]))
+            const allNums = despachoLog.map((x: any) => parseInt(x.numeroFactura)).filter((n: number) => !isNaN(n))
             if (allNums.length === 0) return null
             const rangeMax = Math.max(...allNums)
             const rangeMin = Math.min(...allNums)
             const filas: number[] = []
             if (ordenDesc !== null) {
-              // Orden por fecha de despacho — sin huecos
               const logsOrdenados = [...despachoLog].sort((a: any, b: any) => {
                 const ta = a.despachadoEl ? new Date(a.despachadoEl).getTime() : 0
                 const tb = b.despachadoEl ? new Date(b.despachadoEl).getTime() : 0
@@ -1155,8 +1184,8 @@ export default function ModuloOrdenes() {
             } else {
               for (let n = rangeMax; n >= rangeMin; n--) filas.push(n)
             }
-            return filas.map(n => {
-              const log = logMap.get(n)
+            const gridItems = filas.map(n => {
+              const log = logMap.get(String(n))
               if (!log) {
                 if (hayFiltro || ordenDesc !== null) return null
                 return (
@@ -1189,6 +1218,7 @@ export default function ModuloOrdenes() {
                 const dd = String(bogota.getUTCDate()).padStart(2, '0')
                 if (`${yy}-${mm}-${dd}` !== fechaFiltro) return null
               }
+              if (ciudadFiltro && (log.ciudad?.trim() || '') !== ciudadFiltro) return null
               // Usar datos del log directamente (tiene JOIN con OrdenDespacho)
               const fotos2: string[] = (log.fotosAlistamiento as string[] | null) || (log.fotoAlistamiento ? [log.fotoAlistamiento] : [])
               const ciudad2 = log.ciudad?.split('/').pop()?.trim() || null
@@ -1198,7 +1228,7 @@ export default function ModuloOrdenes() {
               return (
                 <div key={n} className="bg-zinc-900 border border-zinc-800 border-l-4 border-l-zinc-500 rounded-2xl overflow-hidden">
                   {/* Header tappable */}
-                  <div className="px-4 py-3 flex items-start gap-2 cursor-pointer select-none"
+                  <div className="px-4 py-3 flex items-start gap-2 cursor-pointer"
                     onClick={() => setExpanded(p => ({ ...p, [log.id]: !p[log.id] }))}>
                     <div className="flex-1 min-w-0 flex flex-col gap-0.5 overflow-hidden">
                       <div className="flex items-center gap-1.5 overflow-hidden">
@@ -1216,16 +1246,16 @@ export default function ModuloOrdenes() {
                   {isExpLog && (
                     <div className="px-4 pb-3 space-y-0.5 border-t border-zinc-800/40 pt-2">
                       {[
-                        { icon: '📋', label: 'Orden',      fecha: log.fechaOrden,    quien: null },
-                        { icon: '🧾', label: 'Facturado',  fecha: log.fechaFactura,  quien: null },
+                        { icon: '📋', label: 'Orden',      fecha: log.fechaOrden,    quien: log.vendedorNombre ? log.vendedorNombre.split(' ')[0].charAt(0).toUpperCase() + log.vendedorNombre.split(' ')[0].slice(1).toLowerCase() : null },
+                        { icon: '🧾', label: 'Facturado',  fecha: log.fechaFactura,  quien: 'Admin' },
                         { icon: '📦', label: 'Alistado',   fecha: log.alistadoEl,    quien: log.alistadoPor?.nombre || null,
                           accion: fotos2.length > 0 ? () => abrirGaleriaConUrls(fotos2, log.alistadoEl) : null },
-                        { icon: '🚚', label: 'Despachado', fecha: log.despachadoEl, quien: [log.despachadoPorNombre || log.repartidor?.nombre, log.num_cajas > 0 && !log.firmaEntrega ? `${log.num_cajas} caja${log.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · '), esDespacho: true, firmaEntrega: log.firmaEntrega, observacion: log.observacion },
+                        ...(log.modo === 'personal' ? [] : [{ icon: log.modo === 'repartidor' ? '🚚' : '🚛', label: log.modo === 'repartidor' ? 'Despacho' : 'Transporte', fecha: log.despachadoEl, quien: [log.despachadoPorNombre || log.repartidor?.nombre, log.num_cajas > 0 && !log.firmaEntrega ? `${log.num_cajas} caja${log.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · '), esDespacho: true, firmaEntrega: log.firmaEntrega, observacion: log.observacion }]),
                         { icon: '✅', label: 'Entregado',  fecha: log.entregadoEl,   quien: null },
                       ].map((e: any, i) => (
                         <div key={i} className="flex items-center gap-2 py-1">
                           <span className="text-base flex-shrink-0">{e.icon}</span>
-                          <span className="text-zinc-400 text-xs w-[72px] flex-shrink-0">{e.label}</span>
+                          <span className="text-zinc-400 text-xs w-[60px] flex-shrink-0">{e.label}</span>
                           <span className="text-white text-xs flex-shrink-0">{e.fecha ? formatFechaCorta(e.fecha) : '—'}</span>
                           {e.quien && <span className="text-zinc-500 text-xs truncate flex-1">{e.quien}</span>}
                           {e.accion && <button onClick={ev => { ev.stopPropagation(); e.accion!() }} className="text-zinc-400 hover:text-white text-xs">🖼️</button>}
@@ -1234,11 +1264,12 @@ export default function ModuloOrdenes() {
                               className="text-zinc-400 hover:text-white text-base flex-shrink-0">🤝</button>
                           )}
                           {!e.firmaEntrega && e.observacion && (
-                            <button onClick={() => setModalObsTexto(e.observacion)}
-                              className="text-zinc-400 hover:text-white text-base flex-shrink-0">✍🏼</button>
+                            <button onClick={() => setObsPopupLog(obsPopupLog === log.id ? null : log.id)}
+                              className={`text-base flex-shrink-0 ${obsPopupLog === log.id ? 'text-white' : 'text-zinc-400 hover:text-white'}`}>✍🏼</button>
                           )}
-                          {e.esDespacho && !e.firmaEntrega && !e.observacion && !log.guiaTransporte && !guiaLog && (
-                            <button onClick={() => setEscanerOrdenId(log.id)} className="text-zinc-500 hover:text-white flex-shrink-0">
+                          {e.esDespacho && !e.firmaEntrega && (log.modo === 'transportadora' || !!log.guiaTransporte) && (
+                            <button onClick={() => setGuiaPopup(guiaPopup === log.id ? null : log.id)}
+                              className="flex-shrink-0 relative text-zinc-500 hover:text-white">
                               <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
                                 <rect x="1" y="4" width="2" height="16"/><rect x="4" y="4" width="1" height="16"/>
                                 <rect x="6" y="4" width="2" height="16"/><rect x="9" y="4" width="1" height="16"/>
@@ -1246,24 +1277,65 @@ export default function ModuloOrdenes() {
                                 <rect x="17" y="4" width="2" height="16"/><rect x="20" y="4" width="1" height="16"/>
                                 <rect x="22" y="4" width="1" height="16"/>
                               </svg>
+                              {(log.guiaTransporte || guiaLog) && (
+                                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-zinc-900" />
+                              )}
                             </button>
                           )}
                         </div>
                       ))}
-                      {/* Guardar guía si fue escaneada */}
-                      {guiaLog && guiaLog !== log.guiaTransporte && (
-                        <div className="flex gap-2 items-center mt-1 pt-2 border-t border-zinc-800/40">
-                          <span className="flex-1 text-white text-xs font-mono truncate px-2 py-1.5 bg-zinc-800 border border-orange-500/40 rounded-xl cursor-pointer"
-                            onClick={() => setEditTransporte(p => ({ ...p, [log.id]: { ...p[log.id], guia: '' } }))}>
-                            {guiaLog} ✕
-                          </span>
-                          <button onClick={async () => {
-                            await patchOrden(log.id, { guiaTransporte: guiaLog })
-                            setEditTransporte(p => { const nv = {...p}; delete nv[log.id]; return nv })
-                          }} disabled={saving[log.id]}
-                            className="bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white font-bold px-3 py-2 rounded-xl text-xs flex-shrink-0">
-                            💾
-                          </button>
+                      {/* Popup observación — solo lectura inline */}
+                      {obsPopupLog === log.id && log.observacion && (
+                        <div className="flex gap-1.5 items-center mt-2 pt-2 border-t border-zinc-800/40">
+                          <span className="text-base flex-shrink-0">✍🏼</span>
+                          <p className="flex-1 text-white text-xs bg-blue-950/30 border border-blue-500/20 rounded-xl px-3 py-2">{log.observacion}</p>
+                        </div>
+                      )}
+                      {/* Popup guía */}
+                      {guiaPopup === log.id && (
+                        <div className="flex gap-1.5 items-center mt-2 pt-2 border-t border-zinc-800/40">
+                          {log.guiaTransporte && guiaEditando !== log.id ? (
+                            // Solo lectura
+                            <>
+                              <span className="flex-1 text-white text-xs font-mono bg-zinc-800 border border-orange-500/30 rounded-xl px-3 py-2">{guiaLog || log.guiaTransporte}</span>
+                              <button onClick={() => setGuiaEditando(log.id)}
+                                className="w-9 h-9 bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 text-zinc-300 rounded-xl flex items-center justify-center flex-shrink-0 text-xs">✏️</button>
+                            </>
+                          ) : (
+                            // Edición
+                            <>
+                              <input autoFocus type="text" placeholder="Número de guía..."
+                                value={guiaLog}
+                                onChange={e => setEditTransporte(p => ({ ...p, [log.id]: { ...p[log.id], guia: e.target.value } }))}
+                                onKeyDown={e => { if (e.key === 'Enter') setGuiaEditando(null) }}
+                                className="flex-1 bg-orange-950/30 border border-orange-500/30 rounded-xl px-3 py-2 text-white text-xs font-mono outline-none focus:border-orange-400" />
+                              <button title="Escanear" onClick={() => { setEscanerOrdenId(log.ordenId || log.id); setEscanerLogId(log.id) }}
+                                className="w-9 h-9 bg-zinc-700 hover:bg-zinc-600 border border-zinc-600 text-white rounded-xl flex items-center justify-center flex-shrink-0">
+                                <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current">
+                                  <rect x="1" y="4" width="2" height="16"/><rect x="4" y="4" width="1" height="16"/>
+                                  <rect x="6" y="4" width="2" height="16"/><rect x="9" y="4" width="1" height="16"/>
+                                  <rect x="11" y="4" width="3" height="16"/><rect x="15" y="4" width="1" height="16"/>
+                                  <rect x="17" y="4" width="2" height="16"/><rect x="20" y="4" width="1" height="16"/>
+                                  <rect x="22" y="4" width="1" height="16"/>
+                                </svg>
+                              </button>
+                              <button onClick={async (ev) => {
+                                  ev.stopPropagation()
+                                  const oid = log.ordenId || log.id
+                                  const guiaVal = guiaLog
+                                  const res = await fetch(`/api/bodega/despachos/${oid}`, { method: 'PATCH', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ guiaTransporte: guiaVal || null }) })
+                                  await res.json()
+                                  setGuiaEditando(null)
+                                  setGuiaPopup(null)
+                                  setEditTransporte(p => { const nv = {...p}; delete nv[log.id]; return nv })
+                                  cargarDespachoLog(true)
+                                }}
+                                disabled={!guiaLog.trim()}
+                                className="w-9 h-9 bg-orange-600 hover:bg-orange-500 disabled:opacity-40 text-white rounded-xl flex items-center justify-center flex-shrink-0">
+                                💾
+                              </button>
+                            </>
+                          )}
                         </div>
                       )}
                     </div>
@@ -1271,6 +1343,7 @@ export default function ModuloOrdenes() {
                 </div>
               )
             })
+            return <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">{gridItems}</div>
           })()}
         </div>
       )}
@@ -1418,8 +1491,16 @@ export default function ModuloOrdenes() {
         <ModalEscaner
           onDetect={(codigo) => {
             const oid = escanerOrdenId
-            setEditTransporte(p => ({ ...p, [oid]: { ...p[oid], guia: codigo } }))
+            const lid = escanerLogId
+            if (lid) {
+              setEditTransporte(p => ({ ...p, [lid]: { ...p[lid], guia: codigo } }))
+              setGuiaPopup(lid)
+              setGuiaEditando(lid)
+            } else {
+              setEditTransporte(p => ({ ...p, [oid]: { ...p[oid], guia: codigo } }))
+            }
             setEscanerOrdenId(null)
+            setEscanerLogId(null)
           }}
           onClose={() => setEscanerOrdenId(null)}
         />

@@ -101,6 +101,8 @@ export default function CarteraPage() {
   const [comisionPropia, setComisionPropia] = useState<any>(null)
   const [loadingComisionPropia, setLoadingComisionPropia] = useState(false)
   const [comisionCalculo, setComisionCalculo] = useState<any>(null)
+  const [snapshotHistorico, setSnapshotHistorico] = useState<any>(null)
+  const [loadingSnapshot, setLoadingSnapshot] = useState(false)
   const [editandoFormulaId, setEditandoFormulaId] = useState<string | null>(null)
   const [borradorFormula, setBorradorFormula] = useState('')
   const [borradorPorcentaje, setBorradorPorcentaje] = useState(0)
@@ -775,13 +777,36 @@ export default function CarteraPage() {
           setMetas(r.metas || [])
         }
 
+        const aplicarMes = async (m: number, a: number) => {
+          setMesAnalisis(m); setAnioAnalisis(a)
+          const mesBog = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }).slice(0,7)
+          const selLabel = `${a}-${String(m).padStart(2,'0')}`
+          if (selLabel < mesBog) {
+            setLoadingSnapshot(true)
+            try {
+              const [rEdad, rSnap] = await Promise.all([
+                fetch(`/api/cartera/edades-snapshot?mesInicio=${m}&anioInicio=${a}&mesFin=${m}&anioFin=${a}`).then(r=>r.json()),
+                fetch(`/api/stats/historico-mes?mes=${selLabel}`).then(r=>r.json()),
+              ])
+              setSnapshotHistorico({ edades: rEdad, recaudo: rSnap.recaudo ?? 0, descuento: rSnap.descuento ?? 0, cartera: rSnap.cartera ?? 0, pendiente: rSnap.pendiente ?? 0 })
+            } catch(e) { console.error(e) }
+            finally { setLoadingSnapshot(false) }
+          } else {
+            setSnapshotHistorico(null)
+          }
+        }
+
         return (
           <div className="space-y-4">
             {/* Selector mes + año */}
             <div className="flex gap-2 items-center">
               <select
                 value={mesSel}
-                onChange={e => setMesSel(Number(e.target.value))}
+                onChange={async e => {
+                  const m = Number(e.target.value)
+                  setMesSel(m)
+                  await aplicarMes(m, anioSel)
+                }}
                 style={{ background: '#060a24', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '12px', padding: '10px 14px' }}
                 className="text-white text-sm outline-none focus:border-emerald-500 flex-1"
               >
@@ -791,7 +816,11 @@ export default function CarteraPage() {
               </select>
               <select
                 value={anioSel}
-                onChange={e => setAnioSel(Number(e.target.value))}
+                onChange={async e => {
+                  const a = Number(e.target.value)
+                  setAnioSel(a)
+                  await aplicarMes(mesSel, a)
+                }}
                 style={{ background: '#060a24', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '12px', padding: '10px 14px' }}
                 className="text-white text-sm outline-none focus:border-emerald-500"
               >
@@ -799,14 +828,6 @@ export default function CarteraPage() {
                   <option key={a} value={a}>{a}</option>
                 ))}
               </select>
-              <button
-                onClick={() => { setMesAnalisis(mesSel); setAnioAnalisis(anioSel) }}
-                style={{ background: '#060a24', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '12px', padding: '10px 14px' }}
-                className="text-white text-lg hover:border-emerald-500 transition-colors"
-                title="Aplicar filtro"
-              >
-                🔍
-              </button>
               <button
                 onClick={async () => {
                   try {
@@ -896,24 +917,39 @@ export default function CarteraPage() {
 
             {/* KPIs */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {/* KPIs — snapshot histórico si mes cerrado, tiempo real si mes actual */}
+              {loadingSnapshot && <div className="col-span-2 md:col-span-4 text-center text-xs text-zinc-500 py-2">Cargando snapshot...</div>}
               <div className={`rounded-2xl p-4 hover-lift fade-up stagger-1 ${loadingBusqueda ? 'loading-border' : ''}`} style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.25)"}}>
                 <p className="text-zinc-500 text-xs mb-1 uppercase tracking-wide font-bold">Cartera total</p>
-                <p className="text-white font-bold text-lg">$<CountUp end={Math.round(totalCartera)} /></p>
-                <p className="text-zinc-600 text-xs mt-1"><CountUp end={totalReal ? totalReal.clientes : carteras.length} /> clientes</p>
+                <p className="text-white font-bold text-lg">$<CountUp end={Math.round(snapshotHistorico ? (snapshotHistorico.cartera ?? 0) : totalCartera)} /></p>
+                <p className="text-zinc-600 text-xs mt-1">{snapshotHistorico ? 'cierre de mes' : <><CountUp end={totalReal ? totalReal.clientes : carteras.length} /> clientes</>}</p>
               </div>
               <div className={`rounded-2xl p-4 hover-lift fade-up stagger-2 ${loadingBusqueda ? 'loading-border-red' : ''}`} style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.25)"}}>
                 <p className="text-zinc-500 text-xs mb-1 uppercase tracking-wide font-bold">Pendiente</p>
-                <p className="text-red-400 font-bold text-lg flex items-center gap-2">$<CountUp end={Math.round(totalPend)} />{totalPend > 0 && <LiveDot color="red" />}</p>
-                <p className="text-zinc-600 text-xs mt-1">{totalCartera > 0 ? Math.round((totalPend/totalCartera)*100) : 0}% sin cobrar</p>
+                {(() => {
+                  if (snapshotHistorico) {
+                    const totalH = snapshotHistorico.cartera ?? 0
+                    const pendH = snapshotHistorico.pendiente ?? 0
+                    const pctH = totalH > 0 ? Math.round((pendH/totalH)*100) : 0
+                    return <>
+                      <p className="text-red-400 font-bold text-lg">$<CountUp end={Math.round(pendH)} /></p>
+                      <p className="text-zinc-600 text-xs mt-1">{pctH}% sin cobrar</p>
+                    </>
+                  }
+                  return <>
+                    <p className="text-red-400 font-bold text-lg flex items-center gap-2">$<CountUp end={Math.round(totalPend)} />{totalPend > 0 && <LiveDot color="red" />}</p>
+                    <p className="text-zinc-600 text-xs mt-1">{totalCartera > 0 ? Math.round((totalPend/totalCartera)*100) : 0}% sin cobrar</p>
+                  </>
+                })()}
               </div>
               <div className={`rounded-2xl p-4 hover-lift fade-up stagger-3 ${loadingBusqueda ? 'loading-border-emerald' : ''}`} style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.25)"}}>
                 <p className="text-zinc-500 text-xs mb-1 uppercase tracking-wide font-bold">Recaudado</p>
-                <p className="text-emerald-400 font-bold text-lg">$<CountUp end={Math.round(totalMes)} /></p>
-                <p className="text-zinc-600 text-xs mt-1">{pagosMes.length} pagos · {variacion >= 0 ? '+' : ''}{variacion}% vs ant.</p>
+                <p className="text-emerald-400 font-bold text-lg">$<CountUp end={Math.round(snapshotHistorico ? snapshotHistorico.recaudo : totalMes)} /></p>
+                <p className="text-zinc-600 text-xs mt-1">{snapshotHistorico ? 'cierre de mes' : `${pagosMes.length} pagos · ${variacion >= 0 ? '+' : ''}${variacion}% vs ant.`}</p>
               </div>
               <div className={`rounded-2xl p-4 hover-lift fade-up stagger-4 ${loadingBusqueda ? 'loading-border-amber' : ''}`} style={{background:"#060a24",border:"1px solid rgba(59,130,246,0.25)"}}>
                 <p className="text-zinc-500 text-xs mb-1 uppercase tracking-wide font-bold">Descuentos</p>
-                <p className="text-orange-400 font-bold text-lg">$<CountUp end={Math.round(totalDescMes)} /></p>
+                <p className="text-orange-400 font-bold text-lg">$<CountUp end={Math.round(snapshotHistorico ? snapshotHistorico.descuento : totalDescMes)} /></p>
                 <p className="text-zinc-600 text-xs mt-1">aplicados este mes</p>
               </div>
             </div>
