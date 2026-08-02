@@ -40,7 +40,7 @@ const COLOR_ESTADO: Record<string, string> = {
 }
 
 const ICONO_ESTADO: Record<string, string> = {
-  pendiente: '🟡',
+  pendiente: '',
   alistado: '🟢',
   despachado: '🚛',
   en_entrega: '🚚',
@@ -506,7 +506,7 @@ export default function TrazabilidadPage() {
                   <span className="flex-shrink-0 mt-0.5 text-xs">
                   {abierto ? '▲' : (
                     <span className="relative inline-flex">
-                      {ICONO_ESTADO[orden.estado] || '▼'}
+                      {ICONO_ESTADO[orden.estado] || ''}
                       {(orden.estado === 'en_transito' || orden.estado === 'despachado') && orden.guiaTransporte && (
                         <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-zinc-900" />
                       )}
