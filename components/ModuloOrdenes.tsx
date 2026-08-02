@@ -8,9 +8,6 @@ import { useState, useEffect, useRef, useMemo } from 'react'
 import { useBodegaContext } from '@/lib/bodega-context'
 import { useOrdenesData } from '@/hooks/useOrdenesData'
 import { useRouter } from 'next/navigation'
-import dynamic from 'next/dynamic'
-const Cropper = dynamic(() => import('react-cropper'), { ssr: false })
-import '@/app/(app)/ordenes/cropper.css'
 
 
 
@@ -149,8 +146,25 @@ export default function ModuloOrdenes() {
   const [camaraOrdenId, setCamaraOrdenId] = useState<string | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
   const [fotosCapturadas, setFotosCapturadas] = useState<string[]>([])
-  const [cropSrc, setCropSrc] = useState<string | null>(null)
-  const cropperRef = useRef<any>(null)
+  const [anotacionSrc, setAnotacionSrc] = useState<string | null>(null)
+  const anotCanvasRef = useRef<HTMLCanvasElement>(null)
+  const [anotTool, setAnotTool] = useState<'text' | 'arrow'>('text')
+  const [anotColor, setAnotColor] = useState('#FFFFFF')
+  const [anotText, setAnotText] = useState('')
+  const [anotaciones, setAnotaciones] = useState<any[]>([])
+  const [anotArrow, setAnotArrow] = useState<{x1:number,y1:number,x2:number,y2:number}|null>(null)
+  const [anotDrawing, setAnotDrawing] = useState(false)
+  const [anotStart, setAnotStart] = useState<{x:number,y:number}|null>(null)
+  const [anotTextPendiente, setAnotTextPendiente] = useState<string | null>(null)
+  const [anotTextPos, setAnotTextPos] = useState<{x:number,y:number} | null>(null)
+  const [anotTextDragging, setAnotTextDragging] = useState(false)
+  const [anotShowToolbar, setAnotShowToolbar] = useState(false)
+  const [cropBox, setCropBox] = useState<{x:number,y:number,w:number,h:number}|null>(null)
+  const [cropDragging, setCropDragging] = useState(false)
+  const [cropDragStart, setCropDragStart] = useState<{px:number,py:number,bx:number,by:number}|null>(null)
+  const [cropResizing, setCropResizing] = useState(false)
+  const [cropResizeStart, setCropResizeStart] = useState<{px:number,py:number,bw:number,bh:number}|null>(null)
+  const [cropTouched, setCropTouched] = useState(false)
   const [zoomLevel, setZoomLevel] = useState(1)
   const [soportaZoom, setSoportaZoom] = useState(false)
   const [asignarTodasRepartidor, setAsignarTodasRepartidor] = useState('')
@@ -190,6 +204,23 @@ export default function ModuloOrdenes() {
   const esAdmin = user?.role === 'empresa' || user?.role === 'supervisor'
 
   // Bloquear botón físico atrás del móvil cuando la cámara está abierta
+  useEffect(() => {
+    if (!camaraActiva) return
+    const t = setTimeout(() => {
+      const video = videoRef.current
+      if (!video) return
+      const container = video.parentElement
+      if (!container) return
+      const vw = container.offsetWidth
+      const vh = container.offsetHeight
+      if (vw > 0 && vh > 0) {
+        const w = Math.round(vw * 0.4), h = Math.round(vh * 0.4)
+        setCropBox({ x: Math.round((vw-w)/2), y: Math.round((vh-h)/2), w, h })
+      }
+    }, 800)
+    return () => clearTimeout(t)
+  }, [camaraActiva])
+
   useEffect(() => {
     if (!popupFechaOpen) return
     function handleClick(e: Event) {
@@ -368,6 +399,8 @@ export default function ModuloOrdenes() {
     setCamaraActiva(true)
     setPreview(null)
     setFotosCapturadas([])
+    setCropTouched(false)
+
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
     })
@@ -377,7 +410,10 @@ export default function ModuloOrdenes() {
     setZoomLevel(1)
     const capabilities = track.getCapabilities() as any
     setSoportaZoom(!!capabilities.zoom)
-    if (videoRef.current) videoRef.current.srcObject = stream
+    if (videoRef.current) {
+      videoRef.current.srcObject = stream
+
+    }
   }
 
   async function aplicarZoom(nivel: number) {
@@ -395,23 +431,83 @@ export default function ModuloOrdenes() {
     const video = videoRef.current
     if (!video || !video.videoWidth) return
     const canvas = document.createElement('canvas')
-    canvas.width = video.videoWidth
-    canvas.height = video.videoHeight
-    canvas.getContext('2d')!.drawImage(video, 0, 0)
+    if (cropBox && video.offsetWidth > 0) {
+      const scaleX = video.videoWidth / video.offsetWidth
+      const scaleY = video.videoHeight / video.offsetHeight
+      const sx = cropBox.x * scaleX, sy = cropBox.y * scaleY
+      const sw = cropBox.w * scaleX, sh = cropBox.h * scaleY
+      canvas.width = sw; canvas.height = sh
+      canvas.getContext('2d')!.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh)
+    } else {
+      canvas.width = video.videoWidth; canvas.height = video.videoHeight
+      canvas.getContext('2d')!.drawImage(video, 0, 0)
+    }
     const base64 = canvas.toDataURL('image/jpeg', 0.85)
-    setCropSrc(base64)
+    setAnotaciones([]); setAnotArrow(null); setAnotText(''); setAnotShowToolbar(false)
+    setAnotTextPendiente(null); setAnotTextPos(null)
+    streamRef.current?.getTracks().forEach(t => { t.enabled = false })
+    setCamaraActiva(false)
+    setAnotacionSrc(base64)
   }
 
-  async function confirmarRecorte() {
-    const cropper = cropperRef.current?.cropper
-    if (!cropper) return
-    const cropped = cropper.getCroppedCanvas({ maxWidth: 1280, maxHeight: 1280 }).toDataURL('image/jpeg', 0.85)
-    setFotosCapturadas(prev => [...prev, cropped])
-    setCropSrc(null)
+  function confirmarAnotacion() {
+    const canvas = anotCanvasRef.current
+    if (!canvas) return
+    setFotosCapturadas(prev => [...prev, canvas.toDataURL('image/jpeg', 0.9)])
+    setAnotacionSrc(null)
+    // Reactivar stream y cámara para más fotos
+    streamRef.current?.getTracks().forEach(t => { t.enabled = true })
+    setCamaraActiva(true)
+    setCropTouched(false)
   }
-
-  function descartarRecorte() {
-    setCropSrc(null)
+  function descartarAnotacion() {
+    // Reactivar stream — usuario puede retomar
+    streamRef.current?.getTracks().forEach(t => { t.enabled = true })
+    setAnotacionSrc(null)
+    setCamaraActiva(true)
+    setCropTouched(false)
+  }
+  function dibujarAnotaciones(canvas: HTMLCanvasElement, imgSrc: string, items: any[], arrow: any) {
+    const ctx = canvas.getContext('2d')!
+    const img = new Image()
+    img.onload = () => {
+      canvas.width = img.naturalWidth; canvas.height = img.naturalHeight
+      ctx.drawImage(img, 0, 0)
+      const rect = canvas.getBoundingClientRect()
+      const displayW = rect.width || canvas.offsetWidth || img.naturalWidth
+      const displayH = rect.height || canvas.offsetHeight || img.naturalHeight
+      const sx = img.naturalWidth / displayW
+      const sy = img.naturalHeight / displayH
+      items.forEach((a: any) => {
+        if (a.type === 'text') {
+          ctx.font = `bold ${Math.round(28*sx)}px sans-serif`
+          ctx.fillStyle = a.color; ctx.strokeStyle = 'rgba(0,0,0,0.6)'; ctx.lineWidth = 4*sx
+          ctx.strokeText(a.text, a.x*sx, a.y*sy); ctx.fillText(a.text, a.x*sx, a.y*sy)
+        }
+        if (a.type === 'arrow') {
+          const [x1,y1,x2,y2]=[a.x1*sx,a.y1*sy,a.x2*sx,a.y2*sy]
+          const angle=Math.atan2(y2-y1,x2-x1), hw=18*sx
+          ctx.strokeStyle=a.color; ctx.fillStyle=a.color; ctx.lineWidth=5*sx; ctx.lineCap='round'
+          ctx.beginPath(); ctx.moveTo(x1,y1); ctx.lineTo(x2,y2); ctx.stroke()
+          ctx.beginPath(); ctx.moveTo(x2,y2)
+          ctx.lineTo(x2-hw*Math.cos(angle-0.4),y2-hw*Math.sin(angle-0.4))
+          ctx.lineTo(x2-hw*Math.cos(angle+0.4),y2-hw*Math.sin(angle+0.4))
+          ctx.closePath(); ctx.fill()
+        }
+      })
+      if (arrow) {
+        const {x1,y1,x2,y2}=arrow
+        const [ax1,ay1,ax2,ay2]=[x1*sx,y1*sy,x2*sx,y2*sy]
+        const angle=Math.atan2(ay2-ay1,ax2-ax1), hw=18*sx
+        ctx.strokeStyle='#FFFF00'; ctx.fillStyle='#FFFF00'; ctx.lineWidth=5*sx; ctx.lineCap='round'
+        ctx.beginPath(); ctx.moveTo(ax1,ay1); ctx.lineTo(ax2,ay2); ctx.stroke()
+        ctx.beginPath(); ctx.moveTo(ax2,ay2)
+        ctx.lineTo(ax2-hw*Math.cos(angle-0.4),ay2-hw*Math.sin(angle-0.4))
+        ctx.lineTo(ax2-hw*Math.cos(angle+0.4),ay2-hw*Math.sin(angle+0.4))
+        ctx.closePath(); ctx.fill()
+      }
+    }
+    img.src = imgSrc
   }
 
   function eliminarFotoCapturada(idx: number) {
@@ -501,6 +597,7 @@ export default function ModuloOrdenes() {
   function cerrarCamara() {
     streamRef.current?.getTracks().forEach(t => t.stop())
     setCamaraActiva(false)
+
     setCamaraOrdenId(null)
     setPreview(null)
     setFotosCapturadas([])
@@ -776,19 +873,19 @@ export default function ModuloOrdenes() {
 
               return (
                 <div key={d.id}
-                  className={`bg-zinc-900 border border-zinc-800 border-l-4 ${border} rounded-2xl overflow-hidden ${(() => { const coc = d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''; const elc = ciudadLocal ? coc === ciudadLocal.trim().toLowerCase() : true; return modoSeleccion && d.estado === 'alistado' && elc ? 'cursor-pointer' : modoSeleccion && d.estado === 'alistado' && !elc ? 'opacity-40 cursor-not-allowed' : '' })()} ${modoSeleccion && seleccionados.includes(d.id) ? 'ring-2 ring-blue-500' : ''}`}
+                  className={`bg-zinc-900 border-t border-r border-b border-zinc-800 border-l-4 ${border} rounded-2xl overflow-hidden ${(() => { const coc = d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''; const elc = ciudadLocal ? coc === ciudadLocal.trim().toLowerCase() : true; return modoSeleccion && d.estado === 'alistado' && elc ? 'cursor-pointer' : modoSeleccion && d.estado === 'alistado' && !elc ? 'opacity-40 cursor-not-allowed' : '' })()} ${modoSeleccion && seleccionados.includes(d.id) ? 'ring-2 ring-blue-500' : ''}`}
                   onContextMenu={d.estado === 'alistado' && (ciudadLocal ? (d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? '') === ciudadLocal.trim().toLowerCase() : true) ? (e) => { e.preventDefault(); if (!modoSeleccion) { setModoSeleccion(true); setSeleccionados([d.id]) } } : undefined}
                   onTouchStart={d.estado === 'alistado' && (ciudadLocal ? (d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? '') === ciudadLocal.trim().toLowerCase() : true) ? () => { longPressTimer.current = setTimeout(() => { setModoSeleccion(true); setSeleccionados([d.id]) }, 600) } : undefined}
                   onTouchEnd={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null } }}
                   onTouchMove={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null } }}
                   onClick={modoSeleccion && d.estado === 'alistado' && (ciudadLocal ? (d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? '') === ciudadLocal.trim().toLowerCase() : true) ? () => setSeleccionados(prev => prev.includes(d.id) ? prev.filter(x => x !== d.id) : [...prev, d.id]) : undefined}>
-                  <div className={`px-4 py-3 flex items-center gap-2 ${d.estado === 'alistado' ? 'cursor-pointer select-none' : ''}`}
+                  <div className={`px-3 py-3 flex items-center gap-2 ${d.estado === 'alistado' ? 'cursor-pointer select-none' : ''}`}
                     onClick={d.estado === 'alistado' ? () => toggleExpanded(d.id) : undefined}>
                     <div className="flex-1 min-w-0 flex flex-col gap-0.5 overflow-hidden">
                       <div className="flex items-center gap-1.5 overflow-hidden">
                         <span className="text-white font-mono text-xs flex-shrink-0">F_{d.numeroFactura || d.numeroOrden}</span>
                         <span className="text-zinc-700 flex-shrink-0">·</span>
-                        <span className="text-white font-semibold text-sm truncate flex-1">{nombreCorto(d.clienteNombre)}</span>
+                        <span className="text-white font-semibold text-xs truncate flex-1">{nombreCorto(d.clienteNombre)}</span>
                         {ciudadNombre && <span className="text-zinc-400 text-xs flex-shrink-0 ml-1">{ciudadNombre}</span>}
                       </div>
                       {d.direccion && (
@@ -798,7 +895,7 @@ export default function ModuloOrdenes() {
                   </div>
 
                   {d.estado === 'pendiente' && (
-                    <div className="px-4 pb-3 pt-1 flex items-center gap-2 border-t border-zinc-800/60">
+                    <div className="px-3 pb-3 pt-1 flex items-center gap-2 border-t border-zinc-800/60">
                       <span className="text-white text-xs flex-shrink-0">{horaOrden}</span>
                       {tieneFotos ? (
                         btnFoto
@@ -812,7 +909,7 @@ export default function ModuloOrdenes() {
                   )}
 
                   {d.estado === 'alistado' && (
-                    <div className="px-4 pb-1.5 pt-1 border-t border-zinc-800/60">
+                    <div className="px-3 pb-1.5 pt-1 border-t border-zinc-800/60">
                       {/* Barra: foto + fecha + dropdown modo */}
                       {(() => {
                         const ciudadB = d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''
@@ -851,17 +948,6 @@ export default function ModuloOrdenes() {
                       </div>
                       {isExpanded && (
                         <div className="mt-2 space-y-3">
-                          {/* Panel cajas para fuera de localidad en modo local */}
-                          {(() => {
-                            const ciudadOrdenModo = d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''
-                            const esLocalModo = ciudadLocal ? ciudadOrdenModo === ciudadLocal.trim().toLowerCase() : false
-                            const modoActual = modoEnvio[d.id] ?? (esLocalModo ? 'local' : 'transportadora')
-                            const cajasFuera = cajasEdit[d.id] ?? d.num_cajas ?? 1
-                            if (!esLocalModo && modoActual === 'local') return null
-                            if (!esLocalModo) return null // modo viene del dropdown, no mostrar nada extra aquí
-                            return null
-                          })()}
-
                           {/* Local — una línea */}
                           {(() => { const ciudadOrdenModo2 = d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''; const esLocalModo2 = ciudadLocal ? ciudadOrdenModo2 === ciudadLocal.trim().toLowerCase() : false; const modoActual2 = modoEnvio[d.id] ?? (esLocalModo2 ? 'local' : 'transportadora'); return modoActual2 === 'local' })() && (() => {
                             const ciudadOrden = d.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''
@@ -1058,7 +1144,7 @@ export default function ModuloOrdenes() {
                         </div>
                         {/* Timeline desplegado */}
                         {isExpD && (
-                          <div className="px-4 pb-3 space-y-0.5 border-t border-zinc-800/40 pt-2">
+                          <div className="px-3 pb-3 space-y-0.5 border-t border-zinc-800/40 pt-2">
                             {[
                               { icon: '📋', label: 'Orden',      fecha: d.fechaOrden,    quien: null },
                               { icon: '🧾', label: 'Facturado',  fecha: d.fechaFactura,  quien: null },
@@ -1136,7 +1222,7 @@ export default function ModuloOrdenes() {
                   })()}
 
                   {d.estado === 'entregado' && (
-                    <div className="px-4 pb-3 pt-1 border-t border-zinc-800/60 mt-1">
+                    <div className="px-3 pb-3 pt-1 border-t border-zinc-800/60 mt-1">
                       <div className="flex items-center gap-3">
                         <span className="text-emerald-500 text-xs font-semibold">🤝 {formatFechaCorta(d.entregadoEl)}</span>
                         {tieneFotos && (
@@ -1226,25 +1312,31 @@ export default function ModuloOrdenes() {
               const cajasLog = cajasEdit[log.id] ?? log.num_cajas ?? 0
               const guiaLog = editTransporte[log.id]?.guia ?? log.guiaTransporte ?? ''
               return (
-                <div key={n} className="bg-zinc-900 border border-zinc-800 border-l-4 border-l-zinc-500 rounded-2xl overflow-hidden">
+                <div key={n} className={`bg-zinc-900 border-t border-r border-b border-zinc-800 border-l-4 ${log.entregadoEl ? 'border-l-emerald-600' : log.modo === 'repartidor' ? 'border-l-cyan-400' : 'border-l-orange-400'} rounded-2xl overflow-hidden`}>
                   {/* Header tappable */}
-                  <div className="px-4 py-3 flex items-start gap-2 cursor-pointer"
+                  <div className="px-3 py-3 flex items-start gap-2 cursor-pointer"
                     onClick={() => setExpanded(p => ({ ...p, [log.id]: !p[log.id] }))}>
                     <div className="flex-1 min-w-0 flex flex-col gap-0.5 overflow-hidden">
                       <div className="flex items-center gap-1.5 overflow-hidden">
                         <span className="text-white font-mono text-xs flex-shrink-0">F_{log.numeroFactura}</span>
                         <span className="text-zinc-700 flex-shrink-0">·</span>
-                        <span className="text-white font-semibold text-sm truncate flex-1">{nombreCorto(log.clienteNombre)}</span>
+                        <span className="text-white font-semibold text-xs truncate flex-1">{nombreCorto(log.clienteNombre)}</span>
                         {ciudad2 && <span className="text-zinc-400 text-xs flex-shrink-0">{ciudad2}</span>}
                       </div>
                       {log.direccion && <span className="text-zinc-500 text-xs truncate block">{log.direccion}</span>}
                     </div>
-                    <span className="text-zinc-500 text-xs mt-0.5">{isExpLog ? '▲' : '▼'}</span>
+                    <span className="text-xs mt-0.5 flex-shrink-0">
+                      {isExpLog ? '▲' : log.entregadoEl ? '✅' : log.modo === 'personal' ? '🤝' : log.modo === 'repartidor' ? '🚚' : (
+                        <span className="relative inline-flex">
+                          🚛{log.guiaTransporte && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-zinc-900" />}
+                        </span>
+                      )}
+                    </span>
                   </div>
 
                   {/* Timeline desplegado */}
                   {isExpLog && (
-                    <div className="px-4 pb-3 space-y-0.5 border-t border-zinc-800/40 pt-2">
+                    <div className="px-3 pb-3 space-y-0.5 border-t border-zinc-800/40 pt-2">
                       {[
                         { icon: '📋', label: 'Orden',      fecha: log.fechaOrden,    quien: log.vendedorNombre ? log.vendedorNombre.split(' ')[0].charAt(0).toUpperCase() + log.vendedorNombre.split(' ')[0].slice(1).toLowerCase() : null },
                         { icon: '🧾', label: 'Facturado',  fecha: log.fechaFactura,  quien: 'Admin' },
@@ -1412,7 +1504,7 @@ export default function ModuloOrdenes() {
 
       {/* Modal cámara fullscreen */}
       {camaraActiva && (
-        <div className="fixed inset-0 z-50 overflow-hidden touch-none">
+        <div className="fixed inset-0 overflow-hidden touch-none" style={{zIndex:9999,background:'#000'}}>
 
           {countdownSec !== null ? (
             /* ── Modo countdown: fotos fullscreen + número encima ── */
@@ -1443,10 +1535,35 @@ export default function ModuloOrdenes() {
           ) : (
             /* ── Modo cámara normal ── */
             <div className="absolute inset-0 bg-black flex flex-col">
-              <video ref={videoRef} autoPlay playsInline className="flex-1 object-cover w-full" style={{ touchAction: 'pinch-zoom' }} />
-              <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black via-black/90 to-transparent pt-6 pb-8 px-4">
+              <div className="relative flex-1 overflow-hidden"
+                onPointerDown={(e)=>{
+                  const rect=(e.currentTarget as HTMLElement).getBoundingClientRect()
+                  const px=e.clientX-rect.left,py=e.clientY-rect.top
+                  if(!cropBox){setCropBox({x:px,y:py,w:0,h:0});setCropResizing(true);setCropResizeStart({px,py,bw:0,bh:0})}
+                  else{const hx=cropBox.x+cropBox.w,hy=cropBox.y+cropBox.h
+                    if(Math.abs(px-hx)<28&&Math.abs(py-hy)<28){setCropResizing(true);setCropResizeStart({px,py,bw:cropBox.w,bh:cropBox.h})}
+                    else if(px>=cropBox.x&&px<=cropBox.x+cropBox.w&&py>=cropBox.y&&py<=cropBox.y+cropBox.h){setCropDragging(true);setCropDragStart({px,py,bx:cropBox.x,by:cropBox.y})}
+                    else{setCropBox({x:px,y:py,w:0,h:0});setCropResizing(true);setCropResizeStart({px,py,bw:0,bh:0})}}
+                }}
+                onPointerMove={(e)=>{
+                  const rect=(e.currentTarget as HTMLElement).getBoundingClientRect()
+                  const px=e.clientX-rect.left,py=e.clientY-rect.top
+                  if(cropResizing&&cropResizeStart&&cropBox){const el=e.currentTarget as HTMLElement;const maxW=el.offsetWidth-cropBox.x-4,maxH=el.offsetHeight-cropBox.y-4;setCropBox(b=>b?{...b,w:Math.min(maxW,Math.max(40,cropResizeStart.bw+(px-cropResizeStart.px))),h:Math.min(maxH,Math.max(40,cropResizeStart.bh+(py-cropResizeStart.py)))}:b)}
+                  else if(cropDragging&&cropDragStart)setCropBox(b=>b?{...b,x:cropDragStart.bx+(px-cropDragStart.px),y:cropDragStart.by+(py-cropDragStart.py)}:b)
+                }}
+                onPointerUp={()=>{setCropDragging(false);setCropResizing(false);setTimeout(()=>setCropTouched(true),1200)}}
+                onPointerLeave={()=>{setCropDragging(false);setCropResizing(false)}}>
+                <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" style={{touchAction:'none'}}/>
+                {cropBox&&cropBox.w>10&&cropBox.h>10&&(
+                  <div className="absolute pointer-events-none border-2 border-white" style={{left:cropBox.x,top:cropBox.y,width:cropBox.w,height:cropBox.h,boxShadow:'0 0 0 9999px rgba(0,0,0,0.45)'}}>
+                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-sm opacity-80"/>
+                  </div>
+                )}
+                {cropBox&&<button className="absolute top-2 right-2 w-8 h-8 bg-black/60 text-white rounded-full text-xs flex items-center justify-center" onPointerDown={e=>{e.stopPropagation();setCropBox(null);setTimeout(()=>setCropTouched(true),1200)}}>✕</button>}
+              </div>
+              <div className="absolute bottom-0 left-0 right-0 pb-8 px-4 pointer-events-none">
                 {fotosCapturadas.length > 0 && (
-                  <div className="flex gap-2 mb-4 overflow-x-auto">
+                  <div className="flex gap-2 mb-4 overflow-x-auto pointer-events-auto">
                     {fotosCapturadas.map((f, i) => (
                       <div key={i} className="relative flex-shrink-0">
                         <img src={f} className="w-14 h-14 object-cover rounded-xl border-2 border-white/60" />
@@ -1456,31 +1573,36 @@ export default function ModuloOrdenes() {
                     ))}
                   </div>
                 )}
-                <div className="flex items-center justify-between">
-                  <button onClick={cerrarCamara}
-                    className="w-16 h-16 rounded-2xl bg-zinc-800/80 border border-zinc-600 text-white text-xs flex flex-col items-center justify-center gap-1">
-                    <span className="text-lg">✕</span>
-                    <span>Cancelar</span>
-                  </button>
-                  <button onClick={capturarFoto}
-                    className="w-20 h-20 rounded-full bg-white border-4 border-zinc-400 active:scale-95 transition-transform shadow-lg" />
-                  {fotosCapturadas.length > 0 ? (
-                    <button onClick={enviarFotos}
-                      className="w-16 h-16 rounded-2xl bg-emerald-500 text-white text-xs flex flex-col items-center justify-center gap-1 font-bold">
-                      <span className="text-lg">✓</span>
-                      <span>{fotosCapturadas.length} foto{fotosCapturadas.length > 1 ? 's' : ''}</span>
+                <div className="flex items-center">
+                  <div className="flex items-center gap-2 pointer-events-auto w-16">
+                    <button onClick={cerrarCamara}
+                      className="w-16 h-16 rounded-2xl bg-zinc-800/80 border border-zinc-600 text-white text-xs flex flex-col items-center justify-center gap-1">
+                      <span className="text-lg">✕</span>
+                      <span>Cancelar</span>
                     </button>
-                  ) : (
-                    <div className="w-16 h-16" />
-                  )}
-                </div>
-                {soportaZoom && (
-                  <div className="flex items-center justify-center gap-3 mt-3">
-                    <button onClick={() => aplicarZoom(zoomLevel - 0.5)} className="w-8 h-8 rounded-full bg-zinc-700 text-white text-lg flex items-center justify-center">−</button>
-                    <span className="text-white text-xs w-10 text-center">{zoomLevel.toFixed(1)}x</span>
-                    <button onClick={() => aplicarZoom(zoomLevel + 0.5)} className="w-8 h-8 rounded-full bg-zinc-700 text-white text-lg flex items-center justify-center">+</button>
                   </div>
-                )}
+                  <div className="flex-1 flex justify-center">
+                    {cropTouched && (
+                      <button onClick={capturarFoto}
+                        className="w-20 h-20 rounded-full bg-white border-4 border-zinc-400 active:scale-95 transition-transform shadow-lg pointer-events-auto" />
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 pointer-events-auto w-16 justify-end">
+                    {fotosCapturadas.length > 0 ? (
+                      <button onClick={enviarFotos}
+                        className="w-16 h-16 rounded-2xl bg-emerald-500 text-white text-xs flex flex-col items-center justify-center gap-1 font-bold">
+                        <span className="text-lg">✓</span>
+                        <span>{fotosCapturadas.length} foto{fotosCapturadas.length > 1 ? 's' : ''}</span>
+                      </button>
+                    ) : soportaZoom ? (
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => aplicarZoom(zoomLevel - 0.5)} className="w-7 h-7 rounded-full bg-zinc-700/80 text-white text-base flex items-center justify-center">−</button>
+                        <span className="text-white text-xs w-8 text-center">{zoomLevel.toFixed(1)}x</span>
+                        <button onClick={() => aplicarZoom(zoomLevel + 0.5)} className="w-7 h-7 rounded-full bg-zinc-700/80 text-white text-base flex items-center justify-center">+</button>
+                      </div>
+                    ) : <div className="w-16" />}
+                  </div>
+                </div>
               </div>
             </div>
           )}
@@ -1506,43 +1628,124 @@ export default function ModuloOrdenes() {
         />
       )}
 
-      {/* Modal Cropper */}
-      {cropSrc && (
+      {/* Modal Anotación */}
+      {anotacionSrc && (
         <div className="fixed inset-0 bg-black z-[1000] flex flex-col">
-          <div className="relative flex-1 overflow-hidden">
-            <Cropper
-              ref={cropperRef}
-              src={cropSrc!}
-              style={{ height: '100%', width: '100%' }}
-              viewMode={1}
-              dragMode="move"
-              autoCropArea={1}
-              restore={false}
-              guides={false}
-              center={false}
-              highlight={false}
-              cropBoxMovable={true}
-              cropBoxResizable={true}
-              toggleDragModeOnDblclick={false}
-              background={false}
-              responsive={true}
-            />
-          </div>
-          <div style={{background:"#060a24"}} className="px-6 pb-8 pt-4 flex items-center justify-between">
-            <button onClick={descartarRecorte}
-              className="w-16 h-16 rounded-2xl bg-zinc-800 border border-zinc-600 text-white text-xs flex flex-col items-center justify-center gap-1">
-              <span className="text-lg">🗑️</span>
-              <span>Descartar</span>
-            </button>
-            <div className="flex flex-col items-center gap-1">
-              <p className="text-zinc-400 text-xs">Ajusta el recorte</p>
-              <p className="text-zinc-400 text-[10px]">Pellizca para zoom</p>
+          {anotShowToolbar && (
+            <div className="absolute top-0 left-0 right-0 z-10 bg-black/70 px-3 py-2 flex items-center justify-center gap-2 flex-wrap">
+              <button onClick={()=>{setAnotTool('text');setAnotText('');setAnotTextPendiente(null);setAnotTextPos(null)}}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold ${anotTool==='text'?'bg-blue-500 text-white':'bg-zinc-700 text-zinc-300'}`}>T Texto</button>
+              <button onClick={()=>{setAnotTool('arrow');setAnotTextPendiente(null);setAnotTextPos(null)}}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold ${anotTool==='arrow'?'bg-blue-500 text-white':'bg-zinc-700 text-zinc-300'}`}>➜ Flecha</button>
+              <div className="flex gap-1.5">
+                {['#FFFFFF','#FF3B30','#FFD60A','#30D158','#000000'].map(col=>(
+                  <button key={col} onClick={()=>setAnotColor(col)}
+                    className={`w-6 h-6 rounded-full border-2 transition-transform ${anotColor===col?'border-white scale-110':'border-transparent'}`}
+                    style={{background:col}}/>
+                ))}
+              </div>
+              {(anotaciones.length>0||anotTextPendiente)&&(
+                <button onClick={()=>{
+                  if(anotTextPendiente){setAnotTextPendiente(null);setAnotTextPos(null);return}
+                  const next=anotaciones.slice(0,-1);setAnotaciones(next)
+                  const cv=anotCanvasRef.current;if(cv)dibujarAnotaciones(cv,anotacionSrc!,next,null)
+                }} className="ml-auto text-zinc-400 text-xs px-2 py-1.5 bg-zinc-800/80 rounded-xl">↩</button>
+              )}
             </div>
-            <button onClick={confirmarRecorte}
-              className="w-16 h-16 rounded-2xl bg-emerald-500 text-white text-xs flex flex-col items-center justify-center gap-1 font-bold">
-              <span className="text-lg">✓</span>
-              <span>Usar</span>
-            </button>
+          )}
+          <div className="relative flex-1 overflow-hidden"
+            onPointerDown={(e)=>{
+              const rect=(e.currentTarget as HTMLElement).getBoundingClientRect()
+              const px=e.clientX-rect.left,py=e.clientY-rect.top
+              // Texto pendiente: arrastrar para posicionar
+              if(anotTool==='text'&&anotTextPendiente){setAnotTextDragging(true);setAnotTextPos({x:px,y:py});return}
+              // Verificar si toca un item existente para moverlo
+              const hitIdx = anotaciones.findLastIndex((a:any)=>{
+                if(a.type==='text') return Math.abs(px-a.x)<60&&Math.abs(py-a.y)<30
+                if(a.type==='arrow') {
+                  const mx=(a.x1+a.x2)/2,my=(a.y1+a.y2)/2
+                  return Math.abs(px-mx)<40&&Math.abs(py-my)<40
+                }
+                return false
+              })
+              if(hitIdx>=0){
+                setAnotTextDragging(true)
+                setAnotTextPos({x:px,y:py})
+                setAnotTextPendiente(`__move__${hitIdx}`)
+                return
+              }
+              if(anotTool==='arrow'){setAnotDrawing(true);setAnotStart({x:px,y:py})}
+            }}
+            onPointerMove={(e)=>{
+              const rect=(e.currentTarget as HTMLElement).getBoundingClientRect()
+              const px=e.clientX-rect.left,py=e.clientY-rect.top
+              if(anotTextDragging&&anotTextPendiente)setAnotTextPos({x:px,y:py})
+              else if(anotDrawing&&anotStart)setAnotArrow({x1:anotStart.x,y1:anotStart.y,x2:px,y2:py})
+            }}
+            onPointerUp={(e)=>{
+              const rect=(e.currentTarget as HTMLElement).getBoundingClientRect()
+              const px=e.clientX-rect.left,py=e.clientY-rect.top
+              if(anotTextDragging&&anotTextPendiente){
+                setAnotTextDragging(false)
+                if(anotTextPendiente.startsWith('__move__')){
+                  // Mover item existente
+                  const idx=parseInt(anotTextPendiente.replace('__move__',''))
+                  const next=anotaciones.map((a:any,i:number)=>{
+                    if(i!==idx) return a
+                    if(a.type==='text') return {...a,x:px,y:py}
+                    if(a.type==='arrow'){const dx=px-(a.x1+a.x2)/2,dy=py-(a.y1+a.y2)/2;return {...a,x1:a.x1+dx,y1:a.y1+dy,x2:a.x2+dx,y2:a.y2+dy}}
+                    return a
+                  })
+                  setAnotaciones(next);setAnotTextPendiente(null);setAnotTextPos(null)
+                  const cv=anotCanvasRef.current;if(cv)dibujarAnotaciones(cv,anotacionSrc!,next,null)
+                } else {
+                  const next=[...anotaciones,{type:'text',text:anotTextPendiente!,color:anotColor,x:px,y:py}]
+                  setAnotaciones(next);setAnotTextPendiente(null);setAnotTextPos(null);setAnotText('')
+                  const cv=anotCanvasRef.current;if(cv)dibujarAnotaciones(cv,anotacionSrc!,next,null)
+                }
+              } else if(anotDrawing&&anotStart){
+                const next=[...anotaciones,{type:'arrow',x1:anotStart.x,y1:anotStart.y,x2:px,y2:py,color:anotColor}]
+                setAnotaciones(next);setAnotArrow(null);setAnotDrawing(false)
+                const cv=anotCanvasRef.current;if(cv)dibujarAnotaciones(cv,anotacionSrc!,next,null)
+              }
+            }}>
+            <canvas className="w-full h-full object-contain" style={{touchAction:'none'}}
+              ref={(el)=>{(anotCanvasRef as any).current=el;if(el&&anotacionSrc)dibujarAnotaciones(el,anotacionSrc,anotaciones,anotArrow)}}/>
+            {anotTextPendiente&&anotTextPos&&(
+              <div className="absolute pointer-events-none font-bold text-lg select-none"
+                style={{left:anotTextPos.x,top:anotTextPos.y,color:anotColor,transform:'translate(-50%,-50%)',textShadow:'0 0 4px rgba(0,0,0,0.8)'}}>
+                {anotTextPendiente}
+              </div>
+            )}
+            {anotShowToolbar&&anotTool==='text'&&!anotTextPendiente&&(
+              <div className="absolute bottom-4 left-3 right-3 z-10 flex gap-2">
+                <input type="text" placeholder="Escribe un texto..." value={anotText}
+                  onChange={e=>setAnotText(e.target.value)}
+                  onKeyDown={e=>{if(e.key==='Enter'&&anotText.trim()){setAnotTextPendiente(anotText.trim());setAnotTextPos({x:80,y:80});setAnotShowToolbar(false)}}}
+                  className="flex-1 bg-black/70 border border-white/30 rounded-2xl px-4 py-2.5 text-white text-sm outline-none focus:border-white/60 placeholder-white/40"/>
+                <button onClick={()=>{if(anotText.trim()){setAnotTextPendiente(anotText.trim());setAnotTextPos({x:80,y:80});setAnotShowToolbar(false)}}}
+                  disabled={!anotText.trim()}
+                  className="w-10 h-10 bg-blue-500 disabled:opacity-40 text-white font-bold rounded-full flex items-center justify-center self-center">→</button>
+              </div>
+            )}
+          </div>
+          <div style={{background:'#060a24',paddingBottom:'max(16px, env(safe-area-inset-bottom))',marginBottom:'2%'}} className="px-6 pt-3 pb-0">
+            <div className="flex items-center justify-between">
+              <div className="flex gap-3" style={{marginRight:'10%'}}>
+                <button onClick={descartarAnotacion}
+                  className="w-16 h-16 rounded-2xl bg-zinc-800 border border-zinc-600 text-white text-xs flex flex-col items-center justify-center gap-1">
+                  <span className="text-lg">🗑️</span><span>Descartar</span>
+                </button>
+                <button onClick={()=>{setAnotShowToolbar(p=>!p);setAnotText('')}}
+                  className={`w-16 h-16 rounded-2xl text-xs flex flex-col items-center justify-center gap-1 font-bold border ${anotShowToolbar?'bg-blue-600 border-blue-400 text-white':'bg-zinc-700 border-zinc-600 text-zinc-300'}`}>
+                  <span className="text-xl">✏️</span><span>Tools</span>
+                </button>
+              </div>
+              <button onClick={confirmarAnotacion}
+                className="w-16 h-16 rounded-2xl bg-emerald-500 text-white text-xs flex flex-col items-center justify-center gap-1 font-bold">
+                <span className="text-lg">✓</span><span>Usar</span>
+              </button>
+            </div>
           </div>
         </div>
       )}

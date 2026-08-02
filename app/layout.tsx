@@ -7,6 +7,12 @@ import StaleDeployGuard from './StaleDeployGuard'
 
 const geist = Geist({ subsets: ['latin'] })
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
+}
+
 export const metadata: Metadata = {
   title: 'Gestor TuAgentX',
   description: 'Gestión de fuerza de trabajo en campo',

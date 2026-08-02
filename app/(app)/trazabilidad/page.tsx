@@ -503,7 +503,16 @@ export default function TrazabilidadPage() {
                       <span className="text-zinc-400 text-xs flex-shrink-0">{orden.ciudad}</span>
                     </div>
                   </div>
-                  <span className={`flex-shrink-0 mt-0.5 text-xs ${COLOR_ESTADO[orden.estado] || 'text-white'}`}>{abierto ? '▲' : '▼'}</span>
+                  <span className="flex-shrink-0 mt-0.5 text-xs">
+                  {abierto ? '▲' : (
+                    <span className="relative inline-flex">
+                      {ICONO_ESTADO[orden.estado] || '▼'}
+                      {(orden.estado === 'en_transito' || orden.estado === 'despachado') && orden.guiaTransporte && (
+                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-zinc-900" />
+                      )}
+                    </span>
+                  )}
+                </span>
                 </div>
 
                 {/* Timeline — solo si expandido */}
