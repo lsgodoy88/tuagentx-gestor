@@ -56,7 +56,7 @@ export async function GET() {
     prisma.empleado.count({ where: { empresaId, rol: 'vendedor', activo: true } }),
     // Card 3: Órdenes despachadas hoy / facturadas hoy
     (prisma as any).ordenDespacho.count({ where: { empresaId, estado: { in: ['en_entrega','entregado'] }, entregadoEl: { gte: hoy } } }),
-    (prisma as any).ordenDespacho.count({ where: { empresaId, createdAt: { gte: hoy } } }),
+    (prisma as any).ordenDespacho.count({ where: { empresaId, isFacturada: true, isActiva: true, fechaFactura: { gte: hoy } } }),
     // Card 2: Impulsadoras con ruta hoy / total impulsadoras activas
     (prisma as any).ruta.count({ where: { empresaId, cerrada: false, empleados: { some: { empleado: { rol: 'impulsadora' } } } } }),
     prisma.empleado.count({ where: { empresaId, rol: 'impulsadora', activo: true } }),
@@ -66,7 +66,7 @@ export async function GET() {
     // Metas mes actual — suma de todos los vendedores de la empresa
     (prisma as any).metaVenta.findMany({ where: { empresaId, mes: mesActual, anio: anioActual }, select: { metaPesos: true, empleado: { select: { nombre: true } } } }),
     (prisma as any).metaRecaudo.findMany({ where: { empresaId, mes: mesActual, anio: anioActual }, select: { metaPesos: true, empleado: { select: { nombre: true } } } }),
-    (prisma as any).ordenDespacho.aggregate({ where: { empresaId, createdAt: { gte: new Date(hoy.getFullYear(), hoy.getMonth(), 1) } }, _sum: { totalOrden: true } }),
+    (prisma as any).ordenDespacho.aggregate({ where: { empresaId, isFacturada: true, isActiva: true, fechaFactura: { gte: new Date(hoy.getFullYear(), hoy.getMonth(), 1) } }, _sum: { totalOrden: true } }),
   ])
 
   const visitasHoy = visitas30dias.filter((v: any) => new Date(v.fechaBogota) >= hoy).length
