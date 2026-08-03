@@ -5,6 +5,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma, DB_SCHEMA } from '@/lib/prisma'
 import { Prisma } from '@/app/generated/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
+import { checkPermiso } from '@/lib/permisos'
 import { calcularEstado } from '@/lib/cartera'
 
 
@@ -14,6 +15,8 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
+  if (user.role === 'supervisor' && !checkPermiso(session, 'verCartera'))
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   const empresaId = getEmpresaId(user)
   const { searchParams } = new URL(req.url)
   const q = searchParams.get('q') || ''

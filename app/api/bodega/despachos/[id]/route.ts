@@ -165,7 +165,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     const despachador = empleadoId
       ? await prisma.empleado.findUnique({ where: { id: empleadoId }, select: { nombre: true } }).catch(() => null)
       : null
-    const empresaMeta = await (prisma as any).empresa.findUnique({ where: { id: empresaId }, select: { ciudadEntregaLocal: true } }).catch(() => null)
+    // Heredar ciudadEntregaLocal de empresa propietaria si la propia está vacía
+    const empresaMeta = await (prisma as any).$queryRawUnsafe(
+      `SELECT COALESCE(NULLIF(TRIM(e."ciudadEntregaLocal"),''), NULLIF(TRIM(ep."ciudadEntregaLocal"),'')) AS "ciudadEntregaLocal"
+       FROM ${DB_SCHEMA}."Empresa" e
+       LEFT JOIN ${DB_SCHEMA}."EmpresaVinculada" ev ON ev."empresaClienteId" = e.id
+       LEFT JOIN ${DB_SCHEMA}."Empresa" ep ON ep.id = ev."empresaId"
+       WHERE e.id = $1 LIMIT 1`,
+      empresaId
+    ).then((r: any[]) => r[0] ?? null).catch(() => null)
     // Si solo se actualiza guía, actualizar el log existente en vez de crear uno nuevo
     const soloGuia = guiaTransporte !== undefined && !estado
     if (soloGuia) {

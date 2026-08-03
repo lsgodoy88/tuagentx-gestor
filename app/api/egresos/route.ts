@@ -3,12 +3,15 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
+import { checkPermiso } from '@/lib/permisos'
 import { mesBogota, anioBogota } from '@/lib/fechas'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
   const user = session.user as any
+  if (user.role === 'supervisor' && !checkPermiso(session, 'verEgresos'))
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   const empresaId = getEmpresaId(user)
   const { searchParams } = new URL(req.url)
   const mes = parseInt(searchParams.get('mes') || String(mesBogota()))

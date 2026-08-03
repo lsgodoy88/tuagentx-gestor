@@ -12,6 +12,8 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
+  if (user.role === 'supervisor' && !checkPermiso(session, 'verClientes'))
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   const empresaId = getEmpresaId(user)
 
   const { searchParams } = new URL(req.url)

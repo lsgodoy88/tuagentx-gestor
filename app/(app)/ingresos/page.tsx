@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useSession } from 'next-auth/react'
+import { checkPermiso } from '@/lib/permisos'
 
 // ─── Constantes ────────────────────────────────────────────────────────────
 const TABS = [
@@ -75,6 +77,7 @@ const tdStyle: React.CSSProperties = { padding: '6px 10px', fontSize: 12, fontWe
 
 // ─── Componente principal ──────────────────────────────────────────────────
 export default function SaldosPage() {
+  const { data: session } = useSession()
   const [tab, setTab]                   = useState('efectivo')
   const [vista, setVista]               = useState<Vista>('Día')
   const [fecha, setFecha]               = useState('')          // fecha de referencia (día/semana/mes)
@@ -232,12 +235,14 @@ export default function SaldosPage() {
       <div className="flex items-center justify-between">
         <h1 style={{ color: 'white', fontWeight: 700, fontSize: 18 }}>Saldos</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <select value={vista} onChange={e => cambiarVista(e.target.value as Vista)}
-            style={{ background: 'rgba(255,255,255,0.06)', color: 'white', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '6px 10px', fontSize: 13, fontWeight: 600, outline: 'none', cursor: 'pointer' }}>
-            <option value="Día">🔍 Día</option>
-            <option value="Semana">📅 Semana</option>
-            <option value="Mes">📆 Mes</option>
-          </select>
+          {checkPermiso(session, 'verBitacora') && (
+            <select value={vista} onChange={e => cambiarVista(e.target.value as Vista)}
+              style={{ background: 'rgba(255,255,255,0.06)', color: 'white', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '6px 10px', fontSize: 13, fontWeight: 600, outline: 'none', cursor: 'pointer' }}>
+              <option value="Día">🔍 Día</option>
+              <option value="Semana">📅 Semana</option>
+              <option value="Mes">📆 Mes</option>
+            </select>
+          )}
           <button onClick={() => setShowConfig(v => !v)}
             style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid ' + (showConfig ? 'rgba(59,130,246,0.5)' : '#1e2a3d'), background: showConfig ? 'rgba(59,130,246,0.15)' : 'rgba(13,18,32,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 17 }}>&#9881;</button>
         </div>

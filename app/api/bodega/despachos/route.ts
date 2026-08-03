@@ -92,14 +92,24 @@ export async function GET(req: NextRequest) {
   const ordenMap = new Map(ordenIds.map((id, i) => [id, i]))
   despachos.sort((a: any, b: any) => (ordenMap.get(a.id) ?? 0) - (ordenMap.get(b.id) ?? 0))
 
-  // Meta de empresa
+  // Meta de empresa — si ciudadEntregaLocal vacío, heredar de empresa propietaria (vinculada)
   const meta = await prisma.$queryRaw<[{
     ciudadEntregaLocal: string | null
     bodegaPuedeEnviar: boolean
     ultimaSyncBodega: Date | null
   }]>`
-    SELECT "ciudadEntregaLocal", "bodegaPuedeEnviar", "ultimaSyncBodega"
-    FROM ${Prisma.raw(DB_SCHEMA)}."Empresa" WHERE id = ${empresaId} LIMIT 1
+    SELECT
+      COALESCE(
+        NULLIF(TRIM(e."ciudadEntregaLocal"), ''),
+        NULLIF(TRIM(ep."ciudadEntregaLocal"), '')
+      ) AS "ciudadEntregaLocal",
+      e."bodegaPuedeEnviar",
+      e."ultimaSyncBodega"
+    FROM ${Prisma.raw(DB_SCHEMA)}."Empresa" e
+    LEFT JOIN ${Prisma.raw(DB_SCHEMA)}."EmpresaVinculada" ev ON ev."empresaClienteId" = e.id
+    LEFT JOIN ${Prisma.raw(DB_SCHEMA)}."Empresa" ep ON ep.id = ev."empresaId"
+    WHERE e.id = ${empresaId}
+    LIMIT 1
   `
 
   // Control de consecutivos — solo para tab despachado

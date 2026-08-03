@@ -8,6 +8,7 @@ import { useEffect, useState, useRef } from 'react'
 import dynamic from 'next/dynamic'
 import { GpsContext } from '@/lib/gps-context'
 import Link from 'next/link'
+import { checkPermiso } from '@/lib/permisos'
 import PermisosGuard from '@/components/PermisosGuard'
 import { NetworkBanner } from '@/components/NetworkBanner'
 import { clearAllCache } from '@/lib/offlineCache'
@@ -212,19 +213,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     ...(isEmpresa || isSupervisor ? [{
       label: 'Operaciones',
       items: [
-        { href: '/ingresos', label: 'Saldos', icon: '💵' },
-        { href: '/egresos',  label: 'Egresos',  icon: '🛍️' },
-        { href: '/empleados', label: 'Activos',   icon: '👥' },
-        { href: '/clientes',  label: 'Clientes',  icon: '🏪' },
-        { href: '/cartera',   label: 'Cartera',   icon: '💰' },
-        { href: '/recaudos',  label: 'Recaudos',  icon: '💳' },
+        ...(isEmpresa || checkPermiso(session, 'verSaldos')    ? [{ href: '/ingresos',  label: 'Saldos',    icon: '💵' }] : []),
+        ...(isEmpresa || checkPermiso(session, 'verEgresos')   ? [{ href: '/egresos',   label: 'Egresos',   icon: '🛍️' }] : []),
+        ...(isEmpresa || checkPermiso(session, 'verEmpleados') ? [{ href: '/empleados', label: 'Activos',   icon: '👥' }] : []),
+        ...(isEmpresa || checkPermiso(session, 'verClientes')  ? [{ href: '/clientes',  label: 'Clientes',  icon: '🏪' }] : []),
+        ...(isEmpresa || checkPermiso(session, 'verCartera')   ? [{ href: '/cartera',   label: 'Cartera',   icon: '💰' }] : []),
+        ...(isEmpresa || checkPermiso(session, 'verRecaudos')  ? [{ href: '/recaudos',  label: 'Recaudos',  icon: '💳' }] : []),
       ]
     }, {
       label: 'Visitas',
       items: [
-        { href: '/rutas',        label: 'Visitas',       icon: '📋' },
-        { href: '/impulsos',  label: 'Impulsos',      icon: '⚡' },
-        { href: '/trazabilidad', label: 'Bodega',  icon: '🏭' },
+        ...(isEmpresa || checkPermiso(session, 'verVisitas')  ? [{ href: '/rutas',        label: 'Visitas', icon: '📋' }] : []),
+        ...(isEmpresa || checkPermiso(session, 'verImpulsos') ? [{ href: '/impulsos',      label: 'Impulsos', icon: '⚡' }] : []),
+        ...(isEmpresa || checkPermiso(session, 'verBodega')   ? [{ href: '/trazabilidad', label: 'Bodega',  icon: '🏭' }] : []),
       ]
     }, {
       label: 'Análisis',
@@ -269,15 +270,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: '/code',      label: 'Code',     icon: '🧬' },
     ] : []),
     ...(isEmpresa || isSupervisor ? [
-      { href: '/ingresos', label: 'Saldos', icon: '💵' },
-      { href: '/egresos',  label: 'Egresos',  icon: '🛍️' },
-      { href: '/empleados',     label: 'Activos',      icon: '👥' },
-      { href: '/clientes',      label: 'Clientes',     icon: '🏪' },
-      { href: '/cartera',       label: 'Cartera',      icon: '💰' },
-      { href: '/recaudos',      label: 'Recaudos',     icon: '💳' },
-      { href: '/rutas',         label: 'Visitas',      icon: '📋' },
-      { href: '/impulsos',   label: 'Impulsos',     icon: '⚡' },
-      { href: '/trazabilidad',  label: 'Bodega', icon: '🏭' },
+      ...(isEmpresa || checkPermiso(session, 'verSaldos')    ? [{ href: '/ingresos',      label: 'Saldos',    icon: '💵' }] : []),
+      ...(isEmpresa || checkPermiso(session, 'verEgresos')   ? [{ href: '/egresos',       label: 'Egresos',   icon: '🛍️' }] : []),
+      ...(isEmpresa || checkPermiso(session, 'verEmpleados') ? [{ href: '/empleados',     label: 'Activos',   icon: '👥' }] : []),
+      ...(isEmpresa || checkPermiso(session, 'verClientes')  ? [{ href: '/clientes',      label: 'Clientes',  icon: '🏪' }] : []),
+      ...(isEmpresa || checkPermiso(session, 'verCartera')   ? [{ href: '/cartera',       label: 'Cartera',   icon: '💰' }] : []),
+      ...(isEmpresa || checkPermiso(session, 'verRecaudos')  ? [{ href: '/recaudos',      label: 'Recaudos',  icon: '💳' }] : []),
+      ...(isEmpresa || checkPermiso(session, 'verVisitas')   ? [{ href: '/rutas',         label: 'Visitas',   icon: '📋' }] : []),
+      ...(isEmpresa || checkPermiso(session, 'verImpulsos')  ? [{ href: '/impulsos',      label: 'Impulsos',  icon: '⚡' }] : []),
+      ...(isEmpresa || checkPermiso(session, 'verBodega')    ? [{ href: '/trazabilidad',  label: 'Bodega',    icon: '🏭' }] : []),
     ] : []),
     ...(isBodega ? [
       ...empresasBodega,
@@ -396,7 +397,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                   className="flex items-center gap-2.5 px-4 py-2.5 text-xs text-[#a1a1aa] hover:text-white hover:bg-[#27272a] transition-colors">
                   <span>⚙️</span> Configuración
                 </Link>
-                <button onClick={() => fetch('/api/auth/invalidate-cache', { method: 'POST' }).finally(() => signOut({ redirect: false }).then(() => { sessionStorage.clear(); window.location.href = '/login' }))}
+                <button onClick={() => (async () => {
+                    try {
+                      const reg = await navigator.serviceWorker?.getRegistration()
+                      const sub = await reg?.pushManager?.getSubscription()
+                      if (sub) await fetch('/api/push/desuscribir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: sub.endpoint }) })
+                    } catch {}
+                    await fetch('/api/auth/invalidate-cache', { method: 'POST' }).catch(() => {})
+                    await signOut({ redirect: false })
+                    sessionStorage.clear()
+                    window.location.href = '/login'
+                  })()}
                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-xs text-red-400 hover:text-red-300 hover:bg-[#27272a] transition-colors">
                   <span>🚪</span> Cerrar sesión
                 </button>
@@ -549,7 +560,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             style={{width:32,height:32,borderRadius:8,background:'rgba(59,130,246,0.10)',border:'1px solid rgba(59,130,246,0.20)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,fontSize:17,textDecoration:'none'}}>
             ⚙️
           </Link>
-          <button onClick={() => fetch('/api/auth/invalidate-cache', { method: 'POST' }).finally(() => signOut({ redirect: false }).then(() => { sessionStorage.clear(); window.location.href = '/login' }))}
+          <button onClick={() => (async () => {
+                    try {
+                      const reg = await navigator.serviceWorker?.getRegistration()
+                      const sub = await reg?.pushManager?.getSubscription()
+                      if (sub) await fetch('/api/push/desuscribir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ endpoint: sub.endpoint }) })
+                    } catch {}
+                    await fetch('/api/auth/invalidate-cache', { method: 'POST' }).catch(() => {})
+                    await signOut({ redirect: false })
+                    sessionStorage.clear()
+                    window.location.href = '/login'
+                  })()}
             style={{width:32,height:32,borderRadius:8,background:'rgba(239,68,68,0.10)',border:'1px solid rgba(239,68,68,0.30)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0,cursor:'pointer'}}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none">
               <path d="M12 3v9" stroke="#ef4444" strokeWidth="2.5" strokeLinecap="round"/>

@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
+import { checkPermiso } from '@/lib/permisos'
 import { audit } from '@/lib/audit'
 import { fechaBogotaStr, inicioDiaBogota, finDiaBogota } from '@/lib/fechas'
 
@@ -12,6 +13,8 @@ export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
+  if (user.role === 'supervisor' && !checkPermiso(session, 'verVisitas'))
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
   const empresaId = getEmpresaId(user)
 
   const rutas = await prisma.ruta.findMany({

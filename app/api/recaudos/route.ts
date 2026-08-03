@@ -4,6 +4,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma, DB_SCHEMA } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN, vendedorScope } from '@/lib/auth-helpers'
+import { checkPermiso } from '@/lib/permisos'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -12,6 +13,8 @@ export async function GET(req: NextRequest) {
 
   const { permitido, empleadoIdForzado } = vendedorScope(user)
   if (!permitido) return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+  if (user.role === 'supervisor' && !checkPermiso(session, 'verRecaudos'))
+    return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const empresaId = getEmpresaId(user)
   const { searchParams } = new URL(req.url)

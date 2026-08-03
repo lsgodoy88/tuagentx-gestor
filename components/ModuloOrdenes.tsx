@@ -159,12 +159,6 @@ export default function ModuloOrdenes() {
   const [anotTextPos, setAnotTextPos] = useState<{x:number,y:number} | null>(null)
   const [anotTextDragging, setAnotTextDragging] = useState(false)
   const [anotShowToolbar, setAnotShowToolbar] = useState(false)
-  const [cropBox, setCropBox] = useState<{x:number,y:number,w:number,h:number}|null>(null)
-  const [cropDragging, setCropDragging] = useState(false)
-  const [cropDragStart, setCropDragStart] = useState<{px:number,py:number,bx:number,by:number}|null>(null)
-  const [cropResizing, setCropResizing] = useState(false)
-  const [cropResizeStart, setCropResizeStart] = useState<{px:number,py:number,bw:number,bh:number}|null>(null)
-  const [cropTouched, setCropTouched] = useState(false)
   const [zoomLevel, setZoomLevel] = useState(1)
   const [soportaZoom, setSoportaZoom] = useState(false)
   const [asignarTodasRepartidor, setAsignarTodasRepartidor] = useState('')
@@ -215,10 +209,21 @@ export default function ModuloOrdenes() {
       const vh = container.offsetHeight
       if (vw > 0 && vh > 0) {
         const w = Math.round(vw * 0.4), h = Math.round(vh * 0.4)
-        setCropBox({ x: Math.round((vw-w)/2), y: Math.round((vh-h)/2), w, h })
+
       }
     }, 800)
     return () => clearTimeout(t)
+  }, [camaraActiva])
+
+  // Reconectar stream al video cuando camaraActiva vuelve a true y stream ya existe
+  useEffect(() => {
+    if (!camaraActiva || !streamRef.current) return
+    const video = videoRef.current
+    if (!video) return
+    // Siempre re-habilitar tracks (pueden haber sido pausados en capturarFoto)
+    streamRef.current.getTracks().forEach(t => { t.enabled = true })
+    if (video.srcObject !== streamRef.current) video.srcObject = streamRef.current
+    video.play().catch(() => {})
   }, [camaraActiva])
 
   useEffect(() => {
@@ -399,7 +404,6 @@ export default function ModuloOrdenes() {
     setCamaraActiva(true)
     setPreview(null)
     setFotosCapturadas([])
-    setCropTouched(false)
 
     const stream = await navigator.mediaDevices.getUserMedia({
       video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
@@ -431,17 +435,8 @@ export default function ModuloOrdenes() {
     const video = videoRef.current
     if (!video || !video.videoWidth) return
     const canvas = document.createElement('canvas')
-    if (cropBox && video.offsetWidth > 0) {
-      const scaleX = video.videoWidth / video.offsetWidth
-      const scaleY = video.videoHeight / video.offsetHeight
-      const sx = cropBox.x * scaleX, sy = cropBox.y * scaleY
-      const sw = cropBox.w * scaleX, sh = cropBox.h * scaleY
-      canvas.width = sw; canvas.height = sh
-      canvas.getContext('2d')!.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh)
-    } else {
-      canvas.width = video.videoWidth; canvas.height = video.videoHeight
-      canvas.getContext('2d')!.drawImage(video, 0, 0)
-    }
+    canvas.width = video.videoWidth; canvas.height = video.videoHeight
+    canvas.getContext('2d')!.drawImage(video, 0, 0)
     const base64 = canvas.toDataURL('image/jpeg', 0.85)
     setAnotaciones([]); setAnotArrow(null); setAnotText(''); setAnotShowToolbar(false)
     setAnotTextPendiente(null); setAnotTextPos(null)
@@ -455,17 +450,11 @@ export default function ModuloOrdenes() {
     if (!canvas) return
     setFotosCapturadas(prev => [...prev, canvas.toDataURL('image/jpeg', 0.9)])
     setAnotacionSrc(null)
-    // Reactivar stream y cámara para más fotos
-    streamRef.current?.getTracks().forEach(t => { t.enabled = true })
-    setCamaraActiva(true)
-    setCropTouched(false)
+    setCamaraActiva(true)  // useEffect reconecta el stream
   }
   function descartarAnotacion() {
-    // Reactivar stream — usuario puede retomar
-    streamRef.current?.getTracks().forEach(t => { t.enabled = true })
     setAnotacionSrc(null)
-    setCamaraActiva(true)
-    setCropTouched(false)
+    setCamaraActiva(true)  // useEffect reconecta el stream
   }
   function dibujarAnotaciones(canvas: HTMLCanvasElement, imgSrc: string, items: any[], arrow: any) {
     const ctx = canvas.getContext('2d')!
@@ -1535,31 +1524,8 @@ export default function ModuloOrdenes() {
           ) : (
             /* ── Modo cámara normal ── */
             <div className="absolute inset-0 bg-black flex flex-col">
-              <div className="relative flex-1 overflow-hidden"
-                onPointerDown={(e)=>{
-                  const rect=(e.currentTarget as HTMLElement).getBoundingClientRect()
-                  const px=e.clientX-rect.left,py=e.clientY-rect.top
-                  if(!cropBox){setCropBox({x:px,y:py,w:0,h:0});setCropResizing(true);setCropResizeStart({px,py,bw:0,bh:0})}
-                  else{const hx=cropBox.x+cropBox.w,hy=cropBox.y+cropBox.h
-                    if(Math.abs(px-hx)<28&&Math.abs(py-hy)<28){setCropResizing(true);setCropResizeStart({px,py,bw:cropBox.w,bh:cropBox.h})}
-                    else if(px>=cropBox.x&&px<=cropBox.x+cropBox.w&&py>=cropBox.y&&py<=cropBox.y+cropBox.h){setCropDragging(true);setCropDragStart({px,py,bx:cropBox.x,by:cropBox.y})}
-                    else{setCropBox({x:px,y:py,w:0,h:0});setCropResizing(true);setCropResizeStart({px,py,bw:0,bh:0})}}
-                }}
-                onPointerMove={(e)=>{
-                  const rect=(e.currentTarget as HTMLElement).getBoundingClientRect()
-                  const px=e.clientX-rect.left,py=e.clientY-rect.top
-                  if(cropResizing&&cropResizeStart&&cropBox){const el=e.currentTarget as HTMLElement;const maxW=el.offsetWidth-cropBox.x-4,maxH=el.offsetHeight-cropBox.y-4;setCropBox(b=>b?{...b,w:Math.min(maxW,Math.max(40,cropResizeStart.bw+(px-cropResizeStart.px))),h:Math.min(maxH,Math.max(40,cropResizeStart.bh+(py-cropResizeStart.py)))}:b)}
-                  else if(cropDragging&&cropDragStart)setCropBox(b=>b?{...b,x:cropDragStart.bx+(px-cropDragStart.px),y:cropDragStart.by+(py-cropDragStart.py)}:b)
-                }}
-                onPointerUp={()=>{setCropDragging(false);setCropResizing(false);setTimeout(()=>setCropTouched(true),1200)}}
-                onPointerLeave={()=>{setCropDragging(false);setCropResizing(false)}}>
+              <div className="relative flex-1 overflow-hidden">
                 <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" style={{touchAction:'none'}}/>
-                {cropBox&&cropBox.w>10&&cropBox.h>10&&(
-                  <div className="absolute pointer-events-none border-2 border-white" style={{left:cropBox.x,top:cropBox.y,width:cropBox.w,height:cropBox.h,boxShadow:'0 0 0 9999px rgba(0,0,0,0.45)'}}>
-                    <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-white rounded-sm opacity-80"/>
-                  </div>
-                )}
-                {cropBox&&<button className="absolute top-2 right-2 w-8 h-8 bg-black/60 text-white rounded-full text-xs flex items-center justify-center" onPointerDown={e=>{e.stopPropagation();setCropBox(null);setTimeout(()=>setCropTouched(true),1200)}}>✕</button>}
               </div>
               <div className="absolute bottom-0 left-0 right-0 pb-8 px-4 pointer-events-none">
                 {fotosCapturadas.length > 0 && (
@@ -1582,10 +1548,8 @@ export default function ModuloOrdenes() {
                     </button>
                   </div>
                   <div className="flex-1 flex justify-center">
-                    {cropTouched && (
-                      <button onClick={capturarFoto}
+                    <button onClick={capturarFoto}
                         className="w-20 h-20 rounded-full bg-white border-4 border-zinc-400 active:scale-95 transition-transform shadow-lg pointer-events-auto" />
-                    )}
                   </div>
                   <div className="flex items-center gap-2 pointer-events-auto w-16 justify-end">
                     {fotosCapturadas.length > 0 ? (

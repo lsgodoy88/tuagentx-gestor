@@ -1,5 +1,6 @@
 'use client'
 import { useSession } from 'next-auth/react'
+import PopupPermisos from '@/components/PopupPermisos'
 import { useEffect, useState, useCallback } from 'react'
 
 function slugify(n: string) {
@@ -61,6 +62,7 @@ export default function EmpleadosPage() {
   { key: 'verBitacora',       label: 'Ver bitácora' },
   ]
   const [permisos, setPermisos] = useState<Record<string, boolean>>({})
+  const [popupPermisos, setPopupPermisos] = useState(false)
   const [puedeCapturarGps, setPuedeCapturarGps] = useState(false)
   const [ciudadesAsignadas, setCiudadesAsignadas] = useState<string[]>([])
   const [ciudadBusqueda, setCiudadBusqueda] = useState('')
@@ -89,6 +91,8 @@ export default function EmpleadosPage() {
   }
   const parseMeta = (v: string) => v.replace(/[^0-9]/g,'')
   const [popupSync, setPopupSync] = useState(false)
+  const [popupSyncForm, setPopupSyncForm] = useState(false)
+  const [syncEvidencia, setSyncEvidencia] = useState<string|null>(null)
   const [syncEmpleadoId, setSyncEmpleadoId] = useState('')
   const [syncFecha, setSyncFecha] = useState('')
   const [syncPrimerRecibo, setSyncPrimerRecibo] = useState<{numeroRecibo:string, fecha:string}|null>(null)
@@ -318,7 +322,13 @@ export default function EmpleadosPage() {
     setMetasGuardando(false)
   }
 
+  function guardarPermisos(nuevosPermisos: Record<string, boolean>) {
+    setPermisos(nuevosPermisos)
+    setPopupPermisos(false)
+  }
+
   return (
+    <>
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Tabs principales */}
       <div className="flex gap-1 tab-pills rounded-xl p-1">
@@ -750,6 +760,33 @@ export default function EmpleadosPage() {
                     </select>
                   </div>
                 )}
+                {(slotRol === 'vendedor' || editando?.rol === 'vendedor') && tieneIntegracion && editando && (
+                  <button type="button" onClick={async () => {
+                    setSyncMsg(''); setSyncEvidencia(null)
+                    try {
+                      const r = await fetch(`/api/empleados/primer-recibo?empleadoId=${editando.id}`)
+                      const d = await r.json()
+                      if (d.numeroRecibo && d.fecha) {
+                        setSyncPrimerRecibo({ numeroRecibo: d.numeroRecibo, fecha: d.fecha })
+                        setSyncFecha(d.fecha.split('T')[0])
+                      } else { setSyncPrimerRecibo(null); setSyncFecha('') }
+                    } catch { setSyncPrimerRecibo(null) }
+                    setPopupSyncForm(true)
+                  }}
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-colors hover:opacity-90"
+                    style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.30)' }}>
+                    <div className="flex items-center gap-2">
+                      <span>🔗</span>
+                      <span className="text-white text-sm font-semibold">Sincronización cartera</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {syncEvidencia
+                        ? <span className="text-emerald-400 text-xs">{syncEvidencia}</span>
+                        : <span className="text-zinc-500 text-xs">Configurar</span>}
+                      <span className="text-zinc-500 text-xs">›</span>
+                    </div>
+                  </button>
+                )}
                 {(slotRol === 'vendedor' || editando?.rol === 'vendedor') && listas.length > 0 && (
                   <div>
                     <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Lista asignada</label>
@@ -795,33 +832,21 @@ export default function EmpleadosPage() {
                     </div>
                   </div>
                 )}
-                {(['supervisor','vendedor','bodega','impulsadora','entregas'].includes(slotRol) || ['supervisor','vendedor','bodega','impulsadora','entregas'].includes(editando?.rol)) && (
-                  <div>
-                    <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Permisos</label>
-                    <div className="space-y-2  rounded-xl p-3" style={{background:"#0d1220",border:"1px solid #1e2a3d"}}>
-                      {PERMISOS_CONFIG.map(p => (
-                        <div key={p.key} className="flex items-center justify-between">
-                          <span className="text-white text-sm">{p.label}</span>
-                          <button type="button" onClick={() => setPermisos(prev => {
-                            const next = { ...prev, [p.key]: !prev[p.key] }
-                            if (next[p.key]) {
-                              if (p.key === 'editarClientes')   next.verClientes = true
-                              if (p.key === 'registrarVisitas') next.verVisitas = true
-                              if (p.key === 'asignarRutas')     next.verRutas = true
-                            } else {
-                              if (p.key === 'verClientes')  next.editarClientes = false
-                              if (p.key === 'verVisitas')   next.registrarVisitas = false
-                              if (p.key === 'verRutas')     next.asignarRutas = false
-                            }
-                            return next
-                          })}
-                            className={"w-10 h-5 rounded-full transition-colors flex-shrink-0 " + (permisos[p.key] ? "bg-violet-500" : "bg-zinc-600")}>
-                            <div className={"w-4 h-4 bg-white rounded-full transition-transform mx-0.5 " + (permisos[p.key] ? "translate-x-5" : "translate-x-0")} />
-                          </button>
-                        </div>
-                      ))}
+                {(slotRol === 'supervisor' || editando?.rol === 'supervisor') && (
+                  <button type="button" onClick={() => setPopupPermisos(true)}
+                    className="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-colors hover:opacity-90"
+                    style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.30)' }}>
+                    <div className="flex items-center gap-2">
+                      <span>🔐</span>
+                      <span className="text-white text-sm font-semibold">Establecer permisos</span>
                     </div>
-                  </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-violet-400 text-xs">
+                        {Object.values(permisos).filter(Boolean).length} activos
+                      </span>
+                      <span className="text-zinc-500 text-xs">›</span>
+                    </div>
+                  </button>
                 )}
                 {(slotRol === 'vendedor' || slotRol === 'entregas' || editando?.rol === 'vendedor' || editando?.rol === 'entregas') && (
                   <div className="flex items-center justify-between  rounded-xl px-4 py-3" style={{background:"#0d1220",border:"1px solid #1e2a3d"}}>
@@ -1128,5 +1153,80 @@ export default function EmpleadosPage() {
       )}
 
     </div>
+
+    {popupSyncForm && editando && (
+      <div className="fixed inset-0 bg-black/95 flex items-center justify-center z-[60] p-4">
+        <div className="w-full max-w-sm rounded-2xl overflow-hidden flex flex-col"
+          style={{ background: '#0a0f28', border: '1px solid rgba(59,130,246,0.30)' }}>
+          {/* Header */}
+          <div className="flex items-center justify-between px-5 py-4 border-b" style={{ borderColor: 'rgba(59,130,246,0.20)' }}>
+            <div>
+              <p className="text-white font-bold text-sm">🔗 Sincronización cartera</p>
+              <p className="text-zinc-500 text-xs mt-0.5 truncate max-w-[200px]">{editando.nombre}</p>
+            </div>
+            <button onClick={() => { setPopupSyncForm(false); setSyncMsg('') }} className="text-zinc-500 hover:text-white text-lg leading-none">✕</button>
+          </div>
+          {/* Body */}
+          <div className="px-5 py-4 space-y-4">
+            <p className="text-zinc-400 text-xs">El saldo actual de UpTres se usará como base. Solo se contarán los pagos registrados en Gestor desde la fecha indicada.</p>
+            <div>
+              <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Fecha de inicio de pagos</label>
+              <input type="date" value={syncFecha} onChange={e => setSyncFecha(e.target.value)}
+                className="w-full rounded-lg px-3 py-2 text-white text-sm outline-none"
+                style={{ background: '#0d1220', border: '1px solid #1e2a3d' }} />
+              {syncPrimerRecibo && (
+                <p className="text-amber-400 text-xs mt-2">⚠️ Primer recibo: <strong>{syncPrimerRecibo.numeroRecibo}</strong> del {new Date(syncPrimerRecibo.fecha).toLocaleDateString('es-CO')}</p>
+              )}
+            </div>
+            {/* Evidencia post-sync */}
+            {syncEvidencia && (
+              <div className="rounded-xl px-4 py-3 text-center" style={{ background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.30)' }}>
+                <p className="text-emerald-400 text-sm font-bold">{syncEvidencia}</p>
+                <p className="text-zinc-500 text-xs mt-1">Sincronización completada</p>
+              </div>
+            )}
+            {syncMsg && !syncEvidencia && (
+              <p className={`text-sm text-center ${syncMsg.startsWith('✅') ? 'text-emerald-400' : 'text-red-400'}`}>{syncMsg}</p>
+            )}
+          </div>
+          {/* Footer */}
+          <div className="px-5 py-3 border-t flex gap-2" style={{ borderColor: 'rgba(59,130,246,0.20)' }}>
+            <button onClick={() => { setPopupSyncForm(false); setSyncMsg('') }}
+              className="flex-1 py-2.5 rounded-xl text-sm text-zinc-400 hover:text-white transition-colors"
+              style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              {syncEvidencia ? 'Cerrar' : 'Omitir'}
+            </button>
+            {!syncEvidencia && (
+              <button onClick={async () => {
+                if (!editando || !syncFecha) return
+                setSyncLoading(true); setSyncMsg('')
+                const res = await fetch('/api/vendedor/sync-inicial', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ empleadoId: editando.id, syncInicioAt: new Date(syncFecha + 'T05:00:00Z').toISOString() })
+                })
+                const data = await res.json()
+                setSyncLoading(false)
+                if (data.error) { setSyncMsg('Error: ' + data.error) }
+                else { setSyncEvidencia(`✅ ${data.actualizadas} deudas sincronizadas`) }
+              }} disabled={syncLoading || !syncFecha}
+                className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50"
+                style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', border: '1px solid rgba(59,130,246,0.50)' }}>
+                {syncLoading ? 'Sincronizando...' : '🔗 Sincronizar'}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    )}
+
+    {popupPermisos && editando && (
+      <PopupPermisos
+        nombreEmpleado={editando.nombre}
+        permisosIniciales={permisos}
+        onGuardar={guardarPermisos}
+        onCerrar={() => setPopupPermisos(false)}
+      />
+    )}
+    </>
   )
 }

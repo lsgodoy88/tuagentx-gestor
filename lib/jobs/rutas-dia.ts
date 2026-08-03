@@ -185,22 +185,35 @@ export async function runTurnosDia(forzar = false): Promise<{
       }
     }
 
-    // CIERRE
-    if (empresa.autoCerrarTurno && diasCerrar.includes(diaSemana) && horaActMin >= finMin) {
-      const turnosActivos = await prisma.turno.findMany({
-        where: { empleadoId: { in: empIds }, activo: true },
-        select: { id: true, empleadoId: true }
-      })
+    // CIERRE NORMAL — día configurado + hora fin alcanzada
+    const esDiaCierre = empresa.autoCerrarTurno && diasCerrar.includes(diaSemana) && horaActMin >= finMin
+    // CIERRE HUÉRFANO — turnos activos de días anteriores (sin importar diasCerrar)
+    // Cubre el caso: abrieron sábado (en diasCrear) pero sábado no está en diasCerrar
+    const corteHuerfano = new Date(Date.now() - 20 * 60 * 60 * 1000) // >20h abierto
+    const turnosActivos = await prisma.turno.findMany({
+      where: {
+        empleadoId: { in: empIds },
+        activo: true,
+        ...(esDiaCierre ? {} : { inicio: { lt: corteHuerfano } })
+      },
+      select: { id: true, empleadoId: true, inicio: true }
+    })
 
-      for (const turno of turnosActivos) {
-        await prisma.turno.update({
-          where: { id: turno.id },
-          data: { activo: false, fin: new Date(), finBogota: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Bogota' }) }
-        })
-        const emp = empleados.find(e => e.id === turno.empleadoId)
-        await audit('TURNO_AUTO_CERRADO', emp?.email ?? turno.empleadoId, `Cierre automatico hora=${empresa.horaFinRuta}`, turno.empleadoId, empresa.id)
-        turnosCerrados++
-      }
+    for (const turno of turnosActivos) {
+      const esHuerfano = !esDiaCierre
+      await prisma.turno.update({
+        where: { id: turno.id },
+        data: { activo: false, fin: new Date(), finBogota: new Date().toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/Bogota' }) }
+      })
+      const emp = empleados.find(e => e.id === turno.empleadoId)
+      await audit(
+        'TURNO_AUTO_CERRADO',
+        emp?.email ?? turno.empleadoId,
+        `Cierre ${esHuerfano ? 'huerfano' : 'automatico'} hora=${empresa.horaFinRuta}`,
+        turno.empleadoId,
+        empresa.id
+      )
+      turnosCerrados++
     }
 
     empresasProcesadas++

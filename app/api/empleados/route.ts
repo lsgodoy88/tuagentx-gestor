@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
+import { permisosConDefaults } from '@/lib/permisos'
 import { audit } from '@/lib/audit'
 import bcrypt from 'bcryptjs'
 
@@ -88,7 +89,7 @@ export async function POST(req: NextRequest) {
       vendedorId: vendedorId || null,
       puedeCapturarGps: puedeCapturarGps ?? false,
       ciudades: ciudades || [],
-      permisos: permisos ?? {},
+      permisos: permisosConDefaults(rol, permisos ?? {}),
       etiqueta: etiqueta || null,
       apiId: apiId || null,
       empresaId,
@@ -139,7 +140,11 @@ export async function PUT(req: NextRequest) {
   if (email) data.email = email
   if (password) data.password = await bcrypt.hash(password, 10)
   if (ciudades !== undefined) data.ciudades = ciudades
-  if (permisos !== undefined) data.permisos = permisos
+  if (permisos !== undefined) {
+    // Para supervisores: solo guardar keys del catálogo actual (elimina obsoletos)
+    const empleadoRol = (await prisma.empleado.findUnique({ where: { id }, select: { rol: true } }))?.rol
+    data.permisos = empleadoRol === 'supervisor' ? permisosConDefaults('supervisor', permisos) : permisos
+  }
   if (etiqueta !== undefined) data.etiqueta = etiqueta || null
   if (apiId !== undefined) data.apiId = apiId || null
   if (listaIds !== undefined) {
