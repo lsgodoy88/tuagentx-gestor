@@ -99,9 +99,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           const permiso = await Notification.requestPermission()
           if (permiso !== 'granted') return
           const existing = await reg.pushManager.getSubscription()
-          const sub = existing || await reg.pushManager.subscribe({
+          // Si la suscripción existente usa endpoint legacy (fcm/send), descartarla
+          if (existing?.endpoint?.includes('/fcm/send/')) {
+            await existing.unsubscribe()
+          }
+          const validSub = existing?.endpoint?.includes('/fcm/send/') ? null : existing
+          const sub = validSub || await reg.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: 'BGM43jCYmNx71QbrprleQr4ob0WhwaZj65jrB4H7QzjDiOVpvxsOeciZSEEI3um1GN4LnXrhz_z8TI4wpt41-P8'
+            applicationServerKey: 'BDpl-nZduxeUL-IIrDrk5Ty0zhJVBJbDTxC5Suwscov2F73vG-fm-5AyOmsmYs5zJPZQOrEDAPGlod2Dj5DE6UY'
           })
           await fetch('/api/push/suscribir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub.toJSON()) })
         } catch(e) { console.log('Push no disponible:', e) }
