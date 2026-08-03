@@ -51,7 +51,6 @@ function CardRingDrill({ emoji, label, valorHoy, valorMes, metaMes, realMes, col
   const [open, setOpen] = useState(false)
   const router = useRouter()
   const pct = metaMes > 0 ? Math.min(Math.round(((realMes ?? valorHoy)/metaMes)*100), 100) : 0
-  const max = Math.max(...vendedores.map(v=>v.monto), 1)
   return (
     <div className="rounded-2xl hover-lift card-glass" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',overflow:'hidden'}}>
       {/* Header — siempre visible */}
@@ -85,24 +84,18 @@ function CardRingDrill({ emoji, label, valorHoy, valorMes, metaMes, realMes, col
       {/* Drill-down barras — CSS Grid collapse */}
       <div style={{display:'grid',gridTemplateRows:open?'1fr':'0fr',transition:'grid-template-rows 0.35s cubic-bezier(.4,0,.2,1)'}}>
         <div style={{overflow:'hidden'}}>
-          <div style={{borderTop:'1px solid rgba(255,255,255,0.07)',padding:'10px 16px 14px'}}>
+          <div style={{borderTop:'1px solid rgba(255,255,255,0.07)',padding:'8px 10px 10px'}}>
             {vendedores.length === 0
               ? <p style={{color:'#4b5563',fontSize:11,textAlign:'center'}}>Sin datos del mes</p>
               : vendedores.map((v,i) => {
-                  const barW = Math.round((v.monto/max)*100)
+                  const pctV = (v.meta ?? 0) > 0 ? Math.min(Math.round((v.monto/v.meta!)*100),999) : null
                   return (
-                    <div key={v.nombre} style={{display:'flex',alignItems:'center',gap:8,marginBottom:i<vendedores.length-1?10:0,width:'100%',minWidth:0}}>
-                      {/* Nombre — 22% */}
-                      <span style={{color:'#fff',fontSize:13,flexShrink:0,width:'22%',whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{v.nombre.split(' ')[0]}</span>
-                      {/* Valor — 30% */}
-                      <span style={{color:'#fff',fontSize:13,fontWeight:700,flexShrink:0,width:'30%',textAlign:'right',whiteSpace:'nowrap'}}>${Math.round(v.monto).toLocaleString('es-CO')}</span>
-                      {/* Barra — flex */}
-                      <div style={{flex:1,minWidth:0,background:'rgba(255,255,255,0.06)',borderRadius:4,height:8,overflow:'hidden'}}>
-                        <div style={{width:barW+'%',height:'100%',borderRadius:4,background:color,transition:'width 0.5s cubic-bezier(.4,0,.2,1)'}} />
-                      </div>
-                      {/* % — 13%, solo si tiene meta */}
-                      <span style={{flexShrink:0,width:'13%',textAlign:'right',color:'#fff',fontSize:13,fontWeight:600,whiteSpace:'nowrap'}}>
-                        {(v.meta ?? 0) > 0 ? `${Math.min(Math.round((v.monto/v.meta!)*100),100)}%` : ''}
+                    <div key={v.nombre} style={{display:'grid',gridTemplateColumns:'30% 30% 30% 10%',gap:0,alignItems:'center',marginBottom:i<vendedores.length-1?5:0,width:'100%',minWidth:0}}>
+                      <span style={{color:'#cbd5e1',fontSize:12,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis'}}>{(() => { const p = v.nombre.trim().split(' '); return p[0] + (p[1] ? ' ' + p[1][0] + '.' : '') })()} </span>
+                      <span style={{color,fontSize:12,fontWeight:700,textAlign:'right',whiteSpace:'nowrap'}}>${Math.round(v.monto).toLocaleString('es-CO')}</span>
+                      <span style={{color:'#fff',fontSize:12,textAlign:'right',whiteSpace:'nowrap'}}>${Math.round(v.meta??0).toLocaleString('es-CO')}</span>
+                      <span style={{color: pctV===null?'#4b5563': pctV>=100?'#34d399':'#fbbf24',fontSize:12,fontWeight:700,textAlign:'right',whiteSpace:'nowrap',minWidth:36}}>
+                        {pctV!==null ? pctV+'%' : '—'}
                       </span>
                     </div>
                   )
@@ -394,7 +387,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
             color="#60a5fa"
             vendedores={stats.recaudoPorVendedor||[]}
             labelHoy="mes" labelMes="meta"
-           
+            href="/cobros"
           />
 
 

@@ -49,9 +49,10 @@ export async function GET() {
       if (!mesMap.has(r.mes)) mesMap.set(r.mes, { mes: r.mes, totalVentas: 0, totalRecaudo: 0, vendedores: {} })
       const e = mesMap.get(r.mes)!
       const k = r.vendedor_api_id
-      if (!e.vendedores[k]) e.vendedores[k] = { nombre: r.entidad_nombre, ventas: 0, recaudo: 0, ordenes: 0, cobros: 0 }
+      if (!e.vendedores[k]) e.vendedores[k] = { nombre: r.entidad_nombre, ventas: 0, recaudo: 0, ordenes: 0, cobros: 0, meta: 0 }
       e.vendedores[k].ventas += r.datos.total ?? 0
       e.vendedores[k].ordenes += r.datos.ordenes ?? 0
+      if (r.datos.meta) e.vendedores[k].meta = r.datos.meta
       e.totalVentas += r.datos.total ?? 0
     }
 
@@ -59,9 +60,10 @@ export async function GET() {
       if (!mesMap.has(r.mes)) mesMap.set(r.mes, { mes: r.mes, totalVentas: 0, totalRecaudo: 0, vendedores: {} })
       const e = mesMap.get(r.mes)!
       const k = r.empleado_id
-      if (!e.vendedores[k]) e.vendedores[k] = { nombre: r.entidad_nombre, ventas: 0, recaudo: 0, ordenes: 0, cobros: 0 }
+      if (!e.vendedores[k]) e.vendedores[k] = { nombre: r.entidad_nombre, ventas: 0, recaudo: 0, ordenes: 0, cobros: 0, metaRecaudo: 0 }
       e.vendedores[k].recaudo += r.datos.total ?? 0
       e.vendedores[k].cobros += r.datos.cobros ?? 0
+      if (r.datos.meta) e.vendedores[k].metaRecaudo = r.datos.meta
       e.totalRecaudo += r.datos.total ?? 0
     }
 

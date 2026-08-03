@@ -77,12 +77,25 @@ export async function GET() {
   const cobrosTotal = visitas30dias.filter((v: any) => v.tipo === 'cobro').reduce((a: number, v: any) => a + (v.monto || 0), 0)
   const ventasHoy = visitas30dias.filter((v: any) => v.tipo === 'venta' && new Date(v.fechaBogota) >= hoy).reduce((a: number, v: any) => a + (v.monto || 0), 0)
 
-  // Top empleados
+  // Top empleados desde OrdenDespacho (fuente única, igual que ventasMes)
+  const inicioMesOrdenes = new Date(hoy.getFullYear(), hoy.getMonth(), 1)
+  const ordenesVendedores: any[] = await (prisma as any).ordenDespacho.findMany({
+    where: { empresaId, isFacturada: true, isActiva: true, fechaFactura: { gte: inicioMesOrdenes },
+      vendedorApiId: { not: null } },
+    select: { vendedorApiId: true, totalOrden: true },
+  })
+  // Mapear vendedorApiId → nombre via empleados
+  const vendedorNombreMap: Record<string,string> = {}
+  ;(await (prisma as any).empleado.findMany({
+    where: { empresaId, rol: 'vendedor', vendedorId: { not: null } },
+    select: { vendedorId: true, nombre: true }
+  })).forEach((e: any) => { if (e.vendedorId) vendedorNombreMap[e.vendedorId] = e.nombre })
   const empleadosMap: Record<string, { ventas: number, monto: number }> = {}
-  visitas30dias.filter((v: any) => v.empleado?.rol === 'vendedor').forEach((v: any) => {
-    const nombre = v.empleado?.nombre || 'Sin nombre'
+  ordenesVendedores.forEach((o: any) => {
+    const nombre = vendedorNombreMap[o.vendedorApiId] || 'Sin asignar'
     if (!empleadosMap[nombre]) empleadosMap[nombre] = { ventas: 0, monto: 0 }
-    if (v.tipo === 'venta') { empleadosMap[nombre].ventas++; empleadosMap[nombre].monto += v.monto || 0 }
+    empleadosMap[nombre].ventas++
+    empleadosMap[nombre].monto += Number(o.totalOrden || 0)
   })
   const metaVentaByNombre: Record<string,number> = {}
   metaVentaRows.forEach((r: any) => { if (r.empleado?.nombre) metaVentaByNombre[r.empleado.nombre] = Number(r.metaPesos||0) })

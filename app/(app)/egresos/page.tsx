@@ -183,18 +183,6 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
 
   return (
     <div className="space-y-1">
-      {/* Título — doble clic para editar */}
-      <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-xl" style={{border:'1px solid rgba(255,255,255,0.10)'}}>
-        <span>{cat.emoji}</span>
-        {editandoTitulo
-          ? <input autoFocus value={nuevoLabel} onChange={e => setNuevoLabel(e.target.value)}
-              onBlur={() => { setEditandoTitulo(false); if (nuevoLabel.trim() && nuevoLabel !== cat.label) onCatUpdate?.(cat.id, nuevoLabel.trim(), cat.emoji) }}
-              onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') { setNuevoLabel(cat.label); setEditandoTitulo(false) } }}
-              style={{ background:'transparent', border:'none', outline:'none', fontSize:14, fontWeight:700, color:'white', width: Math.max(80, nuevoLabel.length * 9) }} />
-          : <h2 className="text-sm font-bold text-white cursor-pointer" onDoubleClick={() => setEditandoTitulo(true)} title="Doble clic para editar">{nuevoLabel}</h2>
-        }
-
-      </div>
       <div className="rounded-2xl border border-zinc-800 overflow-hidden" style={{ background: '#0f1623' }}>
         <div className="overflow-x-auto" ref={el => {
             if (!el) return
@@ -204,6 +192,20 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
           }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
             <thead>
+              <tr style={{ background: '#0d1520', borderBottom: '1px solid #1e2a3d' }}>
+                <th colSpan={11} style={{ padding: '8px 14px', textAlign: 'left', border: 'none' }}>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                    <span>{cat.emoji}</span>
+                    {editandoTitulo
+                      ? <input autoFocus value={nuevoLabel} onChange={e => setNuevoLabel(e.target.value)}
+                          onBlur={() => { setEditandoTitulo(false); if (nuevoLabel.trim() && nuevoLabel !== cat.label) onCatUpdate?.(cat.id, nuevoLabel.trim(), cat.emoji) }}
+                          onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); if (e.key === 'Escape') { setNuevoLabel(cat.label); setEditandoTitulo(false) } }}
+                          style={{ background: 'transparent', border: 'none', outline: 'none', fontSize: 13, fontWeight: 700, color: 'white', width: Math.max(80, nuevoLabel.length * 9) }} />
+                      : <span className="text-sm font-bold text-white cursor-pointer" onDoubleClick={() => setEditandoTitulo(true)} title="Doble clic para editar">{nuevoLabel}</span>
+                    }
+                  </span>
+                </th>
+              </tr>
               <tr>
                 {['FECHA','CONCEPTO','VALOR','RETENCIÓN','ABONO/PAGO','DESCUENTO','SALDO','FECHA PAGO','MEDIO PAGO','ESTADO','AUTORIZA'].map(h => (
                   <th key={h} style={{ ...thStyle, minWidth: h === 'CONCEPTO' ? 200 : undefined }}>{h}</th>

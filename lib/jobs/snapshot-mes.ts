@@ -27,12 +27,20 @@ export async function runSnapshotMes(mesOverride?: string): Promise<{ ventas: nu
       'ventas',
       od."vendedorApiId",
       COALESCE(e.nombre, 'Sin asignar'),
-      jsonb_build_object('total', SUM(od."totalOrden")::float, 'ordenes', COUNT(*)::int),
+      jsonb_build_object(
+        'total',   SUM(od."totalOrden")::float,
+        'ordenes', COUNT(*)::int,
+        'meta',    COALESCE(MAX(mv."metaPesos")::float, 0)
+      ),
       NOW(), NOW()
     FROM ${DB_SCHEMA}."OrdenDespacho" od
-    LEFT JOIN ${DB_SCHEMA}."Empleado" e ON e."apiId" = od."vendedorApiId" AND e."empresaId" = od."empresaId"
+    LEFT JOIN ${DB_SCHEMA}."Empleado" e ON e."vendedorId" = od."vendedorApiId" AND e."empresaId" = od."empresaId"
+    LEFT JOIN ${DB_SCHEMA}."MetaVenta" mv ON mv."empleadoId" = e.id
+      AND mv.mes = EXTRACT(MONTH FROM DATE_TRUNC('month', TO_DATE($1, 'YYYY-MM')))::int
+      AND mv.anio = EXTRACT(YEAR  FROM DATE_TRUNC('month', TO_DATE($1, 'YYYY-MM')))::int
     WHERE od."isActiva" = true
-      AND TO_CHAR(DATE_TRUNC('month', od."createdAt" AT TIME ZONE 'America/Bogota'), 'YYYY-MM') = $1
+      AND od."isFacturada" = true
+      AND TO_CHAR(od."fechaFactura" AT TIME ZONE 'America/Bogota', 'YYYY-MM') = $1
     GROUP BY od."empresaId", od."vendedorApiId", COALESCE(e.nombre, 'Sin asignar')
     ON CONFLICT DO NOTHING
     RETURNING id
@@ -48,10 +56,17 @@ export async function runSnapshotMes(mesOverride?: string): Promise<{ ventas: nu
       'recaudo',
       v."empleadoId",
       e.nombre,
-      jsonb_build_object('total', SUM(v.monto)::float, 'cobros', COUNT(*)::int),
+      jsonb_build_object(
+        'total',  SUM(v.monto)::float,
+        'cobros', COUNT(*)::int,
+        'meta',   COALESCE(MAX(mr."metaPesos")::float, 0)
+      ),
       NOW(), NOW()
     FROM ${DB_SCHEMA}."Visita" v
     JOIN ${DB_SCHEMA}."Empleado" e ON e.id = v."empleadoId"
+    LEFT JOIN ${DB_SCHEMA}."MetaRecaudo" mr ON mr."empleadoId" = e.id
+      AND mr.mes = EXTRACT(MONTH FROM DATE_TRUNC('month', TO_DATE($1, 'YYYY-MM')))::int
+      AND mr.anio = EXTRACT(YEAR  FROM DATE_TRUNC('month', TO_DATE($1, 'YYYY-MM')))::int
     WHERE v.tipo = 'cobro'
       AND TO_CHAR(DATE_TRUNC('month', v."fechaBogota" AT TIME ZONE 'America/Bogota'), 'YYYY-MM') = $1
     GROUP BY e."empresaId", v."empleadoId", e.nombre
