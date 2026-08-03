@@ -180,7 +180,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       try {
         const updateResult = await (prisma as any).$queryRawUnsafe(
           `UPDATE ${DB_SCHEMA}."DespachoLog" SET "guiaTransporte" = $1 WHERE "empresaId" = $2 AND "numeroFactura" = $3 AND "despachadoEl" = (SELECT MAX("despachadoEl") FROM ${DB_SCHEMA}."DespachoLog" WHERE "empresaId" = $2 AND "numeroFactura" = $3) RETURNING id`,
-          updated.guiaTransporte ?? null, empresaId, updated.numeroFactura
+          updated.guiaTransporte ?? null, empresaIdOrden, updated.numeroFactura
         )
         console.log('[guia update log] rows updated:', updateResult?.length ?? 0)
       } catch (e) { console.error('[guia update log] error', e) }

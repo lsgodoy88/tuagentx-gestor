@@ -194,6 +194,7 @@ export default function ModuloOrdenes() {
   const streamRef = useRef<MediaStream | null>(null)
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const trackRef = useRef<MediaStreamTrack | null>(null)
+  const enviandoFotosRef = useRef(false)
 
   const esAdmin = user?.role === 'empresa' || user?.role === 'supervisor'
 
@@ -505,12 +506,28 @@ export default function ModuloOrdenes() {
 
   async function enviarFotos() {
     if (!fotosCapturadas.length || !camaraOrdenId) return
-    // Detener stream — la cámara ya no se necesita
+    if (enviandoFotosRef.current) return  // guard doble ejecución
+    enviandoFotosRef.current = true
+    // Detener stream y mostrar countdown inmediatamente — evita pantalla negra
     streamRef.current?.getTracks().forEach(t => t.stop())
+    streamRef.current = null
     const ordenId = camaraOrdenId
+    const fotosAEnviar = [...fotosCapturadas]  // snapshot inmutable
+    setCountdownSec(2)
+    countdownRef.current = setInterval(() => {
+      setCountdownSec(prev => {
+        if (prev === null || prev <= 1) {
+          clearInterval(countdownRef.current!)
+          countdownRef.current = null
+          return null
+        }
+        return prev - 1
+      })
+    }, 1000)
+    // Subir fotos en paralelo con alistar
     setSaving(p => ({ ...p, [ordenId]: true }))
     try {
-      for (const foto of fotosCapturadas) {
+      for (const foto of fotosAEnviar) {
         const res = await fetch('/api/bodega/foto', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -529,27 +546,16 @@ export default function ModuloOrdenes() {
       }
     } finally {
       setSaving(p => ({ ...p, [ordenId]: false }))
-      // NO limpiar fotosCapturadas aquí — las necesita el countdown para mostrarlas
+      enviandoFotosRef.current = false
     }
-    // Fotos subidas — iniciar countdown para alistar automáticamente
-    setCountdownSec(2)
-    countdownRef.current = setInterval(() => {
-      setCountdownSec(prev => {
-        if (prev === null || prev <= 1) {
-          clearInterval(countdownRef.current!)
-          countdownRef.current = null
-          // Alistar y cerrar
-          marcarAlistado(ordenId).then(() => {
-            setCamaraActiva(false)
-            setCamaraOrdenId(null)
-            setCountdownSec(null)
-            setFotosCapturadas([])
-          })
-          return null
-        }
-        return prev - 1
-      })
-    }, 1000)
+    // Alistar y cerrar al terminar uploads
+    await marcarAlistado(ordenId)
+    clearInterval(countdownRef.current!)
+    countdownRef.current = null
+    setCamaraActiva(false)
+    setCamaraOrdenId(null)
+    setCountdownSec(null)
+    setFotosCapturadas([])
   }
 
   function cancelarCountdown() {
@@ -1553,8 +1559,8 @@ export default function ModuloOrdenes() {
                   </div>
                   <div className="flex items-center gap-2 pointer-events-auto w-16 justify-end">
                     {fotosCapturadas.length > 0 ? (
-                      <button onClick={enviarFotos}
-                        className="w-16 h-16 rounded-2xl bg-emerald-500 text-white text-xs flex flex-col items-center justify-center gap-1 font-bold">
+                      <button onClick={enviarFotos} disabled={saving[camaraOrdenId ?? ''] || false}
+                        className="w-16 h-16 rounded-2xl bg-emerald-500 disabled:opacity-50 text-white text-xs flex flex-col items-center justify-center gap-1 font-bold">
                         <span className="text-lg">✓</span>
                         <span>{fotosCapturadas.length} foto{fotosCapturadas.length > 1 ? 's' : ''}</span>
                       </button>
