@@ -26,7 +26,8 @@ export async function enviarPushEmpleados(empleadoIds: string[], titulo: string,
       )
     } catch (e: any) {
       const status = e?.statusCode ?? e?.status
-      if (status === 410 || status === 404) {
+      const errMsg = e?.message ?? ''
+      if (status === 410 || status === 404 || errMsg.includes('unexpected response')) {
         // Suscripción expirada o cancelada — limpiar DB
         await prisma.$executeRaw`
           DELETE FROM ${Prisma.raw(DB_SCHEMA)}."PushSuscripcion" WHERE endpoint = ${sub.endpoint}`
@@ -56,7 +57,8 @@ export async function enviarPushAdmin(empresaId: string, titulo: string, cuerpo:
       )
     } catch (e: any) {
       const status = e?.statusCode ?? e?.status
-      if (status === 410 || status === 404) {
+      const errMsg = e?.message ?? ''
+      if (status === 410 || status === 404 || errMsg.includes('unexpected response')) {
         await prisma.$executeRaw`
           DELETE FROM ${Prisma.raw(DB_SCHEMA)}."PushSuscripcionAdmin" WHERE endpoint = ${sub.endpoint}`
           .catch(() => {})

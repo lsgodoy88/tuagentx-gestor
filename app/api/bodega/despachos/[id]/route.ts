@@ -217,11 +217,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const factura = updated.numeroFactura || updated.numeroOrden
       const cliente = updated.clienteNombre || 'Cliente'
 
+      // Usar empresaIdOrden para reglas y suscriptores — cubre empresas vinculadas (ej. Leche operada por Lumeli)
+      const empIdNotif = empresaIdOrden
       if (updated.estado === 'en_transito') {
-        const regla = await getRegla('despacho_guia', empresaId)
+        const regla = await getRegla('despacho_guia', empIdNotif)
         if (regla.activa && regla.roles.length > 0) {
           const destinatarios = await prisma.empleado.findMany({
-            where: { empresaId, rol: { in: regla.roles } },
+            where: { empresaId: empIdNotif, rol: { in: regla.roles } },
             select: { id: true }
           })
           const cajas = updated.num_cajas ? `${updated.num_cajas} caja${updated.num_cajas !== 1 ? 's' : ''}` : 'sin cajas'
@@ -233,14 +235,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             '/bodega'
           )
           if (regla.roles.includes('empresa')) {
-            await enviarPushAdmin(empresaId, `🚛 Guía: ${cliente}`, `${cajas}${obs}`, '/bodega')
+            await enviarPushAdmin(empIdNotif, `🚛 Guía: ${cliente}`, `${cajas}${obs}`, '/bodega')
           }
         }
       } else if (updated.estado === 'en_entrega') {
-        const regla = await getRegla('despacho_local', empresaId)
+        const regla = await getRegla('despacho_local', empIdNotif)
         if (regla.activa && regla.roles.length > 0) {
           const destinatarios = await prisma.empleado.findMany({
-            where: { empresaId, rol: { in: regla.roles } },
+            where: { empresaId: empIdNotif, rol: { in: regla.roles } },
             select: { id: true }
           })
           await enviarPushEmpleados(
@@ -250,7 +252,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
             '/inicio'
           )
           if (regla.roles.includes('empresa')) {
-            await enviarPushAdmin(empresaId, '🏠 Nueva entrega local', `${cliente} · ${factura}`, '/inicio')
+            await enviarPushAdmin(empIdNotif, '🏠 Nueva entrega local', `${cliente} · ${factura}`, '/inicio')
           }
         }
       }
