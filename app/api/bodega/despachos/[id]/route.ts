@@ -217,43 +217,62 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       const factura = updated.numeroFactura || updated.numeroOrden
       const cliente = updated.clienteNombre || 'Cliente'
 
-      // Usar empresaIdOrden para reglas y suscriptores — cubre empresas vinculadas (ej. Leche operada por Lumeli)
+      // Reglas por empresa dueña de la orden — bodega propia o vinculada, el evento pertenece a la empresa
       const empIdNotif = empresaIdOrden
+
+      /**
+       * Resuelve destinatarios por rol considerando bodega propia y vinculada.
+       * Si la empresa no tiene empleados con ese rol, busca en empresas que le prestan bodega.
+       */
+      async function resolverDestinatarios(roles: string[]): Promise<string[]> {
+        // 1. Buscar empleados propios con los roles requeridos
+        const propios = await prisma.empleado.findMany({
+          where: { empresaId: empIdNotif, rol: { in: roles }, activo: true },
+          select: { id: true, rol: true }
+        })
+
+        // Separar roles que sí tienen empleados propios vs los que no
+        const rolesCubiertos = new Set(propios.map((e: any) => e.rol))
+        const rolesFaltantes = roles.filter(r => r !== 'empresa' && !rolesCubiertos.has(r))
+
+        let vinculadosIds: string[] = []
+        if (rolesFaltantes.length > 0) {
+          // 2. Buscar empresas vinculadas activas que presten bodega a empIdNotif
+          const vinculadas = await (prisma as any).empresaVinculada.findMany({
+            where: { empresaClienteId: empIdNotif, activa: true },
+            select: { empresaId: true }
+          })
+          const empIdsVinculadas = vinculadas.map((v: any) => v.empresaId)
+
+          if (empIdsVinculadas.length > 0) {
+            const vinculados = await prisma.empleado.findMany({
+              where: { empresaId: { in: empIdsVinculadas }, rol: { in: rolesFaltantes }, activo: true },
+              select: { id: true }
+            })
+            vinculadosIds = vinculados.map((e: any) => e.id)
+          }
+        }
+
+        return [...propios.map((e: any) => e.id), ...vinculadosIds]
+      }
+
       if (updated.estado === 'en_transito') {
         const regla = await getRegla('despacho_guia', empIdNotif)
         if (regla.activa && regla.roles.length > 0) {
-          const destinatarios = await prisma.empleado.findMany({
-            where: { empresaId: empIdNotif, rol: { in: regla.roles } },
-            select: { id: true }
-          })
+          const rolesEmpleados = regla.roles.filter((r: string) => r !== 'empresa')
+          const destinatarios = rolesEmpleados.length > 0 ? await resolverDestinatarios(rolesEmpleados) : []
           const cajas = updated.num_cajas ? `${updated.num_cajas} caja${updated.num_cajas !== 1 ? 's' : ''}` : 'sin cajas'
           const obs = (updated as any).observacion ? ` · ${(updated as any).observacion}` : ''
-          await enviarPushEmpleados(
-            destinatarios.map((a: any) => a.id),
-            `🚛 Guía: ${cliente}`,
-            `${cajas}${obs}`,
-            '/bodega'
-          )
-          if (regla.roles.includes('empresa')) {
-            await enviarPushAdmin(empIdNotif, `🚛 Guía: ${cliente}`, `${cajas}${obs}`, '/bodega')
-          }
+          if (destinatarios.length > 0) await enviarPushEmpleados(destinatarios, `🚛 Guía: ${cliente}`, `${cajas}${obs}`, '/bodega')
+          if (regla.roles.includes('empresa')) await enviarPushAdmin(empIdNotif, `🚛 Guía: ${cliente}`, `${cajas}${obs}`, '/bodega')
         }
       } else if (updated.estado === 'en_entrega') {
         const regla = await getRegla('despacho_local', empIdNotif)
         if (regla.activa && regla.roles.length > 0) {
-          const destinatarios = await prisma.empleado.findMany({
-            where: { empresaId: empIdNotif, rol: { in: regla.roles } },
-            select: { id: true }
-          })
-          await enviarPushEmpleados(
-            destinatarios.map((e: any) => e.id),
-            '🏠 Nueva entrega local',
-            `${cliente} · ${factura}`,
-            '/inicio'
-          )
-          if (regla.roles.includes('empresa')) {
-            await enviarPushAdmin(empIdNotif, '🏠 Nueva entrega local', `${cliente} · ${factura}`, '/inicio')
-          }
+          const rolesEmpleados = regla.roles.filter((r: string) => r !== 'empresa')
+          const destinatarios = rolesEmpleados.length > 0 ? await resolverDestinatarios(rolesEmpleados) : []
+          if (destinatarios.length > 0) await enviarPushEmpleados(destinatarios, '🏠 Nueva entrega local', `${cliente} · ${factura}`, '/inicio')
+          if (regla.roles.includes('empresa')) await enviarPushAdmin(empIdNotif, '🏠 Nueva entrega local', `${cliente} · ${factura}`, '/inicio')
         }
       }
     } catch {}

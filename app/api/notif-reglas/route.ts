@@ -13,26 +13,11 @@ export const REGLAS_CATALOGO = [
   { id: 'impulso_entrada',  label: 'Impulsadora registra entrada en cliente' },
 ]
 
-/** Resuelve el empresaId efectivo — verifica que target sea vinculada válida del operador */
-async function resolverEmpresaId(operadorId: string, target: string | null): Promise<string | null> {
-  if (!target || target === operadorId) return operadorId
-  // Verificar que target sea empresaClienteId de una vinculada activa del operador
-  const vinculo = await (prisma as any).empresaVinculada.findFirst({
-    where: { empresaId: operadorId, empresaClienteId: target, activa: true },
-    select: { empresaClienteId: true }
-  })
-  return vinculo ? target : null
-}
-
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
-  const operadorId = getEmpresaId(user)
-  const target = req.nextUrl.searchParams.get('target')
-
-  const empresaId = await resolverEmpresaId(operadorId, target)
-  if (!empresaId) return NextResponse.json({ error: 'Empresa no autorizada' }, { status: 403 })
+  const empresaId = getEmpresaId(user)
 
   const guardadas = await prisma.notifRegla.findMany({ where: { empresaId } })
   const guardadasMap = Object.fromEntries(guardadas.map(r => [r.id, r]))
@@ -62,13 +47,10 @@ export async function PUT(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   const user = session.user as any
   if (user.role !== 'empresa') return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
-  const operadorId = getEmpresaId(user)
+  const empresaId = getEmpresaId(user)
 
-  const { id, roles, activa, target } = await req.json()
+  const { id, roles, activa } = await req.json()
   if (!id) return NextResponse.json({ error: 'Falta id' }, { status: 400 })
-
-  const empresaId = await resolverEmpresaId(operadorId, target ?? null)
-  if (!empresaId) return NextResponse.json({ error: 'Empresa no autorizada' }, { status: 403 })
 
   const regla = await prisma.notifRegla.upsert({
     where: { id_empresaId: { id, empresaId } },

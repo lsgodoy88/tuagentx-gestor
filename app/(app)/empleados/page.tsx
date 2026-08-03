@@ -44,8 +44,6 @@ export default function EmpleadosPage() {
   const [vendedorId, setVendedorId] = useState('')
   const [listaIds, setListaIds] = useState<string[]>([])
   const [notifReglas, setNotifReglas] = useState<any[]>([])
-  const [notifEmpresaTarget, setNotifEmpresaTarget] = useState<string>('propia')
-  const [notifEmpresas, setNotifEmpresas] = useState<{id:string,nombre:string,clienteId:string}[]>([])
   const [notifLoading, setNotifLoading] = useState(false)
   const [notifGuardando, setNotifGuardando] = useState<string | null>(null)
   const [notifTesting, setNotifTesting] = useState<string | null>(null)
@@ -267,19 +265,12 @@ export default function EmpleadosPage() {
     setNotifTesting(null)
   }
 
-  async function cargarNotifReglas(target?: string) {
+  async function cargarNotifReglas() {
     setNotifLoading(true)
-    const q = target && target !== 'propia' ? `?target=${target}` : ''
-    const d = await fetch(`/api/notif-reglas${q}`).then(r => r.json()).catch(() => ({ reglas: [] }))
+    const d = await fetch('/api/notif-reglas').then(r => r.json()).catch(() => ({ reglas: [] }))
     setNotifReglas(d.reglas || [])
     setRolesConSub(d.rolesConSub || [])
     setNotifLoading(false)
-  }
-
-  async function cargarNotifEmpresas() {
-    const d = await fetch('/api/bodega/empresas').then(r => r.json()).catch(() => ({}))
-    const vincs = (d.vinculadas || []).map((v: any) => ({ id: v.slug, nombre: v.nombre, clienteId: v.id }))
-    setNotifEmpresas(vincs)
   }
 
   async function toggleNotifRol(reglaId: string, rol: string, checked: boolean) {
@@ -288,8 +279,7 @@ export default function EmpleadosPage() {
     const roles = checked ? [...regla.roles, rol] : regla.roles.filter((r: string) => r !== rol)
     setNotifReglas(prev => prev.map((r: any) => r.id === reglaId ? { ...r, roles } : r))
     setNotifGuardando(reglaId)
-    const tgt = notifEmpresas.find(e => e.id === notifEmpresaTarget)?.clienteId
-    await fetch('/api/notif-reglas', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: reglaId, roles, activa: regla.activa, ...(tgt ? { target: tgt } : {}) }) })
+    await fetch('/api/notif-reglas', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: reglaId, roles, activa: regla.activa }) })
     setNotifGuardando(null)
   }
 
@@ -298,8 +288,7 @@ export default function EmpleadosPage() {
     if (!regla) return
     setNotifReglas(prev => prev.map((r: any) => r.id === reglaId ? { ...r, activa } : r))
     setNotifGuardando(reglaId)
-    const tgt = notifEmpresas.find(e => e.id === notifEmpresaTarget)?.clienteId
-    await fetch('/api/notif-reglas', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: reglaId, roles: regla.roles, activa, ...(tgt ? { target: tgt } : {}) }) })
+    await fetch('/api/notif-reglas', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: reglaId, roles: regla.roles, activa }) })
     setNotifGuardando(null)
   }
 
@@ -356,7 +345,7 @@ export default function EmpleadosPage() {
           🎯 Metas
         </button>
         {esAdmin && (
-          <button onClick={() => { setTabPrincipal('notifica'); cargarNotifEmpresas(); if (notifReglas.length === 0) cargarNotifReglas() }}
+          <button onClick={() => { setTabPrincipal('notifica'); if (notifReglas.length === 0) cargarNotifReglas() }}
             className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'notifica' ? 'tab-active' : 'text-white hover:text-white'}`}>
             🔔 Notif.
           </button>
@@ -1055,10 +1044,9 @@ export default function EmpleadosPage() {
 
       {tabPrincipal === 'notifica' && esAdmin && (
         <div className="fade-up space-y-3">
-          {/* Header + selector empresa */}
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-white font-semibold text-sm">Reglas de notificaciones push</span>
+          {/* Header */}
+          <div className="flex items-center gap-2">
+            <span className="text-white font-semibold text-sm">Reglas de notificaciones push</span>
             {/* Tooltip siglas */}
             <div className="relative group">
               <button className="w-5 h-5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-400 text-xs flex items-center justify-center">?</button>
@@ -1069,18 +1057,7 @@ export default function EmpleadosPage() {
                 ))}
               </div>
             </div>
-            </div>{/* flex items-center gap-2 */}
-            {/* Selector empresa vinculada */}
-            {notifEmpresas.length > 0 && (
-              <select value={notifEmpresaTarget}
-                onChange={e => { setNotifEmpresaTarget(e.target.value); const tgt = notifEmpresas.find(v => v.id === e.target.value)?.clienteId; cargarNotifReglas(tgt || undefined) }}
-                className="text-xs rounded-lg px-2 py-1 text-white outline-none"
-                style={{ background: '#0d1220', border: '1px solid #1e2a3d' }}>
-                <option value="propia">Propia</option>
-                {notifEmpresas.map(v => <option key={v.id} value={v.id}>{v.nombre}</option>)}
-              </select>
-            )}
-          </div>{/* justify-between */}
+          </div>
 
           {notifLoading ? (
             <p className="text-zinc-500 text-sm">Cargando...</p>
