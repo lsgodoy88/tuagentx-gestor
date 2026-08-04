@@ -577,8 +577,11 @@ export default function EmpleadosPage() {
                           </div>
                         ) : (
                           <button onClick={() => abrirSlot(rc.id, i + 1, emp)}
-                            className={"text-xs px-3 py-1.5 rounded-lg flex-shrink-0 " + (emp ? "bg-zinc-700 hover:bg-zinc-600 text-zinc-300" : "bg-emerald-600 hover:bg-emerald-500 text-white font-semibold")}>
+                            className={"relative text-xs px-3 py-1.5 rounded-lg flex-shrink-0 " + (emp ? "bg-zinc-700 hover:bg-zinc-600 text-zinc-300" : "bg-emerald-600 hover:bg-emerald-500 text-white font-semibold")}>
                             {emp ? 'Editar' : 'Configurar'}
+                            {emp && rc.id === 'vendedor' && tieneIntegracion && emp.apiId && !emp.syncInicioAt && (
+                              <span style={{ position: 'absolute', top: -6, right: -6, fontSize: 13, lineHeight: 1 }}>⚠️</span>
+                            )}
                           </button>
                         )
                       )}

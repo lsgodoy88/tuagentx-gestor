@@ -279,7 +279,10 @@ export default function DashboardAdmin({ user }: { user: any }) {
 
   return (
     <div className="space-y-3 pb-20 md:pb-0 md:max-w-2xl md:mx-auto">
-      <h1 className="text-base font-bold text-white px-1">Bienvenido, {user?.name?.split(' ')[0]}</h1>
+      <div className="flex items-center justify-between px-1">
+        <h1 className="text-[1.05rem] font-bold text-white">Bienvenido, {user?.name?.split(' ')[0]}</h1>
+        {user?.empresaNombre && <span className="text-[1.05rem] font-bold text-white">{user.empresaNombre}</span>}
+      </div>
       {(isEmpresa || isSupervisor) && (
         <div className="space-y-3">
 
@@ -332,7 +335,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
           <div>
           <div className="grid grid-cols-2 gap-3">
 
-            <div className="rounded-2xl px-4 card-compact hover-lift card-glass flex flex-col items-center justify-center" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div onClick={() => router.push('/visitas')} className="rounded-2xl px-4 card-compact hover-lift card-glass flex flex-col items-center justify-center" style={{cursor:'pointer',background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">👁️</span>
                 <span className="text-white text-sm font-bold tracking-wide">Visitas</span>
