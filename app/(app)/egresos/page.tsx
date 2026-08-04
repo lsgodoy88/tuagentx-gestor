@@ -1,6 +1,7 @@
 'use client'
 import React, { useRef, useState, useEffect, useCallback } from 'react'
 import { useSession } from 'next-auth/react'
+import { checkPermiso } from '@/lib/permisos'
 import ModuloGastos from '@/components/ModuloGastos'
 import AbonoEgreso from '@/components/AbonoEgreso'
 import AdjuntarEgreso from '@/components/AdjuntarEgreso'
@@ -363,6 +364,8 @@ export default function EgresosPage() {
   const { data: session } = useSession()
   const user = session?.user as any
   const isAdmin = user?.role === 'empresa' || user?.role === 'supervisor'
+  const puedeEditarEgresos = user?.role === 'empresa' || checkPermiso(session, 'editarEgresos')
+  const puedeAdminEgresos  = user?.role === 'empresa' || checkPermiso(session, 'adminEgresos')
 
   const hoy = new Date()
   const [mes, setMes] = useState(hoy.getMonth() + 1)
@@ -449,12 +452,12 @@ export default function EgresosPage() {
                 </div>
               </div>
             )}
-            {categorias.map(cat => <Tabla key={`${cat.key}-${reloadKey}`} cat={cat} mes={mes} anio={anio} scrollRefs={scrollRefs} isAdmin={isAdmin} onCatUpdate={(id, label, emoji) => {
+            {categorias.map(cat => <Tabla key={`${cat.key}-${reloadKey}`} cat={cat} mes={mes} anio={anio} scrollRefs={scrollRefs} isAdmin={puedeEditarEgresos} onCatUpdate={puedeAdminEgresos ? (id, label, emoji) => {
               fetch('/api/egresos/categorias', { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id, label, emoji}) })
                 .then(() => setReloadKey(k => k+1))
-            }} />)}
+            } : undefined} />)}
             {/* Botón gestión de categorías — solo admin */}
-            {isAdmin && <button onClick={() => setShowCategorias(true)}
+            {puedeAdminEgresos && <button onClick={() => setShowCategorias(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-zinc-500 hover:text-zinc-200 text-xs transition-colors"
               style={{border:'1px solid rgba(255,255,255,0.08)'}}>
               ⚙️ <span>Categorías</span>
@@ -502,7 +505,7 @@ export default function EgresosPage() {
               </div>
             )}
           </div>
-        : <ModuloGastos isAdmin={isAdmin} hideButton triggerRef={triggerGastos} mes={mes} anio={anio} />
+        : <ModuloGastos isAdmin={puedeEditarEgresos} hideButton triggerRef={triggerGastos} mes={mes} anio={anio} />
       }
     </div>
   )

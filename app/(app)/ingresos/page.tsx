@@ -75,6 +75,9 @@ const tdStyle: React.CSSProperties = { padding: '6px 10px', fontSize: 12, fontWe
 // ─── Componente principal ──────────────────────────────────────────────────
 export default function SaldosPage() {
   const { data: session } = useSession()
+  const _role = (session?.user as any)?.role
+  const puedeEditarSaldos = _role === 'empresa' || checkPermiso(session, 'editarSaldos')
+  const puedeAdminSaldos  = _role === 'empresa' || checkPermiso(session, 'verBitacora')
   const [tabs, setTabs]                 = useState<TabConfig[]>([])
   const [tab, setTab]                   = useState('efectivo')
   const [newTabLabel, setNewTabLabel]   = useState('')
@@ -220,7 +223,7 @@ export default function SaldosPage() {
   function setFila(i: number, campo: keyof Fila, valor: string) {
     setFilas(prev => prev.map((f, idx) => idx === i ? { ...f, [campo]: valor } : f))
   }
-  function onBlurFila(i: number) { autoguardar(i, filas[i]) }
+  function onBlurFila(i: number) { if (puedeEditarSaldos) autoguardar(i, filas[i]) }
   function esEditable(i: number) { return !filasGuardadas.has(i) || filasEditando.has(i) }
   function agregarFila() { setFilas(prev => [...prev, filaVacia(true)]) }
 
@@ -255,8 +258,8 @@ export default function SaldosPage() {
               <option value="Mes">📆 Mes</option>
             </select>
           )}
-          <button onClick={() => setShowConfig(v => !v)}
-            style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid ' + (showConfig ? 'rgba(59,130,246,0.5)' : '#1e2a3d'), background: showConfig ? 'rgba(59,130,246,0.15)' : 'rgba(13,18,32,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 17 }}>&#9881;</button>
+          {puedeAdminSaldos && <button onClick={() => setShowConfig(v => !v)}
+            style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid ' + (showConfig ? 'rgba(59,130,246,0.5)' : '#1e2a3d'), background: showConfig ? 'rgba(59,130,246,0.15)' : 'rgba(13,18,32,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 17 }}>&#9881;</button>}
         </div>
       </div>
 
@@ -460,7 +463,7 @@ export default function SaldosPage() {
                   {/* Agregar fila */}
                   <tr style={{ background: '#141c2e', borderBottom: '1px solid #1e2a3d' }}>
                     <td colSpan={4} style={{ padding: '6px 10px' }}>
-                      <button onClick={agregarFila} style={{ fontSize: 12, color: '#374151', cursor: 'pointer', background: 'none', border: 'none' }}>+ Agregar fila</button>
+                      {puedeEditarSaldos && <button onClick={agregarFila} style={{ fontSize: 12, color: '#374151', cursor: 'pointer', background: 'none', border: 'none' }}>+ Agregar fila</button>}
                     </td>
                   </tr>
                 </>

@@ -4,6 +4,7 @@ import { saveCache, loadCache } from '@/lib/offlineCache'
 import { useSession } from 'next-auth/react'
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { checkPermiso } from '@/lib/permisos'
 import DataTable, { ColDef } from '@/components/DataTable'
 
 type Pago = {
@@ -295,6 +296,7 @@ export default function RecaudosPage() {
   const [fechaOpen, setFechaOpen] = useState(false)
 
   const isAdmin = user?.role === 'empresa' || user?.role === 'supervisor'
+  const puedeEditarRecaudos = user?.role === 'empresa' || checkPermiso(session, 'editarRecaudos')
 
   const cargarVoucherUrl = async (pagoId: string, voucherKey: string) => {
     if (voucherUrls[pagoId]) return
@@ -578,7 +580,7 @@ export default function RecaudosPage() {
       {/* Filtros — una línea, ancho completo */}
       <div style={{display:'flex',gap:8,width:'100%',alignItems:'stretch'}}>
         {/* Enviar — solo tab pendiente, habilitado solo con selección */}
-        {tab === 'pendiente' && (
+        {tab === 'pendiente' && puedeEditarRecaudos && (
           <button
             onClick={() => enviarSeleccionados()}
             disabled={!haySeleccion || enviandoSeleccionados}
@@ -621,7 +623,7 @@ export default function RecaudosPage() {
           />
         </div>
         {/* Eliminar por recibo — oculto en tab Revisar */}
-        {tab !== 'revisar' && <div style={{position:'relative',flexShrink:0}} data-popover-eliminar>
+        {tab !== 'revisar' && puedeEditarRecaudos && <div style={{position:'relative',flexShrink:0}} data-popover-eliminar>
           <button
             onClick={() => modalEliminarPaso === 'cerrado' ? abrirModalEliminar() : cerrarModalEliminar()}
             title="Eliminar por recibo"
@@ -757,7 +759,7 @@ export default function RecaudosPage() {
                       onMouseLeave={cancelarLongPress}
                       style={{ background: '#060a24', position: 'relative' }}
                       className={`border ${marcadoEliminar === pago.id ? 'border-red-500' : tieneVariacion ? 'border-red-500/40' : seleccionado ? 'border-blue-500/60' : 'border-zinc-800'} ${abierto ? 'rounded-t-[10px]' : 'rounded-[10px]'} px-[11px] py-[9px] flex items-center gap-2 cursor-pointer select-none`}>
-                      {marcadoEliminar === pago.id && (
+                      {marcadoEliminar === pago.id && puedeEditarRecaudos && (
                         <div onClick={e => e.stopPropagation()}
                           className="absolute -top-3 right-2 flex items-center gap-1.5 z-10">
                           <button onClick={() => eliminarPago(pago.id)} disabled={eliminando}
@@ -806,7 +808,7 @@ export default function RecaudosPage() {
                             ⚑
                           </button>
                         )}
-                        {!yaEnviado && !tieneVariacion && (
+                        {!yaEnviado && !tieneVariacion && puedeEditarRecaudos && (
                           <button onClick={() => enviarPago(pago.id)} disabled={enEnvio}
                             className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-[11px] font-bold px-[10px] py-[5px] rounded-[7px] transition-colors">
                             {enEnvio ? '...' : 'Enviar'}

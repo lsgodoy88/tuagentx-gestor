@@ -1,6 +1,7 @@
 'use client'
 import { useSession } from 'next-auth/react'
 import PopupPermisos from '@/components/PopupPermisos'
+import { checkPermiso } from '@/lib/permisos'
 import { useEffect, useState, useCallback } from 'react'
 
 function slugify(n: string) {
@@ -21,6 +22,8 @@ export default function EmpleadosPage() {
   const { data: session } = useSession()
   const user = session?.user as any
   const esAdmin = user?.role === 'empresa'
+  const esSupervisor = user?.role === 'supervisor'
+  const puedeEditarEmpleados = esAdmin || (!esSupervisor) || checkPermiso(session, 'editarEmpleados')
   const [empleados, setEmpleados] = useState<any[]>([])
   const [limites, setLimites] = useState<any>({})
   const [modal, setModal] = useState(false)
@@ -576,13 +579,13 @@ export default function EmpleadosPage() {
                             </div>
                           </div>
                         ) : (
-                          <button onClick={() => abrirSlot(rc.id, i + 1, emp)}
+                          <>{puedeEditarEmpleados && <button onClick={() => abrirSlot(rc.id, i + 1, emp)}
                             className={"relative text-xs px-3 py-1.5 rounded-lg flex-shrink-0 " + (emp ? "bg-zinc-700 hover:bg-zinc-600 text-zinc-300" : "bg-emerald-600 hover:bg-emerald-500 text-white font-semibold")}>
                             {emp ? 'Editar' : 'Configurar'}
                             {emp && rc.id === 'vendedor' && tieneIntegracion && emp.apiId && !emp.syncInicioAt && (
                               <span style={{ position: 'absolute', top: -6, right: -6, fontSize: 13, lineHeight: 1 }}>⚠️</span>
                             )}
-                          </button>
+                          </button>}</>
                         )
                       )}
                     </div>

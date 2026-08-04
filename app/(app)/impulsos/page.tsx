@@ -161,6 +161,7 @@ export default function RutasFijasPage() {
   const esAdmin = user?.role === 'empresa'
   const esSupervisor = user?.role === 'supervisor'
   const puedeAsignar = esAdmin || !esSupervisor || checkPermiso(session, 'asignarRutas')
+  const puedeEditarImpulsos = esAdmin || !esSupervisor || checkPermiso(session, 'editarImpulsos')
 
   useEffect(() => { loadData() }, [])
 
@@ -458,13 +459,13 @@ export default function RutasFijasPage() {
                                   <button onClick={(e) => { e.stopPropagation(); setModalVerRuta({emp, dia: diaNum, ruta: rutaDia}) }}
                                     className="text-zinc-400 text-xs bg-zinc-700/60 hover:bg-zinc-600 px-2.5 py-1 rounded-lg transition-colors">Ver</button>
                                 )}
-                                {!esImpulsadora && puedeAsignar && (
+                                {!esImpulsadora && puedeAsignar && puedeEditarImpulsos && (
                                   <button onClick={(e) => { e.stopPropagation(); abrirDia(emp, diaNum, rutaDia) }}
                                     title="Editar día"
                                     className="text-zinc-400 hover:text-white text-xs px-1.5 py-1 rounded-lg transition-colors">✏️</button>
                                 )}
                               </>
-                            ) : !esImpulsadora && puedeAsignar ? (
+                            ) : !esImpulsadora && puedeAsignar && puedeEditarImpulsos ? (
                               <button onClick={() => abrirDia(emp, diaNum)}
                                 className="text-blue-400 text-xs bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 px-3 py-1.5 rounded-lg transition-colors">+ Asignar</button>
                             ) : null}
@@ -582,12 +583,12 @@ export default function RutasFijasPage() {
                             <p className="text-white text-sm truncate">{cli.nombre}</p>
                             {cli.nombreComercial && <p className="text-zinc-500 text-xs">{cli.nombreComercial}</p>}
                           </div>
-                          <button onClick={() => { setModalMeta({id: cid, nombre: cli.nombre}); setInputMeta(meta > 0 ? String(meta) : '') }}
+                          {puedeEditarImpulsos && <button onClick={() => { setModalMeta({id: cid, nombre: cli.nombre}); setInputMeta(meta > 0 ? String(meta) : '') }}
                             title="Editar meta y hora"
-                            className="text-zinc-400 hover:text-white text-sm flex-shrink-0 px-1">✏️</button>
-                          <button onClick={() => { setCliSeleccionados(p => p.filter(x => x !== cid)); setMetas(m => { const n={...m}; delete n[cid]; return n }); setHoras(h => { const n={...h}; delete n[cid]; return n }) }}
+                            className="text-zinc-400 hover:text-white text-sm flex-shrink-0 px-1">✏️</button>}
+                          {puedeEditarImpulsos && <button onClick={() => { setCliSeleccionados(p => p.filter(x => x !== cid)); setMetas(m => { const n={...m}; delete n[cid]; return n }); setHoras(h => { const n={...h}; delete n[cid]; return n }) }}
                             title="Quitar cliente"
-                            className="text-zinc-500 hover:text-red-400 text-sm flex-shrink-0 px-1">🗑️</button>
+                            className="text-zinc-500 hover:text-red-400 text-sm flex-shrink-0 px-1">🗑️</button>}
                         </div>
                         {(meta > 0 || horas[cid]) && (
                           <div className="flex items-center gap-3 pl-6">
@@ -848,7 +849,7 @@ export default function RutasFijasPage() {
             {bottomSheet.rc.metaVenta > 0 && (
               <p className="text-zinc-400 text-sm">Meta actual: <span className="text-white font-semibold">${bottomSheet.rc.metaVenta.toLocaleString('es-CO')}</span></p>
             )}
-            <button
+            {puedeEditarImpulsos && <button
               onClick={() => {
                 setModalMeta({ id: bottomSheet.rc.clienteId, nombre: bottomSheet.rc.cliente.nombre, rutaFijaId: bottomSheet.rutaId })
                 setInputMeta(bottomSheet.rc.metaVenta ? String(bottomSheet.rc.metaVenta) : '')
@@ -857,15 +858,15 @@ export default function RutasFijasPage() {
               }}
               className="w-full bg-zinc-800 hover:bg-zinc-700 text-white rounded-xl py-3 text-sm font-medium flex items-center gap-3 px-4 transition-colors">
               <span className="text-lg">✏️</span> Editar meta
-            </button>
-            <button
+            </button>}
+            {puedeEditarImpulsos && <button
               onClick={() => {
                 quitarClienteDia(bottomSheet.rutaId, bottomSheet.rc.clienteId)
                 setBottomSheet(null)
               }}
               className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl py-3 text-sm font-medium flex items-center gap-3 px-4 transition-colors border border-red-500/20">
               <span className="text-lg">🗑️</span> Quitar de la ruta
-            </button>
+            </button>}
             <button onClick={() => setBottomSheet(null)}
               className="w-full text-zinc-500 py-2 text-sm">Cancelar</button>
           </div>
