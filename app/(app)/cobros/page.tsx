@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 
 type Vendedor = { nombre: string; recaudo: number; cobros: number; meta?: number }
-type Mes = { mes: string; totalRecaudo: number; vendedores: Record<string, Vendedor> }
+type Mes = { mes: string; totalRecaudo: number; vendedores: Vendedor[] }
 
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -30,7 +30,7 @@ export default function CobrosPage() {
   }, [status])
 
   const total = meses.reduce((a, m) => a + m.totalRecaudo, 0)
-  const metaGlobal = meses.reduce((a, m) => a + Object.values(m.vendedores).reduce((s, v: any) => s + (v.meta || 0), 0), 0)
+  const metaGlobal = meses.reduce((a, m) => a + m.vendedores.reduce((s, v: any) => s + (v.meta || 0), 0), 0)
   const pctGlobal = metaGlobal > 0 ? Math.round((total / metaGlobal) * 100) : null
 
   return (
@@ -57,7 +57,7 @@ export default function CobrosPage() {
             <tbody>
               {meses.map((m, i) => {
                 const abierto = expandidos.has(m.mes)
-                const vendedores = Object.values(m.vendedores).filter(v => v.recaudo > 0).sort((a, b) => b.recaudo - a.recaudo)
+                const vendedores = m.vendedores.filter(v => v.recaudo > 0).sort((a, b) => b.recaudo - a.recaudo)
                 const clickable = vendedores.length > 0
                 const metaTotal = vendedores.reduce((a, v) => a + (v.meta || 0), 0)
                 const pct = metaTotal > 0 ? Math.round((m.totalRecaudo / metaTotal) * 100) : null

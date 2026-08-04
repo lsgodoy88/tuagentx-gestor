@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 
 type Vendedor = { nombre: string; ventas: number; recaudo: number; ordenes: number; cobros: number; meta?: number }
-type Mes = { mes: string; totalVentas: number; totalRecaudo: number; vendedores: Record<string, Vendedor> }
+type Mes = { mes: string; totalVentas: number; totalRecaudo: number; vendedores: Vendedor[] }
 
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
 const fmtShort = (n: number) => {
@@ -21,7 +21,7 @@ const fmtMes = (k: string) => {
 function TablaVentas({ meses, esAdmin }: { meses: Mes[], esAdmin: boolean }) {
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set())
   const total = meses.reduce((a, m) => a + m.totalVentas, 0)
-  const metaGlobal = meses.reduce((a, m) => a + Object.values(m.vendedores).reduce((s, v: any) => s + (v.meta || 0), 0), 0)
+  const metaGlobal = meses.reduce((a, m) => a + m.vendedores.reduce((s, v: any) => s + (v.meta || 0), 0), 0)
   const pctGlobal = metaGlobal > 0 ? Math.round((total / metaGlobal) * 100) : null
 
   return (
@@ -38,7 +38,7 @@ function TablaVentas({ meses, esAdmin }: { meses: Mes[], esAdmin: boolean }) {
         <tbody>
           {meses.map((m, i) => {
             const abierto = expandidos.has(m.mes)
-            const vendedores = Object.values(m.vendedores as Record<string, Vendedor>)
+            const vendedores = m.vendedores
               .filter(v => v.ventas > 0)
               .sort((a, b) => b.ventas - a.ventas)
             const clickable = esAdmin && vendedores.length > 0

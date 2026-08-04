@@ -106,7 +106,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           const validSub = existing?.endpoint?.includes('/fcm/send/') ? null : existing
           const sub = validSub || await reg.pushManager.subscribe({
             userVisibleOnly: true,
-            applicationServerKey: 'BDpl-nZduxeUL-IIrDrk5Ty0zhJVBJbDTxC5Suwscov2F73vG-fm-5AyOmsmYs5zJPZQOrEDAPGlod2Dj5DE6UY'
+            applicationServerKey: 'BLXWmGYFrBMHAAOLKh44MWtEK5qYgfR0-pDbOjLbX1gq5h79wr9RtX6zFQmKvp3oaRzsuzWopssq8J_6AJHpFCg'
           })
           await fetch('/api/push/suscribir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sub.toJSON()) })
         } catch(e) { console.log('Push no disponible:', e) }

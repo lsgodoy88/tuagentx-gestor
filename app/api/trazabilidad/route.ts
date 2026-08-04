@@ -51,8 +51,8 @@ function buildWhereSQL(where: any): { sql: string; params: any[] } {
     }
   }
   if (where.vendedorApiId) { parts.push(`"vendedorApiId" = \$${i++}`); params.push(where.vendedorApiId) }
-  if (where.fechaOrdenBogota?.gte) { parts.push(`"fechaOrdenBogota" >= \$${i++}`); params.push(where.fechaOrdenBogota.gte) }
-  if (where.fechaOrdenBogota?.lte) { parts.push(`"fechaOrdenBogota" <= \$${i++}`); params.push(where.fechaOrdenBogota.lte) }
+  if (where.fechaFactura?.gte) { parts.push(`"fechaFactura" >= \$${i++}`); params.push(where.fechaFactura.gte) }
+  if (where.fechaFactura?.lte) { parts.push(`"fechaFactura" <= \$${i++}`); params.push(where.fechaFactura.lte) }
   if (where.OR && where.OR[0]?.numeroOrden) {
     // búsqueda q
     const qOrParts: string[] = []
@@ -169,9 +169,9 @@ export async function GET(req: NextRequest) {
     ]
     if (estado) where.estado = estado
     if (desdeFn || hastaFn) {
-      where.fechaOrdenBogota = {}
-      if (desdeFn) where.fechaOrdenBogota.gte = desdeFn
-      if (hastaFn) where.fechaOrdenBogota.lte = hastaFn
+      where.fechaFactura = {}
+      if (desdeFn) where.fechaFactura.gte = desdeFn
+      if (hastaFn) where.fechaFactura.lte = hastaFn
     }
 
     const { sql: whereSQL, params } = buildWhereSQL(where)
@@ -248,9 +248,9 @@ export async function GET(req: NextRequest) {
   }
   if (estado) where.estado = estado
   if (desdeFn || hastaFn) {
-    where.fechaOrdenBogota = {}
-    if (desdeFn) where.fechaOrdenBogota.gte = desdeFn
-    if (hastaFn) where.fechaOrdenBogota.lte = hastaFn
+    where.fechaFactura = {}
+    if (desdeFn) where.fechaFactura.gte = desdeFn
+    if (hastaFn) where.fechaFactura.lte = hastaFn
   }
 
   async function enrichConDespacho(ordenes: any[], empresaId: string) {

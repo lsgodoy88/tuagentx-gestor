@@ -170,7 +170,7 @@ export default function TrazabilidadPage() {
   const [fuenteBusqueda, setFuenteBusqueda] = useState<string | null>(null)
   const [ordenesBusqueda, setOrdenesBusqueda] = useState<any[] | null>(null)
   const [estado, setEstado] = useState('')
-  const [diasHistorial, setDiasHistorial] = useState<number>(() => { if (typeof window === 'undefined') return 10; const v = parseInt(localStorage.getItem('diasHistorialVista') || '10'); return Math.min(30, Math.max(1, v)) })
+  const [diasHistorial, setDiasHistorial] = useState<number>(() => { if (typeof window === 'undefined') return 15; const v = parseInt(localStorage.getItem('diasHistorialVista') || '15'); return Math.min(90, Math.max(1, v)) })
   // Mantengo desde/hasta como fallback null (no usados activamente)
   const desde = ''
   const hasta = ''
@@ -243,11 +243,20 @@ export default function TrazabilidadPage() {
     }
   }
 
-  async function cargar(cursor: string | null = null) {
+  const [fechaFiltro, setFechaFiltro] = useState<string>('')
+
+  async function cargar(cursor: string | null = null, overrideFechaFiltro?: string) {
     if (!cursor) { setLoading(true); setPage(0) } else setLoadingMore(true)
     const params = new URLSearchParams()
     if (q) params.set('q', q)
     if (estado) params.set('estado', estado)
+    const fechaActiva = overrideFechaFiltro !== undefined ? overrideFechaFiltro : fechaFiltro
+    if (fechaActiva) {
+      params.set('desde', fechaActiva)
+      params.set('hasta', fechaActiva)
+    } else if (diasHistorial > 0 && !q) {
+      params.set('dias', String(diasHistorial))
+    }
     params.set('cursor', cursor || '')  // fuerza cursor mode en la API
     const res = await fetch('/api/trazabilidad?' + params.toString()).then(r => r.json())
     const nuevas = res.ordenes || []
@@ -270,7 +279,7 @@ export default function TrazabilidadPage() {
     return () => window.removeEventListener('resize', handler)
   }, [])
 
-  useEffect(() => { cargar(null) }, [q, estado])
+  useEffect(() => { cargar(null) }, [q, estado, fechaFiltro, diasHistorial])
 
   async function buscar(override?: string) {
     const texto = (override ?? qInput).trim()
@@ -300,25 +309,12 @@ export default function TrazabilidadPage() {
     }
   }
 
-  const [fechaFiltro, setFechaFiltro] = useState<string>('')
-
   function limpiarBusqueda() {
     setQInput(''); setOrdenesBusqueda(null); setFuenteBusqueda(null); setQ('')
   }
   function limpiar() { setQ(''); setQInput(''); setEstado(''); setDiasHistorial(7); setOrdenesBusqueda(null); setFuenteBusqueda(null) }
 
-  const sourceOrdenes = (() => {
-    const base = ordenesBusqueda !== null ? ordenesBusqueda : ordenes
-    if (!fechaFiltro) return base
-    return base.filter((o: any) => {
-      // Elegir campo según estado activo
-      const campo = estado === 'entregado' ? o.entregadoEl
-        : (estado === 'alistado') ? o.alistadoEl
-        : (estado === 'despachado' || estado === 'en_transito' || estado === 'en_entrega') ? (o.despachadoEl || o.alistadoEl)
-        : (o.fechaOrden || o.alistadoEl || o.despachadoEl || o.entregadoEl)
-      return campo && campo.slice(0, 10) === fechaFiltro
-    })
-  })()
+  const sourceOrdenes = ordenesBusqueda !== null ? ordenesBusqueda : ordenes
   const pagedOrdenes     = sourceOrdenes.slice(page * PAGE_SIZE_TRAZ, (page + 1) * PAGE_SIZE_TRAZ)
   const totalPagesTraz   = Math.max(1, Math.ceil(sourceOrdenes.length / PAGE_SIZE_TRAZ))
 

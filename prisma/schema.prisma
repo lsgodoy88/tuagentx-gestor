@@ -3215,13 +3215,35 @@ model SaldoOtros {
 model SaldoConfig {
   id          String   @id @default(cuid())
   empresaId   String
-  tipo        String   // ingreso | egreso
+  tipo        String   // ingreso | egreso | tab
   nombre      String
   orden       Int      @default(0)
+  key         String?  // solo para tipo=tab: key único de la tab
+  emoji       String?  // solo para tipo=tab
   creadoEl    DateTime @default(now())
 
   @@index([empresaId, tipo])
   @@map("SaldoConfig")
+}
+
+model SaldoMovimiento {
+  id                 String    @id @default(cuid())
+  empresaId          String
+  tab_key            String    // key del SaldoConfig tipo=tab
+  fecha              DateTime
+  concepto           String
+  ingreso            Decimal?  @db.Decimal(15, 2)
+  egreso             Decimal?  @db.Decimal(15, 2)
+  orden              Int       @default(0)
+  categoria          String?
+  relacionTexto      String?
+  relacionArchivoKey String?
+  fecha_bogota       DateTime? @db.Date()
+  creadoEl           DateTime  @default(now())
+  actualizadoEl      DateTime  @updatedAt
+
+  @@index([empresaId, tab_key, fecha_bogota])
+  @@map("SaldoMovimiento")
 }
 
 model GastoTipo {

@@ -5,11 +5,7 @@ import { useSession } from 'next-auth/react'
 import { checkPermiso } from '@/lib/permisos'
 
 // ─── Constantes ────────────────────────────────────────────────────────────
-const TABS = [
-  { key: 'efectivo', label: '💵 Efectivo' },
-  { key: 'bancos',   label: '🏦 Bancos'   },
-  { key: 'otros',    label: '📦 Otros'    },
-]
+const EMOJIS = ['💵','🏦','📱','💳','🏧','📦','💰','🔄','🏪','🧾']
 const VISTAS = ['Día', 'Semana', 'Mes'] as const
 type Vista = typeof VISTAS[number]
 const FILAS_DEFAULT = 7
@@ -17,6 +13,7 @@ const FILAS_DEFAULT = 7
 // ─── Tipos ─────────────────────────────────────────────────────────────────
 interface Fila { id?: string; concepto: string; ingreso: string; egreso: string; categoria: string; relacionTexto: string; esNueva?: boolean }
 interface Categoria { id: string; tipo: string; nombre: string }
+interface TabConfig { id: string; key: string; nombre: string; emoji: string; orden: number }
 interface GrupoDia { fecha: string; filas: Fila[] }
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -78,7 +75,11 @@ const tdStyle: React.CSSProperties = { padding: '6px 10px', fontSize: 12, fontWe
 // ─── Componente principal ──────────────────────────────────────────────────
 export default function SaldosPage() {
   const { data: session } = useSession()
+  const [tabs, setTabs]                 = useState<TabConfig[]>([])
   const [tab, setTab]                   = useState('efectivo')
+  const [newTabLabel, setNewTabLabel]   = useState('')
+  const [newTabEmoji, setNewTabEmoji]   = useState('📦')
+  const [editandoTab, setEditandoTab]   = useState<TabConfig | null>(null)
   const [vista, setVista]               = useState<Vista>('Día')
   const [fecha, setFecha]               = useState('')          // fecha de referencia (día/semana/mes)
   const [filas, setFilas]               = useState<Fila[]>(filasIniciales())
@@ -98,15 +99,26 @@ export default function SaldosPage() {
   const hoy        = fechaHoy()
   const esDiaActual = vista === 'Día' && fecha === hoy
 
-  // ── Carga inicial ──
+  // ── Carga tabs dinámicas ──
   useEffect(() => {
+    fetch('/api/saldos/config').then(r => r.json()).then(d => {
+      const t: TabConfig[] = d.tabs || []
+      setTabs(t)
+      setCategorias(d.categorias || [])
+      if (t.length) setTab(prev => prev || t[0].key)
+    })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // ── Carga por tab ──
+  useEffect(() => {
+    if (!tab) return
     resetDia()
     fetch(`/api/saldos?tab=${tab}`).then(r => r.json()).then(d => {
       const f = d.ultimaFecha || hoy
       setFecha(f)
       cargarDia(f, tab)
     })
-    fetch('/api/saldos/config').then(r => r.json()).then(d => setCategorias(d.categorias || []))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab])
 
@@ -262,51 +274,102 @@ export default function SaldosPage() {
         </div>
       )}
 
-      {/* Modal config categorías */}
-      {showConfig && (
-        <div onClick={() => setShowConfig(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 16px 16px' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#0d1220', border: '1px solid #1e2a3d', borderRadius: 16, padding: 20, width: '100%', maxWidth: 420, maxHeight: '80vh', overflowY: 'auto' }}>
-            <p style={{ color: 'white', fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Categorías</p>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              <select value={nuevaCat.tipo} onChange={e => setNuevaCat(p => ({ ...p, tipo: e.target.value }))} style={{ background: '#141c2e', color: 'white', border: '1px solid #1e2a3d', borderRadius: 8, padding: '6px 8px', fontSize: 13, outline: 'none' }}>
-                <option value="ingreso">Ingreso</option><option value="egreso">Egreso</option>
-              </select>
-              <input value={nuevaCat.nombre} onChange={e => setNuevaCat(p => ({ ...p, nombre: e.target.value.toUpperCase() }))} placeholder="Nombre" style={{ flex: 1, background: '#141c2e', color: 'white', border: '1px solid #1e2a3d', borderRadius: 8, padding: '6px 10px', fontSize: 13, outline: 'none' }} />
-              <button onClick={async () => {
-                if (!nuevaCat.nombre.trim()) return
-                await fetch('/api/saldos/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nuevaCat) })
-                const d = await fetch('/api/saldos/config').then(r => r.json())
-                setCategorias(d.categorias || []); setNuevaCat(p => ({ ...p, nombre: '' }))
-              }} style={{ background: 'rgba(59,130,246,0.2)', color: '#93c5fd', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, padding: '6px 14px', fontSize: 15, cursor: 'pointer', fontWeight: 700 }}>+</button>
-            </div>
-            {(['ingreso', 'egreso'] as const).map(tipo => (
-              <div key={tipo} style={{ marginBottom: 10 }}>
-                <p style={{ color: tipo === 'ingreso' ? '#34d399' : '#f87171', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{tipo === 'ingreso' ? 'INGRESOS' : 'EGRESOS'}</p>
-                {categorias.filter(c => c.tipo === tipo).map(cat => (
-                  <div key={cat.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid #1e2a3d' }}>
-                    <span style={{ color: 'white', fontSize: 13 }}>{cat.nombre}</span>
-                    <button onClick={async () => {
-                      await fetch('/api/saldos/config', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: cat.id }) })
-                      setCategorias(prev => prev.filter(c => c.id !== cat.id))
-                    }} style={{ color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>✕</button>
-                  </div>
-                ))}
-                {!categorias.filter(c => c.tipo === tipo).length && <p style={{ color: '#374151', fontSize: 12, fontStyle: 'italic' }}>Sin categorías</p>}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
-      {/* Tabs */}
-      <div className="flex gap-1 tab-pills rounded-xl p-1">
-        {TABS.map(t => (
+
+      {/* Tabs dinámicas */}
+      <div className="tab-pills rounded-xl p-1" style={{ display: 'flex', gap: 4, overflowX: 'auto', scrollbarWidth: 'none' }}>
+        {tabs.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`flex-1 py-2 text-sm font-semibold transition-colors ${tab === t.key ? 'tab-active' : 'text-white hover:text-white'}`}>
-            {t.label}
+            className={`py-2 text-sm font-semibold transition-colors rounded-lg ${tab === t.key ? 'tab-active' : 'text-white hover:text-white'}`}
+            style={{ flexShrink: 0, paddingLeft: 14, paddingRight: 14, whiteSpace: 'nowrap' }}>
+            {t.emoji} {t.nombre}
           </button>
         ))}
       </div>
+
+      {/* Popup config — medios de pago + categorías */}
+      {showConfig && (
+        <div onClick={() => setShowConfig(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 16px 16px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#0d1220', border: '1px solid #1e2a3d', borderRadius: 16, padding: 20, width: '100%', maxWidth: 420, maxHeight: '80vh', overflowY: 'auto' }}>
+
+            <p style={{ color: 'white', fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Medios de pago</p>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <button onClick={() => { const idx = EMOJIS.indexOf(newTabEmoji); setNewTabEmoji(EMOJIS[(idx+1)%EMOJIS.length]) }}
+                style={{ fontSize: 20, background: '#141c2e', border: '1px solid #1e2a3d', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}>{newTabEmoji}</button>
+              <input value={newTabLabel} onChange={e => setNewTabLabel(e.target.value)} placeholder="Ej: Nequi, Daviplata..."
+                style={{ flex: 1, background: '#141c2e', color: 'white', border: '1px solid #1e2a3d', borderRadius: 8, padding: '6px 10px', fontSize: 13, outline: 'none' }} />
+              <button onClick={async () => {
+                const label = newTabLabel.trim()
+                if (!label) return
+                const key = label.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')
+                const res = await fetch('/api/saldos/config', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ tipo: 'tab', nombre: label, key, emoji: newTabEmoji }) }).then(r => r.json())
+                if (res.error) { alert(res.error); return }
+                const d = await fetch('/api/saldos/config').then(r => r.json())
+                setTabs(d.tabs || []); setNewTabLabel('')
+              }} style={{ background: 'rgba(52,211,153,0.2)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 8, padding: '6px 14px', fontSize: 15, cursor: 'pointer', fontWeight: 700 }}>+</button>
+            </div>
+            {tabs.map(t => (
+              <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid #1e2a3d' }}>
+                <button onClick={async () => {
+                  const idx = EMOJIS.indexOf(t.emoji); const emoji = EMOJIS[(idx+1)%EMOJIS.length]
+                  await fetch('/api/saldos/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: t.id, emoji }) })
+                  const d = await fetch('/api/saldos/config').then(r => r.json()); setTabs(d.tabs || [])
+                }} style={{ fontSize: 18, background: 'none', border: 'none', cursor: 'pointer' }}>{t.emoji}</button>
+                {editandoTab?.id === t.id ? (
+                  <input autoFocus defaultValue={t.nombre} onBlur={async e => {
+                    const nombre = e.target.value.trim() || t.nombre
+                    await fetch('/api/saldos/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: t.id, nombre }) })
+                    const d = await fetch('/api/saldos/config').then(r => r.json()); setTabs(d.tabs || []); setEditandoTab(null)
+                  }} onKeyDown={e => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                    style={{ flex: 1, background: '#141c2e', color: 'white', border: '1px solid #3b82f6', borderRadius: 6, padding: '4px 8px', fontSize: 13, outline: 'none' }} />
+                ) : (
+                  <span onClick={() => setEditandoTab(t)} style={{ flex: 1, color: 'white', fontSize: 13, cursor: 'text' }}>{t.nombre}</span>
+                )}
+                <button onClick={async () => {
+                  if (tabs.length <= 1) { alert('Debe haber al menos 1 medio de pago'); return }
+                  const res = await fetch('/api/saldos/config', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: t.id }) }).then(r => r.json())
+                  if (res.error) { alert(res.error); return }
+                  const d = await fetch('/api/saldos/config').then(r => r.json())
+                  const newTabs = d.tabs || []; setTabs(newTabs)
+                  if (tab === t.key && newTabs.length) setTab(newTabs[0].key)
+                }} style={{ color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>✕</button>
+              </div>
+            ))}
+
+            <div style={{ borderTop: '1px solid #1e2a3d', marginTop: 16, paddingTop: 16 }}>
+              <p style={{ color: 'white', fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Categorías</p>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                <select value={nuevaCat.tipo} onChange={e => setNuevaCat(p => ({ ...p, tipo: e.target.value }))} style={{ background: '#141c2e', color: 'white', border: '1px solid #1e2a3d', borderRadius: 8, padding: '6px 8px', fontSize: 13, outline: 'none' }}>
+                  <option value="ingreso">Ingreso</option><option value="egreso">Egreso</option>
+                </select>
+                <input value={nuevaCat.nombre} onChange={e => setNuevaCat(p => ({ ...p, nombre: e.target.value.toUpperCase() }))} placeholder="Nombre" style={{ flex: 1, background: '#141c2e', color: 'white', border: '1px solid #1e2a3d', borderRadius: 8, padding: '6px 10px', fontSize: 13, outline: 'none' }} />
+                <button onClick={async () => {
+                  if (!nuevaCat.nombre.trim()) return
+                  await fetch('/api/saldos/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nuevaCat) })
+                  const d = await fetch('/api/saldos/config').then(r => r.json())
+                  setCategorias(d.categorias || []); setNuevaCat(p => ({ ...p, nombre: '' }))
+                }} style={{ background: 'rgba(59,130,246,0.2)', color: '#93c5fd', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, padding: '6px 14px', fontSize: 15, cursor: 'pointer', fontWeight: 700 }}>+</button>
+              </div>
+              {(['ingreso', 'egreso'] as const).map(tipo => (
+                <div key={tipo} style={{ marginBottom: 10 }}>
+                  <p style={{ color: tipo === 'ingreso' ? '#34d399' : '#f87171', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{tipo === 'ingreso' ? 'INGRESOS' : 'EGRESOS'}</p>
+                  {categorias.filter(c => c.tipo === tipo).map(cat => (
+                    <div key={cat.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid #1e2a3d' }}>
+                      <span style={{ color: 'white', fontSize: 13 }}>{cat.nombre}</span>
+                      <button onClick={async () => {
+                        await fetch('/api/saldos/config', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: cat.id }) })
+                        setCategorias(prev => prev.filter(c => c.id !== cat.id))
+                      }} style={{ color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>✕</button>
+                    </div>
+                  ))}
+                  {!categorias.filter(c => c.tipo === tipo).length && <p style={{ color: '#374151', fontSize: 12, fontStyle: 'italic' }}>Sin categorías</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
 
 
