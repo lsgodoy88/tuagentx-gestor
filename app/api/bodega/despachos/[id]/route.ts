@@ -220,40 +220,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       // Reglas por empresa dueña de la orden — bodega propia o vinculada, el evento pertenece a la empresa
       const empIdNotif = empresaIdOrden
 
-      /**
-       * Resuelve destinatarios por rol considerando bodega propia y vinculada.
-       * Si la empresa no tiene empleados con ese rol, busca en empresas que le prestan bodega.
-       */
       async function resolverDestinatarios(roles: string[]): Promise<string[]> {
-        // 1. Buscar empleados propios con los roles requeridos
+        // Solo empleados propios de la empresa dueña de la orden — sin cruce entre empresas
         const propios = await prisma.empleado.findMany({
           where: { empresaId: empIdNotif, rol: { in: roles }, activo: true },
-          select: { id: true, rol: true }
+          select: { id: true }
         })
-
-        // Separar roles que sí tienen empleados propios vs los que no
-        const rolesCubiertos = new Set(propios.map((e: any) => e.rol))
-        const rolesFaltantes = roles.filter(r => r !== 'empresa' && !rolesCubiertos.has(r))
-
-        let vinculadosIds: string[] = []
-        if (rolesFaltantes.length > 0) {
-          // 2. Buscar empresas vinculadas activas que presten bodega a empIdNotif
-          const vinculadas = await (prisma as any).empresaVinculada.findMany({
-            where: { empresaClienteId: empIdNotif, activa: true },
-            select: { empresaId: true }
-          })
-          const empIdsVinculadas = vinculadas.map((v: any) => v.empresaId)
-
-          if (empIdsVinculadas.length > 0) {
-            const vinculados = await prisma.empleado.findMany({
-              where: { empresaId: { in: empIdsVinculadas }, rol: { in: rolesFaltantes }, activo: true },
-              select: { id: true }
-            })
-            vinculadosIds = vinculados.map((e: any) => e.id)
-          }
-        }
-
-        return [...propios.map((e: any) => e.id), ...vinculadosIds]
+        return propios.map((e: any) => e.id)
       }
 
       if (updated.estado === 'en_transito') {

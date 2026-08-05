@@ -222,7 +222,7 @@ export default function EmpleadosPage() {
       const res = await fetch('/api/empleados', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nombre, rol: slotRol, telefono, password, vendedorId: vendedorId || null, ciudades: ciudadesAsignadas, listaIds, vendedorIds: slotRol === 'supervisor' ? vendedorIds : undefined, permisos: permisos, etiqueta: slotRol === 'supervisor' ? etiqueta : undefined })
+        body: JSON.stringify({ nombre, rol: slotRol, telefono, password, vendedorId: vendedorId || null, ciudades: ciudadesAsignadas, listaIds, vendedorIds: slotRol === 'supervisor' ? vendedorIds : undefined, permisos: permisos, etiqueta: slotRol === 'supervisor' ? etiqueta : undefined, apiId: apiIdSeleccionado || undefined })
       })
       const data = await res.json()
       setLoading(false)

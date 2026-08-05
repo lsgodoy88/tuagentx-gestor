@@ -541,6 +541,7 @@ model PushSuscripcion {
   endpoint   String
   p256dh     String
   auth       String
+  user_agent String?
   createdAt  DateTime @default(now())
 
   @@unique([endpoint])
@@ -3465,6 +3466,7 @@ model PushSuscripcionAdmin {
   endpoint  String
   p256dh    String
   auth      String
+  user_agent String?
   createdAt DateTime @default(now())
 
   @@unique([endpoint])

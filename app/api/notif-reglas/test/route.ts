@@ -23,26 +23,26 @@ export async function POST(req: NextRequest) {
   if (!id) return NextResponse.json({ error: 'Falta id' }, { status: 400 })
 
   const regla = await getRegla(id, empresaId)
-  if (!regla.activa || regla.roles.length === 0)
-    return NextResponse.json({ ok: true, enviados: 0 })
+  // Test ignora activa — permite probar aunque la regla esté apagada
+  if (regla.roles.length === 0)
+    return NextResponse.json({ ok: true, enviados: 0, msg: 'Sin roles configurados' })
 
-  const destinatarios = await prisma.empleado.findMany({
-    where: { empresaId, rol: { in: regla.roles } },
-    select: { id: true }
-  })
+  const rolesEmpleados = regla.roles.filter((r: string) => r !== 'empresa')
+  const destinatarios = rolesEmpleados.length > 0
+    ? await prisma.empleado.findMany({
+        where: { empresaId, rol: { in: rolesEmpleados }, activo: true },
+        select: { id: true }
+      })
+    : []
 
   const notif = TEST_NOTIF[id] ?? { title: `🔔 Test: ${id}`, body: 'Notificación de prueba' }
 
-  await enviarPushEmpleados(
-    destinatarios.map(e => e.id),
-    notif.title,
-    notif.body,
-    '/empleados'
-  )
-
+  if (destinatarios.length > 0) {
+    await enviarPushEmpleados(destinatarios.map(e => e.id), notif.title, notif.body, '/empleados')
+  }
   if (regla.roles.includes('empresa')) {
     await enviarPushAdmin(empresaId, notif.title, notif.body, '/empleados')
   }
 
-  return NextResponse.json({ ok: true, enviados: destinatarios.length })
+  return NextResponse.json({ ok: true, enviados: destinatarios.length + (regla.roles.includes('empresa') ? 1 : 0) })
 }
