@@ -3485,6 +3485,7 @@ model VoucherHuella {
   empresaId      String   @map("empresa_id")
   vendedorNombre String?  @map("vendedor_nombre")
   createdAt      DateTime @default(now()) @map("created_at")
+  alertada       Boolean  @default(false)
 
   @@index([hashArchivo])
   @@index([referencia, valor, fecha])
