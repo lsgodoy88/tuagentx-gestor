@@ -81,7 +81,7 @@ export default function ModalRecaudo({
     .reduce((s, l) => s + Number(l.monto || 0), 0)
   const totalDescuentoActual = Object.values(descuentosPorFactura).reduce((s, v) => s + Number(v || 0), 0)
   const saldoRestanteActual = montoSeleccionado - totalPagadoActual - totalDescuentoActual
-  const haySobrepago = saldoRestanteActual < 1000
+  const haySobrepago = saldoRestanteActual < 0 || (saldoRestanteActual > 0 && saldoRestanteActual < 1000)
 
   React.useEffect(() => { setConfirmadoSobrepago(false) }, [lineasPago, descuentosPorFactura, facturasSeleccionadas])
   React.useEffect(() => {
@@ -98,7 +98,7 @@ export default function ModalRecaudo({
           <button onClick={onClose} className="text-zinc-400 hover:text-white text-xl ml-3 flex-shrink-0">×</button>
         </div>
 
-        <div ref={scrollRef} className="px-4 space-y-3 pb-4 overflow-y-auto overscroll-contain flex-1 pt-4">
+        <div ref={scrollRef} className="px-4 space-y-3 pb-safe overflow-y-auto overscroll-contain flex-1 pt-4" style={{paddingBottom:"max(4rem, calc(env(safe-area-inset-bottom, 0px) + 3rem))"}}>
 
           {/* Skeleton */}
           {loadingDetalle ? (
@@ -132,7 +132,7 @@ export default function ModalRecaudo({
               {/* Facturas pendientes */}
               {detalleData.DetalleCartera?.filter((d: any) => d.estado !== 'pagada').length > 0 && (
                 <div className="space-y-1.5">
-                  <p className="text-zinc-300 text-sm font-semibold uppercase tracking-wide">Facturas pendientes</p>
+                  <p className="text-white text-sm font-semibold uppercase tracking-wide">Facturas pendientes</p>
                   {detalleData.DetalleCartera.filter((d: any) => d.estado !== 'pagada').map((d: any) => {
                     const saldo = Math.max(0, Number(d.valorFactura ?? d.valor) - Number(d.abonos ?? 0))
                     const seleccionada = facturasSeleccionadas.includes(d.id)
@@ -171,7 +171,7 @@ export default function ModalRecaudo({
                 {lineasPago.map((linea, idx) => (
                   <div key={linea.id} className="bg-zinc-500/40 border border-blue-500/25 rounded-xl p-4 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-zinc-300 text-sm font-semibold uppercase tracking-wide">Pago {idx + 1}</span>
+                      <span className="text-white text-sm font-semibold uppercase tracking-wide">Pago {idx + 1}</span>
                       {lineasPago.length > 1 && (
                         <button onClick={() => onSetLineasPago(prev => prev.filter(l => l.id !== linea.id))}
                           className="text-zinc-500 hover:text-red-400 text-sm">✕</button>
@@ -187,8 +187,10 @@ export default function ModalRecaudo({
                           ))}
                           className={`flex-1 py-2.5 rounded-xl text-sm font-semibold border transition-all ${
                             linea.metodoPago === met
-                              ? 'bg-zinc-400/20 border-zinc-300/50 text-white'
-                              : 'bg-zinc-700/40 border-blue-500/30 text-zinc-300 hover:text-white'
+                              ? met === 'efectivo'
+                                ? 'bg-emerald-600/40 border-emerald-400/60 text-white'
+                                : 'bg-orange-600/40 border-orange-400/60 text-white'
+                              : met === 'efectivo' ? 'bg-zinc-700/40 border-emerald-600/60 text-white' : 'bg-zinc-700/40 border-orange-600/60 text-white'
                           }`}>
                           {met === 'efectivo' ? '💵 Efectivo' : '📲 Transferencia'}
                         </button>
@@ -197,11 +199,11 @@ export default function ModalRecaudo({
 
                     {/* Efectivo */}
                     {linea.metodoPago === 'efectivo' && (
-                      <div>
-                        <label className="text-zinc-300 text-sm font-semibold block mb-1.5">Monto *</label>
+                      <div className="flex items-center gap-2">
+                        <label className="text-white text-sm font-semibold whitespace-nowrap">Monto *</label>
                         <InputMoneda value={linea.monto}
                           onChange={val => onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, monto: val } : l))}
-                          className="w-full bg-blue-950/40 border border-blue-500/30 rounded-xl pr-4 py-2.5 text-white text-sm outline-none focus:border-blue-400" />
+                          className="flex-1 bg-blue-950/40 border border-emerald-500/60 rounded-xl pr-4 py-2.5 text-white text-sm outline-none focus:border-emerald-400" />
                       </div>
                     )}
 
@@ -209,7 +211,7 @@ export default function ModalRecaudo({
                     {linea.metodoPago === 'transferencia' && (
                       <div className="space-y-3">
                         {!linea.voucherKey && !linea.cargandoVoucher && (
-                          <label className="w-full bg-zinc-500/30 border border-dashed border-zinc-400/40 rounded-xl py-2.5 text-zinc-300 text-sm hover:text-white hover:border-zinc-300 transition-colors flex items-center justify-center cursor-pointer">
+                          <label className="w-full bg-zinc-500/30 border border-dashed border-orange-500/60 rounded-xl py-2.5 text-white text-sm hover:text-white hover:border-orange-400 transition-colors flex items-center justify-center cursor-pointer">
                             📎 Adjuntar comprobante
                             <input type="file" accept="image/*,application/pdf" multiple className="hidden"
                               onChange={async e => {
@@ -313,7 +315,7 @@ export default function ModalRecaudo({
                           </label>
                         )}
                         {linea.cargandoVoucher && (
-                          <div className="bg-zinc-500/40 border border-blue-500/25 rounded-xl px-4 py-3 text-zinc-300 text-sm text-center animate-pulse">
+                          <div className="bg-zinc-500/40 border border-blue-500/25 rounded-xl px-4 py-3 text-white text-sm text-center animate-pulse">
                             Analizando comprobante con IA...
                           </div>
                         )}
@@ -344,12 +346,12 @@ export default function ModalRecaudo({
                           </div>
                         )}
                         {linea.voucherDatosIA && (
-                          <div className="flex gap-3">
-                            <div className="flex-[6]">
-                              <label className="text-zinc-300 text-sm font-semibold block mb-1.5">Monto (IA)</label>
-                              <InputMoneda value={linea.monto} readOnly onChange={() => {}}
-                                className="w-full bg-blue-950/30 border border-blue-500/20 rounded-xl pr-4 py-2.5 text-zinc-400 text-sm outline-none cursor-not-allowed" />
-                            </div>
+                          <div className="flex items-center gap-2 w-full overflow-hidden">
+                              <label className="text-white text-sm font-semibold whitespace-nowrap shrink-0">Monto (IA)</label>
+                              <div className="flex-1 min-w-0 overflow-hidden">
+                                <InputMoneda value={linea.monto} readOnly onChange={() => {}}
+                                  className="w-full bg-blue-950/30 border border-orange-500/60 rounded-xl pr-4 py-2.5 text-white text-sm outline-none cursor-not-allowed" />
+                              </div>
                           </div>
                         )}
                       </div>
@@ -369,7 +371,10 @@ export default function ModalRecaudo({
                     {hayDescuento ? (
                       <div className="bg-zinc-500/40 border border-blue-500/25 rounded-xl p-4 space-y-3">
                         <div className="flex items-center justify-between">
-                          <span className="text-zinc-300 text-sm font-semibold uppercase tracking-wide">Descuento comercial</span>
+                          <span className="flex items-center gap-2 text-white text-sm font-semibold uppercase tracking-wide">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#FBBF24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+                            Descuento Fact. {factsSelec.map((d: any) => d.numeroFactura).join(', ')}
+                          </span>
                           <button
                             onClick={() => onSetDescuentosPorFactura(() => ({}))}
                             className="text-zinc-500 hover:text-red-400 text-sm">✕</button>
@@ -378,7 +383,6 @@ export default function ModalRecaudo({
                           const key = d.syncDeudaId || d.id
                           return (
                             <div key={key} className="space-y-1.5">
-                              <label className="text-zinc-300 text-sm font-semibold block">Fact. {d.numeroFactura}</label>
                               <InputMoneda
                                 value={descuentosPorFactura[key] || ''}
                                 placeholder="0"
@@ -394,11 +398,21 @@ export default function ModalRecaudo({
                       <button
                         onClick={() => {
                           const inicial: Record<string,string> = {}
-                          factsSelec.forEach((d: any) => { inicial[d.syncDeudaId || d.id] = '' })
+                          if (factsSelec.length === 1) {
+                            const d = factsSelec[0]
+                            const saldoFact = Math.max(0, Number(d.valorFactura ?? d.valor) - Number(d.abonos ?? 0))
+                            const sugerido = Math.max(0, saldoFact - totalPagadoActual)
+                            inicial[d.syncDeudaId || d.id] = sugerido > 0 ? String(Math.round(sugerido)) : ''
+                          } else {
+                            factsSelec.forEach((d: any) => { inicial[d.syncDeudaId || d.id] = '' })
+                          }
                           onSetDescuentosPorFactura(() => inicial)
                         }}
-                        className="w-full bg-zinc-500/30 border border-dashed border-zinc-400/40 hover:border-zinc-300 text-zinc-300 hover:text-white text-sm py-2.5 rounded-xl transition-colors">
-                        ＋ Agregar descuento
+                        className="w-full bg-zinc-500/30 border border-dashed border-zinc-400/40 hover:border-white text-white text-sm py-2.5 rounded-xl transition-colors">
+                        <span className="flex items-center justify-center gap-2 text-sm">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FBBF24" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/></svg>
+                          Descuento Fact. {factsSelec.map((d: any) => d.numeroFactura).join(', ')}
+                        </span>
                       </button>
                     )}
                   </div>
@@ -406,8 +420,8 @@ export default function ModalRecaudo({
               })()}
 
                 <button onClick={() => onSetLineasPago(prev => [...prev, crearLinea()])}
-                  className="w-full bg-zinc-500/30 border border-dashed border-zinc-400/40 hover:border-zinc-300 text-zinc-300 hover:text-white text-sm py-2.5 rounded-xl transition-colors">
-                  ＋ Agregar otro método
+                  className="w-full bg-zinc-500/30 border border-dashed border-zinc-400/40 hover:border-white text-white text-sm py-2.5 rounded-xl transition-colors font-semibold tracking-wide">
+                  ＋ AGREGAR PAGO {lineasPago.length + 1}
                 </button>
               </div>
 
@@ -420,7 +434,7 @@ export default function ModalRecaudo({
                 return (
                   <div className="bg-zinc-500/40 border border-blue-500/25 rounded-xl px-4 py-3 space-y-1.5">
                     <div className="flex items-center justify-between mb-2">
-                      <p className="text-zinc-300 text-sm font-semibold uppercase tracking-wide">Resumen</p>
+                      <p className="text-white text-sm font-semibold uppercase tracking-wide">Resumen</p>
                       {(() => {
                         // Simular FIFO igual que la API — solo mostrar facturas que el monto cubre
                         const totalAplicado = contables.reduce((s, l) => s + Number(l.monto || 0), 0) +
@@ -448,24 +462,24 @@ export default function ModalRecaudo({
                     </div>
                     {contables.map((l, i) => (
                       <div key={l.id} className="flex justify-between items-center text-sm">
-                        <span className="text-zinc-500">Pago {i + 1} · {l.metodoPago === 'efectivo' ? 'Efectivo' : 'Transferencia'}</span>
+                        <span className="text-white">Pago {i + 1} · {l.metodoPago === 'efectivo' ? 'Efectivo' : 'Transferencia'}</span>
                         <span className="text-white font-medium">{l.monto ? fmt(Number(l.monto)) : '—'}</span>
                       </div>
                     ))}
                     <div className="border-t border-zinc-700 pt-1.5 mt-1.5 space-y-1">
                       <div className="flex justify-between items-center text-sm">
-                        <span className="text-zinc-400">Total pagado</span>
+                        <span className="text-white">Total pagado</span>
                         <span className="text-white font-bold">{fmt(totalPagado)}</span>
                       </div>
                       {totalDescuento > 0 && (
                         <div className="flex justify-between items-center text-sm">
-                          <span className="text-zinc-400">Descuento</span>
+                          <span className="text-white">Descuento</span>
                           <span className="text-orange-400 font-bold">{fmt(totalDescuento)}</span>
                         </div>
                       )}
                       <div className="flex justify-between items-center text-sm">
-                        <span className="text-zinc-400">Deuda actual</span>
-                        <span className="text-zinc-300">{fmt(montoSeleccionado)}</span>
+                        <span className="text-white">Deuda actual</span>
+                        <span className="text-white">{fmt(montoSeleccionado)}</span>
                       </div>
                       <div className="flex justify-between items-center font-bold">
                         <span className="text-white">Saldo restante</span>
@@ -481,7 +495,7 @@ export default function ModalRecaudo({
               {/* Notas */}
               <div>
                 <button onClick={() => setNotasOpen(o => !o)}
-                  className="flex items-center gap-2 text-zinc-400 text-xs font-semibold w-full text-left">
+                  className="flex items-center gap-2 text-white text-xs font-semibold w-full text-left">
                   <span>Notas (opcional)</span>
                   <span className="text-zinc-500">{notasOpen ? '▲' : '▼'}</span>
                 </button>
@@ -505,7 +519,7 @@ export default function ModalRecaudo({
                       <input type="checkbox" id="capturarGpsRecaudo" checked={capturarGps}
                         onChange={e => setCapturarGps(e.target.checked)}
                         className="w-4 h-4 accent-emerald-500" />
-                      <label htmlFor="capturarGpsRecaudo" className="text-zinc-300 text-sm cursor-pointer">
+                      <label htmlFor="capturarGpsRecaudo" className="text-white text-sm cursor-pointer">
                         Guardar ubicación de este cliente
                       </label>
                     </div>
