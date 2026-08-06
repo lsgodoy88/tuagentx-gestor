@@ -3460,6 +3460,18 @@ model NotifRegla {
   @@index([empresaId])
   @@map("NotifRegla")
 }
+model PagoAlerta {
+  id        String   @id @default(cuid())
+  pagoId    String   @map("pago_id")
+  tipo      String   @default("voucher_duplicado")
+  mensaje   String
+  leida     Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([pagoId])
+  @@map("PagoAlerta")
+}
+
 model PushSuscripcionAdmin {
   id        String   @id
   empresaId String

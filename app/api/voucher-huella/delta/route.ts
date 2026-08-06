@@ -8,7 +8,7 @@ const DB_SCHEMA = (() => {
 })()
 
 async function runDelta() {
-  // Solo huellas no alertadas en ventana de 60 días — índice parcial garantiza O(pendientes)
+  // Solo huellas no alertadas en ventana 60 días — índice parcial garantiza O(pendientes)
   const duplicados: any[] = await (prisma as any).$queryRawUnsafe(`
     SELECT referencia, valor::text, fecha,
            array_agg(id) as huella_ids,
@@ -27,23 +27,27 @@ async function runDelta() {
   let actualizados = 0
 
   for (const dup of duplicados) {
-    const huellaIds: string[] = dup.huella_ids
-    const pagoIds: string[]   = dup.pago_ids
+    const huellaIds: string[]  = dup.huella_ids
+    const pagoIds: string[]    = dup.pago_ids
     const vendedores: string[] = dup.vendedores ?? []
 
-    // Alertar cada PagoCartera involucrado
+    // INSERT en PagoAlerta — no toca notas ni ningún campo del PagoCartera
     for (let i = 0; i < pagoIds.length; i++) {
-      const otrosPagos     = pagoIds.filter((_: string, j: number) => j !== i)
+      const otrosPagos      = pagoIds.filter((_: string, j: number) => j !== i)
       const otrosVendedores = vendedores.filter((_: string, j: number) => j !== i && vendedores[j])
-      const alerta = `⚠️ Comprobante duplicado — Ref: ${dup.referencia} $${Number(dup.valor).toLocaleString('es-CO')} ${dup.fecha}. También en recibo(s): ${otrosPagos.join(', ')}${otrosVendedores.length ? ` por ${otrosVendedores.join(', ')}` : ''}`
-      await (prisma as any).pagoCartera.update({
-        where: { id: pagoIds[i] },
-        data:  { notas: alerta }
-      })
+      const mensaje = `Comprobante duplicado — Ref: ${dup.referencia} $${Number(dup.valor).toLocaleString('es-CO')} ${dup.fecha}. También en recibo(s): ${otrosPagos.join(', ')}${otrosVendedores.length ? ` por ${otrosVendedores.join(', ')}` : ''}`
+
+      // Idempotente: skip si ya existe alerta para este pago con mismo mensaje
+      await (prisma as any).$queryRawUnsafe(`
+        INSERT INTO "${DB_SCHEMA}"."PagoAlerta" (id, pago_id, tipo, mensaje, leida)
+        VALUES (gen_random_uuid(), $1, 'voucher_duplicado', $2, false)
+        ON CONFLICT DO NOTHING
+      `, pagoIds[i], mensaje)
+
       actualizados++
     }
 
-    // Marcar todas las huellas del grupo como alertadas — nunca se reprocesarán
+    // Marcar huellas como alertadas — nunca se reprocesarán
     await (prisma as any).$queryRawUnsafe(`
       UPDATE "${DB_SCHEMA}"."VoucherHuella"
       SET alertada = true
@@ -51,7 +55,7 @@ async function runDelta() {
     `, huellaIds)
   }
 
-  // Purge: eliminar huellas con más de 60 días
+  // Purge: huellas con más de 60 días
   await (prisma as any).$queryRawUnsafe(`
     DELETE FROM "${DB_SCHEMA}"."VoucherHuella"
     WHERE created_at < NOW() - INTERVAL '60 days'

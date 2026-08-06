@@ -348,7 +348,7 @@ export async function POST(req: NextRequest) {
     try {
       const lineas: any[] = Array.isArray(body.lineasPago) ? body.lineasPago : []
       const huellas = lineas
-        .filter((l: any) => l.voucherDatosIA && (l.voucherDatosIA.referencia || l.hashArchivo))
+        .filter((l: any) => l.metodoPago !== 'efectivo' && l.voucherDatosIA && (l.voucherDatosIA.referencia || l.hashArchivo))
         .map((l: any) => ({
           id: crypto.randomUUID(),
           hashArchivo: l.hashArchivo ?? null,
