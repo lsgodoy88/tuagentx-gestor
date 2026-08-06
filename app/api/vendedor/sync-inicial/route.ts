@@ -3,11 +3,14 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
+import { decrypt } from '@/lib/crypto-uptres'
+import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 
 /**
  * POST /api/vendedor/sync-inicial
  * Establece nSaldoBase + nSaldoBaseAt en SyncDeuda de los clientes del vendedor.
  * Write-once: solo toca deudas donde nSaldoBase IS NULL.
+ * Consulta UpTres en tiempo real para obtener el saldo exacto de cada deuda.
  * Body: { empleadoId: string, syncInicioAt: string (ISO) }
  */
 export async function POST(req: NextRequest) {
@@ -30,7 +33,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Fecha invalida' }, { status: 400 })
     }
 
-    // 1. Verificar empleado pertenece a la empresa, tiene apiId y lista
+    // 1. Verificar empleado
     const empleado = await (prisma as any).empleado.findFirst({
       where: { id: empleadoId, empresaId },
       select: {
@@ -54,22 +57,27 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No hay clientes en la lista del empleado' }, { status: 400 })
     }
 
-    // 3. Integracion
+    // 3. Integracion + credenciales
     const integracion = await (prisma as any).integracion.findFirst({
       where: { empresaId },
-      select: { id: true }
+      select: { id: true, config: true }
     })
     if (!integracion) return NextResponse.json({ error: 'Sin integracion configurada' }, { status: 400 })
 
-    // 4. Deudas activas sin nSaldoBase (write-once)
-    const deudas = await (prisma as any).syncDeuda.findMany({
+    const config = integracion.config as any
+    const apiSecret = decrypt(config.apiSecret, process.env.UPTRES_SECRET!)
+    const adapter = new UpTresAdapter(config.apiKey, apiSecret)
+    await adapter.login()
+
+    // 4. Deudas activas sin nSaldoBase en Gestor BD
+    const deudasBD = await (prisma as any).syncDeuda.findMany({
       where: {
         integracionId: integracion.id,
         clienteApiId: { in: clienteApiIds },
         condition: true,
         nSaldoBase: null
       },
-      select: { id: true, saldo: true }
+      select: { id: true, externalId: true, saldo: true }
     })
 
     // 5. Siempre guardar syncInicioAt en empleado
@@ -78,35 +86,49 @@ export async function POST(req: NextRequest) {
       data: { syncInicioAt: fechaInicio }
     })
 
-    if (deudas.length === 0) {
+    if (deudasBD.length === 0) {
       return NextResponse.json({ ok: true, actualizadas: 0, mensaje: 'Sin deudas pendientes de sincronizar' })
     }
 
-    // 6. nSaldoBaseAt igual para todas — updateMany primero
+    // 6. Consultar saldos reales en UpTres ahora mismo
+    const deudasUptres = await (adapter as any).fetchDeudasEmpleado(empleado.apiId)
+    const saldoMap: Record<string, number> = {}
+    for (const d of deudasUptres) {
+      const uid = String(d.uid || d._id || '')
+      if (uid) saldoMap[uid] = parseFloat(d.vSaldo ?? '0')
+    }
+
+    // 7. nSaldoBaseAt igual para todas
     await (prisma as any).syncDeuda.updateMany({
-      where: { id: { in: deudas.map((d: any) => d.id) } },
+      where: { id: { in: deudasBD.map((d: any) => d.id) } },
       data: { nSaldoBaseAt: fechaInicio }
     })
 
-    // 7. nSaldoBase varía por deuda — update individual
+    // 8. nSaldoBase = saldo real UpTres, fallback a saldo BD si no viene en respuesta
     await Promise.all(
-      deudas.map((d: any) =>
-        (prisma as any).syncDeuda.update({
+      deudasBD.map((d: any) => {
+        const saldoReal = saldoMap[d.externalId] ?? Number(d.saldo)
+        return (prisma as any).syncDeuda.update({
           where: { id: d.id },
-          data: { nSaldoBase: d.saldo }
+          data: { nSaldoBase: saldoReal }
         })
-      )
+      })
     )
+
+    const totalBase = deudasBD.reduce((s: number, d: any) => {
+      return s + (saldoMap[d.externalId] ?? Number(d.saldo))
+    }, 0)
 
     return NextResponse.json({
       ok: true,
-      actualizadas: deudas.length,
+      actualizadas: deudasBD.length,
       clientes: clienteApiIds.length,
+      totalBase: Math.round(totalBase),
       fechaInicio: fechaInicio.toISOString()
     })
 
   } catch (err: any) {
     console.error('[sync-inicial]', err)
-    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+    return NextResponse.json({ error: 'Error interno', detalle: err.message }, { status: 500 })
   }
 }

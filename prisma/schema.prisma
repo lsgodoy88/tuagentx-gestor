@@ -3473,3 +3473,21 @@ model PushSuscripcionAdmin {
   @@index([empresaId])
   @@map("PushSuscripcionAdmin")
 }
+
+model VoucherHuella {
+  id             String   @id @default(cuid())
+  hashArchivo    String?  @map("hash_archivo")
+  referencia     String?
+  valor          Decimal? @db.Decimal(14, 2)
+  fecha          String?
+  banco          String?
+  pagoId         String   @map("pago_id")
+  empresaId      String   @map("empresa_id")
+  vendedorNombre String?  @map("vendedor_nombre")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([hashArchivo])
+  @@index([referencia, valor, fecha])
+  @@index([empresaId])
+  @@map("VoucherHuella")
+}

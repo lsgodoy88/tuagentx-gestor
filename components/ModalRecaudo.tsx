@@ -211,47 +211,100 @@ export default function ModalRecaudo({
                         {!linea.voucherKey && !linea.cargandoVoucher && (
                           <label className="w-full bg-zinc-500/30 border border-dashed border-zinc-400/40 rounded-xl py-2.5 text-zinc-300 text-sm hover:text-white hover:border-zinc-300 transition-colors flex items-center justify-center cursor-pointer">
                             📎 Adjuntar comprobante
-                            <input type="file" accept="image/*,application/pdf" className="hidden"
+                            <input type="file" accept="image/*,application/pdf" multiple className="hidden"
                               onChange={async e => {
-                              const file = e.target.files?.[0]
-                              if (!file) return
+                              const files = Array.from(e.target.files || [])
+                              if (!files.length) return
                               onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, cargandoVoucher: true } : l))
-                              try {
-                                const archivoBase64 = await new Promise<string>((res, rej) => {
-                                  const r = new FileReader()
-                                  r.onerror = rej
-                                  r.onload = ev => {
-                                    const raw = ev.target?.result as string
-                                    // Comprimir en canvas para reducir payload en móvil
-                                    const img = new Image()
-                                    img.onerror = () => res(raw) // fallback sin comprimir
-                                    img.onload = () => {
-                                      const MAX = 1400
-                                      const scale = Math.min(1, MAX / Math.max(img.width, img.height))
-                                      const canvas = document.createElement('canvas')
-                                      canvas.width = Math.round(img.width * scale)
-                                      canvas.height = Math.round(img.height * scale)
-                                      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
-                                      res(canvas.toDataURL('image/jpeg', 0.82))
-                                    }
-                                    img.src = raw
+
+                              // SHA-256 del base64 para deduplicar archivos idénticos (Capa 1)
+                              const hashBase64 = async (b64: string): Promise<string> => {
+                                const bytes = Uint8Array.from(atob(b64.split(',')[1] ?? b64), c => c.charCodeAt(0))
+                                const buf = await crypto.subtle.digest('SHA-256', bytes)
+                                return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('')
+                              }
+
+                              const comprimirArchivo = (file: File): Promise<string> => new Promise((res, rej) => {
+                                const r = new FileReader()
+                                r.onerror = rej
+                                r.onload = ev => {
+                                  const raw = ev.target?.result as string
+                                  if (file.type === 'application/pdf') return res(raw)
+                                  const img = new Image()
+                                  img.onerror = () => res(raw)
+                                  img.onload = () => {
+                                    const MAX = 1400
+                                    const scale = Math.min(1, MAX / Math.max(img.width, img.height))
+                                    const canvas = document.createElement('canvas')
+                                    canvas.width = Math.round(img.width * scale)
+                                    canvas.height = Math.round(img.height * scale)
+                                    canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+                                    res(canvas.toDataURL('image/jpeg', 0.82))
                                   }
-                                  r.readAsDataURL(file)
-                                })
-                                const tempId = crypto.randomUUID()
-                                const resp = await fetch('/api/cartera/voucher', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archivoBase64, mimeType: file.type, pagoId: tempId }) })
-                                const data = await resp.json()
-                                const pagos: any[] = Array.isArray(data.pagos) && data.pagos.length > 0 ? data.pagos : [data.datosIA]
-                                if (pagos.length <= 1) {
-                                  onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, voucherKey: data.key, voucherDatosIA: pagos[0], cargandoVoucher: false, monto: pagos[0]?.valor ? String(Math.round(pagos[0].valor)) : l.monto } : l))
-                                } else {
-                                  onSetLineasPago(prev => {
-                                    const idx = prev.findIndex(l => l.id === linea.id)
-                                    if (idx === -1) return prev
-                                    const nuevas = pagos.map((p: any, i: number) => ({ ...crearLinea(), id: i === 0 ? linea.id : crypto.randomUUID(), metodoPago: 'transferencia' as const, voucherKey: data.key, voucherDatosIA: p, cargandoVoucher: false, monto: p?.valor ? String(Math.round(p.valor)) : '' }))
-                                    return [...prev.slice(0, idx), ...nuevas, ...prev.slice(idx + 1)]
-                                  })
+                                  img.src = raw
                                 }
+                                r.readAsDataURL(file)
+                              })
+
+                              try {
+                                // Hashes ya existentes en lineasPago actuales (Capa 1 cross-sesión modal)
+                                const hashesExistentes = new Set(
+                                  lineasPago.map((l: any) => l.hashArchivo).filter(Boolean)
+                                )
+                                // Referencias ya existentes (Capa 2)
+                                const refsExistentes = new Set(
+                                  lineasPago.map((l: any) => l.voucherDatosIA?.referencia).filter(Boolean)
+                                )
+
+                                let lineasNuevas: any[] = []
+                                for (const file of files) {
+                                  const archivoBase64 = await comprimirArchivo(file)
+                                  const hash = await hashBase64(archivoBase64)
+
+                                  // Capa 1: skip si archivo idéntico ya cargado
+                                  if (hashesExistentes.has(hash)) {
+                                    console.info('[voucher] archivo duplicado (hash), skip:', file.name)
+                                    continue
+                                  }
+                                  hashesExistentes.add(hash)
+
+                                  const tempId = crypto.randomUUID()
+                                  const resp = await fetch('/api/cartera/voucher', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archivoBase64, mimeType: file.type, pagoId: tempId }) })
+                                  const data = await resp.json()
+                                  const pagos: any[] = Array.isArray(data.pagos) && data.pagos.length > 0 ? data.pagos : [data.datosIA]
+
+                                  const lineasArchivo = pagos.map((p: any) => {
+                                    // Capa 2: advertencia si referencia ya existe
+                                    const refDuplicada = p?.referencia && refsExistentes.has(p.referencia)
+                                    if (p?.referencia) refsExistentes.add(p.referencia)
+                                    return {
+                                      ...crearLinea(),
+                                      id: crypto.randomUUID(),
+                                      metodoPago: 'transferencia' as const,
+                                      voucherKey: data.key,
+                                      voucherDatosIA: p,
+                                      cargandoVoucher: false,
+                                      monto: p?.valor ? String(Math.round(p.valor)) : '',
+                                      hashArchivo: hash,
+                                      alertaDuplicado: refDuplicada ? `⚠️ Ref. ${p.referencia} ya fue cargada en este recaudo` : undefined,
+                                    }
+                                  })
+                                  lineasNuevas = [...lineasNuevas, ...lineasArchivo]
+                                }
+
+                                if (!lineasNuevas.length) {
+                                  // Todos los archivos eran duplicados
+                                  onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, cargandoVoucher: false } : l))
+                                  return
+                                }
+
+                                onSetLineasPago(prev => {
+                                  const idx = prev.findIndex(l => l.id === linea.id)
+                                  if (idx === -1) return prev
+                                  const [primera, ...resto] = lineasNuevas
+                                  const lineasInsert = [{ ...primera, id: linea.id }, ...resto]
+                                  return [...prev.slice(0, idx), ...lineasInsert, ...prev.slice(idx + 1)]
+                                })
                               } catch(err) {
                                 console.error('[modal] error voucher:', err)
                                 onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, cargandoVoucher: false } : l))
@@ -285,6 +338,9 @@ export default function ModalRecaudo({
                               {linea.voucherDatosIA.banco && <div className="col-span-2"><span className="text-zinc-500">Banco:</span> <span className="text-white">{linea.voucherDatosIA.banco}</span></div>}
                               {linea.voucherDatosIA.referencia && <div className="col-span-2"><span className="text-zinc-500">Ref:</span> <span className="text-white">{linea.voucherDatosIA.referencia}</span></div>}
                             </div>
+                            {(linea as any).alertaDuplicado && (
+                              <p className="text-amber-400 text-xs font-semibold mt-1">{(linea as any).alertaDuplicado}</p>
+                            )}
                           </div>
                         )}
                         {linea.voucherDatosIA && (

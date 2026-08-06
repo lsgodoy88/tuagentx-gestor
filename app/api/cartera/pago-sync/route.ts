@@ -343,5 +343,30 @@ export async function POST(req: NextRequest) {
   invalidarContextoVendedor(empId).catch(() => {})
   invalidarContextoEmpresa(empresaId).catch(() => {})
 
+  // Fire & forget: guardar huellas de vouchers para detección de duplicados cross-empresa
+  void (async () => {
+    try {
+      const lineas: any[] = Array.isArray(body.lineasPago) ? body.lineasPago : []
+      const huellas = lineas
+        .filter((l: any) => l.voucherDatosIA && (l.voucherDatosIA.referencia || l.hashArchivo))
+        .map((l: any) => ({
+          id: crypto.randomUUID(),
+          hashArchivo: l.hashArchivo ?? null,
+          referencia: l.voucherDatosIA?.referencia ?? null,
+          valor: l.voucherDatosIA?.valor ? String(Math.round(Number(l.voucherDatosIA.valor))) : null,
+          fecha: l.voucherDatosIA?.fecha ?? null,
+          banco: l.voucherDatosIA?.banco ?? null,
+          pagoId: pago.id,
+          empresaId,
+          vendedorNombre: vendedorNom ?? null,
+        }))
+      if (huellas.length > 0) {
+        await (prisma as any).voucherHuella.createMany({ data: huellas, skipDuplicates: true })
+      }
+    } catch (err) {
+      console.error('[voucher-huella] fire&forget error:', err)
+    }
+  })()
+
   return NextResponse.json({ pago, anchoPapel } satisfies PagoSyncResponse)
 }
