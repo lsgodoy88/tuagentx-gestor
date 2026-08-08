@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import OpenAI from 'openai'
 import { subirEvidenciaGasto } from '@/lib/r2'
+import { getEmpresaId } from '@/lib/auth-helpers'
 import { pdfPrimerarPaginaAJpg } from '@/lib/pdfAJpg'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -20,6 +21,8 @@ type DatosIAGasto = { valor: number | null; fecha: string | null; concepto: stri
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const user = session.user as any
+  const empresaId = getEmpresaId(user)
 
   const { archivoBase64, mimeType, gastoId } = await req.json()
   if (!archivoBase64 || !mimeType || !gastoId) {
@@ -64,7 +67,7 @@ export async function POST(req: NextRequest) {
     console.log('[gastos/voucher-error]', e)
   }
 
-  const key = await subirEvidenciaGasto(imagenBase64, gastoId)
+  const key = await subirEvidenciaGasto(imagenBase64, gastoId, empresaId, "factura_egreso")
 
   return NextResponse.json({ key, datosIA })
 }

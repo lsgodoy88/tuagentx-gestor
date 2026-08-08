@@ -6,6 +6,7 @@ import { prisma } from '@/lib/prisma'
 import { getOrCreateRutaHoy } from '@/lib/rutas/getOrCreateRutaHoy'
 import { getEmpresaId, ROLES_ADMIN_BODEGA } from '@/lib/auth-helpers'
 import { subirR2, registrarDespachoLog, esDespachado } from '@/lib/bodega'
+import { registrarStorage } from '@/lib/r2'
 import { DB_SCHEMA } from '@/lib/prisma'
 
 const ROLES = ROLES_ADMIN_BODEGA
@@ -58,7 +59,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   if (fotoAlistamiento && typeof fotoAlistamiento === 'string' && fotoAlistamiento.startsWith('data:')) {
     const idx = ((orden.fotosAlistamiento as string[]) || []).length
     const key = `alistamiento/${id}_${idx}.jpg`
+    const fotoBuf = Buffer.from(fotoAlistamiento.replace(/^data:[^;]+;base64,/, ''), 'base64')
     await subirR2(fotoAlistamiento, key, 'image/jpeg')
+    registrarStorage(empresaIdOrden, 'foto_alistamiento', key, fotoBuf.length)
     const fotos = [...((orden.fotosAlistamiento as string[]) || []), key]
     update.fotosAlistamiento = fotos
     update.fotoAlistamiento = key
@@ -81,7 +84,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // Firma entrega personal desde bodega
   if (firmaBase64 && typeof firmaBase64 === 'string' && firmaBase64.startsWith('data:')) {
     const firmaKey = `firmas/${id}.png`
+    const firmaBuf = Buffer.from(firmaBase64.replace(/^data:[^;]+;base64,/, ''), 'base64')
     await subirR2(firmaBase64, firmaKey, 'image/png')
+    registrarStorage(empresaIdOrden, 'firma', firmaKey, firmaBuf.length)
     update.firmaEntrega = firmaKey
     update.estado = 'entregado'
     update.entregadoEl = new Date()

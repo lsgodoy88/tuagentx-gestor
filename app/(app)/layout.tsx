@@ -1,4 +1,6 @@
 'use client'
+import AlertasNotch from '@/components/AlertasNotch'
+import AlertasSidebarBadge from '@/components/AlertasSidebarBadge'
 import React from 'react'
 import AsistenteGestor from '@/components/AsistenteGestor'
 import RobotIcon from '@/components/RobotIcon'
@@ -325,11 +327,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* ── SIDEBAR DESKTOP ── */}
       <aside className="flex-col hidden md:flex flex-shrink-0 fixed top-0 left-0 h-screen z-10" style={{width: sidebarExpanded ? 224 : 0, transition:"none", overflowX:"hidden", overflowY: sidebarExpanded ? "auto" : "hidden", background:'rgba(8,10,30,0.82)',backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',borderRight:'1px solid rgba(255,255,255,0.10)'}}>
 
-        <div className="flex items-center px-4 h-14 border-b border-[#1c1c20] flex-shrink-0">
+        <div className="flex items-center justify-between px-4 h-14 border-b border-[#1c1c20] flex-shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs" style={{background:'linear-gradient(135deg,#2563eb,#1d4ed8)',boxShadow:'0 0 12px #2563eb40'}}>🗺️</div>
             <span className="text-white font-bold text-sm tracking-tight">Gestor</span>
           </div>
+          {(isEmpresa || isSupervisor) && <AlertasSidebarBadge />}
         </div>
 
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
@@ -616,8 +619,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </button>
 
-          {/* Robot TaXBot — banda derecha, solo en dashboard */}
-          {(isEmpresa || isSupervisor || isEmpleado) && pathname === '/inicio' && (
+          {/* Alertas Notch — banda derecha, a la izquierda del TaxBot */}
+      <div className="md:hidden">{(isEmpresa || isSupervisor) && <AlertasNotch />}</div>
+
+      {/* Robot TaXBot — banda derecha, solo en dashboard */}
+          <div className="md:hidden">{(isEmpresa || isSupervisor || isEmpleado) && pathname === '/inicio' && (
             <button
               className="fixed z-[3001] md:hidden robot-taxbot"
               onClick={() => setAsistenteAbierto(true)}
@@ -661,7 +667,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <span style={{position:'absolute',top:6,right:10,width:8,height:8,background:'#34d399',borderRadius:'50%',border:'2px solid rgba(30,36,58,0.99)',boxShadow:'0 0 4px #34d399'}}/>
               </div>
             </button>
-          )}
+          )}</div>
         </>
       )}
 

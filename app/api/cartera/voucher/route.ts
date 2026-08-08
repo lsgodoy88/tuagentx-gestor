@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import OpenAI from 'openai'
-import { subirVoucher } from '@/lib/r2'
+import { subirVoucher, subirVoucherConEmpresa } from '@/lib/r2'
+import { getEmpresaId } from '@/lib/auth-helpers'
 import { pdfPrimerarPaginaAJpg } from '@/lib/pdfAJpg'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
@@ -31,6 +32,8 @@ export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
 
+  const user = session.user as any
+  const empresaId = getEmpresaId(user)
   const { archivoBase64, mimeType, pagoId } = await req.json()
   if (!archivoBase64 || !mimeType || !pagoId) {
     return NextResponse.json({ error: 'archivoBase64, mimeType y pagoId requeridos' }, { status: 400 })
@@ -68,7 +71,7 @@ export async function POST(req: NextRequest) {
         ],
       }],
     }),
-    subirVoucher(imagenBase64, pagoId)
+    subirVoucherConEmpresa(imagenBase64, pagoId, empresaId)
   ])
 
   tIA = Date.now() - t0
@@ -92,7 +95,7 @@ export async function POST(req: NextRequest) {
 
   if (pagos.length === 0) pagos = [{ valor: null, fecha: null, banco: null, referencia: null }]
 
-  const uploadKey = key.status === 'fulfilled' ? key.value : await subirVoucher(imagenBase64, pagoId)
+  const uploadKey = key.status === 'fulfilled' ? key.value : await subirVoucherConEmpresa(imagenBase64, pagoId, empresaId)
   console.log(`[voucher-timing] total: ${Date.now()-t0}ms | pagos: ${pagos.length}`)
   return NextResponse.json({ key: uploadKey, datosIA: pagos[0], pagos })
 }

@@ -36,6 +36,7 @@ module.exports = {
     max_restarts: 10,
     restart_delay: 3000,
     min_uptime: '10s',
+    node_args: '--max-old-space-size=512',
     script: 'node_modules/next/dist/bin/next',
     args: 'start -p 3011',
     cwd: '/srv/gestor-staging',

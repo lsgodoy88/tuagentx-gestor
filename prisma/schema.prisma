@@ -42,6 +42,7 @@ model Empresa {
   configRecibos       Json?              @default("{\"nit\": null, \"logo\": null, \"prefijo\": \"REC\", \"telefono\": null, \"direccion\": null, \"anchoPapel\": \"80mm\"}")
   configDespachos     Json?              @default("{\"transportadora\": \"\", \"urlBase\": \"\"}") 
   colorFondo           String?
+  limite_storage_gb   Int                @default(1)
   chatsAsistente      AsistenteChat[]
   Cartera             Cartera[]
   clientes            Cliente[]
@@ -3503,4 +3504,37 @@ model VoucherHuella {
   @@index([referencia, valor, fecha])
   @@index([empresaId])
   @@map("VoucherHuella")
+}
+
+model AlertaLog {
+  id          String    @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  empresa_id  String
+  tipo        String
+  severidad   String    @default("advertencia")
+  mensaje     String
+  resuelta    Boolean   @default(false)
+  resuelta_el DateTime?
+  vista_por   String?
+  vista_el    DateTime?
+  created_at  DateTime  @default(now())
+  updated_at  DateTime  @default(now())
+
+  @@id([id])
+  @@unique([empresa_id, tipo], map: "idx_alerta_log_activa")
+  @@index([empresa_id])
+  @@map("AlertaLog")
+}
+
+model StorageLog {
+  id         String   @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  empresa_id String
+  tipo       String
+  key        String
+  size_bytes Int
+  created_at DateTime @default(now())
+
+  @@id([id])
+  @@index([empresa_id])
+  @@index([empresa_id, tipo])
+  @@map("StorageLog")
 }

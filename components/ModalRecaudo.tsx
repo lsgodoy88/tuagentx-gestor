@@ -9,6 +9,7 @@ interface LineaPago {
   voucherKey: string | null
   voucherDatosIA: any
   cargandoVoucher: boolean
+  errorVoucher?: 'duplicado' | null
 }
 
 interface ModalRecaudoProps {
@@ -211,8 +212,12 @@ export default function ModalRecaudo({
                     {linea.metodoPago === 'transferencia' && (
                       <div className="space-y-3">
                         {!linea.voucherKey && !linea.cargandoVoucher && (
-                          <label className="w-full bg-zinc-500/30 border border-dashed border-orange-500/60 rounded-xl py-2.5 text-white text-sm hover:text-white hover:border-orange-400 transition-colors flex items-center justify-center cursor-pointer">
-                            📎 Adjuntar comprobante
+                          <label className={`w-full border border-dashed rounded-xl py-2.5 text-sm transition-all flex items-center justify-center cursor-pointer ${
+                              linea.errorVoucher === 'duplicado'
+                                ? 'bg-red-950/30 border-red-500 text-red-400'
+                                : 'bg-zinc-500/30 border-orange-500/60 text-white hover:text-white hover:border-orange-400'
+                            }`}>
+                            {linea.errorVoucher === 'duplicado' ? '⚠️ Comprobante duplicado' : '📎 Adjuntar comprobante'}
                             <input type="file" accept="image/*,application/pdf" multiple className="hidden"
                               onChange={async e => {
                               const files = Array.from(e.target.files || [])
@@ -266,6 +271,8 @@ export default function ModalRecaudo({
                                   // Capa 1: skip si archivo idéntico ya cargado
                                   if (hashesExistentes.has(hash)) {
                                     console.info('[voucher] archivo duplicado (hash), skip:', file.name)
+                                    onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, cargandoVoucher: false, errorVoucher: 'duplicado' } : l))
+                                    setTimeout(() => onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, errorVoucher: null } : l)), 3000)
                                     continue
                                   }
                                   hashesExistentes.add(hash)

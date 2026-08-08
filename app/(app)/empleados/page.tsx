@@ -51,6 +51,8 @@ export default function EmpleadosPage() {
   const [notifGuardando, setNotifGuardando] = useState<string | null>(null)
   const [notifTesting, setNotifTesting] = useState<string | null>(null)
   const [rolesConSub, setRolesConSub] = useState<string[]>([])
+  const [subsDispositivos, setSubsDispositivos] = useState<{empleados: any[], admin: any[]}>({empleados: [], admin: []})
+  const [subsBorrando, setSubsBorrando] = useState<string | null>(null)
   const [listas, setListas] = useState<any[]>([])
   const [vendedorIds, setVendedorIds] = useState<string[]>([])
   const [etiqueta, setEtiqueta] = useState('')
@@ -84,7 +86,7 @@ export default function EmpleadosPage() {
   const [apiIdSeleccionado, setApiIdSeleccionado] = useState('')
 
   // Tab principal
-  const [tabPrincipal, setTabPrincipal] = useState<'rutas' | 'equipo' | 'metas' | 'notifica'>('rutas')
+  const [tabPrincipal, setTabPrincipal] = useState<'rutas' | 'equipo' | 'metas' | 'notifica'>('equipo')
   // Metas
   const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic']
   const fmtMeta = (v: string) => {
@@ -94,6 +96,7 @@ export default function EmpleadosPage() {
   }
   const parseMeta = (v: string) => v.replace(/[^0-9]/g,'')
   const [popupSync, setPopupSync] = useState(false)
+  const [storageData, setStorageData] = useState<any>(null)
   const [popupSyncForm, setPopupSyncForm] = useState(false)
   const [syncEvidencia, setSyncEvidencia] = useState<string|null>(null)
   const [syncEmpleadoId, setSyncEmpleadoId] = useState('')
@@ -150,6 +153,9 @@ export default function EmpleadosPage() {
   const ROL_ICON: Record<string,string> = { vendedor:'🛍️', entregas:'📦', supervisor:'👁️', impulsadora:'⭐', bodega:'🏭' }
 
   useEffect(() => { loadData() }, [])
+  useEffect(() => {
+    if (esAdmin) fetch('/api/almacenamiento').then(r => r.json()).then(d => setStorageData(d)).catch(() => {})
+  }, [esAdmin])
 
   async function loadData() {
     const [empRes, meRes, estadoRes] = await Promise.all([
@@ -273,6 +279,8 @@ export default function EmpleadosPage() {
     const d = await fetch('/api/notif-reglas').then(r => r.json()).catch(() => ({ reglas: [] }))
     setNotifReglas(d.reglas || [])
     setRolesConSub(d.rolesConSub || [])
+    const s = await fetch('/api/push/suscribir').then(r => r.json()).catch(() => ({ empleados: [], admin: [] }))
+    setSubsDispositivos({ empleados: s.empleados || [], admin: s.admin || [] })
     setNotifLoading(false)
   }
 
@@ -284,6 +292,16 @@ export default function EmpleadosPage() {
     setNotifGuardando(reglaId)
     await fetch('/api/notif-reglas', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: reglaId, roles, activa: regla.activa }) })
     setNotifGuardando(null)
+  }
+
+  async function borrarSub(id: string, tipo: 'admin' | 'empleado') {
+    setSubsBorrando(id)
+    await fetch('/api/push/suscribir', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, tipo }) })
+    setSubsDispositivos(prev => ({
+      empleados: tipo === 'empleado' ? prev.empleados.filter((s: any) => s.id !== id) : prev.empleados,
+      admin: tipo === 'admin' ? prev.admin.filter((s: any) => s.id !== id) : prev.admin,
+    }))
+    setSubsBorrando(null)
   }
 
   async function toggleNotifActiva(reglaId: string, activa: boolean) {
@@ -335,13 +353,13 @@ export default function EmpleadosPage() {
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Tabs principales */}
       <div className="flex gap-1 tab-pills rounded-xl p-1">
-        <button onClick={() => setTabPrincipal('rutas')}
-          className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'rutas' ? 'tab-active' : 'text-white hover:text-white'}`}>
-          🛣️ Rutas
-        </button>
         <button onClick={() => setTabPrincipal('equipo')}
           className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'equipo' ? 'tab-active' : 'text-white hover:text-white'}`}>
           👥 Equipo
+        </button>
+        <button onClick={() => setTabPrincipal('rutas')}
+          className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'rutas' ? 'tab-active' : 'text-white hover:text-white'}`}>
+          🛣️ Rutas
         </button>
         <button onClick={() => setTabPrincipal('metas')}
           className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'metas' ? 'tab-active' : 'text-white hover:text-white'}`}>
@@ -530,6 +548,31 @@ export default function EmpleadosPage() {
       {/* Tab Equipo — contenido original */}
       {tabPrincipal === 'equipo' && (
         <div className="space-y-4">
+          {/* Card Almacenamiento Nube */}
+          {esAdmin && (
+            <a href="/configuracion/almacenamiento" className="block"
+              style={{background:'rgba(13,18,32,0.99)',border:'1px solid rgba(59,130,246,0.2)',borderRadius:16,padding:20}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:12}}>
+                <span className="text-white font-semibold text-sm">☁️ Almacenamiento Nube</span>
+                <span className="text-white text-xs opacity-70">{storageData ? `${storageData.totalMb.toFixed(1)} MB / ${storageData.limiteGb} GB` : '...'}</span>
+              </div>
+              <div style={{width:'100%',background:'#27272a',borderRadius:9999,height:10,overflow:'hidden',display:'flex'}}>
+                {storageData?.alerta ? (
+                  <>
+                    <div style={{height:10,background:'#3b82f6',borderRadius:'9999px 0 0 9999px',width:`${storageData.limiteBytes>0?(800*1024*1024/storageData.limiteBytes*100):0}%`}} />
+                    <div style={{height:10,background:'#f97316',borderRadius:'0 9999px 9999px 0',width:`${Math.min(storageData.porcentaje-(storageData.limiteBytes>0?(800*1024*1024/storageData.limiteBytes*100):0),100-(storageData.limiteBytes>0?(800*1024*1024/storageData.limiteBytes*100):0))}%`}} />
+                  </>
+                ) : (
+                  <div style={{height:10,background:'#3b82f6',borderRadius:9999,width:`${Math.min(storageData?.porcentaje??0,100)}%`,transition:'all 0.3s'}} />
+                )}
+              </div>
+              <div style={{display:'flex',justifyContent:'space-between',marginTop:8}}>
+                <span className="text-white text-xs opacity-60">{storageData ? `${storageData.porcentaje.toFixed(1)}% utilizado` : ''}</span>
+                <span className="text-white text-xs opacity-60">{storageData ? `${((storageData.limiteBytes-storageData.totalBytes)/1024/1024).toFixed(0)} MB disponibles` : ''}</span>
+              </div>
+              {storageData?.alerta && <p className="text-orange-400 text-xs" style={{marginTop:8}}>⚠️ Espacio casi agotado &nbsp;&nbsp;Compra capacidad en la Nube.</p>}
+            </a>
+          )}
 
       {(() => {
         const haySupervisor = empleados.some(e => e.rol === 'supervisor' && e.activo)
@@ -950,6 +993,7 @@ export default function EmpleadosPage() {
           </div>
         </div>
       )}
+
         </div>
       )}
 
@@ -1120,6 +1164,39 @@ export default function EmpleadosPage() {
                 </div>
               ))}
               </div>{/* overflow-x-auto */}
+            </div>
+          )}
+
+          {/* Lista dispositivos suscritos */}
+          {!notifLoading && (subsDispositivos.admin.length > 0 || subsDispositivos.empleados.length > 0) && (
+            <div className="space-y-2">
+              <span className="text-zinc-400 text-xs font-semibold">Dispositivos suscritos</span>
+              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+                {/* Admin */}
+                {subsDispositivos.admin.map((s: any) => (
+                  <div key={s.id} className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 last:border-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-blue-600/20 text-blue-400 font-semibold">Admin</span>
+                      <span className="text-zinc-300 text-xs">{s.user_agent || 'Desconocido'}</span>
+                      <span className="text-zinc-600 text-xs">{new Date(s.createdAt).toLocaleDateString('es-CO')}</span>
+                    </div>
+                    <button onClick={() => borrarSub(s.id, 'admin')} disabled={subsBorrando === s.id}
+                      className="text-zinc-500 hover:text-red-400 transition-colors disabled:opacity-40 text-sm px-2">🗑️</button>
+                  </div>
+                ))}
+                {/* Empleados */}
+                {subsDispositivos.empleados.map((s: any) => (
+                  <div key={s.id} className="flex items-center justify-between px-4 py-3 border-b border-zinc-800 last:border-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-zinc-700 text-zinc-300 font-semibold capitalize">{s.rol}</span>
+                      <span className="text-zinc-300 text-xs">{s.nombre}</span>
+                      <span className="text-zinc-500 text-xs">{s.user_agent || 'Desconocido'}</span>
+                    </div>
+                    <button onClick={() => borrarSub(s.id, 'empleado')} disabled={subsBorrando === s.id}
+                      className="text-zinc-500 hover:text-red-400 transition-colors disabled:opacity-40 text-sm px-2">🗑️</button>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
         </div>

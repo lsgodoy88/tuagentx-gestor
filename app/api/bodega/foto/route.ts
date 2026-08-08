@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
 
   const fotosActuales: string[] = (orden.fotosAlistamiento as string[]) || []
   const idx = fotosActuales.length
-  const key = await subirFotoAlistamiento(fotoBase64, ordenId, idx)
+  const key = await subirFotoAlistamiento(fotoBase64, ordenId, idx, empresaId)
 
   const fotos = [...fotosActuales, key]
   const updated = await (prisma as any).ordenDespacho.update({

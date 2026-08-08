@@ -1519,6 +1519,22 @@ export default function ConfiguracionPage() {
         {msgTema && <p className={`text-xs text-center ${msgTema.startsWith('✅') ? 'text-emerald-400' : 'text-red-400'}`}>{msgTema}</p>}
       </Seccion>
 
+      {/* ── ALMACENAMIENTO NUBE ── */}
+      {esAdmin && (
+        <a href="/configuracion/almacenamiento"
+          className="rounded-2xl px-5 py-4 flex items-center justify-between transition-colors hover:opacity-80"
+          style={{background:'rgba(30,36,58,0.99)',border:'1px solid rgba(59,130,246,0.22)'}}>
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">☁️</span>
+            <div>
+              <p className="text-white text-sm font-medium">Almacenamiento Nube</p>
+              <p className="text-zinc-500 text-xs">Uso de archivos por módulo</p>
+            </div>
+          </div>
+          <span className="text-zinc-500 text-lg">›</span>
+        </a>
+      )}
+
       {/* ── CERRAR SESIÓN — siempre al final ── */}
       <div className="rounded-2xl px-5 py-4 flex items-center justify-between" style={{background:'rgba(30,36,58,0.99)',border:'1px solid rgba(59,130,246,0.20)'}}>
         <div>

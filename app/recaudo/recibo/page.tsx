@@ -19,6 +19,7 @@ function ReciboContent() {
   const [loading, setLoading] = useState(true)
   const [formato, setFormato] = useState<Formato>(fmtParam === '58mm' ? '58mm' : '80mm')
   const [voucherUrl, setVoucherUrl] = useState<string | null>(null)
+  const [voucherUrls, setVoucherUrls] = useState<{key:string, url:string}[]>([])
 
   useEffect(() => {
     const style = document.getElementById('print-page-style') as HTMLStyleElement | null
@@ -37,10 +38,19 @@ function ReciboContent() {
         setLoading(false)
         const cfg = d.pago?.cartera?.empresa?.configRecibos
         const ap = (typeof cfg === 'object' && cfg !== null) ? cfg.anchoPapel : null
-        if (ap === '58mm' || ap === '80mm') setFormato(ap)
+        // formato BT según config empresa, vista siempre 80mm
         if (d.pago?.voucherKey) {
           fetch('/api/firma', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ firma: d.pago.voucherKey }) })
             .then(r => r.json()).then(v => { if (v.url) setVoucherUrl(v.url) }).catch(() => {})
+        }
+        // Cargar vouchers de cada línea de pago (únicos por key)
+        const lineas = d.pago?.lineasPago ?? []
+        const keysUnicos = [...new Map(lineas.filter((l:any)=>l.voucherKey).map((l:any)=>[l.voucherKey, l])).values()]
+        if (keysUnicos.length > 0) {
+          Promise.all(keysUnicos.map((l:any) =>
+            fetch('/api/firma', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ firma: l.voucherKey }) })
+              .then(r => r.json()).then(v => v.url ? { key: l.voucherKey, url: v.url } : null).catch(() => null)
+          )).then(results => setVoucherUrls(results.filter(Boolean) as {key:string,url:string}[]))
         }
       })
       .catch(() => { window.location.href = '/inicio' })
@@ -121,7 +131,7 @@ function ReciboContent() {
         if (todasFacts.length > 1 && f.saldoDespues != null) data.push(...Array.from(enc.encode(row('Nuevo Saldo:', fmt2(Number(f.saldoDespues))))))
         if (f.fechaCreacion) {
           const d = new Date(f.fechaCreacion)
-          const fs = String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear()
+          const fs = String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + String(d.getFullYear()).slice(-2)
           data.push(...Array.from(enc.encode(row('Fecha:', fs))))
         }
       }
@@ -133,8 +143,11 @@ function ReciboContent() {
       for (let i = 0; i < lineas.length; i++) {
         const linea: any = lineas[i]
         data.push(...sep(enc))
-        data.push(...Array.from(enc.encode(row(lineas.length === 1 ? 'Pago Total:' : 'Pago Total ' + (i+1) + ':', fmt2(Number(linea.monto || 0))))))
-        data.push(...Array.from(enc.encode(row('Fecha:', fechaStr + ' ' + horaStr))))
+        data.push(...Array.from(enc.encode(row(lineas.length === 1 ? 'Pago Total:' : 'Pago ' + (i+1) + ':', fmt2(Number(linea.monto || 0))))))
+        const fLineaBT = linea.voucherDatosIA?.fecha && linea.metodoPago !== 'efectivo'
+          ? (() => { const d = new Date(linea.voucherDatosIA.fecha); return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear()+' '+(d.getHours()%12||12)+':'+String(d.getMinutes()).padStart(2,'0')+(d.getHours()>=12?' PM':' AM') })()
+          : fechaStr + ' ' + horaStr
+        data.push(...Array.from(enc.encode(row('Fecha:', fLineaBT))))
         data.push(...Array.from(enc.encode(row('Metodo:', metodos[linea.metodoPago] || linea.metodoPago || ''))))
         if (linea.voucherDatosIA?.referencia)
           data.push(...Array.from(enc.encode(row('Ref:', String(linea.voucherDatosIA.referencia)))))
@@ -209,11 +222,22 @@ function ReciboContent() {
     if (!ticket) return
     try {
       const { default: html2canvas } = await import('html2canvas')
-      const canvas = await html2canvas(ticket, { useCORS: true, scale: 2, backgroundColor: '#ffffff' })
+
+      // Forzar ancho 80mm para el share, luego restaurar
+      const prevClass = ticket.className
+      ticket.classList.remove('ticket-58')
+      ticket.classList.add('ticket-80')
+      // Ocultar comprobantes — solo capturar el recibo
+      const voucherSections = Array.from(ticket.querySelectorAll('.voucher-section')) as HTMLElement[]
+      voucherSections.forEach(s => s.style.display = 'none')
+      const finalCanvas = await html2canvas(ticket, { useCORS: true, scale: 2, backgroundColor: '#ffffff' })
+      voucherSections.forEach(s => s.style.display = '')
+      ticket.className = prevClass
+
       const blob = await new Promise<Blob>((resolve, reject) =>
-        canvas.toBlob(b => b ? resolve(b) : reject(new Error('blob null')), 'image/png')
+        finalCanvas.toBlob(b => b ? resolve(b) : reject(new Error('blob null')), 'image/jpeg', 0.92)
       )
-      const file = new File([blob], `recibo-${reciboNum}.png`, { type: 'image/png' })
+      const file = new File([blob], `recibo-${reciboNum}.jpg`, { type: 'image/jpeg' })
       if (navigator.canShare?.({ files: [file] })) {
         const text = `Recibo de pago #${reciboNum} - Cliente: ${cliente?.nombre} - Pago: ${fmt(Number(pago.monto))} - Nuevo saldo: ${fmt(saldoNuevo)}`
         await navigator.share({ title: `Recibo ${reciboNum}`, text, files: [file] })
@@ -221,21 +245,21 @@ function ReciboContent() {
         const url = URL.createObjectURL(blob)
         const a = document.createElement('a')
         a.href = url
-        a.download = `recibo-${reciboNum}.png`
+        a.download = `recibo-${reciboNum}.jpg`
         a.click()
         URL.revokeObjectURL(url)
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error('Error compartiendo imagen:', e)
     }
   }
 
-  const ancho = formato === '58mm' ? '58mm' : '80mm'
+  const ancho = '80mm' // vista siempre 80mm
   const fs = {
-    base:    formato === '58mm' ? 13 : 14,
-    empresa: formato === '58mm' ? 15 : 17,
-    saldo:   formato === '58mm' ? 15 : 17,
-    small:   formato === '58mm' ? 11 : 12,
+    base:    14,
+    empresa: 17,
+    saldo:   17,
+    small:   12,
   }
 
   // URL para compartir: usar token si existe, si no generar con sesión
@@ -288,7 +312,7 @@ function ReciboContent() {
       </div>
 
       <div className="ticket-screen">
-        <div className={`ticket ${formato === '58mm' ? 'ticket-58' : 'ticket-80'}`} style={{ fontSize: fs.base }}>
+        <div className="ticket ticket-80" style={{ fontSize: fs.base }}>
 
           <div className="tc b" style={{ fontSize: fs.empresa, marginBottom: 2 }}>{empresa?.nombre || 'Empresa'}</div>
           {(empresa?.nit || empresa?.configRecibos?.nit) && <div className="tc" style={{ fontSize: fs.small, color: '#555' }}>NIT: {empresa?.configRecibos?.nit || empresa?.nit}</div>}
@@ -340,8 +364,13 @@ function ReciboContent() {
             return lineas.map((linea: any, i: number) => (
               <div key={'p'+i}>
                 <hr className="sep" />
-                <div className="row"><span className="lbl b">{lineas.length === 1 ? 'Pago Total:' : 'Pago Total ' + (i+1) + ':'}</span><span className="val b" style={{ color: '#059669' }}>{fmt(Number(linea.monto))}</span></div>
-                <div className="row"><span className="lbl">Fecha:</span><span className="val">{String(fecha.getDate()).padStart(2,'0')}/{String(fecha.getMonth()+1).padStart(2,'0')}/{fecha.getFullYear()} {(fecha.getHours()%12||12)}:{String(fecha.getMinutes()).padStart(2,'0')} {fecha.getHours()>=12?'PM':'AM'}</span></div>
+                <div className="row"><span className="lbl b">{lineas.length === 1 ? 'Pago Total:' : 'Pago ' + (i+1) + ':'}</span><span className="val b" style={{ color: '#059669' }}>{fmt(Number(linea.monto))}</span></div>
+                {(() => {
+                  const fLinea = linea.voucherDatosIA?.fecha && linea.metodoPago !== 'efectivo'
+                    ? new Date(linea.voucherDatosIA.fecha)
+                    : fecha
+                  return <div className="row"><span className="lbl">Fecha:</span><span className="val">{String(fLinea.getDate()).padStart(2,'0')}/{String(fLinea.getMonth()+1).padStart(2,'0')}/{fLinea.getFullYear()} {(fLinea.getHours()%12||12)}:{String(fLinea.getMinutes()).padStart(2,'0')} {fLinea.getHours()>=12?'PM':'AM'}</span></div>
+                })()}
                 <div className="row"><span className="lbl">Método:</span><span className="val">{metodoLabel[linea.metodoPago] || linea.metodoPago}</span></div>
                 {linea.voucherDatosIA?.referencia && (
                   <div className="row"><span className="lbl">Ref:</span><span className="val" style={{ fontSize: fs.small - 1 }}>{linea.voucherDatosIA.referencia}</span></div>
@@ -364,7 +393,10 @@ function ReciboContent() {
             const primerNombre = partes[0] || ''
             const primerApellido = partes.length > 2 ? partes[Math.floor(partes.length / 2)] : (partes[1] || '')
             const nombreCorto = primerApellido ? `${primerNombre} ${primerApellido}` : primerNombre
-            return <div className="row"><span className="lbl">Atendió:</span><span className="val">{nombreCorto}</span></div>
+            return <>
+              <div className="row"><span className="lbl">Atendió:</span><span className="val">{nombreCorto}</span></div>
+              <div className="row"><span className="lbl">Fecha recibo:</span><span className="val">{String(fecha.getDate()).padStart(2,'0')}/{String(fecha.getMonth()+1).padStart(2,'0')}/{fecha.getFullYear()} {(fecha.getHours()%12||12)}:{String(fecha.getMinutes()).padStart(2,'0')} {fecha.getHours()>=12?'PM':'AM'}</span></div>
+            </>
           })()}
 
           {(pago.cartera?.DetalleCartera || []).filter((d: any) => d?.numeroFactura).length <= 1 && (
@@ -384,7 +416,16 @@ function ReciboContent() {
             </>
           )}
 
-          {voucherUrl && (
+          {voucherUrls.length > 0 && voucherUrls.map((v, i) => (
+            <div key={v.key + i} className="voucher-section">
+              <hr className="sep" />
+              <div className="tc" style={{ fontSize: fs.small, color: '#555', marginBottom: 4 }}>
+                {voucherUrls.length > 1 ? `Comprobante ${i + 1}` : 'Comprobante'}
+              </div>
+              <img src={v.url} alt={`Comprobante ${i+1}`} style={{ width: '100%', borderRadius: 4, display: 'block' }} />
+            </div>
+          ))}
+          {voucherUrls.length === 0 && voucherUrl && (
             <div className="voucher-section">
               <hr className="sep" />
               <div className="tc" style={{ fontSize: fs.small, color: '#555', marginBottom: 4 }}>Comprobante</div>

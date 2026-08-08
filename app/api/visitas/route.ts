@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
   let firmaUrl = firma || null
   if (firma && firma.startsWith('data:')) {
     try {
-      firmaUrl = await subirFirma(firma, crypto.randomUUID())
+      firmaUrl = await subirFirma(firma, crypto.randomUUID(), user.empresaId)
     } catch(e) {
       console.log('Error R2:', e)
     }
