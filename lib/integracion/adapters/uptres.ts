@@ -163,7 +163,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       fields: 'id,firstName,lastName,document,email,phone,address,cityId,neighborhood,tradeName,updatedAt',
       includeTotal: 'false',
     }
-    if (desde) { const desdeAjustado = new Date(desde.getTime() - 5 * 60 * 60 * 1000); params.desde = desdeAjustado.toISOString() } // Restar 5h: UpTres interpreta fechas como hora Bogotá
+    if (desde) { const desdeAjustado = new Date(desde.getTime() - 5 * 60 * 60 * 1000); params.from = desdeAjustado.toISOString().split('T')[0] } // from=YYYY-MM-DD hora Bogotá
     const data = await this.fetchAll('clientes', params)
     return data.map((c: any) => ({
       uid: c.id,

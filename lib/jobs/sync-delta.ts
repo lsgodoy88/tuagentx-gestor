@@ -73,39 +73,58 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     select: { apiId: true, nit: true, ciudad: true, direccion: true, telefono: true }
   })
 
-  // Sync incremental de clientes nuevos/modificados desde ultimaSyncClientes
-  // Resuelve condición de carrera: cliente creado en UpTres el mismo día antes del nocturno
+  // Sync incremental de clientes — from=hoy Bogotá, filtro en memoria por ultimaSyncClientes
   try {
-    const desdeClientesBase = empresa?.ultimaSyncClientes || new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-    const desdeClientes = new Date(desdeClientesBase.getTime() - 30 * 60 * 1000)
-    const clientesUpTres = await adapter.fetchClientes(desdeClientes)
-    for (const c of clientesUpTres) {
-      if (!c.uid) continue
-      const nombre = `${c.name || ''} ${c.lastName || ''}`.trim()
-      const existing = await (prisma as any).cliente.findFirst({ where: { empresaId: destino, apiId: c.uid }, select: { id: true, nombre: true, ciudad: true, direccion: true, telefono: true } })
-      if (existing) {
-        const cambios: any = {}
-        if (nombre && nombre !== existing.nombre) cambios.nombre = nombre
-        if (c.ciudad && c.ciudad !== existing.ciudad) { cambios.ciudad = c.ciudad; cambios.lat = null; cambios.lng = null; cambios.ubicacionReal = false }
-        if (c.dir && c.dir !== existing.direccion) { cambios.direccion = c.dir; cambios.lat = null; cambios.lng = null; cambios.ubicacionReal = false }
-        if (c.nCel && c.nCel !== existing.telefono) cambios.telefono = c.nCel
-        if (Object.keys(cambios).length > 0) await (prisma as any).cliente.update({ where: { id: existing.id }, data: cambios })
-      } else {
-        await (prisma as any).cliente.create({ data: { empresaId: destino, apiId: c.uid, nombre, nit: c.doc || '', ciudad: c.ciudad || null, direccion: c.dir || null, telefono: c.nCel || null, email: c.email || null } })
-      }
-    }
-    // Actualizar ultimaSyncClientes al final — solo si fetchClientes fue exitoso
-    await prisma.empresa.update({ where: { id: destino }, data: { ultimaSyncClientes: new Date() } })
-    // Re-leer clientes locales con los recién sincronizados
+    const ahoraBogota = new Date(Date.now() - 5 * 60 * 60 * 1000)
+    const ultimaSync = empresa?.ultimaSyncClientes
+    const clientesHoy = await adapter.fetchClientes(ahoraBogota)
+    // Filtrar solo los modificados después del último sync
+    const clientesUpTres = ultimaSync
+      ? clientesHoy.filter((c: any) => c.fModificado && new Date(c.fModificado) > ultimaSync)
+      : clientesHoy
     if (clientesUpTres.length > 0) {
+      const apiIds = clientesUpTres.map((c: any) => c.uid).filter(Boolean)
+      const existentes = await (prisma as any).cliente.findMany({
+        where: { empresaId: destino, apiId: { in: apiIds } },
+        select: { id: true, apiId: true, nombre: true, ciudad: true, direccion: true, telefono: true }
+      })
+      const existentesMap = new Map<string, any>(existentes.map((e: any) => [e.apiId, e]))
+      const updates: Promise<any>[] = []
+      const creates: any[] = []
+      for (const c of clientesUpTres) {
+        if (!c.uid) continue
+        const nombre = `${c.name || ''} ${c.lastName || ''}`.trim()
+        const existing = existentesMap.get(c.uid)
+        if (existing) {
+          const cambios: any = {}
+          if (nombre && nombre !== existing.nombre) cambios.nombre = nombre
+          if (c.ciudad && c.ciudad !== existing.ciudad) { cambios.ciudad = c.ciudad; cambios.lat = null; cambios.lng = null; cambios.ubicacionReal = false }
+          if (c.dir && c.dir !== existing.direccion) { cambios.direccion = c.dir; cambios.lat = null; cambios.lng = null; cambios.ubicacionReal = false }
+          if (c.nCel && c.nCel !== existing.telefono) cambios.telefono = c.nCel
+          if (Object.keys(cambios).length > 0) updates.push((prisma as any).cliente.update({ where: { id: existing.id }, data: cambios }))
+        } else {
+          creates.push({ empresaId: destino, apiId: c.uid, nombre, nit: c.doc || '', ciudad: c.ciudad || null, direccion: c.dir || null, telefono: c.nCel || null, email: c.email || null })
+        }
+      }
+      await Promise.all(updates)
+      if (creates.length > 0) await (prisma as any).cliente.createMany({ data: creates, skipDuplicates: true })
+      // Guardar updatedAt más reciente procesado
+      const maxUpdatedAt = clientesUpTres.reduce((max: Date, c: any) => {
+        const t = c.fModificado ? new Date(c.fModificado) : null
+        return t && t > max ? t : max
+      }, ultimaSync || new Date(0))
+      await prisma.empresa.update({ where: { id: destino }, data: { ultimaSyncClientes: maxUpdatedAt } })
+      // Re-leer para que nuevas órdenes encuentren ciudad
       clientesLocales = await (prisma as any).cliente.findMany({
         where: { empresaId: destino, OR: [...(clienteApiIds.length ? [{ apiId: { in: clienteApiIds } }] : []), ...(clienteNits.length ? [{ nit: { in: clienteNits } }] : [])] },
         select: { apiId: true, nit: true, ciudad: true, direccion: true, telefono: true }
       })
     }
   } catch (e: any) {
-    console.warn('[delta] sync-clientes-incremental error:', e.message)
+    console.warn('[delta] sync-clientes error:', e.message)
   }
+
+  
 
   const porApiId = new Map(clientesLocales.filter((c: any) => c.apiId).map((c: any) => [c.apiId, c]))
   const porNit = new Map(clientesLocales.filter((c: any) => c.nit).map((c: any) => [c.nit, c]))
