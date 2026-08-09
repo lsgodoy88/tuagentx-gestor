@@ -138,6 +138,13 @@ export class UpTresAdapter implements AdaptadorIntegracion {
         throw new Error(`UpTres respuesta inválida (no JSON) — endpoint: ${endpoint}`)
       }
       if (!d.ok) {
+        // Token expirado mid-fetch — renovar y reintentar esta página
+        if (d.msg === 'Token inválido' || d.msg?.includes('token') || d.msg?.includes('Token')) {
+          tokenCache.delete(this.apiKey)
+          await this.login()
+          pagina-- // reintentar misma página
+          continue
+        }
         throw new Error(`UpTres error — ${d.msg || d.message || 'sin mensaje'} — endpoint: ${endpoint}`)
       }
       if (!Array.isArray(d.data) || d.data.length === 0) break
@@ -156,7 +163,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       fields: 'id,firstName,lastName,document,email,phone,address,cityId,neighborhood,tradeName,updatedAt',
       includeTotal: 'false',
     }
-    if (desde) params.desde = desde.toISOString()  // ISO completo con hora para no perder clientes del mismo día
+    if (desde) { const desdeAjustado = new Date(desde.getTime() - 5 * 60 * 60 * 1000); params.desde = desdeAjustado.toISOString() } // Restar 5h: UpTres interpreta fechas como hora Bogotá
     const data = await this.fetchAll('clientes', params)
     return data.map((c: any) => ({
       uid: c.id,

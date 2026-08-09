@@ -39,6 +39,7 @@ model Empresa {
   syncVentasFecha     DateTime?
   syncVentasUltimo    DateTime?
   ultimaSyncBodega    DateTime?
+  ultimaSyncClientes  DateTime?
   configRecibos       Json?              @default("{\"nit\": null, \"logo\": null, \"prefijo\": \"REC\", \"telefono\": null, \"direccion\": null, \"anchoPapel\": \"80mm\"}")
   configDespachos     Json?              @default("{\"transportadora\": \"\", \"urlBase\": \"\"}") 
   colorFondo           String?

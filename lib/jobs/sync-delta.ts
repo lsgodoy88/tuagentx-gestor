@@ -33,7 +33,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     orderBy: { fechaFactura: 'desc' },
     select: { fechaFactura: true }
   })
-  const empresa = await prisma.empresa.findUnique({ where: { id: destino }, select: { ultimaSyncBodega: true } })
+  const empresa = await prisma.empresa.findUnique({ where: { id: destino }, select: { ultimaSyncBodega: true, ultimaSyncClientes: true } })
   const baseDesde = maxFactura?.fechaFactura || empresa?.ultimaSyncBodega
     || new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
   const desde = new Date(baseDesde.getTime() - 30 * 60 * 1000)
@@ -68,10 +68,45 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
 
   const clienteApiIds = [...new Set(nuevasOrdenes.map((o: any) => o.cliente?.uid).filter(Boolean))]
   const clienteNits = [...new Set(nuevasOrdenes.map((o: any) => o.clienteNit).filter(Boolean))]
-  const clientesLocales = await (prisma as any).cliente.findMany({
+  let clientesLocales = await (prisma as any).cliente.findMany({
     where: { empresaId: destino, OR: [...(clienteApiIds.length ? [{ apiId: { in: clienteApiIds } }] : []), ...(clienteNits.length ? [{ nit: { in: clienteNits } }] : [])] },
     select: { apiId: true, nit: true, ciudad: true, direccion: true, telefono: true }
   })
+
+  // Sync incremental de clientes nuevos/modificados desde ultimaSyncClientes
+  // Resuelve condición de carrera: cliente creado en UpTres el mismo día antes del nocturno
+  try {
+    const desdeClientesBase = empresa?.ultimaSyncClientes || new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+    const desdeClientes = new Date(desdeClientesBase.getTime() - 30 * 60 * 1000)
+    const clientesUpTres = await adapter.fetchClientes(desdeClientes)
+    for (const c of clientesUpTres) {
+      if (!c.uid) continue
+      const nombre = `${c.name || ''} ${c.lastName || ''}`.trim()
+      const existing = await (prisma as any).cliente.findFirst({ where: { empresaId: destino, apiId: c.uid }, select: { id: true, nombre: true, ciudad: true, direccion: true, telefono: true } })
+      if (existing) {
+        const cambios: any = {}
+        if (nombre && nombre !== existing.nombre) cambios.nombre = nombre
+        if (c.ciudad && c.ciudad !== existing.ciudad) { cambios.ciudad = c.ciudad; cambios.lat = null; cambios.lng = null; cambios.ubicacionReal = false }
+        if (c.dir && c.dir !== existing.direccion) { cambios.direccion = c.dir; cambios.lat = null; cambios.lng = null; cambios.ubicacionReal = false }
+        if (c.nCel && c.nCel !== existing.telefono) cambios.telefono = c.nCel
+        if (Object.keys(cambios).length > 0) await (prisma as any).cliente.update({ where: { id: existing.id }, data: cambios })
+      } else {
+        await (prisma as any).cliente.create({ data: { empresaId: destino, apiId: c.uid, nombre, nit: c.doc || '', ciudad: c.ciudad || null, direccion: c.dir || null, telefono: c.nCel || null, email: c.email || null } })
+      }
+    }
+    // Actualizar ultimaSyncClientes al final — solo si fetchClientes fue exitoso
+    await prisma.empresa.update({ where: { id: destino }, data: { ultimaSyncClientes: new Date() } })
+    // Re-leer clientes locales con los recién sincronizados
+    if (clientesUpTres.length > 0) {
+      clientesLocales = await (prisma as any).cliente.findMany({
+        where: { empresaId: destino, OR: [...(clienteApiIds.length ? [{ apiId: { in: clienteApiIds } }] : []), ...(clienteNits.length ? [{ nit: { in: clienteNits } }] : [])] },
+        select: { apiId: true, nit: true, ciudad: true, direccion: true, telefono: true }
+      })
+    }
+  } catch (e: any) {
+    console.warn('[delta] sync-clientes-incremental error:', e.message)
+  }
+
   const porApiId = new Map(clientesLocales.filter((c: any) => c.apiId).map((c: any) => [c.apiId, c]))
   const porNit = new Map(clientesLocales.filter((c: any) => c.nit).map((c: any) => [c.nit, c]))
 

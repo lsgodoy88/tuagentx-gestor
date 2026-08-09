@@ -797,7 +797,7 @@ export default function ModuloOrdenes() {
                     </select>
                   )
                 })()}
-                <button onClick={() => setOrdenDesc(v => v === null ? 'desc' : null)}
+                <button onClick={() => { setOrdenDesc(v => v === null ? 'desc' : null); setPopupFechaOpen(false) }}
                   className="w-8 h-8 rounded-lg flex items-center justify-center text-base"
                   style={{background:'#111827', border:'1px solid #1e2a3d', opacity: ordenDesc ? 1 : 0.35}}>
                   ⬇️
