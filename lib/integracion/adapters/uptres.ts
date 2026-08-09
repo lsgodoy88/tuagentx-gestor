@@ -1,6 +1,8 @@
-import type { AdaptadorIntegracion, ClienteExterno, DeudaExterna, EmpleadoExterno, VentaExterna } from '../types'
+import type { AdaptadorIntegracion, ClienteExterno, DeudaExterna, EmpleadoExterno, VentaExterna, ListaClienteExterna, ProveedorExterno } from '../types'
 import fs from 'fs'
 import path from 'path'
+
+export type UpTresCursor = { cursorDate: string; cursorId: string }
 
 const BASE = 'https://serviceuptres.cloud/external/v1/api'
 const AUTH_URL = 'https://serviceuptres.cloud/external/v1/auth/api'
@@ -102,10 +104,15 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     return todos
   }
 
-  private async fetchAll(endpoint: string, extraParams: Record<string, string> = {}): Promise<any[]> {
+  private async fetchAll(
+    endpoint: string,
+    extraParams: Record<string, string> = {},
+    cursorInicial?: UpTresCursor | null
+  ): Promise<{ data: any[]; ultimoCursor: UpTresCursor | null }> {
     const todos: any[] = []
-    let cursorDate: string | null = null
-    let cursorId: string | null = null
+    let cursorDate: string | null = cursorInicial?.cursorDate ?? null
+    let cursorId: string | null = cursorInicial?.cursorId ?? null
+    let ultimoCursor: UpTresCursor | null = null
     let pagina = 0
     const MAX_PAGINAS = 200
     const MAX_REINTENTOS = 3
@@ -134,7 +141,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
         throw new Error(`UpTres no respondió tras ${MAX_REINTENTOS} reintentos — endpoint: ${endpoint}`)
       }
       let d: any
-      try { d = JSON.parse(texto) } catch { 
+      try { d = JSON.parse(texto) } catch {
         throw new Error(`UpTres respuesta inválida (no JSON) — endpoint: ${endpoint}`)
       }
       if (!d.ok) {
@@ -152,8 +159,9 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       if (!d.nextCursor?.cursorDate || !d.nextCursor?.cursorId) break
       cursorDate = d.nextCursor.cursorDate
       cursorId = d.nextCursor.cursorId
+      ultimoCursor = { cursorDate: cursorDate!, cursorId: cursorId! }
     }
-    return todos
+    return { data: todos, ultimoCursor }
   }
 
 
@@ -164,7 +172,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       includeTotal: 'false',
     }
     if (desde) { const desdeAjustado = new Date(desde.getTime() - 5 * 60 * 60 * 1000); params.from = desdeAjustado.toISOString().split('T')[0] } // from=YYYY-MM-DD hora Bogotá
-    const data = await this.fetchAll('clientes', params)
+    const { data } = await this.fetchAll('clientes', params)
     return data.map((c: any) => ({
       uid: c.id,
       _id: c.id,
@@ -188,7 +196,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       includeTotal: 'false',
     }
     if (desde) params.desde = desde.toISOString()  // ISO completo
-    const data = await this.fetchAll('empleados', params)
+    const { data } = await this.fetchAll('empleados', params)
     return data.map((e: any) => ({
       uid: e.id,
       _id: e.id,
@@ -218,7 +226,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       params.to = manana.toISOString().split('T')[0]
     }
     // Sin filtro condition — traemos todo y filtramos internamente por saldo > 0
-    const data = await this.fetchAll('cartera', params)
+    const { data } = await this.fetchAll('cartera', params)
     return this._mapearDeudas(data)
   }
 
@@ -272,7 +280,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       to: manana.toISOString().split('T')[0],
       includeTotal: 'false',
     }
-    const data = await this.fetchAll('cartera/update', params)
+    const { data } = await this.fetchAll('cartera/update', params)
     return data.map((o: any) => ({
       uid: o.id,
       _id: o.id,
@@ -521,8 +529,237 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       clienteNit: o.customer?.document || null,
     }))
   }
+
+// ─── Métodos con cursor persistido ──────────────────────────────────────────
+  // Cada método acepta el cursor guardado en DB y retorna { data, ultimoCursor }
+  // El caller persiste ultimoCursor en Empresa si no es null.
+
+  async fetchClientesConCursor(
+    cursor: UpTresCursor | null,
+    desde: Date  // usado solo sin cursor; con cursor, from deriva del cursorDate
+  ): Promise<{ data: ClienteExterno[]; ultimoCursor: UpTresCursor | null }> {
+    // Con cursor: from = día del cursorDate (garantiza coherencia)
+    // Sin cursor: from = desde ajustado Bogotá
+    const fromDate = cursor
+      ? new Date(new Date(cursor.cursorDate).getTime() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
+      : new Date(desde.getTime() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const params: Record<string, string> = {
+      fields: 'id,firstName,lastName,document,email,phone,address,cityId,neighborhood,tradeName,updatedAt',
+      includeTotal: 'false',
+      from: fromDate,
+    }
+    const { data, ultimoCursor } = await this.fetchAll('clientes', params, cursor)
+    return {
+      data: data.map((c: any) => ({
+        uid: c.id, _id: c.id, doc: c.document || null,
+        name: c.firstName || '', lastName: c.lastName || '',
+        email: c.email || null, nCel: c.phone || null,
+        dir: c.address || null, ciudad: getCiudad(c.cityId),
+        departamento: getDepartamento(c.cityId),
+        barrio: c.neighborhood || null, nombreComercial: c.tradeName || null,
+        fModificado: c.updatedAt,
+      })),
+      ultimoCursor,
+    }
+  }
+
+  async fetchEmpleadosConCursor(
+    cursor: UpTresCursor | null,
+    desde?: Date  // requerido solo sin cursor; con cursor UpTres acepta sin from (verificado)
+  ): Promise<{ data: EmpleadoExterno[]; ultimoCursor: UpTresCursor | null }> {
+    if (!cursor && !desde) throw new Error('fetchEmpleadosConCursor: desde requerido sin cursor')
+    const params: Record<string, string> = {
+      fields: 'id,firstName,lastName,document,email,phone,cityId,updatedAt',
+      includeTotal: 'false',
+      ...(!cursor && desde ? { from: new Date(desde.getTime() - 5 * 60 * 60 * 1000).toISOString().split('T')[0] } : {}),
+    }
+    const { data, ultimoCursor } = await this.fetchAll('empleados', params, cursor)
+    return {
+      data: data.map((e: any) => ({
+        uid: e.id, _id: e.id, name: e.firstName || '',
+        lastName: e.lastName || '', doc: e.document || null,
+        email: e.email || null, nCel: e.phone || null,
+        ciudad: getCiudad(e.cityId), fModificado: e.updatedAt,
+      })),
+      ultimoCursor,
+    }
+  }
+
+  async fetchDeudasConCursor(
+    cursor: UpTresCursor | null,
+    desde?: Date  // requerido solo sin cursor; con cursor from deriva de cursorDate
+  ): Promise<{ data: DeudaExterna[]; ultimoCursor: UpTresCursor | null }> {
+    if (!cursor && !desde) throw new Error('fetchDeudasConCursor: desde requerido sin cursor')
+    const manana = new Date(); manana.setDate(manana.getDate() + 1)
+    // Con cursor: from = cursorDate Bogotá — coherente garantizado
+    // Sin cursor: from = desde Bogotá - 1día (overlap intencional)
+    const fromDate = cursor
+      ? new Date(new Date(cursor.cursorDate).getTime() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
+      : new Date(new Date(desde!.getTime() - 5 * 60 * 60 * 1000).getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const params: Record<string, string> = {
+      fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt,receivableAt',
+      includeTotal: 'false',
+      from: fromDate,
+      to: manana.toISOString().split('T')[0],
+    }
+    const { data, ultimoCursor } = await this.fetchAll('cartera', params, cursor)
+    return { data: this._mapearDeudas(data), ultimoCursor }
+  }
+
+  async fetchDeudasDesdeConCursor(
+    cursor: UpTresCursor | null,
+    desde: Date
+  ): Promise<{ data: DeudaExterna[]; ultimoCursor: UpTresCursor | null }> {
+    const manana = new Date(); manana.setDate(manana.getDate() + 1)
+    const params: Record<string, string> = {
+      fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt,receivableAt,condition',
+      from: desde.toISOString().split('T')[0],
+      to: manana.toISOString().split('T')[0],
+      includeTotal: 'false',
+    }
+    const { data, ultimoCursor } = await this.fetchAll('cartera/update', params, cursor)
+    return {
+      data: data.map((o: any) => ({
+        uid: o.id, _id: o.id,
+        numeroOrden: o.orderNumber, numeroFacturado: o.invoiceNumber || null,
+        vTotal: o.total, vSaldo: o.balance,
+        vAbono: String(parseFloat(o.total || '0') - parseFloat(o.balance || '0')),
+        dias: o.creditDay || '0', fCreado: o.createdAt, fModificado: o.updatedAt,
+        receivableAt: o.receivableAt || null, condicionUpTres: o.condition !== false,
+        cliente: { uid: o.customerId }, empleado: { uid: o.employeeId },
+      })),
+      ultimoCursor,
+    }
+  }
+
+  async fetchListasClientesConCursor(
+    cursor: UpTresCursor | null,
+    desde: Date
+  ): Promise<{ data: ListaClienteExterna[]; ultimoCursor: UpTresCursor | null }> {
+    // from derivado del cursor (coherencia) o de desde ajustado Bogotá
+    const fromDate = cursor
+      ? new Date(new Date(cursor.cursorDate).getTime() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
+      : new Date(desde.getTime() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const params: Record<string, string> = {
+      fields: 'id,name,nameUs,clientes,updatedAt',
+      condition: 'true',
+      includeTotal: 'false',
+      from: fromDate,
+    }
+    const { data, ultimoCursor } = await this.fetchAll('clienteslista', params, cursor)
+    return {
+      data: data.map((l: any) => ({
+        apiId: l.id,
+        nombre: l.name || '',
+        nameUs: l.nameUs || null,
+        clienteApiIds: Array.isArray(l.clientes) ? l.clientes : [],
+        updatedAt: l.updatedAt,
+      })),
+      ultimoCursor,
+    }
+  }
+
+  async fetchProveedoresConCursor(
+    cursor: UpTresCursor | null,
+    desde: Date
+  ): Promise<{ data: ProveedorExterno[]; ultimoCursor: UpTresCursor | null }> {
+    const fromDate = cursor
+      ? new Date(new Date(cursor.cursorDate).getTime() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
+      : new Date(desde.getTime() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
+    const params: Record<string, string> = {
+      fields: 'id,firstName,lastName,document,documentType,verificationDigit,email,phone,cityId,address,neighborhood,note,updatedAt',
+      condition: 'true',
+      includeTotal: 'false',
+      from: fromDate,
+    }
+    const { data, ultimoCursor } = await this.fetchAll('proveedores', params, cursor)
+    return {
+      data: data.map((p: any) => ({
+        apiId: p.id,
+        firstName: p.firstName || '',
+        lastName: p.lastName || null,
+        document: p.document || null,
+        documentType: p.documentType || null,
+        verificationDigit: p.verificationDigit || null,
+        email: p.email || null,
+        phone: p.phone || null,
+        cityId: p.cityId || null,
+        address: p.address || null,
+        neighborhood: p.neighborhood || null,
+        note: p.note || null,
+        updatedAt: p.updatedAt || null,
+      })),
+      ultimoCursor,
+    }
+  }
+
+} // ← fin clase UpTresAdapter — NO borrar esta línea
+
+// ─── fetchProductosUptres con cursor ────────────────────────────────────────
+export async function fetchProductosUptresConCursor(
+  apiKey: string,
+  token: string,
+  cursor: UpTresCursor | null,
+  desde?: Date
+): Promise<{ data: import('../types').ProductoExterno[]; ultimoCursor: UpTresCursor | null }> {
+  const todos: import('../types').ProductoExterno[] = []
+  let cursorDate: string | null = cursor?.cursorDate ?? null
+  let cursorId: string | null = cursor?.cursorId ?? null
+  let ultimoCursor: UpTresCursor | null = null
+  let pagina = 0
+  const MAX_PAGINAS = 100
+
+  while (pagina++ < MAX_PAGINAS) {
+    const p = new URLSearchParams({ condition: 'true', fields: '', limit: '80' })
+    if (desde) p.set('from', desde.toISOString().slice(0, 10))
+    if (cursorDate && cursorId) { p.set('cursorDate', cursorDate); p.set('cursorId', cursorId) }
+
+    let texto = ''
+    let exitoso = false
+    for (let intento = 0; intento < 3; intento++) {
+      try {
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 30000)
+        const res = await fetch(`${BASE}/productos?${p.toString()}`, {
+          headers: { 'x-api-key': apiKey, Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        })
+        clearTimeout(timer)
+        texto = await res.text()
+        exitoso = true
+        break
+      } catch {
+        if (intento < 2) await new Promise(r => setTimeout(r, 2000 * (intento + 1)))
+      }
+    }
+    if (!exitoso || !texto) throw new Error('UpTres productos no respondió tras 3 reintentos')
+    let d: any
+    try { d = JSON.parse(texto) } catch { throw new Error('UpTres productos respuesta inválida') }
+    if (!d.ok) throw new Error(`UpTres productos error: ${d.msg || d.message || ''}`)
+    if (!Array.isArray(d.data) || d.data.length === 0) break
+
+    todos.push(...d.data.map((p: any) => ({
+      id: p.id, condition: p.condition ?? true, name: p.name || '',
+      barcode: p.barcode || null,
+      inventory: typeof p.inventory === 'number' ? p.inventory : parseFloat(p.inventory ?? '0') || 0,
+      price: p.price != null ? parseFloat(p.price) : null,
+      prices: p.prices || null,
+      purchasePrice: p.purchasePrice != null ? parseFloat(p.purchasePrice) : null,
+      taxable: p.taxable ?? false, tax: p.tax != null ? parseFloat(p.tax) : null,
+      type: p.type || null, brand: p.brand || null, line: p.line || null,
+      point: p.point || null, invima: p.invima || null, unit: p.unit || null,
+      description: p.description || null, updatedAt: p.updatedAt || null,
+    })))
+
+    if (!d.nextCursor?.cursorDate || !d.nextCursor?.cursorId) break
+    cursorDate = d.nextCursor.cursorDate
+    cursorId = d.nextCursor.cursorId
+    ultimoCursor = { cursorDate: cursorDate!, cursorId: cursorId! }
+  }
+  return { data: todos, ultimoCursor }
 }
 
+// ─── fetchProductosUptres original (sin cursor) — mantener por compatibilidad
 // Exportar fetchProductos fuera de la clase para uso directo en jobs
 // (igual que fetchAll interno pero público)
 export async function fetchProductosUptres(

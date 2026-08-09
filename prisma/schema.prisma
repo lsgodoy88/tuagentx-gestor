@@ -38,8 +38,15 @@ model Empresa {
   syncVentasHoy       Int?               @default(0)
   syncVentasFecha     DateTime?
   syncVentasUltimo    DateTime?
-  ultimaSyncBodega    DateTime?
-  ultimaSyncClientes  DateTime?
+  ultimaSyncBodega          DateTime?
+  ultimaSyncClientes        DateTime?
+  sync_cursor_clientes      Json?
+  sync_cursor_empleados     Json?
+  sync_cursor_productos     Json?
+  sync_cursor_cartera       Json?
+  sync_cursor_cartera_update Json?
+  sync_cursor_listas          Json?
+  sync_cursor_proveedores     Json?
   configRecibos       Json?              @default("{\"nit\": null, \"logo\": null, \"prefijo\": \"REC\", \"telefono\": null, \"direccion\": null, \"anchoPapel\": \"80mm\"}")
   configDespachos     Json?              @default("{\"transportadora\": \"\", \"urlBase\": \"\"}") 
   colorFondo           String?
@@ -403,6 +410,8 @@ model PrecioRol {
 
 model ListaClientes {
   id         String          @id @default(cuid())
+  api_id     String?         @unique
+  name_us    String?
   nombre     String
   empresaId  String
   createdAt  DateTime?       @default(now()) @db.Timestamp(6)
@@ -410,6 +419,28 @@ model ListaClientes {
   vendedores EmpleadoLista[]
 
   @@map("ListaClientes")
+}
+
+model Proveedor {
+  id                 String    @id @default(cuid())
+  api_id             String?   @unique
+  empresaId          String
+  firstName          String
+  lastName           String?
+  document           String?
+  documentType       String?
+  verificationDigit  String?
+  email              String?
+  phone              String?
+  cityId             String?
+  address            String?
+  neighborhood       String?
+  note               String?
+  condition          Boolean   @default(true)
+  createdAt          DateTime  @default(now()) @db.Timestamp(6)
+  updatedAt          DateTime? @db.Timestamp(6)
+
+  @@map("Proveedor")
 }
 
 model EmpleadoLista {

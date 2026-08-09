@@ -5,6 +5,7 @@ import { checkPermiso } from '@/lib/permisos'
 import ModuloGastos from '@/components/ModuloGastos'
 import AbonoEgreso from '@/components/AbonoEgreso'
 import AdjuntarEgreso from '@/components/AdjuntarEgreso'
+import TabProveedores from '@/components/TabProveedores'
 
 // CATEGORIAS ahora es dinámico — se carga desde /api/egresos/categorias
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
@@ -392,7 +393,7 @@ export default function EgresosPage() {
   }, [mes, anio, reloadKey])
   const triggerGastos = useRef<(() => void) | null>(null)
   const calRef = useRef<HTMLDivElement>(null)
-  const [tab, setTab] = useState<'egresos' | 'gastos'>('egresos')
+  const [tab, setTab] = useState<'egresos' | 'gastos' | 'proveedores'>('egresos')
 
 
   useEffect(() => {
@@ -410,6 +411,7 @@ export default function EgresosPage() {
           <div className="flex gap-1 tab-pills rounded-xl p-1 w-full h-full">
             <button onClick={() => setTab('egresos')} className={`flex-1 py-1.5 text-sm font-semibold transition-colors rounded-lg ${tab === 'egresos' ? 'tab-active' : 'text-white hover:text-white'}`}>Egresos</button>
             <button onClick={() => setTab('gastos')} className={`flex-1 py-1.5 text-sm font-semibold transition-colors rounded-lg ${tab === 'gastos' ? 'tab-active' : 'text-white hover:text-white'}`}>Gastos</button>
+            {isAdmin && <button onClick={() => setTab('proveedores')} className={`flex-1 py-1.5 text-sm font-semibold transition-colors rounded-lg ${tab === 'proveedores' ? 'tab-active' : 'text-white hover:text-white'}`}>Proveedor</button>}
           </div>
         </div>
         <div className="flex items-stretch gap-2 flex-shrink-0">
@@ -505,6 +507,8 @@ export default function EgresosPage() {
               </div>
             )}
           </div>
+        : tab === 'proveedores'
+        ? <TabProveedores />
         : <ModuloGastos isAdmin={puedeEditarEgresos} hideButton triggerRef={triggerGastos} mes={mes} anio={anio} />
       }
     </div>

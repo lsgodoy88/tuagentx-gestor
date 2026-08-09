@@ -4,7 +4,7 @@
  * Sin dependencia de gestor HTTP — accede directo a BD y adapters
  */
 import { prisma } from '@/lib/prisma'
-import { UpTresAdapter, parseFechaUptresBogota, fetchProductosUptres, fetchNotasCredito } from '@/lib/integracion/adapters/uptres'
+import { UpTresAdapter, parseFechaUptresBogota, fetchProductosUptres, fetchProductosUptresConCursor, fetchNotasCredito, type UpTresCursor } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 import { invalidatePattern } from '@/lib/cache'
 import { reconstruirCartera } from '@/lib/jobs/sync-nocturno'
@@ -33,7 +33,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     orderBy: { fechaFactura: 'desc' },
     select: { fechaFactura: true }
   })
-  const empresa = await prisma.empresa.findUnique({ where: { id: destino }, select: { ultimaSyncBodega: true, ultimaSyncClientes: true } })
+  const empresa = await prisma.empresa.findUnique({ where: { id: destino }, select: { ultimaSyncBodega: true, ultimaSyncClientes: true, sync_cursor_clientes: true, sync_cursor_empleados: true, sync_cursor_cartera: true, sync_cursor_cartera_update: true, sync_cursor_listas: true, sync_cursor_proveedores: true } })
   const baseDesde = maxFactura?.fechaFactura || empresa?.ultimaSyncBodega
     || new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
   const desde = new Date(baseDesde.getTime() - 30 * 60 * 1000)
@@ -73,15 +73,13 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     select: { apiId: true, nit: true, ciudad: true, direccion: true, telefono: true }
   })
 
-  // Sync incremental de clientes — from=hoy Bogotá, filtro en memoria por ultimaSyncClientes
+  // Sync incremental de clientes — cursor persistido por empresa
   try {
-    const ahoraBogota = new Date(Date.now() - 5 * 60 * 60 * 1000)
-    const ultimaSync = empresa?.ultimaSyncClientes
-    const clientesHoy = await adapter.fetchClientes(ahoraBogota)
-    // Filtrar solo los modificados después del último sync
-    const clientesUpTres = ultimaSync
-      ? clientesHoy.filter((c: any) => c.fModificado && new Date(c.fModificado) > ultimaSync)
-      : clientesHoy
+    const cursorClientes = empresa?.sync_cursor_clientes as UpTresCursor | null ?? null
+    // from basado en ultimaSyncClientes — cursor pagina dentro del rango, no lo reemplaza
+    const desdeClientes = empresa?.ultimaSyncClientes || new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+    const { data: clientesUpTres, ultimoCursor: nuevoCursorClientes } =
+      await adapter.fetchClientesConCursor(cursorClientes, desdeClientes)
     if (clientesUpTres.length > 0) {
       const apiIds = clientesUpTres.map((c: any) => c.uid).filter(Boolean)
       const existentes = await (prisma as any).cliente.findMany({
@@ -108,12 +106,18 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
       }
       await Promise.all(updates)
       if (creates.length > 0) await (prisma as any).cliente.createMany({ data: creates, skipDuplicates: true })
-      // Guardar updatedAt más reciente procesado
+      // Persistir cursor y ultimaSyncClientes
       const maxUpdatedAt = clientesUpTres.reduce((max: Date, c: any) => {
         const t = c.fModificado ? new Date(c.fModificado) : null
         return t && t > max ? t : max
-      }, ultimaSync || new Date(0))
-      await prisma.empresa.update({ where: { id: destino }, data: { ultimaSyncClientes: maxUpdatedAt } })
+      }, empresa?.ultimaSyncClientes || new Date(0))
+      await prisma.empresa.update({
+        where: { id: destino },
+        data: {
+          ultimaSyncClientes: maxUpdatedAt,
+          ...(nuevoCursorClientes ? { sync_cursor_clientes: nuevoCursorClientes } : {}),
+        }
+      })
       // Re-leer para que nuevas órdenes encuentren ciudad
       clientesLocales = await (prisma as any).cliente.findMany({
         where: { empresaId: destino, OR: [...(clienteApiIds.length ? [{ apiId: { in: clienteApiIds } }] : []), ...(clienteNits.length ? [{ nit: { in: clienteNits } }] : [])] },
@@ -172,10 +176,15 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   // Empleados
   let empleadosActualizados = 0
   try {
-    const maxEmpleado = await (prisma as any).empleado.aggregate({ where: { empresaId: destino, apiId: { not: null } }, _max: { createdAt: true } })
-    const baseEmp = maxEmpleado._max.createdAt || empresa?.ultimaSyncBodega || new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-    const desdeEmp = new Date(baseEmp.getTime() - 30 * 60 * 1000)
-    const empleadosExt = await adapter.fetchEmpleados(desdeEmp)
+    const cursorEmpleados = empresa?.sync_cursor_empleados as UpTresCursor | null ?? null
+    // Con cursor: aggregate innecesario — desde es ignorado en el método
+    let desdeEmp: Date | undefined
+    if (!cursorEmpleados) {
+      const maxEmpleado = await (prisma as any).empleado.aggregate({ where: { empresaId: destino, apiId: { not: null } }, _max: { createdAt: true } })
+      const baseEmp = maxEmpleado._max.createdAt || empresa?.ultimaSyncBodega || new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+      desdeEmp = new Date(baseEmp.getTime() - 30 * 60 * 1000)
+    }
+    const { data: empleadosExt, ultimoCursor: nuevoCursorEmpleados } = await adapter.fetchEmpleadosConCursor(cursorEmpleados, desdeEmp)
     if (empleadosExt.length > 0) {
       const apiIds = empleadosExt.map((e: any) => e.uid).filter(Boolean)
       const existentesEmp = await (prisma as any).empleado.findMany({ where: { empresaId: destino, apiId: { in: apiIds } }, select: { apiId: true } })
@@ -185,6 +194,9 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
         await (prisma as any).empleado.updateMany({ where: { empresaId: destino, apiId: e.uid }, data: { ...(e.nCel ? { telefono: e.nCel } : {}), ...(e.doc ? { documento: e.doc } : {}), ...(e.ciudad ? { ciudadApiId: e.ciudad } : {}) } })
       }
       empleadosActualizados = aActualizar.length
+      if (nuevoCursorEmpleados) {
+        await prisma.empresa.update({ where: { id: destino }, data: { sync_cursor_empleados: nuevoCursorEmpleados } })
+      }
     }
   } catch (err: any) { console.error('[delta] empleados error:', err.message); erroresParciales.push('empleados: ' + err.message) }
 
@@ -192,10 +204,15 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   let deudasNuevasDelta = 0
   let nuevasDeudas: any[] = []
   try {
-    const maxModificada = await (prisma as any).syncDeuda.findFirst({ where: { integracionId, externalUpdatedAt: { not: null } }, orderBy: { externalUpdatedAt: 'desc' }, select: { externalUpdatedAt: true } })
-    const baseDeuda = maxModificada?.externalUpdatedAt || empresa?.ultimaSyncBodega || new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-    const desdeDeuda = new Date(baseDeuda.getTime() - 60 * 60 * 1000) // 1h de overlap
-    const deudasExt = await adapter.fetchDeudas(desdeDeuda)
+    const cursorCartera = empresa?.sync_cursor_cartera as UpTresCursor | null ?? null
+    // Con cursor: findFirst innecesario — desde ignorado en el método
+    let desdeDeuda: Date | undefined
+    if (!cursorCartera) {
+      const maxModificada = await (prisma as any).syncDeuda.findFirst({ where: { integracionId, externalUpdatedAt: { not: null } }, orderBy: { externalUpdatedAt: 'desc' }, select: { externalUpdatedAt: true } })
+      const baseDeuda = maxModificada?.externalUpdatedAt || empresa?.ultimaSyncBodega || new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+      desdeDeuda = new Date(baseDeuda.getTime() - 60 * 60 * 1000) // 1h de overlap
+    }
+    const { data: deudasExt, ultimoCursor: nuevoCursorCartera } = await adapter.fetchDeudasConCursor(cursorCartera, desdeDeuda)
     if (deudasExt.length > 0) {
       const extIds = deudasExt.map((d: any) => String(d.uid || d._id)).filter(Boolean)
       const existentesDeuda = await (prisma as any).syncDeuda.findMany({ where: { integracionId, externalId: { in: extIds } }, select: { externalId: true } })
@@ -204,6 +221,9 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
       if (nuevasDeudas.length > 0) {
         deudasNuevasDelta = nuevasDeudas.length
         // insertadas en la transacción principal
+      }
+      if (nuevoCursorCartera) {
+        await prisma.empresa.update({ where: { id: destino }, data: { sync_cursor_cartera: nuevoCursorCartera } })
       }
     }
   } catch (err: any) { console.error('[delta] deudas error:', err.message); erroresParciales.push('deudas: ' + err.message) }
@@ -235,6 +255,87 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
       }
     }
   } catch (err: any) { console.error('[delta] notas-credito error:', err.message); erroresParciales.push('notas-credito: ' + err.message) }
+
+  // Sync listas de clientes desde UpTres — cursor persistido
+  let listasActualizadas = 0
+  try {
+    const cursorListas = empresa?.sync_cursor_listas as UpTresCursor | null ?? null
+    // Sin cursor: primera vez → traer todo el histórico
+    const desdeListas = new Date('2020-01-01')
+    const { data: listasExt, ultimoCursor: nuevoCursorListas } =
+      await adapter.fetchListasClientesConCursor(cursorListas, desdeListas)
+
+    if (listasExt.length > 0) {
+      for (const lista of listasExt) {
+        // Upsert lista por api_id
+        const listaLocal = await (prisma as any).listaClientes.upsert({
+          where: { api_id: lista.apiId },
+          create: { api_id: lista.apiId, nombre: lista.nombre, name_us: lista.nameUs, empresaId: destino },
+          update: { nombre: lista.nombre, name_us: lista.nameUs },
+        })
+
+        // Actualizar Cliente.listaId donde apiId esté en lista.clienteApiIds
+        if (lista.clienteApiIds.length > 0) {
+          await (prisma as any).cliente.updateMany({
+            where: { empresaId: destino, apiId: { in: lista.clienteApiIds } },
+            data: { listaId: listaLocal.id },
+          })
+          listasActualizadas++
+        }
+      }
+
+      if (nuevoCursorListas) {
+        await prisma.empresa.update({
+          where: { id: destino },
+          data: { sync_cursor_listas: nuevoCursorListas },
+        })
+      }
+    }
+  } catch (err: any) { console.error('[delta] listas error:', err.message); erroresParciales.push('listas: ' + err.message) }
+
+  // Sync proveedores desde UpTres — cursor persistido
+  let proveedoresActualizados = 0
+  try {
+    const cursorProveedores = empresa?.sync_cursor_proveedores as UpTresCursor | null ?? null
+    // Sin cursor: primera vez → traer todo el histórico
+    const desdeProveedores = new Date('2020-01-01')
+    const { data: proveedoresExt, ultimoCursor: nuevoCursorProveedores } =
+      await adapter.fetchProveedoresConCursor(cursorProveedores, desdeProveedores)
+
+    if (proveedoresExt.length > 0) {
+      for (const p of proveedoresExt) {
+        await (prisma as any).proveedor.upsert({
+          where: { api_id: p.apiId },
+          create: {
+            api_id: p.apiId, empresaId: destino,
+            firstName: p.firstName, lastName: p.lastName,
+            document: p.document, documentType: p.documentType,
+            verificationDigit: p.verificationDigit,
+            email: p.email, phone: p.phone, cityId: p.cityId,
+            address: p.address, neighborhood: p.neighborhood,
+            note: p.note, condition: true,
+            updatedAt: p.updatedAt ? new Date(p.updatedAt) : null,
+          },
+          update: {
+            firstName: p.firstName, lastName: p.lastName,
+            document: p.document, documentType: p.documentType,
+            verificationDigit: p.verificationDigit,
+            email: p.email, phone: p.phone, cityId: p.cityId,
+            address: p.address, neighborhood: p.neighborhood,
+            note: p.note,
+            updatedAt: p.updatedAt ? new Date(p.updatedAt) : null,
+          },
+        })
+        proveedoresActualizados++
+      }
+      if (nuevoCursorProveedores) {
+        await prisma.empresa.update({
+          where: { id: destino },
+          data: { sync_cursor_proveedores: nuevoCursorProveedores },
+        })
+      }
+    }
+  } catch (err: any) { console.error('[delta] proveedores error:', err.message); erroresParciales.push('proveedores: ' + err.message) }
 
   const canceladasIds = ordenesValidas.filter((o: any) => (o as any).isActiva === false).map((o: any) => String(o.uid || o._id))
 
@@ -369,7 +470,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     await (prisma as any).syncLog.create({ data: { integracionId, empresaId: destino, tipo: 'delta', inicio: new Date(inicioTs), fin: new Date(), duracionMs, estado: erroresParciales.length > 0 ? 'parcial' : 'ok', disparadoPor: 'cron', ordenesNuevas: toCreate.length, deudasSincronizadas: deudaToCreate.length, clientesNuevos, deudasNuevasDelta, comprasSincronizadas: ordenes.length, ...(empleadosActualizados ? { empleadosActualizados } : {}), ...(saldosActualizados ? { saldosActualizados } : {}), ...(reconciliadas ? { reconciliadas } : {}), ...(erroresParciales.length > 0 ? { errores: JSON.stringify(erroresParciales) } : {}) } })
   } catch (logErr: any) { console.error('[delta] syncLog insert error:', logErr.message) }
 
-  return { empresaId: destino, ordenes: ordenes.length, nuevasOrdenes: toCreate.length, nuevasDeudas: deudaToCreate.length, clientesNuevos, deudasNuevasDelta, empleadosActualizados, saldosActualizados, reconciliadas, huecosRecuperados }
+  return { empresaId: destino, ordenes: ordenes.length, nuevasOrdenes: toCreate.length, nuevasDeudas: deudaToCreate.length, clientesNuevos, deudasNuevasDelta, empleadosActualizados, listasActualizadas, proveedoresActualizados, saldosActualizados, reconciliadas, huecosRecuperados }
 }
 
 export async function runSyncDelta(): Promise<any[]> {

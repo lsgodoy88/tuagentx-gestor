@@ -157,7 +157,7 @@ describe('lib/integracion/adapters/uptres — UpTresAdapter', () => {
       const a = new UpTresAdapter('k', 's')
       await a.login()
       await a.fetchClientes(new Date('2026-05-01T10:30:00Z'))
-      expect(capturedUrl).toContain('desde=2026-05-01')
+      expect(capturedUrl).toContain('from=2026-05-01')
     })
 
     it('paginación con nextCursor → varias páginas concatenadas', async () => {
@@ -303,7 +303,7 @@ describe('lib/integracion/adapters/uptres — UpTresAdapter', () => {
       const a = new UpTresAdapter('k', 's')
       await a.login()
       await a.fetchDeudas(new Date('2026-05-01T00:00:00Z'))
-      expect(capturedUrl).toContain('from=2026-04-30') // adapter convierte UTC→Bogotá (UTC-5)
+      expect(capturedUrl).toContain('from=2026-04-29') // UTC-5 → Bogotá 2026-04-30 -1día overlap
       expect(capturedUrl).toContain('to=')
     })
 
@@ -481,5 +481,239 @@ describe('lib/integracion/adapters/uptres — UpTresAdapter', () => {
         fModificado: '2026-05-01',
       })
     })
+  })
+})
+
+// ─── Tests métodos con cursor persistido ─────────────────────────────────────
+
+describe('fetchClientesConCursor', () => {
+  let originalFetch: any
+  beforeEach(() => { originalFetch = global.fetch })
+  afterEach(() => { global.fetch = originalFetch })
+
+  it('sin cursor → from derivado de desde ajustado a Bogotá (UTC-5)', async () => {
+    let capturedUrl = ''
+    global.fetch = mockFetch((url) => {
+      if (url.includes('/auth/api')) return { ok: true, token: 'tok' }
+      capturedUrl = url
+      return { ok: true, data: [], nextCursor: null }
+    })
+    const a = new UpTresAdapter('k', 's')
+    await a.login()
+    // 2026-08-09T03:00:00Z → Bogotá = 2026-08-08T22:00:00 → from=2026-08-08
+    await a.fetchClientesConCursor(null, new Date('2026-08-09T03:00:00Z'))
+    expect(capturedUrl).toContain('from=2026-08-08')
+    expect(capturedUrl).not.toContain('cursorDate')
+    expect(capturedUrl).not.toContain('cursorId')
+  })
+
+  it('con cursor → from derivado de cursorDate ajustado a Bogotá (UTC-5)', async () => {
+    let capturedUrl = ''
+    global.fetch = mockFetch((url) => {
+      if (url.includes('/auth/api')) return { ok: true, token: 'tok' }
+      capturedUrl = url
+      return { ok: true, data: [], nextCursor: null }
+    })
+    const a = new UpTresAdapter('k', 's')
+    await a.login()
+    // cursorDate 2026-08-09T02:00:00Z → Bogotá = 2026-08-08T21:00 → from=2026-08-08
+    const cursor = { cursorDate: '2026-08-09T02:00:00.000Z', cursorId: 'abc123' }
+    await a.fetchClientesConCursor(cursor, new Date('2026-08-09T10:00:00Z'))
+    expect(capturedUrl).toContain('from=2026-08-08') // día del cursor en Bogotá
+    expect(capturedUrl).toContain('cursorDate=2026-08-09T02%3A00%3A00.000Z')
+    expect(capturedUrl).toContain('cursorId=abc123')
+  })
+
+  it('con cursor mismo día UTC y Bogotá → from correcto', async () => {
+    let capturedUrl = ''
+    global.fetch = mockFetch((url) => {
+      if (url.includes('/auth/api')) return { ok: true, token: 'tok' }
+      capturedUrl = url
+      return { ok: true, data: [], nextCursor: null }
+    })
+    const a = new UpTresAdapter('k', 's')
+    await a.login()
+    // cursorDate 2026-08-09T18:00:00Z → Bogotá = 2026-08-09T13:00 → from=2026-08-09
+    const cursor = { cursorDate: '2026-08-09T18:00:00.000Z', cursorId: 'xyz' }
+    await a.fetchClientesConCursor(cursor, new Date())
+    expect(capturedUrl).toContain('from=2026-08-09')
+  })
+
+  it('retorna ultimoCursor cuando hay nextCursor', async () => {
+    let llamada = 0
+    global.fetch = mockFetch((url) => {
+      if (url.includes('/auth/api')) return { ok: true, token: 'tok' }
+      llamada++
+      if (llamada === 1) return {
+        ok: true,
+        data: [{ id: 'c1', firstName: 'A', updatedAt: '2026-08-08T10:00:00Z' }],
+        nextCursor: { cursorDate: '2026-08-08T10:00:00Z', cursorId: 'c1' },
+      }
+      return { ok: true, data: [], nextCursor: null }
+    })
+    const a = new UpTresAdapter('k', 's')
+    await a.login()
+    const { data, ultimoCursor } = await a.fetchClientesConCursor(null, new Date())
+    expect(data).toHaveLength(1)
+    expect(ultimoCursor).toEqual({ cursorDate: '2026-08-08T10:00:00Z', cursorId: 'c1' })
+  })
+
+  it('sin datos → ultimoCursor null', async () => {
+    global.fetch = mockFetch((url) => {
+      if (url.includes('/auth/api')) return { ok: true, token: 'tok' }
+      return { ok: true, data: [], nextCursor: null }
+    })
+    const a = new UpTresAdapter('k', 's')
+    await a.login()
+    const { data, ultimoCursor } = await a.fetchClientesConCursor(null, new Date())
+    expect(data).toHaveLength(0)
+    expect(ultimoCursor).toBeNull()
+  })
+})
+
+describe('fetchEmpleadosConCursor', () => {
+  let originalFetch: any
+  beforeEach(() => { originalFetch = global.fetch })
+  afterEach(() => { global.fetch = originalFetch })
+
+  it('sin cursor → from=desde ajustado Bogotá', async () => {
+    let capturedUrl = ''
+    global.fetch = mockFetch((url) => {
+      if (url.includes('/auth/api')) return { ok: true, token: 'tok' }
+      capturedUrl = url
+      return { ok: true, data: [], nextCursor: null }
+    })
+    const a = new UpTresAdapter('k', 's')
+    await a.login()
+    // 2026-08-09T03:00:00Z → Bogotá = 2026-08-08 → from=2026-08-08
+    await a.fetchEmpleadosConCursor(null, new Date('2026-08-09T03:00:00Z'))
+    expect(capturedUrl).toContain('from=2026-08-08')
+    expect(capturedUrl).not.toContain('cursorDate')
+  })
+
+  it('con cursor → sin from, solo cursor', async () => {
+    let capturedUrl = ''
+    global.fetch = mockFetch((url) => {
+      if (url.includes('/auth/api')) return { ok: true, token: 'tok' }
+      capturedUrl = url
+      return { ok: true, data: [], nextCursor: null }
+    })
+    const a = new UpTresAdapter('k', 's')
+    await a.login()
+    const cursor = { cursorDate: '2026-04-22T03:23:30.054Z', cursorId: 'emp-id-1' }
+    await a.fetchEmpleadosConCursor(cursor) // sin desde — no requerido con cursor
+    expect(capturedUrl).not.toContain('from=')
+    expect(capturedUrl).toContain('cursorDate=2026-04-22T03%3A23%3A30.054Z')
+    expect(capturedUrl).toContain('cursorId=emp-id-1')
+  })
+
+  it('retorna ultimoCursor y data correctamente', async () => {
+    let llamada = 0
+    global.fetch = mockFetch((url) => {
+      if (url.includes('/auth/api')) return { ok: true, token: 'tok' }
+      llamada++
+      if (llamada === 1) return {
+        ok: true,
+        data: [{ id: 'emp-1', firstName: 'PEDRO', cityId: '73001', updatedAt: '2026-04-22T03:23:30Z' }],
+        nextCursor: { cursorDate: '2026-04-22T03:23:30Z', cursorId: 'emp-1' },
+      }
+      return { ok: true, data: [], nextCursor: null }
+    })
+    const a = new UpTresAdapter('k', 's')
+    await a.login()
+    const { data, ultimoCursor } = await a.fetchEmpleadosConCursor(null, new Date('2026-08-09T12:00:00Z'))
+    expect(data[0].uid).toBe('emp-1')
+    expect(ultimoCursor).toEqual({ cursorDate: '2026-04-22T03:23:30Z', cursorId: 'emp-1' })
+  })
+  it('sin cursor y sin desde → throws', async () => {
+    global.fetch = mockFetch((url) => {
+      if (url.includes('/auth/api')) return { ok: true, token: 'tok' }
+      return { ok: true, data: [], nextCursor: null }
+    })
+    const a = new UpTresAdapter('k', 's')
+    await a.login()
+    await expect(a.fetchEmpleadosConCursor(null)).rejects.toThrow(/desde requerido sin cursor/i)
+  })
+})
+
+describe('fetchDeudasConCursor', () => {
+  let originalFetch: any
+  beforeEach(() => { originalFetch = global.fetch })
+  afterEach(() => { global.fetch = originalFetch })
+
+  it('sin cursor → from=desde Bogotá -1día, to=mañana', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'))
+    let capturedUrl = ''
+    global.fetch = mockFetch((url) => {
+      if (url.includes('/auth/api')) return { ok: true, token: 'tok' }
+      capturedUrl = url
+      return { ok: true, data: [], nextCursor: null }
+    })
+    const a = new UpTresAdapter('k', 's')
+    await a.login()
+    // desde=2026-08-09T01:00:00Z → Bogotá=2026-08-08T20:00 → -1día → from=2026-08-07
+    await a.fetchDeudasConCursor(null, new Date('2026-08-09T01:00:00Z')) // desde requerido sin cursor
+    expect(capturedUrl).toContain('from=2026-08-07')
+    expect(capturedUrl).toContain('to=2026-08-10') // mañana
+    expect(capturedUrl).not.toContain('cursorDate')
+    vi.useRealTimers()
+  })
+
+  it('con cursor → from=cursorDate Bogotá, to=mañana, + cursor', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-08-09T12:00:00Z'))
+    let capturedUrl = ''
+    global.fetch = mockFetch((url) => {
+      if (url.includes('/auth/api')) return { ok: true, token: 'tok' }
+      capturedUrl = url
+      return { ok: true, data: [], nextCursor: null }
+    })
+    const a = new UpTresAdapter('k', 's')
+    await a.login()
+    // cursorDate 2026-08-09T02:00:00Z → Bogotá = 2026-08-08 → from=2026-08-08
+    const cursor = { cursorDate: '2026-08-09T02:00:00.000Z', cursorId: 'deuda-id-1' }
+    await a.fetchDeudasConCursor(cursor, new Date('2026-08-09T10:00:00Z'))
+    expect(capturedUrl).toContain('from=2026-08-08')
+    expect(capturedUrl).toContain('to=2026-08-10')
+    expect(capturedUrl).toContain('cursorDate=2026-08-09T02%3A00%3A00.000Z')
+    expect(capturedUrl).toContain('cursorId=deuda-id-1')
+    vi.useRealTimers()
+  })
+
+  it('sin cursor y sin desde → throws', async () => {
+    global.fetch = mockFetch((url) => {
+      if (url.includes('/auth/api')) return { ok: true, token: 'tok' }
+      return { ok: true, data: [], nextCursor: null }
+    })
+    const a = new UpTresAdapter('k', 's')
+    await a.login()
+    await expect(a.fetchDeudasConCursor(null)).rejects.toThrow(/desde requerido sin cursor/i)
+  })
+
+  it('retorna data mapeada + ultimoCursor', async () => {
+    let llamada = 0
+    global.fetch = mockFetch((url) => {
+      if (url.includes('/auth/api')) return { ok: true, token: 'tok' }
+      llamada++
+      if (llamada === 1) return {
+        ok: true,
+        data: [{
+          id: 'd1', orderNumber: 101, invoiceNumber: 555,
+          customerId: 'cli-1', employeeId: 'emp-1',
+          total: '500000', balance: '300000',
+          creditDay: '30', createdAt: '2026-08-01T00:00:00Z',
+          updatedAt: '2026-08-08T08:00:00Z',
+        }],
+        nextCursor: { cursorDate: '2026-08-08T08:00:00Z', cursorId: 'd1' },
+      }
+      return { ok: true, data: [], nextCursor: null }
+    })
+    const a = new UpTresAdapter('k', 's')
+    await a.login()
+    const { data, ultimoCursor } = await a.fetchDeudasConCursor(null, new Date())
+    expect(data[0].uid).toBe('d1')
+    expect(data[0].vAbono).toBe('200000')
+    expect(ultimoCursor).toEqual({ cursorDate: '2026-08-08T08:00:00Z', cursorId: 'd1' })
   })
 })

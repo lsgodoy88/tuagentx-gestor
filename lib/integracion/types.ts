@@ -33,6 +33,30 @@ export interface EmpleadoExterno {
   [key: string]: unknown
 }
 
+export interface ProveedorExterno {
+  apiId: string
+  firstName: string
+  lastName: string | null
+  document: string | null
+  documentType: string | null
+  verificationDigit: string | null
+  email: string | null
+  phone: string | null
+  cityId: string | null
+  address: string | null
+  neighborhood: string | null
+  note: string | null
+  updatedAt: string | null
+}
+
+export interface ListaClienteExterna {
+  apiId: string
+  nombre: string
+  nameUs: string | null
+  clienteApiIds: string[]
+  updatedAt: string
+}
+
 export interface VentaExterna {
   uid: string
   _id?: string
