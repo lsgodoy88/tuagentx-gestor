@@ -68,10 +68,11 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
 
   const clienteApiIds = [...new Set(nuevasOrdenes.map((o: any) => o.cliente?.uid).filter(Boolean))]
   const clienteNits = [...new Set(nuevasOrdenes.map((o: any) => o.clienteNit).filter(Boolean))]
-  let clientesLocales = await (prisma as any).cliente.findMany({
-    where: { empresaId: destino, OR: [...(clienteApiIds.length ? [{ apiId: { in: clienteApiIds } }] : []), ...(clienteNits.length ? [{ nit: { in: clienteNits } }] : [])] },
+  const _orClientes = [...(clienteApiIds.length ? [{ apiId: { in: clienteApiIds } }] : []), ...(clienteNits.length ? [{ nit: { in: clienteNits } }] : [])]
+  let clientesLocales = _orClientes.length > 0 ? await (prisma as any).cliente.findMany({
+    where: { empresaId: destino, OR: _orClientes },
     select: { apiId: true, nit: true, ciudad: true, direccion: true, telefono: true }
-  })
+  }) : []
 
   // Sync incremental de clientes — cursor persistido por empresa
   try {
@@ -119,8 +120,8 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
         }
       })
       // Re-leer para que nuevas órdenes encuentren ciudad
-      clientesLocales = await (prisma as any).cliente.findMany({
-        where: { empresaId: destino, OR: [...(clienteApiIds.length ? [{ apiId: { in: clienteApiIds } }] : []), ...(clienteNits.length ? [{ nit: { in: clienteNits } }] : [])] },
+      if (_orClientes.length > 0) clientesLocales = await (prisma as any).cliente.findMany({
+        where: { empresaId: destino, OR: _orClientes },
         select: { apiId: true, nit: true, ciudad: true, direccion: true, telefono: true }
       })
     }
