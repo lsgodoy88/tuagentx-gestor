@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import InputMoneda from '@/components/InputMoneda'
 import CiudadBuscador from '@/components/CiudadBuscador'
 import GastoManual from '@/components/GastoManual'
@@ -49,7 +49,7 @@ type DatosIAGasto = { valor: number | null; fecha: string | null; concepto: stri
  * dentro de /egresos (admin/supervisor) — mismo componente, mismo
  * comportamiento, sin duplicar lógica.
  */
-export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, mes, anio }: { isAdmin: boolean, hideButton?: boolean, triggerRef?: React.RefObject<(() => void) | null>, mes?: number, anio?: number }) {
+export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, mes, anio, onChangeFecha }: { isAdmin: boolean, hideButton?: boolean, triggerRef?: React.RefObject<(() => void) | null>, mes?: number, anio?: number, onChangeFecha?: (mes: number, anio: number) => void }) {
   const [gastos, setGastos] = useState<Gasto[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -66,6 +66,8 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
   const [empleados, setEmpleados] = useState<{id:string,nombre:string}[]>([])
 
   const [subiendo, setSubiendo] = useState(false)
+  const [showCal, setShowCal] = useState(false)
+  const calRef = React.useRef<HTMLDivElement>(null)
   const [popupAbierto, setPopupAbierto] = useState(false)
   const [evidenciaKey, setEvidenciaKey] = useState('')
   const [datosIA, setDatosIA] = useState<DatosIAGasto | null>(null)
@@ -89,6 +91,11 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
     fetch('/api/gastos/tipos').then(r => r.json()).then(d => { if (d.tipos) setTipos(d.tipos) }).catch(() => {})
   }, [])
   useEffect(() => { cargarGastos() }, [fechaDesde, fechaHasta, empleadoFiltro, tipoFiltro, mes, anio])
+  useEffect(() => {
+    function handleClick(e: MouseEvent) { if (calRef.current && !calRef.current.contains(e.target as Node)) setShowCal(false) }
+    document.addEventListener('mousedown', handleClick)
+    return () => document.removeEventListener('mousedown', handleClick)
+  }, [])
   useEffect(() => {
     if (isAdmin) {
       fetch('/api/empleados?rol=vendedor&activo=true').then(r=>r.json()).then(d=>{
@@ -224,15 +231,7 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
   return (
     <div className="space-y-4 max-w-5xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h1 className="text-white text-xl font-bold">🧾 Gastos</h1>
-        </div>
-        <div className="flex items-center gap-2 ml-auto">
-          {isAdmin && <button onClick={() => setShowTipos(true)}
-            className="rounded-lg text-zinc-500 hover:text-zinc-200 transition-colors"
-            style={{fontSize:"1rem", padding:"6px 10px", border:'1px solid rgba(255,255,255,0.08)'}}>⚙️</button>}
-
+      <div className="flex items-center gap-2 flex-wrap">
           <input ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden"
             onChange={e => { if (e.target.files?.[0]) handleArchivo(e.target.files[0]) }} />
           {showTipos && (
@@ -272,19 +271,42 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
             </div>
           )}
           <GastoManual open={showManual} onClose={() => setShowManual(false)} onAdicionado={() => { setShowManual(false); cargarGastos() }} />
+          <button onClick={() => fileInputRef.current?.click()} disabled={subiendo}
+            className="text-white text-sm font-semibold px-3 py-1.5 rounded-xl transition-colors border border-zinc-700 hover:border-zinc-500 disabled:opacity-50"
+            style={{background:'rgba(255,255,255,0.06)'}}>
+            {subiendo ? '⏳ Analizando...' : '📎 Adjuntar'}
+          </button>
           <button onClick={() => setShowManual(true)} disabled={subiendo}
             className="text-white text-sm font-semibold px-3 py-1.5 rounded-xl transition-colors border border-zinc-700 hover:border-zinc-500"
             style={{background:'rgba(255,255,255,0.06)'}}>
-            ✍🏼 Nuevo
+            ✍🏼 Manual
           </button>
-          {!hideButton && (
-            <button onClick={() => fileInputRef.current?.click()} disabled={subiendo}
-              className="text-white text-sm font-semibold px-3 py-1.5 rounded-xl transition-colors border border-zinc-700 hover:border-zinc-500 disabled:opacity-50"
-              style={{background:'rgba(255,255,255,0.06)'}}>
-              {subiendo ? '⏳ Analizando...' : '📎 Adjuntar'}
-            </button>
+          {onChangeFecha && mes && anio && (
+            <div className="relative ml-auto flex items-center gap-2" ref={calRef}>
+              {isAdmin && <button onClick={() => setShowTipos(true)}
+                className="rounded-lg text-zinc-500 hover:text-zinc-200 transition-colors"
+                style={{fontSize:"1rem", padding:"6px 10px", border:'1px solid rgba(255,255,255,0.08)'}}>⚙️</button>}
+              <button onClick={() => setShowCal(s => !s)}
+                className="flex items-center justify-center bg-zinc-800 border border-zinc-700 text-white text-lg font-semibold px-3 py-1.5 rounded-xl hover:bg-zinc-700 transition-colors">
+                📅
+              </button>
+              {showCal && (
+                <div className="absolute right-0 top-10 z-50 bg-zinc-900 border border-zinc-700 rounded-2xl p-4 shadow-xl space-y-3" style={{minWidth: 220}}>
+                  <div className="flex items-center justify-between gap-2">
+                    <select value={mes} onChange={e => onChangeFecha(+e.target.value, anio)}
+                      className="bg-zinc-800 border border-zinc-700 text-white text-xs rounded-lg px-2 py-1.5 flex-1">
+                      {['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'].map((ml,i) => <option key={i} value={i+1}>{ml}</option>)}
+                    </select>
+                    <select value={anio} onChange={e => onChangeFecha(mes, +e.target.value)}
+                      className="bg-zinc-800 border border-zinc-700 text-white text-xs rounded-lg px-2 py-1.5">
+                      {[2024,2025,2026,2027].map(yr => <option key={yr} value={yr}>{yr}</option>)}
+                    </select>
+                  </div>
+                  <button onClick={() => setShowCal(false)} className="w-full bg-blue-600 text-white text-xs font-semibold py-2 rounded-xl">Cerrar</button>
+                </div>
+              )}
+            </div>
           )}
-        </div>
       </div>
 
       {/* Filtros — segunda línea */}

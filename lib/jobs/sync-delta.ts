@@ -267,12 +267,29 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
 
     if (listasExt.length > 0) {
       for (const lista of listasExt) {
-        // Upsert lista por api_id
-        const listaLocal = await (prisma as any).listaClientes.upsert({
-          where: { api_id: lista.apiId },
-          create: { api_id: lista.apiId, nombre: lista.nombre, name_us: lista.nameUs, empresaId: destino },
-          update: { nombre: lista.nombre, name_us: lista.nameUs },
-        })
+        // Upsert lista: primero por api_id, si no existe buscar huérfana por nombre+empresa
+        let listaLocal = await (prisma as any).listaClientes.findUnique({ where: { api_id: lista.apiId } })
+        if (!listaLocal) {
+          // Buscar lista manual sin api_id con mismo nombre
+          const huerfana = await (prisma as any).listaClientes.findFirst({
+            where: { empresaId: destino, nombre: lista.nombre, api_id: null }
+          })
+          if (huerfana) {
+            listaLocal = await (prisma as any).listaClientes.update({
+              where: { id: huerfana.id },
+              data: { api_id: lista.apiId, name_us: lista.nameUs }
+            })
+          } else {
+            listaLocal = await (prisma as any).listaClientes.create({
+              data: { api_id: lista.apiId, nombre: lista.nombre, name_us: lista.nameUs, empresaId: destino }
+            })
+          }
+        } else {
+          listaLocal = await (prisma as any).listaClientes.update({
+            where: { id: listaLocal.id },
+            data: { nombre: lista.nombre, name_us: lista.nameUs }
+          })
+        }
 
         // Actualizar Cliente.listaId donde apiId esté en lista.clienteApiIds
         if (lista.clienteApiIds.length > 0) {

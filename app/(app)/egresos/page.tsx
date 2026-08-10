@@ -30,7 +30,7 @@ function fmtFecha(f: string | null | undefined) {
 }
 function filaVacia(categoria: string) {
   const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
-  return { id: null as string | null, fecha: hoy, concepto: '', valor: '', retencion: '', abonoPago: '', descuento: '', saldo: '', fechaPago: '', medioPago: '', estado: 'pendiente', autorizado: false, categoria, evidenciaKey: '', abonosCount: 0, esNueva: true }
+  return { id: null as string | null, fecha: '', concepto: '', valor: '', retencion: '', abonoPago: '', descuento: '', saldo: '', fechaPago: '', medioPago: '', estado: 'pendiente', autorizado: false, categoria, evidenciaKey: '', abonosCount: 0, esNueva: true }
 }
 type Fila = ReturnType<typeof filaVacia>
 
@@ -54,6 +54,10 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
   const [modoEliminar, setModoEliminar] = useState(false)
   const [filaEliminar, setFilaEliminar] = useState<string | null>(null)
   const [eliminando, setEliminando] = useState(false)
+  const [filaAccion, setFilaAccion] = useState<string | null>(null)
+  const [proveedores, setProveedores] = useState<{id:string,firstName:string,lastName:string|null,document:string|null}[]>([])
+  const [buscandoProv, setBuscandoProv] = useState('')
+  const longPressTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
   const [filas, setFilas] = useState<Fila[]>([])
   const [editando, setEditando] = useState<Record<number, boolean>>({})
   const [saved, setSaved] = useState<Record<number, boolean>>({})
@@ -143,6 +147,12 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
   async function guardar(idx: number) {
     const f = filas[idx]
     if (!f.concepto && !f.valor) return
+    // Si es nueva y no tiene fecha, poner hoy
+    if (f.esNueva && !f.fecha) {
+      const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
+      set(idx, 'fecha', hoy)
+      f.fecha = hoy
+    }
     const body = { ...f, categoria: cat.key }
     try {
       if (f.id) {
@@ -168,6 +178,18 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
 
   const tot = (campo: keyof Fila) => filas.filter(f => f.concepto || f.valor).reduce((s, f) => s + (parseInt(String(f[campo])) || 0), 0)
   const totalSaldo = tot('saldo')
+
+  async function cargarProveedores(q = '') {
+    const res = await fetch('/api/proveedores?modo=todos' + (q ? '&q=' + encodeURIComponent(q) : ''))
+    const d = await res.json()
+    setProveedores(d.proveedores || [])
+  }
+  async function asociarProveedor(egresoId: string, proveedorId: string | null) {
+    await fetch('/api/egresos', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: egresoId, proveedorId }) })
+    setFilaAccion(null)
+    setProveedores([])
+    setBuscandoProv('')
+  }
 
   async function eliminarEgreso(id: string) {
     setEliminando(true)
@@ -223,7 +245,17 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
                   <tr key={f.id || `n-${idx}`}
                     style={{ background: saved[idx] ? 'rgba(34,197,94,0.15)' : rowBg, transition: 'background 0.3s', outline: filaEliminar === f.id ? '2px solid #ef4444' : 'none', position: 'relative' }}
                     onDoubleClick={() => { if (modoEliminar) return; !f.esNueva && setEditando(p => ({ ...p, [idx]: true })) }}
-                    onClick={() => { if (modoEliminar && f.id) setFilaEliminar(fid => fid === f.id ? null : f.id) }}>
+                    onClick={() => { if (modoEliminar && f.id) setFilaEliminar(fid => fid === f.id ? null : f.id) }}
+                    onTouchStart={e => {
+                      if (!f.id || modoEliminar || f.esNueva || editando[idx]) return
+                      longPressTimer.current = setTimeout(() => {
+                        e.preventDefault()
+                        setFilaAccion(f.id)
+                        cargarProveedores()
+                      }, 600)
+                    }}
+                    onTouchEnd={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null } }}
+                    onTouchMove={() => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null } }}>
                     {/* Popover eliminar */}
                     {modoEliminar && filaEliminar === f.id && (
                       <td colSpan={0} style={{ padding: 0, border: 'none', position: 'static' }}>
@@ -236,8 +268,9 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
                         </div>
                       </td>
                     )}
+
                     <td style={{ ...tdStyle, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
-                      {isEdit ? <input type="date" value={f.fecha} onChange={e => set(idx,'fecha',e.target.value)} onBlur={() => onBlurFila(idx)} style={{ background:'transparent',color:'white',border:'none',outline:'none',width:110,fontSize:13 }} /> : fmtFecha(f.fecha)}
+                      {f.esNueva ? null : isEdit ? <input type="date" value={f.fecha} onChange={e => set(idx,'fecha',e.target.value)} onBlur={() => onBlurFila(idx)} style={{ background:'transparent',color:'white',border:'none',outline:'none',width:110,fontSize:13 }} /> : fmtFecha(f.fecha)}
                     </td>
                     <td style={{ ...tdStyle, minWidth: 200, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:4 }}>
@@ -245,7 +278,7 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
                           <button onClick={async () => { const r = await fetch(`/api/egresos/url?key=${encodeURIComponent(f.evidenciaKey)}`); const d = await r.json(); if(d.url) window.open(d.url, '_blank') }} title="Ver factura"
                             style={{ background:'none', border:'none', cursor:'pointer', fontSize:14, lineHeight:1, padding:'0 2px', opacity:0.7, flexShrink:0 }}>📎</button>
                         )}
-                        {isEdit ? <input value={f.concepto} onChange={e => set(idx,'concepto',e.target.value.toUpperCase())} onBlur={() => guardar(idx)} autoFocus={f.esNueva} style={{ background:'transparent',color:'white',border:'none',outline:'none',width:'100%',fontSize:13 }} placeholder="Concepto..." /> : <span style={{ fontWeight: pagado ? 700 : 500 }}>{f.concepto}</span>}
+                        {isEdit ? <input value={f.concepto} onChange={e => set(idx,'concepto',e.target.value.toUpperCase())} onBlur={() => onBlurFila(idx)} autoFocus={f.esNueva} style={{ background:'transparent',color:'white',border:'none',outline:'none',width:'100%',fontSize:13 }} placeholder="Concepto..." /> : <span style={{ fontWeight: pagado ? 700 : 500 }}>{f.concepto}</span>}
                       </div>
                     </td>
                     <td style={{ ...tdStyle, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
@@ -324,6 +357,43 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
         </div>
       </div>
 
+
+      {/* Overlay proveedor — fixed, centrado */}
+      {filaAccion && (
+        <>
+          <div onClick={() => { setFilaAccion(null); setProveedores([]); setBuscandoProv('') }}
+            style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.45)' }} />
+          <div onClick={e => e.stopPropagation()}
+            style={{ position: 'fixed', left: '50%', top: '50%', transform: 'translate(-50%,-50%)', zIndex: 50,
+              background: '#0f1623', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 14,
+              padding: 16, boxShadow: '0 8px 40px rgba(0,0,0,0.7)', width: 'min(90vw, 340px)' }}>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 10, alignItems: 'center' }}>
+              <span style={{ color: '#94a3b8', fontSize: 13, flex: 1 }}>
+                Asociar — {filas.find(f => f.id === filaAccion)?.concepto}
+              </span>
+              <button onClick={() => { setFilaAccion(null); setProveedores([]); setBuscandoProv('') }}
+                style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: 18, lineHeight: 1 }}>✕</button>
+            </div>
+            <input autoFocus value={buscandoProv}
+              onChange={e => { setBuscandoProv(e.target.value); cargarProveedores(e.target.value) }}
+              placeholder="Buscar proveedor..."
+              style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 8, color: 'white', width: '100%', fontSize: 13, padding: '7px 10px', marginBottom: 8, boxSizing: 'border-box' }} />
+            <div style={{ maxHeight: 180, overflowY: 'auto' }}>
+              {proveedores.map(pv => (
+                <button key={pv.id} onClick={() => asociarProveedor(filaAccion!, pv.id)}
+                  style={{ display: 'block', width: '100%', textAlign: 'left', background: 'rgba(255,255,255,0.04)', border: 'none', borderRadius: 6, color: 'white', fontSize: 13, padding: '7px 10px', cursor: 'pointer', marginBottom: 3 }}>
+                  {pv.firstName}{pv.lastName ? ' ' + pv.lastName : ''}{pv.document ? ` — ${pv.document}` : ''}
+                </button>
+              ))}
+              {proveedores.length === 0 && <p style={{ color: '#64748b', fontSize: 12, padding: '4px 0' }}>Sin resultados</p>}
+            </div>
+            <button onClick={() => asociarProveedor(filaAccion!, null)}
+              style={{ marginTop: 8, display: 'block', width: '100%', textAlign: 'center', background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: 6, color: '#f87171', fontSize: 12, padding: '6px', cursor: 'pointer' }}>
+              Quitar proveedor
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -405,54 +475,40 @@ export default function EgresosPage() {
   }, [])
 
   return (
-    <div className="space-y-6 pb-20">
-      <div className="flex items-stretch gap-2 px-1">
-        <div className="flex-1 min-w-0">
-          <div className="flex gap-1 tab-pills rounded-xl p-1 w-full h-full">
-            <button onClick={() => setTab('egresos')} className={`flex-1 py-1.5 text-sm font-semibold transition-colors rounded-lg ${tab === 'egresos' ? 'tab-active' : 'text-white hover:text-white'}`}>Egresos</button>
-            <button onClick={() => setTab('gastos')} className={`flex-1 py-1.5 text-sm font-semibold transition-colors rounded-lg ${tab === 'gastos' ? 'tab-active' : 'text-white hover:text-white'}`}>Gastos</button>
-            {isAdmin && <button onClick={() => setTab('proveedores')} className={`flex-1 py-1.5 text-sm font-semibold transition-colors rounded-lg ${tab === 'proveedores' ? 'tab-active' : 'text-white hover:text-white'}`}>Proveedor</button>}
-          </div>
-        </div>
-        <div className="flex items-stretch gap-2 flex-shrink-0">
-          {tab === 'egresos' && (
-            <div className="flex-shrink-0 flex">
-              <AdjuntarEgreso mes={mes} anio={anio} onAdicionado={() => setReloadKey(k => k+1)} />
-            </div>
-          )}
-          {tab === 'gastos' && (
-            <button onClick={() => triggerGastos.current?.()}
-              className="flex items-center justify-center transition-colors h-full flex-shrink-0"
-              style={{ background:'none', border:'none', cursor:'pointer', fontSize:22, padding:'0 4px' }}>
-              📎
-            </button>
-          )}
-          <div className="relative flex-shrink-0 flex" ref={calRef}>
-            <button onClick={() => setShowCal(s => !s)}
-              className="flex items-center justify-center bg-zinc-800 border border-zinc-700 text-white text-lg font-semibold px-3 rounded-xl hover:bg-zinc-700 transition-colors flex-1">
-              📅
-            </button>
-            {showCal && <CalendarioPopup mes={mes} anio={anio} onChange={(m,a) => { setMes(m); setAnio(a) }} onClose={() => setShowCal(false)} />}
-          </div>
-        </div>
+    <div className="space-y-4 pb-20">
+      {/* Tabs — ancho completo */}
+      <div className="flex gap-1 tab-pills rounded-xl p-1 w-full px-1">
+        <button onClick={() => setTab('egresos')} className={`flex-1 py-1.5 text-sm font-semibold transition-colors rounded-lg ${tab === 'egresos' ? 'tab-active' : 'text-white hover:text-white'}`}>Egresos</button>
+        <button onClick={() => setTab('gastos')} className={`flex-1 py-1.5 text-sm font-semibold transition-colors rounded-lg ${tab === 'gastos' ? 'tab-active' : 'text-white hover:text-white'}`}>Gastos</button>
+        {isAdmin && <button onClick={() => setTab('proveedores')} className={`flex-1 py-1.5 text-sm font-semibold transition-colors rounded-lg ${tab === 'proveedores' ? 'tab-active' : 'text-white hover:text-white'}`}>Proveedor</button>}
       </div>
-      {tab === 'egresos'
-        ? <div className="space-y-4">
+
+      <div>
+        <div style={{ display: tab === 'egresos' ? 'block' : 'none' }} className="space-y-4">
             {totalGeneral !== null && (
-              <div className="flex justify-between px-4 py-2 mb-3 rounded-xl" style={{border:'1px solid rgba(255,255,255,0.10)'}}>
-                <div className="flex flex-col items-center">
-                  <span className="text-zinc-400 text-xs">Total</span>
-                  <span className="text-white text-sm font-bold">{fmt(totalGeneral.total)}</span>
+              <>
+                <div className="flex justify-between px-4 py-3 rounded-2xl border border-zinc-800" style={{background:'#0f1623'}}>
+                  <div className="flex flex-col items-center">
+                    <span className="text-white text-xs">Total</span>
+                    <span className="text-white text-sm font-bold">{fmt(totalGeneral.total)}</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-white text-xs">Pagado</span>
+                    <span className="text-emerald-400 text-sm font-bold">{totalGeneral.pagado > 0 ? fmt(totalGeneral.pagado) : '—'}</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <span className="text-white text-xs">Pendiente</span>
+                    <span className={`text-sm font-bold ${totalGeneral.pendiente > 0 ? 'text-red-400' : 'text-white'}`}>{fmt(totalGeneral.pendiente)}</span>
+                  </div>
                 </div>
-                <div className="flex flex-col items-center">
-                  <span className="text-zinc-400 text-xs">Pagado</span>
-                  <span className="text-emerald-400 text-sm font-bold">{totalGeneral.pagado > 0 ? fmt(totalGeneral.pagado) : '—'}</span>
+                <div className="flex justify-end" ref={calRef}>
+                  <button onClick={() => setShowCal(s => !s)}
+                    className="flex items-center justify-center bg-zinc-800 border border-zinc-700 text-white text-lg px-3 py-1.5 rounded-xl hover:bg-zinc-700 transition-colors">
+                    📅
+                  </button>
+                  {showCal && <div style={{position:'absolute', zIndex:50}}><CalendarioPopup mes={mes} anio={anio} onChange={(m,a) => { setMes(m); setAnio(a) }} onClose={() => setShowCal(false)} /></div>}
                 </div>
-                <div className="flex flex-col items-center">
-                  <span className="text-zinc-400 text-xs">Pendiente</span>
-                  <span className={`text-sm font-bold ${totalGeneral.pendiente > 0 ? 'text-red-400' : 'text-zinc-500'}`}>{fmt(totalGeneral.pendiente)}</span>
-                </div>
-              </div>
+              </>
             )}
             {categorias.map(cat => <Tabla key={`${cat.key}-${reloadKey}`} cat={cat} mes={mes} anio={anio} scrollRefs={scrollRefs} isAdmin={puedeEditarEgresos} onCatUpdate={puedeAdminEgresos ? (id, label, emoji) => {
               fetch('/api/egresos/categorias', { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id, label, emoji}) })
@@ -507,10 +563,13 @@ export default function EgresosPage() {
               </div>
             )}
           </div>
-        : tab === 'proveedores'
-        ? <TabProveedores />
-        : <ModuloGastos isAdmin={puedeEditarEgresos} hideButton triggerRef={triggerGastos} mes={mes} anio={anio} />
-      }
+        <div style={{ display: tab === 'proveedores' ? 'block' : 'none' }}>
+          <TabProveedores mes={mes} anio={anio} onChangeFecha={(m,a) => { setMes(m); setAnio(a) }} />
+        </div>
+        <div style={{ display: tab === 'gastos' ? 'block' : 'none' }}>
+          <ModuloGastos isAdmin={puedeEditarEgresos} hideButton triggerRef={triggerGastos} mes={mes} anio={anio} onChangeFecha={(m,a) => { setMes(m); setAnio(a) }} />
+        </div>
+      </div>
     </div>
   )
 }

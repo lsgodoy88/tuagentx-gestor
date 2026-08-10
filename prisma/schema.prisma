@@ -436,9 +436,15 @@ model Proveedor {
   address            String?
   neighborhood       String?
   note               String?
-  condition          Boolean   @default(true)
-  createdAt          DateTime  @default(now()) @db.Timestamp(6)
-  updatedAt          DateTime? @db.Timestamp(6)
+  condition            Boolean   @default(true)
+  aplica_retencion     Boolean   @default(false)
+  porcentaje_retencion Decimal?  @db.Decimal(5, 2)
+  banco                String?
+  numero_cuenta        String?
+  whatsapp             String?
+  egresos              Egreso[]
+  createdAt            DateTime  @default(now()) @db.Timestamp(6)
+  updatedAt            DateTime? @db.Timestamp(6)
 
   @@map("Proveedor")
 }
@@ -3330,6 +3336,8 @@ model Egreso {
   empresa          Empresa          @relation(fields: [empresaId], references: [id])
   abonos           EgresoAbono[]
 
+  proveedorId  String?
+  proveedor    Proveedor? @relation(fields: [proveedorId], references: [id])
   @@index([empresaId, categoria, anio, mes])
   @@map("Egreso")
 }
