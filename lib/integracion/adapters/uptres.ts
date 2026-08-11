@@ -63,7 +63,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       this.token = cached.token
       return
     }
-    const res = await fetch(AUTH_URL, {
+    const res = await fetch(AUTH_URL, { cache: 'no-store',
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ apiKey: this.apiKey, apiSecret: this.apiSecret }),
@@ -90,7 +90,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       if (cursorDate && cursorId) { p.set('cursorDate', cursorDate); p.set('cursorId', cursorId) }
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), 30000)
-      const res = await fetch(`${BASE}/${endpoint}?${p.toString()}`, { headers: this.headers, signal: controller.signal })
+      const res = await fetch(`${BASE}/${endpoint}?${p.toString()}`, { headers: this.headers, signal: controller.signal, cache: 'no-store' })
       clearTimeout(timer)
       const text = await res.text()
       if (!text) break

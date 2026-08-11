@@ -412,10 +412,14 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   }
 
   if (toCreate.length || deudaToCreate.length || clientesNuevos || deudasNuevasDelta) {
-    // Reconstruir CarteraCache — usar integración propia del destino (vinculada tiene la suya)
+    // Reconstruir CarteraCache — solo clientes afectados en este ciclo
     try {
+      const apiIdsAfectados = [...new Set([
+        ...clienteApiIds,
+        ...deudaToCreate.map((d: any) => d.clienteApiId).filter(Boolean),
+      ])]
       const intgDestino = await (prisma as any).integracion.findFirst({ where: { empresaId: destino, tipo: 'uptres', activa: true }, select: { id: true } })
-      await reconstruirCartera(intgDestino?.id || integracionId, destino)
+      await reconstruirCartera(intgDestino?.id || integracionId, destino, apiIdsAfectados.length > 0 ? apiIdsAfectados : undefined)
     } catch (e: any) { erroresParciales.push('cache: ' + e.message) }
     await invalidatePattern(`g:${destino}:*`)
   }
