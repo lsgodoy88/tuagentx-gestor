@@ -5,12 +5,17 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { BodegaContext } from '@/lib/bodega-context'
 
-const StockPage = dynamic(() => import('@/app/(app)/stock/page'), { ssr: false, loading: () => <Cargando /> })
+const StockPage = dynamic(() => import('@/app/(app)/stock/page'), { ssr: false })
+const TabSugerido = dynamic(() => import('@/components/TabSugerido'), { ssr: false })
 
-const ModuloOrdenes = dynamic(() => import('@/components/ModuloOrdenes'), { ssr: false, loading: () => <Cargando /> })
+const ModuloOrdenes = dynamic(() => import('@/components/ModuloOrdenes'), { ssr: false })
 
 function Cargando() {
-  return <div className="flex items-center justify-center py-20 text-zinc-500 text-sm">Cargando...</div>
+  return (
+    <div className="flex items-center justify-center py-20">
+      <span className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
+    </div>
+  )
 }
 
 type Tab = 'ordenes' | 'inventario' | 'sugerido'
@@ -75,16 +80,11 @@ export default function BodegaEmpresaPage() {
         </div>
 
         {/* Contenido — context provee origenId sin exponer en URL */}
-        {tab === 'ordenes' && (
-          <Suspense fallback={<Cargando />}><ModuloOrdenes /></Suspense>
-        )}
-        {tab === 'inventario' && <StockPage />}
-        {tab === 'sugerido' && (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center text-zinc-500">
-            <p className="text-4xl mb-3">💡</p>
-            <p className="font-semibold text-white">Próximamente</p>
-          </div>
-        )}
+        <Suspense fallback={<Cargando />}>
+          {tab === 'ordenes' && <ModuloOrdenes />}
+          {tab === 'inventario' && <StockPage />}
+          {tab === 'sugerido' && <TabSugerido empresaId={empresa.origenId} />}
+        </Suspense>
       </div>
     </BodegaContext.Provider>
   )

@@ -262,7 +262,7 @@ export default function ModalVisita({
               className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}
             />
             <div className="space-y-2">
-              {loadingCli && <p className="text-zinc-500 text-xs text-center py-2">Cargando...</p>}
+              {loadingCli && <div className="flex justify-center py-2"><span className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" /></div>}
               {clientes.map((c: Cliente) => (
                 <button key={c.id} onClick={() => setCliente(c)}
                   className="w-full rounded-xl p-3 text-left transition-colors" style={{background:"#3f3f46",border:"1px solid rgba(59,130,246,0.25)"}}>

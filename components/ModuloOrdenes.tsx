@@ -407,7 +407,7 @@ export default function ModuloOrdenes() {
     setFotosCapturadas([])
 
     const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'environment', width: { ideal: 1280 }, height: { ideal: 720 } },
+      video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
     })
     streamRef.current = stream
     const track = stream.getVideoTracks()[0]
@@ -437,8 +437,10 @@ export default function ModuloOrdenes() {
     if (!video || !video.videoWidth) return
     const canvas = document.createElement('canvas')
     canvas.width = video.videoWidth; canvas.height = video.videoHeight
-    canvas.getContext('2d')!.drawImage(video, 0, 0)
-    const base64 = canvas.toDataURL('image/jpeg', 0.85)
+    const ctx = canvas.getContext('2d')!
+    ctx.imageSmoothingEnabled = false
+    ctx.drawImage(video, 0, 0)
+    const base64 = canvas.toDataURL('image/jpeg', 0.75)
     setAnotaciones([]); setAnotArrow(null); setAnotText(''); setAnotShowToolbar(false)
     setAnotTextPendiente(null); setAnotTextPos(null)
     streamRef.current?.getTracks().forEach(t => { t.enabled = false })
@@ -707,7 +709,7 @@ export default function ModuloOrdenes() {
   if (cargando) {
     return (
       <div className="flex items-center justify-center py-20">
-        <span className="text-zinc-400 text-sm">Cargando...</span>
+        <span className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
       </div>
     )
   }

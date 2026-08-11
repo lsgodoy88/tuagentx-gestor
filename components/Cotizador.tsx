@@ -2,16 +2,17 @@
 import { useState } from 'react'
 
 const ROLES_CONFIG = [
-  { key: 'supervisor',  label: 'Supervisores',  icon: '👔', desc: 'Monitorean rutas y equipos' },
   { key: 'vendedor',    label: 'Vendedores',    icon: '🛒', desc: 'Visitas y toma de pedidos' },
   { key: 'impulsadora', label: 'Impulsadoras',  icon: '⚡', desc: 'Activaciones en punto de venta' },
+  { key: 'supervisor',  label: 'Supervisores',  icon: '👔', desc: 'Monitorean rutas y equipos' },
+  { key: 'bodega',      label: 'Bodega',        icon: '📦', desc: 'Alistamiento y despacho' },
   { key: 'entregas',    label: 'Entregas',      icon: '🚚', desc: 'Repartidores con GPS' },
 ]
 
 const WA_NUMBER = '573505207975'
 
 export default function CotizadorGestor({ precios, loading }: { precios: Record<string, number>; loading: boolean }) {
-  const [counts, setCounts]                 = useState<Record<string, number>>({ supervisor: 1, vendedor: 1, impulsadora: 1, entregas: 1 })
+  const [counts, setCounts]                 = useState<Record<string, number>>({ vendedor: 1, impulsadora: 1, supervisor: 1, bodega: 1, entregas: 1 })
   const [mostrarResumen, setMostrarResumen] = useState(false)
   const [loadingPago, setLoadingPago]       = useState(false)
   const [errorPago, setErrorPago]           = useState('')

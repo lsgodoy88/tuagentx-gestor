@@ -118,7 +118,7 @@ export default function AbonoEgreso({ egresoId, abonosCount, saldo, onGuardado }
           <div onClick={e => e.stopPropagation()} className="w-full max-w-sm rounded-2xl p-5 space-y-3"
             style={{ background:'#141c2e', border:'1px solid #1e2a3d' }}>
             <h3 className="text-white font-semibold text-sm">Comprobantes ({abonosCount})</h3>
-            {loadingList && <p className="text-zinc-400 text-xs">Cargando...</p>}
+            {loadingList && <div className="flex justify-center py-2"><span className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" /></div>}
             {abonos.map((a, i) => (
               <div key={a.id} className="flex items-center justify-between gap-2 py-1.5 border-b border-zinc-800">
                 <span className="text-zinc-400 text-sm">#{i+1}</span>

@@ -79,6 +79,8 @@ export async function GET(req: NextRequest) {
           p.punto,
           p.invima,
           p."stockMinimo",
+          p.costo,
+          p.stock_sugerido AS "stockSugerido",
           p."externalUpdatedAt",
           CASE
             WHEN p."stockMinimo" IS NOT NULL AND p.inventory < p."stockMinimo" THEN true
@@ -136,21 +138,55 @@ export async function PATCH(req: NextRequest) {
     const session = await getServerSession(authOptions)
     if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     const user = session.user as any
-    if (!['empresa', 'supervisor'].includes(user.role)) {
+    if (!['empresa', 'supervisor', 'bodega'].includes(user.role)) {
       return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
     }
     const empresaId = getEmpresaId(user)
     const body = await req.json()
-    const { id, stockMinimo } = body
+    const { id, stockMinimo, costo, stockSugerido, origenId } = body
+
+    // Resolver empresaId real si es empresa vinculada
+    let empresaIdTarget = empresaId
+    if (origenId && origenId !== 'propia') {
+      const vinculada = await (prisma as any).empresaVinculada.findFirst({
+        where: { id: origenId, empresaId, activa: true },
+        select: { empresaClienteId: true },
+      })
+      if (vinculada) empresaIdTarget = vinculada.empresaClienteId
+    }
 
     if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
-    const val = stockMinimo === null || stockMinimo === '' ? null : parseFloat(stockMinimo)
 
+
+    const setClauses: string[] = []
+    const params: any[] = []
+    let pi = 1
+
+    if (stockMinimo !== undefined) {
+      const val = stockMinimo === null || stockMinimo === '' ? null : parseFloat(stockMinimo)
+      setClauses.push(`"stockMinimo" = $${pi}`)
+      params.push(val); pi++
+    }
+    if (costo !== undefined) {
+      const val = costo === null || costo === '' ? null : parseFloat(costo)
+      setClauses.push(`costo = $${pi}`)
+      params.push(val); pi++
+    }
+    if (stockSugerido !== undefined) {
+      const val = stockSugerido === null || stockSugerido === '' ? null : parseFloat(stockSugerido)
+      setClauses.push(`stock_sugerido = $${pi}`)
+      params.push(val); pi++
+    }
+
+    if (setClauses.length === 0) return NextResponse.json({ error: 'nada que actualizar' }, { status: 400 })
+
+    setClauses.push(`"updatedAt" = now()`)
+    params.push(id, empresaIdTarget)
     await (prisma as any).$executeRawUnsafe(`
       UPDATE ${DB_SCHEMA}."Producto"
-      SET "stockMinimo" = $1, "updatedAt" = now()
-      WHERE id = $2 AND "empresaId" = $3
-    `, val, id, empresaId)
+      SET ${setClauses.join(', ')}
+      WHERE id = $${pi} AND "empresaId" = $${pi + 1}
+    `, ...params)
 
     return NextResponse.json({ ok: true })
   } catch (err: any) {

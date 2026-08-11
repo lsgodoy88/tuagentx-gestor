@@ -328,7 +328,7 @@ export default function BodegaPage() {
   if (status === 'loading' || cargando) {
     return (
       <div className="flex items-center justify-center py-20">
-        <span className="text-zinc-400 text-sm">Cargando...</span>
+        <span className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
       </div>
     )
   }

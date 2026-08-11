@@ -336,7 +336,7 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
 
 
       {loading ? (
-        <p className="text-zinc-500 text-sm text-center py-10">Cargando...</p>
+        <div className="flex justify-center py-10"><span className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" /></div>
       ) : gastos.length === 0 ? (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-10 text-center">
           <p className="text-zinc-400 text-sm">Sin gastos registrados todavía</p>

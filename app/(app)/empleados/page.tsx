@@ -9,11 +9,11 @@ function slugify(n: string) {
 }
 
 const ROLES_CONFIG = [
-  { id: 'supervisor', label: 'Supervisores', icon: '👁️', maxKey: 'maxSupervisores' },
   { id: 'vendedor', label: 'Vendedores', icon: '🛍️', maxKey: 'maxVendedores' },
-  { id: 'entregas', label: 'Entregas', icon: '📦', maxKey: 'maxEntregas' },
   { id: 'impulsadora', label: 'Impulsadoras', icon: '⚡', maxKey: 'maxImpulsadoras' },
+  { id: 'supervisor', label: 'Supervisores', icon: '👁️', maxKey: 'maxSupervisores' },
   { id: 'bodega', label: 'Bodega', icon: '🏭', maxKey: 'maxBodega' },
+  { id: 'entregas', label: 'Entregas', icon: '📦', maxKey: 'maxEntregas' },
 ]
 const ROL_SINGULAR: Record<string, string> = {
   supervisor: 'Supervisor', vendedor: 'Vendedor', entregas: 'Entrega', impulsadora: 'Impulsadora', bodega: 'Bodega',
