@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 const StockPage = dynamic(() => import('@/app/(app)/stock/page'), { ssr: false })
+const TabSugerido = dynamic(() => import('@/components/TabSugerido'), { ssr: false })
 import { fechaHoyBogota, haceNDiasBogota } from '@/lib/fechas'
 import DataTable, { ColDef } from '@/components/DataTable'
 import { useSession } from 'next-auth/react'
@@ -156,7 +157,7 @@ export default function TrazabilidadPage() {
 
   const esVendedor = user?.role === 'vendedor'
   const esBodega = user?.role === 'bodega'
-  const [tabPrincipal, setTabPrincipal] = useState<'despachos' | 'inventario'>('despachos')
+  const [tabPrincipal, setTabPrincipal] = useState<'despachos' | 'inventario' | 'sugerido'>('despachos')
   const [ordenes, setOrdenes] = useState<any[]>([])
   const [total, setTotal] = useState(0)
   const [nextCursor, setNextCursor] = useState<string|null>(null)
@@ -334,11 +335,16 @@ export default function TrazabilidadPage() {
           className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'inventario' ? 'tab-active' : 'text-white hover:text-white'}`}>
           📦 Inventario
         </button>
+        <button onClick={() => setTabPrincipal('sugerido')}
+          className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'sugerido' ? 'tab-active' : 'text-white hover:text-white'}`}>
+          💡 Sugerido
+        </button>
 
 
       </div>
 
-      {tabPrincipal === 'inventario' && <StockPage />}
+      {tabPrincipal === 'inventario' && <StockPage hideChrome />}
+      {tabPrincipal === 'sugerido' && <TabSugerido empresaId="propia" />}
 
       {tabPrincipal === 'despachos' && (<>
 

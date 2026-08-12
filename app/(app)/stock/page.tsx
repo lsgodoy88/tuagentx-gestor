@@ -1,8 +1,10 @@
 'use client'
+import dynamic from 'next/dynamic'
 import { useSession } from 'next-auth/react'
 import { useBodegaContext } from '@/lib/bodega-context'
 import { useRouter } from 'next/navigation'
 import { useEffect, useState, useRef, useCallback, useMemo } from 'react'
+const TabSugerido = dynamic(() => import('@/components/TabSugerido'), { ssr: false })
 
 const numFmt = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 2 })
 const priceFmt = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 })
@@ -26,8 +28,10 @@ function StockBadge({ inventory, stockMinimo }: { inventory: number; stockMinimo
   )
 }
 
-const COLS = ['💡 Sugerir', 'Producto', 'Stock', 'Stock Mín.', 'Costo', 'Precio', 'Marca', 'Línea', 'Barcode']
-const COLS_W0 = [90, 220, 80, 90, 90, 110, 100, 100, 120]
+const COLS_ADMIN = ['💡 Sugerir', 'Producto', 'Stock', 'Stock Mín.', 'Costo', 'Precio', 'Marca', 'Línea', 'Barcode', '']
+const COLS_BODEGA = ['💡 Sugerir', 'Producto', 'Stock', 'Stock Mín.', 'Precio', 'Marca', 'Línea', 'Barcode', '']
+const COLS_W0_ADMIN = [90, 220, 80, 90, 90, 110, 100, 100, 120, 44]
+const COLS_W0_BODEGA = [90, 220, 80, 90, 110, 100, 100, 120, 44]
 
 const tdBase: React.CSSProperties = { padding: '9px 10px', fontSize: 13, borderBottom: '1px solid #131c2e', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }
 const thBase: React.CSSProperties = { padding: '8px 10px', fontSize: 13, fontWeight: 500, color: 'white', textAlign: 'center', userSelect: 'none', position: 'relative', whiteSpace: 'nowrap', overflow: 'hidden', borderRight: '1px solid #1e2a3d', background: '#0d1220' }
@@ -67,7 +71,7 @@ function EditableCell({ value, onSave, color, placeholder }: {
   )
 }
 
-export default function InventarioPage() {
+export default function InventarioPage({ hideChrome = false }: { hideChrome?: boolean }) {
   const { origenId: origenBodega } = useBodegaContext()
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -84,7 +88,12 @@ export default function InventarioPage() {
   const [loading, setLoading] = useState(!_c0?.productos?.length)
   const [syncing, setSyncing] = useState(false)
   const [syncMsg, setSyncMsg] = useState('')
-  const [colW, setColW] = useState<number[]>(_c0?.colW ?? COLS_W0)
+  const isAdmin = user?.role === 'empresa'
+  const COLS = isAdmin ? COLS_ADMIN : COLS_BODEGA
+  const [colW, setColW] = useState<number[]>(_c0?.colW ?? (isAdmin ? COLS_W0_ADMIN : COLS_W0_BODEGA))
+  const [historialModal, setHistorialModal] = useState<{ nombre: string; items: any[] } | null>(null)
+  const [historialCache, setHistorialCache] = useState<Record<string, any[]>>({})
+  const [activeTab, setActiveTab] = useState<'inventario'|'sugerido'>('inventario')
   const [secAgotadosAbierta, setSecAgotadosAbierta] = useState(true)
   const [secAlertaAbierta, setSecAlertaAbierta] = useState(true)
 
@@ -166,6 +175,16 @@ export default function InventarioPage() {
     })
   }
 
+  const verHistorial = async (p: any) => {
+    if (historialCache[p.id]) { setHistorialModal({ nombre: p.nombre, items: historialCache[p.id] }); return }
+    try {
+      const res = await fetch(`/api/stock/sugerido/historial?productoId=${p.id}`)
+      const data = await res.json()
+      setHistorialCache(prev => ({ ...prev, [p.id]: data.items ?? [] }))
+      setHistorialModal({ nombre: p.nombre, items: data.items ?? [] })
+    } catch { setHistorialModal({ nombre: p.nombre, items: [] }) }
+  }
+
   const onResizeMouseDown = (e: React.MouseEvent, i: number) => {
     e.preventDefault()
     resizingCol.current = i; resizeStartX.current = e.clientX; resizeStartW.current = colW[i]
@@ -209,14 +228,24 @@ export default function InventarioPage() {
           color={p.inventory <= (p.stockMinimo ?? Infinity) ? 'text-orange-400' : 'text-zinc-300'}
           onSave={v => actualizarProducto(p.id, 'stockMinimo', v)} />
       </td>
-      <td style={{ ...tdBase, textAlign: 'right' }}>
-        <EditableCell value={p.costo ?? null} placeholder="— costo" color="text-cyan-300"
-          onSave={v => actualizarProducto(p.id, 'costo', v)} />
-      </td>
+      {isAdmin && (
+        <td style={{ ...tdBase, textAlign: 'right' }}>
+          <EditableCell value={p.costo ?? null} placeholder="— costo" color="text-cyan-300"
+            onSave={v => actualizarProducto(p.id, 'costo', v)} />
+        </td>
+      )}
       <td style={{ ...tdBase, textAlign: 'right', color: '#fde68a' }}>{fmt(p.precio)}</td>
       <td style={{ ...tdBase, textAlign: 'center', color: '#94a3b8' }} title={p.marca}>{p.marca || '—'}</td>
       <td style={{ ...tdBase, textAlign: 'center', color: '#94a3b8' }} title={p.linea}>{p.linea || '—'}</td>
       <td style={{ ...tdBase, textAlign: 'center', color: '#94a3b8', fontFamily: 'monospace' }}>{p.barcode || '—'}</td>
+      <td style={{ ...tdBase, textAlign: 'center', width: 44 }}>
+        {p.stockSugerido != null && (
+          <button onClick={() => verHistorial(p)} title="Ver historial"
+            className="text-zinc-500 hover:text-yellow-400 transition text-base leading-none">
+            📋
+          </button>
+        )}
+      </td>
     </tr>
   )
 
@@ -241,8 +270,35 @@ export default function InventarioPage() {
   )
 
   return (
+    <>
+    {historialModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4"
+        onClick={() => setHistorialModal(null)}>
+        <div className="bg-[#0d1220] border border-[#1e2a3d] rounded-2xl w-full max-w-sm p-5 shadow-2xl"
+          onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <p className="text-white font-semibold text-sm leading-tight">{historialModal.nombre}</p>
+              <p className="text-zinc-500 text-xs mt-0.5">{historialModal.items.length} registro{historialModal.items.length !== 1 ? 's' : ''}</p>
+            </div>
+            <button onClick={() => setHistorialModal(null)} className="text-zinc-500 hover:text-white text-lg leading-none">✕</button>
+          </div>
+          {historialModal.items.length === 0
+            ? <p className="text-zinc-600 text-sm text-center py-6">Sin historial aún</p>
+            : <div className="space-y-1 max-h-72 overflow-y-auto">
+                {historialModal.items.map((it: any, i: number) => (
+                  <div key={i} className="flex items-center justify-between px-3 py-2 rounded-lg bg-[#0a0f1a]">
+                    <span className="text-zinc-400 text-xs">{new Date(it.fecha).toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric' })}</span>
+                    <span className="text-yellow-300 font-semibold text-sm">{it.sugerido}</span>
+                  </div>
+                ))}
+              </div>
+          }
+        </div>
+      </div>
+    )}
     <div className="space-y-4 max-w-7xl mx-auto">
-      {(user?.role === 'empresa' || syncMsg) && (
+      {!hideChrome && (user?.role === 'empresa' || syncMsg) && (
         <div className="flex items-center justify-end gap-2">
           {syncMsg && <span className="text-xs text-zinc-300">{syncMsg}</span>}
           {user?.role === 'empresa' && (
@@ -254,6 +310,26 @@ export default function InventarioPage() {
         </div>
       )}
 
+      {/* Tabs inventario / sugerido — solo admin y supervisor */}
+      {!hideChrome && ['empresa','supervisor'].includes(user?.role) && (
+        <div className="flex gap-1 border-b border-[#1e2a3d]">
+          <button onClick={() => setActiveTab('inventario')}
+            className={`px-4 py-2 text-sm font-medium transition rounded-t-lg ${activeTab === 'inventario' ? 'bg-[#0d1220] text-white border border-b-0 border-[#1e2a3d]' : 'text-zinc-500 hover:text-zinc-300'}`}>
+            📦 Inventario
+          </button>
+          <button onClick={() => setActiveTab('sugerido')}
+            className={`px-4 py-2 text-sm font-medium transition rounded-t-lg ${activeTab === 'sugerido' ? 'bg-[#0d1220] text-white border border-b-0 border-[#1e2a3d]' : 'text-zinc-500 hover:text-zinc-300'}`}>
+            💡 Sugerido
+          </button>
+        </div>
+      )}
+
+      {/* Tab Sugerido */}
+      {!hideChrome && activeTab === 'sugerido' && ['empresa','supervisor'].includes(user?.role) && (
+        <TabSugerido empresaId="propia" />
+      )}
+
+      <div style={{ display: activeTab === 'inventario' ? 'block' : 'none' }} className="space-y-5">
       <div className="flex gap-2 items-center">
         <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar…"
           className="min-w-0 flex-1 bg-[#0d1220] border border-[#1e2a3d] text-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
@@ -330,5 +406,7 @@ export default function InventarioPage() {
         )}
       </div>
     </div>
+      </div>
+    </>
   )
 }

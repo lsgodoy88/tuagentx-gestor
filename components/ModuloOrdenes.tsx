@@ -440,7 +440,7 @@ export default function ModuloOrdenes() {
     const ctx = canvas.getContext('2d')!
     ctx.imageSmoothingEnabled = false
     ctx.drawImage(video, 0, 0)
-    const base64 = canvas.toDataURL('image/jpeg', 0.75)
+    const base64 = canvas.toDataURL('image/jpeg', 0.85)
     setAnotaciones([]); setAnotArrow(null); setAnotText(''); setAnotShowToolbar(false)
     setAnotTextPendiente(null); setAnotTextPos(null)
     streamRef.current?.getTracks().forEach(t => { t.enabled = false })

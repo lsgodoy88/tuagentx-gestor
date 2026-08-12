@@ -168,6 +168,7 @@ export async function PATCH(req: NextRequest) {
       params.push(val); pi++
     }
     if (costo !== undefined) {
+      if (user.role !== 'empresa') return NextResponse.json({ error: 'Sin permiso para modificar costo' }, { status: 403 })
       const val = costo === null || costo === '' ? null : parseFloat(costo)
       setClauses.push(`costo = $${pi}`)
       params.push(val); pi++
