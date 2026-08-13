@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
     FROM ${DB_SCHEMA}."OrdenDespacho"
     WHERE "empresaId" = $1
       AND estado IN (${estadoIn})
-      AND ("isActiva" = true OR estado != 'pendiente')
+      AND ("isActiva" IS NOT FALSE OR estado != 'pendiente')
       AND ("fechaOrdenBogota" >= $2::timestamp OR ("fechaOrdenBogota" IS NULL AND "createdAt" >= $2::timestamp))
       ${qFilter}
       ${cursorFilter}
