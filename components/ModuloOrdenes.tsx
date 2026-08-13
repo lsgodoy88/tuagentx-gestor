@@ -144,6 +144,8 @@ export default function ModuloOrdenes() {
   const [countdownSec, setCountdownSec] = useState<number | null>(null)
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [camaraOrdenId, setCamaraOrdenId] = useState<string | null>(null)
+  const [fotoExpandida, setFotoExpandida] = useState<string | null>(null)
+  const [keysPrevias, setKeysPrevias] = useState<string[]>([])
   const [preview, setPreview] = useState<string | null>(null)
   const [fotosCapturadas, setFotosCapturadas] = useState<string[]>([])
   const [anotacionSrc, setAnotacionSrc] = useState<string | null>(null)
@@ -400,6 +402,36 @@ export default function ModuloOrdenes() {
     }
   }
 
+  async function retomar(ordenId: string, fotosExistentes: string[]) {
+    // Guardar keys originales para el PATCH final
+    setKeysPrevias(fotosExistentes)
+    // Cargar URLs de fotos ya subidas para previsualización
+    const urls: string[] = []
+    for (const key of fotosExistentes) {
+      try {
+        const r = await fetch(`/api/egresos/url?key=${encodeURIComponent(key)}`)
+        const d = await r.json()
+        urls.push(d.url || key)
+      } catch { urls.push(key) }
+    }
+    // Precargar fotos y abrir cámara en vivo
+    setFotosCapturadas(urls)
+    setCamaraOrdenId(ordenId)
+    setPreview(null)
+    setAnotacionSrc(null)
+    // Iniciar stream de cámara igual que abrirCamara
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: 'environment', width: { ideal: 1920 }, height: { ideal: 1080 } },
+        audio: false,
+      })
+      streamRef.current = stream
+      setCamaraActiva(true)
+    } catch {
+      setCamaraActiva(true) // igual abre el módulo aunque falle el stream
+    }
+  }
+
   async function abrirCamara(ordenId: string) {
     setCamaraOrdenId(ordenId)
     setCamaraActiva(true)
@@ -514,7 +546,8 @@ export default function ModuloOrdenes() {
     streamRef.current?.getTracks().forEach(t => t.stop())
     streamRef.current = null
     const ordenId = camaraOrdenId
-    const fotosAEnviar = [...fotosCapturadas]  // snapshot inmutable
+    // Solo subir fotos nuevas (base64) — las previas (URLs http) ya están en R2
+    const fotosAEnviar = [...fotosCapturadas].filter(f => f.startsWith('data:'))
     setCountdownSec(2)
     countdownRef.current = setInterval(() => {
       setCountdownSec(prev => {
@@ -526,38 +559,59 @@ export default function ModuloOrdenes() {
         return prev - 1
       })
     }, 1000)
-    // Subir fotos en paralelo con alistar
+    // Flujo atómico: subir todas las fotos → PATCH único con estado=alistado
     setSaving(p => ({ ...p, [ordenId]: true }))
+    let keys: string[] = []
     try {
-      for (const foto of fotosAEnviar) {
+      // 1. Usar keys previas guardadas al retomar (no URLs)
+      const fotasPrevias: string[] = keysPrevias
+
+      // 2. Subir solo las fotos nuevas
+      for (let i = 0; i < fotosAEnviar.length; i++) {
         const res = await fetch('/api/bodega/foto', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ordenId, fotoBase64: foto }),
+          body: JSON.stringify({ ordenId, fotoBase64: fotosAEnviar[i], idx: fotasPrevias.length + i }),
         }).then(r => r.json())
-        if (res.orden) {
-          actualizarOrden(ordenId, res.orden)
-          setDespachosPorTab(prev => {
-            const next = { ...prev }
-            for (const tab of Object.keys(next)) {
-              next[tab] = next[tab].map((d: any) => d.id === ordenId ? { ...d, ...res.orden } : d)
-            }
-            return next
-          })
-        }
+        if (!res.key) throw new Error('Error subiendo foto ' + (i + 1))
+        keys.push(res.key)
       }
+
+      // 3. PATCH atómico: fotos + estado=alistado en una sola operación
+      const todasLasKeys = [...fotasPrevias, ...keys]
+      const res = await fetch(`/api/bodega/despachos/${ordenId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fotosAlistamiento: todasLasKeys }),
+      }).then(r => r.json())
+
+      if (res.orden) {
+        // Mover la orden de pendientes → alistados en la UI sin recargar
+        moverOrdenEntreTab(ordenId, 'pendiente', 'alistado', res.orden)
+      }
+    } catch (err: any) {
+      console.error('[alistamiento] fallo:', err.message)
+      setSaving(p => ({ ...p, [ordenId]: false }))
+      enviandoFotosRef.current = false
+      // No limpiar fotos — quedan en R2 para Retomar
+      clearInterval(countdownRef.current!)
+      countdownRef.current = null
+      setCamaraActiva(false)
+      setCamaraOrdenId(null)
+      setCountdownSec(null)
+      setFotosCapturadas([])
+      return
     } finally {
       setSaving(p => ({ ...p, [ordenId]: false }))
       enviandoFotosRef.current = false
     }
-    // Alistar y cerrar al terminar uploads
-    await marcarAlistado(ordenId)
     clearInterval(countdownRef.current!)
     countdownRef.current = null
     setCamaraActiva(false)
     setCamaraOrdenId(null)
     setCountdownSec(null)
     setFotosCapturadas([])
+    setKeysPrevias([])
   }
 
   function cancelarCountdown() {
@@ -882,7 +936,7 @@ export default function ModuloOrdenes() {
                       <div className="flex items-center gap-1.5 overflow-hidden">
                         <span className="text-white font-mono text-xs flex-shrink-0">F_{d.numeroFactura || d.numeroOrden}</span>
                         <span className="text-zinc-700 flex-shrink-0">·</span>
-                        <span className="text-white font-semibold text-xs truncate flex-1">{nombreCorto(d.clienteNombre)}</span>
+                        <span className="text-white font-semibold text-xs truncate flex-1">{d.clienteNombre}</span>
                         {ciudadNombre && <span className="text-zinc-400 text-xs flex-shrink-0 ml-1">{ciudadNombre}</span>}
                       </div>
                       {d.direccion && (
@@ -894,7 +948,13 @@ export default function ModuloOrdenes() {
                   {d.estado === 'pendiente' && (
                     <div className="px-3 pb-3 pt-1 flex items-center gap-2 border-t border-zinc-800/60">
                       <span className="text-white text-xs flex-shrink-0">{horaOrden}</span>
-                      {tieneFotos ? (
+                      {tieneFotos && d.estado === 'pendiente' ? (
+                        // Fotos en R2 pero sin alistar — forzar Retomar
+                        <button onClick={() => retomar(d.id, fotos)} disabled={isSaving}
+                          className="flex items-center gap-1.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-40 text-white px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors">
+                          🔄 Retomar <span className="bg-amber-800 rounded px-1">{fotos.length}</span>
+                        </button>
+                      ) : tieneFotos ? (
                         btnFoto
                       ) : (
                         <button onClick={() => abrirCamara(d.id)} disabled={isSaving}
@@ -1317,7 +1377,7 @@ export default function ModuloOrdenes() {
                       <div className="flex items-center gap-1.5 overflow-hidden">
                         <span className="text-white font-mono text-xs flex-shrink-0">F_{log.numeroFactura}</span>
                         <span className="text-zinc-700 flex-shrink-0">·</span>
-                        <span className="text-white font-semibold text-xs truncate flex-1">{nombreCorto(log.clienteNombre)}</span>
+                        <span className="text-white font-semibold text-xs truncate flex-1">{log.clienteNombre}</span>
                         {ciudad2 && <span className="text-zinc-400 text-xs flex-shrink-0">{ciudad2}</span>}
                       </div>
                       {log.direccion && <span className="text-zinc-500 text-xs truncate block">{log.direccion}</span>}
@@ -1346,7 +1406,17 @@ export default function ModuloOrdenes() {
                           <span className="text-base flex-shrink-0">{e.icon}</span>
                           <span className="text-zinc-400 text-xs w-[60px] flex-shrink-0">{e.label}</span>
                           <span className="text-white text-xs flex-shrink-0">{e.fecha ? formatFechaCorta(e.fecha) : '—'}</span>
-                          {e.quien && <span className="text-zinc-500 text-xs truncate flex-1">{e.quien}</span>}
+                          {e.quien && (
+                            e.esDespacho
+                              ? <span className="text-xs truncate flex-1">
+                                  {e.quien.split(' · ').map((part: string, pi: number) => (
+                                    <span key={pi} className={pi === 0 ? 'text-zinc-500' : 'text-white'}>
+                                      {pi > 0 ? ' · ' : ''}{part}
+                                    </span>
+                                  ))}
+                                </span>
+                              : <span className="text-zinc-500 text-xs truncate flex-1">{e.quien}</span>
+                          )}
                           {e.accion && <button onClick={ev => { ev.stopPropagation(); e.accion!() }} className="text-zinc-400 hover:text-white text-xs">🖼️</button>}
                           {e.firmaEntrega && (
                             <button onClick={() => setModalFirmaUrl(e.firmaEntrega)}
@@ -1540,7 +1610,8 @@ export default function ModuloOrdenes() {
                   <div className="flex gap-2 mb-4 overflow-x-auto pointer-events-auto">
                     {fotosCapturadas.map((f, i) => (
                       <div key={i} className="relative flex-shrink-0">
-                        <img src={f} className="w-14 h-14 object-cover rounded-xl border-2 border-white/60" />
+                        <img src={f} onClick={() => { setFotoExpandida(f); streamRef.current?.getTracks().forEach(t => { t.enabled = false }) }}
+                          className="w-14 h-14 object-cover rounded-xl border-2 border-white/60 cursor-pointer active:scale-95 transition-transform" />
                         <button onClick={() => eliminarFotoCapturada(i)}
                           className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center font-bold">✕</button>
                       </div>
@@ -1600,6 +1671,15 @@ export default function ModuloOrdenes() {
         />
       )}
 
+      {/* Modal foto expandida desde cámara */}
+      {fotoExpandida && (
+        <div className="fixed inset-0 bg-black flex items-center justify-center" style={{zIndex:10001}}
+          onClick={() => { setFotoExpandida(null); streamRef.current?.getTracks().forEach(t => { t.enabled = true }) }}>
+          <img src={fotoExpandida} alt="Foto" className="max-w-full max-h-full object-contain" />
+          <button onClick={e => { e.stopPropagation(); setFotoExpandida(null); streamRef.current?.getTracks().forEach(t => { t.enabled = true }) }}
+            className="absolute top-4 right-4 bg-black/50 text-white w-10 h-10 rounded-full flex items-center justify-center text-xl">✕</button>
+        </div>
+      )}
       {/* Modal Anotación */}
       {anotacionSrc && (
         <div className="fixed inset-0 bg-black z-[1000] flex flex-col">

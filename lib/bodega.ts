@@ -103,6 +103,25 @@ export async function resolverEmpresaIdOrigen(
   return vinculada?.empresaClienteId || empresaPropiaId
 }
 
+/**
+ * Dado un empresaClienteId (ej. Leche), encuentra el empresaId operador (ej. Lumeli)
+ * que tiene una EmpresaVinculada activa apuntando a ese cliente.
+ * Si no existe vinculación, retorna el mismo id (empresa opera por sí misma).
+ */
+export async function resolverEmpresaIdOperador(
+  prisma: any,
+  empresaClienteId: string
+): Promise<string> {
+  // Usar raw query para evitar issues de mapeo Prisma con empresaClienteId
+  const { DB_SCHEMA } = await import('@/lib/prisma')
+  const rows = await prisma.$queryRawUnsafe(`
+    SELECT "empresaId" FROM ${DB_SCHEMA}."EmpresaVinculada"
+    WHERE "empresaClienteId" = $1 AND activa = true
+    LIMIT 1
+  `, empresaClienteId)
+  return rows?.[0]?.empresaId || empresaClienteId
+}
+
 // ─── DespachoLog ─────────────────────────────────────────────────────────────
 
 export type ModoDespacho = 'repartidor' | 'transportadora' | 'personal'

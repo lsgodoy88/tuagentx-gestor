@@ -1,5 +1,7 @@
 'use client'
-import { useEffect, useState } from 'react'
+import ModalEscaner from '@/components/ModalEscaner'
+const TabDespachados = dynamic(() => import('@/components/TabDespachados'), { ssr: false })
+import { useEffect, useState, useRef } from 'react'
 import dynamic from 'next/dynamic'
 const StockPage = dynamic(() => import('@/app/(app)/stock/page'), { ssr: false })
 const TabSugerido = dynamic(() => import('@/components/TabSugerido'), { ssr: false })
@@ -151,12 +153,43 @@ function getOrdenColumns(ctx: {
   ]
 }
 
+async function resolverUrlR2(key: string): Promise<string> {
+  if (!key || key.startsWith('data:') || key.startsWith('http')) return key
+  if (key.startsWith('/fotos/') || key.startsWith('/api/fotos/')) return key.replace('/api/fotos/', '/fotos/')
+  const res = await fetch(`/api/egresos/url?key=${encodeURIComponent(key)}`)
+  const d = await res.json()
+  return d.url || key
+}
+
 export default function TrazabilidadPage() {
   const { data: session } = useSession()
+  const [guiaPopup, setGuiaPopup] = useState<string | null>(null)
+  const [escanerOrdenId, setEscanerOrdenId] = useState<string | null>(null)
+  const [editGuia, setEditGuia] = useState<Record<string, string>>({})
+  const [savingGuia, setSavingGuia] = useState<Record<string, boolean>>({})
   const user = session?.user as any
+
+  const guardarGuia = async (ordenId: string, guia: string, empresaId: string) => {
+    setSavingGuia(p => ({ ...p, [ordenId]: true }))
+    try {
+      const res = await fetch(`/api/bodega/despachos/${ordenId}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guiaTransporte: guia || null }),
+      })
+      const resJson = await res.json()
+      const urlSeguimiento = resJson.orden?.urlSeguimiento ?? null
+      setOrdenes((prev: any[]) => prev.map((o: any) => o.id === ordenId
+        ? { ...o, guiaTransporte: guia || null, urlSeguimiento: urlSeguimiento ?? o.urlSeguimiento }
+        : o))
+      setGuiaPopup(null)
+      setEditGuia(p => { const n = { ...p }; delete n[ordenId]; return n })
+    } catch (e) { console.error(e) }
+    finally { setSavingGuia(p => ({ ...p, [ordenId]: false })) }
+  }
 
   const esVendedor = user?.role === 'vendedor'
   const esBodega = user?.role === 'bodega'
+  const esAdmin = user?.role === 'empresa' || user?.role === 'supervisor'
   const [tabPrincipal, setTabPrincipal] = useState<'despachos' | 'inventario' | 'sugerido'>('despachos')
   const [ordenes, setOrdenes] = useState<any[]>([])
   const [total, setTotal] = useState(0)
@@ -184,16 +217,19 @@ export default function TrazabilidadPage() {
   const [fotosGaleria, setFotosGaleria] = useState<string[]>([])
   const [fotoIdx, setFotoIdx] = useState(0)
   const [galeriaFecha, setGaleriaFecha] = useState<string | null>(null)
+  const [firmaModal, setFirmaModal] = useState<string | null>(null)
+  const [filtroBusqueda, setFiltroBusqueda] = useState('')
+  const [ciudadesDespacho, setCiudadesDespacho] = useState<string[]>([])
+  const [filtroEnvio, setFiltroEnvio] = useState<'todos'|'local'|'guia'>('todos')
+  const [filtroFecha, setFiltroFecha] = useState('')
+  const [filtroCiudad, setFiltroCiudad] = useState('')
+  const [filtroOrden, setFiltroOrden] = useState<'asc'|'desc'|null>(null)
+  const [popupFiltroOpen, setPopupFiltroOpen] = useState(false)
+  const inputFechaRefTraz = useRef<HTMLInputElement>(null)
   async function abrirGaleria(keys: string[], idx = 0, fecha?: string | null) {
     setFotoModal('loading')
     try {
-      const urls = await Promise.all(keys.map(async (key) => {
-        if (key.startsWith('data:') || key.startsWith('http')) return key
-        if (key.startsWith('/fotos/') || key.startsWith('/api/fotos/')) return key.startsWith('/api/fotos/') ? key.replace('/api/fotos/', '/fotos/') : key
-        const res = await fetch(`/api/egresos/url?key=${encodeURIComponent(key)}`)
-        const d = await res.json()
-        return d.url || key
-      }))
+      const urls = await Promise.all(keys.map(resolverUrlR2))
       setFotosGaleria(urls)
       setFotoIdx(idx)
       setFotoModal(urls[idx] ?? null)
@@ -234,7 +270,6 @@ export default function TrazabilidadPage() {
       setSincronizando(false)
     }
   }
-  const [firmaModal, setFirmaModal] = useState<string | null>(null)
 
   function toggleExpandido(id: string, orden?: any) {
     if (isDesktop) {
@@ -325,267 +360,93 @@ export default function TrazabilidadPage() {
 
   return (
     <div className="space-y-5 max-w-7xl mx-auto">
-      {/* Tabs + Sync en misma fila */}
-      <div className="flex gap-1 tab-pills rounded-xl p-1">
-        <button onClick={() => setTabPrincipal('despachos')}
-          className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'despachos' ? 'tab-active' : 'text-white hover:text-white'}`}>
-          📦 Despachos
-        </button>
-        <button onClick={() => setTabPrincipal('inventario')}
-          className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'inventario' ? 'tab-active' : 'text-white hover:text-white'}`}>
-          📦 Inventario
-        </button>
-        <button onClick={() => setTabPrincipal('sugerido')}
-          className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'sugerido' ? 'tab-active' : 'text-white hover:text-white'}`}>
-          💡 Sugerido
-        </button>
-
-
-      </div>
+      {/* Tabs — ocultas para vendedor */}
+      {!esVendedor && (
+        <div className="flex gap-1 tab-pills rounded-xl p-1">
+          <button onClick={() => setTabPrincipal('despachos')}
+            className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'despachos' ? 'tab-active' : 'text-white hover:text-white'}`}>
+            📦 Despachos
+          </button>
+          <button onClick={() => setTabPrincipal('inventario')}
+            className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'inventario' ? 'tab-active' : 'text-white hover:text-white'}`}>
+            📦 Inventario
+          </button>
+          <button onClick={() => setTabPrincipal('sugerido')}
+            className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'sugerido' ? 'tab-active' : 'text-white hover:text-white'}`}>
+            💡 Sugerido
+          </button>
+        </div>
+      )}
 
       {tabPrincipal === 'inventario' && <StockPage hideChrome />}
       {tabPrincipal === 'sugerido' && <TabSugerido empresaId="propia" />}
 
-      {tabPrincipal === 'despachos' && (<>
-
-      {/* Filtros — una sola línea */}
-      <div className="flex gap-2 items-center">
-        {/* Búsqueda automática ≥3 dígitos */}
-        <input
-          value={qInput}
-          onChange={e => {
-            const v = e.target.value
-            setQInput(v)
-            if (/^\d{3,}$/.test(v.trim())) {
-              setQ(v.trim()); buscar(v.trim())
-            } else if (v.trim().length >= 3 && !/^\d+$/.test(v.trim())) {
-              setQ(v.trim()); buscar(v.trim())
-            } else if (v === '') {
-              setQ(''); setOrdenesBusqueda(null); setFuenteBusqueda(null)
-            }
-          }}
-          placeholder="# orden o cliente..."
-          className={`flex-1 min-w-0 bg-[#0d1220] rounded-lg px-3 py-2 text-white text-sm focus:outline-none ${qInput ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}
-        />
-        {/* Selector estado */}
-        <select value={estado} onChange={e => setEstado(e.target.value)}
-          className={`bg-[#0d1220] rounded-lg px-2 py-2 text-white text-sm focus:outline-none flex-shrink-0 ${estado ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}>
-          {ESTADOS.map(e => <option key={e.value} value={e.value}>{e.label}</option>)}
-        </select>
-        {/* Filtro fecha — número del día, long-press anula */}
-        {(() => {
-          let longTimer: ReturnType<typeof setTimeout> | null = null
-          return (
-            <label
-              className={`relative flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center cursor-pointer select-none ${fechaFiltro ? "border border-amber-500 bg-[#0d1220]" : "border border-[#1e2a3d] bg-[#0d1220]"}`}
-              onTouchStart={() => { longTimer = setTimeout(() => { setFechaFiltro(''); longTimer = null }, 600) }}
-              onTouchEnd={e => {
-                if (longTimer) { clearTimeout(longTimer); longTimer = null; e.preventDefault(); (e.currentTarget.querySelector('input') as HTMLInputElement)?.showPicker?.() }
-                else { e.preventDefault() }
-              }}
-              onTouchMove={() => { if (longTimer) { clearTimeout(longTimer); longTimer = null } }}
-              onClick={e => { try { (e.currentTarget.querySelector('input') as HTMLInputElement)?.showPicker?.() } catch {} }}>
-              <span className="text-sm font-bold pointer-events-none" style={{color: fechaFiltro ? '#f59e0b' : 'white'}}>
-                {fechaFiltro ? new Date(fechaFiltro + 'T12:00:00').getDate() : new Date().getDate()}
-              </span>
-              <input
-                type="date"
-                value={fechaFiltro}
-                onChange={e => setFechaFiltro(e.target.value)}
-                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-                style={{WebkitAppearance:'none'}}
-              />
-            </label>
-          )
-        })()}
-      </div>
-      {/* Filtros activos — solo si hay algo que mostrar */}
-      {(ordenesBusqueda !== null || buscandoProfundo) && (
-        <div className="flex items-center gap-2 px-1">
-          {buscandoProfundo && <span className="text-zinc-500 text-xs animate-pulse">Buscando...</span>}
-          {ordenesBusqueda !== null && (
-            <button onClick={limpiarBusqueda} className="text-zinc-500 hover:text-white text-xs">✕ búsqueda</button>
-          )}
-        </div>
-      )}
-
-      {/* Resultados */}
-      {loading ? (
-        <div className="text-zinc-400 py-12 text-center">Cargando...</div>
-      ) : ordenes.length === 0 ? (
-        <div className="text-zinc-500 py-12 text-center">Sin resultados en el período</div>
-      ) : (
-        <div className="flex gap-4 max-w-6xl mx-auto items-start">
-          {isDesktop ? (
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(59,130,246,0.25)' }}>
-                <DataTable
-                  columns={getOrdenColumns({ setFotoModal, abrirFoto, abrirGaleria, setFirmaModal, esVendedor })}
-                  rows={pagedOrdenes}
-                  rowKey={(o: any) => o.id}
-                  onRowClick={(o: any) => setOrdenSeleccionada(o)}
-                  loading={loading}
-                  storageKey="trazabilidad-v2"
-                />
-              </div>
-            </div>
-          ) : (
-            <div className="grid gap-2 flex-1 grid-cols-1">
-            {(ordenesBusqueda !== null ? ordenesBusqueda : ordenes).map(orden => {
-            const fotos: string[] = Array.isArray(orden.fotosAlistamiento) ? orden.fotosAlistamiento : []
-            const firma = orden.visitas?.[0]?.firma || orden.firmaEntrega || null
-            const repartidorNombre = orden.repartidor?.nombre || null
-            const entregadoPor = orden.visitas?.[0]?.empleado?.nombre || null
-            const entregadoEl = orden.visitas?.[0]?.createdAt || orden.entregadoEl || null
-            const abierto = expandido[orden.id] || false
-
-            const etapas = [
-              {
-                icon: '📋',
-                label: 'Orden',
-                fecha: orden.fechaOrden,
-                quien: null as string | null,
-                accion: null as (() => void) | null,
-                accionLabel: '',
-              },
-              {
-                icon: '🧾',
-                label: 'Facturado',
-                fecha: orden.fechaFactura || null,
-                quien: null as string | null,
-                accion: null as (() => void) | null,
-                accionLabel: '',
-              },
-              {
-                icon: '📦',
-                label: 'Alistado',
-                fecha: orden.alistadoEl,
-                quien: orden.alistadoPor?.nombre || null,
-                accion: fotos.length > 0 ? () => abrirGaleria(fotos, 0, orden.alistadoEl) : null,
-                accionLabel: '🖼️',
-              },
-              ...(!orden.guiaTransporte && !orden.repartidorId && orden.estado === 'entregado' ? [] : [{
-                icon: orden.guiaTransporte ? '🚛' : '🚚',
-                label: orden.guiaTransporte ? 'Transporte' : 'Despacho',
-                fecha: !['pendiente', 'alistado'].includes(orden.estado) ? orden.alistadoEl : null,
-                quien: [(orden.despachadoPorNombre || null), (orden.num_cajas > 0 && !['pendiente','alistado'].includes(orden.estado)) ? `${orden.num_cajas} caja${orden.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · '),
-                accion: orden.urlSeguimiento ? () => window.open(orden.urlSeguimiento, '_blank') : null,
-                accionLabel: orden.urlSeguimiento ? '🔗' : '',
-              }]),
-              {
-                icon: '✅',
-                label: 'Entregado',
-                fecha: entregadoEl,
-                quien: entregadoPor,
-                accion: firma && !esVendedor ? () => {
-                  if (firma.startsWith('http') || firma.startsWith('data:') || firma.startsWith('/api/')) {
-                    setFirmaModal(firma)
-                  } else {
-                    fetch('/api/firma', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ firma }) })
-                      .then(r => r.json()).then(d => setFirmaModal(d.url || firma)).catch(() => setFirmaModal(firma))
-                  }
-                } : null,
-                accionLabel: '✍️',
-              },
-            ]
-
-            const isSeleccionada = ordenSeleccionada?.id === orden.id
-            return (
-              <div key={orden.id} className={`rounded-2xl overflow-hidden transition-all`} style={{background:'#060a24',border:isSeleccionada?'1px solid rgba(59,130,246,0.60)':'1px solid rgba(59,130,246,0.25)',borderRadius:14}}>
-                {/* Header — siempre visible, clickeable */}
-                <div onClick={() => toggleExpandido(orden.id, orden)} className="flex items-start gap-2 p-3 cursor-pointer hover:bg-zinc-800/50 transition-colors">
-                  <div className="flex-1 min-w-0 flex flex-col gap-0.5 overflow-hidden">
-                    <div className="flex items-center gap-2 overflow-hidden">
-                      <span className="text-white font-mono text-xs flex-shrink-0">F_{orden.numeroFactura || orden.numeroOrden}</span>
-                      {orden.clienteNombre === 'Sin nombre' ? (
-                        <span className="text-amber-400 text-xs font-semibold truncate flex-1">⚠️ ERROR DE DATOS</span>
-                      ) : (
-                        <span className="text-white text-sm font-semibold truncate flex-1">{orden.clienteNombre}</span>
-                      )}
-                      <span className="text-zinc-400 text-xs flex-shrink-0">{orden.ciudad}</span>
+      {tabPrincipal === 'despachos' && (
+        <div className="space-y-3">
+          {/* Barra filtros — igual que bodega */}
+          <div className="flex gap-2 items-center min-w-0">
+            <input value={filtroBusqueda} onChange={e => setFiltroBusqueda(e.target.value)}
+              placeholder="Cliente u orden..."
+              className={`min-w-0 flex-1 bg-[#0d1220] text-white rounded-lg px-3 py-2 text-sm focus:outline-none ${filtroBusqueda ? 'border border-red-500' : 'border border-[#1e2a3d]'}`} />
+            {!esVendedor && (
+              <select value={filtroEnvio} onChange={e => setFiltroEnvio(e.target.value as any)}
+                className={`flex-shrink-0 w-28 bg-[#0d1220] text-white rounded-lg px-2 py-2 text-sm focus:outline-none ${filtroEnvio !== 'todos' ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}>
+                <option value="todos">📍 Envío</option>
+                <option value="local">🏠 Local</option>
+                <option value="guia">🚛 Guía</option>
+              </select>
+            )}
+            {!esVendedor && (
+              <div className="relative flex-shrink-0">
+                <button onClick={() => setPopupFiltroOpen(v => !v)}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center"
+                  style={{background:'#0d1220', border: (filtroFecha || filtroOrden !== null || filtroCiudad) ? '1px solid #ef4444' : '1px solid #1e2a3d', color: 'white'}}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2l-6 6v6l-4-2v-4L4 8V6z"/></svg>
+                </button>
+                {popupFiltroOpen && (
+                  <div className="absolute right-0 top-12 z-50 flex items-center gap-2 px-3 py-2 rounded-xl shadow-xl"
+                    style={{background:'#0d1220', border:'1px solid #1e2a3d', minWidth:'max-content'}}>
+                    <div className="relative">
+                      <button onClick={() => inputFechaRefTraz.current?.showPicker?.()}
+                        className="flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm cursor-pointer"
+                        style={{background:'#111827', border:'1px solid #1e2a3d', color: filtroFecha ? '#f59e0b' : 'white'}}>
+                        {filtroFecha ? new Date(filtroFecha + 'T12:00:00').getDate() : new Date().getDate()}
+                      </button>
+                      <input type="date" ref={inputFechaRefTraz} value={filtroFecha}
+                        onChange={e => { setFiltroFecha(e.target.value); setPopupFiltroOpen(false) }}
+                        className="absolute opacity-0 pointer-events-none" style={{top:0,left:0,width:1,height:1}} />
                     </div>
-                  </div>
-                  <span className="flex-shrink-0 mt-0.5 text-xs">
-                  {abierto ? '▲' : (
-                    <span className="relative inline-flex">
-                      {ICONO_ESTADO[orden.estado] || ''}
-                      {(orden.estado === 'en_transito' || orden.estado === 'despachado') && orden.guiaTransporte && (
-                        <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-zinc-900" />
-                      )}
-                    </span>
-                  )}
-                </span>
-                </div>
-
-                {/* Timeline — solo si expandido */}
-                {abierto && (
-                  <div className="px-3 pb-3 border-t border-zinc-800 pt-2 space-y-0.5">
-                    {orden.direccion && (
-                      <p className="text-zinc-500 text-xs pb-1">{orden.direccion}</p>
-                    )}
-                    {etapas.map((etapa, i) => (
-                      <div key={i} className="flex items-center gap-2 py-1.5">
-                        <span className="text-base flex-shrink-0">{etapa.icon}</span>
-                        <span className="text-zinc-400 text-xs w-[60px] flex-shrink-0">{etapa.label}</span>
-                        <span className="text-white text-xs flex-shrink-0">{etapa.fecha ? fmtFecha(etapa.fecha) : '—'}</span>
-                        <span className="text-zinc-500 text-xs truncate flex-1">{etapa.quien || ''}</span>
-                        {etapa.accion && (
-                          <button
-                            onClick={e => { e.stopPropagation(); etapa.accion!() }}
-                            className="flex-shrink-0 text-xs bg-zinc-700 hover:bg-zinc-600 text-white px-2 py-0.5 rounded-lg"
-                          >
-                            {etapa.accionLabel}
-                          </button>
-                        )}
-                      </div>
-                    ))}
+                    <select value={filtroCiudad} onChange={e => setFiltroCiudad(e.target.value)}
+                      className="rounded-lg text-xs outline-none cursor-pointer"
+                      style={{background:'#111827', border: filtroCiudad ? '1px solid #ef4444' : '1px solid #1e2a3d', color: filtroCiudad ? '#ef4444' : '#9ca3af', padding:'6px 8px', maxWidth:120}}>
+                      <option value=''>Ciudad</option>
+                      {ciudadesDespacho.map((c: string) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <button onClick={() => { setFiltroOrden(v => v === null ? 'desc' : null); setPopupFiltroOpen(false) }}
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-base"
+                      style={{background:'#111827', border:'1px solid #1e2a3d', opacity: filtroOrden ? 1 : 0.35}}>
+                      ⬇️
+                    </button>
                   </div>
                 )}
               </div>
-            )
-          })}
-
-            </div>
-          )}
+            )}
+          </div>
+          <TabDespachados
+            rol={esVendedor ? 'vendedor' : 'admin'}
+            ciudadLocal={(user as any)?.ciudadEntregaLocal || undefined}
+            busquedaExterna={filtroBusqueda}
+            onLogsLoaded={(ciudades) => setCiudadesDespacho(ciudades)}
+            empresaId={(user as any)?.empresaId || (user as any)?.id || ''}
+            filtroEnvio={filtroEnvio}
+            filtroFecha={filtroFecha}
+            filtroCiudad={filtroCiudad}
+            filtroOrden={filtroOrden}
+            onGaleriaAbrir={(fotos, fecha) => abrirGaleria(fotos, 0, fecha ?? undefined)}
+            onFirmaAbrir={async (url) => { try { setFirmaModal(await resolverUrlR2(url)) } catch { setFirmaModal(url) } }}
+          />
         </div>
       )}
-
-      {/* Paginación / Cargar más */}
-      {isDesktop ? (
-        sourceOrdenes.length > 0 && (
-          <div style={{display:'flex',alignItems:'center',justifyContent:'center',gap:8,paddingTop:8}}>
-            <button onClick={() => setPage(p => p - 1)} disabled={page === 0}
-              style={{background:'rgba(8,8,28,0.88)',border:'1px solid rgba(59,130,246,0.25)',borderRadius:'0.75rem',padding:'6px 16px',fontSize:12,fontWeight:700,color:page===0?'rgba(255,255,255,0.25)':'white',cursor:page===0?'not-allowed':'pointer'}}>
-              ← Anterior
-            </button>
-            <span style={{fontSize:12,color:'rgba(255,255,255,0.6)',minWidth:90,textAlign:'center'}}>
-              Pág {page + 1} / {totalPagesTraz}{hasMore ? '+' : ''}
-            </span>
-            <button
-              onClick={async () => {
-                const nextPage = page + 1
-                if (nextPage >= totalPagesTraz && hasMore) await cargar(nextCursor)
-                setPage(nextPage)
-              }}
-              disabled={(page >= totalPagesTraz - 1 && !hasMore) || loadingMore}
-              style={{background:'rgba(8,8,28,0.88)',border:'1px solid rgba(59,130,246,0.25)',borderRadius:'0.75rem',padding:'6px 16px',fontSize:12,fontWeight:700,color:(page>=totalPagesTraz-1&&!hasMore)?'rgba(255,255,255,0.25)':'white',cursor:(page>=totalPagesTraz-1&&!hasMore)?'not-allowed':'pointer'}}>
-              {loadingMore ? '...' : 'Siguiente →'}
-            </button>
-            <span style={{fontSize:11,color:'rgba(255,255,255,0.3)',marginLeft:4}}>{sourceOrdenes.length} órdenes</span>
-          </div>
-        )
-      ) : (
-        hasMore && (
-          <div className="flex justify-center pt-2">
-            <button onClick={() => cargar(nextCursor)} disabled={loadingMore}
-              className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white text-sm font-semibold px-8 py-2.5 rounded-xl border border-zinc-700">
-              {loadingMore ? 'Cargando...' : `Cargar más (${total} cargados)`}
-            </button>
-          </div>
-        )
-      )}
-      </>)}
-
       {/* Modal foto */}
       {fotoModal === 'loading' && (
         <div className="fixed inset-0 bg-black z-[1000] flex items-center justify-center">
@@ -624,18 +485,19 @@ export default function TrazabilidadPage() {
           )}
         </div>
       )}
-
       {/* Modal firma */}
       {firmaModal && (
         <div className="fixed inset-0 bg-black/95 z-[1000] flex items-center justify-center p-4"
           onClick={() => setFirmaModal(null)}>
-          <div className="relative max-w-sm w-full bg-white rounded-2xl p-4" onClick={e => e.stopPropagation()}>
+          <div className="relative bg-white rounded-2xl p-5 flex flex-col items-center gap-3"
+            style={{ width: '90vw', maxWidth: 400 }}
+            onClick={e => e.stopPropagation()}>
             <button onClick={() => setFirmaModal(null)}
-              className="absolute top-2 right-2 bg-black/20 text-black rounded-full w-7 h-7 flex items-center justify-center text-sm z-10">
-              ✕
-            </button>
-            <p className="text-zinc-600 text-xs font-semibold mb-2 text-center">Firma del cliente</p>
-            <img src={firmaModal} alt="Firma cliente" className="w-full object-contain max-h-48" />
+              className="absolute top-2 right-2 bg-black/10 text-black rounded-full w-7 h-7 flex items-center justify-center text-sm z-10">✕</button>
+            <p className="text-zinc-500 text-xs font-semibold text-center">Firma del cliente</p>
+            <img src={firmaModal} alt="Firma"
+              className="w-full object-contain rounded-lg"
+              style={{ maxHeight: '60vh' }} />
           </div>
         </div>
       )}

@@ -2991,6 +2991,7 @@ model OrdenDespacho {
   entregadoEl       DateTime?
   transportadora    String?
   guiaTransporte    String?
+  modo_despacho     String?
   fechaOrden        DateTime?  // UTC — tal como llega de UpTres
   fechaOrdenBogota  DateTime?  // UTC-5 Bogotá — calculada al insertar
   totalOrden        Decimal?          @db.Decimal(14, 2)

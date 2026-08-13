@@ -285,6 +285,7 @@ const baseSelect = {
     firmaEntrega: true,
     repartidorId: true,
     guiaTransporte: true,
+    modo_despacho: true,
     num_cajas: true,
     direccion: true,
     alistadoPor: { select: { nombre: true } },

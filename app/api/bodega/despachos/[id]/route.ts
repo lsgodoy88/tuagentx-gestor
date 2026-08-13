@@ -45,7 +45,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const empresa = await (prisma as any).empresa.findFirst({ where: { id: empresaId }, select: { nombre: true } })
 
   const body = await req.json()
-  const { estado, fotoAlistamiento, repartidorId, guiaTransporte, transportadora, firmaBase64, num_cajas, observacion, clearFotos } = body
+  const { estado, fotoAlistamiento, fotosAlistamiento: fotosAlistamientoBody, repartidorId, guiaTransporte, transportadora, firmaBase64, num_cajas, observacion, clearFotos } = body
 
   const update: Record<string, unknown> = {}
 
@@ -70,7 +70,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // Estado
   if (estado) {
     update.estado = estado
-    if (estado === 'alistado' && !((orden.fotosAlistamiento as string[]) || []).length && !fotoAlistamiento && !firmaBase64)
+    if (estado === 'alistado' && !fotosAlistamientoBody && !((orden.fotosAlistamiento as string[]) || []).length && !fotoAlistamiento && !firmaBase64)
       return NextResponse.json({ error: 'Se requiere al menos una foto para alistar' }, { status: 422 })
     if (estado === 'alistado') {
       update.alistadoEl = new Date()
@@ -94,7 +94,24 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   }
 
+  // Alistamiento atómico: fotos + estado en una sola operación
+  if (fotosAlistamientoBody !== undefined && Array.isArray(fotosAlistamientoBody)) {
+    if (fotosAlistamientoBody.length === 0)
+      return NextResponse.json({ error: 'Se requiere al menos una foto para alistar' }, { status: 422 })
+    update.fotosAlistamiento = fotosAlistamientoBody
+    update.fotoAlistamiento = fotosAlistamientoBody[fotosAlistamientoBody.length - 1] ?? null
+    update.estado = 'alistado'
+    update.alistadoEl = new Date()
+    if (empleadoId) update.alistadoPorId = empleadoId
+  }
+
   if (repartidorId !== undefined) update.repartidorId = repartidorId || null
+
+  // Guardar modo_despacho como snapshot al momento de despachar
+  if (estado === 'en_transito' || estado === 'en_entrega') {
+    if (repartidorId) update.modo_despacho = 'local'
+    else update.modo_despacho = 'transporte'
+  }
   if (observacion !== undefined) update.observacion = observacion || null
   if (num_cajas !== undefined && Number.isInteger(num_cajas) && num_cajas >= 1) update.num_cajas = num_cajas
   if (guiaTransporte !== undefined) update.guiaTransporte = guiaTransporte

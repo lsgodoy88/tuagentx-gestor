@@ -159,3 +159,17 @@ export function esDelMesBogota(d: Date | string, mes: number, anio: number): boo
   const bog = new Date(date.getTime() - UTC_OFFSET_BOGOTA_MS)
   return bog.getUTCMonth() + 1 === mes && bog.getUTCFullYear() === anio
 }
+
+export function formatFechaCorta(iso: string | null | undefined): string {
+  if (!iso) return ''
+  const d = new Date(iso)
+  const bogota = new Date(d.getTime() - 5 * 60 * 60 * 1000)
+  const dd = String(bogota.getUTCDate()).padStart(2, '0')
+  const mm = String(bogota.getUTCMonth() + 1).padStart(2, '0')
+  const yy = String(bogota.getUTCFullYear()).slice(2)
+  const h = bogota.getUTCHours()
+  const min = String(bogota.getUTCMinutes()).padStart(2, '0')
+  const ampm = h >= 12 ? 'pm' : 'am'
+  const h12 = h % 12 || 12
+  return `${dd}/${mm}/${yy} ${h12}:${min}${ampm}`
+}

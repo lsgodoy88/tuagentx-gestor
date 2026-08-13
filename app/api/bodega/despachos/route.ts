@@ -61,6 +61,7 @@ export async function GET(req: NextRequest) {
     FROM ${DB_SCHEMA}."OrdenDespacho"
     WHERE "empresaId" = $1
       AND estado IN (${estadoIn})
+      AND ("isActiva" = true OR estado != 'pendiente')
       AND ("fechaOrdenBogota" >= $2::timestamp OR ("fechaOrdenBogota" IS NULL AND "createdAt" >= $2::timestamp))
       ${qFilter}
       ${cursorFilter}
@@ -81,7 +82,7 @@ export async function GET(req: NextRequest) {
           ciudad: true, direccion: true, telefono: true, estado: true, fechaOrden: true, fechaFactura: true, isFacturada: true,
           alistadoEl: true, entregadoEl: true, fotoAlistamiento: true, fotosAlistamiento: true,
           firmaEntrega: true, fotoEntrega: true, repartidorId: true, transportadora: true,
-          guiaTransporte: true, vendedorApiId: true, clienteApiId: true, origenVinculadaId: true, num_cajas: true, observacion: true,
+          guiaTransporte: true, modo_despacho: true, vendedorApiId: true, clienteApiId: true, origenVinculadaId: true, num_cajas: true, observacion: true,
           alistadoPor: { select: { id: true, nombre: true } },
           repartidor:  { select: { id: true, nombre: true } },
         }

@@ -45,7 +45,7 @@ export async function GET() {
 
   const contadores = await Promise.all(empresas.map(async e => {
     const [pendientes, alistados, entregados, agotados, stockBajo] = await Promise.all([
-      prisma.ordenDespacho.count({ where: { empresaId: e.clienteId, estado: 'pendiente' } }),
+      prisma.ordenDespacho.count({ where: { empresaId: e.clienteId, estado: 'pendiente', isActiva: true } }),
       prisma.ordenDespacho.count({ where: { empresaId: e.clienteId, estado: 'alistado' } }),
       prisma.ordenDespacho.count({ where: { empresaId: e.clienteId, estado: { in: ['en_entrega', 'entregado'] }, entregadoEl: { gte: hoy } } }),
       // Agotados: últimos reportados via StockSnapshot

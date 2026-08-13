@@ -39,6 +39,7 @@ export const authOptions: NextAuthOptions = {
             role,
             empresaId: empresa.id,
             bodegaPuedeEnviar: empresa.bodegaPuedeEnviar ?? false,
+            ciudadEntregaLocal: empresa.ciudadEntregaLocal ?? null,
             colorFondo: (empresa as any).colorFondo ?? null,
             tieneVinculacion: vinculaciones.length > 0,
             tieneVinculacionBodega: vinculacionesBodega.length > 0,
@@ -81,6 +82,7 @@ export const authOptions: NextAuthOptions = {
         token.etiqueta = (user as any).etiqueta ?? null
         token.empresaNombre = (user as any).empresaNombre ?? null
         token.bodegaPuedeEnviar = (user as any).bodegaPuedeEnviar ?? false
+        token.ciudadEntregaLocal = (user as any).ciudadEntregaLocal ?? null
         token.tieneVinculacion = (user as any).tieneVinculacion ?? false
         token.tieneVinculacion = (user as any).tieneVinculacion ?? false
         token.apiId = (user as any).apiId ?? null
@@ -97,6 +99,7 @@ export const authOptions: NextAuthOptions = {
         ;(session.user as any).etiqueta = token.etiqueta ?? null
         ;(session.user as any).empresaNombre = token.empresaNombre ?? null
         ;(session.user as any).bodegaPuedeEnviar = token.bodegaPuedeEnviar ?? false
+        ;(session.user as any).ciudadEntregaLocal = token.ciudadEntregaLocal ?? null
         ;(session.user as any).tieneVinculacion = token.tieneVinculacion ?? false
         ;(session.user as any).loginAt = token.loginAt ?? 0
         ;(session.user as any).apiId = token.apiId ?? null
