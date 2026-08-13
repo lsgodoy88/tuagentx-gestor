@@ -1,17 +1,26 @@
-const VERSION = 'v1.3'
+const VERSION = 'v1.5'
 
 self.addEventListener('install', (e) => {
   self.skipWaiting()
 })
 
 self.addEventListener('activate', (e) => {
-  e.waitUntil(clients.claim())
+  e.waitUntil(
+    caches.keys()
+      .then(keys => Promise.all(keys.map(k => caches.delete(k))))
+      .then(() => clients.claim())
+      .then(() => {
+        // Notificar a todos los clientes que recarguen
+        return self.clients.matchAll({ type: 'window' }).then(clients => {
+          clients.forEach(client => client.navigate(client.url))
+        })
+      })
+  )
 })
 
 self.addEventListener('message', (e) => {
   if (e.data === 'SKIP_WAITING') self.skipWaiting()
 })
-
 self.addEventListener('push', function(e) {
   const data = e.data ? e.data.json() : {}
   e.waitUntil(

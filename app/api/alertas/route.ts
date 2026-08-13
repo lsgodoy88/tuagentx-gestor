@@ -75,13 +75,23 @@ export async function GET(req: NextRequest) {
   const tiposActivos = new Set(detectadas.map(a => a.tipo))
 
   // Resolver alertas que ya no aplican
-  await prisma.$executeRaw`
-    UPDATE ${Prisma.raw(DB_SCHEMA)}."AlertaLog"
-    SET resuelta = TRUE, resuelta_el = NOW(), updated_at = NOW()
-    WHERE empresa_id = ${empresaId}
-      AND resuelta = FALSE
-      AND tipo NOT IN (${Prisma.join([...tiposActivos])})`
-    .catch(() => {})
+  if ([...tiposActivos].length > 0) {
+    await prisma.$executeRaw`
+      UPDATE ${Prisma.raw(DB_SCHEMA)}."AlertaLog"
+      SET resuelta = TRUE, resuelta_el = NOW(), updated_at = NOW()
+      WHERE empresa_id = ${empresaId}
+        AND resuelta = FALSE
+        AND tipo NOT IN (${Prisma.join([...tiposActivos])})`
+      .catch(() => {})
+  } else {
+    // Sin alertas activas — resolver todas
+    await prisma.$executeRaw`
+      UPDATE ${Prisma.raw(DB_SCHEMA)}."AlertaLog"
+      SET resuelta = TRUE, resuelta_el = NOW(), updated_at = NOW()
+      WHERE empresa_id = ${empresaId}
+        AND resuelta = FALSE`
+      .catch(() => {})
+  }
 
   // Upsert alertas activas
   for (const a of detectadas) {
