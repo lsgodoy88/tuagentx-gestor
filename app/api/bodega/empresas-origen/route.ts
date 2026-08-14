@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN_BODEGA } from '@/lib/auth-helpers'
+import { getEmpresasOrigen } from '@/lib/bodega/empresas-origen'
 
 const ROLES = ROLES_ADMIN_BODEGA
 
@@ -13,20 +13,6 @@ export async function GET() {
   if (!ROLES.includes(user.role)) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
 
   const empresaId = getEmpresaId(user)
-
-  const empresa = await prisma.empresa.findUnique({
-    where: { id: empresaId },
-    select: { nombre: true },
-  })
-
-  const vinculadas = await prisma.empresaVinculada.findMany({
-    where: { empresaId, activa: true },
-    select: { id: true, nombre: true },
-    orderBy: { createdAt: 'asc' },
-  })
-
-  return NextResponse.json([
-    { id: 'propia', nombre: empresa?.nombre ?? 'Mi empresa', tipo: 'propia' },
-    ...vinculadas.map(v => ({ id: v.id, nombre: v.nombre, tipo: 'vinculada' })),
-  ])
+  const data = await getEmpresasOrigen(empresaId)
+  return NextResponse.json(data)
 }

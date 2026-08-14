@@ -1,190 +1,28 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma, DB_SCHEMA } from '@/lib/prisma'
-import { Prisma } from '@/app/generated/prisma'
 import { getEmpresaId, ROLES_ADMIN_BODEGA } from '@/lib/auth-helpers'
-import { resolverEmpresaIdOrigen } from '@/lib/bodega'
-import { haceNDiasBogota } from '@/lib/fechas'
-
-const ROLES = ROLES_ADMIN_BODEGA
-const LIMIT  = 15
-const DIAS   = 30
+import { getDespachos } from '@/lib/bodega/despachos'
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    const user = session.user as any
+    if (!ROLES_ADMIN_BODEGA.includes(user.role)) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
 
-  const session = await getServerSession(authOptions)
-  if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  const user = session.user as any
-  if (!ROLES.includes(user.role)) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
+    const sp = req.nextUrl.searchParams
+    const data = await getDespachos({
+      empresaId: getEmpresaId(user),
+      origenId: sp.get('origenId') ?? 'propia',
+      estado: sp.get('estado') ?? 'pendiente',
+      cursor: sp.get('cursor'),
+      controlCursor: sp.get('controlCursor'),
+      q: sp.get('q')?.trim() ?? '',
+    })
 
-  const empresaId = getEmpresaId(user)
-  const sp = req.nextUrl.searchParams
-
-  // Parámetros
-  const origenId  = sp.get('origenId') ?? 'propia'
-  const estado    = sp.get('estado') ?? 'pendiente'   // pendiente | alistado | despachado
-  const cursor        = sp.get('cursor')             // cursor cards
-  const controlCursor = sp.get('controlCursor')       // cursor control consecutivos
-  const q             = sp.get('q')?.trim() ?? ''
-
-  const empresaIdConsulta = await resolverEmpresaIdOrigen(prisma, empresaId, origenId)
-
-  // Estados reales por tab
-  const estadosFiltro: Record<string, string[]> = {
-    pendiente:  ['pendiente'],
-    alistado:   ['alistado'],
-    despachado: ['en_entrega', 'en_transito', 'entregado'],
-  }
-  const estados = estadosFiltro[estado] ?? ['pendiente']
-
-  // Ventana de 30 días fija
-  const desde = haceNDiasBogota(DIAS)
-  const desdeIso = desde.toISOString()
-
-  // Filtro de búsqueda
-  const qFilter = q
-    ? `AND ("clienteNombre" ILIKE '%${q.replace(/'/g,"''")}%' OR "numeroFactura" ILIKE '%${q.replace(/'/g,"''")}%')`
-    : ''
-
-  // Cursor (número entero de la última factura vista)
-  const cursorFilter = cursor
-    ? `AND (CASE WHEN "numeroFactura" ~ '^[0-9]+$' THEN CAST("numeroFactura" AS INTEGER) ELSE 0 END) < ${parseInt(cursor)}`
-    : ''
-
-  const estadoIn = estados.map(e => `'${e}'`).join(',')
-
-  const idRows = await prisma.$queryRawUnsafe<{ id: string; nf: number }[]>(`
-    SELECT id,
-      (CASE WHEN "numeroFactura" ~ '^[0-9]+$' THEN CAST("numeroFactura" AS INTEGER) ELSE 0 END) AS nf
-    FROM ${DB_SCHEMA}."OrdenDespacho"
-    WHERE "empresaId" = $1
-      AND estado IN (${estadoIn})
-      AND ("isActiva" IS NOT FALSE OR estado != 'pendiente')
-      AND ("fechaOrdenBogota" >= $2::timestamp OR ("fechaOrdenBogota" IS NULL AND "createdAt" >= $2::timestamp))
-      ${qFilter}
-      ${cursorFilter}
-    ORDER BY nf DESC
-    LIMIT ${LIMIT + 1}
-  `, empresaIdConsulta, desdeIso)
-
-  const hayMas = idRows.length > LIMIT
-  const rows   = hayMas ? idRows.slice(0, LIMIT) : idRows
-  const nextCursor = hayMas ? String(rows[rows.length - 1].nf) : null
-
-  const ordenIds = rows.map(r => r.id)
-  const despachos = ordenIds.length > 0
-    ? await (prisma as any).ordenDespacho.findMany({
-        where: { id: { in: ordenIds } },
-        select: {
-          id: true, numeroFactura: true, clienteNombre: true, clienteNit: true,
-          ciudad: true, direccion: true, telefono: true, estado: true, fechaOrden: true, fechaFactura: true, isFacturada: true,
-          alistadoEl: true, entregadoEl: true, fotoAlistamiento: true, fotosAlistamiento: true,
-          firmaEntrega: true, fotoEntrega: true, repartidorId: true, transportadora: true,
-          guiaTransporte: true, modo_despacho: true, vendedorApiId: true, clienteApiId: true, origenVinculadaId: true, num_cajas: true, observacion: true,
-          alistadoPor: { select: { id: true, nombre: true } },
-          repartidor:  { select: { id: true, nombre: true } },
-        }
-      })
-    : []
-
-  // Reordenar según el orden del cursor (findMany no garantiza el orden)
-  const ordenMap = new Map(ordenIds.map((id, i) => [id, i]))
-  despachos.sort((a: any, b: any) => (ordenMap.get(a.id) ?? 0) - (ordenMap.get(b.id) ?? 0))
-
-  // Meta de empresa — si ciudadEntregaLocal vacío, heredar de empresa propietaria (vinculada)
-  const meta = await prisma.$queryRaw<[{
-    ciudadEntregaLocal: string | null
-    bodegaPuedeEnviar: boolean
-    ultimaSyncBodega: Date | null
-  }]>`
-    SELECT
-      COALESCE(
-        NULLIF(TRIM(e."ciudadEntregaLocal"), ''),
-        NULLIF(TRIM(ep."ciudadEntregaLocal"), '')
-      ) AS "ciudadEntregaLocal",
-      e."bodegaPuedeEnviar",
-      e."ultimaSyncBodega"
-    FROM ${Prisma.raw(DB_SCHEMA)}."Empresa" e
-    LEFT JOIN ${Prisma.raw(DB_SCHEMA)}."EmpresaVinculada" ev ON ev."empresaClienteId" = e.id
-    LEFT JOIN ${Prisma.raw(DB_SCHEMA)}."Empresa" ep ON ep.id = ev."empresaId"
-    WHERE e.id = ${empresaId}
-    LIMIT 1
-  `
-
-  // Control de consecutivos — solo para tab despachado
-  let controlFacturas: any[] = []
-  let controlHayMas = false
-  let controlNextCursorVal: string | null = null
-  if (estado === 'despachado') {
-    const controlCursorFilter = controlCursor
-      ? `AND CAST("numeroFactura" AS INTEGER) < ${parseInt(controlCursor)}`
-      : ''
-    const CONTROL_LIMIT = 50
-
-    const controlRows = await prisma.$queryRawUnsafe<any[]>(`
-      SELECT
-        "numeroFactura",
-        "clienteNombre",
-        "entregadoEl",
-        "alistadoEl",
-        "repartidorId",
-        "guiaTransporte",
-        "transportadora",
-        estado,
-        CAST("numeroFactura" AS INTEGER) AS nf_int
-      FROM ${DB_SCHEMA}."OrdenDespacho"
-      WHERE "empresaId" = $1
-        AND "numeroFactura" ~ '^[0-9]+$'
-        AND ("fechaOrdenBogota" >= $2::timestamp OR ("fechaOrdenBogota" IS NULL AND "createdAt" >= $2::timestamp))
-        ${controlCursorFilter}
-      ORDER BY nf_int DESC
-      LIMIT ${CONTROL_LIMIT + 1}
-    `, empresaIdConsulta, desdeIso)
-
-    controlHayMas = controlRows.length > CONTROL_LIMIT
-    const controlRowsSliced = controlHayMas ? controlRows.slice(0, CONTROL_LIMIT) : controlRows
-    if (controlHayMas && controlRowsSliced.length > 0) {
-      controlNextCursorVal = String(controlRowsSliced[controlRowsSliced.length - 1].nf_int)
-    }
-
-    // Rango max desde el primer resultado, min del último
-    // Rellenar huecos entre el max del batch y el min — completar el rango
-    if (controlRowsSliced.length > 0) {
-      const maxBatch = controlRowsSliced[0].nf_int
-      // Si hay cursor, el anterior batch terminó en controlCursor → el rango empieza en maxBatch
-      const rangeMax = controlCursor ? parseInt(controlCursor) - 1 : maxBatch
-      const rangeMin = controlRowsSliced[controlRowsSliced.length - 1].nf_int
-      const mapaFacturas = new Map(controlRowsSliced.map(r => [r.nf_int, r]))
-      for (let n = rangeMax; n >= rangeMin; n--) {
-        const r = mapaFacturas.get(n)
-        const despachada = r && ['en_entrega','entregado','en_transito'].includes(r.estado)
-        controlFacturas.push({
-          numero: n,
-          clienteNombre: r?.clienteNombre || null,
-          entregadoEl:   despachada ? (r?.entregadoEl || r?.alistadoEl || null) : null,
-          confirmado:    despachada && !!(r?.repartidorId || r?.guiaTransporte || r?.transportadora || r?.firmaEntrega),
-          modo:          r?.firmaEntrega ? 'personal' : r?.guiaTransporte || r?.transportadora ? 'transportadora' : r?.repartidorId ? 'repartidor' : null,
-          despachada,
-          hueco: !r,  // número que no existe en BD
-        })
-      }
-    }
-  }
-
-  return NextResponse.json({
-    despachos,
-    nextCursor,
-    hayMas,
-    ciudadLocal:       meta[0]?.ciudadEntregaLocal ?? null,
-    bodegaPuedeEnviar: meta[0]?.bodegaPuedeEnviar ?? false,
-    ultimaSyncBodega:  meta[0]?.ultimaSyncBodega ?? null,
-    controlFacturas,
-    controlNextCursor: controlNextCursorVal,
-    controlHayMas,
-  })
-  } catch (err: any) {
+    return NextResponse.json(data)
+  } catch {
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   }
 }
