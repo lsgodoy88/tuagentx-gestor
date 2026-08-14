@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/prisma'
-import { generarReciboToken } from '@/lib/recibos'
+import { generarReciboToken } from '@/lib/cartera/recibos'
 
 export async function generarTokenParaPago(empresaId: string, pagoId: string) {
   const pago = await (prisma as any).pagoCartera.findFirst({

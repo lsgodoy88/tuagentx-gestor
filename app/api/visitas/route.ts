@@ -7,7 +7,7 @@ import { nowBogota, fechaHoyBogota, inicioDiaBogota, finDiaBogota } from '@/lib/
 import { invalidateKeys } from '@/lib/cache'
 import { subirFirma } from '@/lib/r2'
 import { audit } from '@/lib/audit'
-import { actualizarResumenVisita } from '@/lib/visitaResumen'
+import { actualizarResumenVisita } from '@/lib/ventas/visitaResumen'
 import { distanciaMetros } from '@/lib/gps'
 
 export async function GET() {

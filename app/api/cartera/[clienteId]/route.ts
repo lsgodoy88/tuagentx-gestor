@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma, DB_SCHEMA } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
-import { calcularEstado } from '@/lib/cartera'
+import { calcularEstado } from '@/lib/cartera/index'
 import { calcularNSaldoPorDeuda } from '@/lib/integracion/sync'
 
 const LUMELI_ID = 'cmn7oiutk0001vmega46373b4'

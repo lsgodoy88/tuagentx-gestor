@@ -5,7 +5,7 @@ import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
 import { Prisma } from '@/app/generated/prisma'
 import { DB_SCHEMA } from '@/lib/prisma'
-import { invalidarReglaCache } from '@/lib/notif-reglas'
+import { invalidarReglaCache } from '@/lib/admin/notif-reglas'
 
 export const REGLAS_CATALOGO = [
   { id: 'despacho_guia',    label: 'Bodega envía pedido por guía' },

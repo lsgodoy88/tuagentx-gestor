@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
 import { fechaHoyBogota } from '@/lib/fechas'
-import { calcularImpulsadorasMes } from '@/lib/impulsoMetricas'
+import { calcularImpulsadorasMes } from '@/lib/impulsadora/metricas'
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)

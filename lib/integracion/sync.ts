@@ -37,7 +37,7 @@ export async function calcularNSaldoPorDeuda(
   return result
 }
 
-import { calcularEstado } from '@/lib/cartera'
+import { calcularEstado } from '@/lib/cartera/index'
 import { invalidarCacheCliente, invalidarCacheClientes } from '@/lib/cartera/saldoCliente'
 import type { AdaptadorIntegracion, DeudaExterna } from './types'
 import { UpTresAdapter } from './adapters/uptres'

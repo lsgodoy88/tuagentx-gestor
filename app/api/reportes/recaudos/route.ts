@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN } from '@/lib/auth-helpers'
-import { generarReciboToken } from '@/lib/recibos'
+import { generarReciboToken } from '@/lib/cartera/recibos'
 import { nowBogota } from '@/lib/fechas'
 
 export async function GET(req: NextRequest) {

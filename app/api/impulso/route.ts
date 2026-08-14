@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { invalidateKeys } from '@/lib/cache'
-import { actualizarResumenVisita } from '@/lib/visitaResumen'
+import { actualizarResumenVisita } from '@/lib/ventas/visitaResumen'
 import { fechaHoyBogota } from '@/lib/fechas'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
 import { nowBogota } from '@/lib/fechas'
 import { DIAS } from '@/lib/constants'
-import { buildSemana } from '@/lib/impulsoMetricas'
+import { buildSemana } from '@/lib/impulsadora/metricas'
 
 export async function GET(req: NextRequest) {
   try {

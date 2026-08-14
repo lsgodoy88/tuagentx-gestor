@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId, ROLES_ADMIN_BODEGA } from '@/lib/auth-helpers'
-import { resolverEmpresaIdOrigen } from '@/lib/bodega'
+import { resolverEmpresaIdOrigen } from '@/lib/bodega/index'
 
 const ROLES = ROLES_ADMIN_BODEGA
 

@@ -14,7 +14,7 @@ function fmtHora12(hhmm: string): string {
   return `${hora12}:${String(m).padStart(2, '0')} ${meridiano}`
 }
 import { useGpsEnDemanda } from '@/components/useGpsEnDemanda'
-import { estadoMasCritico } from '@/lib/cartera'
+import { estadoMasCritico } from '@/lib/cartera/index'
 import { CountUp, SkeletonCard, LoadingBorder } from '@/components/FX'
 import { TurnoTimer, PausaTimer } from '@/components/TurnoTimer'
 import type { VendedorStats, TurnoActivo } from '@/lib/types/vendedor'

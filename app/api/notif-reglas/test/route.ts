@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getEmpresaId } from '@/lib/auth-helpers'
-import { getRegla } from '@/lib/notif-reglas'
-import { enviarPushEmpleados, enviarPushAdmin } from '@/lib/push'
+import { getRegla } from '@/lib/admin/notif-reglas'
+import { enviarPushEmpleados, enviarPushAdmin } from '@/lib/admin/push'
 import { prisma } from '@/lib/prisma'
 
 const TEST_NOTIF: Record<string, { title: string; body: string }> = {

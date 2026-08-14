@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { ROLES_ADMIN } from '@/lib/auth-helpers'
-import { calcularImpulsadorasMes } from '@/lib/impulsoMetricas'
+import { calcularImpulsadorasMes } from '@/lib/impulsadora/metricas'
 
 export async function POST(req: NextRequest) {
   const isCron = req.headers.get('x-cron-secret') === process.env.CRON_SECRET

@@ -3,7 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
-import { calcularDiasV, calcularEdadCartera } from '@/lib/cartera'
+import { calcularDiasV, calcularEdadCartera } from '@/lib/cartera/index'
 
 const EDADES = ['0-30','31-60','61-90','91-120','+120'] as const
 type Edad = typeof EDADES[number]

@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
 import { withCache } from '@/lib/cache'
-import { calcularSaldoActual, calcularEgresosMes } from '@/lib/saldos'
+import { calcularSaldoActual, calcularEgresosMes } from '@/lib/cartera/saldos'
 
 export async function GET() {
   try {
