@@ -175,13 +175,24 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+    const user = session.user as any
+    if (user.role !== 'empresa') return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
+    const { id, accion } = await req.json()
 
-  const session = await getServerSession(authOptions)
-  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  const { id } = await req.json()
-  await prisma.empleado.update({ where: { id }, data: { activo: false } })
-  return NextResponse.json({ ok: true })
-  } catch (err: any) {
+    if (accion === 'toggle') {
+      // Inactivar o reactivar — nunca eliminar
+      const emp = await prisma.empleado.findUnique({ where: { id }, select: { activo: true } })
+      if (!emp) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+      await prisma.empleado.update({ where: { id }, data: { activo: !emp.activo } })
+      return NextResponse.json({ ok: true, activo: !emp.activo })
+    }
+
+    // Default: inactivar (no eliminar)
+    await prisma.empleado.update({ where: { id }, data: { activo: false } })
+    return NextResponse.json({ ok: true })
+  } catch {
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   }
 }

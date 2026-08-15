@@ -18,13 +18,14 @@ const ROLES_CONFIG = [
 const ROL_SINGULAR: Record<string, string> = {
   supervisor: 'Supervisor', vendedor: 'Vendedor', entregas: 'Entrega', impulsadora: 'Impulsadora', bodega: 'Bodega',
 }
-function PlanActualCard({ resumen, totalEmpleados, empresaId, limites, precios, montoNegociado }: {
+function PlanActualCard({ resumen, totalEmpleados, empresaId, limites, precios, montoNegociado, enMora }: {
   resumen: { rol: string; activos: number; precio: number; subtotal: number }[]
   totalEmpleados: number
   empresaId: string
   limites: Record<string, number>
   precios: Record<string, number>
   montoNegociado?: number | null
+  enMora?: boolean
 }) {
   const [abierto, setAbierto] = useState(false)
   return (
@@ -34,7 +35,10 @@ function PlanActualCard({ resumen, totalEmpleados, empresaId, limites, precios, 
           <span className="text-white font-semibold text-sm">Plan actual</span>
           <span className="text-zinc-500 text-xs ml-2">· {totalEmpleados} empleado{totalEmpleados !== 1 ? "s" : ""} activo{totalEmpleados !== 1 ? "s" : ""}</span>
         </div>
-        <span className="text-zinc-500 text-xs flex-shrink-0">{abierto ? "▲" : "▼"}</span>
+        {enMora
+          ? <span className="text-xs font-semibold text-red-400 flex-shrink-0">En mora</span>
+          : <span className="text-xs font-semibold text-emerald-400 flex-shrink-0">Al día</span>}
+        <span className="text-zinc-500 text-xs flex-shrink-0 ml-1">{abierto ? "▲" : "▼"}</span>
       </div>
       {abierto && (
         <div className="px-3 space-y-1 border-t border-zinc-800 pt-2 pb-2">
@@ -96,7 +100,7 @@ function PagarPlanBtn({ empresaId, limites, precios, montoNegociado }: {
   if (montoNegociado) {
     return (
       <button onClick={handlePagar} disabled={loading}
-        className="w-full py-3 rounded-xl text-sm font-bold transition-colors bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white">
+        className="w-full py-3 rounded-xl text-sm font-bold transition-colors bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white">
         {loading ? "Generando link..." : (
           <span>Pagar 💳 <span className="line-through text-white/50">${montoSlots.toLocaleString("es-CO")}</span> ${montoNegociado.toLocaleString("es-CO")}/mes</span>
         )}
@@ -106,7 +110,7 @@ function PagarPlanBtn({ empresaId, limites, precios, montoNegociado }: {
 
   return (
     <button onClick={handlePagar} disabled={loading}
-      className="w-full py-3 rounded-xl text-sm font-bold transition-colors bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white">
+      className="w-full py-3 rounded-xl text-sm font-bold transition-colors bg-blue-700 hover:bg-blue-600 disabled:opacity-50 text-white">
       {loading ? "Generando link..." : `💳 Pagar $${montoSlots.toLocaleString("es-CO")}/mes`}
     </button>
   )
@@ -177,6 +181,9 @@ export default function EmpleadosPage() {
   const [precios, setPrecios] = useState<Record<string, number>>({})
 
   const [cantidades, setCantidades] = useState<Record<string, number>>({ supervisor: 0, vendedor: 0, entregas: 0, impulsadora: 0, bodega: 0 })
+  const [ampliarAbierto, setAmpliarAbierto] = useState(false)
+  const [confirmToggle, setConfirmToggle] = useState(false)
+  const [enMora, setEnMora] = useState(false)
   const [syncEmpleados, setSyncEmpleados] = useState<any[]>([])
   const [tieneIntegracion, setTieneIntegracion] = useState(false)
   const [apiIdSeleccionado, setApiIdSeleccionado] = useState('')
@@ -265,6 +272,7 @@ export default function EmpleadosPage() {
     setLimites(empRes.limites || {})
     setEmpresaNombre(meRes.nombre || '')
     setEmpresaId(meRes.id || '')
+    fetch('/api/plan-empresa').then(r => r.json()).then(d => { if (d.deudaTotal > 0) setEnMora(true) }).catch(() => {})
     fetch('/api/precios/publico')
       .then(r => r.json())
       .then(d => {
@@ -353,9 +361,27 @@ export default function EmpleadosPage() {
     setTimeout(() => { setPopupSync(false); setSyncMsg('') }, 2000)
   }
 
-  async function desactivar(id: string) {
-    if (!confirm('Desactivar este empleado?')) return
-    await fetch('/api/empleados', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+  async function toggleActivo(id: string, activoActual: boolean) {
+    const accion = activoActual ? 'Inactivar' : 'Activar'
+    if (!confirm(`${accion} este empleado?`)) return
+    await fetch('/api/empleados', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, accion: 'toggle' }),
+    })
+    loadData()
+    setModal(false)
+  }
+
+  async function eliminarSlotVacio(rol: string) {
+    if (!confirm('¿Eliminar este slot vacío?')) return
+    const res = await fetch('/api/empleados/slot', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rol }),
+    })
+    const d = await res.json()
+    if (!d.ok) { alert(d.error); return }
     loadData()
   }
 
@@ -680,7 +706,7 @@ export default function EmpleadosPage() {
           .filter(r => r.activos > 0)
         if (resumen.length === 0) return null
         const totalEmpleados = resumen.reduce((s, r) => s + r.activos, 0)
-        return <PlanActualCard resumen={resumen} totalEmpleados={totalEmpleados} empresaId={empresaId} limites={limites} precios={precios} montoNegociado={limites.montoNegociado ?? null} />
+        return <PlanActualCard resumen={resumen} totalEmpleados={totalEmpleados} empresaId={empresaId} limites={limites} precios={precios} montoNegociado={limites.montoNegociado ?? null} enMora={enMora} />
       })()}
 
       {(() => {
@@ -691,6 +717,7 @@ export default function EmpleadosPage() {
         return rolesVisibles.map(rc => {
           const max = limites[rc.maxKey] || 0
           const empRol = empleados.filter(e => e.rol === rc.id && e.activo)
+          const empRolTotal = empleados.filter(e => e.rol === rc.id) // activos + inactivos
           if (max === 0) return null
           return (
             <div key={rc.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
@@ -731,13 +758,27 @@ export default function EmpleadosPage() {
                             </div>
                           </div>
                         ) : (
-                          <>{puedeEditarEmpleados && <button onClick={() => abrirSlot(rc.id, i + 1, emp)}
-                            className={"relative text-xs px-3 py-1.5 rounded-lg flex-shrink-0 " + (emp ? "bg-zinc-700 hover:bg-zinc-600 text-zinc-300" : "bg-emerald-600 hover:bg-emerald-500 text-white font-semibold")}>
-                            {emp ? 'Editar' : 'Configurar'}
-                            {emp && rc.id === 'vendedor' && tieneIntegracion && emp.apiId && !emp.syncInicioAt && (
-                              <span style={{ position: 'absolute', top: -6, right: -6, fontSize: 13, lineHeight: 1 }}>⚠️</span>
+                          <div className="flex items-center gap-1 flex-shrink-0">
+                            {!emp && empRolTotal.length < max && (() => {
+                              // Mostrar "Eliminar" solo en el último slot vacío (mayor índice sin empleado)
+                              const ultimoVacioIdx = max - 1 - Array.from({length: max}).reverse().findIndex((_, ri) => !empRol[max - 1 - ri])
+                              return i === ultimoVacioIdx
+                            })() && puedeEditarEmpleados && (
+                              <button
+                                onClick={() => eliminarSlotVacio(rc.id)}
+                                className="text-lg leading-none hover:opacity-70 transition-opacity"
+                                title="Eliminar slot vacío">
+                                ❌
+                              </button>
                             )}
-                          </button>}</>
+                            {puedeEditarEmpleados && <button onClick={() => abrirSlot(rc.id, i + 1, emp)}
+                              className={"relative text-xs px-3 py-1.5 rounded-lg " + (emp ? "bg-zinc-700 hover:bg-zinc-600 text-zinc-300" : "bg-emerald-600 hover:bg-emerald-500 text-white font-semibold")}>
+                              {emp ? 'Editar' : 'Configurar'}
+                              {emp && rc.id === 'vendedor' && tieneIntegracion && emp.apiId && !emp.syncInicioAt && (
+                                <span style={{ position: 'absolute', top: -6, right: -6, fontSize: 13, lineHeight: 1 }}>⚠️</span>
+                              )}
+                            </button>}
+                          </div>
                         )
                       )}
                     </div>
@@ -765,11 +806,14 @@ export default function EmpleadosPage() {
           : ''
         return (
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-zinc-800">
-              <div className="text-white font-semibold">Ampliar equipo</div>
-              <div className="text-zinc-500 text-xs mt-0.5">Selecciona cuántos empleados agregar por rol</div>
+            <div className="px-4 py-3 flex items-center gap-2 cursor-pointer select-none" onClick={() => setAmpliarAbierto(a => !a)}>
+              <div className="flex-1">
+                <div className="text-white font-semibold text-sm">Ampliar equipo</div>
+                <div className="text-zinc-500 text-xs mt-0.5">Agrega slots por rol</div>
+              </div>
+              <span className="text-zinc-500 text-xs">{ampliarAbierto ? '▲' : '▼'}</span>
             </div>
-            <div className="p-3 space-y-2">
+            {ampliarAbierto && <div className="p-3 space-y-2 border-t border-zinc-800">
               {rolesAmpliables.map(rc => {
                 const precio = precios[rc.id]
                 if (!precio) return null
@@ -785,7 +829,7 @@ export default function EmpleadosPage() {
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
                       {cant > 0 && (
-                        <div className="text-violet-400 text-xs font-semibold">
+                        <div className="text-blue-400 text-xs font-semibold">
                           +${(cant * precio).toLocaleString('es-CO')}
                         </div>
                       )}
@@ -808,8 +852,8 @@ export default function EmpleadosPage() {
                   </div>
                 )
               })}
-            </div>
-            <div className="px-3 pb-3">
+            </div>}
+            <div className="px-3 pb-3 border-t border-zinc-800 pt-2">
               <button
                 disabled={total === 0}
                 onClick={async () => {
@@ -824,7 +868,7 @@ export default function EmpleadosPage() {
                     if (d.linkPago) window.open(d.linkPago, '_blank', 'noopener,noreferrer')
                   } catch {}
                 }}
-                className="w-full py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-700 text-white">
+                className="w-full py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-blue-700 hover:bg-blue-600 disabled:bg-zinc-700 text-white">
                 {total === 0 ? 'Selecciona empleados para agregar' : `💳 Pagar $${total.toLocaleString('es-CO')}/mes`}
               </button>
             </div>
@@ -1096,10 +1140,34 @@ export default function EmpleadosPage() {
                 {error && <p className="text-red-400 text-xs">{error}</p>}
                 <div className="flex gap-2">
                   {editando && (
-                    <button onClick={() => desactivar(editando.id)}
-                      className="bg-red-500/10 text-red-400 border border-red-500/20 text-sm px-3 py-3 rounded-xl hover:bg-red-500/20">
-                      🗑️
-                    </button>
+                    <div className="relative">
+                      <button
+                        onClick={() => setConfirmToggle(true)}
+                        className="text-2xl px-2 py-1 rounded-xl hover:bg-zinc-800 transition-colors"
+                        title={editando.activo ? 'Inactivar empleado' : 'Activar empleado'}>
+                        {editando.activo ? '🚫' : '✅'}
+                      </button>
+                      {confirmToggle && (
+                        <div className="absolute bottom-12 left-0 z-50 bg-zinc-900 border border-zinc-700 rounded-xl p-3 shadow-xl w-48">
+                          <p className="text-white text-xs font-semibold mb-2">
+                            {editando.activo ? '¿Inactivar este empleado?' : '¿Activar este empleado?'}
+                          </p>
+                          <p className="text-zinc-500 text-xs mb-3">
+                            {editando.activo ? 'No podrá iniciar sesión.' : 'Podrá iniciar sesión nuevamente.'}
+                          </p>
+                          <div className="flex gap-2">
+                            <button onClick={() => setConfirmToggle(false)}
+                              className="flex-1 py-1.5 rounded-lg text-xs text-zinc-400 border border-zinc-700 hover:text-white">
+                              Cancelar
+                            </button>
+                            <button onClick={() => { setConfirmToggle(false); toggleActivo(editando.id, editando.activo) }}
+                              className={`flex-1 py-1.5 rounded-lg text-xs font-semibold text-white ${editando.activo ? 'bg-red-600 hover:bg-red-500' : 'bg-emerald-600 hover:bg-emerald-500'}`}>
+                              {editando.activo ? 'Inactivar' : 'Activar'}
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   )}
                   <button onClick={() => setModal(false)}
                     className="flex-1 bg-zinc-800 text-white text-sm py-3 rounded-xl">Cancelar</button>

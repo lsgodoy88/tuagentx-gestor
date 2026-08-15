@@ -1506,16 +1506,12 @@ export default function ModuloOrdenes() {
           })()}
         </div>
       )}
-      {tabActivo === 'despachado' && logHayMas && (
-        <button onClick={cargarMasDespacholog} disabled={cargandoLogMas}
+      {(tabActivo === 'despachado' ? (logHayMas || hayMasPorTab[tabActivo]) : hayMasPorTab[tabActivo]) && (
+        <button
+          onClick={() => { if (tabActivo === 'despachado' && logHayMas) cargarMasDespacholog(); if (hayMasPorTab[tabActivo]) cargarMasTab() }}
+          disabled={cargandoLogMas || cargandoMasTab}
           className="w-full bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-semibold py-3 rounded-2xl hover:text-white disabled:opacity-40 transition-colors">
-          {cargandoLogMas ? 'Cargando...' : 'Cargar más facturas'}
-        </button>
-      )}
-      {hayMasPorTab[tabActivo] && (
-        <button onClick={cargarMasTab} disabled={cargandoMasTab}
-          className="w-full bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-semibold py-3 rounded-2xl hover:text-white disabled:opacity-40 transition-colors">
-          {cargandoMasTab ? 'Cargando...' : 'Cargar más'}
+          {(cargandoLogMas || cargandoMasTab) ? 'Cargando...' : 'Cargar más'}
         </button>
       )}
 
