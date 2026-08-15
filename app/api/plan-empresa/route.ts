@@ -3,8 +3,11 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { getEmpresaId } from '@/lib/auth-helpers'
 import { prisma } from '@/lib/prisma'
+import { generarPlanMes } from '@/lib/billing/generarPlan'
 
-// GET — estado del plan actual para la empresa (usado por banner y página empleados)
+const EMPRESAS_EXENTAS = ['superadmin-001', 'cmn7o4pcg0000vmeg0utky01w']
+
+// GET — estado del plan actual. Si no existe plan del mes → auto-genera (excepto exentas)
 export async function GET() {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
@@ -13,6 +16,17 @@ export async function GET() {
 
   const ahora = new Date()
   const mes = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}`
+
+  // Auto-generar plan si no existe y empresa no exenta
+  if (!EMPRESAS_EXENTAS.includes(empresaId)) {
+    const existe = await (prisma as any).planEmpresa.findUnique({
+      where: { empresaId_mes: { empresaId, mes } },
+      select: { id: true },
+    })
+    if (!existe) {
+      await generarPlanMes(mes, empresaId)
+    }
+  }
 
   // Deuda acumulada — todos los meses pendientes/vencidos
   const pendientes = await (prisma as any).planEmpresa.findMany({
