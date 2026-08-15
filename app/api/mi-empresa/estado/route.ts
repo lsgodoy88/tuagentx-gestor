@@ -15,9 +15,9 @@ export async function GET() {
   const empresaId = getEmpresaId(user)
   if (!empresaId) return NextResponse.json({ activa: true })
 
-  // planFin y modoEquipo fueron agregados via ALTER TABLE — rawSQL para planFin
-  const rows = await prisma.$queryRaw<[{ activo: boolean; planFin: Date | null; modoEquipo: string | null }]>`
-    SELECT activo, "planFin", "modoEquipo" FROM ${Prisma.raw(DB_SCHEMA)}."Empresa" WHERE id = ${empresaId} LIMIT 1
+  // planFin fue agregado via ALTER TABLE — rawSQL para compatibilidad
+  const rows = await prisma.$queryRaw<[{ activo: boolean; planFin: Date | null }]>`
+    SELECT activo, "planFin" FROM ${Prisma.raw(DB_SCHEMA)}."Empresa" WHERE id = ${empresaId} LIMIT 1
   `
   const row = rows[0]
   const planFin = row?.planFin ?? null
@@ -27,16 +27,11 @@ export async function GET() {
   const supervisoresActivos = await prisma.empleado.count({
     where: { empresaId, rol: 'supervisor', activo: true },
   })
-  // Auto-migrar empresas sin modoEquipo a 'simple'
-  if (row && !row.modoEquipo) {
-    await prisma.empresa.update({ where: { id: empresaId }, data: { modoEquipo: 'simple' } }).catch(() => {})
-  }
 
   return NextResponse.json({
     activa: row?.activo ?? true,
     planFin,
     diasRestantes,
-    modoEquipo: row?.modoEquipo ?? 'simple',
     supervisoresActivos,
   })
 }

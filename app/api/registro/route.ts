@@ -10,7 +10,7 @@ function slugify(nombre: string) {
 }
 
 export async function POST(req: NextRequest) {
-  const { nombre, password, plan } = await req.json()
+  const { nombre, password } = await req.json()
   if (!nombre || !password) {
     return NextResponse.json({ error: 'Faltan datos' }, { status: 400 })
   }
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
       nombre,
       email,
       password: hash,
-      plan: plan || 'basico',
+      plan: 'basico',
     }
   })
 

@@ -154,7 +154,6 @@ export default function EmpresasPage() {
                   </div>
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  <span className="text-xs bg-zinc-800 text-zinc-300 px-2 py-0.5 rounded-full font-semibold uppercase">{e.plan || 'basico'}</span>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-semibold ${e.activo ? 'bg-emerald-500/15 text-emerald-400' : 'bg-red-500/15 text-red-400'}`}>
                     {e.activo ? 'Activo' : 'Inactivo'}
                   </span>

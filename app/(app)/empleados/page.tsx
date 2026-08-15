@@ -18,6 +18,44 @@ const ROLES_CONFIG = [
 const ROL_SINGULAR: Record<string, string> = {
   supervisor: 'Supervisor', vendedor: 'Vendedor', entregas: 'Entrega', impulsadora: 'Impulsadora', bodega: 'Bodega',
 }
+function PagarPlanBtn({ empresaId }: { empresaId: string }) {
+  const [loading, setLoading] = useState(false)
+  const [info, setInfo] = useState<{ deudaTotal: number; mesesPendientes: string[] } | null>(null)
+
+  useEffect(() => {
+    fetch('/api/plan-empresa')
+      .then(r => r.json())
+      .then(d => setInfo({ deudaTotal: d.deudaTotal ?? 0, mesesPendientes: d.mesesPendientes ?? [] }))
+      .catch(() => {})
+  }, [])
+
+  async function handlePagar() {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/plan-empresa/generar', { method: 'POST' })
+      const d = await res.json()
+      if (!d.ok) return
+      const montoCheckout = d.deudaTotal > 0 ? d.deudaTotal : d.monto
+      if (!montoCheckout) return
+      const checkoutUrl = `https://master.tuagentx.com/checkout?producto=GESTOR&upgrade=true&monto=${montoCheckout}&empresaId=${empresaId}`
+      window.open(checkoutUrl, '_blank', 'noopener,noreferrer')
+    } catch {}
+    finally { setLoading(false) }
+  }
+
+  const monto = info?.deudaTotal ?? 0
+  const mesesLabel = (info?.mesesPendientes?.length ?? 0) > 1 ? ` (${info!.mesesPendientes.length} meses)` : ''
+
+  return (
+    <button
+      onClick={handlePagar}
+      disabled={loading}
+      className="w-full py-3 rounded-xl text-sm font-bold transition-colors bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white">
+      {loading ? 'Generando link...' : monto > 0 ? `💳 Pagar $${monto.toLocaleString('es-CO')}${mesesLabel}` : '💳 Pagar plan mensual'}
+    </button>
+  )
+}
+
 export default function EmpleadosPage() {
   const { data: session } = useSession()
   const user = session?.user as any
@@ -80,8 +118,8 @@ export default function EmpleadosPage() {
   const [empresaNombre, setEmpresaNombre] = useState('')
   const [empresaId, setEmpresaId] = useState('')
   const [precios, setPrecios] = useState<Record<string, number>>({})
+
   const [cantidades, setCantidades] = useState<Record<string, number>>({ supervisor: 0, vendedor: 0, entregas: 0, impulsadora: 0, bodega: 0 })
-  const [modoEquipo, setModoEquipo] = useState<string | null>(null)
   const [syncEmpleados, setSyncEmpleados] = useState<any[]>([])
   const [tieneIntegracion, setTieneIntegracion] = useState(false)
   const [apiIdSeleccionado, setApiIdSeleccionado] = useState('')
@@ -170,7 +208,6 @@ export default function EmpleadosPage() {
     setLimites(empRes.limites || {})
     setEmpresaNombre(meRes.nombre || '')
     setEmpresaId(meRes.id || '')
-    setModoEquipo(estadoRes.modoEquipo ?? null)
     fetch('/api/precios/publico')
       .then(r => r.json())
       .then(d => {
@@ -578,7 +615,7 @@ export default function EmpleadosPage() {
       {(() => {
         const haySupervisor = empleados.some(e => e.rol === 'supervisor' && e.activo)
         const rolesVisibles = ROLES_CONFIG.filter(rc =>
-          modoEquipo === 'simple' ? rc.id !== 'supervisor' : true
+          true
         )
         return rolesVisibles.map(rc => {
           const max = limites[rc.maxKey] || 0
@@ -644,7 +681,7 @@ export default function EmpleadosPage() {
       {/* Ampliar equipo */}
       {esAdmin && empresaId && Object.keys(precios).length > 0 && (() => {
         const rolesAmpliables = ROLES_CONFIG.filter(rc =>
-          modoEquipo === 'simple' ? rc.id !== 'supervisor' : true
+          true
         )
         const total = rolesAmpliables.reduce((sum, rc) => sum + (cantidades[rc.id] ?? 0) * (precios[rc.id] ?? 0), 0)
         const rolesSeleccionados: Record<string, number> = {}
@@ -708,6 +745,41 @@ export default function EmpleadosPage() {
                 className="w-full py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-700 text-white">
                 {total === 0 ? 'Selecciona empleados para agregar' : `💳 Pagar $${total.toLocaleString('es-CO')}/mes`}
               </button>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Pago plan actual — slots activos */}
+      {esAdmin && empresaId && Object.keys(precios).length > 0 && (() => {
+        const rolesActivos = ['vendedor', 'supervisor', 'bodega', 'entregas', 'impulsadora']
+        const resumen = rolesActivos
+          .map(rol => {
+            const activos = empleados.filter(e => e.rol === rol && e.activo).length
+            const precio = precios[rol] ?? 0
+            return { rol, activos, precio, subtotal: activos * precio }
+          })
+          .filter(r => r.activos > 0)
+        const totalPlan = resumen.reduce((s, r) => s + r.subtotal, 0)
+        if (totalPlan === 0) return null
+        const rolesParam = Object.fromEntries(resumen.map(r => [r.rol, r.activos]))
+
+        return (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+            <div className="px-4 py-3 border-b border-zinc-800">
+              <div className="text-white font-semibold">Plan actual</div>
+              <div className="text-zinc-500 text-xs mt-0.5">Empleados activos este mes</div>
+            </div>
+            <div className="p-3 space-y-2">
+              {resumen.map(r => (
+                <div key={r.rol} className="flex items-center justify-between rounded-xl px-4 py-2" style={{background:'#0d1220',border:'1px solid #1e2a3d'}}>
+                  <span className="text-zinc-300 text-sm capitalize">{r.rol} × {r.activos}</span>
+                  <span className="text-zinc-400 text-sm">${r.subtotal.toLocaleString('es-CO')}</span>
+                </div>
+              ))}
+            </div>
+            <div className="px-3 pb-3">
+              <PagarPlanBtn empresaId={empresaId} />
             </div>
           </div>
         )

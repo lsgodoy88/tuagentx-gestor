@@ -82,6 +82,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [diasRestantes, setDiasRestantes] = useState<number | null>(null)
   const [bannerCerrado, setBannerCerrado] = useState(false)
   const [menuUsuario, setMenuUsuario] = useState(false)
+  const [bannerPago, setBannerPago] = useState(false)
+  const [bannerPagoCerrado, setBannerPagoCerrado] = useState(false)
   const [sincronizandoGps, setSincronizandoGps] = useState(false)
   const user = session?.user as any
   const authUser = status === 'authenticated' ? user : null
@@ -185,6 +187,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         try { sessionStorage.setItem(cacheKey, JSON.stringify(d)) } catch {}
       })
       .catch(() => {})
+    // Banner de pago pendiente — activar cuando billing esté en producción
+    // fetch('/api/plan-empresa')
+    //   .then(r => r.json())
+    //   .then(d => { if (d.bannerActivo) setBannerPago(true) })
+    //   .catch(() => {})
   }, [user])
 
   const isSuperAdmin  = user?.role === 'superadmin'
@@ -464,6 +471,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           )
         })()}
+
+        {bannerPago && !bannerPagoCerrado && (
+          <div className="bg-amber-900/80 border-b border-amber-700 flex items-center justify-between px-4 h-10 flex-shrink-0 overflow-hidden">
+            <span className="text-white text-sm truncate">⚠️ Tu empresa tiene un pago pendiente. Contacta al administrador.</span>
+            <button onClick={() => setBannerPagoCerrado(true)} className="text-white/60 hover:text-white text-sm leading-none ml-4 flex-shrink-0">✕</button>
+          </div>
+        )}
 
         <div className={`flex-1 overflow-x-clip px-2 pt-2 pb-24 md:px-4 md:pt-4 md:pb-6${bloqueado ? ' pointer-events-none opacity-50' : ''}`}>
           <div className="max-w-screen-xl mx-auto w-full space-y-6">

@@ -3,19 +3,12 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { signIn } from 'next-auth/react'
 
-const PLANES = [
-  { id: 'basico', label: 'Básico', desc: 'Hasta 5 empleados' },
-  { id: 'pro', label: 'Pro', desc: 'Hasta 20 empleados' },
-  { id: 'business', label: 'Business', desc: 'Ilimitado' },
-]
-
 export default function RegistroPage() {
   const router = useRouter()
   const [paso, setPaso] = useState(1)
   const [nombre, setNombre] = useState('')
   const [password, setPassword] = useState('')
   const [password2, setPassword2] = useState('')
-  const [plan, setPlan] = useState('basico')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [resultado, setResultado] = useState<any>(null)
@@ -35,13 +28,13 @@ export default function RegistroPage() {
     const res = await fetch('/api/registro', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ nombre, password, plan })
+      body: JSON.stringify({ nombre, password })
     })
     const data = await res.json()
     setLoading(false)
     if (data.ok) {
       setResultado(data)
-      setPaso(4)
+      setPaso(3)
     } else {
       setError(data.error || 'Error al registrar')
     }
@@ -68,9 +61,9 @@ export default function RegistroPage() {
         </div>
 
         {/* Barra progreso */}
-        {paso < 4 && (
+        {paso < 3 && (
           <div className="flex gap-1 mb-6">
-            {[1,2,3].map(s => (
+            {[1,2].map(s => (
               <div key={s} className={"h-1 flex-1 rounded-full transition-all " + (paso >= s ? "bg-emerald-500" : "bg-zinc-700")} />
             ))}
           </div>
@@ -141,28 +134,10 @@ export default function RegistroPage() {
             </div>
           )}
 
-          {/* Paso 3 - Plan */}
-          {paso === 3 && (
-            <div className="space-y-4">
-              <div>
-                <p className="text-white font-semibold mb-1">Selecciona tu plan</p>
-                <p className="text-zinc-400 text-sm">Puedes cambiarlo después</p>
-              </div>
-              <div className="space-y-2">
-                {PLANES.map(p => (
-                  <button key={p.id} onClick={() => setPlan(p.id)}
-                    className={"w-full p-4 rounded-xl border-2 text-left transition-all " + (plan === p.id ? "border-emerald-500 bg-emerald-500/10" : "border-zinc-700 bg-zinc-800")}>
-                    <div className="text-white font-semibold text-sm">{p.label}</div>
-                    <div className="text-zinc-400 text-xs mt-0.5">{p.desc}</div>
-                  </button>
-                ))}
-              </div>
-              {error && <p className="text-red-400 text-xs">{error}</p>}
-            </div>
-          )}
+
 
           {/* Paso 4 - Éxito */}
-          {paso === 4 && resultado && (
+          {paso === 3 && resultado && (
             <div className="space-y-4 text-center">
               <div className="text-4xl">🎉</div>
               <p className="text-white font-semibold">Empresa creada</p>
@@ -178,7 +153,7 @@ export default function RegistroPage() {
           )}
 
           {/* Navegación */}
-          {paso < 4 && (
+          {paso < 3 && (
             <div className="flex gap-2 pt-2">
               {paso > 1 && (
                 <button onClick={() => setPaso(p => p - 1)}
@@ -186,7 +161,7 @@ export default function RegistroPage() {
                   Atrás
                 </button>
               )}
-              {paso < 3 ? (
+              {paso < 2 ? (
                 <button onClick={() => setPaso(p => p + 1)}
                   disabled={paso === 1 && !nombre}
                   className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white font-semibold text-sm py-3 rounded-xl">
@@ -203,7 +178,7 @@ export default function RegistroPage() {
           )}
         </div>
 
-        {paso < 4 && (
+        {paso < 3 && (
           <p className="text-center text-zinc-600 text-xs mt-4">
             ¿Ya tienes cuenta? <a href="/login" className="text-emerald-400 hover:underline">Ingresar</a>
           </p>

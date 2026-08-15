@@ -3,12 +3,6 @@ import { useEffect, useState, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 
-const PLAN_COLOR: Record<string, string> = {
-  basico: '#71717a',
-  pro: '#3b82f6',
-  business: '#10b981',
-}
-
 const ROL_ICON: Record<string, string> = {
   supervisor: '🔍',
   vendedor: '💼',
@@ -101,7 +95,7 @@ export default function MonitorPage() {
           {/* Empresas */}
           <div className="space-y-0">
             {empresas.map((e: any, ei: number) => {
-              const color = PLAN_COLOR[e.plan] || '#71717a'
+              const color = '#71717a'
               const isLast = ei === empresas.length - 1
 
               return (
