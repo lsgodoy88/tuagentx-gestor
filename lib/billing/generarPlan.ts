@@ -43,29 +43,35 @@ export async function generarPlanMes(mesOverride?: string, soloEmpresaId?: strin
       continue
     }
 
-    // Contar empleados activos por rol al momento del corte
-    const conteos = await (prisma as any).empleado.groupBy({
-      by: ['rol'],
-      where: { empresaId: empresa.id, activo: true, rol: { in: ROLES_BILLING } },
-      _count: { id: true },
+// Usar slots contratados (maxVendedores, etc) — igual que Master
+    const empresaSlots = await prisma.empresa.findUnique({
+      where: { id: empresa.id },
+      select: { maxVendedores: true, maxSupervisores: true, maxBodega: true, maxEntregas: true, maxImpulsadoras: true },
     })
 
     let desglose: any[]
     let monto: number
 
     if ((empresa as any).montoNegociado) {
-      // Valor negociado — superpone el cálculo automático
       monto = (empresa as any).montoNegociado
       desglose = [{ rol: 'negociado', cantidad: 1, precioUnitario: monto, subtotal: monto }]
     } else {
-      desglose = conteos.map((c: any) => ({
-        rol: c.rol,
-        cantidad: c._count.id,
-        precioUnitario: precios[c.rol] ?? 0,
-        subtotal: c._count.id * (precios[c.rol] ?? 0),
+      const slots = [
+        { rol: 'vendedor',    cantidad: empresaSlots?.maxVendedores   ?? 0 },
+        { rol: 'supervisor',  cantidad: empresaSlots?.maxSupervisores  ?? 0 },
+        { rol: 'bodega',      cantidad: empresaSlots?.maxBodega        ?? 0 },
+        { rol: 'entregas',    cantidad: empresaSlots?.maxEntregas      ?? 0 },
+        { rol: 'impulsadora', cantidad: empresaSlots?.maxImpulsadoras  ?? 0 },
+      ].filter(s => s.cantidad > 0)
+
+      desglose = slots.map(s => ({
+        rol: s.rol,
+        cantidad: s.cantidad,
+        precioUnitario: precios[s.rol] ?? 0,
+        subtotal: s.cantidad * (precios[s.rol] ?? 0),
       }))
       monto = desglose.reduce((s: number, d: any) => s + d.subtotal, 0)
-      if (monto === 0) continue // sin empleados facturables
+      if (monto === 0) continue
     }
 
     await (prisma as any).planEmpresa.create({

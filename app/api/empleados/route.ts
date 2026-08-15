@@ -35,7 +35,7 @@ export async function GET(req: NextRequest) {
 
   const [empleados, empresa] = await Promise.all([
     prisma.empleado.findMany({ where: rolFiltro ? { empresaId, rol: rolFiltro } : { empresaId }, orderBy: { createdAt: 'desc' }, select: { id: true, nombre: true, email: true, rol: true, activo: true, telefono: true, vendedorId: true, empresaId: true, createdAt: true, puedeCapturarGps: true, ciudades: true, permisos: true, etiqueta: true, apiId: true, syncInicioAt: true, listasAsignadas: { select: { listaId: true, lista: { select: { nombre: true } } } }, vendedoresAsignados: { select: { vendedorId: true } } } }),
-    prisma.empresa.findUnique({ where: { id: empresaId }, select: { maxSupervisores: true, maxVendedores: true, maxEntregas: true, maxImpulsadoras: true, maxBodega: true } })
+    prisma.empresa.findUnique({ where: { id: empresaId }, select: { maxSupervisores: true, maxVendedores: true, maxEntregas: true, maxImpulsadoras: true, maxBodega: true, montoNegociado: true } })
   ])
   return NextResponse.json({ empleados, limites: empresa })
   } catch (err: any) {

@@ -18,43 +18,100 @@ const ROLES_CONFIG = [
 const ROL_SINGULAR: Record<string, string> = {
   supervisor: 'Supervisor', vendedor: 'Vendedor', entregas: 'Entrega', impulsadora: 'Impulsadora', bodega: 'Bodega',
 }
-function PagarPlanBtn({ empresaId }: { empresaId: string }) {
-  const [loading, setLoading] = useState(false)
-  const [info, setInfo] = useState<{ deudaTotal: number; mesesPendientes: string[] } | null>(null)
+function PlanActualCard({ resumen, totalEmpleados, empresaId, limites, precios, montoNegociado }: {
+  resumen: { rol: string; activos: number; precio: number; subtotal: number }[]
+  totalEmpleados: number
+  empresaId: string
+  limites: Record<string, number>
+  precios: Record<string, number>
+  montoNegociado?: number | null
+}) {
+  const [abierto, setAbierto] = useState(false)
+  return (
+    <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
+      <div className="px-4 py-3 flex items-center gap-2 cursor-pointer select-none" onClick={() => setAbierto(a => !a)}>
+        <div className="flex-1 min-w-0">
+          <span className="text-white font-semibold text-sm">Plan actual</span>
+          <span className="text-zinc-500 text-xs ml-2">· {totalEmpleados} empleado{totalEmpleados !== 1 ? "s" : ""} activo{totalEmpleados !== 1 ? "s" : ""}</span>
+        </div>
+        <span className="text-zinc-500 text-xs flex-shrink-0">{abierto ? "▲" : "▼"}</span>
+      </div>
+      {abierto && (
+        <div className="px-3 space-y-1 border-t border-zinc-800 pt-2 pb-2">
+          {resumen.map(r => (
+            <div key={r.rol} className="flex items-center justify-between rounded-xl px-4 py-2" style={{background:"#0d1220",border:"1px solid #1e2a3d"}}>
+              <span className="text-zinc-300 text-sm capitalize">{r.rol} × {r.activos}</span>
+              <span className="text-zinc-400 text-sm">${r.subtotal.toLocaleString("es-CO")}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="px-3 pb-3 pt-2 border-t border-zinc-800">
+        <PagarPlanBtn empresaId={empresaId} limites={limites} precios={precios} montoNegociado={montoNegociado} />
+      </div>
+    </div>
+  )
+}
 
-  useEffect(() => {
-    fetch('/api/plan-empresa')
-      .then(r => r.json())
-      .then(d => setInfo({ deudaTotal: d.deudaTotal ?? 0, mesesPendientes: d.mesesPendientes ?? [] }))
-      .catch(() => {})
-  }, [])
+function PagarPlanBtn({ empresaId, limites, precios, montoNegociado }: {
+  empresaId: string
+  limites: Record<string, number>
+  precios: Record<string, number>
+  montoNegociado?: number | null
+}) {
+  const [loading, setLoading] = useState(false)
+
+  const ROLES_BILLING = [
+    { id: "vendedor", maxKey: "maxVendedores" },
+    { id: "supervisor", maxKey: "maxSupervisores" },
+    { id: "bodega", maxKey: "maxBodega" },
+    { id: "entregas", maxKey: "maxEntregas" },
+    { id: "impulsadora", maxKey: "maxImpulsadoras" },
+  ]
+  const montoSlots = ROLES_BILLING.reduce((sum, r) => {
+    const max = limites[r.maxKey] ?? 0
+    const precio = precios[r.id] ?? 0
+    return sum + max * precio
+  }, 0)
 
   async function handlePagar() {
     setLoading(true)
     try {
-      const res = await fetch('/api/plan-empresa/generar', { method: 'POST' })
-      const d = await res.json()
-      if (!d.ok) return
-      const montoCheckout = d.deudaTotal > 0 ? d.deudaTotal : d.monto
+      const gen = await fetch("/api/plan-empresa/generar", { method: "POST" })
+      const gd = await gen.json()
+      if (!gd.ok) return
+      const montoCheckout = gd.deudaTotal > 0 ? gd.deudaTotal : gd.monto
       if (!montoCheckout) return
-      const checkoutUrl = `https://master.tuagentx.com/checkout?producto=GESTOR&upgrade=true&monto=${montoCheckout}&empresaId=${empresaId}`
-      window.open(checkoutUrl, '_blank', 'noopener,noreferrer')
+      const res = await fetch("/api/pagos/link", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ monto: montoCheckout }),
+      })
+      const d = await res.json()
+      if (d.linkPago) window.open(d.linkPago, "_blank", "noopener,noreferrer")
     } catch {}
     finally { setLoading(false) }
   }
 
-  const monto = info?.deudaTotal ?? 0
-  const mesesLabel = (info?.mesesPendientes?.length ?? 0) > 1 ? ` (${info!.mesesPendientes.length} meses)` : ''
+  if (montoNegociado) {
+    return (
+      <button onClick={handlePagar} disabled={loading}
+        className="w-full py-3 rounded-xl text-sm font-bold transition-colors bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white">
+        {loading ? "Generando link..." : (
+          <span>Pagar 💳 <span className="line-through text-white/50">${montoSlots.toLocaleString("es-CO")}</span> ${montoNegociado.toLocaleString("es-CO")}/mes</span>
+        )}
+      </button>
+    )
+  }
 
   return (
-    <button
-      onClick={handlePagar}
-      disabled={loading}
+    <button onClick={handlePagar} disabled={loading}
       className="w-full py-3 rounded-xl text-sm font-bold transition-colors bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white">
-      {loading ? 'Generando link...' : monto > 0 ? `💳 Pagar $${monto.toLocaleString('es-CO')}${mesesLabel}` : '💳 Pagar plan mensual'}
+      {loading ? "Generando link..." : `💳 Pagar $${montoSlots.toLocaleString("es-CO")}/mes`}
     </button>
   )
 }
+
 
 export default function EmpleadosPage() {
   const { data: session } = useSession()
@@ -588,8 +645,7 @@ export default function EmpleadosPage() {
         <div className="space-y-4">
           {/* Card Almacenamiento Nube */}
           {esAdmin && (
-            <a href="/configuracion/almacenamiento" className="block"
-              style={{background:'rgba(13,18,32,0.99)',border:'1px solid rgba(59,130,246,0.2)',borderRadius:16,padding:20}}>
+            <a href="/configuracion/almacenamiento" className="block bg-zinc-900 border border-zinc-800 rounded-2xl" style={{padding:20}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'baseline',marginBottom:12}}>
                 <span className="text-white font-semibold text-sm">☁️ Almacenamiento Nube</span>
                 <span className="text-white text-xs opacity-70">{storageData ? `${storageData.totalMb.toFixed(1)} MB / ${storageData.limiteGb} GB` : '...'}</span>
@@ -611,6 +667,21 @@ export default function EmpleadosPage() {
               {storageData?.alerta && <p className="text-orange-400 text-xs" style={{marginTop:8}}>⚠️ Espacio casi agotado &nbsp;&nbsp;Compra capacidad en la Nube.</p>}
             </a>
           )}
+
+      {/* Pago plan actual — slots activos */}
+      {esAdmin && empresaId && Object.keys(precios).length > 0 && (() => {
+        const rolesActivos2 = ["vendedor", "supervisor", "bodega", "entregas", "impulsadora"]
+        const resumen = rolesActivos2
+          .map(rol => {
+            const activos = empleados.filter(e => e.rol === rol && e.activo).length
+            const precio = precios[rol] ?? 0
+            return { rol, activos, precio, subtotal: activos * precio }
+          })
+          .filter(r => r.activos > 0)
+        if (resumen.length === 0) return null
+        const totalEmpleados = resumen.reduce((s, r) => s + r.activos, 0)
+        return <PlanActualCard resumen={resumen} totalEmpleados={totalEmpleados} empresaId={empresaId} limites={limites} precios={precios} montoNegociado={limites.montoNegociado ?? null} />
+      })()}
 
       {(() => {
         const haySupervisor = empleados.some(e => e.rol === 'supervisor' && e.activo)
@@ -690,7 +761,7 @@ export default function EmpleadosPage() {
           if (c > 0) rolesSeleccionados[rc.id] = c
         }
         const url = total > 0
-          ? `https://master.tuagentx.com/checkout?producto=GESTOR&upgrade=true&monto=${total}&empresaId=${empresaId}&roles=${encodeURIComponent(JSON.stringify(rolesSeleccionados))}`
+          ? null
           : ''
         return (
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
@@ -741,45 +812,21 @@ export default function EmpleadosPage() {
             <div className="px-3 pb-3">
               <button
                 disabled={total === 0}
-                onClick={() => total > 0 && url && window.open(url, '_blank', 'noopener,noreferrer')}
+                onClick={async () => {
+                  if (total === 0) return
+                  try {
+                    const res = await fetch('/api/pagos/link', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ monto: total }),
+                    })
+                    const d = await res.json()
+                    if (d.linkPago) window.open(d.linkPago, '_blank', 'noopener,noreferrer')
+                  } catch {}
+                }}
                 className="w-full py-3 rounded-xl text-sm font-bold transition-colors disabled:opacity-40 disabled:cursor-not-allowed bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-700 text-white">
                 {total === 0 ? 'Selecciona empleados para agregar' : `💳 Pagar $${total.toLocaleString('es-CO')}/mes`}
               </button>
-            </div>
-          </div>
-        )
-      })()}
-
-      {/* Pago plan actual — slots activos */}
-      {esAdmin && empresaId && Object.keys(precios).length > 0 && (() => {
-        const rolesActivos = ['vendedor', 'supervisor', 'bodega', 'entregas', 'impulsadora']
-        const resumen = rolesActivos
-          .map(rol => {
-            const activos = empleados.filter(e => e.rol === rol && e.activo).length
-            const precio = precios[rol] ?? 0
-            return { rol, activos, precio, subtotal: activos * precio }
-          })
-          .filter(r => r.activos > 0)
-        const totalPlan = resumen.reduce((s, r) => s + r.subtotal, 0)
-        if (totalPlan === 0) return null
-        const rolesParam = Object.fromEntries(resumen.map(r => [r.rol, r.activos]))
-
-        return (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-            <div className="px-4 py-3 border-b border-zinc-800">
-              <div className="text-white font-semibold">Plan actual</div>
-              <div className="text-zinc-500 text-xs mt-0.5">Empleados activos este mes</div>
-            </div>
-            <div className="p-3 space-y-2">
-              {resumen.map(r => (
-                <div key={r.rol} className="flex items-center justify-between rounded-xl px-4 py-2" style={{background:'#0d1220',border:'1px solid #1e2a3d'}}>
-                  <span className="text-zinc-300 text-sm capitalize">{r.rol} × {r.activos}</span>
-                  <span className="text-zinc-400 text-sm">${r.subtotal.toLocaleString('es-CO')}</span>
-                </div>
-              ))}
-            </div>
-            <div className="px-3 pb-3">
-              <PagarPlanBtn empresaId={empresaId} />
             </div>
           </div>
         )
