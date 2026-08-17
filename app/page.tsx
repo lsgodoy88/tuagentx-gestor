@@ -38,25 +38,20 @@ export default function HomePage() {
       <div style={{flex:1,padding:'80px 24px 40px',minHeight:'auto',background:'radial-gradient(ellipse at 70% 50%, rgba(37,99,235,.15) 0%, transparent 60%)'}}>
         <div className="max-w-screen-xl mx-auto flex flex-col md:flex-row items-center gap-10 md:gap-16">
 
-          {/* LEFT: texto + CTAs */}
-          <div className="flex-1 flex flex-col items-center md:items-start text-center md:text-left gap-5">
+          {/* Columna única: texto + iframe + CTAs */}
+          <div className="w-full flex flex-col items-center text-center gap-5">
             <div style={{display:'inline-flex',alignItems:'center',gap:6,background:'rgba(37,99,235,.1)',border:'1px solid rgba(37,99,235,.22)',borderRadius:16,padding:'8px 20px',fontSize:'.8rem',fontWeight:700,letterSpacing:1,textTransform:'uppercase' as const,color:'#93c5fd',boxShadow:'0 0 20px rgba(37,99,235,.4), 0 0 40px rgba(37,99,235,.2)'}}>📍 Gestión de fuerza de campo</div>
             <h1 style={{fontSize:'clamp(2rem,5vw,3rem)',fontWeight:800,lineHeight:1.12,letterSpacing:-.5,margin:0}}>Tu equipo en campo,<br/><span style={{color:'#93c5fd'}}>bajo control total</span></h1>
-
+            <iframe
+              src="https://tuagentx.com/demo-gestor-flow.html"
+              style={{width:'100%',maxWidth:312,height:452,border:'none',borderRadius:17,display:'block'}}
+              scrolling="no"
+            />
             <div style={{display:'flex',gap:12,flexWrap:'wrap',justifyContent:'center',width:'100%',maxWidth:340}}>
               <button onClick={() => { document.getElementById('demoGps')?.scrollIntoView({behavior:'smooth'}); setTimeout(() => (window as any).iniciarDemoGps?.(), 800); }} style={{flex:1,minWidth:160,background:'#2563eb',color:'#fff',fontWeight:700,padding:'10px 20px',borderRadius:10,border:'none',fontSize:'.85rem',textAlign:'center' as const,cursor:'pointer',boxShadow:'0 0 24px rgba(37,99,235,.3)'}}>📍 Probar Demo</button>
               <button onClick={() => document.getElementById('cotizador')?.scrollIntoView({behavior:'smooth'})} style={{flex:1,minWidth:160,background:'transparent',color:'#93c5fd',fontWeight:700,padding:'10px 20px',borderRadius:10,border:'1px solid rgba(37,99,235,.3)',fontSize:'.85rem',textAlign:'center' as const,cursor:'pointer',boxShadow:'0 0 20px rgba(37,99,235,.4), 0 0 40px rgba(37,99,235,.15)'}}>💰 Cotiza Ya</button>
             </div>
             <p style={{fontSize:'.72rem',color:'#6b7280'}}>✓ Sin contrato · ✓ Funciona desde el movil · ✓ Soporte en español</p>
-          </div>
-
-          {/* RIGHT: mockup animado */}
-          <div className="flex-1 flex justify-center">
-            <iframe
-              src="https://tuagentx.com/demo-gestor-flow.html"
-              style={{width:'100%',height:370,border:'none',borderRadius:16,display:'block'}}
-              scrolling="no"
-            />
           </div>
 
         </div>
