@@ -867,7 +867,12 @@ export default function EmpleadosPage() {
                     const res = await fetch('/api/pagos/link', {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ monto: total }),
+                      body: JSON.stringify({
+                        monto: total,
+                        roles: Object.fromEntries(
+                          Object.entries(cantidades).filter(([, v]) => (v as number) > 0)
+                        ),
+                      }),
                     })
                     const d = await res.json()
                     if (d.linkPago) window.open(d.linkPago, '_blank', 'noopener,noreferrer')

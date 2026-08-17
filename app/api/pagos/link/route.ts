@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   const user = session.user as any
   if (user.role !== 'empresa') return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
-  const { monto } = await req.json()
+  const { monto, roles } = await req.json()
   if (!monto) return NextResponse.json({ error: 'monto requerido' }, { status: 400 })
 
   const empresaId = getEmpresaId(user)
@@ -26,6 +26,8 @@ export async function POST(req: NextRequest) {
       empresaTipo: 'GESTOR',
       monto,
       esUpgrade: true,
+      // roles = { vendedor: 1, supervisor: 0, ... } → serializado para webhook
+      rolUpgrade: roles ? JSON.stringify(roles) : undefined,
     }),
   })
 

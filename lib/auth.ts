@@ -22,7 +22,7 @@ export const authOptions: NextAuthOptions = {
         
         // Buscar en Empresa
         const empresa = await prisma.empresa.findUnique({ where: { email: credentials.email } })
-        if (empresa && await bcrypt.compare(credentials.password, empresa.password)) {
+        if (empresa && empresa.activo && await bcrypt.compare(credentials.password, empresa.password)) {
           const role = empresa.plan === 'superadmin' ? 'superadmin' : 'empresa'
           const vinculaciones = await prisma.empresaVinculada.findMany({
             where: { empresaClienteId: empresa.id, activa: true },
@@ -72,7 +72,16 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user, account }) {
+    async jwt({ token, user, account, trigger }) {
+      // Verificar activo cada vez que el JWT se refresca (updateAge = 1h)
+      // Aplica a empresa y a empleados — no superadmin
+      if (!user && token.empresaId && token.role !== 'superadmin') {
+        const empresa = await prisma.empresa.findUnique({
+          where: { id: token.empresaId as string },
+          select: { activo: true },
+        })
+        if (!empresa?.activo) return {} as any // token vacío → sesión invalida → redirect a login
+      }
       if (user || account) {
         token.loginAt = Date.now()
         token.role = (user as any).role

@@ -28,7 +28,7 @@ export async function generarPlanMes(mesOverride?: string, soloEmpresaId?: strin
       id: { notIn: EMPRESAS_EXENTAS, ...(soloEmpresaId ? { in: [soloEmpresaId] } : {}) },
       empleados: { some: { rol: 'vendedor', activo: true } },
     },
-    select: { id: true, nombre: true, montoNegociado: true },
+    select: { id: true, nombre: true, montoNegociado: true, creditoSaldo: true },
   })
 
   const resultados: any[] = []
@@ -74,6 +74,11 @@ export async function generarPlanMes(mesOverride?: string, soloEmpresaId?: strin
       if (monto === 0) continue
     }
 
+    // Descontar crédito acumulado de pagos anteriores
+    const credito = (empresa as any).creditoSaldo ?? 0
+    const montoFinal = Math.max(0, monto - credito)
+    const creditoUsado = monto - montoFinal
+
     await (prisma as any).planEmpresa.create({
       data: {
         id: `plan-${empresa.id}-${mesStr}`,
@@ -81,13 +86,23 @@ export async function generarPlanMes(mesOverride?: string, soloEmpresaId?: strin
         mes: mesStr,
         fechaCorte,
         fechaLimite,
-        monto,
+        monto: montoFinal,
+        montoOriginal: monto,      // inmutable — monto base antes de crédito
+        saldo: montoFinal,         // saldo a cobrar (se reduce con pagos parciales)
         desglose,
-        estado: 'pendiente',
+        estado: montoFinal === 0 ? 'pagado' : 'pendiente',
       },
     })
 
-    resultados.push({ empresaId: empresa.id, nombre: empresa.nombre, accion: 'creado', mes: mesStr, monto, desglose })
+    // Reducir creditoSaldo en lo que se usó
+    if (creditoUsado > 0) {
+      await (prisma as any).empresa.update({
+        where: { id: empresa.id },
+        data: { creditoSaldo: credito - creditoUsado },
+      })
+    }
+
+    resultados.push({ empresaId: empresa.id, nombre: empresa.nombre, accion: 'creado', mes: mesStr, monto: montoFinal, montoBase: monto, creditoUsado, desglose })
   }
 
   return { ok: true, mes: mesStr, resultados }

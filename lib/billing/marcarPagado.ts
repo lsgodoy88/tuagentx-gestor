@@ -3,74 +3,89 @@ import { prisma } from '@/lib/prisma'
 export async function marcarPlanPagado(empresaId: string, pagoId: string, montoPagado: number, pagoFecha?: Date) {
   const ahora = pagoFecha ?? new Date()
 
-  // Traer todos los meses pendientes/vencidos ordenados ASC (más antiguo primero)
+  const empresa = await (prisma as any).empresa.findUnique({
+    where: { id: empresaId },
+    select: { planFin: true, creditoSaldo: true },
+  })
+
+  // Monto efectivo = pago + crédito acumulado
+  let restante = montoPagado + (empresa?.creditoSaldo ?? 0)
+
+  // Planes pendientes/vencidos más antiguos primero
   const pendientes = await (prisma as any).planEmpresa.findMany({
     where: { empresaId, estado: { in: ['pendiente', 'vencido'] } },
     orderBy: { mes: 'asc' },
   })
 
-  if (pendientes.length === 0) return { ok: false, error: 'Sin planes pendientes' }
+  if (pendientes.length === 0) {
+    // Sin deuda — todo va a crédito
+    await (prisma as any).empresa.update({
+      where: { id: empresaId },
+      data: { creditoSaldo: restante },
+    })
+    return { ok: true, empresaId, pagoId, montoPagado, mesesPagados: [], excedente: restante, quedanPendientes: 0 }
+  }
 
-  let restante = montoPagado
   const aplicados: string[] = []
-  let excedente = 0
 
   for (const plan of pendientes) {
     if (restante <= 0) break
 
-    if (restante >= plan.monto) {
-      // Cubre el mes completo
+    // Agregar pagoId al historial (evitar duplicados)
+    const pagoIdsActual: string[] = Array.isArray(plan.pagoIds) ? plan.pagoIds : []
+    const pagoIdsNuevo = pagoIdsActual.includes(pagoId) ? pagoIdsActual : [...pagoIdsActual, pagoId]
+
+    if (restante >= plan.saldo) {
+      // Cubre el saldo pendiente completo
       await (prisma as any).planEmpresa.update({
         where: { id: plan.id },
-        data: { estado: 'pagado', pagoId, pagoFecha: ahora, bannerActivo: false, updatedAt: new Date() },
+        data: {
+          estado: 'pagado',
+          saldo: 0,
+          pagoId,           // último pago que lo cerró
+          pagoIds: pagoIdsNuevo,
+          pagoFecha: ahora,
+          bannerActivo: false,
+          updatedAt: new Date(),
+        },
       })
-      restante -= plan.monto
+      restante -= plan.saldo
       aplicados.push(plan.mes)
     } else {
-      // Pago parcial — no alcanza para cubrir este mes
-      // Dejar pendiente con monto reducido
+      // Pago parcial — reduce saldo, montoOriginal intacto
       await (prisma as any).planEmpresa.update({
         where: { id: plan.id },
-        data: { monto: plan.monto - restante, updatedAt: new Date() },
+        data: {
+          saldo: plan.saldo - restante,
+          pagoIds: pagoIdsNuevo,
+          updatedAt: new Date(),
+        },
       })
       restante = 0
     }
   }
 
-  // Si sobra excedente — aplicar al siguiente mes pendiente o guardar como crédito
-  excedente = restante
-  if (excedente > 0) {
-    const siguientePendiente = await (prisma as any).planEmpresa.findFirst({
-      where: { empresaId, estado: { in: ['pendiente', 'vencido'] } },
-      orderBy: { mes: 'asc' },
-    })
-    if (siguientePendiente) {
-      // Reducir monto del siguiente mes (saldo a favor)
-      await (prisma as any).planEmpresa.update({
-        where: { id: siguientePendiente.id },
-        data: { monto: Math.max(0, siguientePendiente.monto - excedente), updatedAt: new Date() },
-      })
-    }
-    // Si no hay siguiente mes — el crédito se aplica cuando se genere el próximo plan
-    // guardamos el excedente en Empresa para que generarPlanMes lo descuente
-    if (!siguientePendiente) {
-      await prisma.empresa.update({
-        where: { id: empresaId },
-        data: { planFin: new Date(ahora.getFullYear(), ahora.getMonth() + 1, 1) },
-      })
-    }
-  }
+  // Persistir excedente como crédito
+  await (prisma as any).empresa.update({
+    where: { id: empresaId },
+    data: { creditoSaldo: restante },
+  })
 
-  // Extender planFin según meses pagados
+  // planFin = MAX(existente, 1er día UTC del mes siguiente al último pagado)
   if (aplicados.length > 0) {
-    const planFinActual = new Date(ahora.getFullYear(), ahora.getMonth() + aplicados.length, 1)
-    await prisma.empresa.update({
+    const ultimoMes = aplicados[aplicados.length - 1]
+    const [anio, mes] = ultimoMes.split('-').map(Number)
+    const nuevoPlanFin = new Date(Date.UTC(anio, mes, 1))
+    const planFinExistente = empresa?.planFin ? new Date(empresa.planFin) : new Date(0)
+    const planFinFinal = nuevoPlanFin > planFinExistente ? nuevoPlanFin : planFinExistente
+
+    await (prisma as any).empresa.update({
       where: { id: empresaId },
-      data: { planFin: planFinActual },
+      data: { planFin: planFinFinal },
     })
   }
 
-  // Apagar banner si ya no hay pendientes
+  // Apagar banner si no quedan pendientes
   const quedanPendientes = await (prisma as any).planEmpresa.count({
     where: { empresaId, estado: { in: ['pendiente', 'vencido'] } },
   })
@@ -81,13 +96,5 @@ export async function marcarPlanPagado(empresaId: string, pagoId: string, montoP
     })
   }
 
-  return {
-    ok: true,
-    empresaId,
-    pagoId,
-    montoPagado,
-    mesesPagados: aplicados,
-    excedente,
-    quedanPendientes,
-  }
+  return { ok: true, empresaId, pagoId, montoPagado, mesesPagados: aplicados, excedente: restante, quedanPendientes }
 }

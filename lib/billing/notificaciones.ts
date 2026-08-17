@@ -53,8 +53,9 @@ export async function activarBannerPago() {
   const ahora = new Date()
   const mes = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}`
 
+  // Activar banner en TODOS los meses pendientes/vencidos — no solo el actual
   const { count } = await (prisma as any).planEmpresa.updateMany({
-    where: { mes, estado: { in: ['pendiente', 'vencido'] }, bannerActivo: false },
+    where: { estado: { in: ['pendiente', 'vencido'] }, bannerActivo: false },
     data: { bannerActivo: true, updatedAt: new Date() },
   })
 

@@ -24,6 +24,7 @@ model Empresa {
   planFin             DateTime?          @db.Timestamp(6)
   montoNegociado      Int?
   negociadoAt         DateTime?          @db.Timestamp(6)
+  creditoSaldo        Int                @default(0)
   PlanEmpresa         PlanEmpresa[]
   telefono            String?            @db.VarChar(20)
   modoEquipo          String?
@@ -3608,11 +3609,14 @@ model PlanEmpresa {
   mes          String
   fechaCorte   DateTime
   fechaLimite  DateTime
-  monto        Int       @default(0)
-  desglose     Json      @default("[]")
-  estado       String    @default("pendiente")
-  pagoId       String?
-  pagoFecha    DateTime?
+  monto         Int       @default(0)
+  montoOriginal Int       @default(0)
+  saldo         Int       @default(0)
+  desglose      Json      @default("[]")
+  estado        String    @default("pendiente")
+  pagoId        String?
+  pagoIds       Json      @default("[]")
+  pagoFecha     DateTime?
   bannerActivo Boolean   @default(false)
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
