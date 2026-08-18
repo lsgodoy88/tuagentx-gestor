@@ -48,6 +48,16 @@ body {
   border-radius: 0.75rem;
 }
 
+/* Leaflet z-index contenido dentro del mapa — no flota sobre el nav */
+#demoMap .leaflet-pane,
+#demoMap .leaflet-top,
+#demoMap .leaflet-bottom {
+  z-index: 1 !important;
+}
+#demoMap .leaflet-control {
+  z-index: 2 !important;
+}
+
 .leaflet-label {
   background: transparent !important;
   border: none !important;
