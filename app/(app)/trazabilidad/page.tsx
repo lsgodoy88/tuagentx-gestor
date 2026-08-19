@@ -69,7 +69,6 @@ const BADGE_ESTADO: Record<string, string> = {
   entregado: 'bg-emerald-500/15 text-emerald-400',
 }
 
-const PAGE_SIZE_TRAZ = 20
 
 function getOrdenColumns(ctx: {
   setFotoModal: (url: string | null) => void
@@ -210,7 +209,6 @@ export default function TrazabilidadPage() {
   const hasta = ''
 
   const [isDesktop, setIsDesktop] = useState(false)
-  const [page, setPage] = useState(0)
   const [expandido, setExpandido] = useState<Record<string, boolean>>({})
   const [ordenSeleccionada, setOrdenSeleccionada] = useState<any>(null)
   const [fotoModal, setFotoModal] = useState<string | null>(null)
@@ -282,7 +280,7 @@ export default function TrazabilidadPage() {
   const [fechaFiltro, setFechaFiltro] = useState<string>('')
 
   async function cargar(cursor: string | null = null, overrideFechaFiltro?: string) {
-    if (!cursor) { setLoading(true); setPage(0) } else setLoadingMore(true)
+    if (!cursor) { setLoading(true) } else setLoadingMore(true)
     const params = new URLSearchParams()
     if (q) params.set('q', q)
     if (estado) params.set('estado', estado)
@@ -351,8 +349,6 @@ export default function TrazabilidadPage() {
   function limpiar() { setQ(''); setQInput(''); setEstado(''); setDiasHistorial(7); setOrdenesBusqueda(null); setFuenteBusqueda(null) }
 
   const sourceOrdenes = ordenesBusqueda !== null ? ordenesBusqueda : ordenes
-  const pagedOrdenes     = sourceOrdenes.slice(page * PAGE_SIZE_TRAZ, (page + 1) * PAGE_SIZE_TRAZ)
-  const totalPagesTraz   = Math.max(1, Math.ceil(sourceOrdenes.length / PAGE_SIZE_TRAZ))
 
   if (!['empresa', 'supervisor', 'superadmin', 'vendedor', 'bodega', 'entregas'].includes(user?.role)) {
     return <div className="p-8 text-zinc-400">Sin acceso</div>

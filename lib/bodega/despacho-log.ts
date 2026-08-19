@@ -23,6 +23,25 @@ export async function getDespachoLog(params: {
     empresaIdLog = await resolverEmpresaIdOperador(prisma, empresaId)
   }
 
+  const vendedorFilter = role === 'vendedor' && apiId
+    ? `AND o."vendedorApiId" = '${apiId.replace(/'/g, "''")}'`
+    : ''
+
+  // Cursor estable: (numeroFactura_num DESC, l.id DESC)
+  let cursorClause = ''
+  if (cursor) {
+    const safeId = cursor.replace(/'/g, "''")
+    cursorClause = `AND (
+      CAST(CASE WHEN l."numeroFactura" ~ '^[0-9]+$' THEN l."numeroFactura" ELSE '0' END AS BIGINT),
+      l.id
+    ) < (
+      SELECT
+        CAST(CASE WHEN "numeroFactura" ~ '^[0-9]+$' THEN "numeroFactura" ELSE '0' END AS BIGINT),
+        id
+      FROM ${DB_SCHEMA}."DespachoLog" WHERE id = '${safeId}' LIMIT 1
+    )`
+  }
+
   const rows = await prisma.$queryRawUnsafe<any[]>(`
     SELECT l.id, l."numeroFactura", l."clienteNombre", l.modo, l."guiaTransporte", l.transportadora, l."despachadoEl", l."despachadoPorNombre",
            o."alistadoEl", o.ciudad, o."fotosAlistamiento", o."fotoAlistamiento",
@@ -40,10 +59,12 @@ export async function getDespachoLog(params: {
     LEFT JOIN ${DB_SCHEMA}."Empleado" rp ON rp.id = o."repartidorId"
     LEFT JOIN ${DB_SCHEMA}."Empleado" vnd ON vnd."apiId" = o."vendedorApiId" AND vnd."empresaId" = $2
     WHERE l."empresaId" IN ($1, $2)
-      ${role === 'vendedor' && apiId ? `AND o."vendedorApiId" = '${apiId.replace(/'/g, "''")}'` : ''}
-      ${cursor ? `AND l."despachadoEl" < (SELECT "despachadoEl" FROM ${DB_SCHEMA}."DespachoLog" WHERE id = '${cursor.replace(/'/g, "''")}' LIMIT 1)` : ''}
+      ${vendedorFilter}
+      ${cursorClause}
     GROUP BY l.id, l."numeroFactura", l."clienteNombre", l.modo, l."guiaTransporte", l.transportadora, l."despachadoEl", l."despachadoPorNombre", o."alistadoEl", o.ciudad, o."fotosAlistamiento", o."fotoAlistamiento", o.id, o."fechaOrden", o."fechaFactura", o.direccion, o."num_cajas", o."entregadoEl", o."firmaEntrega", o."urlSeguimiento", ap.nombre, rp.nombre, vnd.nombre
-    ORDER BY l."despachadoEl" DESC
+    ORDER BY
+      CAST(CASE WHEN l."numeroFactura" ~ '^[0-9]+$' THEN l."numeroFactura" ELSE '0' END AS BIGINT) DESC,
+      l.id DESC
     LIMIT ${LIMIT + 1}
   `, empresaIdLog, empresaIdOrden)
 
@@ -68,5 +89,22 @@ export async function getDespachoLog(params: {
     repartidor: r.repartidorNombre ? { nombre: r.repartidorNombre } : null,
   }))
 
-  return { data: serialized, nextCursor, hayMas }
+  // Generar rango consecutivo completo con huecos
+  // igual que controlFacturas en bodega
+  let controlFacturas: any[] = []
+  if (serialized.length > 0) {
+    const mapaFacturas = new Map(serialized.map(r => [parseInt(r.numeroFactura), r]))
+    const rangeMax = parseInt(serialized[0].numeroFactura)
+    const rangeMin = parseInt(serialized[serialized.length - 1].numeroFactura)
+    for (let n = rangeMax; n >= rangeMin; n--) {
+      const r = mapaFacturas.get(n)
+      controlFacturas.push({
+        numero: n,
+        log: r || null,
+        hueco: !r,
+      })
+    }
+  }
+
+  return { data: serialized, controlFacturas, nextCursor, hayMas }
 }

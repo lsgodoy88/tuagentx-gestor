@@ -3618,6 +3618,8 @@ model PlanEmpresa {
   pagoIds       Json      @default("[]")
   pagoFecha     DateTime?
   bannerActivo Boolean   @default(false)
+  voucherNum    String?
+  voucherTipo   String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 

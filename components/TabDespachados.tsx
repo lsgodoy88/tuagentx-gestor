@@ -57,10 +57,21 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
       const res = await fetch(`/api/bodega/despacho-log?${params}`)
       if (!res.ok) return
       const data = await res.json()
-      const newLogs = reset ? (data.data || []) : [...logs, ...(data.data || [])]
-      setLogs(newLogs)
+      const incoming = data.data || []
+      if (reset) {
+        setLogs(incoming)
+      } else {
+        setLogs(prev => {
+          const merged = [...prev, ...incoming]
+          if (onLogsLoaded) {
+            const ciudades = [...new Set(merged.map((l: any) => l.ciudad?.trim()).filter(Boolean))].sort() as string[]
+            onLogsLoaded(ciudades)
+          }
+          return merged
+        })
+      }
       if (reset && onLogsLoaded) {
-        const ciudades = [...new Set(newLogs.map((l: any) => l.ciudad?.trim()).filter(Boolean))].sort() as string[]
+        const ciudades = [...new Set(incoming.map((l: any) => l.ciudad?.trim()).filter(Boolean))].sort() as string[]
         onLogsLoaded(ciudades)
       }
       setHayMas(data.hayMas ?? false)
@@ -109,12 +120,6 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
         (log.guiaTransporte || '').toLowerCase().includes(q)
       if (!match) return false
     }
-    if (envioFiltro !== 'todos') {
-      const esLocal = ciudadLocal && log.ciudad &&
-        log.ciudad.split('/').pop()?.trim().toLowerCase() === ciudadLocal?.trim().toLowerCase()
-      if (envioFiltro === 'local' && !esLocal) return false
-      if (envioFiltro === 'guia' && esLocal) return false
-    }
     if (filtroCiudad && (log.ciudad?.trim() || '') !== filtroCiudad) return false
     if (filtroEnvio !== 'todos') {
       const ciudadOrden = log.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''
@@ -136,6 +141,22 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
 
   const ciudades = [...new Set(logs.map((l: any) => l.ciudad?.trim()).filter(Boolean))].sort() as string[]
 
+  // Generar rango consecutivo desde logs acumulados — sin solapamientos entre páginas
+  const controlFacturas = (() => {
+    if (logsOrdenados.length === 0) return []
+    // Solo usar cuando no hay filtroOrden (orden por fecha rompe el consecutivo)
+    if (filtroOrden !== null) return logsOrdenados.map(l => ({ numero: parseInt(l.numeroFactura) || 0, log: l, hueco: false }))
+    const mapaFacturas = new Map(logsOrdenados.map(l => [parseInt(l.numeroFactura) || 0, l]))
+    const rangeMax = parseInt(logsOrdenados[0].numeroFactura) || 0
+    const rangeMin = parseInt(logsOrdenados[logsOrdenados.length - 1].numeroFactura) || 0
+    const result = []
+    for (let n = rangeMax; n >= rangeMin; n--) {
+      const r = mapaFacturas.get(n)
+      result.push({ numero: n, log: r || null, hueco: !r })
+    }
+    return result
+  })()
+
   if (loading) return (
     <div className="flex items-center justify-center py-20">
       <span className="w-8 h-8 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
@@ -155,10 +176,50 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
 
       {/* Lista */}
       <div className="space-y-1">
-        {logsVisibles.length === 0 && (
+        {controlFacturas.length === 0 && (
           <div className="text-center text-zinc-500 text-sm py-10">Sin despachos</div>
         )}
-        {logsVisibles.map(log => {
+        {(() => {
+          const hayFiltro = !!(busquedaExterna || busqueda || filtroEnvio !== 'todos' || filtroFecha || filtroCiudad)
+          return controlFacturas.filter(cf => {
+            // Con filtro activo: ocultar huecos — solo mostrar despachadas que cumplan
+            if (cf.hueco) return !hayFiltro
+            const log = cf.log
+            const busq = (busquedaExterna !== undefined ? busquedaExterna : busqueda) || ''
+            if (busq) {
+              const b = busq.toLowerCase()
+              if (!log.numeroFactura?.toLowerCase().includes(b) && !log.clienteNombre?.toLowerCase().includes(b)) return false
+            }
+            if (filtroEnvio !== 'todos') {
+              if (filtroEnvio === 'local' && log.modo !== 'repartidor') return false
+              if (filtroEnvio === 'guia' && log.modo !== 'transportadora') return false
+            }
+            if (filtroCiudad) {
+              const ciudad = log.ciudad?.split('/').pop()?.trim().toLowerCase() || ''
+              if (!ciudad.includes(filtroCiudad.toLowerCase())) return false
+            }
+            if (filtroFecha) {
+              if (!log.despachadoEl) return false
+              const d = new Date(log.despachadoEl)
+              const bogota = new Date(d.getTime() - 5 * 60 * 60 * 1000)
+              const yy = bogota.getUTCFullYear()
+              const mm = String(bogota.getUTCMonth() + 1).padStart(2, '0')
+              const dd = String(bogota.getUTCDate()).padStart(2, '0')
+              if (`${yy}-${mm}-${dd}` !== filtroFecha) return false
+            }
+            return true
+          })
+        })().map(cf => {
+          // Hueco: orden no despachada aún
+          if (cf.hueco) return (
+            <div key={`hueco-${cf.numero}`}
+              className="bg-zinc-900 border border-zinc-800 border-l-4 border-l-zinc-700 rounded-2xl overflow-hidden">
+              <div className="px-4 py-3">
+                <span className="text-zinc-500 font-mono text-xs">F_{cf.numero}</span>
+              </div>
+            </div>
+          )
+          const log = cf.log
           let fotosRaw = log.fotosAlistamiento
           if (typeof fotosRaw === 'string') { try { fotosRaw = JSON.parse(fotosRaw) } catch { fotosRaw = null } }
           const fotos: string[] = (Array.isArray(fotosRaw) ? fotosRaw : null) || (log.fotoAlistamiento ? [log.fotoAlistamiento] : [])
@@ -236,7 +297,7 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
                           className={`text-base flex-shrink-0 ${obsPopup === log.id ? 'text-white' : 'text-zinc-400 hover:text-white'}`}>✍🏼</button>
                       )}
                       {/* Barcode/Guía — solo en etapa despacho */}
-                      {e.esDespacho && !e.firmaEntrega && (
+                      {e.esDespacho && log.modo === 'transportadora' && (
                         urlSeguimiento ? (
                           <button onClick={() => window.open(urlSeguimiento, '_blank')}
                             className="flex-shrink-0 text-lg">🔗</button>
