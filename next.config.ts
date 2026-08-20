@@ -27,6 +27,13 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // No-store en páginas HTML — previene bfcache con chunks obsoletos post-deploy
+        source: "/((?!_next/static|_next/image|favicon.ico|.*\.png$|.*\.jpg$|.*\.svg$|.*\.ico$).*)",
+        headers: [
+          { key: "Cache-Control", value: "no-store" },
+        ],
+      },
+      {
         // Headers de seguridad globales
         source: "/(.*)",
         headers: [

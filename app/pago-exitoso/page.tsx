@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
+import { useSession } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import { Suspense } from 'react'
 
@@ -19,6 +20,7 @@ interface PagoInfo {
   estado?: string
   referencia?: string
   createdAt?: string
+  empresaId?: string | null
 }
 
 const ROL_LABELS: Record<string, string> = {
@@ -136,6 +138,7 @@ function PagoExitosoContent() {
   const params = useSearchParams()
   const [info, setInfo] = useState<PagoInfo | null>(null)
   const [loading, setLoading] = useState(true)
+  const { data: session, status: sessionStatus } = useSession()
   const [taxbotNumero, setTaxbotNumero] = useState<string>('573168303842')
 
   useEffect(() => {
@@ -149,8 +152,6 @@ function PagoExitosoContent() {
   }, [params])
 
   let subtitulo = 'Tu pago fue procesado correctamente.'
-  let pasos: string[] = []
-
   if (!loading && info) {
     const nombre = info.empresaNombre
     if (info.esUpgrade && info.rolUpgrade) {
@@ -160,15 +161,34 @@ function PagoExitosoContent() {
         rolesStr = Object.entries(obj).map(([r, c]) => `${c} ${ROL_LABELS[r] ?? r}`).join(', ')
       } catch {}
       subtitulo = `Se agregaron ${rolesStr} al equipo de ${nombre}. Ya disponibles en tu panel.`
-      pasos = ['Ingresa al Gestor TuAgentX con tu cuenta actual.', `Crea los nuevos usuarios desde Empleados.`, 'Asigna rutas y empieza a operar.']
     } else if (info.esUpgrade && info.planNuevo) {
       subtitulo = `El plan de ${nombre} fue actualizado. Los nuevos accesos estarán disponibles en minutos.`
-      pasos = ['Ingresa al Gestor con tu cuenta.', 'Los nuevos agentes ya están activos.', 'Configura y empieza a operar.']
     } else if (!info.esUpgrade) {
       subtitulo = `Gracias ${nombre} — tu plan está activo. En los próximos minutos recibirás confirmación por WhatsApp.`
-      pasos = ['Revisa tu WhatsApp para confirmación.', 'Accede al Gestor con tus credenciales.', 'Comienza a operar con tu equipo.']
     }
   }
+
+  // Esperar sesión antes de renderizar
+  // Verificar acceso cuando sesión e info estén disponibles
+  useEffect(() => {
+    if (loading || sessionStatus === 'loading') return
+    if (sessionStatus === 'unauthenticated') {
+      window.location.href = '/login?callbackUrl=' + encodeURIComponent(window.location.href)
+      return
+    }
+    if (!info?.empresaId || !session?.user) return
+    const user = session.user as any
+    const empresaIdSesion = user.empresaId ?? user.empresa?.id ?? null
+    if (empresaIdSesion && empresaIdSesion !== info.empresaId) {
+      window.location.href = '/inicio'
+    }
+  }, [info, session, sessionStatus, loading])
+
+  if (sessionStatus === 'loading') return (
+    <div style={{ minHeight:'100vh', background:'#06050f', display:'flex', alignItems:'center', justifyContent:'center' }}>
+      <span style={{ color:'#6b7280', fontSize:14 }}>Verificando acceso...</span>
+    </div>
+  )
 
   return (
     <><Confeti />
@@ -189,20 +209,6 @@ function PagoExitosoContent() {
             {info?.voucherNum && <VoucherCard info={info} voucherNum={info.voucherNum} />}
 
             {/* Pasos */}
-            {pasos.length > 0 && (
-              <div style={{ width: '100%', background: 'rgba(37,99,235,.08)', border: '1px solid rgba(37,99,235,.15)', borderRadius: 14, padding: '16px 20px' }}>
-                <p style={{ color: '#93c5fd', fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 12 }}>Próximos pasos</p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {pasos.map((p, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                      <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#2563eb', color: '#fff', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{i + 1}</span>
-                      <span style={{ color: '#d1d5db', fontSize: 13, lineHeight: 1.4 }}>{p}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {/* CTA */}
             <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
               <a href="/login" style={{ width: '100%', background: '#2563eb', color: '#fff', fontWeight: 700, padding: '14px 0', borderRadius: 12, textDecoration: 'none', textAlign: 'center', fontSize: 15, boxShadow: '0 0 24px rgba(37,99,235,.4)' }}>
