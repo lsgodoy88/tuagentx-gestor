@@ -187,7 +187,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
   const [facturasSeleccionadas, setFacturasSeleccionadas] = useState<string[]>([])
   const [lineasPago, setLineasPago]     = useState<LineaPago[]>([crearLinea()])
   const [descuentosPorFactura, setDescuentosPorFactura] = useState<Record<string,string>>({})
-  const [notasPago, setNotasPago]       = useState('')
+  const notasPagoRef = useRef('')
   const [guardandoPago, setGuardandoPago] = useState(false)
   const fileInputRefs = useRef<Map<string, HTMLInputElement | null>>(new Map())
 
@@ -450,7 +450,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
       setModalRecaudoRapido(false)
       setLineasPago([crearLinea()])
       setRecaudandoCartera(cartera)
-      setNotasPago('')
+      notasPagoRef.current = ''
       cargarDetalleCartera({ ...cartera, clienteId: cliente.id })
     } else { setRrSinDeuda(true) }
   }
@@ -483,13 +483,13 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
     const descuentoTotal = Object.values(descuentosPorFactura).reduce((s, v) => s + Number(v || 0), 0)
     const res = await fetch('/api/cartera/pago-sync', {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Idempotency-Key': idempotencyKey },
-      body: JSON.stringify({ clienteApiId: detalleData.cliente?.apiId || detalleData.clienteApiId || detalleData.apiId, syncDeudaIds: facturasSeleccionadas, monto: montoTotal, descuento: descuentoTotal, descuentosPorFactura: Object.fromEntries(Object.entries(descuentosPorFactura).map(([k,v]) => [k, Number(v||0)])), metodoPago: lineasValidas.length === 1 ? lineasValidas[0].metodoPago : 'mixto', notas: notasPago||undefined, lineasPago: lineasValidas, ...(gpsCoords ? { lat: gpsCoords.lat, lng: gpsCoords.lng, gpsAccuracy: gpsRecaudo.pos?.accuracy ?? null } : {}) })
+      body: JSON.stringify({ clienteApiId: detalleData.cliente?.apiId || detalleData.clienteApiId || detalleData.apiId, syncDeudaIds: facturasSeleccionadas, monto: montoTotal, descuento: descuentoTotal, descuentosPorFactura: Object.fromEntries(Object.entries(descuentosPorFactura).map(([k,v]) => [k, Number(v||0)])), metodoPago: lineasValidas.length === 1 ? lineasValidas[0].metodoPago : 'mixto', notas: notasPagoRef.current||undefined, lineasPago: lineasValidas, ...(gpsCoords ? { lat: gpsCoords.lat, lng: gpsCoords.lng, gpsAccuracy: gpsRecaudo.pos?.accuracy ?? null } : {}) })
     })
     const d = await res.json()
     if (d.pago?.reciboToken) ultimoToken = d.pago.reciboToken
     setGuardandoPago(false)
     if (ultimoToken) window.open('/recaudo/recibo?token=' + ultimoToken, '_blank')
-    setRecaudandoCartera(null); setLineasPago([crearLinea()]); setDescuentosPorFactura({}); setNotasPago('')
+    setRecaudandoCartera(null); setLineasPago([crearLinea()]); setDescuentosPorFactura({}); notasPagoRef.current = ''
   }
 
   // ── Derived ──────────────────────────────────────────────────────────────
@@ -1029,10 +1029,10 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
           cartera={recaudandoCartera} detalleData={detalleData} loadingDetalle={loadingDetalle}
           lineasPago={lineasPago} facturasSeleccionadas={facturasSeleccionadas}
           procesando={guardandoPago} fmt={fmt}
-          onClose={() => { setRecaudandoCartera(null); setDetalleData(null); setLineasPago([crearLinea()]); setDescuentosPorFactura({}); setFacturasSeleccionadas([]) }}
+          onClose={() => { setRecaudandoCartera(null); setDetalleData(null); setLineasPago([crearLinea()]); setDescuentosPorFactura({}); setFacturasSeleccionadas([]); notasPagoRef.current = '' }}
           onSetLineasPago={setLineasPago} onSetFacturasSeleccionadas={setFacturasSeleccionadas}
           descuentosPorFactura={descuentosPorFactura} onSetDescuentosPorFactura={setDescuentosPorFactura}
-          onSubirVoucher={subirVoucherArchivo} onConfirmar={registrarPago} crearLinea={crearLinea}
+          onSubirVoucher={subirVoucherArchivo} onConfirmar={registrarPago} onNotasChange={(v: string) => { notasPagoRef.current = v }} crearLinea={crearLinea}
         />
       )}
     </div>

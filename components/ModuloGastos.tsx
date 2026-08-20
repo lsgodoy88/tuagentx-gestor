@@ -1,8 +1,9 @@
 'use client'
 import React, { useState, useEffect, useRef } from 'react'
+import { notifyModuleOpen, notifyModuleClose } from '@/lib/moduleEvents'
 import InputMoneda from '@/components/InputMoneda'
 import CiudadBuscador from '@/components/CiudadBuscador'
-import GastoManual from '@/components/GastoManual'
+import BorderBeam from '@/components/BorderBeam'
 
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
 
@@ -78,7 +79,6 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
   const [borradorCiudad, setBorradorCiudad] = useState('')
 
   const fileInputRef   = useRef<HTMLInputElement>(null)
-  const [showManual, setShowManual] = useState(false)
   const [tipoFiltro, setTipoFiltro] = useState('')
   const [tipos, setTipos] = useState<{id:string,label:string}[]>([])
   const [showTipos, setShowTipos] = useState(false)
@@ -91,6 +91,11 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
     fetch('/api/gastos/tipos').then(r => r.json()).then(d => { if (d.tipos) setTipos(d.tipos) }).catch(() => {})
   }, [])
   useEffect(() => { cargarGastos() }, [fechaDesde, fechaHasta, empleadoFiltro, tipoFiltro, mes, anio])
+
+  useEffect(() => {
+    if (popupAbierto) notifyModuleOpen()
+    else notifyModuleClose()
+  }, [popupAbierto])
   useEffect(() => {
     function handleClick(e: MouseEvent) { if (calRef.current && !calRef.current.contains(e.target as Node)) setShowCal(false) }
     document.addEventListener('mousedown', handleClick)
@@ -191,8 +196,8 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
           tipo: borradorTipo,
           ciudad: borradorCiudad.trim() || undefined,
           fechaDoc: borradorFechaDoc || null,
-          evidenciaKey,
-          datosIA,
+          evidenciaKey: evidenciaKey || 'manual',
+          datosIA: evidenciaKey ? datosIA : null,
         }),
       })
       if (!res.ok) throw new Error(await res.text())
@@ -270,16 +275,12 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
               </div>
             </div>
           )}
-          <GastoManual open={showManual} onClose={() => setShowManual(false)} onAdicionado={() => { setShowManual(false); cargarGastos() }} />
-          <button onClick={() => fileInputRef.current?.click()} disabled={subiendo}
+          <button
+            onClick={() => setPopupAbierto(true)}
+            disabled={subiendo}
             className="text-white text-sm font-semibold px-3 py-1.5 rounded-xl transition-colors border border-zinc-700 hover:border-zinc-500 disabled:opacity-50"
             style={{background:'rgba(255,255,255,0.06)'}}>
-            {subiendo ? '⏳ Analizando...' : '📎 Adjuntar'}
-          </button>
-          <button onClick={() => setShowManual(true)} disabled={subiendo}
-            className="text-white text-sm font-semibold px-3 py-1.5 rounded-xl transition-colors border border-zinc-700 hover:border-zinc-500"
-            style={{background:'rgba(255,255,255,0.06)'}}>
-            ✍🏼 Manual
+            {subiendo ? '⏳ Analizando...' : '+ Agregar Gasto'}
           </button>
           {onChangeFecha && mes && anio && (
             <div className="relative ml-auto flex items-center gap-2" ref={calRef}>
@@ -355,13 +356,13 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
                   {fmt(grupo.gastos.reduce((s, g) => s + Number(g.valor), 0))}
                 </span>
               </div>
-              <TablaGasto gastos={grupo.gastos} onAgregar={() => setShowManual(true)} isAdmin={isAdmin} onEliminar={id => setGastos(prev => prev.filter(g => g.id !== id))} />
+              <TablaGasto gastos={grupo.gastos} onAgregar={() => setPopupAbierto(true)} isAdmin={isAdmin} onEliminar={id => setGastos(prev => prev.filter(g => g.id !== id))} />
             </div>
           ))}
         </div>
       ) : (
         <>
-          <TablaGasto gastos={gastos} onAgregar={() => setShowManual(true)} isAdmin={isAdmin} onEliminar={id => setGastos(prev => prev.filter(g => g.id !== id))} />
+          <TablaGasto gastos={gastos} onAgregar={() => setPopupAbierto(true)} isAdmin={isAdmin} onEliminar={id => setGastos(prev => prev.filter(g => g.id !== id))} />
         </>
       )}
 
@@ -370,10 +371,27 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{ background: 'rgba(0,0,0,0.6)' }}
           onClick={cerrarPopup}>
           <div onClick={e => e.stopPropagation()}
-            className="w-full max-w-sm rounded-2xl p-5 space-y-4 overflow-y-auto"
-            style={{ background: '#141c2e', border: '1px solid #1e2a3d', maxHeight: '90vh' }}>
+            className={`bb-host${subiendo ? ' bb-active' : ''}`}
+            style={{ position:'relative', width:'100%', maxWidth:384, borderRadius:22, padding: subiendo ? 2 : 0, overflow:'hidden' }}>
+            <BorderBeam active={subiendo} borderRadius={22} duration={4} />
+            <div className="w-full p-5 space-y-4 overflow-y-auto"
+              style={{ background:'#141c2e', border: subiendo ? 'none' : '1px solid #1e2a3d', borderRadius:20, maxHeight:'90vh', position:'relative', zIndex:1 }}>
             <h3 className="text-white font-semibold text-base">Confirmar gasto</h3>
-            {!datosIA?.concepto && !datosIA?.valor && (
+
+            {/* Zona adjunto */}
+            <div
+              className="flex items-center justify-center gap-2 rounded-xl border-2 border-dashed cursor-pointer transition-colors"
+              style={{ borderColor: evidenciaKey ? '#34d399' : 'rgba(52,211,153,0.45)', background: evidenciaKey ? 'rgba(52,211,153,0.06)' : 'rgba(255,255,255,0.03)', padding: '12px 0' }}
+              onClick={() => fileInputRef.current?.click()}>
+              {subiendo
+                ? <span className="text-zinc-400 text-sm">⏳ Analizando...</span>
+                : evidenciaKey
+                  ? <span className="text-emerald-400 text-sm font-semibold">✅ Adjunto cargado — toca para cambiar</span>
+                  : <span className="text-zinc-500 text-sm">📎 Adjuntar factura o recibo <span className="text-zinc-600">(opcional)</span></span>
+              }
+            </div>
+
+            {evidenciaKey && datosIA && !datosIA?.concepto && !datosIA?.valor && (
               <p className="text-amber-400 text-xs bg-amber-500/10 border border-amber-500/30 rounded-xl px-3 py-2">
                 ⚠️ No se pudo leer el documento automáticamente — completa los datos manualmente
               </p>
@@ -429,9 +447,10 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
               </button>
               <button onClick={confirmarAdicionGasto}
                 disabled={!borradorConcepto.trim() || !borradorValor || !borradorTipo || !borradorCiudad}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors">
-                Adicionar gasto
+                className={`flex-1 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors ${evidenciaKey ? 'bg-emerald-600 hover:bg-emerald-500' : 'bg-orange-500 hover:bg-orange-400'}`}>
+                {evidenciaKey ? 'Agregar Gasto' : 'Gasto Manual'}
               </button>
+            </div>
             </div>
           </div>
         </div>

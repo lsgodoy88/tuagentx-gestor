@@ -5,6 +5,7 @@ import { checkPermiso } from '@/lib/permisos'
 import ModuloGastos from '@/components/ModuloGastos'
 import AbonoEgreso from '@/components/AbonoEgreso'
 import AdjuntarEgreso from '@/components/AdjuntarEgreso'
+import ModalAdjuntarEgreso from '@/components/ModalAdjuntarEgreso'
 import TabProveedores from '@/components/TabProveedores'
 
 // CATEGORIAS ahora es dinámico — se carga desde /api/egresos/categorias
@@ -61,6 +62,10 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
   const [filas, setFilas] = useState<Fila[]>([])
   const [editando, setEditando] = useState<Record<number, boolean>>({})
   const [saved, setSaved] = useState<Record<number, boolean>>({})
+  const [subiendoAdj, setSubiendoAdj] = useState<Record<string, boolean>>({})
+  const [modalAdjIdx, setModalAdjIdx] = useState<number | null>(null)
+  const debounceTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
+  const fileInputRefs = useRef<Map<number, HTMLInputElement | null>>(new Map())
 
   const cargar = useCallback(async () => {
     const res = await fetch(`/api/egresos?categoria=${cat.key}&mes=${mes}&anio=${anio}`)
@@ -133,14 +138,84 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
     }))
   }
 
-  function onBlurFila(idx: number) {
-    const f = filas[idx]
-    const tieneContenido = !!(f.concepto || f.valor)
-    if (tieneContenido) {
-      guardar(idx)
-    } else if (f.esNueva) {
-      // Fila nueva sin concepto ni valor (fecha no cuenta) — anular
-      setTimeout(() => setFilas(prev => prev.filter((_, i) => i !== idx)), 150)
+  function scheduleGuardar(idx: number) {
+    setTimeout(() => {
+      const active = document.activeElement
+      const activeIdx = active?.closest('[data-row-idx]')?.getAttribute('data-row-idx')
+      if (activeIdx === String(idx)) return
+      const f = filasRef.current[idx]
+      if (!f) return
+      const tieneContenido = !!(f.concepto && f.valor)
+      if (tieneContenido) {
+        guardar(idx)
+      } else if (f.esNueva && !f.concepto && !f.valor) {
+        setFilas(prev => prev.filter((_, i) => i !== idx))
+      }
+    }, 0)
+  }
+
+  async function handleAdjuntarFila(idx: number, file: File) {
+    const f = filasRef.current[idx]
+    if (!f?.id) return
+    const egresoId = f.id
+    setSubiendoAdj(p => ({ ...p, [egresoId]: true }))
+    try {
+      let base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader()
+        reader.onload = e => resolve(e.target?.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+      })
+      if (!base64.startsWith('data:application/pdf')) {
+        base64 = await new Promise<string>(resolve => {
+          const img = new Image()
+          img.onload = () => {
+            const scale = Math.min(1, 1280 / Math.max(img.width, img.height))
+            const canvas = document.createElement('canvas')
+            canvas.width = Math.round(img.width * scale)
+            canvas.height = Math.round(img.height * scale)
+            canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+            resolve(canvas.toDataURL('image/jpeg', 0.75))
+          }
+          img.onerror = () => resolve(base64)
+          img.src = base64
+        })
+      }
+      const mimeType = file.type || (base64.startsWith('data:application/pdf') ? 'application/pdf' : 'image/jpeg')
+      const res = await fetch('/api/gastos/voucher', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archivoBase64: base64, mimeType, gastoId: crypto.randomUUID() }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Error subiendo')
+      const key = data.key || ''
+      const ia = data.datosIA || {}
+      await fetch('/api/egresos', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: egresoId, evidenciaKey: key }),
+      })
+      setFilas(prev => prev.map((fi, i) => {
+        if (i !== idx) return fi
+        const conceptoVacio = !fi.concepto.trim()
+        const valorActual = parseInt(fi.valor) || 0
+        const valorIA = ia.valor ? Math.round(ia.valor) : 0
+        const difiere = valorActual > 0 && valorIA > 0 && Math.abs(valorActual - valorIA) / Math.max(valorActual, valorIA) > 0.05
+        return {
+          ...fi,
+          evidenciaKey: key,
+          concepto: conceptoVacio && ia.concepto ? ia.concepto.toUpperCase() : fi.concepto,
+          valor: !fi.valor && valorIA ? String(valorIA) : fi.valor,
+          fecha: !fi.fecha && ia.fecha ? ia.fecha : fi.fecha,
+          _valorIA: valorIA,
+          _valorDifiere: difiere,
+        } as any
+      }))
+    } catch (e: any) {
+      console.error('[egreso adj]', e)
+    } finally {
+      setSubiendoAdj(p => ({ ...p, [egresoId]: false }))
     }
   }
 
@@ -246,6 +321,7 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
                     style={{ background: saved[idx] ? 'rgba(34,197,94,0.15)' : rowBg, transition: 'background 0.3s', outline: filaEliminar === f.id ? '2px solid #ef4444' : 'none', position: 'relative' }}
                     onDoubleClick={() => { if (modoEliminar) return; !f.esNueva && setEditando(p => ({ ...p, [idx]: true })) }}
                     onClick={() => { if (modoEliminar && f.id) setFilaEliminar(fid => fid === f.id ? null : f.id) }}
+                    data-row-idx={idx}
                     onTouchStart={e => {
                       if (!f.id || modoEliminar || f.esNueva || editando[idx]) return
                       longPressTimer.current = setTimeout(() => {
@@ -270,34 +346,49 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
                     )}
 
                     <td style={{ ...tdStyle, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
-                      {f.esNueva ? null : isEdit ? <input type="date" value={f.fecha} onChange={e => set(idx,'fecha',e.target.value)} onBlur={() => onBlurFila(idx)} style={{ background:'transparent',color:'white',border:'none',outline:'none',width:110,fontSize:13 }} /> : fmtFecha(f.fecha)}
+                      {f.esNueva ? null : isEdit ? <input type="date" value={f.fecha} onChange={e => set(idx,'fecha',e.target.value)} onBlur={() => scheduleGuardar(idx)} style={{ background:'transparent',color:'white',border:'none',outline:'none',width:110,fontSize:13 }} /> : fmtFecha(f.fecha)}
                     </td>
                     <td style={{ ...tdStyle, minWidth: 200, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
                       <div style={{ display:'flex', alignItems:'center', gap:4 }}>
-                        {f.evidenciaKey && !isEdit && (
-                          <button onClick={async () => { const r = await fetch(`/api/egresos/url?key=${encodeURIComponent(f.evidenciaKey)}`); const d = await r.json(); if(d.url) window.open(d.url, '_blank') }} title="Ver factura"
-                            style={{ background:'none', border:'none', cursor:'pointer', fontSize:14, lineHeight:1, padding:'0 2px', opacity:0.7, flexShrink:0 }}>📎</button>
+                        {/* Input file oculto por fila */}
+                        <input type="file" accept="image/*,application/pdf" style={{ display:'none' }}
+                          ref={el => { fileInputRefs.current.set(idx, el) }}
+                          onChange={e => { if (e.target.files?.[0]) { handleAdjuntarFila(idx, e.target.files[0]); e.target.value = '' } }} />
+                        {isEdit ? <input value={f.concepto} onChange={e => { set(idx,'concepto',e.target.value.toUpperCase()); scheduleGuardar(idx) }} onBlur={() => scheduleGuardar(idx)} autoFocus={f.esNueva} style={{ background:'transparent',color:'white',border:'none',outline:'none',width:'100%',fontSize:13 }} placeholder="Concepto..." /> : <span style={{ fontWeight: pagado ? 700 : 500 }}>{f.concepto}</span>}
+                        {/* Boton adjuntar / ver / alerta */}
+                        {f.id && (
+                          subiendoAdj[f.id]
+                            ? <span style={{ fontSize:12, color:'#94a3b8', flexShrink:0 }}>⏳</span>
+                            : f.evidenciaKey
+                              ? <>
+                                  <button onClick={async () => { const r = await fetch(`/api/egresos/url?key=${encodeURIComponent(f.evidenciaKey)}`); const d = await r.json(); if(d.url) window.open(d.url, '_blank') }} title="Ver factura"
+                                    style={{ background:'none', border:'none', cursor:'pointer', fontSize:14, lineHeight:1, padding:'0 2px', opacity:0.7, flexShrink:0 }}>📎</button>
+                                  {(f as any)._valorDifiere && <span title="El valor difiere del documento" style={{ fontSize:13, flexShrink:0, cursor:'default' }}>⚠️</span>}
+                                </>
+                              : <button onClick={() => setModalAdjIdx(idx)} title="Adjuntar / proveedor"
+                                  style={{ background:'none', border:'none', cursor:'pointer', fontSize:14, lineHeight:1, padding:'0 2px', opacity:0.35, flexShrink:0, transition:'opacity 0.2s' }}
+                                  onMouseEnter={e => (e.currentTarget.style.opacity='1')}
+                                  onMouseLeave={e => (e.currentTarget.style.opacity='0.35')}>📎</button>
                         )}
-                        {isEdit ? <input value={f.concepto} onChange={e => set(idx,'concepto',e.target.value.toUpperCase())} onBlur={() => onBlurFila(idx)} autoFocus={f.esNueva} style={{ background:'transparent',color:'white',border:'none',outline:'none',width:'100%',fontSize:13 }} placeholder="Concepto..." /> : <span style={{ fontWeight: pagado ? 700 : 500 }}>{f.concepto}</span>}
                       </div>
                     </td>
                     <td style={{ ...tdStyle, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
-                      {isEdit ? <NumInput value={f.valor} onChange={v => set(idx,'valor',v)} onBlur={() => onBlurFila(idx)} /> : f.valor ? fmt(f.valor) : ''}
+                      {isEdit ? <NumInput value={f.valor} onChange={v => set(idx,'valor',v)} onBlur={() => scheduleGuardar(idx)} /> : f.valor ? fmt(f.valor) : ''}
                     </td>
                     <td style={{ ...tdStyle, color: parseInt(f.retencion) > 0 ? '#f97316' : 'white', borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
-                      {isEdit ? <NumInput value={f.retencion} onChange={v => set(idx,'retencion',v)} onBlur={() => onBlurFila(idx)} width={80} /> : parseInt(f.retencion) > 0 ? fmt(f.retencion) : ''}
+                      {isEdit ? <NumInput value={f.retencion} onChange={v => set(idx,'retencion',v)} onBlur={() => scheduleGuardar(idx)} width={80} /> : parseInt(f.retencion) > 0 ? fmt(f.retencion) : ''}
                     </td>
                     <td style={{ ...tdStyle, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
-                      {(isEdit && f.medioPago === 'EFECTIVO') ? <NumInput value={f.abonoPago} onChange={v => set(idx,'abonoPago',v)} onBlur={() => onBlurFila(idx)} /> : f.abonoPago ? fmt(f.abonoPago) : ''}
+                      {(isEdit && f.medioPago === 'EFECTIVO') ? <NumInput value={f.abonoPago} onChange={v => set(idx,'abonoPago',v)} onBlur={() => scheduleGuardar(idx)} /> : f.abonoPago ? fmt(f.abonoPago) : ''}
                     </td>
                     <td style={{ ...tdStyle, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
-                      {isEdit ? <NumInput value={f.descuento} onChange={v => set(idx,'descuento',v)} onBlur={() => onBlurFila(idx)} width={80} /> : parseInt(f.descuento) > 0 ? fmt(f.descuento) : ''}
+                      {isEdit ? <NumInput value={f.descuento} onChange={v => set(idx,'descuento',v)} onBlur={() => scheduleGuardar(idx)} width={80} /> : parseInt(f.descuento) > 0 ? fmt(f.descuento) : ''}
                     </td>
                     <td style={{ ...tdStyle, color: parseInt(f.saldo) > 0 ? '#f59e0b' : 'white', borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
                       {parseInt(f.saldo) !== 0 ? fmt(f.saldo) : ''}
                     </td>
                     <td style={{ ...tdStyle, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
-                      {isEdit ? <input type="date" value={f.fechaPago} onChange={e => set(idx,'fechaPago',e.target.value)} onBlur={() => onBlurFila(idx)} style={{ background:'transparent',color:'white',border:'none',outline:'none',width:110,fontSize:13 }} /> : fmtFecha(f.fechaPago)}
+                      {isEdit ? <input type="date" value={f.fechaPago} onChange={e => set(idx,'fechaPago',e.target.value)} onBlur={() => scheduleGuardar(idx)} style={{ background:'transparent',color:'white',border:'none',outline:'none',width:110,fontSize:13 }} /> : fmtFecha(f.fechaPago)}
                     </td>
                     <td style={{ ...tdStyle, color: '#a78bfa', borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
                       <select value={f.medioPago} onChange={e => { set(idx,'medioPago',e.target.value); if(f.id) fetch('/api/egresos',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:f.id,medioPago:e.target.value})}) }} className={f.medioPago ? 'select-active' : ''} style={{ background:'rgba(255,255,255,0.06)',color:'#a78bfa',border:'1px solid rgba(255,255,255,0.10)',outline:'none',fontSize:12,borderRadius:6,padding:'2px 4px',cursor:'pointer' }}><option value="">—</option>{MEDIOS.map(m => <option key={m} value={m} style={{background:'#1e2030'}}>{m}</option>)}</select>
@@ -357,6 +448,34 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
         </div>
       </div>
 
+
+      {/* Modal adjuntar egreso */}
+      {modalAdjIdx !== null && filas[modalAdjIdx] && (
+          <ModalAdjuntarEgreso
+            egresoId={filas[modalAdjIdx!].id}
+            categoriaKey={cat.key}
+            mes={mes} anio={anio}
+            initialConcepto={filas[modalAdjIdx!].concepto}
+            initialValor={filas[modalAdjIdx!].valor}
+            initialRetencion={filas[modalAdjIdx!].retencion}
+            initialFecha={filas[modalAdjIdx!].fecha}
+            onClose={() => setModalAdjIdx(null)}
+            onGuardado={data => {
+              const idx = modalAdjIdx!
+              setFilas(prev => prev.map((fi, i) => i !== idx ? fi : ({
+                ...fi,
+                evidenciaKey: data.evidenciaKey || fi.evidenciaKey,
+                concepto: data.concepto || fi.concepto,
+                valor: data.valor || fi.valor,
+                retencion: data.retencion,
+                fecha: data.fecha || fi.fecha,
+                saldo: String(Math.max(0, (parseFloat(data.valor)||0) - (parseFloat(data.retencion)||0))),
+                esNueva: false,
+              })))
+              setModalAdjIdx(null)
+            }}
+          />
+      )}
 
       {/* Overlay proveedor — fixed, centrado */}
       {filaAccion && (

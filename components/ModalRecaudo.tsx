@@ -1,6 +1,8 @@
 'use client'
 import React, { useEffect, useRef, useState } from 'react'
+import { notifyModuleOpen, notifyModuleClose } from '@/lib/moduleEvents'
 import InputMoneda from './InputMoneda'
+import BorderBeam from './BorderBeam'
 
 interface LineaPago {
   id: string
@@ -26,6 +28,7 @@ interface ModalRecaudoProps {
   onSetLineasPago: (fn: (prev: LineaPago[]) => LineaPago[]) => void
   onSetFacturasSeleccionadas: (fn: (prev: string[]) => string[]) => void
   onSubirVoucher: (lineaId: string, file: File) => void
+  onNotasChange?: (v: string) => void
   onConfirmar: () => void
   crearLinea: () => LineaPago
 }
@@ -33,11 +36,16 @@ interface ModalRecaudoProps {
 export default function ModalRecaudo({
   cartera, detalleData, loadingDetalle, lineasPago, facturasSeleccionadas, descuentosPorFactura, onSetDescuentosPorFactura,
   procesando, fmt, onClose, onSetLineasPago, onSetFacturasSeleccionadas,
-  onSubirVoucher, onConfirmar, crearLinea,
+  onSubirVoucher, onConfirmar, crearLinea, onNotasChange,
 }: ModalRecaudoProps) {
   const clienteId = cartera?.clienteId || cartera?.cliente?.id || null
 
   // GPS — igual que ModalVisita
+  useEffect(() => {
+    notifyModuleOpen()
+    return () => { notifyModuleClose() }
+  }, [])
+
   const [capturarGps, setCapturarGps] = useState(false)
   const [gpsStatus, setGpsStatus] = useState<'idle'|'buscando'|'ok'|'error'>('idle')
   const [gpsCoords, setGpsCoords] = useState<{lat:number,lng:number}|null>(null)
@@ -71,6 +79,7 @@ export default function ModalRecaudo({
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map())
   const scrollRef = useRef<HTMLDivElement>(null)
   const [notasOpen, setNotasOpen] = React.useState(false)
+  const [notasLocal, setNotasLocal] = React.useState('')
   const [confirmadoSobrepago, setConfirmadoSobrepago] = React.useState(false)
 
   const montoSeleccionado = (detalleData?.DetalleCartera || [])
@@ -91,7 +100,8 @@ export default function ModalRecaudo({
 
   return (
     <div className="fixed inset-0 flex items-center justify-center z-50 px-2" style={{background:"#0f1729"}}>
-      <div className="rounded-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden" style={{background:"#0f172a",border:"1px solid rgba(59,130,246,0.50)"}}>
+      <div style={{ width:'100%', maxWidth:512 }}>
+        <div className="rounded-2xl w-full max-h-[90vh] flex flex-col overflow-hidden" style={{background:"#0f172a", border:'1px solid rgba(59,130,246,0.50)'}}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-4 pt-2.5 pb-2.5 border-b" style={{borderColor:"rgba(59,130,246,0.30)"}}>
@@ -170,7 +180,12 @@ export default function ModalRecaudo({
               {/* Líneas de pago */}
               <div className="space-y-3">
                 {lineasPago.map((linea, idx) => (
-                  <div key={linea.id} className="bg-zinc-500/40 border border-blue-500/25 rounded-xl p-4 space-y-3">
+                  <div key={linea.id}
+                    className={`bb-host${linea.cargandoVoucher ? ' bb-active' : ''}`}
+                    style={{ position:'relative', borderRadius:14, padding: linea.cargandoVoucher ? 2 : 0, overflow:'hidden' }}>
+                    <BorderBeam active={linea.cargandoVoucher} borderRadius={14} duration={3} />
+                    <div className="bg-zinc-500/40 border border-blue-500/25 rounded-xl p-4 space-y-3"
+                      style={{ position:'relative', zIndex:1, border: linea.cargandoVoucher ? 'none' : undefined }}>
                     <div className="flex items-center justify-between">
                       <span className="text-white text-sm font-semibold uppercase tracking-wide">Pago {idx + 1}</span>
                       {lineasPago.length > 1 && (
@@ -322,8 +337,8 @@ export default function ModalRecaudo({
                           </label>
                         )}
                         {linea.cargandoVoucher && (
-                          <div className="bg-zinc-500/40 border border-blue-500/25 rounded-xl px-4 py-3 text-white text-sm text-center animate-pulse">
-                            Analizando comprobante con IA...
+                          <div className="rounded-xl px-4 py-3 text-blue-400 text-sm text-center font-medium">
+                            ⏳ Analizando comprobante con IA...
                           </div>
                         )}
                         {linea.voucherKey && !linea.voucherDatosIA && !linea.cargandoVoucher && (
@@ -363,6 +378,7 @@ export default function ModalRecaudo({
                         )}
                       </div>
                     )}
+                    </div>
                   </div>
                 ))}
 
@@ -506,10 +522,10 @@ export default function ModalRecaudo({
                   <span>Notas (opcional)</span>
                   <span className="text-zinc-500">{notasOpen ? '▲' : '▼'}</span>
                 </button>
-                {notasOpen && (
-                  <textarea rows={2} placeholder="Observaciones del recaudo..."
-                    className="mt-1.5 w-full bg-blue-950/40 border border-blue-500/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-blue-400 resize-none" />
-                )}
+                <textarea rows={2} placeholder="Observaciones del recaudo..."
+                  value={notasLocal} onChange={e => { setNotasLocal(e.target.value); onNotasChange?.(e.target.value) }}
+                  style={{ display: notasOpen ? 'block' : 'none' }}
+                  className="mt-1.5 w-full bg-blue-950/40 border border-blue-500/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-blue-400 resize-none" />
               </div>
 
               {/* Botón confirmar */}
@@ -555,6 +571,7 @@ export default function ModalRecaudo({
               })()}
             </>
           )}
+        </div>
         </div>
       </div>
     </div>

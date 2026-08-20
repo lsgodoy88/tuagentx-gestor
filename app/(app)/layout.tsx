@@ -76,6 +76,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const collapsed = !sidebarOpen
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [navigating, setNavigating] = useState(false)
+  const [moduloAbierto, setModuloAbierto] = useState(false)
+
+  useEffect(() => {
+    const open  = () => setModuloAbierto(true)
+    const close = () => setModuloAbierto(false)
+    window.addEventListener('module:open', open)
+    window.addEventListener('module:close', close)
+    return () => {
+      window.removeEventListener('module:open', open)
+      window.removeEventListener('module:close', close)
+    }
+  }, [])
   const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [asistenteAbierto, setAsistenteAbierto] = useState(false)
   const [bloqueado, setBloqueado] = useState(false)
@@ -637,7 +649,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="md:hidden">{(isEmpresa || isSupervisor) && <AlertasNotch />}</div>
 
       {/* Robot TaXBot — banda derecha, solo en dashboard */}
-          <div className="md:hidden">{(isEmpresa || isSupervisor || isEmpleado) && pathname === '/inicio' && (
+          <div className="md:hidden">{(isEmpresa || isSupervisor || isEmpleado) && pathname === '/inicio' && !asistenteAbierto && !moduloAbierto && (
             <button
               className="fixed z-[3001] md:hidden robot-taxbot"
               onClick={() => setAsistenteAbierto(true)}

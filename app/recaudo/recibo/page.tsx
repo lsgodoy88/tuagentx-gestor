@@ -412,7 +412,7 @@ function ReciboContent() {
           {pago.notas && (
             <>
               <hr className="sep" />
-              <div style={{ fontSize: fs.small, color: '#555' }}>Nota: {pago.notas}</div>
+              <div className="row" style={{ fontSize: fs.base }}><span className="lbl">Nota:</span><span className="val">{pago.notas}</span></div>
             </>
           )}
 

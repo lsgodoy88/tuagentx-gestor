@@ -12,7 +12,6 @@ import { CountUp, LiveDot, LoadingBorder } from '@/components/FX'
 import InputMoneda from '@/components/InputMoneda'
 import SelectorMes from '@/components/SelectorMes'
 import CarteraCard from '@/components/CarteraCard'
-import ModalRecaudo from '@/components/ModalRecaudo'
 import { ROLES_ADMIN } from '@/lib/auth-helpers'
 import type { PagoListado, ComisionVendedor } from '@/lib/types/cartera'
 
@@ -91,6 +90,16 @@ export default function CarteraPage() {
   const [vendedores, setVendedores] = useState<any[]>([])
   const [vendedorPagoId, setVendedorPagoId] = useState('')
   const [busquedaPagos, setBusquedaPagos] = useState('')
+  const [notaPopupId, setNotaPopupId] = useState<string | null>(null)
+  const notaPopupIdRef = useRef<string | null>(null)
+  useEffect(() => {
+    notaPopupIdRef.current = notaPopupId
+  }, [notaPopupId])
+  useEffect(() => {
+    const close = () => { if (notaPopupIdRef.current) setNotaPopupId(null) }
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [])
   const [pagosGlobal, setPagosGlobal] = useState<any[]>([])
   const [loadingPagosGlobal, setLoadingPagosGlobal] = useState(false)
   const [filtroDia, setFiltroDia] = useState(() => { try { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) } catch { return '' } })
@@ -145,7 +154,6 @@ export default function CarteraPage() {
   const [facturasSeleccionadas, setFacturasSeleccionadas] = useState<string[]>([])
   const [lineasPago, setLineasPago] = useState<LineaPago[]>([crearLinea()])
   const [descuentosPorFactura, setDescuentosPorFactura] = useState<Record<string,string>>({})
-  const [notasPago, setNotasPago] = useState('')
   const [guardandoPago, setGuardandoPago] = useState(false)
   const fileInputRefs = useRef<Map<string, HTMLInputElement | null>>(new Map())
   const guardandoPagoRef = useRef(false) // ref síncrono — bloquea doble tap antes del re-render
@@ -414,7 +422,6 @@ export default function CarteraPage() {
     setDetalleData(null)
     setFacturasSeleccionadas([])
     setLineasPago([crearLinea()])
-    setNotasPago('')
     setLoadingDetalle(true)
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 12000)
@@ -556,51 +563,6 @@ export default function CarteraPage() {
       console.error('[voucher] catch:', err)
       alert('Error al procesar el comprobante')
       setLineasPago(prev => prev.map(l => l.id === lineaId ? { ...l, cargandoVoucher: false } : l))
-    }
-  }
-
-  async function registrarPago() {
-    if (!detalleData) return
-    if (guardandoPagoRef.current) return // bloqueo síncrono contra doble tap
-    const total = lineasPago.reduce((s, l) => s + Number(l.monto || 0), 0)
-    if (total === 0) return
-    guardandoPagoRef.current = true
-    setGuardandoPago(true)
-    let ultimoId: string | null = null
-    let ultimoToken: string | null = null
-    let ultimoAnchoPapel: string = '80mm'
-    for (const linea of lineasPago) {
-      const idempotencyKey = crypto.randomUUID()
-      const res = await fetch('/api/cartera/pago-sync', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Idempotency-Key': idempotencyKey },
-        body: JSON.stringify({
-          syncDeudaIds: facturasSeleccionadas,
-          clienteApiId: detalleData.clienteApiId,
-          integracionId: detalleData.integracionId,
-          monto: Number(linea.monto || 0),
-          descuento: Object.values(descuentosPorFactura).reduce((s, v) => s + Number(v || 0), 0),
-          descuentosPorFactura: Object.fromEntries(
-            Object.entries(descuentosPorFactura).map(([k, v]) => [k, Number(v || 0)])
-          ),
-          metodoPago: linea.metodoPago,
-          notas: notasPago || undefined,
-          ...(linea.voucherKey ? { voucherKey: linea.voucherKey, voucherDatosIA: linea.voucherDatosIA } : {}),
-        })
-      })
-      const data = await res.json()
-      if (data.pago) { ultimoId = data.pago.id; ultimoToken = data.pago.reciboToken || null; if (data.anchoPapel) ultimoAnchoPapel = data.anchoPapel }
-    }
-    guardandoPagoRef.current = false
-    setGuardandoPago(false)
-    if (ultimoId) {
-      if (ultimoToken) window.open('/recaudo/recibo?token=' + ultimoToken + (ultimoAnchoPapel === '58mm' ? '&fmt=58mm' : ''), '_blank')
-      setRecaudandoCartera(null)
-      setLineasPago([crearLinea()])
-      setDescuentosPorFactura({})
-      setNotasPago('')
-      clearCache('cartera')
-      cargarDatos()
     }
   }
 
@@ -1777,6 +1739,7 @@ export default function CarteraPage() {
                       <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",whiteSpace:"nowrap"}}>Transf.</th>
                       <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",whiteSpace:"nowrap"}}>Descuento</th>
                       <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",whiteSpace:"nowrap"}}>Nuevo Saldo</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center",whiteSpace:"nowrap"}}></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1820,6 +1783,31 @@ export default function CarteraPage() {
                             <td className="px-4 py-3 text-right text-zinc-300 whitespace-nowrap" style={{borderBottom: subFacturas.length > 0 ? 'none' : '1px solid #1e2a3d'}}>
                               {p._nuevoSaldo !== null ? fmt(p._nuevoSaldo) : '—'}
                             </td>
+                            <td className="px-4 py-3 text-center whitespace-nowrap" style={{borderBottom: subFacturas.length > 0 ? 'none' : '1px solid #1e2a3d'}}>
+                              {p.notas ? (
+                                <span style={{position:'relative',display:'inline-block'}}>
+                                  <button
+                                    onClick={e => { e.stopPropagation(); setNotaPopupId(notaPopupId === p.id ? null : p.id) }}
+                                    style={{background:'none',border:'none',cursor:'pointer',fontSize:16,padding:0}}>
+                                    ✍🏼
+                                  </button>
+                                  {notaPopupId === p.id && (
+                                    <div style={{
+                                      position:'absolute', right:0, bottom:'calc(100% + 6px)',
+                                      background:'#1e2a3d', border:'1px solid #2d3a50',
+                                      borderRadius:10, padding:'8px 12px',
+                                      minWidth:180, maxWidth:260,
+                                      fontSize:13, color:'white',
+                                      boxShadow:'0 4px 20px rgba(0,0,0,0.5)',
+                                      zIndex:100, whiteSpace:'pre-wrap', wordBreak:'break-word',
+                                      lineHeight:1.4,
+                                    }}>
+                                      {p.notas}
+                                    </div>
+                                  )}
+                                </span>
+                              ) : null}
+                            </td>
                           </tr>
                           {subFacturas.map((sf: any, si: number) => {
                             const bSub = { borderBottom: si < subFacturas.length - 1 ? 'none' : '1px solid #1e2a3d' }
@@ -1846,6 +1834,7 @@ export default function CarteraPage() {
                                 <td style={{...tdSub, ...bSub}}></td>
                                 <td style={{...tdSub, ...bSub}}></td>
                                 <td style={{...tdSub, ...bSub}}></td>
+                                <td style={{...tdSub, ...bSub}}></td>
                               </tr>
                             )
                           })}
@@ -1861,6 +1850,7 @@ export default function CarteraPage() {
                       <td className="px-4 py-3 text-right text-blue-400 font-bold whitespace-nowrap">{fmt(totTransf)}</td>
                       <td className="px-4 py-3 text-right text-amber-400 font-bold whitespace-nowrap">{totDesc > 0 ? fmt(totDesc) : '—'}</td>
                       <td className="px-4 py-3 text-right text-zinc-400 font-bold">—</td>
+                      <td></td>
                     </tr>
                   </tfoot>
                 </table>
@@ -2119,26 +2109,6 @@ export default function CarteraPage() {
         )
       })()}
 
-      {/* Modal Recaudar */}
-      {recaudandoCartera && (
-        <ModalRecaudo
-          cartera={recaudandoCartera}
-          detalleData={detalleData}
-          loadingDetalle={loadingDetalle}
-          lineasPago={lineasPago}
-          facturasSeleccionadas={facturasSeleccionadas}
-          procesando={guardandoPago}
-          fmt={fmt}
-          onClose={() => setRecaudandoCartera(null)}
-          onSetLineasPago={setLineasPago}
-          onSetFacturasSeleccionadas={setFacturasSeleccionadas}
-          descuentosPorFactura={descuentosPorFactura}
-          onSetDescuentosPorFactura={setDescuentosPorFactura}
-          onSubirVoucher={subirVoucherArchivo}
-          onConfirmar={registrarPago}
-          crearLinea={crearLinea}
-        />
-      )}
     </div>
 
     {/* Modal Sync con historial */}
