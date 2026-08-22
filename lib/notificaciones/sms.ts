@@ -42,8 +42,8 @@ export async function consultarEstadoSMS(msgId: string): Promise<'entregado' | '
     )
     const data = await res.json()
     const state = data?.data?.state?.toLowerCase() || ''
-    if (state.includes('delivered') || state === 'delivered') return 'entregado'
-    if (state.includes('failed') || state.includes('error') || state.includes('undelivered')) return 'fallido'
+    if (state.includes('undelivered') || state.includes('failed') || state.includes('error')) return 'fallido'
+    if (state === 'delivered' || state.includes('delivered')) return 'entregado'
     return 'pendiente'
   } catch {
     return 'pendiente'

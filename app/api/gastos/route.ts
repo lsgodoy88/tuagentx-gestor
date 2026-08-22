@@ -78,6 +78,10 @@ export async function POST(req: NextRequest) {
   if (!tipo) {
     return NextResponse.json({ error: 'tipo requerido' }, { status: 400 })
   }
+  const tipoValido = await (prisma as any).gastoTipo.findFirst({ where: { empresaId, label: tipo } })
+  if (!tipoValido) {
+    return NextResponse.json({ error: 'tipo inválido' }, { status: 400 })
+  }
 
   // empleadoIdForzado !== null => vendedor/impulsadora, SIEMPRE su propio id,
   // ignora cualquier empleadoId que venga en el body (evita suplantación).

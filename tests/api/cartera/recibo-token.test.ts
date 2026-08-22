@@ -8,16 +8,12 @@ vi.mock('@/lib/prisma', () => ({
 }))
 vi.mock('next-auth', () => ({ getServerSession: vi.fn() }))
 vi.mock('@/lib/auth', () => ({ authOptions: {} }))
-vi.mock('@/lib/recibos', async () => {
-  const real = await vi.importActual<typeof import('@/lib/recibos')>('@/lib/recibos')
-  return {
-    ...real,
-    generarReciboToken: vi.fn(() => ({
-      reciboToken: 'tok_new',
-      tokenExpira: new Date('2026-05-12T16:00:00Z'),
-    })),
-  }
-})
+vi.mock('@/lib/cartera/recibos', () => ({
+  generarReciboToken: vi.fn(() => ({
+    reciboToken: 'tok_new',
+    tokenExpira: new Date('2026-05-12T16:00:00Z'),
+  })),
+}))
 
 import { POST } from '@/app/api/cartera/recibo-token/route'
 import { prisma } from '@/lib/prisma'

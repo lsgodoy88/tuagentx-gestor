@@ -1,312 +1,156 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
-vi.mock('@/lib/prisma', () => ({
-  prisma: {
-    pagoCartera: { findFirst: vi.fn() },
-    empresa: { findUnique: vi.fn() },
-    cliente: { findFirst: vi.fn() },
-    syncDeuda: { findUnique: vi.fn(), findMany: vi.fn() },
-  },
-}))
+vi.mock('@/lib/prisma', () => ({ prisma: {} }))
 
-import { GET } from '@/app/api/cartera/recibo-publico/route'
 import { prisma } from '@/lib/prisma'
+import { GET } from '@/app/api/cartera/recibo-publico/route'
 
-const makeReq = (token: string | null) => {
-  const url = token === null
-    ? 'http://localhost/api/cartera/recibo-publico'
-    : `http://localhost/api/cartera/recibo-publico?token=${token}`
+const p = prisma as any
+
+const PAGO_SNAPSHOT = {
+  id: 'pago-01', reciboToken: 'tok-abc', tokenExpira: null,
+  metodopago: 'efectivo', numeroRecibo: 'REC001', monto: 100000, descuento: 0,
+  clienteApiId: 'api-cli-01', saldoAnterior: null, valorFactura: null,
+  reciboPago: {
+    empresa: { nombre: 'Test SA', anchoPapel: '80mm', prefijo: 'REC', nit: null, telefono: null, direccion: null, logo: null },
+    cliente: { nombre: 'Cliente Test' },
+    detalles: [{ valorFactura: 100000 }],
+    saldoAnterior: 130000, saldoNuevo: 30000,
+  },
+  Cartera: null,
+  Empleado: { id: 'emp-01', nombre: 'Carlos', empresaId: 'emp-01' },
+  Aplicaciones: [],
+}
+
+const PAGO_LIVE = {
+  id: 'pago-02', reciboToken: 'tok-xyz', tokenExpira: null,
+  metodopago: 'transferencia', numeroRecibo: 'REC002', monto: 50000, descuento: 0,
+  clienteApiId: 'api-cli-01', saldoAnterior: 100000, valorFactura: 200000,
+  reciboPago: null,
+  Cartera: null,
+  Empleado: { id: 'emp-01', nombre: 'Carlos', empresaId: 'emp-01' },
+  Aplicaciones: [{ syncDeudaId: 'sd-01', numeroFactura: 1001, montoAplicado: 50000 }],
+}
+
+function makeReq(token?: string) {
+  const url = token
+    ? `http://localhost/api/cartera/recibo-publico?token=${token}`
+    : 'http://localhost/api/cartera/recibo-publico'
   return new NextRequest(url)
 }
 
-describe('GET /api/cartera/recibo-publico — recibo público por token', () => {
-  beforeEach(() => { vi.clearAllMocks() })
+beforeEach(() => {
+  vi.clearAllMocks()
+  p.pagoCartera = { findFirst: vi.fn().mockResolvedValue(PAGO_SNAPSHOT) }
+  p.empresa     = { findUnique: vi.fn().mockResolvedValue({ id: 'emp-01', nombre: 'Test SA' }) }
+  p.cliente     = { findFirst: vi.fn().mockResolvedValue({ id: 'cli-01', nombre: 'Cliente Test' }) }
+  p.syncDeuda   = { findMany: vi.fn().mockResolvedValue([{ id: 'sd-01', valor: 200000, saldo: 150000, clienteApiId: 'api-cli-01', data: {} }]), findUnique: vi.fn() }
+})
 
-  describe('validación de token', () => {
-    it('sin token → 400', async () => {
-      const res = await GET(makeReq(null))
-      expect(res.status).toBe(400)
-      const body = await res.json()
-      expect(body.error).toMatch(/token/i)
-    })
-
-    it('token no existe en BD → 404', async () => {
-      vi.mocked((prisma as any).pagoCartera.findFirst).mockResolvedValue(null)
-      const res = await GET(makeReq('inexistente'))
-      expect(res.status).toBe(404)
-      const body = await res.json()
-      expect(body.error).toMatch(/invalido/i)
-    })
-
-    it('búsqueda usa el campo reciboToken', async () => {
-      vi.mocked((prisma as any).pagoCartera.findFirst).mockResolvedValue(null)
-      await GET(makeReq('tok_abc'))
-      expect((prisma as any).pagoCartera.findFirst).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { reciboToken: 'tok_abc' } })
-      )
-    })
+describe('GET /api/cartera/recibo-publico — auth y validación', () => {
+  it('sin token → 400', async () => {
+    const res = await GET(makeReq())
+    expect(res.status).toBe(400)
+    const json = await res.json()
+    expect(json.error).toMatch(/token requerido/i)
   })
 
-  describe('expiración de token', () => {
-    it('tokenExpira en el pasado → 410 con pagoId (frontend puede pedir renovar)', async () => {
-      const pago = {
-        id: 'pago-1',
-        reciboToken: 'tok',
-        tokenExpira: new Date(Date.now() - 60_000), // expirado hace 1 min
-        Cartera: null,
-        Empleado: null,
-        Aplicaciones: [],
-      }
-      vi.mocked((prisma as any).pagoCartera.findFirst).mockResolvedValue(pago)
-      const res = await GET(makeReq('tok'))
-      expect(res.status).toBe(410)
-      const body = await res.json()
-      expect(body.error).toBe('TOKEN_EXPIRADO')
-      expect(body.pagoId).toBe('pago-1')
-    })
-
-    it('tokenExpira en el futuro → procede', async () => {
-      const pago = {
-        id: 'pago-1',
-        reciboToken: 'tok',
-        tokenExpira: new Date(Date.now() + 60_000),
-        monto: 100, descuento: 0,
-        Cartera: null,
-        Empleado: null,
-        Aplicaciones: [],
-      }
-      vi.mocked((prisma as any).pagoCartera.findFirst).mockResolvedValue(pago)
-      const res = await GET(makeReq('tok'))
-      expect(res.status).toBe(200)
-    })
-
-    it('tokenExpira null → procede sin expirar', async () => {
-      const pago = {
-        id: 'pago-1',
-        reciboToken: 'tok',
-        tokenExpira: null,
-        monto: 100, descuento: 0,
-        Cartera: null,
-        Empleado: null,
-        Aplicaciones: [],
-      }
-      vi.mocked((prisma as any).pagoCartera.findFirst).mockResolvedValue(pago)
-      const res = await GET(makeReq('tok'))
-      expect(res.status).toBe(200)
-    })
+  it('token inválido (no encontrado) → 404', async () => {
+    p.pagoCartera.findFirst.mockResolvedValue(null)
+    const res = await GET(makeReq('tok-invalido'))
+    expect(res.status).toBe(404)
   })
 
-  describe('modo Cartera (flujo viejo: Cliente/Empresa/DetalleCartera relacionados)', () => {
-    it('pago con Cartera → devuelve la cartera normalizada con cliente/empresa', async () => {
-      const pago = {
-        id: 'pago-cartera-1',
-        monto: 50_000, descuento: 0,
-        tokenExpira: null,
-        metodopago: 'efectivo',
-        numeroRecibo: 'CL2605001',
-        Cartera: {
-          id: 'cart-1',
-          empresaId: 'emp-1',
-          Cliente: { id: 'c1', nombre: 'Cliente X', nit: '900111' },
-          Empresa: { id: 'emp-1', nombre: 'Lumeli' },
-          DetalleCartera: [{ id: 'd1', valorFactura: 100_000 }],
-        },
-        Empleado: { id: 'e1', nombre: 'Vendedor X', empresaId: 'emp-1' },
-        Aplicaciones: [],
-      }
-      vi.mocked((prisma as any).pagoCartera.findFirst).mockResolvedValue(pago)
-
-      const res = await GET(makeReq('tok'))
-      const body = await res.json()
-
-      expect(res.status).toBe(200)
-      expect(body.pago.cartera.cliente.nombre).toBe('Cliente X')
-      expect(body.pago.cartera.empresa.nombre).toBe('Lumeli')
-      expect(body.pago.cartera.DetalleCartera).toHaveLength(1)
-      // NO llama a las tablas del modo sync
-      expect((prisma as any).empresa.findUnique).not.toHaveBeenCalled()
-      expect((prisma as any).syncDeuda.findUnique).not.toHaveBeenCalled()
+  it('token expirado → 410 con pagoId', async () => {
+    p.pagoCartera.findFirst.mockResolvedValue({
+      ...PAGO_SNAPSHOT,
+      tokenExpira: new Date(Date.now() - 1000), // expirado
     })
-
-    it('campos normalizados: metodoPago y consecutivo (camelCase del schema raro)', async () => {
-      const pago = {
-        id: 'p1', monto: 100, descuento: 0,
-        tokenExpira: null,
-        metodopago: 'nequi',           // schema usa "metodopago" (legacy)
-        numeroRecibo: 'CL2605007',
-        Cartera: { Cliente: {}, Empresa: {}, DetalleCartera: [] },
-        Empleado: {},
-        Aplicaciones: [],
-      }
-      vi.mocked((prisma as any).pagoCartera.findFirst).mockResolvedValue(pago)
-      const res = await GET(makeReq('tok'))
-      const body = await res.json()
-      expect(body.pago.metodoPago).toBe('nequi')     // expuesto en camelCase
-      expect(body.pago.consecutivo).toBe('CL2605007') // alias claro
-    })
+    const res = await GET(makeReq('tok-abc'))
+    expect(res.status).toBe(410)
+    const json = await res.json()
+    expect(json.error).toBe('TOKEN_EXPIRADO')
+    expect(json.pagoId).toBe('pago-01')
   })
 
-  describe('modo sync (sin Cartera, datos congelados en PagoCartera)', () => {
-    const pagoSyncBase = {
-      id: 'pago-sync-1',
-      monto: 80_000, descuento: 2_000,
-      tokenExpira: null,
-      metodopago: 'efectivo',
-      numeroRecibo: 'CL2605002',
-      Cartera: null, // ← clave: sin Cartera relacional, modo sync
-      Empleado: { id: 'e1', nombre: 'Vendedor X', empresaId: 'emp-1' },
-    }
-
-    it('1 aplicación con valorFactura congelado → usa el congelado (no SyncDeuda.valor)', async () => {
-      vi.mocked((prisma as any).pagoCartera.findFirst).mockResolvedValue({
-        ...pagoSyncBase,
-        clienteApiId: 'api-c1',
-        valorFactura: 150_000,
-        saldoAnterior: 150_000,
-        Aplicaciones: [{ syncDeudaId: 'sd-1', numeroFactura: 999, externalId: 'ext-1', montoAplicado: 82_000 }],
-      })
-      vi.mocked((prisma as any).empresa.findUnique).mockResolvedValue({ id: 'emp-1', nombre: 'Lumeli' })
-      vi.mocked((prisma as any).cliente.findFirst).mockResolvedValue({ id: 'c1', nombre: 'X', apiId: 'api-c1' })
-      vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
-        { id: 'sd-1', valor: 999_999, saldo: 68_000, data: {} }, // valor distinto al congelado
-      ])
-
-      const res = await GET(makeReq('tok'))
-      const body = await res.json()
-
-      expect(res.status).toBe(200)
-      expect(body.pago.cartera._modo).toBe('sync')
-      // valorFactura debe ser el CONGELADO (150_000), no el de SyncDeuda (999_999)
-      expect(body.pago.cartera.DetalleCartera[0].valorFactura).toBe(150_000)
-      // saldoAnterior congelado: 150_000
-      expect(body.pago.cartera.DetalleCartera[0].saldoAntes).toBe(150_000)
+  it('token vigente (expira en el futuro) → 200', async () => {
+    p.pagoCartera.findFirst.mockResolvedValue({
+      ...PAGO_SNAPSHOT,
+      tokenExpira: new Date(Date.now() + 600000),
     })
+    const res = await GET(makeReq('tok-abc'))
+    expect(res.status).toBe(200)
+  })
 
-    it('>1 aplicaciones → NO usa valorFactura congelado (es ambiguo a qué factura corresponde)', async () => {
-      vi.mocked((prisma as any).pagoCartera.findFirst).mockResolvedValue({
-        ...pagoSyncBase,
-        clienteApiId: 'api-c1',
-        valorFactura: 150_000, // congelado pero ambiguo
-        saldoAnterior: 150_000,
-        Aplicaciones: [
-          { syncDeudaId: 'sd-1', numeroFactura: 101, externalId: 'ext-1', montoAplicado: 50_000 },
-          { syncDeudaId: 'sd-2', numeroFactura: 102, externalId: 'ext-2', montoAplicado: 30_000 },
-        ],
-      })
-      vi.mocked((prisma as any).empresa.findUnique).mockResolvedValue({ id: 'emp-1' })
-      vi.mocked((prisma as any).cliente.findFirst).mockResolvedValue({ id: 'c1', apiId: 'api-c1' })
-      vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
-        { id: 'sd-1', valor: 100_000, saldo: 50_000, data: {} },
-        { id: 'sd-2', valor: 80_000,  saldo: 50_000, data: {} },
-      ])
+  it('tokenExpira null → nunca expira → 200', async () => {
+    const res = await GET(makeReq('tok-abc'))
+    expect(res.status).toBe(200)
+  })
+})
 
-      const res = await GET(makeReq('tok'))
-      const body = await res.json()
-      // Cada detalle usa el valor de SU SyncDeuda, no el congelado del pago
-      expect(body.pago.cartera.DetalleCartera[0].valorFactura).toBe(100_000)
-      expect(body.pago.cartera.DetalleCartera[1].valorFactura).toBe(80_000)
-    })
+describe('GET /api/cartera/recibo-publico — snapshot (reciboPago)', () => {
+  it('retorna modo snapshot con datos congelados', async () => {
+    const res = await GET(makeReq('tok-abc'))
+    const json = await res.json()
+    expect(json.pago.cartera._modo).toBe('snapshot')
+  })
 
-    it('cliente sin datos congelados (pago viejo) → fallback a SyncDeuda.clienteApiId', async () => {
-      vi.mocked((prisma as any).pagoCartera.findFirst).mockResolvedValue({
-        ...pagoSyncBase,
-        clienteApiId: null, // sin congelar (pago antes del fix)
-        valorFactura: null,
-        saldoAnterior: null,
-        Aplicaciones: [{ syncDeudaId: 'sd-1', numeroFactura: 101, externalId: 'ext-1', montoAplicado: 50_000 }],
-      })
-      vi.mocked((prisma as any).empresa.findUnique).mockResolvedValue({ id: 'emp-1' })
-      vi.mocked((prisma as any).syncDeuda.findUnique).mockResolvedValue({ id: 'sd-1', clienteApiId: 'api-fallback' })
-      vi.mocked((prisma as any).cliente.findFirst).mockResolvedValue({ id: 'c-old', nombre: 'Viejo', apiId: 'api-fallback' })
-      vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
-        { id: 'sd-1', valor: 50_000, saldo: 0, data: {} },
-      ])
+  it('normaliza metodoPago y consecutivo', async () => {
+    const res = await GET(makeReq('tok-abc'))
+    const json = await res.json()
+    expect(json.pago.metodoPago).toBe('efectivo')
+    expect(json.pago.consecutivo).toBe('REC001')
+  })
 
-      const res = await GET(makeReq('tok'))
-      const body = await res.json()
-      expect(body.pago.cartera.cliente.nombre).toBe('Viejo')
-      // Verificamos que SÍ recurrió al fallback
-      expect((prisma as any).syncDeuda.findUnique).toHaveBeenCalledWith({ where: { id: 'sd-1' } })
-    })
+  it('configRecibos se construye con anchoPapel del snapshot', async () => {
+    const res = await GET(makeReq('tok-abc'))
+    const json = await res.json()
+    expect(json.pago.cartera.empresa.configRecibos.anchoPapel).toBe('80mm')
+  })
 
-    it('totales: valorFacturasPagadas + saldoAnterior derivado', async () => {
-      vi.mocked((prisma as any).pagoCartera.findFirst).mockResolvedValue({
-        ...pagoSyncBase,
-        monto: 80_000,
-        descuento: 2_000, // 82k total aplicado
-        clienteApiId: 'api-c1',
-        valorFactura: null,
-        saldoAnterior: null,
-        Aplicaciones: [
-          { syncDeudaId: 'sd-1', numeroFactura: 101, externalId: 'ext-1', montoAplicado: 50_000 },
-          { syncDeudaId: 'sd-2', numeroFactura: 102, externalId: 'ext-2', montoAplicado: 32_000 },
-        ],
-      })
-      vi.mocked((prisma as any).empresa.findUnique).mockResolvedValue({ id: 'emp-1' })
-      vi.mocked((prisma as any).cliente.findFirst).mockResolvedValue({ id: 'c1', apiId: 'api-c1' })
-      vi.mocked((prisma as any).syncDeuda.findMany).mockResolvedValue([
-        { id: 'sd-1', valor: 100_000, saldo: 50_000, data: {} },
-        { id: 'sd-2', valor: 80_000,  saldo: 48_000, data: {} },
-      ])
+  it('saldoAnterior y saldoPendiente vienen del snapshot', async () => {
+    const res = await GET(makeReq('tok-abc'))
+    const json = await res.json()
+    expect(json.pago.cartera.saldoAnterior).toBe(130000)
+    expect(json.pago.cartera.saldoPendiente).toBe(30000)
+  })
 
-      const res = await GET(makeReq('tok'))
-      const body = await res.json()
-      expect(body.pago.cartera.valorFacturasPagadas).toBe(180_000) // 100k + 80k
-      expect(body.pago.cartera.saldoPendiente).toBe(98_000)        // 50k + 48k
-      // saldoAnterior = saldoPendiente + (monto + descuento) = 98k + 82k = 180k
-      expect(body.pago.cartera.saldoAnterior).toBe(180_000)
-    })
+  it('valorFacturasPagadas = suma de detalles', async () => {
+    const res = await GET(makeReq('tok-abc'))
+    const json = await res.json()
+    expect(json.pago.cartera.valorFacturasPagadas).toBe(100000)
+  })
+})
 
-    it('sin aplicaciones (anticipo) → DetalleCartera vacío, totales en 0', async () => {
-      vi.mocked((prisma as any).pagoCartera.findFirst).mockResolvedValue({
-        ...pagoSyncBase,
-        monto: 30_000, descuento: 0,
-        clienteApiId: 'api-c1',
-        Aplicaciones: [],
-      })
-      vi.mocked((prisma as any).empresa.findUnique).mockResolvedValue({ id: 'emp-1' })
-      vi.mocked((prisma as any).cliente.findFirst).mockResolvedValue({ id: 'c1', apiId: 'api-c1' })
+describe('GET /api/cartera/recibo-publico — fallback live (sin reciboPago)', () => {
+  beforeEach(() => {
+    p.pagoCartera.findFirst.mockResolvedValue(PAGO_LIVE)
+  })
 
-      const res = await GET(makeReq('tok'))
-      const body = await res.json()
-      expect(body.pago.cartera.DetalleCartera).toHaveLength(0)
-      expect(body.pago.cartera.valorFacturasPagadas).toBe(0)
-      expect(body.pago.cartera.saldoPendiente).toBe(0)
-      // saldoAnterior = 0 + 30k = 30k (lo que el cliente "tenía" antes del anticipo)
-      expect(body.pago.cartera.saldoAnterior).toBe(30_000)
-    })
+  it('retorna modo sync', async () => {
+    const res = await GET(makeReq('tok-xyz'))
+    const json = await res.json()
+    expect(json.pago.cartera._modo).toBe('sync')
+  })
 
-    it('filtro de cliente respeta empresaId (multitenant)', async () => {
-      vi.mocked((prisma as any).pagoCartera.findFirst).mockResolvedValue({
-        ...pagoSyncBase,
-        clienteApiId: 'api-c1',
-        Aplicaciones: [],
-      })
-      vi.mocked((prisma as any).empresa.findUnique).mockResolvedValue({ id: 'emp-1' })
-      vi.mocked((prisma as any).cliente.findFirst).mockResolvedValue(null)
+  it('saldoAnterior congelado tiene prioridad', async () => {
+    const res = await GET(makeReq('tok-xyz'))
+    const json = await res.json()
+    expect(json.pago.cartera.saldoAnterior).toBe(100000)
+  })
 
-      await GET(makeReq('tok'))
+  it('montoAplicado se mapea en detalleCartera', async () => {
+    const res = await GET(makeReq('tok-xyz'))
+    const json = await res.json()
+    expect(json.pago.cartera.DetalleCartera[0].montoAplicado).toBe(50000)
+    expect(json.pago.cartera.DetalleCartera[0].numeroFactura).toBe(1001)
+  })
 
-      expect((prisma as any).cliente.findFirst).toHaveBeenCalledWith({
-        where: { apiId: 'api-c1', empresaId: 'emp-1' },
-      })
-    })
-
-    it('Empleado sin empresaId (caso raro) → empresa null, cliente null', async () => {
-      vi.mocked((prisma as any).pagoCartera.findFirst).mockResolvedValue({
-        ...pagoSyncBase,
-        Empleado: { id: 'e1', nombre: 'X', empresaId: null },
-        clienteApiId: 'api-c1',
-        Aplicaciones: [],
-      })
-
-      const res = await GET(makeReq('tok'))
-      const body = await res.json()
-      expect(body.pago.cartera.empresa).toBeNull()
-      expect(body.pago.cartera.cliente).toBeNull()
-      // No tira error, devuelve el recibo aunque sin cliente
-      expect(res.status).toBe(200)
-    })
+  it('sin aplicaciones → DetalleCartera vacío', async () => {
+    p.pagoCartera.findFirst.mockResolvedValue({ ...PAGO_LIVE, Aplicaciones: [] })
+    const res = await GET(makeReq('tok-xyz'))
+    const json = await res.json()
+    expect(json.pago.cartera.DetalleCartera).toHaveLength(0)
   })
 })

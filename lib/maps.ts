@@ -107,7 +107,7 @@ function limpiarParaMaps(dir: string): string {
   // Pre-limpiar referencias de urbanización antes de extraer componentes viales
   const dirClean = dir.replace(/\bManzana\s+\w+/gi, '').replace(/\bCasa\s+\d+\w*/gi, '').replace(/\s{2,}/g, ' ').trim()
   const matchVia = dir.match(
-    /^((?:Carrera|Calle|Diagonal|Transversal|Avenida|Kilom[eé]tro)\s+[\w]+(?:\s+[\w]+)?)\s*/i
+    /^((?:Carrera|Calle|Diagonal|Transversal|Avenida|Kilom[eé]tro)\s+\d+[A-Za-z]?(?:\s+[A-Za-z])?)\s*/i
   )
 
   // 2. Detectar número de cruce colombiano: # XX-XX o XX-XX
@@ -125,7 +125,11 @@ function limpiarParaMaps(dir: string): string {
     const via = matchVia[1].trim()
     const cruce = matchCruce ? matchCruce[1].trim() : ''
     const barrio = matchBarrio ? matchBarrio[1].trim() : ''
-    resultado = [via, cruce, barrio].filter(Boolean).join(' ').replace(/\bBarrio\s+/gi, '').replace(/\bManzana\s+\w+/gi, '').replace(/\s{2,}/g, ' ').trim()
+    resultado = [via, cruce, barrio].filter(Boolean).join(' ')
+      .replace(/\bLocal\s+#?\s*\w*/gi, '')
+      .replace(/\bBarrio\s+/gi, '')
+      .replace(/\bManzana\s+\w+/gi, '')
+      .replace(/\s{2,}/g, ' ').trim()
   } else {
     // Sin vía: extraer solo barrio/sector
     resultado = dir
@@ -133,7 +137,7 @@ function limpiarParaMaps(dir: string): string {
       .replace(/\b(Casa|CS)\s+\w+/gi, '')
       .replace(/\b(Bloque|BL|SMZ|Super\s+Manzana)\s+\w+/gi, '')
       .replace(/(Lote|Lt)\s+\S+/gi, '')
-      .replace(/Local\s+#?\w+/gi, '')
+      .replace(/\bLocal\s+#?\s*\w*/gi, '')
       .replace(/Apartamento\s+#?\w+/gi, '')
       .replace(/\b(\d+\s*ETAPA|ETAPA\s*\d+|\d+\s*ETP|ETP\s*\d+|PARTE\s+(?:ALTA|BAJA)|PTE\s+(?:ALTA|BAJA))\b/gi, '')
       .replace(/Barrio\s+/gi, '')

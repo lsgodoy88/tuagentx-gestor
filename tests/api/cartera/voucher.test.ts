@@ -3,15 +3,16 @@ import { NextRequest } from 'next/server'
 
 const mockCreate = vi.hoisted(() => vi.fn())
 
-vi.mock('openai', () => {
-  class OpenAIMock {
-    chat = { completions: { create: mockCreate } }
-  }
-  return { default: OpenAIMock }
-})
+vi.mock('openai', () => ({
+  default: vi.fn(function () { return { chat: { completions: { create: mockCreate } } } }),
+}))
 vi.mock('next-auth', () => ({ getServerSession: vi.fn() }))
 vi.mock('@/lib/auth', () => ({ authOptions: {} }))
-vi.mock('@/lib/r2', () => ({ subirVoucher: vi.fn().mockResolvedValue('vouchers/test-key.jpg') }))
+vi.mock('@/lib/r2', () => ({
+  subirVoucher: vi.fn().mockResolvedValue('vouchers/test-key.jpg'),
+  subirVoucherConEmpresa: vi.fn().mockResolvedValue('vouchers/test-key.jpg'),
+  subirVoucherConSize: vi.fn().mockResolvedValue({ key: 'vouchers/test-key.jpg', size: 1024 }),
+}))
 vi.mock('@/lib/pdfAJpg', () => ({ pdfPrimerarPaginaAJpg: vi.fn() }))
 
 import { POST } from '@/app/api/cartera/voucher/route'

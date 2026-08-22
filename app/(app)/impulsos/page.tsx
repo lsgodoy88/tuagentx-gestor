@@ -564,7 +564,7 @@ export default function RutasFijasPage() {
             <div className="px-5 pt-5 pb-3 border-b border-zinc-800 flex-shrink-0">
               <h3 className="text-white font-bold">{empSeleccionado.nombre} - {DIAS[diaSemana]}</h3>
               <p className="text-zinc-500 text-xs mt-0.5">{cliSeleccionados.length} clientes seleccionados</p>
-<p className="text-zinc-600 text-[10px] mt-1">📎 tiene GPS confirmado</p>
+<p className="text-zinc-600 text-[10px] mt-1">📍 tiene GPS confirmado</p>
             </div>
             <div className="overflow-y-auto flex-1 p-4 space-y-4">
               {cliSeleccionados.length > 0 && (

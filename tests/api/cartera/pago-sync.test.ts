@@ -320,14 +320,14 @@ describe('POST /api/cartera/pago-sync', () => {
       const sdUpdate = vi.fn()
       mockTx({
         pagoCartera: { create: vi.fn().mockResolvedValue({ id: 'p1' }) },
-        syncDeuda: { findUnique: vi.fn().mockResolvedValue({ saldo: 100, abono: 0 }), update: sdUpdate },
+        syncDeuda: { findUnique: vi.fn().mockResolvedValue({ saldo: 100, abono: 0, nSaldo: 100, nSaldoBase: null }), update: sdUpdate },
       })
 
       await POST(makeReq({ clienteApiId: 'erp-c1', monto: 30, syncDeudaIds: ['ext-1'] }))
 
       expect(sdUpdate).toHaveBeenCalledWith({
         where: { id: 'sd-1' },
-        data: { saldo: 70, abono: 30, condition: true },
+        data: { saldo: 70, abono: 30, condition: true, nSaldo: 70 },
       })
     })
 
@@ -338,14 +338,14 @@ describe('POST /api/cartera/pago-sync', () => {
       const sdUpdate = vi.fn()
       mockTx({
         pagoCartera: { create: vi.fn().mockResolvedValue({ id: 'p1' }) },
-        syncDeuda: { findUnique: vi.fn().mockResolvedValue({ saldo: 100, abono: 0 }), update: sdUpdate },
+        syncDeuda: { findUnique: vi.fn().mockResolvedValue({ saldo: 100, abono: 0, nSaldo: 100, nSaldoBase: null }), update: sdUpdate },
       })
 
       await POST(makeReq({ clienteApiId: 'erp-c1', monto: 100, syncDeudaIds: ['ext-1'] }))
 
       expect(sdUpdate).toHaveBeenCalledWith({
         where: { id: 'sd-1' },
-        data: { saldo: 0, abono: 100, condition: false },
+        data: { saldo: 0, abono: 100, condition: false, nSaldo: 0 },
       })
     })
 
@@ -357,7 +357,7 @@ describe('POST /api/cartera/pago-sync', () => {
       const sdUpdate = vi.fn()
       mockTx({
         pagoCartera: { create: vi.fn().mockResolvedValue({ id: 'p1' }) },
-        syncDeuda: { findUnique: vi.fn().mockResolvedValue({ saldo: 80, abono: 20 }), update: sdUpdate },
+        syncDeuda: { findUnique: vi.fn().mockResolvedValue({ saldo: 80, abono: 20, nSaldo: 80, nSaldoBase: null }), update: sdUpdate },
       })
 
       await POST(makeReq({ clienteApiId: 'erp-c1', monto: 50, syncDeudaIds: ['ext-1'] }))
@@ -365,7 +365,7 @@ describe('POST /api/cartera/pago-sync', () => {
       // Usa el saldo NUEVO (80), no el viejo (100): 80 - 50 = 30
       expect(sdUpdate).toHaveBeenCalledWith({
         where: { id: 'sd-1' },
-        data: { saldo: 30, abono: 70, condition: true },
+        data: { saldo: 30, abono: 70, condition: true, nSaldo: 30 },
       })
     })
 

@@ -429,7 +429,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
   }
 
   async function rrSeleccionarCliente(cliente: any) {
-    setRrCliente(cliente); setRrVerificando(true)
+    setRrCliente(cliente); setRrVerificando(true); setModalRecaudoRapido(true)
     const controller = new AbortController()
     const timer = setTimeout(() => controller.abort(), 12000)
     let data: any = {}
@@ -653,7 +653,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
                     setListaAbierta(false)
                     setAccionActiva(null)
                     setClienteInicialLibre(cliente)
-                    if (accionActiva === 'cobro') { setModalRecaudoRapido(true); rrSeleccionarCliente(cliente) }
+                    if (accionActiva === 'cobro') { rrSeleccionarCliente(cliente) }
                     else abrirModalVisita(accionActiva)
                   }}
                   onNuevoProspecto={(nombre: string) => {

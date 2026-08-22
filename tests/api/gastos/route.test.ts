@@ -4,6 +4,7 @@ import { NextRequest } from 'next/server'
 vi.mock('@/lib/prisma', () => ({
   prisma: {
     gasto: { findMany: vi.fn(), create: vi.fn(), findUnique: vi.fn(), update: vi.fn(), delete: vi.fn() },
+    gastoTipo: { findFirst: vi.fn() },
   },
 }))
 vi.mock('next-auth', () => ({ getServerSession: vi.fn() }))
@@ -68,6 +69,7 @@ describe('GET /api/gastos — scope por rol', () => {
 describe('POST /api/gastos — creación con empleadoId forzado', () => {
   it('vendedor: el gasto se crea con SU id, ignora empleadoId del body (anti-suplantación)', async () => {
     ;(getServerSession as any).mockResolvedValue({ user: { id: 'vend-1', role: 'vendedor', empresaId: EMPRESA_ID } })
+    ;(prisma as any).gastoTipo.findFirst.mockResolvedValue({ id: 'gt-1', label: 'Viaticos' })
     ;(prisma as any).gasto.create.mockImplementation(({ data }: any) => {
       expect(data.empleadoId).toBe('vend-1') // NO 'otro-vendedor' del body
       return Promise.resolve({ id: 'g1', ...data })
@@ -99,16 +101,20 @@ describe('POST /api/gastos — creación con empleadoId forzado', () => {
 
   it('tipo inválido (no está en la lista permitida) → 400', async () => {
     ;(getServerSession as any).mockResolvedValue({ user: { id: 'vend-1', role: 'vendedor', empresaId: EMPRESA_ID } })
+    ;(prisma as any).gastoTipo.findFirst.mockResolvedValue(null)
     const res = await POST(makeReq('POST', '', {
       concepto: 'Gasolina', valor: 50000, tipo: 'Inventado', evidenciaKey: 'gastos/x.jpg',
     }))
+    const json = await res.json()
     expect(res.status).toBe(400)
+    expect(json.error).toMatch(/tipo/i)
     expect((prisma as any).gasto.create).not.toHaveBeenCalled()
   })
 
   it('cada uno de los 4 tipos válidos es aceptado', async () => {
     ;(getServerSession as any).mockResolvedValue({ user: { id: 'vend-1', role: 'vendedor', empresaId: EMPRESA_ID } })
     ;(prisma as any).gasto.create.mockResolvedValue({ id: 'g1' })
+    ;(prisma as any).gastoTipo.findFirst.mockResolvedValue({ id: 'gt-1', label: 'Viaticos' })
 
     for (const tipo of ['Viaticos', 'Eventos', 'Papeleria', 'Otros']) {
       const res = await POST(makeReq('POST', '', {
