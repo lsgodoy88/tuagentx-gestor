@@ -406,17 +406,12 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
           : new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
       }
 
-      // Modo completo: paginar con cursor desde 2020-01-01 para obtener TODAS las deudas
-      // (fetchDeudas sin cursor devuelve máx 100 — insuficiente para marcarZombis correcto)
+      // Modo completo: fetchDeudasConCursor pagina todo internamente (fetchAll)
+      // fetchDeudas sin cursor devuelve máx 100 — insuficiente para marcarZombis correcto
       let deudas: any[]
       if (modo === 'completo') {
-        deudas = []
-        let cursor: any = null
-        do {
-          const page = await adapter.fetchDeudasConCursor(cursor, new Date('2020-01-01'))
-          deudas.push(...page.data)
-          cursor = page.ultimoCursor
-        } while (cursor)
+        const page = await adapter.fetchDeudasConCursor(null, new Date('2020-01-01'))
+        deudas = page.data
       } else {
         deudas = await adapter.fetchDeudas(desde)
       }
