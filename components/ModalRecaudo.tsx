@@ -158,6 +158,7 @@ export default function ModalRecaudo({
                           className="accent-emerald-500 flex-shrink-0" />
                         <div className="flex-1 min-w-0">
                           {d.numeroFactura && <p className="text-white text-sm font-medium">Fact. {d.numeroFactura}</p>}
+                          {d.electronicInvoiceNumber && <p className="text-white text-sm font-medium">Elect: {d.electronicInvoiceNumber}</p>}
                           {d.fechaVencimiento && <p className="text-zinc-500 text-xs">Vence: {new Date(d.fechaVencimiento).toLocaleDateString('es-CO', { timeZone: 'America/Bogota' })}</p>}
                         </div>
                         <div className="text-right flex-shrink-0">

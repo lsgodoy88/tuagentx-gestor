@@ -197,6 +197,42 @@ describe('CONTRATO fetchDeudas → /cartera', () => {
     })
   })
 
+  it('electronicInvoiceNumber de UpTres → presente en DeudaExterna', async () => {
+    global.fetch = mockFetch((url) => {
+      if (url.includes('/auth/api')) return { ok: true, token: 'tok' }
+      return { ok: true, data: [{ id: 'd1', invoiceNumber: 9001, orderNumber: 500, total: '200000', balance: '150000', paymentType: 'credito', creditDay: '30', createdAt: '2026-05-01', updatedAt: '2026-05-01', electronicInvoiceNumber: 11859 }] }
+    })
+    const a = new UpTresAdapter('k', 's')
+    await a.login()
+    const result = await a.fetchDeudas()
+    expect(result[0].electronicInvoiceNumber).toBe(11859)
+  })
+
+  it('electronicInvoiceNumber ausente → null', async () => {
+    global.fetch = mockFetch((url) => {
+      if (url.includes('/auth/api')) return { ok: true, token: 'tok' }
+      return { ok: true, data: [{ id: 'd2', invoiceNumber: 9002, orderNumber: 501, total: '100000', balance: '100000', paymentType: 'credito', creditDay: '30', createdAt: '2026-05-01', updatedAt: '2026-05-01' }] }
+    })
+    const a = new UpTresAdapter('k', 's')
+    await a.login()
+    const result = await a.fetchDeudas()
+    expect(result[0].electronicInvoiceNumber).toBeNull()
+  })
+
+  it('fields de /cartera incluye electronicInvoiceNumber', async () => {
+    let capturedUrl = ''
+    global.fetch = mockFetch((url) => {
+      if (url.includes('/auth/api')) return { ok: true, token: 'tok' }
+      if (!capturedUrl) capturedUrl = url
+      return { ok: true, data: [] }
+    })
+    const a = new UpTresAdapter('k', 's')
+    await a.login()
+    await a.fetchDeudas()
+    const params = new URLSearchParams(capturedUrl.split('?')[1])
+    expect(params.get('fields')?.split(',')).toContain('electronicInvoiceNumber')
+  })
+
   it('llama a /cartera (no a /ordenes)', async () => {
     let capturedUrl = ''
     global.fetch = mockFetch((url) => {

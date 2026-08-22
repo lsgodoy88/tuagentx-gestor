@@ -13,9 +13,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
   }
+  const body = await req.json().catch(() => ({}))
   const { searchParams } = new URL(req.url)
-  const modo = (searchParams.get('modo') ?? 'completo') as 'completo' | 'delta'
+  const modo = (body.modo ?? searchParams.get('modo') ?? 'completo') as 'completo' | 'delta'
 
-  const resultados = await runSyncNocturno({ modo })
-  return NextResponse.json({ ok: true, resultados })
+  // Fire-and-forget — nocturno puede paginar sin presión de timeout
+  runSyncNocturno({ modo }).catch(e =>
+    console.error('[sync-nocturno] error background:', e.message)
+  )
+  return NextResponse.json({ ok: true, iniciado: true })
 }

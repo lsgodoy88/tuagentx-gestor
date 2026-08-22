@@ -88,6 +88,30 @@ describe('GET /api/cartera/[clienteId]', () => {
     expect(data.cartera.deudas[0].saldoReal).toBe(362654) // fallback valor
   })
 
+  it('electronicInvoiceNumber en data → expuesto en deuda response', async () => {
+    vi.mocked(getServerSession).mockResolvedValue(SESSION_LECHE as any)
+    mockSyncDeudaFindMany.mockResolvedValueOnce([mockDeuda({ data: { electronicInvoiceNumber: '11859' } })])
+    mockPagoCDFindMany.mockResolvedValueOnce([])
+    mockPagoCFindMany.mockResolvedValueOnce([])
+
+    const res = await GET(makeReq('cli-1'), { params: Promise.resolve({ clienteId: 'cli-1' }) })
+    const data = await res.json()
+
+    expect(data.cartera.deudas[0].electronicInvoiceNumber).toBe('11859')
+  })
+
+  it('sin electronicInvoiceNumber en data → null', async () => {
+    vi.mocked(getServerSession).mockResolvedValue(SESSION_LECHE as any)
+    mockSyncDeudaFindMany.mockResolvedValueOnce([mockDeuda({ data: {} })])
+    mockPagoCDFindMany.mockResolvedValueOnce([])
+    mockPagoCFindMany.mockResolvedValueOnce([])
+
+    const res = await GET(makeReq('cli-1'), { params: Promise.resolve({ clienteId: 'cli-1' }) })
+    const data = await res.json()
+
+    expect(data.cartera.deudas[0].electronicInvoiceNumber).toBeNull()
+  })
+
   it('con pagos locales — usa ancla - pagos', async () => {
     vi.mocked(getServerSession).mockResolvedValue(SESSION_LECHE as any)
     mockSyncDeudaFindMany.mockResolvedValueOnce([mockDeuda({ valor: 500000, nSaldo: 400000 })])

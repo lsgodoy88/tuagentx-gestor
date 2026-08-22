@@ -318,7 +318,7 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
         const { estado } = calcularEstado(nSaldo, valor, Number(d.abono), d.fechaVencimiento)
         // Si tiene nSaldoBase → abonos externos reflejados como valor-nSaldo (igual que Carlos con LumeliSaldoInicial)
         const abonoEfectivo = d.nSaldoBase != null ? Math.max(0, valor - nSaldo) : Number(d.abono)
-        return { id: d.id, externalId: d.externalId, numeroOrden: d.numeroOrden, numeroFactura: d.numeroFactura, valor, saldo: nSaldo, abono: abonoEfectivo, diasCredito: d.diasCredito, fechaVencimiento: d.fechaVencimiento, estado, _nSaldo: nSaldo }
+        return { id: d.id, externalId: d.externalId, numeroOrden: d.numeroOrden, numeroFactura: d.numeroFactura, valor, saldo: nSaldo, abono: abonoEfectivo, diasCredito: d.diasCredito, fechaVencimiento: d.fechaVencimiento, estado, electronicInvoiceNumber: (d.data as any)?.electronicInvoiceNumber || null, _nSaldo: nSaldo }
       })
       .filter((d: any) => d._nSaldo > 0) // FIX 26/06: ya no se muestra si nuestra propia cuenta da 0
 
@@ -406,7 +406,20 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
           : new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
       }
 
-      const deudas = await adapter.fetchDeudas(desde)
+      // Modo completo: paginar con cursor desde 2020-01-01 para obtener TODAS las deudas
+      // (fetchDeudas sin cursor devuelve máx 100 — insuficiente para marcarZombis correcto)
+      let deudas: any[]
+      if (modo === 'completo') {
+        deudas = []
+        let cursor: any = null
+        do {
+          const page = await adapter.fetchDeudasConCursor(cursor, new Date('2020-01-01'))
+          deudas.push(...page.data)
+          cursor = page.ultimoCursor
+        } while (cursor)
+      } else {
+        deudas = await adapter.fetchDeudas(desde)
+      }
       const externalIds = deudas.map((d: any) => String(d.uid || d._id))
       const existentes = await (prisma as any).syncDeuda.findMany({
         where: { integracionId: intg.id, externalId: { in: externalIds } },

@@ -212,7 +212,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
 
   async fetchDeudas(desde?: Date): Promise<DeudaExterna[]> {
     const params: Record<string, string> = {
-      fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt,receivableAt',
+      fields: 'id,orderNumber,invoiceNumber,electronicInvoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt,receivableAt',
       includeTotal: 'false',
     }
     if (desde) {
@@ -266,6 +266,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
         cliente: { uid: o.customerId },
         empleado: { uid: o.employeeId },
         condicionUpTres: o._condicionUpTres !== false,
+        electronicInvoiceNumber: o.electronicInvoiceNumber || null,
       }
     })
   }
@@ -275,7 +276,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
   async fetchDeudasDesde(desde: Date): Promise<DeudaExterna[]> {
     const manana = new Date(); manana.setDate(manana.getDate() + 1)
     const params: Record<string, string> = {
-      fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt,receivableAt,condition',
+      fields: 'id,orderNumber,invoiceNumber,electronicInvoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt,receivableAt,condition',
       from: desde.toISOString().split('T')[0],
       to: manana.toISOString().split('T')[0],
       includeTotal: 'false',
@@ -294,6 +295,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       fModificado: o.updatedAt,
       receivableAt: o.receivableAt || null,
       condicionUpTres: o.condition !== false,
+      electronicInvoiceNumber: o.electronicInvoiceNumber || null,
       cliente: { uid: o.customerId },
       empleado: { uid: o.employeeId },
     }))
@@ -301,7 +303,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
 
   async fetchDeudasEmpleado(empleadoApiId: string): Promise<DeudaExterna[]> {
     // Solo deudas activas en UpTres (condition=true)
-    const fields = 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt'
+    const fields = 'id,orderNumber,invoiceNumber,electronicInvoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt'
     const todas: any[] = []
     let cursorDate: string | null = null
     let cursorId: string | null = null
@@ -358,7 +360,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
   async fetchDeudasClienteInactivas(clienteId: string): Promise<DeudaExterna[]> {
     // Igual que fetchDeudasCliente pero con condition=false — para actualizar saldos desactualizados
     const res = await fetch(
-      `${BASE}/cartera/cliente/${clienteId}?fields=id,orderNumber,invoiceNumber,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt&condition=false`,
+      `${BASE}/cartera/cliente/${clienteId}?fields=id,orderNumber,invoiceNumber,electronicInvoiceNumber,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt&condition=false`,
       { headers: this.headers }
     )
     const d = await res.json()
@@ -367,7 +369,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
 
   async fetchDeudasCliente(clienteId: string): Promise<DeudaExterna[]> {
     const res = await fetch(
-      `${BASE}/cartera/cliente/${clienteId}?fields=id,orderNumber,invoiceNumber,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt&condition=true`,
+      `${BASE}/cartera/cliente/${clienteId}?fields=id,orderNumber,invoiceNumber,electronicInvoiceNumber,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt&condition=true`,
       { headers: this.headers }
     )
     const d = await res.json()
@@ -597,7 +599,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       ? new Date(new Date(cursor.cursorDate).getTime() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
       : new Date(new Date(desde!.getTime() - 5 * 60 * 60 * 1000).getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     const params: Record<string, string> = {
-      fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt,receivableAt',
+      fields: 'id,orderNumber,invoiceNumber,electronicInvoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt,receivableAt',
       includeTotal: 'false',
       from: fromDate,
       to: manana.toISOString().split('T')[0],
@@ -612,7 +614,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
   ): Promise<{ data: DeudaExterna[]; ultimoCursor: UpTresCursor | null }> {
     const manana = new Date(); manana.setDate(manana.getDate() + 1)
     const params: Record<string, string> = {
-      fields: 'id,orderNumber,invoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt,receivableAt,condition',
+      fields: 'id,orderNumber,invoiceNumber,electronicInvoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt,receivableAt,condition',
       from: desde.toISOString().split('T')[0],
       to: manana.toISOString().split('T')[0],
       includeTotal: 'false',
@@ -626,6 +628,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
         vAbono: String(parseFloat(o.total || '0') - parseFloat(o.balance || '0')),
         dias: o.creditDay || '0', fCreado: o.createdAt, fModificado: o.updatedAt,
         receivableAt: o.receivableAt || null, condicionUpTres: o.condition !== false,
+        electronicInvoiceNumber: o.electronicInvoiceNumber || null,
         cliente: { uid: o.customerId }, empleado: { uid: o.employeeId },
       })),
       ultimoCursor,

@@ -416,7 +416,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
         const { estado, label, color } = calcularEstado(saldo, vf, ab, fv)
         return { estado, estadoLabel: label, estadoColor: color }
       })(),
-      numeroFactura: d.numeroFactura || d.numeroOrden, fechaVencimiento: d.fechaVencimiento, _sync: true,
+      numeroFactura: d.numeroFactura || d.numeroOrden, fechaVencimiento: d.fechaVencimiento, electronicInvoiceNumber: d.electronicInvoiceNumber || null, _sync: true,
     }))
     setDetalleData(dc)
     const pendientes = (dc.DetalleCartera || []).filter((d: any) => d.estado !== 'pagada').sort((a: any, b: any) => {

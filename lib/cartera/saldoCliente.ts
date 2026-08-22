@@ -50,7 +50,7 @@ export async function getSaldoCliente(
         id: true, externalId: true, numeroFactura: true,
         valor: true, nSaldo: true, saldo: true, condition: true,
         fechaVencimiento: true, diasCredito: true, empleadoExternalId: true,
-        nSaldoBase: true, nSaldoBaseAt: true, ajusteManual: true
+        nSaldoBase: true, nSaldoBaseAt: true, ajusteManual: true, data: true
       }
     })
 
@@ -68,6 +68,7 @@ export async function getSaldoCliente(
       valor: Number(d.valor),
       saldo: Number(d.saldo ?? 0),
       fechaVencimiento: d.fechaVencimiento ? new Date(d.fechaVencimiento).toISOString() : null,
+      electronicInvoiceNumber: (d.data as any)?.electronicInvoiceNumber || null,
     }))
 
     const saldoTotal = deudasConSaldo.reduce((s: number, d: any) => s + d.nSaldo, 0)

@@ -408,6 +408,7 @@ export async function actualizarCache(
           diasCredito: d.diasCredito,
           fechaVencimiento: d.fechaVencimiento,
           estado,
+          electronicInvoiceNumber: (d.data as any)?.electronicInvoiceNumber || null,
           _nSaldo: nSaldo,
         }
       })

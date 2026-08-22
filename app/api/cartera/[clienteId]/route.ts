@@ -72,6 +72,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ clie
         saldoCambioEnSync: false,
         pagosLocales,
         totalPagosLocales: pagosLocales.reduce((s: number, p: any) => s + Number(p.monto), 0),
+        electronicInvoiceNumber: (d.data as any)?.electronicInvoiceNumber || null,
       }
     })
 

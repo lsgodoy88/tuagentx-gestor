@@ -12,6 +12,7 @@ export interface DeudaExterna {
   fModificado?: string
   receivableAt?: string | null
   condition?: boolean
+  electronicInvoiceNumber?: string | null
   cliente?: { uid?: string }
   empleado?: { uid?: string }
   [key: string]: unknown
