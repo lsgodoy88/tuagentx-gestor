@@ -45,11 +45,15 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
 
   const [busqueda, setBusqueda] = useState('')
   const [envioFiltro, setEnvioFiltro] = useState('todos')
+  const [numerosDeOtros, setNumerosDeOtros] = useState<Set<number>>(new Set())
 
   const cursorRef = useRef<string | null>(null)
+  const huecoVerificadosRef = useRef<Set<number>>(new Set())
+  const rangeRef = useRef<{min:number,max:number}|null>(null)
+  const presenteRef = useRef<Set<number>>(new Set())
 
   const cargar = useCallback(async (reset = false) => {
-    if (reset) { setLoading(true); cursorRef.current = null; setCursor(null) }
+    if (reset) { setLoading(true); cursorRef.current = null; setCursor(null); setNumerosDeOtros(new Set()); huecoVerificadosRef.current = new Set(); rangeRef.current = null; presenteRef.current = new Set() }
     try {
       const params = new URLSearchParams()
       if (origenId && origenId !== 'propia') params.set('origenId', origenId)
@@ -77,11 +81,54 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
       setHayMas(data.hayMas ?? false)
       cursorRef.current = data.nextCursor ?? null
       setCursor(data.nextCursor ?? null)
+      // Verificar solo huecos NUEVOS — rango trackeado en ref, O(incoming) no O(allLogs)
+      if (rol === 'vendedor' && incoming.length > 0) {
+        // Actualizar rango incremental con solo los nuevos logs
+        const nums = incoming.map((l: any) => parseInt(l.numeroFactura) || 0).filter((n: number) => n > 0)
+        if (nums.length === 0) return  // sin facturas numéricas, nada que verificar
+        const inMax = nums.reduce((a: number, b: number) => a > b ? a : b)
+        const inMin = nums.reduce((a: number, b: number) => a < b ? a : b)
+        const prevRange = rangeRef.current
+        const newMax = prevRange ? Math.max(prevRange.max, inMax) : inMax
+        const newMin = prevRange ? Math.min(prevRange.min, inMin) : inMin
+        rangeRef.current = { min: newMin, max: newMax }
+
+        // Actualizar ref de presentes con incoming — sin depender del state stale
+        incoming.forEach((l: any) => {
+          const n = parseInt(l.numeroFactura) || 0
+          if (n > 0) presenteRef.current.add(n)
+        })
+        const presente = presenteRef.current
+
+        // Solo huecos nuevos del rango extendido
+        const huecoNuevos: number[] = []
+        for (let n = newMax; n >= newMin; n--) {
+          if (!presente.has(n) && !huecoVerificadosRef.current.has(n)) huecoNuevos.push(n)
+        }
+        if (huecoNuevos.length > 0) {
+          const r2 = await fetch('/api/bodega/despacho-log/verificar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ huecos: huecoNuevos, origenId: origenId || 'propia' }),
+          })
+          if (r2.ok) {
+            const { deOtros } = await r2.json()
+            huecoNuevos.forEach(n => huecoVerificadosRef.current.add(n))
+            if (deOtros.length > 0) {
+              setNumerosDeOtros(prev => {
+                const next = new Set(prev)
+                ;(deOtros as number[]).forEach((n: number) => next.add(n))
+                return next
+              })
+            }
+          }
+        }
+      }
     } catch (e) { console.error(e) }
     finally { setLoading(false); setCargandoMas(false) }
   }, [origenId])
 
-  useEffect(() => { cargar(true) }, [origenId])
+  useEffect(() => { if (empresaId) cargar(true) }, [origenId, empresaId])
 
   const guardarGuia = async (ordenId: string, logId: string, guia: string) => {
     setSavingGuia(p => ({ ...p, [logId]: true }))
@@ -144,7 +191,7 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
   // Generar rango consecutivo desde logs acumulados — sin solapamientos entre páginas
   const controlFacturas = (() => {
     if (logsOrdenados.length === 0) return []
-    // Solo usar cuando no hay filtroOrden (orden por fecha rompe el consecutivo)
+    // Solo usar rango consecutivo cuando no hay filtroOrden
     if (filtroOrden !== null) return logsOrdenados.map(l => ({ numero: parseInt(l.numeroFactura) || 0, log: l, hueco: false }))
     const mapaFacturas = new Map(logsOrdenados.map(l => [parseInt(l.numeroFactura) || 0, l]))
     const rangeMax = parseInt(logsOrdenados[0].numeroFactura) || 0
@@ -152,6 +199,8 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
     const result = []
     for (let n = rangeMax; n >= rangeMin; n--) {
       const r = mapaFacturas.get(n)
+      // Vendedor: omitir números que pertenecen a otros vendedores
+      if (!r && numerosDeOtros.has(n)) continue
       result.push({ numero: n, log: r || null, hueco: !r })
     }
     return result

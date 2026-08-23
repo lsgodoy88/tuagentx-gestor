@@ -1,0 +1,182 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { prisma } from '@/lib/prisma'
+import { getEmpresaId } from '@/lib/auth-helpers'
+
+import { DIAS } from '@/lib/constants'
+import { fechaHoyBogota } from '@/lib/fechas'
+import { invalidateKeys } from '@/lib/cache'
+
+export async function GET() {
+  try {
+
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json([])
+  const user = session.user as any
+  const empresaId = getEmpresaId(user)
+
+  // Vendedor solo ve rutas de sus impulsadoras
+  const esVendedor = user.role === 'vendedor'
+  let whereRutas: any = { empresaId }
+  if (esVendedor) {
+    const misImpulsadoras = await prisma.empleado.findMany({
+      where: { empresaId, rol: 'impulsadora', vendedorId: user.id }
+    })
+    const idsImpulsadoras = misImpulsadoras.map((e: any) => e.id)
+    whereRutas = { empresaId, empleados: { some: { empleadoId: { in: idsImpulsadoras } } } }
+  }
+
+  const rutas = await prisma.rutaFija.findMany({
+    where: whereRutas,
+    include: {
+      empleados: { include: { empleado: { select: { id: true, nombre: true, rol: true } } } },
+      clientes: { select: { id: true, clienteId: true, orden: true, metaVenta: true, horaEntrada: true, cliente: { select: { id: true, nombre: true, nombreComercial: true, lat: true, lng: true, latTmp: true, lngTmp: true, ubicacionReal: true, direccion: true } } }, orderBy: { orden: 'asc' } }
+    },
+    orderBy: { diaSemana: 'asc' }
+  })
+  return NextResponse.json(rutas)
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
+}
+
+export async function POST(req: NextRequest) {
+  try {
+
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const user = session.user as any
+  const empresaId = getEmpresaId(user)
+
+  const { diaSemana, empleadoIds, clienteIds, metas, horas } = await req.json()
+  // clienteIds: string[], metas: Record<string, number>, horas: Record<string, string> opcional ("HH:mm")
+  if (diaSemana === undefined) return NextResponse.json({ error: 'Día requerido' }, { status: 400 })
+
+  const nombre = DIAS[diaSemana]
+
+  // Obtener ruta existente para bitácora
+  const existente = await prisma.rutaFija.findFirst({
+    where: { empresaId, diaSemana, empleados: { some: { empleadoId: empleadoIds[0] } } },
+    include: { clientes: { include: { cliente: true } } }
+  })
+
+  // Bitácora de cambios
+  const impulsadora = await prisma.empleado.findUnique({ where: { id: empleadoIds[0] } })
+  const cambios: string[] = []
+  if (existente) {
+    const idsAnteriores = existente.clientes.map((c: any) => c.clienteId)
+    const idsNuevos: string[] = clienteIds || []
+    const agregados = idsNuevos.filter((id: string) => !idsAnteriores.includes(id))
+    const quitados = idsAnteriores.filter((id: string) => !idsNuevos.includes(id))
+    if (agregados.length > 0) cambios.push(`Clientes agregados: ${agregados.length}`)
+    if (quitados.length > 0) cambios.push(`Clientes quitados: ${quitados.length}`)
+    for (const rc of existente.clientes) {
+      const metaAnterior = (rc as any).metaVenta || 0
+      const metaNueva = metas?.[rc.clienteId] || 0
+      if (metaAnterior !== metaNueva) {
+        cambios.push(`Meta ${rc.cliente.nombre}: $${metaAnterior.toLocaleString('es-CO')} -> $${metaNueva.toLocaleString('es-CO')}`)
+      }
+    }
+  } else {
+    cambios.push(`Ruta creada: ${nombre} con ${(clienteIds||[]).length} clientes`)
+  }
+
+  if (cambios.length > 0) {
+    await prisma.auditLog.create({
+      data: {
+        accion: 'RUTA_FIJA_MODIFICADA',
+        usuario: user.email,
+        detalle: `Impulsadora: ${impulsadora?.nombre || empleadoIds[0]} | Dia: ${nombre} | ${cambios.join(' | ')}`,
+        empleadoId: user.id,
+        empresaId,
+      }
+    })
+  }
+
+  // Eliminar existente y crear nueva en una sola transacción
+  if (existente) {
+    await prisma.$transaction([
+      prisma.rutaFijaEmpleado.deleteMany({ where: { rutaFijaId: existente.id } }),
+      prisma.rutaFijaCliente.deleteMany({ where: { rutaFijaId: existente.id } }),
+      prisma.rutaFija.delete({ where: { id: existente.id } }),
+    ])
+  }
+
+  const ruta = await prisma.rutaFija.create({
+    data: {
+      id: crypto.randomUUID(),
+      nombre,
+      diaSemana,
+      empresaId,
+      empleados: {
+        create: (empleadoIds || []).map((id: string) => ({ id: crypto.randomUUID(), empleadoId: id }))
+      },
+      clientes: {
+        create: (clienteIds || []).map((id: string, i: number) => {
+          // Preserva horaEntrada del cliente si ya existía en la ruta anterior y el formulario
+          // no manda una nueva explícita -- evita la pérdida silenciosa del campo en cada guardado
+          // del día (mismo patrón deleteMany+create que ya causó bugs en listas de empleados)
+          const horaExistente = existente?.clientes.find((c: any) => c.clienteId === id)?.horaEntrada || null
+          const horaNueva = horas?.[id]
+          return {
+            id: crypto.randomUUID(),
+            clienteId: id,
+            orden: i,
+            metaVenta: metas?.[id] || null,
+            horaEntrada: horaNueva !== undefined ? (horaNueva || null) : horaExistente,
+          }
+        })
+      }
+    },
+    include: {
+      empleados: { include: { empleado: { select: { id: true, nombre: true, rol: true } } } },
+      clientes: { select: { id: true, clienteId: true, orden: true, metaVenta: true, horaEntrada: true, cliente: { select: { id: true, nombre: true, nombreComercial: true, lat: true, lng: true, latTmp: true, lngTmp: true, ubicacionReal: true, direccion: true } } }, orderBy: { orden: 'asc' } }
+    }
+  })
+  const hoyStr = fechaHoyBogota()
+  const idsImpulsadoras: string[] = empleadoIds || []
+  const vendedoresAfectados = await prisma.empleado.findMany({
+    where: { id: { in: idsImpulsadoras }, vendedorId: { not: null } },
+    select: { vendedorId: true }
+  })
+  const keysInvalidar = [
+    ...idsImpulsadoras.map((id: string) => `g:v:${id}:${hoyStr}`),
+    ...vendedoresAfectados.map((e: any) => `g:v:${e.vendedorId}:${hoyStr}`),
+  ]
+  await invalidateKeys(...keysInvalidar)
+
+  return NextResponse.json({ ok: true, ruta })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+
+  const session = await getServerSession(authOptions)
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const { id } = await req.json()
+  const empleadosAfectados = await prisma.rutaFijaEmpleado.findMany({ where: { rutaFijaId: id }, select: { empleadoId: true } })
+  await prisma.$transaction([
+    prisma.rutaFijaEmpleado.deleteMany({ where: { rutaFijaId: id } }),
+    prisma.rutaFijaCliente.deleteMany({ where: { rutaFijaId: id } }),
+    prisma.rutaFija.delete({ where: { id } }),
+  ])
+  const hoyStr = fechaHoyBogota()
+  const idsImpulsadorasDel = empleadosAfectados.map((e: any) => e.empleadoId)
+  const vendedoresAfectadosDel = await prisma.empleado.findMany({
+    where: { id: { in: idsImpulsadorasDel }, vendedorId: { not: null } },
+    select: { vendedorId: true }
+  })
+  const keysInvalidarDel = [
+    ...idsImpulsadorasDel.map((id: string) => `g:v:${id}:${hoyStr}`),
+    ...vendedoresAfectadosDel.map((e: any) => `g:v:${e.vendedorId}:${hoyStr}`),
+  ]
+  await invalidateKeys(...keysInvalidarDel)
+  return NextResponse.json({ ok: true })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
+}

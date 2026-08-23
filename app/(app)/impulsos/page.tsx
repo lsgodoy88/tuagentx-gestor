@@ -82,7 +82,7 @@ export default function RutasFijasPage() {
   const [totalCli, setTotalCli] = useState(0)
   const [loading, setLoading] = useState(false)
   const [diasAbiertosEmp, setDiasAbiertosEmp] = useState<Record<string, Set<number>>>({})
-  const [tab, setTab] = useState<'rutas'|'reporte'|'gestion'>('rutas')
+  const [tab, setTab] = useState<'rutas'|'reporte'|'gestion'>('reporte')
   const [modalVerRuta, setModalVerRuta] = useState<{emp: any, dia: number, ruta: any}|null>(null)
   const [bottomSheet, setBottomSheet] = useState<{rc: any, rutaId: string}|null>(null)
   const [syncVentas, setSyncVentas] = useState<{usadosHoy:number,restantes:number,ultimoSync:string|null,puedeSync:boolean}|null>(null)
@@ -192,7 +192,7 @@ export default function RutasFijasPage() {
     const [empRes, cliRes, rfRes] = await Promise.all([
       fetch('/api/empleados').then(r => r.json()),
       fetch('/api/clientes?page=1&limit=10').then(r => r.json()),
-      fetch('/api/rutas-fijas').then(r => r.json()),
+      fetch('/api/impulsadora').then(r => r.json()),
     ])
     setEmpleados(Array.isArray(empRes) ? empRes : Array.isArray(empRes?.empleados) ? empRes.empleados : [])
     setClientes(cliRes?.clientes || [])
@@ -292,7 +292,7 @@ export default function RutasFijasPage() {
   }
   async function guardar() {
     setLoading(true)
-    await fetch('/api/rutas-fijas', {
+    await fetch('/api/impulsadora', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ diaSemana, empleadoIds: [empSeleccionado.id], clienteIds: cliSeleccionados, metas, horas })
@@ -306,7 +306,7 @@ export default function RutasFijasPage() {
   }
   async function eliminarDia(rutaId: string) {
     if (!confirm('Quitar esta ruta fija?')) return
-    await fetch('/api/rutas-fijas', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: rutaId }) })
+    await fetch('/api/impulsadora', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: rutaId }) })
     loadData()
   }
 
@@ -320,9 +320,9 @@ export default function RutasFijasPage() {
       if (rc.metaVenta) nuevasMetas[rc.clienteId] = rc.metaVenta
     })
     if (nuevosIds.length === 0) {
-      await fetch('/api/rutas-fijas', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: rutaId }) })
+      await fetch('/api/impulsadora', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: rutaId }) })
     } else {
-      await fetch('/api/rutas-fijas', {
+      await fetch('/api/impulsadora', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ diaSemana: ruta.diaSemana, empleadoIds: ruta.empleados.map((re: any) => re.empleadoId), clienteIds: nuevosIds, metas: nuevasMetas })
@@ -344,8 +344,8 @@ export default function RutasFijasPage() {
   return (
     <div className="space-y-3 max-w-7xl mx-auto">
 <div className="flex gap-1 tab-pills rounded-xl p-1">
-        <button onClick={() => setTab('rutas')} className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tab === 'rutas' ? 'tab-active' : 'text-white hover:text-white'}`}>Rutero</button>
         <button onClick={() => setTab('reporte')} className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tab === 'reporte' ? 'tab-active' : 'text-white hover:text-white'}`}>Reporte</button>
+        <button onClick={() => setTab('rutas')} className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tab === 'rutas' ? 'tab-active' : 'text-white hover:text-white'}`}>Rutero</button>
         {esVendedor && (
           <button onClick={() => setTab('gestion')} className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tab === 'gestion' ? 'tab-active' : 'text-white hover:text-white'}`}>Gestión</button>
         )}
@@ -782,7 +782,7 @@ export default function RutasFijasPage() {
                   }
                   // Si edita meta/hora del dia especifico (chip o bottomSheet), persistir en RutaFijaCliente
                   if (modalMeta.rutaFijaId) {
-                    await fetch('/api/rutas-fijas/meta-cliente', {
+                    await fetch('/api/impulsadora/meta-cliente', {
                       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ rutaFijaId: modalMeta.rutaFijaId, clienteId: modalMeta.id, metaVenta: meta, horaEntrada: hora })
                     }).catch(() => {})
@@ -948,40 +948,124 @@ export default function RutasFijasPage() {
 
 function ReporteImpulsoTab() {
   const mesActual = new Date().toISOString().slice(0, 7)
-  const [mesInput, setMesInput] = useState(mesActual)
-  const [mesBuscado, setMesBuscado] = useState(mesActual)
+  const [mesDesde, setMesDesde] = useState(mesActual)
+  const [mesHasta, setMesHasta] = useState(mesActual)
+  const [openDesde, setOpenDesde] = useState(false)
+  const [openHasta, setOpenHasta] = useState(false)
+
+  const meses = Array.from({length: 12}, (_, i) => {
+    const d = new Date()
+    d.setDate(1)
+    d.setMonth(d.getMonth() - i)
+    const valor = d.toISOString().slice(0, 7)
+    const label = d.toLocaleDateString('es-CO', {month:'long', year:'numeric', timeZone:'UTC'})
+      .replace(' de ', ' ').replace(/^./, c => c.toUpperCase())
+    return { valor, label }
+  })
+
+  // Meses válidos para "Hasta": desde mesDesde hasta máx 3 meses después (4 total)
+  const mesesHasta = meses.filter(m => {
+    if (m.valor < mesDesde) return false
+    const [da, dm] = mesDesde.split('-').map(Number)
+    const [ha, hm] = m.valor.split('-').map(Number)
+    const diff = (ha - da) * 12 + (hm - dm)
+    return diff <= 3
+  })
+
+  // Si mesHasta quedó fuera del rango válido, corregir
+  useEffect(() => {
+    if (!mesesHasta.find(m => m.valor === mesHasta)) {
+      setMesHasta(mesesHasta[0]?.valor ?? mesDesde)
+    }
+  }, [mesDesde])
+
+  const labelDesde = meses.find(m => m.valor === mesDesde)?.label ?? mesDesde
+  const labelHasta = mesesHasta.find(m => m.valor === mesHasta)?.label ?? mesHasta
+  const esRango = mesDesde !== mesHasta
+
+  const abrirPDF = () => {
+    const url = esRango
+      ? `/pdf-impulso?fecha=${mesDesde}-01&hasta=${mesHasta}`
+      : `/pdf-impulso?fecha=${mesDesde}-01`
+    window.open(url, '_blank')
+  }
+
+  const dropdownStyle = (open: boolean): React.CSSProperties => ({
+    position:'absolute', top:'calc(100% + 6px)', left:0, zIndex:50,
+    background:'#1e2030', border:'1px solid #1a3557', borderRadius:12,
+    overflow:'hidden', minWidth:180, boxShadow:'0 8px 24px rgba(0,0,0,0.5)',
+    display: open ? 'block' : 'none',
+  })
+
+  const btnMesStyle: React.CSSProperties = {
+    display:'flex', alignItems:'center', justifyContent:'space-between', gap:8,
+    background:'#1e2030', border:'1px solid #1a3557',
+    borderRadius:12, padding:'8px 14px', color:'white',
+    fontSize:14, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap',
+    width:'100%',
+  }
 
   return (
     <div className="space-y-6 w-full">
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <p className="text-zinc-400 text-sm mt-1">Metas y ventas de todas las impulsadoras</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <input
-            type="month"
-            value={mesInput}
-            onChange={e => setMesInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') setMesBuscado(mesInput) }}
-            className="rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid #1a3557"}}
-          />
-          <button
-            onClick={() => setMesBuscado(mesInput)}
-            title="Buscar mes"
-            className="bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold px-3 py-2 rounded-xl transition-colors"
-          >
-            🔍
-          </button>
-          <button
-            onClick={() => window.open('/pdf-impulso?fecha=' + mesBuscado + '-01', '_blank')}
-            className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors"
-          >
-            📄 Descargar PDF
-          </button>
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <p className="text-zinc-400 text-sm">Metas y ventas de todas las impulsadoras</p>
+        <div style={{display:'flex', alignItems:'center', gap:8, width:'100%'}}>
+          {/* Desde */}
+          <div style={{position:'relative', flex:1}}>
+            <button onClick={() => { setOpenDesde(o => !o); setOpenHasta(false) }} style={btnMesStyle}>
+              {labelDesde}
+              <span style={{color:'#64748b', fontSize:11}}>{openDesde ? '▲' : '▼'}</span>
+            </button>
+            <div style={dropdownStyle(openDesde)}>
+              {meses.map(m => (
+                <button key={m.valor} onClick={() => { setMesDesde(m.valor); setOpenDesde(false) }}
+                  style={{
+                    display:'block', width:'100%', textAlign:'left',
+                    padding:'9px 16px', fontSize:13, cursor:'pointer',
+                    background: m.valor === mesDesde ? '#1d4ed8' : 'transparent',
+                    color: m.valor === mesDesde ? 'white' : '#cbd5e1',
+                    fontWeight: m.valor === mesDesde ? 700 : 400,
+                    borderBottom:'1px solid #131c2e',
+                  }}>
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Hasta */}
+          <div style={{position:'relative', flex:1}}>
+            <button onClick={() => { setOpenHasta(o => !o); setOpenDesde(false) }} style={btnMesStyle}>
+              {labelHasta}
+              <span style={{color:'#64748b', fontSize:11}}>{openHasta ? '▲' : '▼'}</span>
+            </button>
+            <div style={dropdownStyle(openHasta)}>
+              {mesesHasta.map(m => (
+                <button key={m.valor} onClick={() => { setMesHasta(m.valor); setOpenHasta(false) }}
+                  style={{
+                    display:'block', width:'100%', textAlign:'left',
+                    padding:'9px 16px', fontSize:13, cursor:'pointer',
+                    background: m.valor === mesHasta ? '#1d4ed8' : 'transparent',
+                    color: m.valor === mesHasta ? 'white' : '#cbd5e1',
+                    fontWeight: m.valor === mesHasta ? 700 : 400,
+                    borderBottom:'1px solid #131c2e',
+                  }}>
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={{alignSelf:'flex-end'}}>
+            <button onClick={abrirPDF}
+              className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors whitespace-nowrap">
+              📄 PDF
+            </button>
+          </div>
         </div>
       </div>
 
-      <ReporteImpulsoTabla mes={mesBuscado} />
+      <ReporteImpulsoTabla mes={mesDesde} />
     </div>
   )
 }
@@ -989,6 +1073,7 @@ function ReporteImpulsoTab() {
 function ReporteImpulsoTabla({ mes }: { mes: string }) {
   const [datos, setDatos] = useState<any>(null)
   const [loading, setLoading] = useState(false)
+  const [tabDia, setTabDia] = useState<Record<string, number>>({})
 
   useEffect(() => {
     setLoading(true)
@@ -998,70 +1083,146 @@ function ReporteImpulsoTabla({ mes }: { mes: string }) {
   }, [mes])
 
   const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
-  const color = (pct: number | null) => pct === null ? 'text-zinc-500' : pct >= 80 ? 'text-emerald-400' : pct >= 50 ? 'text-amber-400' : 'text-red-400'
+  const pctColor = (pct: number | null): React.CSSProperties =>
+    pct === null ? {color:'#71717a'} : pct >= 80 ? {color:'#34d399'} : pct >= 50 ? {color:'#fbbf24'} : {color:'#f87171'}
+
+  const BORDER = '1px solid #1e2a3d'
+  const BORDER_DAY = '2px solid #1e3a5f'
 
   if (loading) return (
     <div className="p-4 space-y-4">
       <div className="shimmer h-10 w-2/3 rounded-xl mx-auto" />
-      {Array.from({length: 4}).map((_,i) => (
-        <div key={i} className="shimmer rounded-2xl h-24" />
-      ))}
+      {Array.from({length: 4}).map((_,i) => <div key={i} className="shimmer rounded-2xl h-24" />)}
     </div>
   )
   if (!datos) return null
 
   return (
     <div className="space-y-6 w-full">
-      {datos.snapshot && (
-        <p className="text-zinc-500 text-xs">🔒 Mes cerrado — vista de solo lectura, no se recalcula.</p>
-      )}
-      <div className={`grid gap-4 ${datos.impulsadoras?.length === 1 ? "grid-cols-1" : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"}`}>
-      {datos.impulsadoras?.map((imp: any) => (
-        <div key={imp.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl overflow-hidden">
-          <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
-            <span className="text-white font-bold">{imp.nombre}</span>
-            <span className={['text-sm font-bold', color(imp.pctTotal)].join(' ')}>
-              {fmt(imp.totalMes)} / {fmt(imp.totalMeta)}
-              {imp.pctTotal !== null && <span className="ml-2">{imp.pctTotal}%</span>}
-            </span>
-          </div>
-          <div className="overflow-x-auto">
-          <table className="w-full text-sm" style={{minWidth:560}}>
-            <thead>
-              <tr style={{background:"#0d1220",borderBottom:"1px solid #1e2a3d"}}>
-                <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center",textTransform:"uppercase",whiteSpace:"nowrap"}}>Cliente</th>
-                <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center",textTransform:"uppercase",whiteSpace:"nowrap"}}>Meta</th>
-                <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center",textTransform:"uppercase",whiteSpace:"nowrap"}}>Ventas</th>
-                <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"center",textTransform:"uppercase",whiteSpace:"nowrap"}}>%</th>
-              </tr>
-            </thead>
-            <tbody>
-              {imp.semana?.map((dia: any) => (
-                <>
-                  <tr key={'dia-' + dia.dia} style={{background:"#141c2e",borderBottom:"1px solid #1e2a3d"}}>
-                    <td colSpan={4} style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",borderBottom:"1px solid #1e2a3d",whiteSpace:"nowrap",textAlign:"center",textTransform:"uppercase"}}>{dia.nombre}</td>
-                  </tr>
-                  {dia.puntos?.map((p: any, i: number) => (
-                    <tr key={i} style={{background:"#141c2e",borderBottom:"1px solid #1e2a3d"}}>
-                      <td className="px-4 py-2">
-                        <span className="text-white whitespace-nowrap block">{p.nombre}</span>
-                        {p.nombreComercial && <span className="text-zinc-500 text-xs whitespace-nowrap block mt-0.5">{p.nombreComercial}</span>}
-                      </td>
-                      <td className="px-4 py-2 text-right text-amber-500 font-medium whitespace-nowrap">{p.meta > 0 ? fmt(p.meta) : '—'}</td>
-                      <td className="px-4 py-2 text-right text-blue-400 font-medium whitespace-nowrap">{p.montoMes > 0 ? fmt(p.montoMes) : '—'}</td>
-                      <td className={'px-4 py-2 text-right font-bold whitespace-nowrap ' + color(p.pct)}>{p.pct !== null ? p.pct + '%' : '—'}</td>
+      <div className={`grid gap-4 ${datos.impulsadoras?.length === 1 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'}`}>
+        {datos.impulsadoras?.map((imp: any) => {
+          const diasConPuntos = (imp.semana || []).filter((d: any) => d.puntos?.length > 0)
+          const diaActivo = tabDia[imp.id] ?? 0
+
+          return (
+            <div key={imp.id} style={{background:'#0d1220', border:'1px solid #1e2a3d', borderRadius:16, overflow:'hidden'}}>
+              {/* Header impulsadora */}
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'10px 16px',borderBottom:BORDER,background:'#0a0f1a'}}>
+                <span style={{color:'white',fontWeight:700,fontSize:15}}>{imp.nombre}</span>
+                <span style={{fontSize:13,fontWeight:700,...pctColor(imp.pctTotal)}}>
+                  {fmt(imp.totalMes)} / {fmt(imp.totalMeta)}
+                  {imp.pctTotal !== null && <span style={{marginLeft:6}}>{imp.pctTotal}%</span>}
+                </span>
+              </div>
+
+              {/* MÓVIL: misma tabla pc, scroll horizontal */}
+              <div className="block md:hidden overflow-x-auto">
+                <table style={{width:'100%',borderCollapse:'collapse',fontSize:13,minWidth:480}}>
+                  <thead>
+                    <tr style={{background:'#080d18'}}>
+                      <th style={{...thSt, width:80, borderRight:BORDER_DAY}}>Día</th>
+                      <th style={{...thSt, textAlign:'left'}}>Cliente</th>
+                      <th style={{...thSt, textAlign:'right', width:120}}>Meta</th>
+                      <th style={{...thSt, textAlign:'right', width:120}}>Ventas</th>
+                      <th style={{...thSt, textAlign:'right', width:55}}>%</th>
                     </tr>
-                  ))}
-                </>
-              ))}
-            </tbody>
-          </table>
-          </div>
-        </div>
-      ))}
+                  </thead>
+                  <tbody>
+                    {diasConPuntos.map((dia: any, dIdx: number) => {
+                      const puntos = dia.puntos || []
+                      return puntos.map((p: any, i: number) => (
+                        <tr key={`${dIdx}-${i}`} style={{borderBottom:BORDER, background: dIdx%2===0?'#0d1220':'#0a0f1a'}}>
+                          {i === 0 && (
+                            <td rowSpan={puntos.length} style={{
+                              padding:'8px 8px', textAlign:'center', verticalAlign:'middle',
+                              fontWeight:700, fontSize:11, color:'#93c5fd', textTransform:'uppercase',
+                              borderRight:BORDER_DAY,
+                              borderBottom: dIdx < diasConPuntos.length-1 ? BORDER_DAY : BORDER,
+                              whiteSpace:'nowrap', letterSpacing:'0.04em',
+                              background: dIdx%2===0?'#0b1628':'#08101e',
+                            }}>
+                              {dia.nombre}
+                            </td>
+                          )}
+                          <td style={{padding:'7px 10px', borderRight:BORDER}}>
+                            <span style={{color:'white',fontWeight:500,display:'block'}}>{p.nombre}</span>
+                            {p.nombreComercial && <span style={{color:'#64748b',fontSize:11,display:'block',marginTop:1}}>{p.nombreComercial}</span>}
+                          </td>
+                          <td style={{padding:'7px 10px', textAlign:'right', color:'#f59e0b', fontWeight:600, borderRight:BORDER, whiteSpace:'nowrap'}}>
+                            {p.meta > 0 ? fmt(p.meta) : '—'}
+                          </td>
+                          <td style={{padding:'7px 10px', textAlign:'right', color:'#60a5fa', fontWeight:600, borderRight:BORDER, whiteSpace:'nowrap'}}>
+                            {p.montoMes > 0 ? fmt(p.montoMes) : '—'}
+                          </td>
+                          <td style={{padding:'7px 10px', textAlign:'right', fontWeight:700, whiteSpace:'nowrap', ...pctColor(p.pct)}}>
+                            {p.pct !== null ? p.pct + '%' : '—'}
+                          </td>
+                        </tr>
+                      ))
+                    })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* DESKTOP: tabla Excel con rowSpan por día */}
+              <div className="hidden md:block overflow-x-auto">
+                <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
+                  <thead>
+                    <tr style={{background:'#080d18'}}>
+                      <th style={{...thSt, width:90, borderRight:BORDER_DAY}}>Día</th>
+                      <th style={{...thSt, textAlign:'left'}}>Cliente</th>
+                      <th style={{...thSt, textAlign:'right', width:130}}>Meta</th>
+                      <th style={{...thSt, textAlign:'right', width:130}}>Ventas</th>
+                      <th style={{...thSt, textAlign:'right', width:60}}>%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {diasConPuntos.map((dia: any, dIdx: number) => {
+                      const puntos = dia.puntos || []
+                      return puntos.map((p: any, i: number) => (
+                        <tr key={`${dIdx}-${i}`} style={{borderBottom:BORDER, background: dIdx%2===0?'#0d1220':'#0a0f1a'}}>
+                          {i === 0 && (
+                            <td rowSpan={puntos.length} style={{
+                              padding:'8px 10px', textAlign:'center', verticalAlign:'middle',
+                              fontWeight:700, fontSize:11, color:'#93c5fd', textTransform:'uppercase',
+                              borderRight:BORDER_DAY,
+                              borderBottom: dIdx < diasConPuntos.length-1 ? BORDER_DAY : BORDER,
+                              whiteSpace:'nowrap', letterSpacing:'0.05em',
+                              background: dIdx%2===0?'#0b1628':'#08101e',
+                            }}>
+                              {dia.nombre}
+                            </td>
+                          )}
+                          <td style={{padding:'7px 12px', borderRight:BORDER}}>
+                            <span style={{color:'white',fontWeight:500,display:'block'}}>{p.nombre}</span>
+                            {p.nombreComercial && <span style={{color:'#64748b',fontSize:11,display:'block',marginTop:1}}>{p.nombreComercial}</span>}
+                          </td>
+                          <td style={{padding:'7px 12px', textAlign:'right', color:'#f59e0b', fontWeight:600, borderRight:BORDER, whiteSpace:'nowrap'}}>
+                            {p.meta > 0 ? fmt(p.meta) : '—'}
+                          </td>
+                          <td style={{padding:'7px 12px', textAlign:'right', color:'#60a5fa', fontWeight:600, borderRight:BORDER, whiteSpace:'nowrap'}}>
+                            {p.montoMes > 0 ? fmt(p.montoMes) : '—'}
+                          </td>
+                          <td style={{padding:'7px 12px', textAlign:'right', fontWeight:700, whiteSpace:'nowrap', ...pctColor(p.pct)}}>
+                            {p.pct !== null ? p.pct + '%' : '—'}
+                          </td>
+                        </tr>
+                      ))
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        })}
       </div>
     </div>
   )
+}
+
+const thSt: React.CSSProperties = {
+  padding:'8px 12px', fontWeight:600, color:'#94a3b8', textTransform:'uppercase',
+  fontSize:11, letterSpacing:'0.06em', borderBottom:'2px solid #1e2a3d', whiteSpace:'nowrap',
 }
 
 // ── Tab Gestión (vendedor) ─────────────────────────────────────────

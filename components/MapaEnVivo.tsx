@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic'
 import { CountUp, LiveDot } from '@/components/FX'
 const MapaVivo = dynamic(() => import('@/app/(app)/mapa/MapaVivo'), { ssr: false })
 const COLORES = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4']
+const ROLES_EXCLUIDOS = ['bodega', 'admin', 'empresa', 'supervisor', 'superadmin']
 
 function FirmaInline({ firma }: { firma: string }) {
   const [url, setUrl] = useState<string | null>(null)
@@ -24,6 +25,47 @@ function FirmaInline({ firma }: { firma: string }) {
         {cargando ? 'Cargando...' : url ? 'Ocultar firma' : 'Ver firma'}
       </button>
       {url && <div className="bg-white rounded-lg p-2 mt-2"><img src={url} alt="Firma" className="w-full rounded" /></div>}
+    </div>
+  )
+}
+
+
+interface SelectorEmpleadoProps {
+  empleados: any[]
+  empleadoId: string
+  onChange: (id: string) => void
+}
+
+function SelectorEmpleado({ empleados, empleadoId, onChange }: SelectorEmpleadoProps) {
+  const [open, setOpen] = useState(true)
+  const filtrados = empleados.filter((e: any) => !ROLES_EXCLUIDOS.includes(e.rol))
+  const idx = filtrados.findIndex((e: any) => e.id === empleadoId)
+  const label = idx >= 0 ? filtrados[idx].nombre.split(' ').filter(Boolean).slice(0,2).join(' ') : 'Todos los vendedores'
+  return (
+    <div style={{position:'relative',flexShrink:0}}>
+      <button onClick={() => setOpen(o => !o)}
+        style={{display:'flex',alignItems:'center',gap:6,background:'#0d1220',border:'1px solid #1e2a3d',borderRadius:10,padding:'7px 12px',color:'white',fontSize:13,fontWeight:600,cursor:'pointer',maxWidth:180,overflow:'hidden'}}>
+        {idx >= 0 && <span style={{width:8,height:8,borderRadius:'50%',background:COLORES[idx % COLORES.length],display:'inline-block',flexShrink:0}} />}
+        <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{label}</span>
+        <span style={{color:'#64748b',fontSize:10}}>{open?'▲':'▼'}</span>
+      </button>
+      {open && <div style={{position:'fixed',inset:0,zIndex:999}} onClick={() => setOpen(false)} />}
+      {open && (
+        <div style={{position:'absolute',top:'calc(100% + 4px)',right:0,zIndex:1000,background:'#0d1220',border:'1px solid #1e2a3d',borderRadius:10,overflow:'hidden',minWidth:200,boxShadow:'0 8px 24px rgba(0,0,0,0.6)'}}>
+          {empleadoId && <button onClick={() => { onChange(''); setOpen(false) }}
+            style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'9px 12px',background:'none',border:'none',borderBottom:'1px solid #131c2e',color:'white',fontSize:13,cursor:'pointer',textAlign:'left'}}>
+            <span style={{width:8,height:8,borderRadius:'50%',background:'#64748b',display:'inline-block',flexShrink:0}} />
+            Todos los vendedores
+          </button>}
+          {filtrados.filter((e: any) => e.id !== empleadoId).map((e: any, i: number) => (
+            <button key={e.id} onClick={() => { onChange(e.id); setOpen(false) }}
+              style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'9px 12px',background:e.id===empleadoId?'rgba(59,130,246,0.1)':'none',border:'none',borderBottom:'1px solid #131c2e',color:'white',fontSize:13,cursor:'pointer',textAlign:'left'}}>
+              <span style={{width:8,height:8,borderRadius:'50%',background:COLORES[i % COLORES.length],display:'inline-block',flexShrink:0}} />
+              {(e.nombre||'').split(' ').filter(Boolean).slice(0,2).join(' ')} · {e.rol}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -73,13 +115,7 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
           {!rutaId && (
             <div className="flex items-center gap-2 mt-1">
               <p className="text-zinc-400 text-sm flex-1 flex items-center gap-2"><CountUp end={datos.visitas.length} /> visitas con GPS {datos.visitas.length > 0 && <LiveDot color="emerald" />}</p>
-              {!esEmpleado && <select value={empleadoId} onChange={e => setEmpleadoId(e.target.value)}
-                className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 text-white text-xs outline-none max-w-[140px]">
-                <option value="">Vendedores</option>
-                {datos.empleados.map((e: any) => (
-                  <option key={e.id} value={e.id}>{e.nombre}</option>
-                ))}
-              </select>}
+              {!esEmpleado && <SelectorEmpleado empleados={datos.empleados} empleadoId={empleadoId} onChange={setEmpleadoId} />}
               <div className="relative flex-shrink-0">
                 <button onClick={() => (document.getElementById("mapa-fecha") as HTMLInputElement)?.showPicker?.()}
                   className="bg-zinc-900 border border-zinc-800 rounded-xl px-2.5 py-1.5 text-sm">
@@ -97,13 +133,7 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
       {embebido && (
         <div className="flex items-center gap-2">
           <p className="text-zinc-400 text-sm flex-1 flex items-center gap-2"><CountUp end={datos.visitas.length} /> visitas con GPS {datos.visitas.length > 0 && <LiveDot color="emerald" />}</p>
-          {!esEmpleado && <select value={empleadoId} onChange={e => setEmpleadoId(e.target.value)}
-            className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-1.5 text-white text-xs outline-none max-w-[140px]">
-            <option value="">Vendedores</option>
-            {datos.empleados.map((e: any) => (
-              <option key={e.id} value={e.id}>{e.nombre}</option>
-            ))}
-          </select>}
+          {!esEmpleado && <SelectorEmpleado empleados={datos.empleados} empleadoId={empleadoId} onChange={setEmpleadoId} />}
           <div className="relative flex-shrink-0">
             <button onClick={() => (document.getElementById("mapa-fecha-tab") as HTMLInputElement)?.showPicker?.()}
               className="bg-zinc-900 border border-zinc-800 rounded-xl px-2.5 py-1.5 text-sm">
@@ -115,22 +145,8 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
         </div>
       )}
 
-      {!esEmpleado && datos.empleados.length > 0 && (
-        <div className="flex gap-3 flex-wrap">
-          {datos.empleados.map((e: any, i: number) => (
-            <div key={e.id} className={`flex items-center gap-1.5 fade-up stagger-${Math.min(i+1, 8)}`}>
-              <span className="relative inline-flex h-3 w-3 align-middle">
-                <span className="absolute inline-flex h-full w-full rounded-full opacity-75 live-ping" style={{ backgroundColor: COLORES[i % COLORES.length] }} />
-                <span className="relative inline-flex rounded-full h-3 w-3" style={{ backgroundColor: COLORES[i % COLORES.length] }} />
-              </span>
-              <span className="text-zinc-400 text-xs">{e.nombre}</span>
-            </div>
-          ))}
-        </div>
-      )}
-
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{minHeight:'320px'}}>
-        <div className="lg:col-span-2 border border-zinc-800 rounded-2xl overflow-hidden" style={{background:"#1e243a",height:'clamp(400px, 85vw, 560px)'}}>
+        <div className="lg:col-span-2 border border-zinc-800 rounded-2xl overflow-hidden" style={{background:"#0d1220",height:'clamp(400px, 85vw, 560px)'}}>
           {loading ? (
             <div className="h-full p-4 space-y-3"><div className="shimmer h-full rounded-xl" /></div>
           ) : datos.visitas.length === 0 ? (
@@ -147,7 +163,7 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
           )}
         </div>
 
-        <div className="border border-zinc-800 rounded-2xl p-3 overflow-y-auto" style={{background:"#1e243a", maxHeight: window && window.innerWidth < 1024 ? "none" : "500px"}}>
+        <div className="border border-zinc-800 rounded-2xl p-3 overflow-y-auto" style={{background:"#0d1220", maxHeight: window && window.innerWidth < 1024 ? "none" : "500px"}}>
           <p className="text-zinc-600 text-[10px] font-bold tracking-widest mb-2 px-1">TIMELINE</p>
           {datos.visitas.length === 0 ? (
             <p className="text-zinc-600 text-sm px-1">Sin visitas</p>
@@ -162,7 +178,7 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
                 const mapsUrl = v.lat && v.lng ? `https://www.google.com/maps?q=${v.lat},${v.lng}` : (v.cliente?.maps || null)
                 return (
                   <div key={v.id}
-                    className={`border rounded-xl overflow-hidden transition-colors fade-up stagger-${Math.min(i+1,8)} ${isOpen ? 'border-zinc-600' : 'border-zinc-800 hover:border-zinc-700'}`} style={{background:"#1e243a"}}>
+                    className={`border rounded-xl overflow-hidden transition-colors fade-up stagger-${Math.min(i+1,8)} ${isOpen ? 'border-zinc-600' : 'border-zinc-800 hover:border-zinc-700'}`} style={{background:"#0d1220"}}>
                     {/* Línea 1 — siempre visible */}
                     <button onClick={() => setVisitaSeleccionada(isOpen ? null : v)}
                       className="w-full flex items-center gap-2 px-3 py-2 text-left">

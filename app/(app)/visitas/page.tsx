@@ -7,6 +7,7 @@ import dynamic from 'next/dynamic'
 const ModalVisita = dynamic(() => import('@/components/ModalVisita'), { ssr: false })
 const MapaEnVivo  = dynamic(() => import('@/components/MapaEnVivo'),  { ssr: false })
 const MapaHistorialCliente = dynamic(() => import('@/components/MapaHistorialCliente'), { ssr: false })
+import TabHistorialVisitas from '@/components/TabHistorialVisitas'
 import { checkPermiso } from '@/lib/permisos'
 
 export default function VisitasPage() {
@@ -314,78 +315,7 @@ export default function VisitasPage() {
       )}
 
       {tab === 'historial' && (
-        <div className="space-y-4">
-          {/* Filtros mobile — en desktop van junto a los tabs */}
-          <div className="flex gap-2 md:hidden">
-            <input value={buscarHistorial} onChange={e => {
-              const q = e.target.value
-              setBuscarHistorial(q)
-              setFechaHistorial('')
-              clearTimeout(debounceRef.current)
-              debounceRef.current = setTimeout(() => loadHistorial(q, '', null), 500)
-            }}
-              placeholder="Buscar cliente..."
-              style={{ flex:1, background:'#1e243a', border:'1px solid #1e3a5f', borderRadius:10, padding:'10px 14px', color:'white', fontSize:13, outline:'none' }} />
-            <div className="relative flex-shrink-0">
-              <input type="date" value={fechaHistorial} onChange={e => {
-                const f = e.target.value
-                setFechaHistorial(f)
-                setBuscarHistorial('')
-                clearTimeout(debounceRef.current)
-                loadHistorial('', f, null)
-              }}
-                className="absolute inset-0 opacity-0 cursor-pointer w-full" />
-              <div style={{ display:'flex', alignItems:'center', gap:6, padding:'10px 12px', borderRadius:10, fontSize:13, fontWeight:600, border:'1px solid', cursor:'pointer',
-                background: fechaHistorial ? '#09091e' : '#0c0c1c',
-                borderColor: fechaHistorial ? '#2563eb' : '#1e3a5f',
-                color: fechaHistorial ? 'white' : 'rgba(255,255,255,0.5)',
-              }}>
-                📅 {fechaHistorial ? new Date(fechaHistorial + 'T12:00:00Z').toLocaleDateString('es-CO', {day:'numeric', month:'short', timeZone: 'America/Bogota'}) : 'Fecha'}
-                {fechaHistorial && <button onClick={e => { e.stopPropagation(); setFechaHistorial(''); loadHistorial('', '', null) }} style={{ background:'none', border:'none', color:'rgba(255,255,255,0.7)', cursor:'pointer', fontSize:14, lineHeight:1, padding:0, marginLeft:2 }}>×</button>}
-              </div>
-            </div>
-          </div>
-
-          {historial.length > 0 && (
-            <p className="text-zinc-500 text-xs">Mostrando {historial.length} de {historialTotal} visitas</p>
-          )}
-
-          {loadingHistorial ? (
-            <div className="space-y-2">
-              {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
-            </div>
-          ) : historial.length === 0 ? (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
-              <p className="text-zinc-400 text-sm">{buscarHistorial || fechaHistorial ? 'Sin resultados' : 'Sin registros anteriores'}</p>
-            </div>
-          ) : (
-            <div className={clienteEspecifico ? "hidden md:flex gap-4 items-start" : ""}>
-              <div className={clienteEspecifico ? "flex-1 min-w-0 space-y-2" : "space-y-2"}>
-              {(() => {
-                const groups: Record<string, any[]> = {}
-                historial.forEach(v => {
-                  const key = v.clienteId || 'sin-cliente'
-                  if (!groups[key]) groups[key] = []
-                  groups[key].push(v)
-                })
-                return Object.entries(groups).map(([key, visitas]) => (
-                  <HistorialGroup key={key} clienteId={key} visitas={visitas} />
-                ))
-              })()}
-              {historialHasMore && (
-                <div style={{textAlign:"center"}}><button onClick={() => loadHistorial(buscarHistorial, fechaHistorial, historialCursor)} disabled={loadingMore}
-                  style={{background:"#1e2a3d",border:"1px solid #1e3a5f",borderRadius:10,padding:"6px 18px",color:"white",fontSize:13,cursor:"pointer"}}>
-                  {loadingMore ? 'Cargando...' : 'Cargar más'}</button></div>
-              )}
-              </div>
-              {clienteEspecifico && historial.some(v => v.lat) && (
-                <div className="hidden md:block flex-shrink-0" style={{width:420,height:520,position:'sticky',top:16}}>
-                  <MapaHistorialCliente visitas={historial} selected={selectedGps} />
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+        <TabHistorialVisitas apiUrl="/api/visitas/todas" mostrarEmpleado={false} />
       )}
 
       <ModalVisita

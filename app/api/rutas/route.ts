@@ -21,7 +21,7 @@ export async function GET() {
     where: { empresaId },
     include: {
       empleados: { include: { empleado: { select: { id: true, nombre: true, rol: true } } } },
-      clientes: { select: { id: true, clienteId: true, orden: true, rezago: true, supervisorEtiqueta: true, notas: true, cliente: { select: { id: true, nombre: true, direccion: true, ciudad: true, ubicacionReal: true, maps: true, lat: true, lng: true, latTmp: true, lngTmp: true } } }, orderBy: { orden: 'asc' } }
+      clientes: { select: { id: true, clienteId: true, orden: true, rezago: true, supervisorEtiqueta: true, notas: true, asignadoEn: true, ejecutado: true, cliente: { select: { id: true, nombre: true, direccion: true, ciudad: true, ubicacionReal: true, maps: true, lat: true, lng: true, latTmp: true, lngTmp: true } } }, orderBy: { orden: 'asc' } }
     },
     orderBy: { createdAt: 'desc' }
   })
@@ -151,7 +151,7 @@ export async function POST(req: NextRequest) {
     },
     include: {
       empleados: { include: { empleado: { select: { id: true, nombre: true, rol: true } } } },
-      clientes: { select: { id: true, clienteId: true, orden: true, rezago: true, supervisorEtiqueta: true, notas: true, cliente: { select: { id: true, nombre: true, direccion: true, ciudad: true, ubicacionReal: true, maps: true, lat: true, lng: true, latTmp: true, lngTmp: true } } }, orderBy: { orden: 'asc' } }
+      clientes: { select: { id: true, clienteId: true, orden: true, rezago: true, supervisorEtiqueta: true, notas: true, asignadoEn: true, ejecutado: true, cliente: { select: { id: true, nombre: true, direccion: true, ciudad: true, ubicacionReal: true, maps: true, lat: true, lng: true, latTmp: true, lngTmp: true } } }, orderBy: { orden: 'asc' } }
     }
   })
   await audit('RUTA_CREADA', user.email, `Ruta: ${ruta.nombre}`, user.id, user.id)
@@ -218,7 +218,7 @@ export async function PATCH(req: NextRequest) {
     },
     include: {
       empleados: { include: { empleado: { select: { id: true, nombre: true, rol: true } } } },
-      clientes: { select: { id: true, clienteId: true, orden: true, rezago: true, supervisorEtiqueta: true, notas: true, cliente: { select: { id: true, nombre: true, direccion: true, ciudad: true, ubicacionReal: true, maps: true, lat: true, lng: true, latTmp: true, lngTmp: true } } }, orderBy: { orden: 'asc' } }
+      clientes: { select: { id: true, clienteId: true, orden: true, rezago: true, supervisorEtiqueta: true, notas: true, asignadoEn: true, ejecutado: true, cliente: { select: { id: true, nombre: true, direccion: true, ciudad: true, ubicacionReal: true, maps: true, lat: true, lng: true, latTmp: true, lngTmp: true } } }, orderBy: { orden: 'asc' } }
     }
   })
 

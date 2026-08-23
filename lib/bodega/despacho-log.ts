@@ -90,19 +90,15 @@ export async function getDespachoLog(params: {
   }))
 
   // Generar rango consecutivo completo con huecos
-  // igual que controlFacturas en bodega
   let controlFacturas: any[] = []
   if (serialized.length > 0) {
     const mapaFacturas = new Map(serialized.map(r => [parseInt(r.numeroFactura), r]))
     const rangeMax = parseInt(serialized[0].numeroFactura)
     const rangeMin = parseInt(serialized[serialized.length - 1].numeroFactura)
+
     for (let n = rangeMax; n >= rangeMin; n--) {
       const r = mapaFacturas.get(n)
-      controlFacturas.push({
-        numero: n,
-        log: r || null,
-        hueco: !r,
-      })
+      controlFacturas.push({ numero: n, log: r || null, hueco: !r })
     }
   }
 

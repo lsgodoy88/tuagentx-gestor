@@ -7,6 +7,7 @@ import { useSession } from 'next-auth/react'
 import { DIAS } from '@/lib/constants'
 import { checkPermiso } from '@/lib/permisos'
 const MapaHistorialCliente = dynamic(() => import('@/components/MapaHistorialCliente'), { ssr: false })
+import TabHistorialVisitas from '@/components/TabHistorialVisitas'
 
 // Fecha de hoy en Bogotá vía timeZone explícito — correcto sin importar el TZ
 // del navegador/dispositivo (bug real: restar 5h manualmente sobre-corrige si el
@@ -21,6 +22,188 @@ function esDeHoy(ruta: any) {
   if (!ruta.fecha) return false
   const hoy = new Date(Date.now() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
   return ruta.fecha.split('T')[0] === hoy
+}
+
+
+function fmtHoraBogota(ts: string | null) {
+  if (!ts) return null
+  try { return new Date(ts).toLocaleTimeString('es-CO', { hour:'2-digit', minute:'2-digit', hour12:true, timeZone:'America/Bogota' }) } catch { return null }
+}
+function fmtFechaBogota(ts: string | null) {
+  if (!ts) return null
+  try { return new Date(ts).toLocaleDateString('es-CO', { day:'numeric', month:'short', year:'numeric', timeZone:'America/Bogota' }) } catch { return null }
+}
+function nombreFechaLargo(f: string) {
+  const d = new Date(f.split('T')[0] + 'T12:00:00')
+  return d.toLocaleDateString('es-CO', { day:'numeric', month:'long', year:'numeric' })
+}
+interface ClienteRow { rc: any; visita: any; asignadoA: string; horaEntrega: string|null; fechaAsignado: string|null }
+
+function GrupoEntregas({ clave, label, clientes, color, onAnular }: { clave:string; label:string; clientes:ClienteRow[]; color?:string; onAnular?:(id:string)=>void }) {
+  const [open, setOpen] = useState(false)
+  const [anulando, setAnulando] = useState<string|null>(null)
+  const [confirmando, setConfirmando] = useState<string|null>(null)
+  const longRef = useRef<ReturnType<typeof setTimeout>|null>(null)
+  function startLong(rcId: string) { longRef.current = setTimeout(() => setConfirmando(rcId), 600) }
+  function cancelLong() { if (longRef.current) { clearTimeout(longRef.current); longRef.current = null } }
+  async function anularRc(rcId: string) {
+    if (!onAnular) return
+    setAnulando(rcId)
+    const r = await fetch('/api/rutas/cliente', { method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ rutaClienteId: rcId }) })
+    setAnulando(null); setConfirmando(null)
+    if (r.ok) onAnular(rcId)
+  }
+  return (
+    <div style={{background:'#0d1220', border:`1px solid ${color || '#1e2a3d'}`, borderRadius:14, overflow:'hidden'}}>
+      <button onClick={() => setOpen(o => !o)} style={{width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', background:'transparent', border:'none', cursor:'pointer'}}>
+        <span style={{color:'white', fontWeight:700, fontSize:14}}>{label}</span>
+        <div style={{display:'flex', alignItems:'center', gap:12}}>
+          <span style={{color: color || '#60a5fa', fontSize:12, fontWeight:600}}>{"\u{1F4E6}"} {clientes.length}</span>
+          <span style={{color:'#64748b', fontSize:12}}>{open ? '\u25b2' : '\u25bc'}</span>
+        </div>
+      </button>
+      {open && (
+        <div style={{borderTop:`1px solid ${color || '#1e2a3d'}`}}>
+          <div className="grid grid-cols-1 md:grid-cols-2">
+          {clientes.map(({ rc, visita, asignadoA, horaEntrega, fechaAsignado }, i) => {
+            const c = rc.cliente
+            const ejecutado = !!visita
+            const factM = (rc.notas || '').match(/#(\d+)/)
+            const factura = factM ? factM[1] : null
+            const esConfirmando = confirmando === rc.id
+            return (
+              <div key={rc.id || i}
+                onTouchStart={() => { if (onAnular && !ejecutado) startLong(rc.id) }}
+                onTouchEnd={cancelLong} onTouchMove={cancelLong}
+                onClick={(e) => { if (esConfirmando && !(e.target as HTMLElement).closest('button')) setConfirmando(null) }}
+                style={{ padding:'10px 14px', borderBottom:'1px solid #131c2e', background: esConfirmando ? 'rgba(220,38,38,0.12)' : i%2===0 ? '#0a0f1a' : '#080d18', display:'flex', alignItems:'flex-start', gap:10, position:'relative' }}>
+                <span style={{ width:20, height:20, borderRadius:'50%', flexShrink:0, marginTop:2, display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, background: ejecutado ? '#059669' : '#374151', color: ejecutado ? 'white' : '#9ca3af' }}>{ejecutado ? '\u2713' : i+1}</span>
+                <div style={{flex:1, minWidth:0}}>
+                  <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:8}}>
+                    <span style={{color:'white', fontSize:13, fontWeight:600, flex:1, minWidth:0}}>{c?.nombre || '\u2014'}</span>
+                    {factura && <span style={{color:'white', fontSize:12, fontWeight:600, flexShrink:0}}>#{factura}</span>}
+                  </div>
+                  {c?.direccion && <p style={{color:'#64748b', fontSize:11, margin:'2px 0 0'}}>{c.direccion}{c.ciudad ? `, ${c.ciudad}` : ''}</p>}
+                  <div style={{display:'flex', alignItems:'center', flexWrap:'wrap', gap:10, marginTop:4}}>
+                    <span style={{color:'#94a3b8', fontSize:11}}>{"\u{1F464}"} {asignadoA}</span>
+                    {fechaAsignado && <span style={{color:'#64748b', fontSize:11}}>{"\u{1F4C5}"} {fechaAsignado}</span>}
+                    {ejecutado && horaEntrega && <span style={{color:'#34d399', fontSize:11}}>{"\u{1F550}"} {horaEntrega}</span>}
+                  </div>
+                </div>
+                {esConfirmando && onAnular && (
+                  <div style={{position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', display:'flex', gap:6, zIndex:10}}>
+                    <button onClick={() => anularRc(rc.id)} disabled={anulando === rc.id} style={{background:'#dc2626', color:'white', border:'none', borderRadius:8, padding:'5px 14px', fontSize:12, fontWeight:700, cursor:'pointer'}}>{anulando === rc.id ? '...' : 'Devolver a Bodega'}</button>
+                    <button onClick={() => setConfirmando(null)} style={{background:'#374151', color:'white', border:'none', borderRadius:8, padding:'5px 12px', fontSize:12, cursor:'pointer'}}>{"\u00d7"}</button>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TabEntregasAdmin() {
+  const [rutas, setRutas] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [expandidos, setExpandidos] = useState<Set<string>>(new Set())
+  const toggle = (k: string) => setExpandidos(prev => { const n = new Set(prev); n.has(k) ? n.delete(k) : n.add(k); return n })
+  const [busqueda, setBusqueda] = useState('')
+
+  useEffect(() => {
+    fetch('/api/rutas').then(r => r.json()).then((d: any) => {
+      const todas = Array.isArray(d) ? d : []
+      setRutas(todas.filter((r: any) => r.clientes?.length > 0).sort((a: any, b: any) => new Date(b.fecha ?? 0).getTime() - new Date(a.fecha ?? 0).getTime()))
+      setLoading(false)
+    })
+  }, [])
+
+  if (loading) return <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-2xl h-14 animate-pulse" />)}</div>
+
+  const hoy = new Date().toISOString().split('T')[0]
+
+  const buildClientes = (rutasList: any[]): ClienteRow[] =>
+    rutasList.flatMap((r: any) => (r.clientes || []).map((rc: any) => {
+      const visita = (r.visitas || []).find((v: any) => v.clienteId === rc.clienteId)
+      const asignadoA = r.empleados?.map((re: any) => re.empleado?.nombre).filter(Boolean).join(', ') || '\u2014'
+      return { rc, visita, asignadoA, horaEntrega: visita ? fmtHoraBogota(visita.fechaBogota || visita.createdAt) : null, fechaAsignado: rc.asignadoEn ? fmtFechaBogota(rc.asignadoEn) : null }
+    }))
+
+  const pendientes = rutas.filter(r => { const dia = (r.fecha || '').split('T')[0]; return !r.cerrada || dia >= hoy })
+  const clientesPendientes = buildClientes(pendientes).filter(row => !row.visita)
+  const historial = rutas.filter(r => { const dia = (r.fecha || '').split('T')[0]; return r.cerrada && dia < hoy })
+  const porDia: Record<string, any[]> = {}
+  historial.forEach(r => { const dia = (r.fecha || '').split('T')[0]; if (!porDia[dia]) porDia[dia] = []; porDia[dia].push(r) })
+  const dias = Object.keys(porDia).sort((a, b) => b.localeCompare(a))
+
+  const q = busqueda.trim().toLowerCase()
+  const filtrar = (rows: ClienteRow[]) => !q ? rows : rows.filter(({ rc }) => rc.cliente?.nombre?.toLowerCase().includes(q) || (rc.notas || '').toLowerCase().includes(q))
+
+  if (clientesPendientes.length === 0 && dias.length === 0) return <p className="text-zinc-500 text-sm text-center py-10">Sin historial de entregas</p>
+
+  return (
+    <div className="space-y-2">
+      <div style={{display:'flex',alignItems:'center',background:'#1e243a',border:'1px solid #1e3a5f',borderRadius:10,padding:'0 12px',gap:8,marginBottom:12}}>
+        <span style={{color:'#4b7cb5',fontSize:14,flexShrink:0}}>{"\u{1F50D}"}</span>
+        <input value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Buscar cliente u orden..." style={{flex:1,background:'transparent',border:'none',outline:'none',color:'white',fontSize:13,padding:'10px 0'}} />
+        {busqueda && <button onClick={() => setBusqueda('')} style={{color:'#64748b',fontSize:16,background:'none',border:'none',cursor:'pointer'}}>{"\u00d7"}</button>}
+      </div>
+
+      {filtrar(clientesPendientes).length > 0 && (
+        <GrupoEntregas clave="pendientes" label="Pendientes de entrega" clientes={filtrar(clientesPendientes)} color="#10b981"
+          onAnular={(id) => setRutas(prev => prev.map(r => ({...r, clientes: (r.clientes || []).filter((rc: any) => rc.id !== id)})))} />
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+      {dias.map(dia => {
+        const clientesDia = filtrar(buildClientes(porDia[dia]))
+        if (q && clientesDia.length === 0) return null
+        const isOpen = q ? true : expandidos.has(dia)
+        return (
+          <div key={dia} style={{background:'#0d1220', border:'1px solid #1e2a3d', borderRadius:14, overflow:'hidden'}}>
+            <button onClick={() => toggle(dia)} style={{width:'100%', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'12px 16px', cursor:'pointer', background:'transparent', border:'none'}}>
+              <span style={{color:'white', fontWeight:700, fontSize:14}}>{nombreFechaLargo(dia)}</span>
+              <div style={{display:'flex', alignItems:'center', gap:12}}>
+                <span style={{color:'#60a5fa', fontSize:12, fontWeight:600}}>{"\u{1F4E6}"} {clientesDia.length}</span>
+                <span style={{color:'#64748b', fontSize:12}}>{isOpen ? '\u25b2' : '\u25bc'}</span>
+              </div>
+            </button>
+            {isOpen && (
+              <div style={{borderTop:'1px solid #1e2a3d'}}>
+                {clientesDia.map(({ rc, visita, asignadoA, horaEntrega, fechaAsignado }, i) => {
+                  const c = rc.cliente
+                  const ejecutado = !!visita
+                  const factM = (rc.notas || '').match(/#(\d+)/)
+                  const factura = factM ? factM[1] : null
+                  return (
+                    <div key={rc.id || i} style={{ padding:'10px 16px', borderBottom:'1px solid #131c2e', background: i%2===0 ? '#0a0f1a' : '#080d18', display:'flex', alignItems:'flex-start', gap:10 }}>
+                      <span style={{ width:20, height:20, borderRadius:'50%', flexShrink:0, marginTop:2, display:'flex', alignItems:'center', justifyContent:'center', fontSize:10, fontWeight:700, background: ejecutado ? '#059669' : '#374151', color: ejecutado ? 'white' : '#9ca3af' }}>{ejecutado ? '\u2713' : i+1}</span>
+                      <div style={{flex:1, minWidth:0}}>
+                        <div style={{display:'flex', alignItems:'center', justifyContent:'space-between', gap:8}}>
+                          <p style={{color:'white', fontSize:13, fontWeight:600, margin:0, flex:1, minWidth:0}}>{c?.nombre || '\u2014'}</p>
+                          {factura && <span style={{color:'white', fontSize:12, fontWeight:600, flexShrink:0}}>#{factura}</span>}
+                        </div>
+                        {c?.direccion && <p style={{color:'#64748b', fontSize:11, margin:'2px 0 0'}}>{c.direccion}{c.ciudad ? `, ${c.ciudad}` : ''}</p>}
+                        <div style={{display:'flex', alignItems:'center', flexWrap:'wrap', gap:10, marginTop:4}}>
+                          <span style={{color:'#94a3b8', fontSize:11}}>{"\u{1F464}"} {asignadoA}</span>
+                          {fechaAsignado && <span style={{color:'#64748b', fontSize:11}}>{"\u{1F4C5}"} {fechaAsignado}</span>}
+                          {ejecutado && horaEntrega && <span style={{color:'#34d399', fontSize:11}}>{"\u{1F550}"} {horaEntrega}</span>}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )
+      })}
+      </div>
+    </div>
+  )
 }
 
 export default function RutasPage() {
@@ -57,12 +240,13 @@ export default function RutasPage() {
     setVisSugerencias(Array.isArray(res?.clientes) ? res.clientes : Array.isArray(res) ? res : [])
   }
 
-  async function buscarVisitas(p?: number, qOverride?: string) {
+  async function buscarVisitas(p?: number, qOverride?: string, empOverride?: string) {
     const pg = p ?? visPage
     const qVal = qOverride !== undefined ? qOverride : visClienteFiltro
+    const empVal = empOverride !== undefined ? empOverride : visEmpleadoFiltro
     setVisLoading(true)
     const params = new URLSearchParams()
-    if (visEmpleadoFiltro) params.set('empleadoId', visEmpleadoFiltro)
+    if (empVal) params.set('empleadoId', empVal)
     if (visFechaFiltro) params.set('fecha', visFechaFiltro)
     if (qVal) params.set('q', qVal)
     params.set('page', String(pg))
@@ -367,7 +551,7 @@ export default function RutasPage() {
         </button>
         <button onClick={() => setTabPrincipal('ruta')}
           className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'ruta' ? 'tab-active' : 'text-white hover:text-white'}`}>
-          📍 Ruta
+          📦 Entregas
         </button>
         <button onClick={() => setTabPrincipal('historial')}
           className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'historial' ? 'tab-active' : 'text-white hover:text-white'}`}>
@@ -378,299 +562,10 @@ export default function RutasPage() {
       {tabPrincipal === 'mapa' && <div style={{marginTop:-12}}><MapaEnVivo embebido /></div>}
 
       {tabPrincipal === 'historial' && (
-        <div className="space-y-4">
-          {/* Controles — una sola línea */}
-          <div className="flex gap-2 items-center">
-            <div style={{position:'relative',display:'flex',alignItems:'center',background:'#1e243a',border:'1px solid #1e3a5f',borderRadius:10,padding:'0 10px',gap:6,flex:1}}>
-              <span style={{color:'#4b7cb5',fontSize:14,flexShrink:0}}>🔍</span>
-              <input value={visClienteFiltro} onChange={e => {
-                setVisClienteFiltro(e.target.value)
-                clearTimeout(visSugRef.current)
-                visSugRef.current = setTimeout(() => { buscarClientesVis(e.target.value); setVisShowSug(true) }, 300)
-              }}
-                placeholder="Buscar cliente..."
-                autoComplete="off"
-                onFocus={() => { if (visClienteFiltro.length >= 2) setVisShowSug(true) }}
-                onBlur={() => setTimeout(() => setVisShowSug(false), 200)}
-                onKeyDown={e => e.key === 'Enter' && buscarVisitas()}
-                style={{background:'none',border:'none',color:'white',fontSize:12,outline:'none',flex:1,padding:'7px 0'}} />
-              {visClienteFiltro && <button onClick={()=>{setVisClienteFiltro('');setVisSugerencias([]);buscarVisitas(1,'')}} style={{background:'none',border:'none',color:'#6b7280',cursor:'pointer',fontSize:14,padding:0,flexShrink:0}}>×</button>}
-              {visShowSug && visSugerencias.length > 0 && (
-                <div style={{position:'absolute',top:'100%',left:0,zIndex:50,background:'#1e243a',border:'1px solid #1e3a5f',borderRadius:10,minWidth:260,marginTop:4,overflow:'hidden'}}>
-                  {visSugerencias.map((cl:any) => (
-                    <button key={cl.id} onMouseDown={() => {
-                      setVisShowSug(false); setVisSugerencias([])
-                      setVisClienteFiltro(cl.nombre)
-                      buscarVisitas(1, cl.nombre)
-                    }} style={{width:'100%',textAlign:'left',padding:'8px 14px',background:'none',border:'none',borderBottom:'1px solid #1e3a5f',color:'white',fontSize:12,cursor:'pointer'}}
-                      onMouseEnter={e=>(e.currentTarget.style.background='#0f2540')}
-                      onMouseLeave={e=>(e.currentTarget.style.background='none')}>
-                      <span style={{fontWeight:500}}>{cl.nombre}</span>
-                      {cl.nit && <span style={{color:'#6b7280',marginLeft:6}}>{cl.nit}</span>}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-            <select value={visEmpleadoFiltro} onChange={e => { setVisEmpleadoFiltro(e.target.value); buscarVisitas(1) }}
-              className={visEmpleadoFiltro ? 'select-active' : ''}
-              style={{background:'#1e243a',border:'1px solid #1e3a5f',borderRadius:10,padding:'7px 10px',color:'white',fontSize:12,outline:'none',cursor:'pointer'}}>
-              <option value="">Todos los empleados</option>
-              {visEmpleados.filter((e: any) => e.activo).map((e: any) => (
-                <option key={e.id} value={e.id}>{e.nombre}</option>
-              ))}
-            </select>
-            <div className="relative flex-shrink-0">
-              <input type="date" value={visFechaFiltro} onChange={e => { setVisFechaFiltro(e.target.value); buscarVisitas(1) }}
-                className="absolute inset-0 opacity-0 cursor-pointer w-full" />
-              <div style={{display:'flex',alignItems:'center',gap:4,padding:'7px 10px',borderRadius:10,fontSize:12,border:'1px solid',cursor:'pointer',
-                background: visFechaFiltro ? '#09091e' : '#1e243a',
-                borderColor: visFechaFiltro ? '#2563eb' : '#1e3a5f',
-                color: visFechaFiltro ? 'white' : 'rgba(255,255,255,0.5)'}}>
-                📅{visFechaFiltro ? ' '+new Date(visFechaFiltro+'T12:00:00Z').toLocaleDateString('es-CO',{day:'numeric',month:'short',timeZone:'America/Bogota'}) : ''}
-                {visFechaFiltro && <button onClick={e=>{e.stopPropagation();setVisFechaFiltro('');buscarVisitas()}} style={{background:'none',border:'none',color:'rgba(255,255,255,0.7)',cursor:'pointer',fontSize:14,lineHeight:1,padding:0,marginLeft:2}}>×</button>}
-              </div>
-            </div>
-          </div>
-          {visitas.length > 0 && <p className="text-zinc-500 text-xs">Mostrando {visitas.length}{visTotal > visitas.length ? ' de '+visTotal : ''} visitas</p>}
-          {visLoading ? (
-            <div className="space-y-2">{Array.from({length:4}).map((_,i)=><div key={i} className="animate-pulse bg-zinc-900 border border-zinc-800 rounded-2xl h-16"/>)}</div>
-          ) : visitas.length === 0 ? (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-8 text-center">
-              <p className="text-zinc-400 text-sm">Sin visitas para los filtros seleccionados</p>
-            </div>
-          ) : (
-            <div className={visClienteEspecifico ? "hidden md:flex gap-4 items-start" : ""}>
-              <div className={visClienteEspecifico ? "flex-1 min-w-0 space-y-2" : "space-y-2"}>
-                {(() => {
-                  const TIPO_ICON: Record<string,string> = {venta:'💰',cobro:'💵',recaudo:'💵',entrega:'📦'}
-                  const groups: Record<string, any[]> = {}
-                  visitas.forEach((v:any) => {
-                    const key = v.clienteId || 'sin-cliente'
-                    if (!groups[key]) groups[key] = []
-                    groups[key].push(v)
-                  })
-                  return Object.entries(groups).map(([key, gVisitas]) => {
-                    const cli = gVisitas[0]?.cliente
-                    const conGps = gVisitas.find((v:any) => v.lat)
-                    const mapsUrl = conGps ? `https://www.google.com/maps?q=${conGps.lat},${conGps.lng}` : cli?.maps || null
-                    return (
-                      <div key={key} className="rounded-2xl overflow-hidden" style={{background:'#1e243a',border:'1px solid #1e3a5f'}}>
-                        <div className="flex items-center gap-3 px-4 py-2.5 border-b border-zinc-800">
-                          <span className="text-white text-sm font-medium flex-1 min-w-0 truncate">{cli?.nombre || 'Sin cliente'}</span>
-                          {cli?.direccion && <span className="text-zinc-500 text-xs hidden md:block truncate max-w-[200px] flex-shrink-0">{cli.direccion}</span>}
-                          {mapsUrl && <a href={mapsUrl} target="_blank" rel="noreferrer" className="flex-shrink-0 text-zinc-400 hover:text-emerald-400 text-xs transition-colors">🗺️</a>}
-                        </div>
-                        {gVisitas.map((v:any, i:number) => {
-                          const fecha = new Date(v.createdAt).toLocaleDateString('es-CO',{day:'numeric',month:'short',timeZone:'America/Bogota'})
-                          const hora = new Date(v.createdAt).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'})
-                          return (
-                            <div key={v.id} className="flex items-center gap-3 px-4 py-2" style={{borderBottom: i < gVisitas.length-1 ? '1px solid #1e2a3d' : 'none'}}>
-                              <span className="text-sm flex-shrink-0">{TIPO_ICON[v.tipo]||'👁️'}</span>
-                              <span className="text-zinc-300 text-xs capitalize flex-shrink-0" style={{minWidth:56}}>{v.tipo}</span>
-                              <span className="text-zinc-400 text-xs flex-shrink-0 hidden md:inline">{v.empleado?.nombre}</span>
-                              <span className="text-zinc-600 text-xs flex-shrink-0 hidden md:inline">·</span>
-                              <span className="text-zinc-400 text-xs flex-shrink-0">{fecha} · {hora}</span>
-                              <span className="flex-1"/>
-                              {v.monto ? <span className="text-emerald-400 text-xs font-medium flex-shrink-0">${Number(v.monto).toLocaleString('es-CO')}</span> : null}
-                              {v.lat && <button onClick={()=>setVisSelectedGps({lat:v.lat,lng:v.lng})} className="text-zinc-500 hover:text-emerald-400 flex-shrink-0 ml-1 border-none bg-transparent cursor-pointer" style={{fontSize:14,padding:0}} title="Ver en mapa">📍</button>}
-                            </div>
-                          )
-                        })}
-                      </div>
-                    )
-                  })
-                })()}
-              </div>
-              {visClienteEspecifico && visitas.some((v:any) => v.lat) && (
-                <div className="hidden md:block flex-shrink-0" style={{width:420,height:520,position:'sticky',top:16}}>
-                  <MapaHistorialCliente visitas={visitas} selected={visSelectedGps} />
-                </div>
-              )}
-            </div>
-          )}
-          {visTotal > VIS_LIMIT && (
-            <div className="flex items-center justify-between">
-              <span className="text-zinc-500 text-xs">{(visPage-1)*VIS_LIMIT+1}–{Math.min(visPage*VIS_LIMIT, visTotal)} de {visTotal}</span>
-              <div className="flex gap-2">
-                <button disabled={visPage===1} onClick={() => { const np = visPage-1; setVisPage(np); buscarVisitas(np) }}
-                  className="bg-zinc-800 border border-zinc-700 text-zinc-400 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40">← Ant</button>
-                <button disabled={visPage*VIS_LIMIT>=visTotal} onClick={() => { const np = visPage+1; setVisPage(np); buscarVisitas(np) }}
-                  className="bg-zinc-800 border border-zinc-700 text-zinc-400 text-xs px-3 py-1.5 rounded-lg disabled:opacity-40">Sig →</button>
-              </div>
-            </div>
-          )}
-        </div>
+        <TabHistorialVisitas apiUrl="/api/visitas/admin" mostrarEmpleado={true} />
       )}
 
-      {tabPrincipal === 'ruta' && <>
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold text-white">Rutas</h1>
-        <div className="flex items-center gap-2">
-          <div className="relative flex items-center gap-1">
-            {filtroFecha ? (
-              <>
-                <span className="text-zinc-400 text-xs">{filtroFecha}</span>
-                <button onClick={() => { setFiltroFecha(''); setPageRutas(1) }}
-                  className="text-zinc-400 hover:text-white text-sm bg-zinc-800 px-2 py-1.5 rounded-lg">×</button>
-              </>
-            ) : null}
-            <label className="cursor-pointer text-zinc-400 hover:text-white text-2xl bg-zinc-800 px-2.5 py-1.5 rounded-lg">
-              📅
-              <input type="date" value={filtroFecha}
-                onChange={e => { setFiltroFecha(e.target.value); setPageRutas(1) }}
-                className="absolute opacity-0 w-0 h-0" />
-            </label>
-          </div>
-          {puedeAsignar && !esSupervisor && (
-            <>
-            <button onClick={generarRutaHoy} disabled={generando} className={`bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-semibold px-4 py-2 rounded-xl text-sm whitespace-nowrap ${(generando) ? 'btn-shimmer' : ''}`}>
-              {generando ? "⏳" : "🔄"} {generando ? "Generando..." : "Generar hoy"}
-            </button>
-            <button onClick={() => setModal(true)}
-              className="bg-emerald-600 hover:bg-emerald-500 text-white font-semibold px-4 py-2 rounded-xl text-sm whitespace-nowrap">
-              + Ruta
-            </button>
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-        {rutasPagina.map((r: any) => {
-          const esVinculada = r.empresaVinculadaId != null
-          const totalClientes = r.clientes.length
-          const rezagos = r.clientes.filter((rc: any) => rc.rezago).length
-          const etiquetasUnicas = new Set(r.clientes.filter((rc: any) => rc.supervisorEtiqueta).map((rc: any) => rc.supervisorEtiqueta))
-          const totalEmpresas = esVinculada ? 1 : 1 + etiquetasUnicas.size
-          let pct = 0; let pendientes = 0
-          if (r.cerrada && totalClientes > 0 && r.fecha) {
-            const visitados = r.clientes.filter((rc: any) => (r.visitas || []).some((v: any) => v.clienteId === rc.clienteId)).length
-            pct = Math.round(visitados / totalClientes * 100)
-            pendientes = totalClientes - visitados
-          }
-          return (
-          <div key={r.id} className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3">
-            {/* Línea 1: nombre + fecha */}
-            <div className="flex items-center justify-between gap-3 mb-2">
-              <p className="text-white font-semibold truncate">{r.nombre}</p>
-              {r.fecha && <p className="text-zinc-500 text-xs whitespace-nowrap">{nombreFecha(r.fecha)}</p>}
-            </div>
-            {/* Línea 2: stats + badge + botones — todo en una línea */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-zinc-400 text-xs">🏢{totalEmpresas}</span>
-              <span className="text-zinc-400 text-xs">👤{totalClientes}</span>
-              {!esVinculada && rezagos > 0 && <span className="text-amber-400 text-xs">↩️{rezagos}</span>}
-              {r.cerrada && totalClientes > 0 && r.fecha && (
-                pendientes === 0
-                  ? <span className="text-xs font-semibold text-emerald-400">✓ 100%</span>
-                  : <span className="text-xs font-semibold text-amber-400">✓ {pct}% ⚠️{pendientes}</span>
-              )}
-              <div className="flex-1" />
-              <button onClick={() => setRutaDetalle(rutaDetalle?.id === r.id ? null : r)}
-                className="text-zinc-400 hover:text-white text-sm bg-zinc-800 px-2.5 py-1.5 rounded-lg">
-                {rutaDetalle?.id === r.id ? '▲' : '👁️'}
-              </button>
-              <Link href={`/mapa?rutaId=${r.id}`}
-                className="text-zinc-400 hover:text-white text-sm bg-zinc-800 px-2.5 py-1.5 rounded-lg">
-                🗺️
-              </Link>
-              {esVinculada ? (
-                <button onClick={() => abrirModalSimple(r)}
-                  className="text-emerald-400 hover:text-emerald-300 text-sm bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1.5 rounded-lg">
-                  ➕
-                </button>
-              ) : puedeAsignar && !esSupervisor ? (
-                <button onClick={() => abrirEditar(r)} className="text-zinc-400 hover:text-white text-sm bg-zinc-800 px-2.5 py-1.5 rounded-lg">✏️</button>
-              ) : null}
-            </div>
-            {/* Panel de detalle */}
-            {rutaDetalle?.id === r.id && (
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <p className="text-zinc-400 text-xs font-semibold mb-2">EMPLEADOS</p>
-                  <div className="space-y-1">
-                    {r.empleados.map((re: any) => (
-                      <div key={re.id} className="flex items-center gap-2 bg-zinc-800 rounded-lg px-3 py-2">
-                        <div className="w-6 h-6 bg-zinc-600 rounded-full flex items-center justify-center text-white text-xs font-bold">
-                          {re.empleado.nombre[0].toUpperCase()}
-                        </div>
-                        <span className="text-white text-sm">{re.empleado.nombre}</span>
-                        <span className="text-zinc-500 text-xs capitalize ml-auto">{re.empleado.rol}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <p className="text-zinc-400 text-xs font-semibold mb-2">CLIENTES EN ORDEN</p>
-                  <div className="space-y-2">
-                    {r.clientes.map((rc: any, i: number) => {
-                      const visitasCli = (r.visitas || []).filter((v: any) => v.clienteId === rc.clienteId)
-                      const ejecutado = visitasCli.length > 0
-                      return (
-                        <div key={rc.id} className={"rounded-xl border " + (ejecutado ? "bg-zinc-800/60 border-zinc-700" : "bg-zinc-800 border-zinc-700")}>
-                          <div className="flex items-center gap-2 px-3 py-2">
-                            <span className={"text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold flex-shrink-0 " + (ejecutado ? "bg-emerald-500 text-black" : rc.rezago ? "bg-amber-500/20 text-amber-400" : "bg-zinc-600 text-zinc-300")}>{ejecutado ? "✓" : rc.rezago ? "↩" : i + 1}</span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-white text-sm truncate">{rc.cliente.nombre}</p>
-                              {rc.cliente.direccion && <p className="text-zinc-500 text-xs truncate">{rc.cliente.direccion}</p>}
-                            </div>
-                            {rc.supervisorEtiqueta && <span className="text-blue-400 text-xs">{rc.supervisorEtiqueta}</span>}
-                            {rc.cliente.ubicacionReal && <span className="text-emerald-400 text-xs">GPS</span>}
-                          </div>
-                          {visitasCli.length > 0 && (
-                            <div className="px-3 pb-2 space-y-1 border-t border-zinc-700 pt-2">
-                              {visitasCli.map((v: any) => (
-                                <button key={v.id} onClick={async () => {
-                                    setFirmaUrl(null)
-                                    setVisitaModal({...v, clienteNombre: rc.cliente.nombre})
-                                    if (v.firma) {
-                                      const res = await fetch('/api/firma', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ firma: v.firma }) }).then(r => r.json())
-                                      if (res.url) setFirmaUrl(res.url)
-                                    }
-                                  }}
-                                  className="w-full flex items-center gap-2 text-xs bg-zinc-700/50 hover:bg-zinc-700 rounded-lg px-2 py-1.5 transition-colors">
-                                  <span>{v.tipo === 'venta' ? '💰' : v.tipo === 'cobro' ? '💵' : v.tipo === 'entrega' ? '📦' : '👁️'}</span>
-                                  <span className="text-zinc-300 capitalize">{v.tipo}</span>
-                                  {v.monto && <span className="text-emerald-400 font-semibold">${Number(v.monto).toLocaleString('es-CO')}</span>}
-                                  <span className="text-zinc-500 ml-auto">{new Date(v.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})}</span>
-                                  {v.firma && <span className="text-blue-400">✍️</span>}
-                                  {v.lat && <span className="text-emerald-400">📍</span>}
-                                </button>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-          )
-        })}
-        {rutasFiltradas.length === 0 && (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-10 text-center">
-            <p className="text-3xl mb-2">🛣️</p>
-            <p className="text-zinc-400">{filtroFecha ? 'Sin rutas para esa fecha' : 'No hay rutas creadas'}</p>
-          </div>
-        )}
-        {totalPaginas > 1 && (
-          <div className="flex items-center justify-between pt-1">
-            <p className="text-zinc-500 text-xs">Página {pageRutas} de {totalPaginas}</p>
-            <div className="flex gap-2">
-              <button onClick={() => setPageRutas(p => p - 1)} disabled={pageRutas === 1}
-                className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white text-xs px-3 py-1.5 rounded-lg">← Ant</button>
-              <button onClick={() => setPageRutas(p => p + 1)} disabled={pageRutas >= totalPaginas}
-                className="bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white text-xs px-3 py-1.5 rounded-lg">Sig →</button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      </>
-      }
+      {tabPrincipal === 'ruta' && <TabEntregasAdmin />}
       {/* Modal nueva/editar ruta (solo no-supervisor) */}
       {modal && (
         <div className="fixed inset-0 bg-black/95 flex items-start justify-center z-50 pt-4 px-4 pb-4" >

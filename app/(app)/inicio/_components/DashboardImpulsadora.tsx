@@ -16,7 +16,7 @@ export default function DashboardImpulsadora() {
   useEffect(() => { loadData() }, [])
 
   async function loadData() {
-    const res = await fetch('/api/rutas-fijas/hoy')
+    const res = await fetch('/api/impulsadora/hoy')
     const data = await res.json()
     if (data) {
       setRutaHoy(data.rutaFija)

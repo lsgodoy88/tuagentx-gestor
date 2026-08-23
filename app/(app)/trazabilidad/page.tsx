@@ -350,6 +350,7 @@ export default function TrazabilidadPage() {
 
   const sourceOrdenes = ordenesBusqueda !== null ? ordenesBusqueda : ordenes
 
+  if (!user?.role) return null
   if (!['empresa', 'supervisor', 'superadmin', 'vendedor', 'bodega', 'entregas'].includes(user?.role)) {
     return <div className="p-8 text-zinc-400">Sin acceso</div>
   }
