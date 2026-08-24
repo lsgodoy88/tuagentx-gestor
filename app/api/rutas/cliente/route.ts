@@ -29,11 +29,21 @@ export async function DELETE(req: NextRequest) {
   const facturaMatch = (rc.notas || '').match(/#(\d+)/)
   const numeroFactura = facturaMatch ? facturaMatch[1] : null
 
+  // Resolver empresaId de la OrdenDespacho para evitar colisión de numeroFactura entre empresas
+  let ordenEmpresaId: string | null = null
+  if (numeroFactura) {
+    const orden = await (prisma as any).ordenDespacho.findFirst({
+      where: { numeroFactura, estado: 'en_entrega' },
+      select: { empresaId: true },
+    })
+    ordenEmpresaId = orden?.empresaId ?? null
+  }
+
   await prisma.$transaction(async (tx) => {
-    // Revertir OrdenDespacho a alistado si estaba en_entrega
-    if (numeroFactura) {
+    // Revertir OrdenDespacho a alistado — filtrado por empresaId para evitar colisiones
+    if (numeroFactura && ordenEmpresaId) {
       await tx.ordenDespacho.updateMany({
-        where: { numeroFactura, estado: 'en_entrega' },
+        where: { numeroFactura, empresaId: ordenEmpresaId, estado: 'en_entrega' },
         data: { estado: 'alistado', repartidorId: null },
       })
     }
