@@ -26,7 +26,7 @@ interface EntregaCardProps {
 
 export default function EntregaCard({
   cliente, numeroFactura, empresaOrigen,
-  rezago, entregado, horaEntrega, onEntregar, turnoActivo, rutaActiva, observacion
+  rezago, entregado, horaEntrega, onEntregar, turnoActivo, rutaActiva, observacion, asignadoEn
 }: EntregaCardProps) {
   const tieneGpsReal = !!cliente.lat && !!cliente.lng
   const lat = cliente.lat || cliente.latTmp
@@ -36,18 +36,29 @@ export default function EntregaCard({
     ? `Bodega/${empresaOrigen}${numeroFactura ? ` F_${numeroFactura}` : ''}`
     : numeroFactura ? `F_${numeroFactura}` : null
 
+  // Color de fondo por días de rezago
+  let rezagoColor = ''
+  if (rezago && !entregado && asignadoEn) {
+    const hoy = new Date(Date.now() - 5 * 60 * 60 * 1000)
+    hoy.setHours(0, 0, 0, 0)
+    const asignado = new Date(asignadoEn)
+    asignado.setHours(0, 0, 0, 0)
+    const dias = Math.round((hoy.getTime() - asignado.getTime()) / 86400000)
+    if (dias >= 3) rezagoColor = '#ef4444'
+    else if (dias === 2) rezagoColor = '#f97316'
+    else if (dias === 1) rezagoColor = '#eab308'
+  }
+
   return (
-    <div className={`px-4 py-3 ${rezago && !entregado ? 'border-l-2 border-amber-500 bg-amber-500/5' : ''} ${rutaActiva && onEntregar && !entregado ? 'cursor-pointer active:opacity-80' : ''}`}
+    <div className={`px-4 py-3 ${rutaActiva && onEntregar && !entregado ? 'cursor-pointer active:opacity-80' : ''}`}
+
       onClick={rutaActiva && onEntregar && !entregado ? onEntregar : undefined}>
 
       {/* L1 — nombre + mapa */}
       <div className="flex items-center justify-between gap-3 mb-1">
-        <p className="font-bold text-base leading-snug flex-1 flex items-center gap-1.5">
-          {entregado && <span className="text-emerald-400 text-base">✓</span>}
-          <span className={entregado ? "text-zinc-400" : "text-white"}>{cliente.nombre}</span>
-          {rezago && !entregado && (
-            <span className="ml-2 text-[10px] font-bold text-amber-400 bg-amber-500/15 px-1.5 py-0.5 rounded align-middle">rezago</span>
-          )}
+        <p className="font-bold text-base leading-snug flex-1 flex items-center gap-1.5 min-w-0">
+          {entregado && <span className="text-emerald-400 text-base flex-shrink-0">✓</span>}
+          <span className={`truncate ${entregado ? 'text-zinc-400' : 'text-white'}`}>{cliente.nombre}</span>
         </p>
         <div style={{ position: 'relative', flexShrink: 0 }}>
           <button onClick={e => { e.stopPropagation(); if (mapsUrl) window.open(mapsUrl) }}
@@ -83,8 +94,9 @@ export default function EntregaCard({
         <div className="flex-1 min-w-0">
           {notaBodega && (
             <div className="flex items-center justify-between gap-2 mb-0.5">
-              <p className={`text-sm flex items-center gap-1.5 min-w-0 ${entregado ? 'text-zinc-400' : 'text-white'}`}>
-                <span className="truncate">{notaBodega}</span>
+              <p className="text-sm flex items-center gap-1.5 min-w-0">
+                <span className="truncate" style={{ color: entregado ? '#71717a' : '#fff' }}>{notaBodega}</span>
+                {rezagoColor && <span style={{ width: 8, height: 8, borderRadius: '50%', background: rezagoColor, flexShrink: 0, display: 'inline-block' }} />}
               </p>
               {cliente.telefono && (
                 <a href={`tel:${cliente.telefono}`} onClick={e => e.stopPropagation()}

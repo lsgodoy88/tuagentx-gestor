@@ -74,17 +74,20 @@ export async function recalcularVentasMesImpulsos(empresaId: string, adapter?: a
     }
   }
 
-  // Borrar y reinsertar en una sola transacción — nunca borrar sin reinsertar
+  // Upsert — idempotente, seguro ante reintentos
   const inicioMes = inicioVentana.toISOString().slice(0, 7)
   const ops = Array.from(mapa.values()).map((e) =>
-    (prisma as any).ventaMesCliente.create({
-      data: { clienteId: e.clienteId, empresaId, mes: e.mes, totalVenta: e.total, cantidadVisitas: e.count }
+    (prisma as any).ventaMesCliente.upsert({
+      where: { clienteId_mes: { clienteId: e.clienteId, mes: e.mes } },
+      update: { totalVenta: e.total, cantidadVisitas: e.count },
+      create: { clienteId: e.clienteId, empresaId, mes: e.mes, totalVenta: e.total, cantidadVisitas: e.count }
     })
   )
 
+  // Limpiar meses fuera de ventana + upsert en transacción
   await (prisma as any).$transaction([
     (prisma as any).ventaMesCliente.deleteMany({
-      where: { clienteId: { in: clienteIds }, mes: { gte: inicioMes } }
+      where: { clienteId: { in: clienteIds }, mes: { lt: inicioMes } }
     }),
     ...ops
   ], { timeout: 30000 })

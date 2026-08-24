@@ -25,6 +25,19 @@ export async function DELETE(req: NextRequest) {
   if (rc.ruta.cerrada)
     return NextResponse.json({ error: 'Ruta ya cerrada' }, { status: 400 })
 
-  await prisma.rutaCliente.delete({ where: { id: rutaClienteId } })
+  // Extraer numeroFactura de notas (patrón: "Bodega/... #<numero>")
+  const facturaMatch = (rc.notas || '').match(/#(\d+)/)
+  const numeroFactura = facturaMatch ? facturaMatch[1] : null
+
+  await prisma.$transaction(async (tx) => {
+    // Revertir OrdenDespacho a alistado si estaba en_entrega
+    if (numeroFactura) {
+      await tx.ordenDespacho.updateMany({
+        where: { numeroFactura, estado: 'en_entrega' },
+        data: { estado: 'alistado', repartidorId: null },
+      })
+    }
+    await tx.rutaCliente.delete({ where: { id: rutaClienteId } })
+  })
   return NextResponse.json({ ok: true })
 }

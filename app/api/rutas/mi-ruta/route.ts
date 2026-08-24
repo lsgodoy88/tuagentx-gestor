@@ -107,6 +107,75 @@ export async function GET() {
   const mananaInicio = finDiaBogota(ahoraBog)
   const pasadoInicio = finDiaBogota(new Date(ahoraBog.getTime() + 24 * 60 * 60 * 1000))
 
+  // ── Limpieza lazy: borrar RutaCliente ya entregados, auto-cerrar rutas vacías ──
+  // Caso A (Bodega): señal = OrdenDespacho.estado = 'entregado'
+  // Caso B (cliente manual): señal = Visita tipo 'entrega' del empleado para ese clienteId
+  // Tras limpiar: rutas sin clientes pendientes → cerrada = true
+  {
+    const todosRcSinCerrar = await prisma.rutaCliente.findMany({
+      where: { ruta: { cerrada: false, empleados: { some: { empleadoId: user.id } } } },
+      select: { id: true, rutaId: true, notas: true, clienteId: true }
+    })
+
+    if (todosRcSinCerrar.length > 0) {
+      // Caso A — Bodega: cruzar por numeroFactura con OrdenDespacho
+      const rcBodega = todosRcSinCerrar.filter((rc: any) => rc.notas?.startsWith('Bodega/'))
+      const numerosFactura = rcBodega
+        .map((rc: any) => { const m = rc.notas?.match(/#(\d+)/); return m ? m[1] : null })
+        .filter(Boolean) as string[]
+
+      const facturasEntregadas = new Set(
+        numerosFactura.length > 0
+          ? (await (prisma as any).ordenDespacho.findMany({
+              where: { numeroFactura: { in: numerosFactura }, estado: 'entregado' },
+              select: { numeroFactura: true }
+            })).map((o: any) => o.numeroFactura)
+          : []
+      )
+
+      // Caso B — cliente manual: cruzar clienteId con Visita tipo entrega del empleado
+      const rcManuales = todosRcSinCerrar.filter((rc: any) => !rc.notas?.startsWith('Bodega/'))
+      const clienteIdsManuales = [...new Set(rcManuales.map((rc: any) => rc.clienteId))]
+
+      const clientesConVisita = new Set(
+        clienteIdsManuales.length > 0
+          ? (await prisma.visita.findMany({
+              where: { clienteId: { in: clienteIdsManuales }, empleadoId: user.id, tipo: 'entrega' },
+              select: { clienteId: true }
+            })).map((v: any) => v.clienteId)
+          : []
+      )
+
+      const rcABorrar = todosRcSinCerrar.filter((rc: any) => {
+        if (rc.notas?.startsWith('Bodega/')) {
+          const m = rc.notas.match(/#(\d+)/)
+          return m && facturasEntregadas.has(m[1])
+        }
+        return clientesConVisita.has(rc.clienteId)
+      })
+
+      if (rcABorrar.length > 0) {
+        await prisma.rutaCliente.deleteMany({ where: { id: { in: rcABorrar.map((rc: any) => rc.id) } } })
+
+        // Auto-cierre: rutas que quedaron sin clientes
+        const rutaIdsAfectadas = [...new Set(rcABorrar.map((rc: any) => rc.rutaId))]
+        const conteos = await prisma.rutaCliente.groupBy({
+          by: ['rutaId'],
+          where: { rutaId: { in: rutaIdsAfectadas } },
+          _count: { id: true }
+        })
+        const rutasConClientes = new Set(conteos.map((c: any) => c.rutaId))
+        const rutasAVaciar = rutaIdsAfectadas.filter(id => !rutasConClientes.has(id))
+        if (rutasAVaciar.length > 0) {
+          await prisma.ruta.updateMany({
+            where: { id: { in: rutasAVaciar }, cerrada: false },
+            data: { cerrada: true }
+          })
+        }
+      }
+    }
+  }
+
   // Ajuste lazy: RutaCliente con posible_entrega < hoy y ruta no iniciada → actualizar a hoy
   // Esto permite que órdenes de días anteriores aparezcan como "de hoy" si no se inició la ruta
   const rezagosViejos = await prisma.rutaCliente.findMany({

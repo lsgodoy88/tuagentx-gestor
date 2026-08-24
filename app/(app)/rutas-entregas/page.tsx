@@ -38,11 +38,14 @@ export default function RutasEntregasPage() {
         const hoy = fechaHoyBogota()
         const todas = Array.isArray(d) ? d : []
         const misRutas = todas
-          .filter((r: any) =>
-            r.empleados?.some((re: any) => re.empleadoId === user.id) &&
-            r.clientes?.length > 0 &&                          // solo rutas con entregas
-            r.fecha && r.fecha.split('T')[0] < hoy             // excluir hoy (está en dashboard)
-          )
+          .filter((r: any) => {
+            if (!r.fecha || r.fecha.split('T')[0] >= hoy) return false  // excluir hoy
+            if (!r.empleados?.some((re: any) => re.empleadoId === user.id)) return false
+            // Solo rutas con al menos 1 entrega registrada (visita)
+            const visitas = r.visitas || []
+            const clienteIds = new Set((r.clientes || []).map((rc: any) => rc.clienteId))
+            return visitas.some((v: any) => clienteIds.has(v.clienteId))
+          })
           .sort((a: any, b: any) =>
             new Date(b.fecha).getTime() - new Date(a.fecha).getTime()  // más recientes primero
           )

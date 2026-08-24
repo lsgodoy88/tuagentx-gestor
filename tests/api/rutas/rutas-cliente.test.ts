@@ -5,10 +5,8 @@ vi.mock('@/lib/auth', () => ({ authOptions: {} }))
 vi.mock('@/lib/auth-helpers', () => ({ getEmpresaId: vi.fn().mockReturnValue('emp-01') }))
 vi.mock('@/lib/prisma', () => ({
   prisma: {
-    rutaCliente: {
-      findUnique: vi.fn(),
-      delete: vi.fn(),
-    },
+    rutaCliente: { findUnique: vi.fn() },
+    $transaction: vi.fn(),
   },
 }))
 
@@ -25,6 +23,16 @@ function makeReq(body: object) {
     body: JSON.stringify(body),
     headers: { 'Content-Type': 'application/json' },
   })
+}
+
+function mockTx(overrides: { ordenUpdateMany?: any; rcDelete?: any } = {}) {
+  const mockOrdenUpdateMany = overrides.ordenUpdateMany ?? vi.fn().mockResolvedValue({ count: 0 })
+  const mockRcDelete = overrides.rcDelete ?? vi.fn().mockResolvedValue({})
+  p.$transaction.mockImplementation(async (fn: any) => fn({
+    ordenDespacho: { updateMany: mockOrdenUpdateMany },
+    rutaCliente: { delete: mockRcDelete },
+  }))
+  return { mockOrdenUpdateMany, mockRcDelete }
 }
 
 beforeEach(() => vi.clearAllMocks())
@@ -55,28 +63,70 @@ describe('DELETE /api/rutas/cliente', () => {
     expect(res.status).toBe(404)
   })
 
-  it('ruta cerrada → 400', async () => {
-    ;(getServerSession as any).mockResolvedValue({ user: { role: 'empresa' } })
-    p.rutaCliente.findUnique.mockResolvedValue({ ruta: { cerrada: true, empresaId: 'emp-01' } })
-    const res = await DELETE(makeReq({ rutaClienteId: 'rc-1' }))
-    expect(res.status).toBe(400)
-  })
-
   it('empresa diferente → 404', async () => {
     ;(getServerSession as any).mockResolvedValue({ user: { role: 'empresa' } })
-    p.rutaCliente.findUnique.mockResolvedValue({ ruta: { cerrada: false, empresaId: 'emp-otro' } })
+    p.rutaCliente.findUnique.mockResolvedValue({ notas: null, ruta: { cerrada: false, empresaId: 'emp-otro' } })
     const res = await DELETE(makeReq({ rutaClienteId: 'rc-1' }))
     expect(res.status).toBe(404)
   })
 
-  it('ok → elimina y retorna { ok: true }', async () => {
+  it('ruta cerrada → 400', async () => {
     ;(getServerSession as any).mockResolvedValue({ user: { role: 'empresa' } })
-    p.rutaCliente.findUnique.mockResolvedValue({ ruta: { cerrada: false, empresaId: 'emp-01' } })
-    p.rutaCliente.delete.mockResolvedValue({})
+    p.rutaCliente.findUnique.mockResolvedValue({ notas: null, ruta: { cerrada: true, empresaId: 'emp-01' } })
+    const res = await DELETE(makeReq({ rutaClienteId: 'rc-1' }))
+    expect(res.status).toBe(400)
+  })
+
+  it('sin nota Bodega → elimina sin tocar OrdenDespacho', async () => {
+    ;(getServerSession as any).mockResolvedValue({ user: { role: 'empresa' } })
+    p.rutaCliente.findUnique.mockResolvedValue({ notas: null, ruta: { cerrada: false, empresaId: 'emp-01' } })
+    const { mockOrdenUpdateMany, mockRcDelete } = mockTx()
     const res = await DELETE(makeReq({ rutaClienteId: 'rc-1' }))
     expect(res.status).toBe(200)
-    const data = await res.json()
-    expect(data.ok).toBe(true)
-    expect(p.rutaCliente.delete).toHaveBeenCalledWith({ where: { id: 'rc-1' } })
+    expect((await res.json()).ok).toBe(true)
+    expect(mockOrdenUpdateMany).not.toHaveBeenCalled()
+    expect(mockRcDelete).toHaveBeenCalledWith({ where: { id: 'rc-1' } })
+  })
+
+  it('con nota Bodega/#N → revierte OrdenDespacho a alistado y elimina rc', async () => {
+    ;(getServerSession as any).mockResolvedValue({ user: { role: 'empresa' } })
+    p.rutaCliente.findUnique.mockResolvedValue({
+      notas: 'Bodega/Lumeli #4340',
+      ruta: { cerrada: false, empresaId: 'emp-01' },
+    })
+    const { mockOrdenUpdateMany, mockRcDelete } = mockTx()
+    const res = await DELETE(makeReq({ rutaClienteId: 'rc-2' }))
+    expect(res.status).toBe(200)
+    expect(mockOrdenUpdateMany).toHaveBeenCalledWith({
+      where: { numeroFactura: '4340', estado: 'en_entrega' },
+      data: { estado: 'alistado', repartidorId: null },
+    })
+    expect(mockRcDelete).toHaveBeenCalledWith({ where: { id: 'rc-2' } })
+  })
+
+  it('supervisor puede devolver a bodega', async () => {
+    ;(getServerSession as any).mockResolvedValue({ user: { role: 'supervisor' } })
+    p.rutaCliente.findUnique.mockResolvedValue({
+      notas: 'Bodega/Lumeli #4341',
+      ruta: { cerrada: false, empresaId: 'emp-01' },
+    })
+    const { mockOrdenUpdateMany } = mockTx()
+    const res = await DELETE(makeReq({ rutaClienteId: 'rc-3' }))
+    expect(res.status).toBe(200)
+    expect(mockOrdenUpdateMany).toHaveBeenCalledWith({
+      where: { numeroFactura: '4341', estado: 'en_entrega' },
+      data: { estado: 'alistado', repartidorId: null },
+    })
+  })
+
+  it('todo corre dentro de una transacción', async () => {
+    ;(getServerSession as any).mockResolvedValue({ user: { role: 'empresa' } })
+    p.rutaCliente.findUnique.mockResolvedValue({
+      notas: 'Bodega/Lumeli #4342',
+      ruta: { cerrada: false, empresaId: 'emp-01' },
+    })
+    mockTx()
+    await DELETE(makeReq({ rutaClienteId: 'rc-4' }))
+    expect(p.$transaction).toHaveBeenCalledTimes(1)
   })
 })
