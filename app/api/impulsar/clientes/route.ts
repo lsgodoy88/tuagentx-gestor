@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
         clientes: {
           select: {
             clienteId: true,
-            cliente: { select: { id: true, nombre: true, nombreComercial: true } }
+            cliente: { select: { id: true, nombre: true, nombreComercial: true, ciudad: true } }
           }
         }
       }

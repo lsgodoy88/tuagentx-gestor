@@ -8,6 +8,7 @@ const TIPO_META: Record<string, { emoji: string; label: string; color: string }>
   factura_egreso:    { emoji: '🧮', label: 'Facturas de egreso',     color: '#f59e0b' },
   evidencia_abono:   { emoji: '💳', label: 'Evidencias de abono',    color: '#ec4899' },
   evidencia_saldo:   { emoji: '🏦', label: 'Evidencias de saldo',    color: '#06b6d4' },
+  foto_evento:       { emoji: '📸', label: 'Fotos de eventos',       color: '#a855f7' },
 }
 
 function fmtMb(mb: number) {

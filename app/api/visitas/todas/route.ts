@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const q = searchParams.get('q') || ''
   const fecha = searchParams.get('fecha') || ''
+  const empleadoIdParam = searchParams.get('empleadoId') || ''
   const cursor = searchParams.get('cursor') || null
   const limit = parseInt(searchParams.get('limit') || '15')
   const page = parseInt(searchParams.get('page') || '1')
@@ -19,14 +20,32 @@ export async function GET(req: NextRequest) {
   const skip = useCursor ? undefined : (page - 1) * limit
 
   const isAdmin = ['empresa', 'supervisor'].includes(user.role)
+  const isVendedor = user.role === 'vendedor'
 
   const where: any = {}
 
-  // Filtro por usuario o empresa
   if (!isAdmin) {
-    where.empleadoId = user.id
+    if (isVendedor && empleadoIdParam) {
+      // Vendedor puede filtrar por una de sus impulsadoras — validar pertenencia
+      const impulsadora = await prisma.empleado.findFirst({
+        where: { id: empleadoIdParam, vendedorId: user.id, rol: 'impulsadora' },
+        select: { id: true }
+      })
+      if (impulsadora) {
+        where.empleadoId = impulsadora.id
+      } else {
+        // No es su impulsadora — mostrar sus propias visitas
+        where.empleadoId = user.id
+      }
+    } else {
+      where.empleadoId = user.id
+    }
   } else if (user.empresaId) {
-    where.empleado = { empresaId: user.empresaId }
+    if (empleadoIdParam) {
+      where.empleadoId = empleadoIdParam
+    } else {
+      where.empleado = { empresaId: user.empresaId }
+    }
   }
 
   // Filtro por fecha

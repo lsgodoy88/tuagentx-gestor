@@ -85,6 +85,8 @@ model Empresa {
   gastoTipos          GastoTipo[]
   productos           Producto[]
   impulsoInventarios  ImpulsoInventario[]
+  impulsoRotaciones   ImpulsoRotacion[]
+  impulsoEventos      ImpulsoEvento[]
 }
 
 model Empleado {
@@ -137,6 +139,10 @@ model Empleado {
   gastos              Gasto[]
   impulsoInventarioEmpleado ImpulsoInventario[] @relation("ImpulsoInventarioEmpleado")
   impulsoInventarioVendedor ImpulsoInventario[] @relation("ImpulsoInventarioVendedor")
+  impulsoRotacionEmpleado   ImpulsoRotacion[]   @relation("ImpulsoRotacionEmpleado")
+  impulsoRotacionVendedor   ImpulsoRotacion[]   @relation("ImpulsoRotacionVendedor")
+  impulsoEventoEmpleado     ImpulsoEvento[]     @relation("ImpulsoEventoEmpleado")
+  impulsoEventoVendedor     ImpulsoEvento[]     @relation("ImpulsoEventoVendedor")
 
   @@index([empresaId, activo], map: "idx_empleado_empresa_activo")
   @@map("Empleado")
@@ -184,6 +190,8 @@ model Cliente {
   ventasMes       VentaMesCliente[]
   visitas         Visita[]
   impulsoInventarios ImpulsoInventario[]
+  impulsoRotaciones  ImpulsoRotacion[]
+  impulsoEventos     ImpulsoEvento[]
 
   @@index([empresaId], map: "idx_cliente_empresa")
   @@index([listaId], map: "idx_cliente_lista")
@@ -3156,6 +3164,52 @@ model ImpulsoInventario {
   @@map("ImpulsoInventario")
 }
 
+model ImpulsoRotacion {
+  id           String   @id @default(cuid())
+  clienteId    String
+  productoId   String
+  cantidad     Float?
+  precio_venta Float?
+  empleadoId   String
+  vendedorId   String
+  empresaId    String
+  createdAt    DateTime @default(now())
+
+  cliente      Cliente  @relation(fields: [clienteId], references: [id])
+  empleado     Empleado @relation("ImpulsoRotacionEmpleado", fields: [empleadoId], references: [id])
+  vendedor     Empleado @relation("ImpulsoRotacionVendedor", fields: [vendedorId], references: [id])
+  producto     Producto @relation(fields: [productoId], references: [id])
+  empresa      Empresa  @relation(fields: [empresaId], references: [id])
+
+  @@index([vendedorId])
+  @@index([clienteId])
+  @@index([empleadoId])
+  @@map("ImpulsoRotacion")
+}
+
+model ImpulsoEvento {
+  id          String   @id @default(cuid())
+  clienteId   String
+  ciudad      String?
+  tipoEvento  String
+  fecha       DateTime
+  fotos       Json     // string[] — hasta 4 keys R2
+  empleadoId  String
+  vendedorId  String
+  empresaId   String
+  createdAt   DateTime @default(now())
+
+  cliente     Cliente  @relation(fields: [clienteId], references: [id])
+  empleado    Empleado @relation("ImpulsoEventoEmpleado", fields: [empleadoId], references: [id])
+  vendedor    Empleado @relation("ImpulsoEventoVendedor", fields: [vendedorId], references: [id])
+  empresa     Empresa  @relation(fields: [empresaId], references: [id])
+
+  @@index([vendedorId])
+  @@index([empleadoId])
+  @@index([empresaId])
+  @@map("ImpulsoEvento")
+}
+
 model InciGuardian {
   id              String    @id @default(cuid())
   codigo          String    @unique        // SYNC-BOD-0001, TURNO-0003, etc.
@@ -3387,6 +3441,7 @@ model Producto {
   empresa           Empresa  @relation(fields: [empresaId], references: [id])
   integracion       Integracion @relation(fields: [integracionId], references: [id])
   impulsoInventarios ImpulsoInventario[]
+  impulsoRotaciones  ImpulsoRotacion[]
 
   @@index([empresaId])
   @@index([condition])

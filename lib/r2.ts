@@ -140,6 +140,25 @@ export async function subirFotoAlistamiento(imagenBase64: string, ordenId: strin
 }
 
 /** URL firmada para cualquier archivo en R2 (5 minutos) */
+export async function subirFotoEvento(imagenBase64: string, eventoId: string, fotoIdx: number, empresaId: string): Promise<string> {
+  const sharp = require('sharp')
+  const base64Data = imagenBase64.replace(/^data:[^;]+;base64,/, '')
+  const buffer = Buffer.from(base64Data, 'base64')
+  const compressed: Buffer = await sharp(buffer)
+    .resize(1280, 1280, { fit: 'inside', withoutEnlargement: true })
+    .jpeg({ quality: 80 })
+    .toBuffer()
+  const key = `eventos/${eventoId}_${fotoIdx}.jpg`
+  await r2Client.send(new PutObjectCommand({
+    Bucket: process.env.R2_BUCKET!,
+    Key: key,
+    Body: compressed,
+    ContentType: 'image/jpeg',
+  }))
+  registrarStorage(empresaId, 'foto_evento', key, compressed.length)
+  return key
+}
+
 export async function archivoUrl(key: string): Promise<string> {
   if (key.startsWith('data:')) return key
   const command = new GetObjectCommand({

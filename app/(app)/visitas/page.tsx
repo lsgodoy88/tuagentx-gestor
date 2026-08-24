@@ -315,7 +315,7 @@ export default function VisitasPage() {
       )}
 
       {tab === 'historial' && (
-        <TabHistorialVisitas apiUrl="/api/visitas/todas" mostrarEmpleado={false} />
+        <TabHistorialVisitas apiUrl="/api/visitas/todas" mostrarEmpleado={false} mostrarImpulsadoras={true} />
       )}
 
       <ModalVisita

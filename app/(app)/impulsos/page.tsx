@@ -7,6 +7,7 @@ import { useEffect, useState, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { checkPermiso } from '@/lib/permisos'
+import TuAgentXOverlay from '@/components/TuAgentXOverlay'
 
 import { DIAS } from '@/lib/constants'
 import { distanciaMetros } from '@/lib/gps'
@@ -82,7 +83,7 @@ export default function RutasFijasPage() {
   const [totalCli, setTotalCli] = useState(0)
   const [loading, setLoading] = useState(false)
   const [diasAbiertosEmp, setDiasAbiertosEmp] = useState<Record<string, Set<number>>>({})
-  const [tab, setTab] = useState<'rutas'|'reporte'|'gestion'>('reporte')
+  const [tab, setTab] = useState<'rutas'|'reporte'|'sugeridos'|'rotacion'|'eventos'>('reporte')
   const [modalVerRuta, setModalVerRuta] = useState<{emp: any, dia: number, ruta: any}|null>(null)
   const [bottomSheet, setBottomSheet] = useState<{rc: any, rutaId: string}|null>(null)
   const [syncVentas, setSyncVentas] = useState<{usadosHoy:number,restantes:number,ultimoSync:string|null,puedeSync:boolean}|null>(null)
@@ -341,15 +342,17 @@ export default function RutasFijasPage() {
     (!esImpulsadora || e.id === user?.id) &&
     (!esVendedor || e.vendedorId === user?.id)
   )
+  function cambiarTab(t: typeof tab) { if (t !== tab) setTab(t) }
+
   return (
     <div className="space-y-3 max-w-7xl mx-auto">
-<div className="flex gap-1 tab-pills rounded-xl p-1">
-        <button onClick={() => setTab('reporte')} className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tab === 'reporte' ? 'tab-active' : 'text-white hover:text-white'}`}>Reporte</button>
-        <button onClick={() => setTab('rutas')} className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tab === 'rutas' ? 'tab-active' : 'text-white hover:text-white'}`}>Rutero</button>
-        {esVendedor && (
-          <button onClick={() => setTab('gestion')} className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tab === 'gestion' ? 'tab-active' : 'text-white hover:text-white'}`}>Gestión</button>
-        )}
-      </div>
+<div className="tab-pills rounded-xl p-1" style={{display:'flex',gap:4,overflowX:'auto',scrollbarWidth:'none'}}>
+          <button onClick={() => cambiarTab('reporte')} className={`py-2 px-4 text-sm font-semibold transition-colors text-center whitespace-nowrap ${tab === 'reporte' ? 'tab-active' : 'text-white hover:text-white'}`}>Reporte</button>
+          <button onClick={() => cambiarTab('rutas')} className={`py-2 px-4 text-sm font-semibold transition-colors text-center whitespace-nowrap ${tab === 'rutas' ? 'tab-active' : 'text-white hover:text-white'}`}>Rutero</button>
+          {esVendedor && <button onClick={() => cambiarTab('sugeridos')} className={`py-2 px-4 text-sm font-semibold transition-colors text-center whitespace-nowrap ${tab === 'sugeridos' ? 'tab-active' : 'text-white hover:text-white'}`}>Sugeridos</button>}
+          {(esVendedor || esAdmin || esSupervisor) && <button onClick={() => cambiarTab('rotacion')} className={`py-2 px-4 text-sm font-semibold transition-colors text-center whitespace-nowrap ${tab === 'rotacion' ? 'tab-active' : 'text-white hover:text-white'}`}>Rotación</button>}
+          {(esVendedor || esAdmin || esSupervisor) && <button onClick={() => cambiarTab('eventos')} className={`py-2 px-4 text-sm font-semibold transition-colors text-center whitespace-nowrap ${tab === 'eventos' ? 'tab-active' : 'text-white hover:text-white'}`}>Eventos</button>}
+        </div>
 
       {tab === 'rutas' && (
         <div className="space-y-4">
@@ -941,7 +944,9 @@ export default function RutasFijasPage() {
       )}
 
       {tab === 'reporte' && <ReporteImpulsoTab />}
-      {tab === 'gestion' && esVendedor && <GestionInventarioTab />}
+      {tab === 'sugeridos' && <GestionInventarioTab />}
+      {tab === 'rotacion' && <RotacionTab />}
+      {tab === 'eventos' && <EventosTab />}
     </div>
   )
 }
@@ -1225,6 +1230,275 @@ const thSt: React.CSSProperties = {
   fontSize:11, letterSpacing:'0.06em', borderBottom:'2px solid #1e2a3d', whiteSpace:'nowrap',
 }
 
+// ── Tab Rotación (vendedor) ───────────────────────────────────────────
+function RotacionTab() {
+  const priceFmt = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 })
+  const fmtP = (n: number | null | undefined) => n == null ? '—' : '$' + priceFmt.format(n)
+
+  const [snapshots, setSnapshots] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [expandido, setExpandido] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/impulsar/rotacion-snapshots?dias=14')
+      .then(r => r.json())
+      .then(d => { setSnapshots(d.snapshots || []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [])
+
+  if (loading) return (
+    <div className="space-y-3">
+      {Array.from({ length: 4 }).map((_, i) => <div key={i} className="shimmer h-16 rounded-xl" />)}
+    </div>
+  )
+
+  if (snapshots.length === 0) return (
+    <div className="rounded-2xl p-10 text-center" style={{ background: '#0d1220', border: '1px solid #131c2e' }}>
+      <p className="text-zinc-500 text-sm">Sin reportes en los últimos 14 días</p>
+    </div>
+  )
+
+  return (
+    <div className="space-y-2">
+      <p className="text-zinc-400 text-xs px-1">Rotación — últimos 14 días</p>
+      {snapshots.map((snap: any) => {
+        const montoTotal = snap.filas.reduce((acc: number, f: any) => {
+          const cant = f.sugerido ?? 0
+          const prv  = f.precioVenta ?? 0
+          return acc + cant * prv
+        }, 0)
+
+        return (
+          <div key={snap.key} className="rounded-xl overflow-hidden" style={{ background: '#0d1220', border: '1px solid rgba(59,130,246,0.25)' }}>
+            <button
+              onClick={() => setExpandido(expandido === snap.key ? null : snap.key)}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors text-left"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-white font-semibold text-sm truncate">{snap.clienteNombre}</p>
+                <p className="text-zinc-500 text-xs">{snap.impulsadoraNombre} · {snap.fecha}</p>
+              </div>
+              <div className="flex items-center gap-3 flex-shrink-0 ml-3">
+                <div className="text-right">
+                  {montoTotal > 0 && <p className="text-blue-400 font-bold text-sm">{fmtP(montoTotal)}</p>}
+                  <p className="text-zinc-500 text-xs">{snap.filas.length} productos</p>
+                </div>
+                <span className="text-zinc-500 text-sm">{expandido === snap.key ? '▲' : '▼'}</span>
+              </div>
+            </button>
+
+            {expandido === snap.key && (
+              <div className="border-t" style={{ borderColor: '#131c2e' }}>
+                <div className="overflow-x-auto">
+                  <table className="w-full" style={{ minWidth: 360, background: '#0a0f1a' }}>
+                    <thead>
+                      <tr style={{ background: '#0d1220', borderBottom: '1px solid #1e2a3d' }}>
+                        <th style={{ ...gThSt, textAlign: 'right', width: 70 }}>Cant.</th>
+                        <th style={gThSt}>Producto</th>
+                        <th style={{ ...gThSt, textAlign: 'right', width: 100 }}>Precio V.</th>
+                        <th style={{ ...gThSt, textAlign: 'right', width: 100 }}>Total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {snap.filas.map((f: any, i: number) => {
+                        const cant  = f.sugerido ?? 0
+                        const prv   = f.precioVenta ?? null
+                        const total = prv != null && cant > 0 ? cant * prv : null
+                        return (
+                          <tr key={i} style={{ borderBottom: '1px solid #0d1524', background: i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent' }}>
+                            <td style={{ ...gTdSt, textAlign: 'right', color: '#60a5fa', fontWeight: 600 }}>{cant || '—'}</td>
+                            <td style={{ ...gTdSt, color: '#e2e8f0' }}>{f.productoNombre}</td>
+                            <td style={{ ...gTdSt, textAlign: 'right', color: '#64748b' }}>{prv != null ? fmtP(prv) : '—'}</td>
+                            <td style={{ ...gTdSt, textAlign: 'right', color: '#a78bfa', fontWeight: 600 }}>{total != null ? fmtP(total) : '—'}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── Tab Eventos (vendedor) ────────────────────────────────────────────
+function EventosTab() {
+  const { data: session } = useSession()
+  const _u = session?.user as any
+  const esAdmin = _u?.role === 'empresa'
+  const esSupervisor = _u?.role === 'supervisor'
+
+  const _hoy = new Date()
+  const _dom = new Date(_hoy); _dom.setDate(_hoy.getDate() - _hoy.getDay())
+  const _sab = new Date(_dom); _sab.setDate(_dom.getDate() + 6)
+  const toISO = (d: Date) => d.toISOString().slice(0, 10)
+  const defaultDesde = toISO(_dom)
+  const defaultHasta = toISO(_sab)
+
+  const [desde, setDesde] = useState(defaultDesde)
+  const [hasta, setHasta] = useState(defaultHasta)
+  const filtroModificado = desde !== defaultDesde || hasta !== defaultHasta
+
+  const [eventos, setEventos] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [fotoUrls, setFotoUrls] = useState<Record<string, string>>({})
+  const [visorFotos, setVisorFotos] = useState<{ keys: string[]; idx: number } | null>(null)
+
+  async function cargar() {
+    setLoading(true)
+    const params = new URLSearchParams()
+    if (desde) params.set('desde', desde)
+    if (hasta) params.set('hasta', hasta)
+    const d = await fetch('/api/impulsar/evento?' + params).then(r => r.json())
+    setEventos(d.eventos || [])
+    setLoading(false)
+  }
+
+  useEffect(() => { cargar() }, [desde, hasta])
+
+  async function verFoto(key: string) {
+    if (fotoUrls[key]) return
+    const d = await fetch('/api/impulsar/evento/foto-url?key=' + encodeURIComponent(key)).then(r => r.json())
+    setFotoUrls(prev => ({ ...prev, [key]: d.url }))
+  }
+
+  function abrirVisor(fotos: string[], idx: number) {
+    setVisorFotos({ keys: fotos, idx })
+    fotos.forEach(k => verFoto(k))
+  }
+
+  async function eliminar(id: string) {
+    if (!confirm('Eliminar este evento?')) return
+    await fetch('/api/impulsar/evento?id=' + id, { method: 'DELETE' })
+    cargar()
+  }
+
+  const fmtFecha = (f: string) => {
+    const iso = f.slice(0, 10)
+    const [y, m, d] = iso.split('-')
+    return d + '/' + m + '/' + y
+  }
+
+  // Agrupar por impulsadora
+  const grupos: Record<string, { nombre: string; eventos: any[] }> = {}
+  for (const ev of eventos) {
+    if (!grupos[ev.empleadoId]) grupos[ev.empleadoId] = { nombre: ev.impulsadoraNombre, eventos: [] }
+    grupos[ev.empleadoId].eventos.push(ev)
+  }
+
+  const thEv: React.CSSProperties = {
+    padding: '10px 10px', fontSize: 12, fontWeight: 600, color: '#94a3b8',
+    whiteSpace: 'nowrap', overflow: 'hidden', borderBottom: '1px solid #1e2a3d',
+    background: '#0a1020', userSelect: 'none', textAlign: 'left',
+  }
+  const tdEv: React.CSSProperties = {
+    padding: '9px 10px', fontSize: 13, borderBottom: '1px solid #131c2e',
+    borderLeft: '2px solid rgba(255,255,255,0.07)',
+    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+  }
+
+  return (
+    <div className="space-y-3">
+      {visorFotos && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90" onClick={() => setVisorFotos(null)}>
+          <div className="relative w-full max-w-lg px-4" onClick={e => e.stopPropagation()}>
+            <img src={fotoUrls[visorFotos.keys[visorFotos.idx]] || ''} alt="" className="w-full rounded-2xl object-contain max-h-[80vh]" />
+            <div className="flex justify-center gap-2 mt-3">
+              {visorFotos.keys.map((_, i) => (
+                <button key={i} onClick={() => setVisorFotos(v => v ? { ...v, idx: i } : v)}
+                  className={'w-2.5 h-2.5 rounded-full ' + (i === visorFotos.idx ? 'bg-blue-400' : 'bg-zinc-600')} />
+              ))}
+            </div>
+            {visorFotos.keys.length > 1 && (
+              <>
+                <button onClick={() => setVisorFotos(v => v ? { ...v, idx: (v.idx - 1 + v.keys.length) % v.keys.length } : v)}
+                  className="absolute left-6 top-1/2 -translate-y-1/2 bg-black/50 text-white px-3 py-2 rounded-xl">&#8249;</button>
+                <button onClick={() => setVisorFotos(v => v ? { ...v, idx: (v.idx + 1) % v.keys.length } : v)}
+                  className="absolute right-6 top-1/2 -translate-y-1/2 bg-black/50 text-white px-3 py-2 rounded-xl">&#8250;</button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Filtros fecha — estilo Gastos */}
+      <div className="flex gap-2 items-center">
+        <input type="date" value={desde} onChange={e => setDesde(e.target.value)}
+          className={'bg-[#0d1220] rounded-lg px-3 py-2 text-white text-sm focus:outline-none flex-1 min-w-0 ' + (filtroModificado ? 'border border-red-500' : 'border border-[#1e2a3d]')}
+          style={{ colorScheme: 'dark' }} />
+        <span className="text-zinc-500 text-sm flex-shrink-0">—</span>
+        <input type="date" value={hasta} onChange={e => setHasta(e.target.value)}
+          className={'bg-[#0d1220] rounded-lg px-3 py-2 text-white text-sm focus:outline-none flex-1 min-w-0 ' + (filtroModificado ? 'border border-red-500' : 'border border-[#1e2a3d]')}
+          style={{ colorScheme: 'dark' }} />
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-10"><span className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" /></div>
+      ) : eventos.length === 0 ? (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-10 text-center">
+          <p className="text-zinc-400 text-sm">Sin eventos en el período seleccionado</p>
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {Object.values(grupos).map(grupo => (
+            <div key={grupo.nombre} className="space-y-1">
+              <div className="flex items-center justify-between">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-xl" style={{ border: '1px solid rgba(255,255,255,0.10)' }}>
+                  <span>👤</span>
+                  <span className="text-sm font-bold text-white">{grupo.nombre}</span>
+                </div>
+                <span className="text-sm font-bold text-zinc-400">{grupo.eventos.length} evento{grupo.eventos.length !== 1 ? 's' : ''}</span>
+              </div>
+
+              <div className="rounded-2xl border border-zinc-800 overflow-hidden" style={{ background: '#0f1623' }}>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm" style={{ minWidth: 480, background: '#0a0f1a' }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid #1e2a3d' }}>
+                        {['FECHA', 'CLIENTE', 'CIUDAD', 'TIPO', 'FOTOS'].map(h => (
+                          <th key={h} style={{ ...thEv, textAlign: h === 'FOTOS' ? 'center' : 'left' }}>{h}</th>
+                        ))}
+                        {(esAdmin || esSupervisor) && <th style={thEv}></th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {grupo.eventos.map((ev: any, i: number) => (
+                        <tr key={ev.id} style={{ background: i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent' }}>
+                          <td style={{ ...tdEv, color: 'white' }}>{fmtFecha(ev.fecha)}</td>
+                          <td style={{ ...tdEv, color: 'white', fontWeight: 500 }}>{ev.clienteNombre}</td>
+                          <td style={{ ...tdEv, color: '#94a3b8', fontSize: 11 }}>{ev.ciudad || '—'}</td>
+                          <td style={{ ...tdEv, color: 'white' }}>{ev.tipoEvento}</td>
+                          <td style={{ ...tdEv, textAlign: 'center' }}>
+                            <button onClick={() => abrirVisor(ev.fotos, 0)}
+                              className="flex items-center gap-1 mx-auto text-blue-400 hover:text-blue-300 transition-colors">
+                              <span>🖼</span>
+                              <span style={{ fontSize: 12, fontWeight: 600 }}>{ev.fotos?.length || 0}</span>
+                            </button>
+                          </td>
+                          {(esAdmin || esSupervisor) && (
+                            <td style={tdEv}>
+                              <button onClick={() => eliminar(ev.id)}
+                                className="text-zinc-600 hover:text-red-400 transition-colors text-xs">🗑</button>
+                            </td>
+                          )}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Tab Gestión (vendedor) ─────────────────────────────────────────
 function GestionInventarioTab() {
   const priceFmt = new Intl.NumberFormat('es-CO', { maximumFractionDigits: 0 })
@@ -1235,7 +1509,7 @@ function GestionInventarioTab() {
   const [expandido, setExpandido] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('/api/impulsar/gestion?dias=14')
+    fetch('/api/impulsar/sugeridos?dias=14')
       .then(r => r.json())
       .then(d => { setSnapshots(d.snapshots || []); setLoading(false) })
       .catch(() => setLoading(false))

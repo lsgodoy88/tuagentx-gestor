@@ -8,11 +8,12 @@ const TIPO_ICON: Record<string,string> = { venta:'💰', cobro:'💵', recaudo:'
 const VIS_LIMIT = 15
 
 interface Props {
-  apiUrl: string          // '/api/visitas/admin' o '/api/visitas/todas'
+  apiUrl: string           // '/api/visitas/admin' o '/api/visitas/todas'
   mostrarEmpleado: boolean // admin ve filtro de empleado, vendedor no
+  mostrarImpulsadoras?: boolean // vendedor ve selector de sus impulsadoras
 }
 
-export default function TabHistorialVisitas({ apiUrl, mostrarEmpleado }: Props) {
+export default function TabHistorialVisitas({ apiUrl, mostrarEmpleado, mostrarImpulsadoras }: Props) {
   const [visitas, setVisitas] = useState<any[]>([])
   const [visTotal, setVisTotal] = useState(0)
   const [visPage, setVisPage] = useState(1)
@@ -23,6 +24,7 @@ export default function TabHistorialVisitas({ apiUrl, mostrarEmpleado }: Props) 
   const [visSugerencias, setVisSugerencias] = useState<any[]>([])
   const [visShowSug, setVisShowSug] = useState(false)
   const [visEmpleados, setVisEmpleados] = useState<any[]>([])
+  const [visImpulsadoras, setVisImpulsadoras] = useState<any[]>([])
   const [visSelectedGps, setVisSelectedGps] = useState<{lat:number,lng:number}|null>(null)
   const [mapaClienteKey, setMapaClienteKey] = useState<string|null>(null)
   const visSugRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
@@ -31,6 +33,23 @@ export default function TabHistorialVisitas({ apiUrl, mostrarEmpleado }: Props) 
     if (mostrarEmpleado) {
       fetch('/api/empleados').then(r => r.json()).then(d => {
         setVisEmpleados(Array.isArray(d) ? d : d?.empleados || [])
+      })
+    }
+    if (mostrarImpulsadoras) {
+      // /api/impulsadora ya filtra por vendedorId=user.id para rol vendedor
+      fetch('/api/impulsadora').then(r => r.json()).then((rutas: any[]) => {
+        if (!Array.isArray(rutas)) return
+        // Extraer impulsadoras únicas de todas las rutas
+        const map = new Map<string, any>()
+        rutas.forEach(r => {
+          r.empleados?.forEach((re: any) => {
+            const emp = re.empleado
+            if (emp && emp.rol === 'impulsadora' && !map.has(emp.id)) {
+              map.set(emp.id, emp)
+            }
+          })
+        })
+        setVisImpulsadoras(Array.from(map.values()))
       })
     }
     buscarVisitas(1)
@@ -60,7 +79,6 @@ export default function TabHistorialVisitas({ apiUrl, mostrarEmpleado }: Props) 
     setVisLoading(false)
   }
 
-
   // Agrupar por cliente
   const groups: Record<string, any[]> = {}
   visitas.forEach((v: any) => {
@@ -68,6 +86,8 @@ export default function TabHistorialVisitas({ apiUrl, mostrarEmpleado }: Props) 
     if (!groups[key]) groups[key] = []
     groups[key].push(v)
   })
+
+  const mostrarSelectorEmpleado = mostrarEmpleado || (mostrarImpulsadoras && visImpulsadoras.length > 0)
 
   return (
     <div className="space-y-4">
@@ -86,18 +106,30 @@ export default function TabHistorialVisitas({ apiUrl, mostrarEmpleado }: Props) 
             onKeyDown={e => e.key === 'Enter' && buscarVisitas()}
             style={{background:'none',border:'none',color:'white',fontSize:12,outline:'none',flex:1,padding:'7px 0'}} />
           {visClienteFiltro && <button onClick={() => { setVisClienteFiltro(''); setVisSugerencias([]); buscarVisitas(1, '') }} style={{background:'none',border:'none',color:'#6b7280',cursor:'pointer',fontSize:14,padding:0,flexShrink:0}}>×</button>}
-
         </div>
 
-        {/* Filtro empleado — solo admin */}
-        {mostrarEmpleado && (
-          <select value={visEmpleadoFiltro} onChange={e => { const v = e.target.value; setVisEmpleadoFiltro(v); buscarVisitas(1, undefined, v) }}
+        {/* Selector empleado (admin) o impulsadoras (vendedor) */}
+        {mostrarSelectorEmpleado && (
+          <select
+            value={visEmpleadoFiltro}
+            onChange={e => { const v = e.target.value; setVisEmpleadoFiltro(v); buscarVisitas(1, undefined, v) }}
             className={visEmpleadoFiltro ? 'select-active' : ''}
-            style={{background:'#0d1220',border:'1px solid #1e2a3d',borderRadius:10,padding:'7px 10px',color:'white',fontSize:12,outline:'none',cursor:'pointer',flexShrink:0,maxWidth:160}}>
-            <option value="">Todos los empleados</option>
-            {visEmpleados.filter((e: any) => e.activo).map((e: any) => (
-              <option key={e.id} value={e.id}>{e.nombre}</option>
-            ))}
+            style={{background:'#0d1220',border:'1px solid #1e2a3d',borderRadius:10,padding:'7px 10px',color:'white',fontSize:12,outline:'none',cursor:'pointer',flexShrink:0,maxWidth:180}}>
+            {mostrarEmpleado ? (
+              <>
+                <option value="">Todos los empleados</option>
+                {visEmpleados.filter((e: any) => e.activo).map((e: any) => (
+                  <option key={e.id} value={e.id}>{e.nombre}</option>
+                ))}
+              </>
+            ) : (
+              <>
+                <option value="">Mis visitas</option>
+                {visImpulsadoras.map((imp: any) => (
+                  <option key={imp.id} value={imp.id}>{imp.nombre}</option>
+                ))}
+              </>
+            )}
           </select>
         )}
 
@@ -161,11 +193,10 @@ export default function TabHistorialVisitas({ apiUrl, mostrarEmpleado }: Props) 
                       <div key={v.id} className="flex items-center gap-3 px-4 py-2" style={{borderBottom: i < gVisitas.length-1 ? '1px solid #1e2a3d' : 'none'}}>
                         <span className="text-sm flex-shrink-0">{TIPO_ICON[v.tipo]||'👁️'}</span>
                         <span className="text-zinc-300 text-xs capitalize flex-shrink-0" style={{minWidth:56}}>{v.tipo}</span>
-                        {mostrarEmpleado && <span className="text-zinc-400 text-xs flex-shrink-0 hidden md:inline">{v.empleado?.nombre}</span>}
-                        {mostrarEmpleado && <span className="text-zinc-600 text-xs flex-shrink-0 hidden md:inline">·</span>}
+                        {(mostrarEmpleado || mostrarImpulsadoras) && <span className="text-zinc-400 text-xs flex-shrink-0 hidden md:inline">{v.empleado?.nombre}</span>}
+                        {(mostrarEmpleado || mostrarImpulsadoras) && <span className="text-zinc-600 text-xs flex-shrink-0 hidden md:inline">·</span>}
                         <span className="text-zinc-400 text-xs flex-shrink-0">{fecha} · {hora}</span>
                         <span className="flex-1"/>
-
                       </div>
                     )
                   })}
@@ -174,7 +205,7 @@ export default function TabHistorialVisitas({ apiUrl, mostrarEmpleado }: Props) 
             })}
           </div>
 
-          {/* Mapa PC — cliente específico o cliente con mapa abierto */}
+          {/* Mapa PC */}
           {mapaClienteKey && visitas.some((v: any) => v.lat) && (
             <div className="hidden md:block flex-shrink-0" style={{width:420,height:520,position:'sticky',top:16}}>
               <MapaHistorialCliente
