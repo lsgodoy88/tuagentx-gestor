@@ -95,7 +95,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [asistenteAbierto, setAsistenteAbierto] = useState(false)
   const [bloqueado, setBloqueado] = useState(false)
   const [diasRestantes, setDiasRestantes] = useState<number | null>(null)
-  const [bannerCerrado, setBannerCerrado] = useState(false)
+  const [bannerCerrado, setBannerCerrado] = useState(() => {
+    if (typeof window === 'undefined') return false
+    const hoy = new Date().toISOString().split('T')[0]
+    return localStorage.getItem(`banner-vence-${hoy}`) === '1'
+  })
+  const [loadingRenovar, setLoadingRenovar] = useState(false)
   const [menuUsuario, setMenuUsuario] = useState(false)
   const [bannerPago, setBannerPago] = useState(false)
   const [bannerPagoCerrado, setBannerPagoCerrado] = useState(false)
@@ -466,22 +471,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </a>
           </div>
         )}
-        {!bloqueado && !bannerCerrado && diasRestantes !== null && diasRestantes >= 1 && diasRestantes <= 7 && (() => {
-          const d = diasRestantes
-          const cfg = d === 1
-            ? { bg: 'bg-red-900/80 border-red-700',         txt: '🔴 Tu plan vence MAÑANA',       cta: 'Renovar ahora' }
-            : d <= 3
-            ? { bg: 'bg-orange-900/70 border-orange-700',   txt: `⚠️ Tu plan vence en ${d} días`, cta: 'Renovar ahora' }
-            : { bg: 'bg-emerald-900/60 border-emerald-700', txt: `📅 Tu plan vence en ${d} días`, cta: '¿Renovar?' }
+        {!bloqueado && !bannerCerrado && user?.role === 'empresa' && diasRestantes === 1 && (() => {
+          // Solo rol empresa, solo el último día del mes (diasRestantes=1)
+          async function handleRenovar() {
+            setLoadingRenovar(true)
+            try {
+              const gen = await fetch('/api/plan-empresa/generar', { method: 'POST' })
+              const gd = await gen.json()
+              if (!gd.ok) return
+              const monto = gd.deudaTotal > 0 ? gd.deudaTotal : gd.monto
+              if (!monto) return
+              const res = await fetch('/api/pagos/link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ monto }) })
+              const d = await res.json()
+              if (d.linkPago) window.open(d.linkPago, '_blank', 'noopener,noreferrer')
+            } catch {}
+            finally { setLoadingRenovar(false) }
+          }
           return (
-            <div className={`${cfg.bg} border-b flex items-center justify-between px-4 h-10 flex-shrink-0 overflow-hidden`}>
-              <span className="text-white text-sm truncate">{cfg.txt}</span>
+            <div className="bg-emerald-900/60 border-b border-emerald-700 flex items-center justify-between px-4 h-10 flex-shrink-0 overflow-hidden">
+              <span className="text-white text-sm truncate">📅 Tu plan vence hoy — recuerda renovar</span>
               <div className="flex items-center gap-2 ml-4 flex-shrink-0">
-                <a href="https://wa.me/573164349389?text=Hola, quiero renovar mi plan de TuAgentX" target="_blank" rel="noopener noreferrer"
-                  className="bg-white/20 hover:bg-white/30 text-white text-xs font-semibold px-3 py-1 rounded-lg transition-colors">
-                  💳 {cfg.cta}
-                </a>
-                <button onClick={() => setBannerCerrado(true)} className="text-white/60 hover:text-white text-sm leading-none">✕</button>
+                <button onClick={handleRenovar} disabled={loadingRenovar}
+                  className="bg-white/20 hover:bg-white/30 disabled:opacity-50 text-white text-xs font-semibold px-3 py-1 rounded-lg transition-colors">
+                  {loadingRenovar ? '...' : '💳 ¿Renovar?'}
+                </button>
+                <button onClick={() => {
+                  const hoy = new Date().toISOString().split('T')[0]
+                  localStorage.setItem(`banner-vence-${hoy}`, '1')
+                  setBannerCerrado(true)
+                }} className="text-white/60 hover:text-white text-sm leading-none">✕</button>
               </div>
             </div>
           )
