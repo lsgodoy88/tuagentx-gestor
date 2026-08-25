@@ -104,18 +104,20 @@ export async function recalcularVentasMesImpulsos(
 
   // INSERT ... ON CONFLICT DO UPDATE — atómico, seguro ante concurrencia entre empresas
   const entries = Array.from(mapa.values())
+  const now = new Date()
   const values = entries.map((_, i) => {
     const b = i * 5
-    return `($${b+1}::text, $${b+2}::text, $${b+3}::text, $${b+4}::float, $${b+5}::int)`
+    return `(gen_random_uuid()::text, $${b+1}::text, $${b+2}::text, $${b+3}::text, $${b+4}::float, $${b+5}::int, NOW())`
   }).join(',')
   const params = entries.flatMap(e => [e.clienteId, empresaId, e.mes, e.total, e.count])
 
   await (prisma as any).$queryRawUnsafe(`
-    INSERT INTO ${DB_SCHEMA}."VentaMesCliente" ("clienteId", "empresaId", mes, "totalVenta", "cantidadVisitas")
+    INSERT INTO ${DB_SCHEMA}."VentaMesCliente" (id, "clienteId", "empresaId", mes, "totalVenta", "cantidadVisitas", "updatedAt")
     VALUES ${values}
     ON CONFLICT ("clienteId", mes) DO UPDATE
       SET "totalVenta" = EXCLUDED."totalVenta",
           "cantidadVisitas" = EXCLUDED."cantidadVisitas",
-          "empresaId" = EXCLUDED."empresaId"
+          "empresaId" = EXCLUDED."empresaId",
+          "updatedAt" = NOW()
   `, ...params)
 }

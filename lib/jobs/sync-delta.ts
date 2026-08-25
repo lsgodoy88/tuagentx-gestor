@@ -461,12 +461,12 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
         const uptresFetch = mapaFetch.get(orden.origenId!)
         if (uptresFetch) {
           // Está en el fetch — usar datos en memoria, sin HTTP
-          if ((uptresFetch as any).isInvoiced && (uptresFetch as any).invoiceNumber) {
+          if ((uptresFetch as any).isInvoiced && (uptresFetch as any).numeroFacturado) {
             updates.push(prisma.ordenDespacho.update({
               where: { id: orden.id },
               data: {
                 isFacturada: true,
-                numeroFactura: (uptresFetch as any).invoiceNumber,
+                numeroFactura: (uptresFetch as any).numeroFacturado,
                 fechaFactura: (uptresFetch as any).invoicedAt ? parseFechaUptresBogota((uptresFetch as any).invoicedAt) : null,
                 totalOrden: (uptresFetch as any).total ? parseFloat((uptresFetch as any).total) : undefined,
                 reconciliadoEn: new Date()
