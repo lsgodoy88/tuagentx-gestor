@@ -1,4 +1,5 @@
 import { prisma, DB_SCHEMA } from '@/lib/prisma'
+import { randomUUID } from 'crypto'
 
 export async function recalcularVentasMesImpulsos(
   empresaId: string,
@@ -104,12 +105,11 @@ export async function recalcularVentasMesImpulsos(
 
   // INSERT ... ON CONFLICT DO UPDATE — atómico, seguro ante concurrencia entre empresas
   const entries = Array.from(mapa.values())
-  const now = new Date()
   const values = entries.map((_, i) => {
-    const b = i * 5
-    return `(gen_random_uuid()::text, $${b+1}::text, $${b+2}::text, $${b+3}::text, $${b+4}::float, $${b+5}::int, NOW())`
+    const b = i * 6
+    return `($${b+1}::text, $${b+2}::text, $${b+3}::text, $${b+4}::text, $${b+5}::float, $${b+6}::int, NOW())`
   }).join(',')
-  const params = entries.flatMap(e => [e.clienteId, empresaId, e.mes, e.total, e.count])
+  const params = entries.flatMap(e => [randomUUID(), e.clienteId, empresaId, e.mes, e.total, e.count])
 
   await (prisma as any).$queryRawUnsafe(`
     INSERT INTO ${DB_SCHEMA}."VentaMesCliente" (id, "clienteId", "empresaId", mes, "totalVenta", "cantidadVisitas", "updatedAt")
