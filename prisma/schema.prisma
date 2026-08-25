@@ -3022,6 +3022,7 @@ model OrdenDespacho {
   smsEnviado        Boolean           @default(false) // SMS de factura enviado al cliente
   num_cajas         Int               @default(0)
   observacion       String?           // Observación libre al despachar
+  devuelta          Boolean           @default(false) // true si fue enviada a entregas y devuelta a bodega
   reconciliadoEn    DateTime?         // cuándo se marcó isFacturada=true por reconciliador
   createdAt         DateTime          @default(now())
   empresaVinculada  EmpresaVinculada? @relation(fields: [origenVinculadaId], references: [id])

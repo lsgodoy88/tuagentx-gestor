@@ -547,6 +547,9 @@ export default function BodegaPage() {
                     <div className="px-4 pb-3 pt-1 border-t border-zinc-800/60">
                       <div className="flex items-center gap-3 mt-1">
                         {btnFoto}
+                        {d.devuelta && (
+                          <span className="text-xs font-semibold px-1.5 py-0.5 rounded-md flex-shrink-0" style={{ color: '#f97316', background: 'rgba(249,115,22,0.12)' }}>Devuelta</span>
+                        )}
                         {puedeEnviar ? (
                           <button onClick={() => toggleExpanded(d.id)}
                             className="flex items-center gap-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700 px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors">

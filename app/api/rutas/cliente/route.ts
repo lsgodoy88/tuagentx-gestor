@@ -44,7 +44,7 @@ export async function DELETE(req: NextRequest) {
     if (numeroFactura && ordenEmpresaId) {
       await tx.ordenDespacho.updateMany({
         where: { numeroFactura, empresaId: ordenEmpresaId, estado: 'en_entrega' },
-        data: { estado: 'alistado', repartidorId: null },
+        data: { estado: 'alistado', repartidorId: null, devuelta: true },
       })
     }
     await tx.rutaCliente.delete({ where: { id: rutaClienteId } })

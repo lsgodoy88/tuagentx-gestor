@@ -115,7 +115,7 @@ describe('empresa propia — Bodega/Lumeli #N', () => {
     expect((await res.json()).ok).toBe(true)
     expect(mockOrdenUpdateMany).toHaveBeenCalledWith({
       where: { numeroFactura: '4340', empresaId: 'emp-01', estado: 'en_entrega' },
-      data: { estado: 'alistado', repartidorId: null },
+      data: { estado: 'alistado', repartidorId: null, devuelta: true },
     })
     expect(mockRcDelete).toHaveBeenCalledWith({ where: { id: 'rc-1' } })
   })
@@ -162,7 +162,7 @@ describe('empresa vinculada — Bodega/Leche #N', () => {
     // Usa empresaId de la OrdenDespacho, no de la ruta — evita colisión entre empresas
     expect(mockOrdenUpdateMany).toHaveBeenCalledWith({
       where: { numeroFactura: '10080', empresaId: 'emp-02', estado: 'en_entrega' },
-      data: { estado: 'alistado', repartidorId: null },
+      data: { estado: 'alistado', repartidorId: null, devuelta: true },
     })
     expect(mockRcDelete).toHaveBeenCalledWith({ where: { id: 'rc-2' } })
   })

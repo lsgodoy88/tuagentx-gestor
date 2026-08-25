@@ -81,6 +81,8 @@ export default function ModalRecaudo({
   const [notasOpen, setNotasOpen] = React.useState(false)
   const [notasLocal, setNotasLocal] = React.useState('')
   const [confirmadoSobrepago, setConfirmadoSobrepago] = React.useState(false)
+  const [editandoMonto, setEditandoMonto] = React.useState<Set<string>>(new Set())
+  const [montoEditado, setMontoEditado] = React.useState<Record<string, string>>({})
 
   const montoSeleccionado = (detalleData?.DetalleCartera || [])
     .filter((d: any) => facturasSeleccionadas.includes(d.id))
@@ -370,11 +372,48 @@ export default function ModalRecaudo({
                         )}
                         {linea.voucherDatosIA && (
                           <div className="flex items-center gap-2 w-full overflow-hidden">
-                              <label className="text-white text-sm font-semibold whitespace-nowrap shrink-0">Monto (IA)</label>
-                              <div className="flex-1 min-w-0 overflow-hidden">
-                                <InputMoneda value={linea.monto} readOnly onChange={() => {}}
-                                  className="w-full bg-blue-950/30 border border-orange-500/60 rounded-xl pr-4 py-2.5 text-white text-sm outline-none cursor-not-allowed" />
-                              </div>
+                            <label className="text-white text-sm font-semibold whitespace-nowrap shrink-0">Monto (IA)</label>
+                            {(() => {
+                              const estaEditando = editandoMonto.has(linea.id)
+                              const original = Number(linea.voucherDatosIA?.valor ?? linea.monto)
+                              const valorActual = Number(montoEditado[linea.id] ?? linea.monto)
+                              const esMayor = estaEditando && valorActual >= original
+                              return (
+                                <>
+                                  <div className="flex-1 min-w-0 overflow-hidden">
+                                    <InputMoneda
+                                      value={estaEditando ? (montoEditado[linea.id] ?? linea.monto) : linea.monto}
+                                      readOnly={!estaEditando}
+                                      onChange={val => setMontoEditado(prev => ({ ...prev, [linea.id]: val }))}
+                                      className={`w-full bg-blue-950/30 border rounded-xl pr-4 py-2.5 text-white text-sm outline-none ${
+                                        esMayor ? 'border-red-500' : estaEditando ? 'border-amber-400 cursor-text' : 'border-orange-500/60 cursor-not-allowed'
+                                      }`}
+                                    />
+                                  </div>
+                                  <button
+                                    disabled={esMayor}
+                                    onClick={() => {
+                                      if (estaEditando) {
+                                        if (valorActual > 0 && valorActual < original) {
+                                          onSetLineasPago(prev => prev.map(l =>
+                                            l.id === linea.id ? { ...l, monto: String(valorActual), valorModificado: true } : l
+                                          ))
+                                          setNotasOpen(true)
+                                        }
+                                        setEditandoMonto(prev => { const s = new Set(prev); s.delete(linea.id); return s })
+                                      } else {
+                                        setMontoEditado(prev => ({ ...prev, [linea.id]: linea.monto }))
+                                        setEditandoMonto(prev => new Set(prev).add(linea.id))
+                                      }
+                                    }}
+                                    className={`flex-shrink-0 text-base leading-none transition-colors ${esMayor ? 'opacity-30 cursor-not-allowed' : 'text-zinc-400 hover:text-amber-400'}`}
+                                    title={estaEditando ? 'Guardar valor' : 'Editar valor (solo menor al extraído)'}>
+                                    {estaEditando ? '💾' : '✏️'}
+                                  </button>
+                                </>
+                              )
+                            })()}
+
                           </div>
                         )}
                       </div>
@@ -536,6 +575,8 @@ export default function ModalRecaudo({
                 const totalMonto = lineasPago.reduce((s, l) => s + Number(l.monto || 0), 0)
                 const sinMonto = totalMonto <= 0
                 const pedirConfirmacionSobrepago = haySobrepago && !confirmadoSobrepago
+                const hayValorModificado = lineasPago.some((l: any) => l.valorModificado)
+                const notasInsuficientes = hayValorModificado && notasLocal.trim().split(/\s+/).filter(Boolean).length < 3
                 return (
                   <>
                     {/* GPS — solo si vendedor, igual que ModalVisita */}
@@ -556,13 +597,16 @@ export default function ModalRecaudo({
                     {hayTransferenciaSinVoucher && (
                       <p className="text-amber-400 text-xs text-center">📎 Adjunta el comprobante para continuar</p>
                     )}
+                    {notasInsuficientes && (
+                      <p className="text-amber-400 text-xs text-center">Escribe en Notas una Observación, mín 3 palabras.</p>
+                    )}
                     {pedirConfirmacionSobrepago ? (
-                      <button onClick={() => setConfirmadoSobrepago(true)} disabled={procesando || hayTransferenciaSinVoucher || sinMonto}
+                      <button onClick={() => setConfirmadoSobrepago(true)} disabled={procesando || hayTransferenciaSinVoucher || sinMonto || notasInsuficientes}
                         className="w-full bg-orange-600 hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl text-sm transition-colors">
                         ⚠️ Confirmar saldo
                       </button>
                     ) : (
-                      <button onClick={() => { guardarGpsSiCorresponde(); onConfirmar() }} disabled={procesando || hayTransferenciaSinVoucher || sinMonto}
+                      <button onClick={() => { guardarGpsSiCorresponde(); onConfirmar() }} disabled={procesando || hayTransferenciaSinVoucher || sinMonto || notasInsuficientes}
                         className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl text-sm transition-colors">
                         {procesando ? 'Procesando...' : '✅ Confirmar recaudo'}
                       </button>

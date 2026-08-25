@@ -97,8 +97,8 @@ export default function CarteraPage() {
   }, [notaPopupId])
   useEffect(() => {
     const close = () => { if (notaPopupIdRef.current) setNotaPopupId(null) }
-    document.addEventListener('click', close)
-    return () => document.removeEventListener('click', close)
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
   }, [])
   const [pagosGlobal, setPagosGlobal] = useState<any[]>([])
   const [loadingPagosGlobal, setLoadingPagosGlobal] = useState(false)
@@ -1775,7 +1775,14 @@ export default function CarteraPage() {
                               {p._efectivo > 0 ? fmt(p._efectivo) : '—'}
                             </td>
                             <td className="px-4 py-3 text-right text-blue-400 font-semibold whitespace-nowrap" style={{borderBottom: subFacturas.length > 0 ? 'none' : '1px solid #1e2a3d'}}>
-                              {p._transf > 0 ? fmt(p._transf) : '—'}
+                              {(() => {
+                                const hayMod = Array.isArray(p.lineasPago) && p.lineasPago.some((l: any) =>
+                                  l.valorModificado || (l.voucherDatosIA?.valor != null && Number(l.monto) !== Number(l.voucherDatosIA.valor))
+                                )
+                                return p._transf > 0
+                                  ? <span className="inline-flex items-center gap-1">{hayMod && <span title="Valor modificado respecto al comprobante" style={{fontSize:9, opacity:0.7}}>⚠️</span>}{fmt(p._transf)}</span>
+                                  : '—'
+                              })()}
                             </td>
                             <td className="px-4 py-3 text-right text-amber-400 whitespace-nowrap" style={{borderBottom: subFacturas.length > 0 ? 'none' : '1px solid #1e2a3d'}}>
                               {p._desc > 0 ? fmt(p._desc) : '—'}

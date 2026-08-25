@@ -61,6 +61,7 @@ export async function procesarPagoSync(params: {
         descuento: Number(l.descuento || 0),
         voucherKey: l.voucherKey || null,
         voucherDatosIA: l.voucherDatosIA || null,
+        valorModificado: l.valorModificado === true ? true : undefined,
       }))
     : []
   const montoNum = lineasValidas.length > 0 ? lineasValidas.reduce((s: number, l: any) => s + l.monto, 0) : Number(monto)
