@@ -554,26 +554,38 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
       // Estaba importada pero nunca invocada antes de hoy (21/06) — cableada ahora.
       if (modo === 'completo') {
         try {
-          await actualizarDeudasInactivas(adapter, intg.id)
+          // Pasar mapa de deudas ya traídas → 0 llamadas HTTP adicionales a UpTres
+          const mapaDeudas = new Map(deudas.map((d: any) => [String(d.uid || d._id), d]))
+          await actualizarDeudasInactivas(adapter, intg.id, mapaDeudas)
         } catch (eInactivas: any) {
           console.error(`[sync-nocturno] actualizarDeudasInactivas fallo (no critico):`, eInactivas.message)
         }
       }
 
-      // Impulso/Rutas Fijas — con adapter real (ya logueado arriba), corrige bug
-      // donde integracion-delta.ts lo llamaba sin adapter y omitia clientes con apiId.
+      // Impulso/Rutas Fijas:
+      // - Completo: recalcula todos los clientes de ruta fija (1×/día)
+      // - Delta: solo si algún cliente de ruta fija tuvo actividad real en este sync
+      //   → evita 50+ llamadas HTTP/día sin cambios reales
       try {
-        await recalcularVentasMesImpulsos(intg.empresaId, adapter)
+        await recalcularVentasMesImpulsos(
+          intg.empresaId,
+          adapter,
+          undefined,
+          modo === 'delta' ? clienteApiIdsAfectados : undefined
+        )
       } catch (eImpulso: any) {
         console.error(`[sync-nocturno] recalcularVentasMesImpulsos fallo (no critico):`, eImpulso.message)
       }
 
-      // Nocturno invalida todo — corre 1 vez/día, datos masivos
-      await invalidatePattern('g:*')
-
-      // Invalidar cache Redis de todos los clientes procesados
+      // Completo: invalida todo Redis (datos masivos cambiaron)
+      // Delta: solo invalida clientes afectados — no romper cache de usuarios activos
       const clienteApiIdsActualizados = [...new Set([...toInsert.map((d: any) => d.clienteApiId), ...toUpdate.map((u: any) => u.clienteApiId)].filter(Boolean))]
-      await invalidarCacheClientes(intg.empresaId, clienteApiIdsActualizados).catch(() => {})
+      if (modo === 'completo') {
+        // Invalida solo la empresa actual — no rompe cache de otras empresas en paralelo
+        await invalidatePattern(`g:${intg.empresaId}:*`)
+      } else {
+        await invalidarCacheClientes(intg.empresaId, clienteApiIdsActualizados).catch(() => {})
+      }
 
       // Sync productos (delta o completo segun modo)
       let productosSync = { upserted: 0, desactivados: 0 }

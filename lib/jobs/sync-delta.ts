@@ -440,18 +440,73 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
 
   const duracionMs = Date.now() - inicioTs
 
-  // Reconciliador
+  // Reconciliador — órdenes sin facturar
+  // Estrategia: usar datos ya en memoria del fetchVentas (últimos 10 días) → 0 HTTP
+  // Solo llama HTTP para órdenes con createdAt > 10 días (caso raro)
   let reconciliadas = 0
   try {
-    const sinFacturar = await prisma.ordenDespacho.findMany({ where: { empresaId: destino, isFacturada: false, isActiva: true, origenId: { not: null } }, select: { id: true, origenId: true } })
-    for (const orden of sinFacturar) {
-      const uptres = await adapter.fetchOrdenPorId(orden.origenId!)
-      if (uptres?.isInvoiced && uptres.invoiceNumber) {
-        await prisma.ordenDespacho.update({ where: { id: orden.id }, data: { isFacturada: true, numeroFactura: uptres.invoiceNumber, fechaFactura: uptres.invoicedAt ? parseFechaUptresBogota(uptres.invoicedAt) : null, totalOrden: uptres.total ? parseFloat(uptres.total) : undefined, reconciliadoEn: new Date() } })
-        reconciliadas++
+    const sinFacturar = await prisma.ordenDespacho.findMany({
+      where: { empresaId: destino, isFacturada: false, isActiva: true, origenId: { not: null } },
+      select: { id: true, origenId: true, fechaOrden: true }
+    })
+
+    if (sinFacturar.length > 0) {
+      // Mapa de origenId → orden de UpTres ya traída en fetchVentas
+      const mapaFetch = new Map(ordenes.map((o: any) => [String(o.uid || o._id), o]))
+
+      const updates: Promise<any>[] = []
+      const sinFacturarAntiguas: typeof sinFacturar = []
+
+      for (const orden of sinFacturar) {
+        const uptresFetch = mapaFetch.get(orden.origenId!)
+        if (uptresFetch) {
+          // Está en el fetch — usar datos en memoria, sin HTTP
+          if ((uptresFetch as any).isInvoiced && (uptresFetch as any).invoiceNumber) {
+            updates.push(prisma.ordenDespacho.update({
+              where: { id: orden.id },
+              data: {
+                isFacturada: true,
+                numeroFactura: (uptresFetch as any).invoiceNumber,
+                fechaFactura: (uptresFetch as any).invoicedAt ? parseFechaUptresBogota((uptresFetch as any).invoicedAt) : null,
+                totalOrden: (uptresFetch as any).total ? parseFloat((uptresFetch as any).total) : undefined,
+                reconciliadoEn: new Date()
+              }
+            }))
+            reconciliadas++
+          }
+        } else {
+          // Fuera del rango de 10 días → necesita HTTP
+          sinFacturarAntiguas.push(orden)
+        }
       }
+
+      if (updates.length > 0) await Promise.all(updates)
+
+      // Solo HTTP para órdenes antiguas (createdAt > 10 días) — caso raro
+      // Límite: máx 30 días — más de eso es caso de soporte manual, no reconciliación automática
+      const limite30dias = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+      const sinFacturarAntiguesAcotadas = sinFacturarAntiguas.filter((o: any) =>
+        !o.fechaOrden || new Date(o.fechaOrden) >= limite30dias
+      )
+      for (const orden of sinFacturarAntiguesAcotadas) {
+        const uptres = await adapter.fetchOrdenPorId(orden.origenId!)
+        if (uptres?.isInvoiced && uptres.invoiceNumber) {
+          await prisma.ordenDespacho.update({
+            where: { id: orden.id },
+            data: {
+              isFacturada: true,
+              numeroFactura: uptres.invoiceNumber,
+              fechaFactura: uptres.invoicedAt ? parseFechaUptresBogota(uptres.invoicedAt) : null,
+              totalOrden: uptres.total ? parseFloat(uptres.total) : undefined,
+              reconciliadoEn: new Date()
+            }
+          })
+          reconciliadas++
+        }
+      }
+
+      if (reconciliadas > 0) await invalidatePattern(`g:${destino}:*`)
     }
-    if (reconciliadas > 0) await invalidatePattern(`g:${destino}:*`)
   } catch (e: any) { console.error('[delta] reconciliador error:', e.message); erroresParciales.push('reconciliador: ' + e.message) }
 
   // Reconciliador huecos

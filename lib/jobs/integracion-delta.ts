@@ -14,7 +14,6 @@
  * Este job quedo reducido a: refrescar CarteraCache (lectura, sin escribir SyncDeuda).
  */
 import { prisma } from '@/lib/prisma'
-import { invalidatePattern } from '@/lib/cache'
 import { actualizarCache } from '@/lib/integracion/sync'
 
 async function refrescarCacheIntegracion(integ: any) {
@@ -27,9 +26,8 @@ async function refrescarCacheIntegracion(integ: any) {
   })
 
   const clienteApiIds = new Set<string>(deudasLocales.map((d: any) => d.clienteApiId).filter(Boolean))
+  // actualizarCache escribe directamente en Redis — no invalidar después
   await actualizarCache(clienteApiIds, integ.id, empresaId)
-
-  await invalidatePattern(`g:${empresaId}:*`)
 
   const duracionMs = Date.now() - t0
   return { deudasLocales: deudasLocales.length, duracionMs }

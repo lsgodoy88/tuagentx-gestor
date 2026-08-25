@@ -1,12 +1,31 @@
-import { prisma } from '@/lib/prisma'
+import { prisma, DB_SCHEMA } from '@/lib/prisma'
 
-export async function recalcularVentasMesImpulsos(empresaId: string, adapter?: any, empleadoId?: string): Promise<void> {
+export async function recalcularVentasMesImpulsos(
+  empresaId: string,
+  adapter?: any,
+  empleadoId?: string,
+  // En modo delta: solo recalcular clientes de ruta fija con actividad real
+  soloClienteApiIds?: string[]
+): Promise<void> {
   const clientesEnRutas = await (prisma as any).rutaFijaCliente.findMany({
     where: { rutaFija: { empresaId, ...(empleadoId ? { empleadoId } : {}) } },
     select: { clienteId: true },
     distinct: ['clienteId'],
   })
   if (clientesEnRutas.length === 0) return
+
+  // Si se pasan clienteApiIds afectados, filtrar solo los que están en rutas fijas
+  // y tuvieron actividad — evita llamadas HTTP innecesarias en delta
+  if (soloClienteApiIds && soloClienteApiIds.length > 0) {
+    const clienteIdsEnRutas = new Set(clientesEnRutas.map((r: any) => r.clienteId))
+    // Resolver clienteApiIds → clienteIds para cruzar
+    const clientesFiltrados = await prisma.cliente.findMany({
+      where: { apiId: { in: soloClienteApiIds }, empresaId },
+      select: { id: true }
+    })
+    const hayAfectados = clientesFiltrados.some((c: any) => clienteIdsEnRutas.has(c.id))
+    if (!hayAfectados) return // ningún cliente de ruta fija tuvo actividad
+  }
 
   const clienteIds = clientesEnRutas.map((r: any) => r.clienteId)
   const ahora = new Date()
@@ -74,21 +93,29 @@ export async function recalcularVentasMesImpulsos(empresaId: string, adapter?: a
     }
   }
 
-  // Upsert — idempotente, seguro ante reintentos
   const inicioMes = inicioVentana.toISOString().slice(0, 7)
-  const ops = Array.from(mapa.values()).map((e) =>
-    (prisma as any).ventaMesCliente.upsert({
-      where: { clienteId_mes: { clienteId: e.clienteId, mes: e.mes } },
-      update: { totalVenta: e.total, cantidadVisitas: e.count },
-      create: { clienteId: e.clienteId, empresaId, mes: e.mes, totalVenta: e.total, cantidadVisitas: e.count }
-    })
-  )
 
-  // Limpiar meses fuera de ventana + upsert en transacción
-  await (prisma as any).$transaction([
-    (prisma as any).ventaMesCliente.deleteMany({
-      where: { clienteId: { in: clienteIds }, mes: { lt: inicioMes } }
-    }),
-    ...ops
-  ], { timeout: 30000 })
+  // Limpiar meses fuera de ventana
+  await (prisma as any).ventaMesCliente.deleteMany({
+    where: { clienteId: { in: clienteIds }, mes: { lt: inicioMes } }
+  })
+
+  if (mapa.size === 0) return
+
+  // INSERT ... ON CONFLICT DO UPDATE — atómico, seguro ante concurrencia entre empresas
+  const entries = Array.from(mapa.values())
+  const values = entries.map((_, i) => {
+    const b = i * 5
+    return `($${b+1}::text, $${b+2}::text, $${b+3}::text, $${b+4}::float, $${b+5}::int)`
+  }).join(',')
+  const params = entries.flatMap(e => [e.clienteId, empresaId, e.mes, e.total, e.count])
+
+  await (prisma as any).$queryRawUnsafe(`
+    INSERT INTO ${DB_SCHEMA}."VentaMesCliente" ("clienteId", "empresaId", mes, "totalVenta", "cantidadVisitas")
+    VALUES ${values}
+    ON CONFLICT ("clienteId", mes) DO UPDATE
+      SET "totalVenta" = EXCLUDED."totalVenta",
+          "cantidadVisitas" = EXCLUDED."cantidadVisitas",
+          "empresaId" = EXCLUDED."empresaId"
+  `, ...params)
 }
