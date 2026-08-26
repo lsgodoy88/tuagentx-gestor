@@ -1,7 +1,7 @@
 'use client'
 import dynamic from 'next/dynamic'
 import TarjetaVisita from '@/components/TarjetaVisita'
-import { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import ModalVisita from '@/components/ModalVisita'
@@ -29,6 +29,7 @@ export default function MapaRutaPage() {
   const [distanciaLejos, setDistanciaLejos] = useState(false)
 
   const [detalleId, setDetalleId] = useState<string|null>(null)
+  const entregadosRef = React.useRef<any[]>([])
 
   const TIPOS = [
     { id: 'visita', label: 'Visita', icon: '👁️' },
@@ -47,13 +48,14 @@ export default function MapaRutaPage() {
   }, [])
 
   async function loadData() {
-    const data = await fetch('/api/rutas/mi-ruta').then(r => r.json())
+    const data = await fetch('/api/rutas/mi-ruta?todos=1').then(r => r.json())
     const rutaRes = data?.rutaHoy ?? null
     const hoyStr = new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]
     const fechaRuta = rutaRes?.fecha ? new Date(new Date(rutaRes.fecha).getTime() - 5*60*60*1000).toISOString().split('T')[0] : hoyStr
     const visitasRes = await fetch(`/api/visitas/todas?fecha=${fechaRuta}`).then(r => r.json())
     setRuta(rutaRes)
     setRutaIniciada(rutaRes?.iniciada === true)
+    const visitas2 = Array.isArray(visitasRes) ? visitasRes : (visitasRes?.visitas ?? [])
     setClientesOrdenados(rutaRes?.clientes?.map((rc: any) => {
       const notas = rc.notas || null
       const mN = notas?.match(/#(\d+)/); const mE = notas?.match(/^Bodega\/([^#]+)/)
@@ -109,10 +111,11 @@ export default function MapaRutaPage() {
 
   // Auto-optimizar al tener ubicacion y clientes listos
   useEffect(() => {
-    if (ubicacion && clientesOrdenados.length >= 2 && !optimizando) {
+    const pendientes = clientesOrdenados.filter(c => !ejecutado(c.id))
+    if (ubicacion && pendientes.length >= 2 && !optimizando && filtro === 'pendientes') {
       optimizar()
     }
-  }, [ubicacion, clientesOrdenados.length])
+  }, [ubicacion, clientesOrdenados.length, filtro])
 
   async function optimizar() {
     if (!ruta?.clientes || !ubicacion) return
@@ -197,7 +200,7 @@ export default function MapaRutaPage() {
         ))}
       </div>
 
-      <div style={{height:'55vh'}}>
+      <div style={{height:'55vh', marginBottom:'12px'}}>
         {clientesFiltrados.length > 0 ? (
           <MapaRutaVivo
             clientes={clientesFiltrados}

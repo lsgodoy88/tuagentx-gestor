@@ -36,7 +36,10 @@ export default function MapaRutaVivo({ clientes, clientesEjecutados, ubicacionIn
   const [verLeyenda, setVerLeyenda] = useState(false)
   const [osrmPolyline, setOsrmPolyline] = useState<[number, number][] | null>(null)
   const [duracionMin, setDuracionMin] = useState<number | null>(null)
-  const clientesConCoords = clientes.map(c => ({ c, coords: resolverCoords(c) })).filter(x => x.coords)
+  const clientesConCoords = clientes
+    .map(c => ({ c, coords: resolverCoords(c) })).filter(x => x.coords)
+  // Para camino OSRM: solo pendientes
+  const clientesPendientesCoords = clientesConCoords.filter(x => !clientesEjecutados.includes(x.c.id))
 
   const centro = ubicacionInicio
     ? [ubicacionInicio.lat, ubicacionInicio.lng] as [number, number]
@@ -46,7 +49,7 @@ export default function MapaRutaVivo({ clientes, clientesEjecutados, ubicacionIn
 
   const puntos: [number, number][] = []
   if (ubicacionInicio) puntos.push([ubicacionInicio.lat, ubicacionInicio.lng])
-  clientesConCoords.forEach(({ coords }) => puntos.push([coords!.lat, coords!.lng]))
+  clientesPendientesCoords.forEach(({ coords }) => puntos.push([coords!.lat, coords!.lng]))
 
   useEffect(() => {
     if (puntos.length < 2) return

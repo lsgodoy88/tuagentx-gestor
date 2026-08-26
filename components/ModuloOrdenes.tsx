@@ -3,6 +3,7 @@ import ModalEscaner from '@/components/ModalEscaner'
 import { SyncIcon } from '@/components/SyncIcon'
 import { nowBogota } from '@/lib/fechas'
 import FirmaCanvas from '@/components/FirmaCanvas'
+import FotoEntrega from '@/components/FotoEntrega'
 import { useSession } from 'next-auth/react'
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useBodegaContext } from '@/lib/bodega-context'
@@ -1160,10 +1161,10 @@ export default function ModuloOrdenes() {
                                 </button>
                               </div>
                               {obsPopup === `firma-${d.id}` && (
-                                <FirmaCanvas
+                                <FotoEntrega
                                   autoOpen
-                                  firma={firmaData[d.id] || null}
-                                  onFirma={async (dataUrl) => {
+                                  foto={firmaData[d.id] || null}
+                                  onFoto={async (dataUrl) => {
                                     if (dataUrl) {
                                       setFirmaData(p => ({...p, [d.id]: dataUrl}))
                                       await patchOrden(d.id, { estado: 'entregado', entregadoEl: new Date().toISOString(), firmaBase64: dataUrl, observacion: obsEdit[d.id] || null })
@@ -1215,8 +1216,8 @@ export default function ModuloOrdenes() {
                                 <span className="text-white text-xs flex-shrink-0">{e.fecha ? formatFechaCorta(e.fecha) : '—'}</span>
                                 {e.quien && <span className="text-zinc-500 text-xs truncate flex-1">{e.quien}</span>}
                                 {e.firmaEntrega && (
-                                  <button onClick={() => setModalFirmaUrl(e.firmaEntrega)}
-                                    className="text-zinc-400 hover:text-white text-base flex-shrink-0">🤝</button>
+                                  <button onClick={() => abrirGaleriaConUrls([e.firmaEntrega], null, true)}
+                                    className="text-zinc-400 hover:text-white text-base flex-shrink-0">📸</button>
                                 )}
                                 {!e.firmaEntrega && e.observacion && (
                                   <button onClick={() => setModalObsTexto(e.observacion)}
@@ -1291,7 +1292,7 @@ export default function ModuloOrdenes() {
                         {d.firmaEntrega && (
                           <button onClick={() => abrirGaleriaConUrls([d.firmaEntrega], d.entregadoEl, true)}
                             className="flex items-center gap-1 text-zinc-400 hover:text-white text-xs">
-                            ✍️
+                            📸
                           </button>
                         )}
                       </div>
@@ -1419,8 +1420,8 @@ export default function ModuloOrdenes() {
                           )}
                           {e.accion && <button onClick={ev => { ev.stopPropagation(); e.accion!() }} className="text-zinc-400 hover:text-white text-xs">🖼️</button>}
                           {e.firmaEntrega && (
-                            <button onClick={() => setModalFirmaUrl(e.firmaEntrega)}
-                              className="text-zinc-400 hover:text-white text-base flex-shrink-0">🤝</button>
+                            <button onClick={() => abrirGaleriaConUrls([e.firmaEntrega], null, true)}
+                              className="text-zinc-400 hover:text-white text-base flex-shrink-0">📸</button>
                           )}
                           {!e.firmaEntrega && e.observacion && (
                             <button onClick={() => setObsPopupLog(obsPopupLog === log.id ? null : log.id)}
@@ -1805,14 +1806,14 @@ export default function ModuloOrdenes() {
       )}
       {galeria && (
         <div className="fixed inset-0 bg-black z-50 flex flex-col">
-          <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center justify-between px-4 py-1.5">
             <div>
-              <span className="text-zinc-400 text-sm">{galeria.esFirma ? '✍️ Firma' : '🖼️ Foto'} {galeria.fotos.length > 1 ? `${galeria.index + 1}/${galeria.fotos.length}` : ''}</span>
+              <span className="text-zinc-400 text-sm">{galeria.esFirma ? '📷 Foto entrega' : '🖼️ Foto'} {galeria.fotos.length > 1 ? `${galeria.index + 1}/${galeria.fotos.length}` : ''}</span>
               {galeria.fecha && <p className="text-zinc-300 text-xs">{formatFechaCorta(galeria.fecha)}</p>}
             </div>
             <button onClick={() => setGaleria(null)} className="text-white text-2xl">✕</button>
           </div>
-          <div className="flex-1 flex items-center justify-center relative overflow-hidden">
+          <div className="flex-1 flex items-start justify-center relative overflow-hidden pt-8">
             <img src={galeria.fotos[galeria.index]} className="max-w-full max-h-full object-contain" />
             {galeria.index > 0 && (
               <button onClick={() => setGaleria(g => g ? { ...g, index: g.index - 1 } : null)}

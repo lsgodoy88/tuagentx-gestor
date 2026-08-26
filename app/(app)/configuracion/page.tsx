@@ -1237,45 +1237,6 @@ export default function ConfiguracionPage() {
             {passwordFields}
           </Seccion>
 
-          <Seccion titulo="Recibos" icono="🖨️" isOpen={seccionAbierta === 'recibos'} onToggle={() => toggleSeccion('recibos')}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-white text-sm font-medium">Usar configuración de empresa</p>
-                <p className="text-zinc-500 text-xs">Hereda el papel y prefijo de la empresa</p>
-              </div>
-              <button onClick={() => setCfgUsarEmpresa(p => !p)}
-                className={`relative w-11 h-6 rounded-full transition-colors ${cfgUsarEmpresa ? 'bg-emerald-600' : 'bg-zinc-700'}`}>
-                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${cfgUsarEmpresa ? 'translate-x-5' : ''}`} />
-              </button>
-            </div>
-            {!cfgUsarEmpresa && (
-              <div className="space-y-3">
-                <div>
-                  <label className={labelClass}>Ancho de papel personal</label>
-                  <div className="flex gap-2 flex-wrap">
-                    {anchoBtns.map(b => (
-                      <button key={b.v} onClick={() => setCfgAncho(b.v)}
-                        className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-colors ${cfgAncho === b.v ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:text-white'}`}>
-                        {b.l}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <label className={labelClass}>Prefijo personal</label>
-                  <input value={cfgPrefijo} onChange={e => setCfgPrefijo(e.target.value.toUpperCase())} placeholder="CL" maxLength={6} className={inputClass} />
-                </div>
-              </div>
-            )}
-            <div className="rounded-xl px-4 py-3 flex items-center justify-between" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
-              <div>
-                <p className="text-zinc-400 text-xs">Consecutivo actual</p>
-                <p className="text-white font-mono text-lg font-bold">{String(cfgConsecutivo).padStart(3, '0')}</p>
-              </div>
-            </div>
-            {msgCfgPers && <p className="text-sm text-emerald-400">{msgCfgPers}</p>}
-            {btnGuardar(guardarCfgPersonal, savingCfgPers, savingCfgPers)}
-          </Seccion>
         </>
       )}
 

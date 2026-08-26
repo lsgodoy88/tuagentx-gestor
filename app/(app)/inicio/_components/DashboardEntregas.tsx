@@ -33,20 +33,29 @@ export default function DashboardEntregas({ user }: { user: any }) {
     ? new Date(new Date(ruta.fecha).getTime() - 5*60*60*1000).toISOString().split('T')[0]
     : hoyStr
 
-  const totalClientes = clientesOrdenados.length
-  const ejecutadosRuta = clientesOrdenados.filter(c =>
-    visitasRuta.some(v => {
-      if (v.clienteId !== c.id) return false
-      const fv = v.fechaBogota
-        ? new Date(v.fechaBogota).toISOString().split('T')[0]
-        : new Date(new Date(v.createdAt).getTime() - 5*60*60*1000).toISOString().split('T')[0]
-      return fv === fechaRuta
-    })
-  ).length
+  const [totalRutaReal, setTotalRutaReal] = useState(0)
+  const totalClientes = totalRutaReal || clientesOrdenados.length
+  // Ejecutados = visitas del día en hora Bogotá
+  const hoyBogota = new Date(Date.now() - 5*3600*1000).toISOString().split('T')[0]
+  const ejecutadosRuta = new Set(
+    visitasRuta
+      .filter(v => {
+        const raw = v.fechaBogota || v.createdAt
+        if (!raw) return false
+        const fv = raw.toString().slice(0, 10)
+        return fv === hoyBogota
+      })
+      .map((v: any) => v.clienteId)
+  ).size
   const rutaCompletada = totalClientes > 0 && ejecutadosRuta >= totalClientes
 
   const cargarRuta = useCallback(async () => {
     const data = await fetch('/api/rutas/mi-ruta').then(r => r.json()).catch(() => null)
+    const dataTodos = await fetch('/api/rutas/mi-ruta?todos=1').then(r => r.json()).catch(() => null)
+    setTotalRutaReal(dataTodos?.rutaHoy?.clientes?.length || 0)
+    const hoyBogota = new Date(Date.now() - 5*3600*1000).toISOString().split('T')[0]
+    const visitasData = await fetch(`/api/visitas/todas?fecha=${hoyBogota}`).then(r => r.json()).catch(() => null)
+    setVisitasRuta(Array.isArray(visitasData) ? visitasData : (visitasData?.visitas ?? []))
     const r = data?.rutaHoy ?? null
     setRutaMañana(data?.rutaMañana ?? null)
     if (r) {
@@ -151,7 +160,7 @@ export default function DashboardEntregas({ user }: { user: any }) {
 
       {/* Ruta del día */}
       {ruta && totalClientes > 0 && (
-        <div className="rounded-2xl overflow-hidden card-glass" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)'}}>
+        <div className="rounded-2xl overflow-hidden" style={{background:'rgba(8,10,30,0.85)',border:'1px solid rgba(255,255,255,0.10)',boxShadow:'0 4px 24px rgba(0,0,0,0.40)'}}>
           {!rutaIniciada && (
             <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between gap-3 bg-emerald-500/10">
               <p className="text-emerald-300 text-sm">Inicia tu ruta para comenzar las entregas</p>
@@ -163,7 +172,7 @@ export default function DashboardEntregas({ user }: { user: any }) {
           )}
           <Link href="/mapa-ruta" className="px-4 py-3 border-b border-white/20 flex items-center justify-between hover:bg-white/5 transition-colors">
             <span className="text-white font-bold">📦 Ruta de hoy →</span>
-            <span className="text-white text-sm font-semibold">{ejecutadosRuta}/{totalClientes} entregas</span>
+            <span className="text-white text-sm font-semibold">{ejecutadosRuta}/{totalClientes} Entregas Hoy</span>
           </Link>
           <div className="divide-y divide-white/20">
             {clientesOrdenados.slice().sort((a, b) => {
@@ -226,7 +235,7 @@ export default function DashboardEntregas({ user }: { user: any }) {
 
       {/* Ruta mañana */}
       {rutaMañana && rutaMañana.clientes?.length > 0 && (
-        <div className="rounded-2xl overflow-hidden" style={{background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)'}}>
+        <div className="rounded-2xl overflow-hidden" style={{background:'rgba(8,10,30,0.85)',border:'1px solid rgba(255,255,255,0.10)',boxShadow:'0 4px 24px rgba(0,0,0,0.40)'}}>
           <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
             <span className="text-zinc-400 font-semibold text-sm">🗓 Mañana — En espera</span>
             <span className="text-zinc-500 text-xs">{rutaMañana.clientes.length} orden{rutaMañana.clientes.length !== 1 ? 'es' : ''}</span>
@@ -355,9 +364,9 @@ export default function DashboardEntregas({ user }: { user: any }) {
       />
       {/* Card Rutas */}
       <Link href="/rutas-entregas"
-        className='card-glass' style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)', borderRadius:16, display:'block', padding:'12px 16px'}}>
+        style={{background:'rgba(8,10,30,0.85)',border:'1px solid rgba(255,255,255,0.10)',boxShadow:'0 4px 24px rgba(0,0,0,0.40)', borderRadius:16, display:'block', padding:'12px 16px'}}>
         <div className="flex items-center justify-between">
-          <span className="text-white font-semibold">📋 Mis Rutas</span>
+          <span className="text-white font-semibold">📋 Entregados</span>
           <span className="text-zinc-400 text-sm">→</span>
         </div>
       </Link>

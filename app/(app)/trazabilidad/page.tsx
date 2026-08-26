@@ -484,17 +484,13 @@ export default function TrazabilidadPage() {
       )}
       {/* Modal firma */}
       {firmaModal && (
-        <div className="fixed inset-0 bg-black/95 z-[1000] flex items-center justify-center p-4"
-          onClick={() => setFirmaModal(null)}>
-          <div className="relative bg-white rounded-2xl p-5 flex flex-col items-center gap-3"
-            style={{ width: '90vw', maxWidth: 400 }}
-            onClick={e => e.stopPropagation()}>
-            <button onClick={() => setFirmaModal(null)}
-              className="absolute top-2 right-2 bg-black/10 text-black rounded-full w-7 h-7 flex items-center justify-center text-sm z-10">✕</button>
-            <p className="text-zinc-500 text-xs font-semibold text-center">Firma del cliente</p>
-            <img src={firmaModal} alt="Firma"
-              className="w-full object-contain rounded-lg"
-              style={{ maxHeight: '60vh' }} />
+        <div className="fixed inset-0 bg-black z-[1000] flex flex-col">
+          <div className="flex items-center justify-between px-4 py-1.5">
+            <span className="text-zinc-400 text-sm">📸 Foto entrega</span>
+            <button onClick={() => setFirmaModal(null)} className="text-white text-2xl">✕</button>
+          </div>
+          <div className="flex-1 flex items-start justify-center relative overflow-hidden pt-8">
+            <img src={firmaModal} alt="Foto entrega" className="max-w-full max-h-full object-contain" />
           </div>
         </div>
       )}

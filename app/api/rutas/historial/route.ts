@@ -36,7 +36,7 @@ export async function GET() {
     const maxDate = new Date(Math.max(...fechas)); maxDate.setHours(23, 59, 59, 999)
     const visitas = await (prisma as any).visita.findMany({
       where: { empleadoId: user.id, fechaBogota: { gte: minDate, lte: maxDate } },
-      select: { id: true, tipo: true, lat: true, lng: true, createdAt: true, fechaBogota: true, clienteId: true },
+      select: { id: true, tipo: true, lat: true, lng: true, createdAt: true, fechaBogota: true, clienteId: true, firma: true },
       orderBy: { createdAt: 'asc' },
       take: 3000
     })

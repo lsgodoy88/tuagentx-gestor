@@ -97,7 +97,7 @@ async function enrichRutaClientes(clientes: any[]) {
   })
 }
 
-export async function GET() {
+export async function GET(req: Request) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json(null)
   const user = session.user as any
@@ -210,8 +210,9 @@ export async function GET() {
     }
   }
 
-  // Rol entregas: filtrar pendientes (no entregados) — RutaCliente se preserva intacto para historial
-  const clientesHoyFinal = user.role === 'entregas'
+  // Rol entregas: filtrar pendientes — excepto si viene ?todos=1 (mapa-ruta necesita todos)
+  const todosParam = new URL(req.url).searchParams.get('todos') === '1'
+  const clientesHoyFinal = (user.role === 'entregas' && !todosParam)
     ? clientesHoy.filter((c: any) => c.ordenEstado !== 'entregado')
     : clientesHoy
 

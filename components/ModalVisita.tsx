@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import FirmaCanvas from '@/components/FirmaCanvas'
+import FotoEntrega from '@/components/FotoEntrega'
 import { fetchApi, errorMsg } from '@/lib/fetchApi'
 import { useGpsContext } from '@/lib/gps-context'
 import { obtenerGpsMejor } from '@/lib/gps'
@@ -59,7 +59,8 @@ export default function ModalVisita({
   const [monto, setMonto] = useState('')
   const [nota, setNota] = useState('')
   const [factura, setFactura] = useState('')
-  const [firma, setFirma] = useState<string | null>(null)
+  const [firma, setFirma] = useState<string | null>(null)  // foto entrega
+  const [quienRecibe, setQuienRecibe] = useState('')
   const [capturarGps, setCapturarGps] = useState(false)
   const [loading, setLoading] = useState(false)
   const [exito, setExito] = useState(false)
@@ -303,7 +304,7 @@ export default function ModalVisita({
           <div className="space-y-4">
 
             {/* Cliente seleccionado */}
-            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 flex items-center justify-between">
+            <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl px-4 py-2 flex items-center justify-between">
               <div>
                 <p className="text-white font-medium">{modoNuevo ? (nombreLibre || (clienteInicial?.nombre && clienteInicial.nombre !== '__PROSPECTO__' ? clienteInicial.nombre : 'Prospecto')) : clienteActual!.nombre}</p>
                 {clienteActual!.nombreComercial && <p className="text-zinc-400 text-xs">{clienteActual!.nombreComercial}</p>}
@@ -344,7 +345,7 @@ export default function ModalVisita({
               <div>
                 <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Número de factura</label>
                 {facturaPreset ? (
-                  <div className="rounded-xl px-4 py-2.5 flex items-center gap-2" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
+                  <div className="rounded-xl px-4 py-1.5 flex items-center gap-2" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
                     <span className="text-lg">📦</span>
                     <span className="text-white text-sm font-semibold">{empresaOrigen ? `${empresaOrigen}: #${facturaPreset}` : `Factura: #${facturaPreset}`}</span>
                   </div>
@@ -356,18 +357,28 @@ export default function ModalVisita({
               </div>
             )}
 
+            {/* Quien recibe */}
+            {isEntregas && (
+              <div>
+                <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Quien recibe</label>
+                <input value={quienRecibe} onChange={e => setQuienRecibe(e.target.value)}
+                  placeholder="Nombre de quien recibe..."
+                  className="w-full rounded-xl px-4 py-2.5 text-white text-sm outline-none" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
+              </div>
+            )}
+
             {/* Nota */}
             <div>
               <label className="text-zinc-400 text-xs font-semibold block mb-1.5">
                 {isEntregas ? 'Novedad (opcional)' : 'Nota (opcional)'}
               </label>
-              <textarea value={nota} onChange={e => setNota(e.target.value)}
-                rows={2} placeholder="Observaciones..."
-                className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500 resize-none" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
+              <input value={nota} onChange={e => setNota(e.target.value)}
+                placeholder="Observaciones..."
+                className="w-full rounded-xl px-4 py-2.5 text-white text-sm outline-none" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}} />
             </div>
 
-            {/* Firma */}
-            {isEntregas && <FirmaCanvas onFirma={setFirma} firma={firma} />}
+            {/* Foto entrega */}
+            {isEntregas && <FotoEntrega onFoto={setFirma} foto={firma} quienRecibe={quienRecibe} />}
 
             {/* GPS capture */}
             {(() => {
@@ -438,7 +449,7 @@ export default function ModalVisita({
             </div>
 
             {isEntregas && !factura && <p className="text-yellow-400 text-xs text-center">Ingresa el número de factura</p>}
-            {isEntregas && factura && !firma && <p className="text-yellow-400 text-xs text-center">Se requiere firma del cliente</p>}
+            {isEntregas && factura && !firma && <p className="text-yellow-400 text-xs text-center">Se requiere foto de entrega</p>}
           </div>
         )}
       </div>

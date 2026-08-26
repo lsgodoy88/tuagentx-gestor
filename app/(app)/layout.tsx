@@ -273,6 +273,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }] : []),
     ...(isEmpleado && user?.role !== 'impulsadora' ? [{
       items: [
+        ...(user?.role === 'entregas' ? [{ href: '/rutas-entregas', label: 'Entregas', icon: '🚚' }] : []),
         { href: '/visitas', label: 'Visitas', icon: '📋' },
         ...(user?.role === 'vendedor' ? [
           { href: '/clientes',     label: 'Clientes',    icon: '🏪' },
@@ -280,7 +281,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           { href: '/trazabilidad', label: 'Despacho',icon: '🚚' },
         ] : []),
         ...(user?.role !== 'entregas' ? [{ href: '/impulsos', label: 'Impulsos', icon: '⚡' }] : []),
-        ...(user?.role === 'entregas' ? [{ href: '/trazabilidad', label: 'Despacho', icon: '🚚' }] : []),
         ...(user?.role === 'vendedor' ? [{ href: '/gastos', label: 'Gastos', icon: '🧾' }] : []),
       ]
     }] : []),
@@ -318,6 +318,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       ...empresasBodega,
     ] : []),
     ...(isEmpleado && user?.role !== 'impulsadora' ? [
+      ...(user?.role === 'entregas' ? [{ href: '/rutas-entregas', label: 'Entregas', icon: '🚚' }] : []),
       { href: '/visitas', label: 'Visitas', icon: '📋' },
       ...(user?.role === 'vendedor' ? [
         { href: '/clientes',     label: 'Clientes',    icon: '🏪' },

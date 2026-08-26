@@ -339,7 +339,7 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
                       )}
                       {e.firmaEntrega && (
                         <button onClick={() => onFirmaAbrir ? onFirmaAbrir(e.firmaEntrega) : setModalFirmaUrl(e.firmaEntrega)}
-                          className="text-zinc-400 hover:text-white text-base flex-shrink-0">🤝</button>
+                          className="text-zinc-400 hover:text-white text-base flex-shrink-0">📸</button>
                       )}
                       {!e.firmaEntrega && e.observacion && (
                         <button onClick={() => setObsPopup(obsPopup === log.id ? null : log.id)}
