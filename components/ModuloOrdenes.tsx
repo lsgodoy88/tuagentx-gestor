@@ -1149,13 +1149,20 @@ export default function ModuloOrdenes() {
                                     className="w-full bg-blue-950/40 border border-blue-500/30 rounded-xl pl-8 pr-3 py-2 text-white text-xs outline-none focus:border-blue-400"
                                   />
                                 </div>
-                                <button onClick={() => setObsPopup(`firma-${d.id}`)}
-                                  className="h-9 px-3 rounded-xl border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold flex-shrink-0 flex items-center justify-center gap-1">
-                                  🖊️ Firmar
-                                </button>
+                                {firmaData[d.id] ? (
+                                  <button onClick={() => setObsPopup(`firma-${d.id}`)}
+                                    className="h-9 w-9 rounded-xl border border-emerald-600/50 overflow-hidden flex-shrink-0 relative">
+                                    <img src={firmaData[d.id]} className="w-full h-full object-cover" />
+                                  </button>
+                                ) : (
+                                  <button onClick={() => setObsPopup(`firma-${d.id}`)}
+                                    className="h-9 px-3 rounded-xl border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-xs font-semibold flex-shrink-0 flex items-center justify-center gap-1">
+                                    📸 Foto
+                                  </button>
+                                )}
                                 <button
-                                  disabled={isSaving || !obsEdit[d.id]}
-                                  onClick={async () => { await patchOrden(d.id, { estado: 'entregado', entregadoEl: new Date().toISOString(), observacion: obsEdit[d.id] || null }) }}
+                                  disabled={isSaving || !firmaData[d.id]}
+                                  onClick={async () => { await patchOrden(d.id, { estado: 'entregado', entregadoEl: new Date().toISOString(), firmaBase64: firmaData[d.id] || null, observacion: obsEdit[d.id] || null }) }}
                                   className="h-9 px-3 rounded-xl border border-emerald-700 bg-emerald-900/40 hover:bg-emerald-800/60 text-emerald-300 text-xs font-semibold flex-shrink-0 flex items-center justify-center gap-1 disabled:opacity-30 disabled:cursor-not-allowed">
                                   🤝 Enviar
                                 </button>
@@ -1164,10 +1171,9 @@ export default function ModuloOrdenes() {
                                 <FotoEntrega
                                   autoOpen
                                   foto={firmaData[d.id] || null}
-                                  onFoto={async (dataUrl) => {
+                                  onFoto={(dataUrl) => {
                                     if (dataUrl) {
                                       setFirmaData(p => ({...p, [d.id]: dataUrl}))
-                                      await patchOrden(d.id, { estado: 'entregado', entregadoEl: new Date().toISOString(), firmaBase64: dataUrl, observacion: obsEdit[d.id] || null })
                                       setObsPopup(null)
                                     } else {
                                       setFirmaData(p => { const n = {...p}; delete n[d.id]; return n })
@@ -1282,7 +1288,7 @@ export default function ModuloOrdenes() {
                   {d.estado === 'entregado' && (
                     <div className="px-3 pb-3 pt-1 border-t border-zinc-800/60 mt-1">
                       <div className="flex items-center gap-3">
-                        <span className="text-emerald-500 text-xs font-semibold">🤝 {formatFechaCorta(d.entregadoEl)}</span>
+                        <span className="text-emerald-500 text-xs font-semibold">✅ Entregado {formatFechaCorta(d.entregadoEl)}</span>
                         {tieneFotos && (
                           <button onClick={() => abrirGaleriaConUrls(fotos, d.entregadoEl)}
                             className="flex items-center gap-1 text-zinc-400 hover:text-white text-xs">
@@ -1400,8 +1406,8 @@ export default function ModuloOrdenes() {
                         { icon: '🧾', label: 'Facturado',  fecha: log.fechaFactura,  quien: 'Admin' },
                         { icon: '📦', label: 'Alistado',   fecha: log.alistadoEl,    quien: log.alistadoPor?.nombre || null,
                           accion: fotos2.length > 0 ? () => abrirGaleriaConUrls(fotos2, log.alistadoEl) : null },
-                        ...(log.modo === 'personal' ? [] : [{ icon: log.modo === 'repartidor' ? '🚚' : '🚛', label: log.modo === 'repartidor' ? 'Despacho' : 'Transporte', fecha: log.despachadoEl, quien: [log.despachadoPorNombre || log.repartidor?.nombre, log.num_cajas > 0 && !log.firmaEntrega ? `${log.num_cajas} caja${log.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · '), esDespacho: true, firmaEntrega: log.firmaEntrega, observacion: log.observacion }]),
-                        { icon: '✅', label: 'Entregado',  fecha: log.entregadoEl,   quien: null },
+                        ...(log.modo === 'personal' ? [] : [{ icon: log.modo === 'repartidor' ? '🚚' : '🚛', label: log.modo === 'repartidor' ? 'Despacho' : 'Transporte', fecha: log.modo === 'repartidor' ? log.despachadoEl : null, quien: log.modo === 'repartidor' ? ([log.despachadoPorNombre || log.repartidor?.nombre, log.num_cajas > 0 ? `${log.num_cajas} caja${log.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · ') || null) : null, esDespacho: true, observacion: log.observacion }]),
+                        { icon: '✅', label: 'Entregado',  fecha: log.modo === 'transportadora' ? null : log.entregadoEl, quien: log.modo === 'transportadora' ? null : log.modo === 'repartidor' ? (log.repartidor?.nombre || log.despachadoPorNombre || null) : (log.despachadoPorNombre || null), firmaEntrega: log.modo === 'transportadora' ? null : (log.firmaEntrega || null) },
                       ].map((e: any, i) => (
                         <div key={i} className="flex items-center gap-2 py-1">
                           <span className="text-base flex-shrink-0">{e.icon}</span>
@@ -1421,7 +1427,7 @@ export default function ModuloOrdenes() {
                           {e.accion && <button onClick={ev => { ev.stopPropagation(); e.accion!() }} className="text-zinc-400 hover:text-white text-xs">🖼️</button>}
                           {e.firmaEntrega && (
                             <button onClick={() => abrirGaleriaConUrls([e.firmaEntrega], null, true)}
-                              className="text-zinc-400 hover:text-white text-base flex-shrink-0">📸</button>
+                              className="text-zinc-400 hover:text-white text-xs flex-shrink-0 ml-auto">📸</button>
                           )}
                           {!e.firmaEntrega && e.observacion && (
                             <button onClick={() => setObsPopupLog(obsPopupLog === log.id ? null : log.id)}

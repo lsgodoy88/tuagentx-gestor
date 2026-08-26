@@ -311,12 +311,11 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
                       icon: log.modo === 'repartidor' ? '🚚' : '🚛',
                       label: log.modo === 'repartidor' ? 'Despacho' : 'Transporte',
                       fecha: log.despachadoEl,
-                      quien: [log.despachadoPorNombre || log.repartidor?.nombre, log.num_cajas > 0 && !log.firmaEntrega ? `${log.num_cajas} caja${log.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · '),
+                      quien: [log.despachadoPorNombre || log.repartidor?.nombre, log.num_cajas > 0 ? `${log.num_cajas} caja${log.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · ') || null,
                       esDespacho: true,
-                      firmaEntrega: log.firmaEntrega,
                       observacion: log.observacion,
                     }]),
-                    { icon: '✅', label: 'Entregado', fecha: log.entregadoEl, quien: null },
+                    { icon: '✅', label: 'Entregado', fecha: log.modo === 'transportadora' ? null : log.entregadoEl, quien: log.modo === 'transportadora' ? null : log.modo === 'repartidor' ? (log.repartidor?.nombre || log.despachadoPorNombre || null) : (log.despachadoPorNombre || null), firmaEntrega: log.modo === 'transportadora' ? null : (log.firmaEntrega || null) },
                   ].map((e: any, i) => (
                     <div key={i} className="flex items-center gap-2 py-1">
                       <span className="text-base flex-shrink-0">{e.icon}</span>
@@ -339,7 +338,7 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
                       )}
                       {e.firmaEntrega && (
                         <button onClick={() => onFirmaAbrir ? onFirmaAbrir(e.firmaEntrega) : setModalFirmaUrl(e.firmaEntrega)}
-                          className="text-zinc-400 hover:text-white text-base flex-shrink-0">📸</button>
+                          className="text-zinc-400 hover:text-white text-xs flex-shrink-0 ml-auto">📸</button>
                       )}
                       {!e.firmaEntrega && e.observacion && (
                         <button onClick={() => setObsPopup(obsPopup === log.id ? null : log.id)}

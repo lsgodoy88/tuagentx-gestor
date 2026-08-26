@@ -81,6 +81,7 @@ export default function BodegaPage() {
   const [editTransporte, setEditTransporte] = useState<Record<string, { transportadora: string; guia: string }>>({})
   const [editRepartidor, setEditRepartidor] = useState<Record<string, string>>({})
   const [modalFoto, setModalFoto] = useState<{ url: string; fecha: string } | null>(null)
+  const [fotoEntregaUrls, setFotoEntregaUrls] = useState<Record<string, string>>({})
   const [camaraActiva, setCamaraActiva] = useState(false)
   const [camaraOrdenId, setCamaraOrdenId] = useState<string | null>(null)
   const [preview, setPreview] = useState<string | null>(null)
@@ -283,6 +284,20 @@ export default function BodegaPage() {
     setCamaraActiva(false)
     setCamaraOrdenId(null)
     setPreview(null)
+  }
+
+  async function abrirFotoEntrega(ordenId: string, key: string, fecha: string) {
+    if (fotoEntregaUrls[ordenId]) {
+      setModalFoto({ url: fotoEntregaUrls[ordenId], fecha })
+      return
+    }
+    try {
+      const res = await fetch('/api/firma', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ firma: key }) })
+      const data = await res.json()
+      const url = data.url || key
+      setFotoEntregaUrls(p => ({ ...p, [ordenId]: url }))
+      setModalFoto({ url, fecha })
+    } catch { setModalFoto({ url: key, fecha }) }
   }
 
   function toggleExpanded(id: string) {
@@ -633,8 +648,16 @@ export default function BodegaPage() {
 
                   {d.estado === 'entregado' && (
                     <div className="px-4 pb-3 pt-1 border-t border-zinc-800/60 flex items-center gap-3 mt-1">
-                      {btnFoto}
-                      <span className="text-emerald-500 text-xs">✅ {formatFechaCorta(d.entregadoEl)}</span>
+                      <span className="text-emerald-500 text-xs flex items-center gap-1.5">
+                        ✅ Entregado {formatFechaCorta(d.entregadoEl)}
+                        {d.fotoEntrega && (
+                          <button
+                            onClick={() => abrirFotoEntrega(d.id, d.fotoEntrega, d.entregadoEl ?? '')}
+                            className="flex items-center gap-1 text-zinc-400 hover:text-zinc-200 transition-colors text-xs ml-1">
+                            📷
+                          </button>
+                        )}
+                      </span>
                     </div>
                   )}
                 </div>

@@ -59,6 +59,9 @@ export default function FotoEntrega({ onFoto, foto, quienRecibe = '', autoOpen }
   const inputRef = useRef<HTMLInputElement>(null)
   const [procesando, setProcesando] = useState(false)
   const [vistaPrevia, setVistaPrevia] = useState(false)
+  const [receptorLocal, setReceptorLocal] = useState('')
+
+  const receptor = autoOpen ? receptorLocal : quienRecibe
 
   async function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -67,7 +70,7 @@ export default function FotoEntrega({ onFoto, foto, quienRecibe = '', autoOpen }
     const reader = new FileReader()
     reader.onload = async (ev) => {
       const src = ev.target?.result as string
-      const resultado = await marcaAgua(src, quienRecibe)
+      const resultado = await marcaAgua(src, receptor)
       onFoto(resultado)
       setProcesando(false)
     }
@@ -77,8 +80,6 @@ export default function FotoEntrega({ onFoto, foto, quienRecibe = '', autoOpen }
 
   return (
     <div className="space-y-2">
-      <label className="text-zinc-400 text-xs font-semibold block">Foto de entrega</label>
-
       <input ref={inputRef} type="file" accept="image/*" capture="environment"
         style={{ display: 'none' }} onChange={onFileChange} />
 
@@ -106,10 +107,27 @@ export default function FotoEntrega({ onFoto, foto, quienRecibe = '', autoOpen }
           )}
         </>
       ) : (
-        <button type="button" onClick={() => inputRef.current?.click()} disabled={procesando}
-          className="w-full bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-semibold py-3 rounded-xl text-sm flex items-center justify-center gap-2 disabled:opacity-50">
-          {procesando ? '⏳ Procesando...' : <><span>📷</span><span>Tomar foto</span></>}
-        </button>
+        <div className="space-y-2">
+          <div className="flex gap-2 items-center">
+            {autoOpen && (
+              <input
+                type="text"
+                maxLength={80}
+                placeholder="¿Quién recibe?"
+                value={receptorLocal}
+                onChange={e => setReceptorLocal(e.target.value)}
+                className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-blue-500 placeholder:text-zinc-500"
+              />
+            )}
+            <button
+              type="button"
+              onClick={() => inputRef.current?.click()}
+              disabled={procesando || (autoOpen && !receptorLocal.trim())}
+              className="flex-shrink-0 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-semibold px-4 py-2 rounded-xl text-sm flex items-center gap-2 disabled:opacity-40">
+              {procesando ? '⏳' : <><span>📷</span><span>Tomar foto</span></>}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )

@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react'
 const TIPO_META: Record<string, { emoji: string; label: string; color: string }> = {
   voucher_pago:      { emoji: '🧾', label: 'Comprobantes de pago',  color: '#3b82f6' },
   foto_alistamiento: { emoji: '📦', label: 'Fotos alistamiento',    color: '#10b981' },
-  firma:             { emoji: '✍️',  label: 'Firmas de entrega',     color: '#8b5cf6' },
+  firma:             { emoji: '📷',  label: 'Foto-Firma entrega',    color: '#8b5cf6' },
   factura_egreso:    { emoji: '🧮', label: 'Facturas de egreso',     color: '#f59e0b' },
   evidencia_abono:   { emoji: '💳', label: 'Evidencias de abono',    color: '#ec4899' },
   evidencia_saldo:   { emoji: '🏦', label: 'Evidencias de saldo',    color: '#06b6d4' },
-  foto_evento:       { emoji: '📸', label: 'Fotos de eventos',       color: '#a855f7' },
+  foto_evento:       { emoji: '🥇', label: 'Eventos',               color: '#a855f7' },
 }
 
 function fmtMb(mb: number) {
