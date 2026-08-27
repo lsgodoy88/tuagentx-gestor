@@ -79,7 +79,7 @@ async function syncEmpresa(empresaId: string): Promise<{ actualizadas: number; e
 
   for (const orden of ordenes) {
     try {
-      const remesa = await consultarRemesa(token, orden.guiaTransporte)
+      const remesa = await consultarRemesa(token, orden.guiaTransporte.trim())
       if (!remesa) continue
 
       const estadoAtencion: string = remesa.estado_atencioncliente ?? ''
