@@ -68,7 +68,10 @@ async function syncEmpresa(empresaId: string): Promise<{ actualizadas: number; e
   const ordenes = await (prisma as any).ordenDespacho.findMany({
     where: {
       empresaId,
-      modo_despacho: { in: ['transportadora', 'transporte'] },
+      OR: [
+        { modo_despacho: { in: ['transportadora', 'transporte'] } },
+        { modo_despacho: null },
+      ],
       guiaTransporte: { not: null },
       estado: { in: ['en_transito', 'despachado', 'entregado'] },
     },
