@@ -111,8 +111,8 @@ export async function GET(req: NextRequest) {
     WHERE empresa_id = ${empresaId} AND resuelta = FALSE
     ORDER BY created_at ASC`
 
-  const ICONO: Record<string, string> = { storage: '☁️', plan: '📅', inventario: '📦' }
-  const URL_MAP: Record<string, string> = { storage: '/configuracion/almacenamiento', plan: '/configuracion', inventario: '/bodega' }
+  const ICONO: Record<string, string> = { storage: '☁️', plan: '📅', inventario: '📦', transprensa_conexion: '🚛' }
+  const URL_MAP: Record<string, string> = { storage: '/configuracion/almacenamiento', plan: '/configuracion', inventario: '/bodega', transprensa_conexion: '/configuracion' }
 
   const alertas = rows.map((r: any) => ({
     ...r,

@@ -4,10 +4,33 @@
  * Cuando estado_atencion === 'ENTREGADO' → marca OrdenDespacho como entregada.
  */
 
-import { prisma } from '@/lib/prisma'
+import { prisma, DB_SCHEMA } from '@/lib/prisma'
+import { Prisma } from '@/app/generated/prisma'
 import { decrypt } from '@/lib/crypto-uptres'
 
 const BASE_URL = 'https://transprensa.colombiasoftware.net/index.php'
+
+// ── Alertas ──────────────────────────────────────────────────────────────────
+
+async function crearAlertaTransprensa(empresaId: string, mensaje: string) {
+  try {
+    await prisma.$executeRaw`
+      INSERT INTO ${Prisma.raw(DB_SCHEMA)}."AlertaLog"
+        (empresa_id, tipo, severidad, mensaje, updated_at)
+      VALUES (${empresaId}, 'transprensa_conexion', 'advertencia', ${mensaje}, NOW())
+      ON CONFLICT (empresa_id, tipo) WHERE resuelta = FALSE
+      DO UPDATE SET mensaje = ${mensaje}, updated_at = NOW()`
+  } catch {}
+}
+
+async function resolverAlertaTransprensa(empresaId: string) {
+  try {
+    await prisma.$executeRaw`
+      UPDATE ${Prisma.raw(DB_SCHEMA)}."AlertaLog"
+      SET resuelta = TRUE, resuelta_el = NOW(), updated_at = NOW()
+      WHERE empresa_id = ${empresaId} AND tipo = 'transprensa_conexion' AND resuelta = FALSE`
+  } catch {}
+}
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -62,7 +85,14 @@ async function syncEmpresa(empresaId: string): Promise<{ actualizadas: number; e
   const password = decrypt(config.usuario_password, process.env.UPTRES_SECRET!)
 
   // Login — token caduca cada 2 días, lo obtenemos fresco cada sync
-  const token = await loginTransprensa(config.usuario_login, password)
+  let token: string
+  try {
+    token = await loginTransprensa(config.usuario_login, password)
+    await resolverAlertaTransprensa(empresaId)
+  } catch (e: any) {
+    await crearAlertaTransprensa(empresaId, `Transprensa: fallo de conexión — ${e.message}`)
+    throw e
+  }
 
   // Órdenes en_transito con guiaTransporte para esta empresa
   const ordenes = await (prisma as any).ordenDespacho.findMany({
@@ -74,6 +104,7 @@ async function syncEmpresa(empresaId: string): Promise<{ actualizadas: number; e
       ],
       guiaTransporte: { not: null },
       estado: { in: ['en_transito', 'despachado', 'entregado'] },
+      NOT: { transprensaRemesa: { estado_atencion: 'ENTREGADO' } },
     },
     select: { id: true, guiaTransporte: true, numeroFactura: true }
   })

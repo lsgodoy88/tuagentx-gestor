@@ -37,6 +37,20 @@ export async function POST(req: NextRequest) {
   if (!usuario_login || !usuario_password)
     return NextResponse.json({ error: 'usuario_login y usuario_password requeridos' }, { status: 400 })
 
+  // Validar credenciales antes de guardar
+  try {
+    const params = new URLSearchParams({ usuario_login, usuario_password })
+    const res = await fetch('https://transprensa.colombiasoftware.net/index.php?api=servicio.Seguridad.login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: params.toString(),
+    })
+    const data = await res.json()
+    if (!data.success) return NextResponse.json({ error: data.msg || 'Credenciales inválidas en Transprensa' }, { status: 400 })
+  } catch (e: any) {
+    return NextResponse.json({ error: 'No se pudo conectar a Transprensa' }, { status: 503 })
+  }
+
   const encPassword = encrypt(usuario_password, process.env.UPTRES_SECRET!)
   const config = { usuario_login, usuario_password: encPassword }
 
