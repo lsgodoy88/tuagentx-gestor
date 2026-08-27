@@ -1,4 +1,12 @@
 'use client'
+
+function iconoTransprensa(estado: string): string {
+  const e = (estado || '').toUpperCase()
+  if (e.includes('ENTREGADO')) return '✅'
+  if (e.includes('NOVEDAD'))   return '🔴'
+  return '🚚'
+}
+
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import ModalEscaner from '@/components/ModalEscaner'
@@ -315,7 +323,17 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
                       esDespacho: true,
                       observacion: log.observacion,
                     }]),
-                    { icon: '✅', label: 'Entregado', fecha: log.modo === 'transportadora' ? null : log.entregadoEl, quien: log.modo === 'transportadora' ? null : log.modo === 'repartidor' ? (log.repartidor?.nombre || log.despachadoPorNombre || null) : (log.despachadoPorNombre || null), firmaEntrega: log.modo === 'transportadora' ? null : (log.firmaEntrega || null) },
+                    ...(log.modo === 'transportadora' && log.trRawEstados?.length
+                      ? [{
+                          icon: iconoTransprensa((log.trRawEstados as any[]).at(-1)?.estado_nombre ?? ''),
+                          label: 'Entregado',
+                          fecha: (log.trRawEstados as any[]).at(-1)?.estado_fecha ? new Date((log.trRawEstados as any[]).at(-1).estado_fecha) : null,
+                          quien: (log.trRawEstados as any[]).at(-1)?.estado_nombre ?? null,
+                          esTransprensa: true,
+                          imagenCumplido: log.trImagenCumplido ?? null,
+                        }]
+                      : [{ icon: '✅', label: 'Entregado', fecha: log.modo === 'transportadora' ? null : log.entregadoEl, quien: log.modo === 'transportadora' ? null : log.modo === 'repartidor' ? (log.repartidor?.nombre || log.despachadoPorNombre || null) : (log.despachadoPorNombre || null), firmaEntrega: log.modo === 'transportadora' ? null : (log.firmaEntrega || null) }]
+                    ),
                   ].map((e: any, i) => (
                     <div key={i} className="flex items-center gap-2 py-1">
                       <span className="text-base flex-shrink-0">{e.icon}</span>
@@ -338,7 +356,11 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
                       )}
                       {e.firmaEntrega && (
                         <button onClick={() => onFirmaAbrir ? onFirmaAbrir(e.firmaEntrega) : setModalFirmaUrl(e.firmaEntrega)}
-                          className="text-zinc-400 hover:text-white text-xs flex-shrink-0 ml-auto">📸</button>
+                          className="text-zinc-400 hover:text-white text-sm flex-shrink-0 ml-auto">📸</button>
+                      )}
+                      {e.imagenCumplido && (
+                        <button onClick={() => window.open(e.imagenCumplido, '_blank')}
+                          className="text-zinc-400 hover:text-white text-base flex-shrink-0 ml-auto">📝</button>
                       )}
                       {!e.firmaEntrega && e.observacion && (
                         <button onClick={() => setObsPopup(obsPopup === log.id ? null : log.id)}

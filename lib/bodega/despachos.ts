@@ -65,6 +65,7 @@ export async function getDespachos(params: {
           guiaTransporte: true, modo_despacho: true, vendedorApiId: true, clienteApiId: true, origenVinculadaId: true, num_cajas: true, observacion: true,
           alistadoPor: { select: { id: true, nombre: true } },
           repartidor:  { select: { id: true, nombre: true } },
+          transprensaRemesa: { select: { estado_atencion: true, raw_estados: true, imagen_cumplido: true } },
         },
       })
     : []
@@ -133,6 +134,9 @@ export async function getDespachos(params: {
           entregadoEl: despachada ? (r?.entregadoEl || r?.alistadoEl || null) : null,
           confirmado: despachada && !!(r?.repartidorId || r?.guiaTransporte || r?.transportadora || r?.firmaEntrega),
           modo: r?.firmaEntrega ? 'personal' : r?.guiaTransporte || r?.transportadora ? 'transportadora' : r?.repartidorId ? 'repartidor' : null,
+          trEstadoAtencion: r?.transprensaRemesa?.estado_atencion ?? null,
+          trRawEstados:     r?.transprensaRemesa?.raw_estados ?? null,
+          trImagenCumplido: r?.transprensaRemesa?.imagen_cumplido ?? null,
           despachada,
           hueco: !r,
         })

@@ -1,4 +1,12 @@
 'use client'
+
+function iconoTransprensa(estado: string): string {
+  const e = (estado || '').toUpperCase()
+  if (e.includes('ENTREGADO')) return '✅'
+  if (e.includes('NOVEDAD'))   return '🔴'
+  return '🚚'
+}
+
 import ModalEscaner from '@/components/ModalEscaner'
 import { SyncIcon } from '@/components/SyncIcon'
 import { nowBogota } from '@/lib/fechas'
@@ -1227,7 +1235,7 @@ export default function ModuloOrdenes() {
                                 )}
                                 {!e.firmaEntrega && e.observacion && (
                                   <button onClick={() => setModalObsTexto(e.observacion)}
-                                    className="text-zinc-400 hover:text-white text-base flex-shrink-0">✍🏼</button>
+                                    className="text-zinc-400 hover:text-white text-base flex-shrink-0">📝</button>
                                 )}
                               </div>
                             ))}
@@ -1406,8 +1414,18 @@ export default function ModuloOrdenes() {
                         { icon: '🧾', label: 'Facturado',  fecha: log.fechaFactura,  quien: 'Admin' },
                         { icon: '📦', label: 'Alistado',   fecha: log.alistadoEl,    quien: log.alistadoPor?.nombre || null,
                           accion: fotos2.length > 0 ? () => abrirGaleriaConUrls(fotos2, log.alistadoEl) : null },
-                        ...(log.modo === 'personal' ? [] : [{ icon: log.modo === 'repartidor' ? '🚚' : '🚛', label: log.modo === 'repartidor' ? 'Despacho' : 'Transporte', fecha: log.modo === 'repartidor' ? log.despachadoEl : null, quien: log.modo === 'repartidor' ? ([log.despachadoPorNombre || log.repartidor?.nombre, log.num_cajas > 0 ? `${log.num_cajas} caja${log.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · ') || null) : null, esDespacho: true, observacion: log.observacion }]),
-                        { icon: '✅', label: 'Entregado',  fecha: log.modo === 'transportadora' ? null : log.entregadoEl, quien: log.modo === 'transportadora' ? null : log.modo === 'repartidor' ? (log.repartidor?.nombre || log.despachadoPorNombre || null) : (log.despachadoPorNombre || null), firmaEntrega: log.modo === 'transportadora' ? null : (log.firmaEntrega || null) },
+                        ...(log.modo === 'personal' ? [] : [{ icon: log.modo === 'repartidor' ? '🚚' : '🚛', label: log.modo === 'repartidor' ? 'Despacho' : 'Transporte', fecha: log.despachadoEl, quien: log.modo === 'repartidor' ? ([log.despachadoPorNombre || log.repartidor?.nombre, log.num_cajas > 0 ? `${log.num_cajas} caja${log.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · ') || null) : (log.num_cajas > 0 ? `${log.num_cajas} caja${log.num_cajas > 1 ? 's' : ''}` : null), esDespacho: true, observacion: log.observacion }]),
+                        ...(log.modo === 'transportadora' && log.trRawEstados?.length
+                          ? [{
+                              icon: iconoTransprensa((log.trRawEstados as any[]).at(-1)?.estado_nombre ?? ''),
+                              label: 'Entregado',
+                              fecha: (log.trRawEstados as any[]).at(-1)?.estado_fecha ? new Date((log.trRawEstados as any[]).at(-1).estado_fecha) : null,
+                              quien: (log.trRawEstados as any[]).at(-1)?.estado_nombre ?? null,
+                              esTransprensa: true,
+                              imagenCumplido: log.trImagenCumplido ?? null,
+                            }]
+                          : [{ icon: '✅', label: 'Entregado', fecha: log.modo === 'transportadora' ? null : log.entregadoEl, quien: log.modo === 'transportadora' ? null : log.modo === 'repartidor' ? (log.repartidor?.nombre || log.despachadoPorNombre || null) : (log.despachadoPorNombre || null), firmaEntrega: log.modo === 'transportadora' ? null : (log.firmaEntrega || null) }]
+                        ),
                       ].map((e: any, i) => (
                         <div key={i} className="flex items-center gap-2 py-1">
                           <span className="text-base flex-shrink-0">{e.icon}</span>
@@ -1427,7 +1445,11 @@ export default function ModuloOrdenes() {
                           {e.accion && <button onClick={ev => { ev.stopPropagation(); e.accion!() }} className="text-zinc-400 hover:text-white text-xs">🖼️</button>}
                           {e.firmaEntrega && (
                             <button onClick={() => abrirGaleriaConUrls([e.firmaEntrega], null, true)}
-                              className="text-zinc-400 hover:text-white text-xs flex-shrink-0 ml-auto">📸</button>
+                              className="text-zinc-400 hover:text-white text-sm flex-shrink-0 ml-auto">📸</button>
+                          )}
+                          {e.imagenCumplido && (
+                            <button onClick={() => window.open(e.imagenCumplido, '_blank')}
+                              className="text-zinc-400 hover:text-white text-base flex-shrink-0 ml-auto">📝</button>
                           )}
                           {!e.firmaEntrega && e.observacion && (
                             <button onClick={() => setObsPopupLog(obsPopupLog === log.id ? null : log.id)}

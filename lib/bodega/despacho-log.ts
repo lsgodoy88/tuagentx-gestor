@@ -50,7 +50,10 @@ export async function getDespachoLog(params: {
            o."urlSeguimiento",
            ap.nombre as "alistadoPorNombre",
            rp.nombre as "repartidorNombre",
-           vnd.nombre as "vendedorNombre"
+           vnd.nombre as "vendedorNombre",
+           tr.estado_atencion as "trEstadoAtencion",
+           tr.raw_estados as "trRawEstados",
+           tr.imagen_cumplido as "trImagenCumplido"
     FROM ${DB_SCHEMA}."DespachoLog" l
     INNER JOIN ${DB_SCHEMA}."OrdenDespacho" o
       ON o."numeroFactura" = l."numeroFactura"
@@ -58,10 +61,11 @@ export async function getDespachoLog(params: {
     LEFT JOIN ${DB_SCHEMA}."Empleado" ap ON ap.id = o."alistadoPorId"
     LEFT JOIN ${DB_SCHEMA}."Empleado" rp ON rp.id = o."repartidorId"
     LEFT JOIN ${DB_SCHEMA}."Empleado" vnd ON vnd."apiId" = o."vendedorApiId" AND vnd."empresaId" = $2
+    LEFT JOIN ${DB_SCHEMA}."TransprensaRemesa" tr ON tr."ordenId" = o.id
     WHERE l."empresaId" IN ($1, $2)
       ${vendedorFilter}
       ${cursorClause}
-    GROUP BY l.id, l."numeroFactura", l."clienteNombre", l.modo, l."guiaTransporte", l.transportadora, l."despachadoEl", l."despachadoPorNombre", o."alistadoEl", o.ciudad, o."fotosAlistamiento", o."fotoAlistamiento", o.id, o."fechaOrden", o."fechaFactura", o.direccion, o."num_cajas", o."entregadoEl", o."firmaEntrega", o."urlSeguimiento", ap.nombre, rp.nombre, vnd.nombre
+    GROUP BY l.id, l."numeroFactura", l."clienteNombre", l.modo, l."guiaTransporte", l.transportadora, l."despachadoEl", l."despachadoPorNombre", o."alistadoEl", o.ciudad, o."fotosAlistamiento", o."fotoAlistamiento", o.id, o."fechaOrden", o."fechaFactura", o.direccion, o."num_cajas", o."entregadoEl", o."firmaEntrega", o."urlSeguimiento", ap.nombre, rp.nombre, vnd.nombre, tr.estado_atencion, tr.raw_estados, tr.imagen_cumplido
     ORDER BY
       CAST(CASE WHEN l."numeroFactura" ~ '^[0-9]+$' THEN l."numeroFactura" ELSE '0' END AS BIGINT) DESC,
       l.id DESC
@@ -84,7 +88,10 @@ export async function getDespachoLog(params: {
     fechaFactura: r.fechaFactura instanceof Date ? r.fechaFactura.toISOString() : r.fechaFactura || null,
     entregadoEl: r.entregadoEl instanceof Date ? r.entregadoEl.toISOString() : r.entregadoEl || null,
     num_cajas: r.num_cajas ?? 0,
-    urlSeguimiento: r.urlSeguimiento || null,
+    urlSeguimiento:   r.urlSeguimiento || null,
+    trEstadoAtencion: r.trEstadoAtencion || null,
+    trRawEstados:     r.trRawEstados || null,
+    trImagenCumplido: r.trImagenCumplido || null,
     alistadoPor: r.alistadoPorNombre ? { nombre: r.alistadoPorNombre } : null,
     repartidor: r.repartidorNombre ? { nombre: r.repartidorNombre } : null,
   }))

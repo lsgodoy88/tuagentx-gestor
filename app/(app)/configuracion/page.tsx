@@ -62,7 +62,7 @@ function Seccion({ titulo, icono, isOpen, onToggle, children, cardStyle }: {
   cardStyle?: React.CSSProperties
 }) {
   return (
-    <div className="rounded-2xl overflow-hidden" style={cardStyle ?? {background:'rgba(30,36,58,0.99)',border:'1px solid rgba(59,130,246,0.22)'}}>
+    <div className="rounded-2xl overflow-hidden" style={cardStyle ?? {background:'#060a24',border:'1px solid rgba(59,130,246,0.22)'}}>
       <button onClick={onToggle} className="w-full flex items-center justify-between px-5 py-4 text-left">
         <span className="text-white font-semibold">{icono} {titulo}</span>
         <span className="text-zinc-500 text-xs">{isOpen ? '▲' : '▼'}</span>
@@ -108,6 +108,14 @@ export default function ConfiguracionPage() {
   const [urlBase, setUrlBase] = useState('')
   const [savingDespachos, setSavingDespachos] = useState(false)
   const [msgDespachos, setMsgDespachos] = useState('')
+  const [transprensaLogin, setTransprensaLogin] = useState('')
+  const [transprensaPassword, setTransprensaPassword] = useState('')
+  const [transprensaConfigurado, setTransprensaConfigurado] = useState(false)
+  const [savingTransprensa, setSavingTransprensa] = useState(false)
+  const [msgTransprensa, setMsgTransprensa] = useState('')
+  const [showTransprensaPass, setShowTransprensaPass] = useState(false)
+  const [transprensaTest, setTransprensaTest] = useState<'idle'|'ok'|'error'>('idle')
+  const [testingTransprensa, setTestingTransprensa] = useState(false)
 
   // Despachos (solo empresa)
   const [ciudadEntregaLocal, setCiudadEntregaLocal] = useState('')
@@ -205,6 +213,7 @@ export default function ConfiguracionPage() {
 
   useEffect(() => {
     fetch('/api/empresa/despachos').then(r=>r.json()).then(d=>{ setTransportadora(d.transportadora||''); setUrlBase(d.urlBase||'') }).catch(()=>{})
+    fetch('/api/integracion/transprensa').then(r=>r.json()).then(d=>{ if(d.configurado){ setTransprensaConfigurado(true); setTransprensaLogin(d.usuario_login||'') } }).catch(()=>{})
   }, [])
 
   useEffect(() => {
@@ -288,6 +297,23 @@ export default function ConfiguracionPage() {
     } else {
       setDiasCerrar(prev => prev.includes(i) ? prev.filter(d => d !== i) : [...prev, i].sort((a, b) => a - b))
     }
+  }
+
+  async function testTransprensa() {
+    setTestingTransprensa(true)
+    const r = await fetch('/api/integracion/transprensa/test', { method: 'POST' }).then(r => r.json()).catch(() => ({ ok: false }))
+    setTransprensaTest(r.ok ? 'ok' : 'error')
+    setTestingTransprensa(false)
+  }
+
+  async function guardarTransprensa() {
+    if (!transprensaLogin || !transprensaPassword) { setMsgTransprensa('Usuario y contraseña requeridos'); return }
+    setSavingTransprensa(true)
+    const r = await fetch('/api/integracion/transprensa', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ usuario_login: transprensaLogin, usuario_password: transprensaPassword }) })
+    setSavingTransprensa(false)
+    if (r.ok) { setTransprensaConfigurado(true); setTransprensaPassword(''); setMsgTransprensa('✅ Guardado') }
+    else setMsgTransprensa('Error al guardar')
+    setTimeout(() => setMsgTransprensa(''), 3000)
   }
 
   async function guardarConfigDespachos() {
@@ -737,30 +763,71 @@ export default function ConfiguracionPage() {
             {msgRutas && <p className="text-sm text-emerald-400">{msgRutas}</p>}
             {btnGuardar(guardarConfigEntregas, savingRutas, savingRutas)}
 
-            {/* Config transportadora */}
+          </Seccion>
+
+          <Seccion titulo="Transporte" icono="🚛" isOpen={seccionAbierta === 'transporte'} onToggle={() => toggleSeccion('transporte')}>
+            <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide mb-3">Transportadora de ciudades</p>
+            <div>
+              <label className="text-zinc-400 text-xs mb-1 block">Nombre de la transportadora</label>
+              <input value={transportadora} onChange={e => setTransportadora(e.target.value)}
+                placeholder="Nombre de la transportadora"
+                className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500" />
+            </div>
+            <div>
+              <label className="text-zinc-400 text-xs mb-1 block">URL base de seguimiento</label>
+              <input value={urlBase} onChange={e => setUrlBase(e.target.value)}
+                placeholder="https://..."
+                className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500" />
+              <p className="text-zinc-600 text-xs mt-1">El código escaneado se agrega al final de esta URL</p>
+            </div>
+            {urlBase && transportadora && (
+              <div className="bg-zinc-900 rounded-xl px-3 py-2 border border-zinc-800">
+                <p className="text-zinc-500 text-xs mb-1">Vista previa del link</p>
+                <p className="text-blue-400 text-xs break-all">{urlBase}{'<codigo_guia>'}</p>
+              </div>
+            )}
+            {msgDespachos && <p className="text-sm text-emerald-400">{msgDespachos}</p>}
+            {btnGuardar(guardarConfigDespachos, savingDespachos, savingDespachos)}
+
             <div className="mt-6 pt-4 border-t border-zinc-800 space-y-3">
-              <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide">Transportadora de ciudades</p>
-              <div>
-                <label className="text-zinc-400 text-xs mb-1 block">Nombre de la transportadora</label>
-                <input value={transportadora} onChange={e => setTransportadora(e.target.value)}
-                  placeholder="Nombre de la transportadora"
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500" />
+              <div className="flex items-center gap-2">
+                <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide">API Transprensa</p>
+                {transprensaTest !== 'idle' && (
+                  <span className="text-base">{transprensaTest === 'ok' ? '🟢' : '🔴'}</span>
+                )}
+                {transprensaConfigurado && (
+                  <button onClick={testTransprensa} disabled={testingTransprensa}
+                    className="ml-auto text-xs px-2 py-0.5 rounded-lg border border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 disabled:opacity-50">
+                    {testingTransprensa ? '...' : 'Test'}
+                  </button>
+                )}
               </div>
-              <div>
-                <label className="text-zinc-400 text-xs mb-1 block">URL base de seguimiento</label>
-                <input value={urlBase} onChange={e => setUrlBase(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500" />
-                <p className="text-zinc-600 text-xs mt-1">El código escaneado se agrega al final de esta URL</p>
-              </div>
-              {urlBase && transportadora && (
-                <div className="bg-zinc-900 rounded-xl px-3 py-2 border border-zinc-800">
-                  <p className="text-zinc-500 text-xs mb-1">Vista previa del link</p>
-                  <p className="text-blue-400 text-xs break-all">{urlBase}{'<codigo_guia>'}</p>
+              {transprensaConfigurado && (
+                <div className="flex items-center gap-2 bg-emerald-900/20 border border-emerald-700/30 rounded-xl px-3 py-2">
+                  <span className="text-emerald-400 text-xs">✅ Configurado</span>
+                  <span className="text-zinc-400 text-xs ml-1">— {transprensaLogin}</span>
                 </div>
               )}
-              {msgDespachos && <p className="text-sm text-emerald-400">{msgDespachos}</p>}
-              {btnGuardar(guardarConfigDespachos, savingDespachos, savingDespachos)}
+              <div>
+                <label className="text-zinc-400 text-xs mb-1 block">Usuario</label>
+                <input value={transprensaLogin} onChange={e => setTransprensaLogin(e.target.value)}
+                  placeholder="usuario_login"
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500" />
+              </div>
+              <div>
+                <label className="text-zinc-400 text-xs mb-1 block">Contraseña</label>
+                <div className="relative">
+                  <input type={showTransprensaPass ? 'text' : 'password'} value={transprensaPassword} onChange={e => setTransprensaPassword(e.target.value)}
+                    placeholder={transprensaConfigurado ? '••••••••' : 'usuario_password'}
+                    className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 pr-10 text-white text-sm focus:outline-none focus:border-blue-500" />
+                  <button type="button" onClick={() => setShowTransprensaPass(p => !p)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white text-xs">
+                    {showTransprensaPass ? '🙈' : '👁️'}
+                  </button>
+                </div>
+              </div>
+              {msgTransprensa && <p className="text-sm text-emerald-400">{msgTransprensa}</p>}
+              {btnGuardar(guardarTransprensa, savingTransprensa, savingTransprensa)}
             </div>
           </Seccion>
 
@@ -1390,7 +1457,7 @@ export default function ConfiguracionPage() {
       )}
 
       {/* ── TEMA ── */}
-      <Seccion titulo="Tema" icono="🎨" isOpen={seccionAbierta === 'tema'} onToggle={() => toggleSeccion('tema')} cardStyle={{background:'rgba(30,36,58,0.99)',border:'1px solid rgba(59,130,246,0.30)'}}>
+      <Seccion titulo="Tema" icono="🎨" isOpen={seccionAbierta === 'tema'} onToggle={() => toggleSeccion('tema')}>
 
         {/* Banda espectro — subcontenedor más claro */}
         <div className="rounded-2xl p-4 space-y-4" style={{background:'rgba(55,65,95,0.55)',border:'1px solid rgba(100,130,200,0.25)'}}>
@@ -1480,24 +1547,10 @@ export default function ConfiguracionPage() {
         {msgTema && <p className={`text-xs text-center ${msgTema.startsWith('✅') ? 'text-emerald-400' : 'text-red-400'}`}>{msgTema}</p>}
       </Seccion>
 
-      {/* ── ALMACENAMIENTO NUBE ── */}
-      {esAdmin && (
-        <a href="/configuracion/almacenamiento"
-          className="rounded-2xl px-5 py-4 flex items-center justify-between transition-colors hover:opacity-80"
-          style={{background:'rgba(30,36,58,0.99)',border:'1px solid rgba(59,130,246,0.22)'}}>
-          <div className="flex items-center gap-3">
-            <span className="text-2xl">☁️</span>
-            <div>
-              <p className="text-white text-sm font-medium">Almacenamiento Nube</p>
-              <p className="text-zinc-500 text-xs">Uso de archivos por módulo</p>
-            </div>
-          </div>
-          <span className="text-zinc-500 text-lg">›</span>
-        </a>
-      )}
+
 
       {/* ── CERRAR SESIÓN — siempre al final ── */}
-      <div className="rounded-2xl px-5 py-4 flex items-center justify-between" style={{background:'rgba(30,36,58,0.99)',border:'1px solid rgba(59,130,246,0.20)'}}>
+      <div className="rounded-2xl px-5 py-4 flex items-center justify-between" style={{background:'#060a24',border:'1px solid rgba(59,130,246,0.22)'}}>
         <div>
           <p className="text-white text-sm font-medium">Sesión activa</p>
           <p className="text-zinc-500 text-xs">{user?.email}</p>

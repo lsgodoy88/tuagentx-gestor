@@ -93,15 +93,20 @@ export default function EntregaCard({
       <div className="flex items-end justify-between gap-2">
         <div className="flex-1 min-w-0">
           {notaBodega && (
-            <div className="flex items-center justify-between gap-2 mb-0.5">
-              <p className="text-sm flex items-center gap-1.5 min-w-0">
-                <span className="truncate" style={{ color: entregado ? '#71717a' : '#fff' }}>{notaBodega}</span>
-                {rezagoColor && <span style={{ width: 8, height: 8, borderRadius: '50%', background: rezagoColor, flexShrink: 0, display: 'inline-block' }} />}
-              </p>
+            <div className="flex items-center gap-3 mb-0.5">
+              <span className="text-sm truncate" style={{ color: entregado ? '#71717a' : '#fff', minWidth: 0 }}>
+                {notaBodega}
+                {rezagoColor && <span style={{ width: 8, height: 8, borderRadius: '50%', background: rezagoColor, flexShrink: 0, display: 'inline-block', marginLeft: 4 }} />}
+              </span>
+              {asignadoEn && (
+                <span className="flex-1 text-center text-zinc-400 flex-shrink-0" style={{ fontSize: 13 }}>
+                  📅{(() => { const d = new Date(asignadoEn); const opts: Intl.DateTimeFormatOptions = { timeZone: 'America/Bogota', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: true }; return d.toLocaleString('es-CO', opts).replace(/\./g, '').replace('a m', 'AM').replace('p m', 'PM').replace('a. m.', 'AM').replace('p. m.', 'PM') })()}
+                </span>
+              )}
               {cliente.telefono && (
                 <a href={`tel:${cliente.telefono}`} onClick={e => e.stopPropagation()}
-                  className={`text-sm flex items-center gap-1 flex-shrink-0 ${entregado ? 'text-zinc-400' : 'text-white'}`}>
-                  <span className={`font-bold ${entregado ? 'text-zinc-500' : 'text-red-400'}`}>✆</span>{cliente.telefono}
+                  className={`flex-shrink-0 font-bold text-2xl ${entregado ? 'text-zinc-500' : 'text-red-400'}`}>
+                  ✆
                 </a>
               )}
             </div>

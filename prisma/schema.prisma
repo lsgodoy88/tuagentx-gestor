@@ -65,6 +65,7 @@ model Empresa {
   metasVenta          MetaVenta[]
   subEmpresas         SubEmpresa[]
   integraciones       Integracion[]
+  transprensaRemesas  TransprensaRemesa[]
   CarteraCache        CarteraCache[]
   vinculadas          EmpresaVinculada[]
   smsConfig           SmsConfig?
@@ -3019,6 +3020,7 @@ model OrdenDespacho {
   sincronizadoEn    DateTime?         // cuándo entró a BD via sync
   origenSync        String?           // 'delta' | 'nocturno' | 'backfill' | 'manual' | 'recuperada'
   urlSeguimiento    String?           // URL completa de seguimiento: urlBase + guiaTransporte
+  transprensaRemesa  TransprensaRemesa?
   smsEnviado        Boolean           @default(false) // SMS de factura enviado al cliente
   num_cajas         Int               @default(0)
   observacion       String?           // Observación libre al despachar
@@ -3686,4 +3688,25 @@ model PlanEmpresa {
   @@index([mes])
   @@index([estado])
   @@map("PlanEmpresa")
+}
+
+model TransprensaRemesa {
+  id               String    @id @default(cuid())
+  empresaId        String
+  ordenId          String    @unique
+  numero_remesa    String
+  estado_remesa    String?   // PLANILLADA, DESPACHADA, etc.
+  estado_atencion  String?   // ENTREGADO, DISTRIBUCION, EN BODEGA DESTINO, NOVEDAD, etc.
+  raw_estados      Json?     // lista_estado_atencioncliente completa
+  imagen_cumplido  String?   // URL foto entrega Transprensa
+  sincronizadoEn   DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  empresa          Empresa         @relation(fields: [empresaId], references: [id])
+  orden            OrdenDespacho   @relation(fields: [ordenId], references: [id])
+
+  @@index([empresaId])
+  @@index([numero_remesa])
+  @@index([estado_atencion])
+  @@map("TransprensaRemesa")
 }
