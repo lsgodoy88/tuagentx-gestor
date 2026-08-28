@@ -32,7 +32,7 @@ export default function MapaRutaPage() {
   const entregadosRef = React.useRef<any[]>([])
 
   const TIPOS = [
-    { id: 'visita', label: 'Visita', icon: '👁️' },
+    { id: 'visita', label: 'Visita', icon: '📍' },
     { id: 'venta', label: 'Venta', icon: '💰' },
     { id: 'cobro', label: 'Cobro', icon: '💵' },
     { id: 'entrega', label: 'Entrega', icon: '📦' },

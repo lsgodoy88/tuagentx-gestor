@@ -18,7 +18,10 @@ export async function GET(req: NextRequest) {
   const rutaId = searchParams.get('rutaId') || null
 
   const isPrivileged = user.role === 'empresa' || user.role === 'supervisor' || user.role === 'admin'
-  const empleadoId = isPrivileged ? (searchParams.get('empleadoId') || null) : user.id
+  const isVendedor = user.role === 'vendedor'
+  const empleadoIdParam = searchParams.get('empleadoId') || null
+  // Admin: puede filtrar por empleado. Vendedor: puede ver sus propias visitas o las de sus impulsadoras
+  const empleadoId = isPrivileged ? empleadoIdParam : (empleadoIdParam || user.id)
 
   let visitas: any[] = []
   let empleados: any[] = []
@@ -63,7 +66,16 @@ export async function GET(req: NextRequest) {
       select: { id: true, empleadoId: true, clienteId: true, clienteNombreLibre: true, lat: true, lng: true, tipo: true, monto: true, nota: true, factura: true, firma: true, esLibre: true, createdAt: true, fechaBogota: true, turnoId: true, rutaFijaClienteId: true, ordenDespachoId: true, foto: true, empleado: { select: { id: true, nombre: true, email: true, telefono: true, rol: true, activo: true, vendedorId: true, puedeCapturarGps: true, empresaId: true, createdAt: true } }, cliente: { select: { id: true, nombre: true, nombreComercial: true, direccion: true, lat: true, lng: true, telefono: true, ciudad: true } } },
       orderBy: { createdAt: 'asc' }
     })
-    empleados = await prisma.empleado.findMany({ where: { empresaId, activo: true } })
+    if (isPrivileged) {
+      empleados = await prisma.empleado.findMany({ where: { empresaId, activo: true } })
+    } else {
+      // Vendedor: solo él mismo + sus impulsadoras
+      const impulsadoras = await (prisma as any).empleado.findMany({
+        where: { empresaId, activo: true, rol: 'impulsadora', vendedorId: user.id }
+      })
+      const self = await (prisma as any).empleado.findUnique({ where: { id: user.id } })
+      empleados = [self, ...impulsadoras].filter(Boolean)
+    }
   }
 
   return NextResponse.json({ visitas, empleados, rutaNombre })

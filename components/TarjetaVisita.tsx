@@ -2,7 +2,7 @@
 import { useState } from 'react'
 
 const TIPO_ICON: Record<string, string> = {
-  visita:   '👁️',
+  visita:   '📍',
   venta:    '💰',
   cobro:    '💵',
   entrega:  '📦',

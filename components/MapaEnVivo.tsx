@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -38,31 +38,67 @@ interface SelectorEmpleadoProps {
 
 function SelectorEmpleado({ empleados, empleadoId, onChange }: SelectorEmpleadoProps) {
   const [open, setOpen] = useState(true)
-  const filtrados = empleados.filter((e: any) => !ROLES_EXCLUIDOS.includes(e.rol))
+  const timerRef = useRef<any>(null)
+
+  // Auto-cierre 3s al montar
+  useEffect(() => {
+    timerRef.current = setTimeout(() => setOpen(false), 2000)
+    return () => clearTimeout(timerRef.current)
+  }, [])
+
+  const handleOpen = () => setOpen(o => !o)
+
+  const handleSelect = (fn: () => void) => {
+    clearTimeout(timerRef.current)
+    fn()
+    setOpen(false)
+  }
+  const ORDEN_ROLES: Record<string, number> = { vendedor: 0, impulsadora: 1, entregas: 2 }
+  const LABEL_ROLES: Record<string, string> = { vendedor: '🛒 Vendedores', impulsadora: '⚡ Impulsos', entregas: '🚚 Entregas' }
+  const filtrados = empleados
+    .filter((e: any) => !ROLES_EXCLUIDOS.includes(e.rol) && e.rol in ORDEN_ROLES)
+    .sort((a: any, b: any) => (ORDEN_ROLES[a.rol] ?? 9) - (ORDEN_ROLES[b.rol] ?? 9))
   const idx = filtrados.findIndex((e: any) => e.id === empleadoId)
-  const label = idx >= 0 ? filtrados[idx].nombre.split(' ').filter(Boolean).slice(0,2).join(' ') : 'Todos los vendedores'
+  const label = idx >= 0 ? filtrados[idx].nombre.split(' ').filter(Boolean).slice(0,2).join(' ') : 'Todos'
+
+  // Agrupar por rol
+  const grupos: Record<string, any[]> = {}
+  filtrados.forEach((e: any) => {
+    if (!grupos[e.rol]) grupos[e.rol] = []
+    grupos[e.rol].push(e)
+  })
+
   return (
     <div style={{position:'relative',flexShrink:0}}>
-      <button onClick={() => setOpen(o => !o)}
-        style={{display:'flex',alignItems:'center',gap:6,background:'#0d1220',border:'1px solid #1e2a3d',borderRadius:10,padding:'7px 12px',color:'white',fontSize:13,fontWeight:600,cursor:'pointer',maxWidth:180,overflow:'hidden'}}>
+      <button onClick={handleOpen}
+        style={{display:'flex',alignItems:'center',gap:6,background:'#0d1220',border:'1px solid #1e2a3d',borderRadius:10,padding:'7px 12px',color:'white',fontSize:13,fontWeight:600,cursor:'pointer'}}>
         {idx >= 0 && <span style={{width:8,height:8,borderRadius:'50%',background:COLORES[idx % COLORES.length],display:'inline-block',flexShrink:0}} />}
-        <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',flex:1}}>{label}</span>
+        <span style={{overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',maxWidth:120}}>{label}</span>
         <span style={{color:'#64748b',fontSize:10}}>{open?'▲':'▼'}</span>
       </button>
-      {open && <div style={{position:'fixed',inset:0,zIndex:999}} onClick={() => setOpen(false)} />}
+      {open && <div style={{position:'fixed',inset:0,zIndex:998}} onClick={() => setOpen(false)} />}
       {open && (
-        <div style={{position:'absolute',top:'calc(100% + 4px)',right:0,zIndex:1000,background:'#0d1220',border:'1px solid #1e2a3d',borderRadius:10,overflow:'hidden',minWidth:200,boxShadow:'0 8px 24px rgba(0,0,0,0.6)'}}>
-          {empleadoId && <button onClick={() => { onChange(''); setOpen(false) }}
-            style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'9px 12px',background:'none',border:'none',borderBottom:'1px solid #131c2e',color:'white',fontSize:13,cursor:'pointer',textAlign:'left'}}>
-            <span style={{width:8,height:8,borderRadius:'50%',background:'#64748b',display:'inline-block',flexShrink:0}} />
-            Todos los vendedores
+        <div style={{position:'absolute',top:'calc(100% + 4px)',right:0,zIndex:1000,background:'#0d1220',border:'1px solid #1e2a3d',borderRadius:10,overflow:'hidden',minWidth:220,boxShadow:'0 8px 24px rgba(0,0,0,0.6)'}}>
+          {empleadoId && <button onClick={() => handleSelect(() => onChange(''))}
+            style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'9px 12px',background:'none',border:'none',borderBottom:'1px solid #1e2a3d',color:'#94a3b8',fontSize:12,cursor:'pointer',textAlign:'left'}}>
+            Todos
           </button>}
-          {filtrados.filter((e: any) => e.id !== empleadoId).map((e: any, i: number) => (
-            <button key={e.id} onClick={() => { onChange(e.id); setOpen(false) }}
-              style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'9px 12px',background:e.id===empleadoId?'rgba(59,130,246,0.1)':'none',border:'none',borderBottom:'1px solid #131c2e',color:'white',fontSize:13,cursor:'pointer',textAlign:'left'}}>
-              <span style={{width:8,height:8,borderRadius:'50%',background:COLORES[i % COLORES.length],display:'inline-block',flexShrink:0}} />
-              {(e.nombre||'').split(' ').filter(Boolean).slice(0,2).join(' ')} · {e.rol}
-            </button>
+          {Object.entries(grupos).map(([rol, emps]: any) => (
+            <div key={rol}>
+              <div style={{padding:'6px 12px 4px',fontSize:11,color:'#475569',fontWeight:700,letterSpacing:'0.05em',borderBottom:'1px solid #131c2e'}}>
+                {LABEL_ROLES[rol] || rol}
+              </div>
+              {emps.map((e: any, i: number) => {
+                const globalIdx = filtrados.findIndex((f: any) => f.id === e.id)
+                return (
+                  <button key={e.id} onClick={() => handleSelect(() => onChange(e.id))}
+                    style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'8px 12px',background:e.id===empleadoId?'rgba(59,130,246,0.1)':'none',border:'none',borderBottom:'1px solid #131c2e',color:'white',fontSize:13,cursor:'pointer',textAlign:'left',whiteSpace:'nowrap'}}>
+                    <span style={{width:7,height:7,borderRadius:'50%',background:COLORES[globalIdx % COLORES.length],display:'inline-block',flexShrink:0}} />
+                    {(e.nombre||'').split(' ').filter(Boolean).slice(0,2).join(' ')}
+                  </button>
+                )
+              })}
+            </div>
           ))}
         </div>
       )}
@@ -114,8 +150,8 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
           </div>
           {!rutaId && (
             <div className="flex items-center gap-2 mt-1">
-              <p className="text-zinc-400 text-sm flex-1 flex items-center gap-2"><CountUp end={datos.visitas.length} /> visitas con GPS {datos.visitas.length > 0 && <LiveDot color="emerald" />}</p>
-              {!esEmpleado && <SelectorEmpleado empleados={datos.empleados} empleadoId={empleadoId} onChange={setEmpleadoId} />}
+              <p className="text-zinc-400 text-sm flex-1 flex items-center gap-2"><CountUp end={datos.visitas.length} /> visitas {datos.visitas.length > 0 && <LiveDot color="emerald" />}</p>
+              {(!esEmpleado || datos.empleados.length > 1) && <SelectorEmpleado empleados={datos.empleados} empleadoId={empleadoId} onChange={setEmpleadoId} />}
               <div className="relative flex-shrink-0">
                 <button onClick={() => (document.getElementById("mapa-fecha") as HTMLInputElement)?.showPicker?.()}
                   className="bg-zinc-900 border border-zinc-800 rounded-xl px-2.5 py-1.5 text-sm">
@@ -126,14 +162,14 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
               </div>
             </div>
           )}
-          {rutaId && <p className="text-zinc-400 text-sm mt-1 flex items-center gap-2"><CountUp end={datos.visitas.length} /> visitas con GPS {datos.visitas.length > 0 && <LiveDot color="emerald" />}</p>}
+          {rutaId && <p className="text-zinc-400 text-sm mt-1 flex items-center gap-2"><CountUp end={datos.visitas.length} /> visitas {datos.visitas.length > 0 && <LiveDot color="emerald" />}</p>}
         </div>
       )}
 
       {embebido && (
         <div className="flex items-center gap-2">
-          <p className="text-zinc-400 text-sm flex-1 flex items-center gap-2"><CountUp end={datos.visitas.length} /> visitas con GPS {datos.visitas.length > 0 && <LiveDot color="emerald" />}</p>
-          {!esEmpleado && <SelectorEmpleado empleados={datos.empleados} empleadoId={empleadoId} onChange={setEmpleadoId} />}
+          <p className="text-zinc-400 text-sm flex-1 flex items-center gap-2"><CountUp end={datos.visitas.length} /> visitas {datos.visitas.length > 0 && <LiveDot color="emerald" />}</p>
+          {(!esEmpleado || datos.empleados.length > 1) && <SelectorEmpleado empleados={datos.empleados} empleadoId={empleadoId} onChange={setEmpleadoId} />}
           <div className="relative flex-shrink-0">
             <button onClick={() => (document.getElementById("mapa-fecha-tab") as HTMLInputElement)?.showPicker?.()}
               className="bg-zinc-900 border border-zinc-800 rounded-xl px-2.5 py-1.5 text-sm">
@@ -152,7 +188,7 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
           ) : datos.visitas.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-zinc-400 space-y-2">
               <span className="text-4xl">🗺️</span>
-              <p>Sin visitas con GPS en esta fecha</p>
+              <p>Sin visitas en esta fecha</p>
             </div>
           ) : (
             <MapaVivo
@@ -171,7 +207,7 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
             <div className="space-y-1">
               {datos.visitas.map((v: any, i: number) => {
                 const isOpen = visitaSeleccionada?.id === v.id
-                const tipoIcon: Record<string, string> = { visita: '🤝', recaudo: '💵', venta: '🧾', entrega: '📦' }
+                const tipoIcon: Record<string, string> = { visita: '📍', cobro: '💵', venta: '💰', entrega: '📦', recaudo: '💵' }
                 const icon = tipoIcon[v.tipo] ?? '🤝'
                 const hora = new Date(v.createdAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true })
                 const dir = [v.cliente?.direccion, v.cliente?.ciudad].filter(Boolean).join(', ')

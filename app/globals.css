@@ -724,3 +724,11 @@ input[type="date"] { appearance: none; -webkit-appearance: none; }
 .alertas-notch-salida {
   animation: robot-salida 0.5s cubic-bezier(0.36,0,0.66,-0.56) forwards;
 }
+
+/* Leaflet attribution por debajo de dropdowns */
+.leaflet-bottom {
+  z-index: 500 !important;
+}
+.leaflet-control-attribution {
+  z-index: 500 !important;
+}

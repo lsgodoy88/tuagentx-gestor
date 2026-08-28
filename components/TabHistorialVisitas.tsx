@@ -191,7 +191,7 @@ export default function TabHistorialVisitas({ apiUrl, mostrarEmpleado, mostrarIm
                     const hora = new Date(v.createdAt).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'})
                     return (
                       <div key={v.id} className="flex items-center gap-3 px-4 py-2" style={{borderBottom: i < gVisitas.length-1 ? '1px solid #1e2a3d' : 'none'}}>
-                        <span className="text-sm flex-shrink-0">{TIPO_ICON[v.tipo]||'👁️'}</span>
+                        <span className="text-sm flex-shrink-0">{TIPO_ICON[v.tipo]||'📍'}</span>
                         <span className="text-zinc-300 text-xs capitalize flex-shrink-0" style={{minWidth:56}}>{v.tipo}</span>
                         {(mostrarEmpleado || mostrarImpulsadoras) && <span className="text-zinc-400 text-xs flex-shrink-0 hidden md:inline">{v.empleado?.nombre}</span>}
                         {(mostrarEmpleado || mostrarImpulsadoras) && <span className="text-zinc-600 text-xs flex-shrink-0 hidden md:inline">·</span>}

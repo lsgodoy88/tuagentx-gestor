@@ -12,7 +12,7 @@ const MapaRutaVivo = dynamic(() => import('../mapa-ruta/MapaRutaVivo'), { ssr: f
 import { obtenerGpsMejor, calentar } from '@/lib/gps'
 
 const TIPOS = [
-  { id: 'visita', label: 'Visita', icon: '👁️' },
+  { id: 'visita', label: 'Visita', icon: '📍' },
   { id: 'venta', label: 'Venta', icon: '💰' },
   { id: 'cobro', label: 'Cobro', icon: '💵' },
   { id: 'entrega', label: 'Entrega', icon: '📦' },
@@ -222,7 +222,7 @@ export default function MiRutaPage() {
               <p className="text-zinc-500 text-xs text-center py-2">Sin visitas registradas</p>
             ) : visitas.map((v: any) => (
               <div key={v.id} className="flex items-center gap-2">
-                <span className="text-xs">{v.tipo === "venta" ? "💰" : v.tipo === "cobro" ? "💵" : v.tipo === "entrega" ? "📦" : "👁️"}</span>
+                <span className="text-xs">{v.tipo === "venta" ? "💰" : v.tipo === "cobro" ? "💵" : v.tipo === "entrega" ? "📦" : "📍"}</span>
                 <span className="text-zinc-400 text-xs capitalize">{v.tipo}</span>
                 {v.monto && <span className="text-emerald-400 text-xs font-semibold">$<CountUp end={Number(v.monto)} duration={500} /></span>}
                 {v.nota && <span className="text-zinc-500 text-xs truncate">— {v.nota}</span>}
@@ -386,7 +386,7 @@ export default function MiRutaPage() {
                               <div className="text-right">
                                 {visitasRuta.map((v: any) => (
                                   <div key={v.id} className="flex items-center gap-1">
-                                    <span className="text-xs">{v.tipo === 'venta' ? '💰' : v.tipo === 'cobro' ? '💵' : v.tipo === 'entrega' ? '📦' : '👁️'}</span>
+                                    <span className="text-xs">{v.tipo === 'venta' ? '💰' : v.tipo === 'cobro' ? '💵' : v.tipo === 'entrega' ? '📦' : '📍'}</span>
                                     {v.monto && <span className="text-emerald-400 text-xs">${Number(v.monto).toLocaleString('es-CO')}</span>}
                                   </div>
                                 ))}
@@ -646,7 +646,7 @@ export default function MiRutaPage() {
                           className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2 flex items-center gap-2"
                         >
                           <span className="text-sm">
-                            {v.tipo === 'venta' ? '💰' : v.tipo === 'cobro' ? '💵' : v.tipo === 'entrega' ? '📦' : '👁️'}
+                            {v.tipo === 'venta' ? '💰' : v.tipo === 'cobro' ? '💵' : v.tipo === 'entrega' ? '📦' : '📍'}
                           </span>
                           <span className="text-zinc-300 text-xs capitalize flex-1">{v.tipo}</span>
                           {v.monto && (

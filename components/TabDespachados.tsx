@@ -327,7 +327,13 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
                       ? [{
                           icon: iconoTransprensa((log.trRawEstados as any[]).at(-1)?.estado_nombre ?? ''),
                           label: 'Entregado',
-                          fecha: (log.trRawEstados as any[]).at(-1)?.estado_fecha ? new Date((log.trRawEstados as any[]).at(-1).estado_fecha) : null,
+                          fecha: (() => {
+                            const last = (log.trRawEstados as any[]).at(-1)
+                            if (!last?.estado_fecha) return null
+                            const hora = last.estado_hora || '00:00:00'
+                            // Transprensa devuelve fecha/hora en hora Colombia (UTC-5) — construir como UTC
+                            return new Date(`${last.estado_fecha}T${hora}-05:00`)
+                          })(),
                           quien: (log.trRawEstados as any[]).at(-1)?.estado_nombre ?? null,
                           esTransprensa: true,
                           imagenCumplido: log.trImagenCumplido ?? null,

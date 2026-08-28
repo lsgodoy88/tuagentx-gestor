@@ -8,7 +8,7 @@ import { useGpsEnDemanda } from '@/components/useGpsEnDemanda'
 import { GpsIndicator } from '@/components/GpsIndicator'
 
 const TIPOS = [
-  { id: 'visita',  label: 'Visita',   icon: '👁️' },
+  { id: 'visita',  label: 'Visita',   icon: '📍' },
   { id: 'venta',   label: 'Venta',    icon: '💰' },
   { id: 'cobro',   label: 'Cobro',    icon: '💵' },
   { id: 'entrega', label: 'Entrega',  icon: '📦' },

@@ -623,7 +623,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
             <div className="w-full md:max-w-2xl md:mx-auto space-y-0">
               <div className="flex gap-2">
                 {[
-                  { tipo: 'visita',  label: 'Visita',   icon: '👁️' },
+                  { tipo: 'visita',  label: 'Visita',   icon: '📍' },
                   { tipo: 'venta',   label: 'Venta',    icon: '💰' },
                   { tipo: 'cobro',   label: 'Recaudo',  icon: '💵' },
                   { tipo: 'entrega', label: 'Entrega',  icon: '📦' },
@@ -700,7 +700,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
       {!cargandoTurno && <div className="space-y-4">
         <div className="space-y-3 md:max-w-2xl md:mx-auto">
           <div className="grid grid-cols-2 gap-3">
-            <CardCountAdmin stagger={1} icon="👁️" label="Visitas" onClick={() => router.push('/visitas')}
+            <CardCountAdmin stagger={1} icon="📍" label="Visitas" onClick={() => router.push('/visitas')}
               primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={statsVendedor.hoy.total||0} /> : '—'}</span>}
               secondary={statsVendedor ? <CountUp end={statsVendedor.hoy.ayer||0} /> : '—'}
               primaryLabel="hoy" secondaryLabel="ayer" primaryColor="text-white" />
@@ -930,7 +930,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
         clienteInicial={clienteInicialLibre || undefined}
         tipoForzado={modalVisita.tipo !== 'visita' && modalVisita.tipo !== 'venta' && modalVisita.tipo !== 'cobro' && modalVisita.tipo !== 'entrega' ? undefined : modalVisita.tipo as any}
         puedeCapturarGps={puedeCapturarGps}
-        titulo={modalVisita.tipo === 'visita' ? '👁️ Visita' : modalVisita.tipo === 'venta' ? '💰 Venta' : modalVisita.tipo === 'entrega' ? '📦 Entrega' : '💵 Recaudo'}
+        titulo={modalVisita.tipo === 'visita' ? '📍 Visita' : modalVisita.tipo === 'venta' ? '💰 Venta' : modalVisita.tipo === 'entrega' ? '📦 Entrega' : '💵 Recaudo'}
         extraData={{ esLibre: true }}
       />
       <ModalVisita
@@ -1008,7 +1008,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
                     <p className="text-zinc-500 text-xs mt-2">Sin saldo pendiente</p>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                    {([{tipo:'visita',label:'Visita',icon:'👁️',color:'bg-zinc-700 hover:bg-zinc-600'},{tipo:'venta',label:'Venta',icon:'💰',color:'bg-emerald-600 hover:bg-emerald-500'},{tipo:'entrega',label:'Entrega',icon:'📦',color:'bg-orange-600 hover:bg-orange-500'}] as const).map(op => (
+                    {([{tipo:'visita',label:'Visita',icon:'📍',color:'bg-zinc-700 hover:bg-zinc-600'},{tipo:'venta',label:'Venta',icon:'💰',color:'bg-emerald-600 hover:bg-emerald-500'},{tipo:'entrega',label:'Entrega',icon:'📦',color:'bg-orange-600 hover:bg-orange-500'}] as const).map(op => (
                       <button key={op.tipo} onClick={() => { setModalRecaudoRapido(false); setClienteInicialLibre(rrCliente); abrirModalVisita(op.tipo) }}
                         className={`${op.color} text-white font-semibold py-3 rounded-xl text-sm transition-colors flex flex-col items-center gap-1`}>
                         <span className="text-lg">{op.icon}</span><span>{op.label}</span>

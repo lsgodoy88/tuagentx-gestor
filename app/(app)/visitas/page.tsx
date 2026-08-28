@@ -134,7 +134,7 @@ export default function VisitasPage() {
           {mapsUrl && <a href={mapsUrl} target="_blank" rel="noreferrer" className="text-zinc-500 text-xs hover:text-emerald-400 flex-shrink-0">🗺️</a>}
         </div>
         <div className="flex items-center gap-3 px-4 py-2">
-          <span className="text-sm flex-shrink-0">{TIPO_ICON[v.tipo] || '👁️'}</span>
+          <span className="text-sm flex-shrink-0">{TIPO_ICON[v.tipo] || '📍'}</span>
           <span className="text-zinc-300 text-xs capitalize flex-shrink-0">{v.tipo}</span>
           <span className="text-zinc-600 text-xs flex-shrink-0">·</span>
           <span className="text-zinc-400 text-xs flex-shrink-0">{fecha} · {hora}</span>
@@ -168,7 +168,7 @@ export default function VisitasPage() {
           const hora  = new Date(v.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})
           return (
             <div key={v.id} className="flex items-center gap-3 px-4 py-2" style={{borderBottom: i < visitas.length-1 ? '1px solid #1e2a3d' : 'none'}}>
-              <span className="text-sm flex-shrink-0">{TIPO_ICON[v.tipo] || '👁️'}</span>
+              <span className="text-sm flex-shrink-0">{TIPO_ICON[v.tipo] || '📍'}</span>
               <span className="text-zinc-300 text-xs capitalize flex-shrink-0" style={{minWidth:56}}>{v.tipo}</span>
               <span className="text-zinc-500 text-xs flex-shrink-0 hidden md:block">·</span>
               <span className="text-zinc-400 text-xs flex-shrink-0">{fecha} · {hora}</span>
