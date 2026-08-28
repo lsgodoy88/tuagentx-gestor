@@ -28,11 +28,12 @@ interface Props {
   filtroFecha?: string
   filtroCiudad?: string
   filtroOrden?: 'asc' | 'desc' | null
+  filtroIconEstado?: string
   busquedaExterna?: string
   onLogsLoaded?: (ciudades: string[]) => void
 }
 
-export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, onGaleriaAbrir, onFirmaAbrir, filtroEnvio = 'todos', filtroFecha = '', filtroCiudad = '', filtroOrden = null, busquedaExterna, onLogsLoaded }: Props) {
+export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, onGaleriaAbrir, onFirmaAbrir, filtroEnvio = 'todos', filtroFecha = '', filtroCiudad = '', filtroOrden = null, filtroIconEstado = '', busquedaExterna, onLogsLoaded }: Props) {
   const { data: session } = useSession()
   const esAdmin = rol === 'admin'
   const esBodega = rol === 'bodega'
@@ -178,6 +179,13 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
       if (!match) return false
     }
     if (filtroCiudad && (log.ciudad?.trim() || '') !== filtroCiudad) return false
+    if (filtroIconEstado) {
+      const last = (log.trRawEstados as any[])?.at(-1)
+      const icono = log.modo === 'transportadora'
+        ? (log.trRawEstados?.length ? iconoTransprensa(last?.estado_nombre ?? '') : log.num_cajas === 0 ? '⚪' : '🚛')
+        : log.entregadoEl ? '✅' : '🚛'
+      if (icono !== filtroIconEstado) return false
+    }
     if (filtroEnvio !== 'todos') {
       const ciudadOrden = log.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''
       const esLocal = ciudadLocal ? ciudadOrden === ciudadLocal.trim().toLowerCase() : false
@@ -239,7 +247,7 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
           <div className="text-center text-zinc-500 text-sm py-10">Sin despachos</div>
         )}
         {(() => {
-          const hayFiltro = !!(busquedaExterna || busqueda || filtroEnvio !== 'todos' || filtroFecha || filtroCiudad)
+          const hayFiltro = !!(busquedaExterna || busqueda || filtroEnvio !== 'todos' || filtroFecha || filtroCiudad || filtroIconEstado)
           return controlFacturas.filter(cf => {
             // Con filtro activo: ocultar huecos — solo mostrar despachadas que cumplan
             if (cf.hueco) return !hayFiltro
@@ -265,6 +273,13 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
               const mm = String(bogota.getUTCMonth() + 1).padStart(2, '0')
               const dd = String(bogota.getUTCDate()).padStart(2, '0')
               if (`${yy}-${mm}-${dd}` !== filtroFecha) return false
+            }
+            if (filtroIconEstado) {
+              const last = (log.trRawEstados as any[])?.at(-1)
+              const icono = log.modo === 'transportadora'
+                ? (log.trRawEstados?.length ? iconoTransprensa(last?.estado_nombre ?? '') : log.num_cajas === 0 ? '⚪' : '🚛')
+                : log.entregadoEl ? '✅' : '🚛'
+              if (icono !== filtroIconEstado) return false
             }
             return true
           })

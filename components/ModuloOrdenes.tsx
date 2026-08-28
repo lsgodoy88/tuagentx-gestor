@@ -1,5 +1,38 @@
 'use client'
 
+const FILTRO_ESTADOS = [
+  { ic: '', lbl: 'Todos los estados' },
+  { ic: '🟢', lbl: 'Entregado' },
+  { ic: '🔵', lbl: 'Distribución' },
+  { ic: '🟡', lbl: 'Bodega Destino' },
+  { ic: '🔴', lbl: 'Novedad' },
+  { ic: '🚛', lbl: 'En tránsito' },
+  { ic: '⚪', lbl: 'Sin cajas' },
+  { ic: '✅', lbl: 'Entregado manual' },
+]
+
+function FiltroIconEstado({ value, onChange, open, setOpen }: { value: string, onChange: (v: string) => void, open: boolean, setOpen: (v: boolean) => void }) {
+  return (
+    <div style={{position:'relative'}}>
+      <button onClick={() => setOpen(!open)}
+        style={{width:28,height:28,borderRadius:6,border:value?'1px solid #ef4444':'1px solid #1e2a3d',background:'#111827',cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}}>
+        {value || '🟢'}
+      </button>
+      {open && <div style={{position:'fixed',inset:0,zIndex:998}} onClick={() => setOpen(false)} />}
+      {open && (
+        <div style={{position:'absolute',top:'calc(100% + 4px)',right:0,zIndex:999,background:'#111827',border:'1px solid #1e2a3d',borderRadius:8,overflow:'hidden',minWidth:180,boxShadow:'0 8px 24px rgba(0,0,0,0.6)'}}>
+          {FILTRO_ESTADOS.map(({ ic, lbl }) => (
+            <button key={ic} onClick={() => { onChange(ic); setOpen(false) }}
+              style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'8px 12px',background:value===ic?'rgba(59,130,246,0.15)':'none',border:'none',borderBottom:'1px solid #1a2235',color:ic?'white':'#9ca3af',fontSize:13,cursor:'pointer',textAlign:'left',whiteSpace:'nowrap'}}>
+              <span style={{fontSize:15}}>{ic || '✕'}</span> {lbl}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function iconoTransprensa(estado: string): string {
   const e = (estado || '').toUpperCase()
   if (e.includes('ENTREGADO'))                          return '🟢'
@@ -180,6 +213,8 @@ export default function ModuloOrdenes() {
   const [fechaFiltro, setFechaFiltro] = useState<string>('')
   const [ordenDesc, setOrdenDesc] = useState<'asc'|'desc'|null>(null)
   const [ciudadFiltro, setCiudadFiltro] = useState<string>('')
+  const [iconEstadoFiltro, setIconEstadoFiltro] = useState<string>('')
+  const [iconEstadoOpen, setIconEstadoOpen] = useState(false)
   const [popupFechaOpen, setPopupFechaOpen] = useState(false)
   const popupFechaRef = useRef<HTMLDivElement>(null)
   const inputFechaRef = useRef<HTMLInputElement>(null)
@@ -834,7 +869,7 @@ export default function ModuloOrdenes() {
             <button
               onClick={() => setPopupFechaOpen(v => !v)}
               className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm"
-              style={{background:'#0d1220', border: (fechaFiltro || ordenDesc !== null || ciudadFiltro) ? '1px solid #ef4444' : '1px solid #1e2a3d', color: 'white'}}>
+              style={{background:'#0d1220', border: (fechaFiltro || ordenDesc !== null || ciudadFiltro || iconEstadoFiltro) ? '1px solid #ef4444' : '1px solid #1e2a3d', color: 'white'}}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2l-6 6v6l-4-2v-4L4 8V6z"/></svg>
             </button>
             {popupFechaOpen && (
@@ -844,7 +879,7 @@ export default function ModuloOrdenes() {
                   <button
                     onClick={() => inputFechaRef.current?.showPicker?.()}
                     className="flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm cursor-pointer"
-                    style={{background:'#111827', border:'1px solid #1e2a3d', color: fechaFiltro ? '#f59e0b' : 'white'}}>
+                    style={{background:'#111827', border: fechaFiltro ? '1px solid #ef4444' : '1px solid #1e2a3d', color: fechaFiltro ? '#ef4444' : 'white'}}>
                     {fechaFiltro ? new Date(fechaFiltro + 'T12:00:00').getDate() : new Date().getDate()}
                   </button>
                   <input type="date" ref={inputFechaRef} value={fechaFiltro}
@@ -866,9 +901,10 @@ export default function ModuloOrdenes() {
                 })()}
                 <button onClick={() => { setOrdenDesc(v => v === null ? 'desc' : null); setPopupFechaOpen(false) }}
                   className="w-8 h-8 rounded-lg flex items-center justify-center text-base"
-                  style={{background:'#111827', border:'1px solid #1e2a3d', opacity: ordenDesc ? 1 : 0.35}}>
+                  style={{background:'#111827', border: ordenDesc ? '1px solid #ef4444' : '1px solid #1e2a3d', opacity: ordenDesc ? 1 : 0.35}}>
                   ⬇️
                 </button>
+                <FiltroIconEstado value={iconEstadoFiltro} onChange={(v) => { setIconEstadoFiltro(v); setPopupFechaOpen(false) }} open={iconEstadoOpen} setOpen={setIconEstadoOpen} />
               </div>
             )}
           </div>
@@ -1326,7 +1362,7 @@ export default function ModuloOrdenes() {
           {despachoLog.length === 0 ? (
             null
           ) : (() => {
-            const hayFiltro = envioFiltro !== 'todos' || !!fechaFiltro || !!busqueda || !!ciudadFiltro
+            const hayFiltro = envioFiltro !== 'todos' || !!fechaFiltro || !!busqueda || !!ciudadFiltro || !!iconEstadoFiltro
             // Deduplicar por numeroFactura usando string (parseInt falla con prefijos como "F_")
             const logMap = new Map(despachoLog.map((l: any) => [String(l.numeroFactura), l]))
             const allNums = despachoLog.map((x: any) => parseInt(x.numeroFactura)).filter((n: number) => !isNaN(n))
@@ -1379,6 +1415,13 @@ export default function ModuloOrdenes() {
                 if (`${yy}-${mm}-${dd}` !== fechaFiltro) return null
               }
               if (ciudadFiltro && (log.ciudad?.trim() || '') !== ciudadFiltro) return null
+              if (iconEstadoFiltro) {
+                const last = (log.trRawEstados as any[])?.at(-1)
+                const icono = log.modo === 'transportadora'
+                  ? (log.trRawEstados?.length ? iconoTransprensa(last?.estado_nombre ?? '') : log.num_cajas === 0 ? '⚪' : '🚛')
+                  : log.entregadoEl ? '✅' : '🚛'
+                if (icono !== iconEstadoFiltro) return null
+              }
               // Usar datos del log directamente (tiene JOIN con OrdenDespacho)
               const fotos2: string[] = (log.fotosAlistamiento as string[] | null) || (log.fotoAlistamiento ? [log.fotoAlistamiento] : [])
               const ciudad2 = log.ciudad?.split('/').pop()?.trim() || null

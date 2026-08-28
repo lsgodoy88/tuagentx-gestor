@@ -160,6 +160,38 @@ async function resolverUrlR2(key: string): Promise<string> {
   return d.url || key
 }
 
+const FILTRO_ESTADOS_TRAZ = [
+  { ic: '', lbl: 'Todos los estados' },
+  { ic: '🟢', lbl: 'Entregado' },
+  { ic: '🔵', lbl: 'Distribución' },
+  { ic: '🟡', lbl: 'Bodega Destino' },
+  { ic: '🔴', lbl: 'Novedad' },
+  { ic: '🚛', lbl: 'En tránsito' },
+  { ic: '⚪', lbl: 'Sin cajas' },
+  { ic: '✅', lbl: 'Entregado manual' },
+]
+function FiltroIconEstadoTraz({ value, onChange, open, setOpen }: { value: string, onChange: (v: string) => void, open: boolean, setOpen: (v: boolean) => void }) {
+  return (
+    <div style={{position:'relative'}}>
+      <button onClick={() => setOpen(!open)}
+        style={{width:28,height:28,borderRadius:6,border:value?'1px solid #ef4444':'1px solid #1e2a3d',background:'#111827',cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}}>
+        {value || '🟢'}
+      </button>
+      {open && <div style={{position:'fixed',inset:0,zIndex:998}} onClick={() => setOpen(false)} />}
+      {open && (
+        <div style={{position:'absolute',top:'calc(100% + 4px)',right:0,zIndex:999,background:'#111827',border:'1px solid #1e2a3d',borderRadius:8,overflow:'hidden',minWidth:180,boxShadow:'0 8px 24px rgba(0,0,0,0.6)'}}>
+          {FILTRO_ESTADOS_TRAZ.map(({ ic, lbl }) => (
+            <button key={ic} onClick={() => { onChange(ic); setOpen(false) }}
+              style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'8px 12px',background:value===ic?'rgba(59,130,246,0.15)':'none',border:'none',borderBottom:'1px solid #1a2235',color:ic?'white':'#9ca3af',fontSize:13,cursor:'pointer',textAlign:'left',whiteSpace:'nowrap'}}>
+              <span style={{fontSize:15}}>{ic || '✕'}</span> {lbl}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function TrazabilidadPage() {
   const { data: session } = useSession()
   const [guiaPopup, setGuiaPopup] = useState<string | null>(null)
@@ -221,6 +253,8 @@ export default function TrazabilidadPage() {
   const [filtroEnvio, setFiltroEnvio] = useState<'todos'|'local'|'guia'>('todos')
   const [filtroFecha, setFiltroFecha] = useState('')
   const [filtroCiudad, setFiltroCiudad] = useState('')
+  const [filtroIconEstado, setFiltroIconEstado] = useState('')
+  const [iconEstadoOpen, setIconEstadoOpen] = useState(false)
   const [filtroOrden, setFiltroOrden] = useState<'asc'|'desc'|null>(null)
   const [popupFiltroOpen, setPopupFiltroOpen] = useState(false)
   const inputFechaRefTraz = useRef<HTMLInputElement>(null)
@@ -397,7 +431,7 @@ export default function TrazabilidadPage() {
               <div className="relative flex-shrink-0">
                 <button onClick={() => setPopupFiltroOpen(v => !v)}
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
-                  style={{background:'#0d1220', border: (filtroFecha || filtroOrden !== null || filtroCiudad) ? '1px solid #ef4444' : '1px solid #1e2a3d', color: 'white'}}>
+                  style={{background:'#0d1220', border: (filtroFecha || filtroOrden !== null || filtroCiudad || filtroIconEstado) ? '1px solid #ef4444' : '1px solid #1e2a3d', color: 'white'}}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2l-6 6v6l-4-2v-4L4 8V6z"/></svg>
                 </button>
                 {popupFiltroOpen && (
@@ -406,7 +440,7 @@ export default function TrazabilidadPage() {
                     <div className="relative">
                       <button onClick={() => inputFechaRefTraz.current?.showPicker?.()}
                         className="flex items-center justify-center w-8 h-8 rounded-lg font-bold text-sm cursor-pointer"
-                        style={{background:'#111827', border:'1px solid #1e2a3d', color: filtroFecha ? '#f59e0b' : 'white'}}>
+                        style={{background:'#111827', border: filtroFecha ? '1px solid #ef4444' : '1px solid #1e2a3d', color: filtroFecha ? '#ef4444' : 'white'}}>
                         {filtroFecha ? new Date(filtroFecha + 'T12:00:00').getDate() : new Date().getDate()}
                       </button>
                       <input type="date" ref={inputFechaRefTraz} value={filtroFecha}
@@ -421,9 +455,10 @@ export default function TrazabilidadPage() {
                     </select>
                     <button onClick={() => { setFiltroOrden(v => v === null ? 'desc' : null); setPopupFiltroOpen(false) }}
                       className="w-8 h-8 rounded-lg flex items-center justify-center text-base"
-                      style={{background:'#111827', border:'1px solid #1e2a3d', opacity: filtroOrden ? 1 : 0.35}}>
+                      style={{background:'#111827', border: filtroOrden ? '1px solid #ef4444' : '1px solid #1e2a3d', opacity: filtroOrden ? 1 : 0.35}}>
                       ⬇️
                     </button>
+                    <FiltroIconEstadoTraz value={filtroIconEstado} onChange={(v) => { setFiltroIconEstado(v); setPopupFiltroOpen(false) }} open={iconEstadoOpen} setOpen={setIconEstadoOpen} />
                   </div>
                 )}
               </div>
@@ -438,6 +473,7 @@ export default function TrazabilidadPage() {
             filtroEnvio={filtroEnvio}
             filtroFecha={filtroFecha}
             filtroCiudad={filtroCiudad}
+            filtroIconEstado={filtroIconEstado}
             filtroOrden={filtroOrden}
             onGaleriaAbrir={(fotos, fecha) => abrirGaleria(fotos, 0, fecha ?? undefined)}
             onFirmaAbrir={async (url) => { try { setFirmaModal(await resolverUrlR2(url)) } catch { setFirmaModal(url) } }}
