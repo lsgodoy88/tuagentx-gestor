@@ -163,13 +163,11 @@ export function esDelMesBogota(d: Date | string, mes: number, anio: number): boo
 export function formatFechaCorta(iso: string | null | undefined): string {
   if (!iso) return ''
   const d = new Date(iso)
-  const bogota = new Date(d.getTime() - 5 * 60 * 60 * 1000)
-  const dd = String(bogota.getUTCDate()).padStart(2, '0')
-  const mm = String(bogota.getUTCMonth() + 1).padStart(2, '0')
-  const yy = String(bogota.getUTCFullYear()).slice(2)
-  const h = bogota.getUTCHours()
-  const min = String(bogota.getUTCMinutes()).padStart(2, '0')
-  const ampm = h >= 12 ? 'pm' : 'am'
-  const h12 = h % 12 || 12
-  return `${dd}/${mm}/${yy} ${h12}:${min}${ampm}`
+  if (isNaN(d.getTime())) return ''
+  const fmt = new Intl.DateTimeFormat('es-CO', {
+    timeZone: 'America/Bogota',
+    day: '2-digit', month: '2-digit', year: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: true,
+  })
+  return fmt.format(d).replace(/ /g, ' ').replace('a. m.','am').replace('p. m.','pm').replace('a. m.','am').replace('p. m.','pm')
 }

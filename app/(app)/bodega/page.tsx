@@ -659,7 +659,7 @@ export default function BodegaPage() {
                       {d.trRawEstados?.length ? (
                         <span className="text-xs flex items-center gap-1.5 flex-1">
                           <span>{iconoTransprensa((d.trRawEstados as any[]).at(-1)?.estado_nombre ?? '')}</span>
-                          <span className="text-white">{formatFechaCorta((d.trRawEstados as any[]).at(-1)?.estado_fecha)}</span>
+                          <span className="text-white">{formatFechaCorta((() => { const last = (d.trRawEstados as any[]).at(-1); return last?.estado_fecha ? `${last.estado_fecha}T${last.estado_hora || '00:00:00'}-05:00` : null })())}</span>
                           <span className="text-zinc-400 truncate">{(d.trRawEstados as any[]).at(-1)?.estado_nombre}</span>
                           {d.trImagenCumplido && (
                             <button onClick={() => window.open(d.trImagenCumplido, '_blank')}
