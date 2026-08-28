@@ -2,9 +2,11 @@
 
 function iconoTransprensa(estado: string): string {
   const e = (estado || '').toUpperCase()
-  if (e.includes('ENTREGADO')) return '✅'
-  if (e.includes('NOVEDAD'))   return '🔴'
-  return '🚚'
+  if (e.includes('ENTREGADO'))                          return '🟢'
+  if (e.includes('DISTRIBUCION'))                       return '🔵'
+  if (e.includes('EN BODEGA DESTINO'))                  return '🟡'
+  if (e.includes('NOVEDAD'))                            return '🔴'
+  return '🚛'
 }
 
 import { useSession } from 'next-auth/react'

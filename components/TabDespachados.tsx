@@ -2,9 +2,11 @@
 
 function iconoTransprensa(estado: string): string {
   const e = (estado || '').toUpperCase()
-  if (e.includes('ENTREGADO')) return '✅'
-  if (e.includes('NOVEDAD'))   return '🔴'
-  return '🚚'
+  if (e.includes('ENTREGADO'))                          return '🟢'
+  if (e.includes('DISTRIBUCION'))                       return '🔵'
+  if (e.includes('EN BODEGA DESTINO'))                  return '🟡'
+  if (e.includes('NOVEDAD'))                            return '🔴'
+  return '🚛'
 }
 
 import { useState, useCallback, useEffect, useRef } from 'react'
@@ -300,7 +302,7 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
                   {log.direccion && <span className="text-zinc-500 text-xs truncate block">{log.direccion}</span>}
                 </div>
                 <span className="text-xs mt-0.5 flex-shrink-0">
-                  {isExp ? '▲' : log.entregadoEl ? '✅' : log.modo === 'personal' ? '🤝' : log.modo === 'repartidor' ? '🚚' : (
+                  {isExp ? '▲' : log.entregadoEl ? (log.modo === 'transportadora' && log.trRawEstados?.length ? iconoTransprensa((log.trRawEstados as any[]).at(-1)?.estado_nombre ?? '') : '✅') : log.modo === 'personal' ? '🤝' : log.modo === 'repartidor' ? '🚚' : (
                     <span className="relative inline-flex">
                       🚛{log.guiaTransporte && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-zinc-900" />}
                     </span>
@@ -338,7 +340,7 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
                           esTransprensa: true,
                           imagenCumplido: log.trImagenCumplido ?? null,
                         }]
-                      : [{ icon: '✅', label: 'Entregado', fecha: log.modo === 'transportadora' ? null : log.entregadoEl, quien: log.modo === 'transportadora' ? null : log.modo === 'repartidor' ? (log.repartidor?.nombre || log.despachadoPorNombre || null) : (log.despachadoPorNombre || null), firmaEntrega: log.modo === 'transportadora' ? null : (log.firmaEntrega || null) }]
+                      : [{ icon: log.modo === 'transportadora' && log.trRawEstados?.length ? iconoTransprensa((log.trRawEstados as any[]).at(-1)?.estado_nombre ?? '') : '✅', label: 'Entregado', fecha: log.modo === 'transportadora' ? null : log.entregadoEl, quien: log.modo === 'transportadora' ? null : log.modo === 'repartidor' ? (log.repartidor?.nombre || log.despachadoPorNombre || null) : (log.despachadoPorNombre || null), firmaEntrega: log.modo === 'transportadora' ? null : (log.firmaEntrega || null) }]
                     ),
                   ].map((e: any, i) => (
                     <div key={i} className="flex items-center gap-2 py-1">
