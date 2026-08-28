@@ -24,8 +24,8 @@ export default function MapaVivo({ visitas, colorEmpleado, onVisitaClick }: Prop
   return (
     <MapContainer center={centro} zoom={14} style={{ height: '100%', width: '100%' }}>
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
-        attribution='&copy; <a href="https://carto.com/">CARTO</a>'
+        url="https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}.png?key=cWjo22T4qDhlXcByRanE"
+        attribution='&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
       />
 
       {/* Líneas de ruta por empleado */}
