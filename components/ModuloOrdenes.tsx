@@ -215,6 +215,7 @@ export default function ModuloOrdenes() {
   const [ciudadFiltro, setCiudadFiltro] = useState<string>('')
   const [iconEstadoFiltro, setIconEstadoFiltro] = useState<string>('')
   const [iconEstadoOpen, setIconEstadoOpen] = useState(false)
+
   const [popupFechaOpen, setPopupFechaOpen] = useState(false)
   const popupFechaRef = useRef<HTMLDivElement>(null)
   const inputFechaRef = useRef<HTMLInputElement>(null)
@@ -760,6 +761,7 @@ export default function ModuloOrdenes() {
   const pendientes  = despachosPorTab['pendiente']  || []
   const alistados   = despachosPorTab['alistado']   || []
   const despachados = despachosPorTab['despachado'] || []
+  const hayNovedad = despachados.filter((l: any) => l.modo === 'transportadora').slice(0, 30).some((l: any) => ((l.trRawEstados as any[])?.at(-1)?.estado_nombre || '').toUpperCase().includes('NOVEDAD'))
 
     const despachosVisibles = useMemo(() => {
       const base = tabActivo === 'pendiente' ? pendientes : tabActivo === 'alistado' ? alistados : despachados
@@ -870,7 +872,7 @@ export default function ModuloOrdenes() {
               onClick={() => setPopupFechaOpen(v => !v)}
               className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm"
               style={{background:'#0d1220', border: (fechaFiltro || ordenDesc !== null || ciudadFiltro || iconEstadoFiltro) ? '1px solid #ef4444' : '1px solid #1e2a3d', color: 'white'}}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2l-6 6v6l-4-2v-4L4 8V6z"/></svg>
+              {hayNovedad ? <span style={{fontSize:16}}>🔴</span> : <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2l-6 6v6l-4-2v-4L4 8V6z"/></svg>}
             </button>
             {popupFechaOpen && (
               <div className="absolute right-0 top-12 z-50 flex items-center gap-2 px-3 py-2 rounded-xl shadow-xl"

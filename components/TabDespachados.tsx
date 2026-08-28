@@ -30,7 +30,7 @@ interface Props {
   filtroOrden?: 'asc' | 'desc' | null
   filtroIconEstado?: string
   busquedaExterna?: string
-  onLogsLoaded?: (ciudades: string[]) => void
+  onLogsLoaded?: (ciudades: string[], hayNovedad: boolean) => void
 }
 
 export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, onGaleriaAbrir, onFirmaAbrir, filtroEnvio = 'todos', filtroFecha = '', filtroCiudad = '', filtroOrden = null, filtroIconEstado = '', busquedaExterna, onLogsLoaded }: Props) {
@@ -80,14 +80,16 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
           const merged = [...prev, ...incoming]
           if (onLogsLoaded) {
             const ciudades = [...new Set(merged.map((l: any) => l.ciudad?.trim()).filter(Boolean))].sort() as string[]
-            onLogsLoaded(ciudades)
+            const hayNov1 = merged.filter((l: any) => l.modo === 'transportadora').slice(0, 30).some((l: any) => ((l.trRawEstados as any[])?.at(-1)?.estado_nombre || '').toUpperCase().includes('NOVEDAD'))
+            onLogsLoaded(ciudades, hayNov1)
           }
           return merged
         })
       }
       if (reset && onLogsLoaded) {
         const ciudades = [...new Set(incoming.map((l: any) => l.ciudad?.trim()).filter(Boolean))].sort() as string[]
-        onLogsLoaded(ciudades)
+        const hayNov2 = incoming.filter((l: any) => l.modo === 'transportadora').slice(0, 30).some((l: any) => ((l.trRawEstados as any[])?.at(-1)?.estado_nombre || '').toUpperCase().includes('NOVEDAD'))
+        onLogsLoaded(ciudades, hayNov2)
       }
       setHayMas(data.hayMas ?? false)
       cursorRef.current = data.nextCursor ?? null

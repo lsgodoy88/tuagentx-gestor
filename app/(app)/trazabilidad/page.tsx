@@ -250,6 +250,7 @@ export default function TrazabilidadPage() {
   const [firmaModal, setFirmaModal] = useState<string | null>(null)
   const [filtroBusqueda, setFiltroBusqueda] = useState('')
   const [ciudadesDespacho, setCiudadesDespacho] = useState<string[]>([])
+  const [hayNovedadDespacho, setHayNovedadDespacho] = useState(false)
   const [filtroEnvio, setFiltroEnvio] = useState<'todos'|'local'|'guia'>('todos')
   const [filtroFecha, setFiltroFecha] = useState('')
   const [filtroCiudad, setFiltroCiudad] = useState('')
@@ -432,7 +433,7 @@ export default function TrazabilidadPage() {
                 <button onClick={() => setPopupFiltroOpen(v => !v)}
                   className="w-10 h-10 rounded-xl flex items-center justify-center"
                   style={{background:'#0d1220', border: (filtroFecha || filtroOrden !== null || filtroCiudad || filtroIconEstado) ? '1px solid #ef4444' : '1px solid #1e2a3d', color: 'white'}}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2l-6 6v6l-4-2v-4L4 8V6z"/></svg>
+                  {hayNovedadDespacho ? <span style={{fontSize:16}}>🔴</span> : <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2l-6 6v6l-4-2v-4L4 8V6z"/></svg>}
                 </button>
                 {popupFiltroOpen && (
                   <div className="absolute right-0 top-12 z-50 flex items-center gap-2 px-3 py-2 rounded-xl shadow-xl"
@@ -468,7 +469,7 @@ export default function TrazabilidadPage() {
             rol={esVendedor ? 'vendedor' : 'admin'}
             ciudadLocal={(user as any)?.ciudadEntregaLocal || undefined}
             busquedaExterna={filtroBusqueda}
-            onLogsLoaded={(ciudades) => setCiudadesDespacho(ciudades)}
+            onLogsLoaded={(ciudades, hayNov) => { setCiudadesDespacho(ciudades); setHayNovedadDespacho(hayNov) }}
             empresaId={(user as any)?.empresaId || (user as any)?.id || ''}
             filtroEnvio={filtroEnvio}
             filtroFecha={filtroFecha}
