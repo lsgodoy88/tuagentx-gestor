@@ -12,15 +12,14 @@ type Alerta = {
   vistaPor: string | null
 }
 
-const SEV_BG:     Record<string, string> = { critica: 'rgba(239,68,68,0.15)',    advertencia: 'rgba(249,115,22,0.15)',  info: 'rgba(59,130,246,0.15)' }
-const SEV_BORDER: Record<string, string> = { critica: 'rgba(239,68,68,0.5)',     advertencia: 'rgba(249,115,22,0.5)',   info: 'rgba(59,130,246,0.4)' }
+const SEV_BG:     Record<string, string> = { critica: '#7f1d1d',    advertencia: '#431407',  info: '#1e3a5f' }
+const SEV_BORDER: Record<string, string> = { critica: '#ef4444',     advertencia: '#f97316',   info: '#3b82f6' }
 const SEV_ICON:   Record<string, string> = { critica: '#ef4444',                 advertencia: '#f97316',                info: '#93c5fd' }
 const SEV_BADGE:  Record<string, string> = { critica: '#ef4444',                 advertencia: '#f97316',                info: '#3b82f6' }
 
 export default function AlertasNotch() {
   const [alertas, setAlertas] = useState<Alerta[]>([])
   const [abierto, setAbierto] = useState(false)
-  const [visible, setVisible] = useState(true)
   const [saliendo, setSaliendo] = useState(false)
   const router   = useRouter()
   const pathname = usePathname()
@@ -38,31 +37,20 @@ export default function AlertasNotch() {
     return () => clearInterval(iv)
   }, [])
 
-  // Ocultar notch a los 5s, mostrar al tocar pantalla
-  useEffect(() => {
-    if (alertas.length === 0) return
-    setVisible(true)
-    hideTimerRef.current = setTimeout(() => { setSaliendo(true); setTimeout(() => { setVisible(false); setSaliendo(false) }, 500) }, 5000)
-    return () => { if (hideTimerRef.current) clearTimeout(hideTimerRef.current) }
-  }, [alertas])
+  // Notch siempre visible mientras haya alertas — no auto-ocultar al cargar
 
-  // Mostrar de nuevo al tocar la pantalla
-  useEffect(() => {
-    function onTouch() {
-      setVisible(true)
-      if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
-      hideTimerRef.current = setTimeout(() => { setSaliendo(true); setTimeout(() => { setVisible(false); setSaliendo(false) }, 500) }, 5000)
-    }
-    document.addEventListener('touchstart', onTouch)
-    return () => document.removeEventListener('touchstart', onTouch)
-  }, [])
+  // Mostrar de nuevo solo al tocar el notch
 
-  // Auto-cerrar panel a los 5s
+  // Auto-cerrar panel a los 5s; al cerrar mostrar notch siempre
   useEffect(() => {
     if (abierto) {
+      // Pausar hide timer mientras está abierto
+      if (hideTimerRef.current) clearTimeout(hideTimerRef.current)
       timerRef.current = setTimeout(() => setAbierto(false), 5000)
     } else {
       if (timerRef.current) clearTimeout(timerRef.current)
+      // Al cerrar, mostrar notch y reiniciar hide timer
+      setSaliendo(false)
     }
     return () => { if (timerRef.current) clearTimeout(timerRef.current) }
   }, [abierto])
@@ -84,33 +72,36 @@ export default function AlertasNotch() {
     : alertas.some(a => a.severidad === 'advertencia') ? 'advertencia' : 'info'
 
   return (
-    <div ref={ref} className={`md:hidden ${saliendo ? 'alertas-notch-salida' : 'alertas-notch'}`} style={{ position: 'fixed', bottom: 0, left: 16, zIndex: 3001, pointerEvents: visible ? 'all' : 'none', display: visible || saliendo ? 'block' : 'none' }}>
+    <div ref={ref} className={`md:hidden ${saliendo ? 'alertas-notch-salida' : 'alertas-notch'}`} style={{ position: 'fixed', bottom: 0, left: 16, zIndex: 3001, pointerEvents: 'all' }}>
 
-      {/* Panel — despliega hacia arriba */}
+      {/* Panel — un solo popup con todas las alertas */}
       <div style={{
         position: 'absolute', bottom: 48, left: 0,
-        width: 260,
-        display: 'flex', flexDirection: 'column', gap: 8,
         pointerEvents: abierto ? 'all' : 'none',
         transform: abierto ? 'translateY(0) scale(1)' : 'translateY(14px) scale(0.95)',
         opacity: abierto ? 1 : 0,
         transition: 'all 0.25s cubic-bezier(0.34,1.56,0.64,1)',
         transformOrigin: 'bottom left',
+        background: '#0d1220',
+        border: '1.5px solid #f59e0b',
+        borderRadius: 12,
+        overflow: 'hidden',
+        width: 210,
+        boxShadow: '0 4px 20px rgba(0,0,0,0.6)',
       }}>
         {alertas.map((a, i) => (
           <button key={i}
             onClick={() => { setAbierto(false); fetch('/api/alertas',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:a.id})}).catch(()=>{}); router.push(a.url) }}
             style={{
-              background: SEV_BG[a.severidad],
-              border: `1px solid ${SEV_BORDER[a.severidad]}`,
-              borderRadius: 14, padding: '10px 14px',
-              display: 'flex', alignItems: 'center', gap: 10,
+              width: '100%',
+              borderBottom: i < alertas.length - 1 ? '1px solid rgba(245,158,11,0.2)' : 'none',
+              padding: '7px 12px',
+              display: 'flex', alignItems: 'center', gap: 8,
               textAlign: 'left', cursor: 'pointer',
-              backdropFilter: 'blur(12px)',
-              boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+              background: 'none', border: 'none',
             }}>
-            <span style={{ fontSize: 20, flexShrink: 0 }}>{a.icono}</span>
-            <span style={{ color: 'white', fontSize: 12, lineHeight: 1.4 }}>{a.mensaje}</span>
+            <span style={{ fontSize: 16, flexShrink: 0 }}>{a.icono}</span>
+            <span style={{ color: 'white', fontSize: 12, lineHeight: 1.2, fontWeight: 500 }}>{a.mensaje}</span>
           </button>
         ))}
       </div>
@@ -121,7 +112,7 @@ export default function AlertasNotch() {
         style={{
           width: 52, height: 42,
           background: 'rgba(30,36,58,0.99)',
-          border: `1.5px solid ${SEV_BORDER[maxSev]}`,
+          border: '1.5px solid rgba(59,130,246,0.35)',
           borderBottom: 'none',
           borderRadius: '18px 18px 0 0',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -136,7 +127,7 @@ export default function AlertasNotch() {
         <span style={{
           position: 'absolute', top: 6, right: 8,
           width: 16, height: 16, borderRadius: '50%',
-          background: 'white',
+          background: 'white', border: `2px solid ${SEV_BORDER[maxSev]}`,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 10, fontWeight: 700, color: '#000',
         }}>

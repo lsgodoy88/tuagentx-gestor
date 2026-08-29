@@ -59,7 +59,71 @@ async function detectarAlertas(empresaId: string): Promise<AlertaDetectada[]> {
     }
   } catch {}
 
-  // 3. Inventario — pendiente implementación
+  // 3. Pagos por revisar — SyncDeudas con discrepancia (misma lógica que tab Revisar)
+  try {
+    const rows = await prisma.$queryRaw<[{ count: bigint }]>`
+      SELECT COUNT(DISTINCT pcd."syncDeudaId")::bigint as count
+      FROM ${Prisma.raw(DB_SCHEMA)}."PagoCarteraDeuda" pcd
+      JOIN ${Prisma.raw(DB_SCHEMA)}."SyncDeuda" sd ON sd.id = pcd."syncDeudaId"
+      JOIN ${Prisma.raw(DB_SCHEMA)}."Integracion" i ON i.id = sd."integracionId"
+      WHERE i."empresaId" = ${empresaId}
+        AND pcd."envioEstado" = 'enviado'
+        AND pcd."envioFecha" IS NOT NULL
+        AND pcd."envioFecha" <= NOW() - INTERVAL '24 hours'
+        AND sd.condition = true
+        AND sd.saldo::numeric > 0`
+    const count = Number(rows[0]?.count ?? 0)
+    if (count > 0) {
+      alertas.push({
+        tipo: 'pagos_revisar', icono: '💵',
+        mensaje: `${count} pago${count > 1 ? 's' : ''} por revisar`,
+        url: '/recaudos?tab=revisar', severidad: count >= 5 ? 'advertencia' : 'info',
+      })
+    }
+  } catch {}
+
+  // 4. Novedades Transprensa — últimas 30 transportadora con NOVEDAD como último estado
+  try {
+    const rows = await prisma.$queryRaw<[{ count: bigint }]>`
+      SELECT COUNT(*)::bigint as count
+      FROM (
+        SELECT tr.id
+        FROM ${Prisma.raw(DB_SCHEMA)}."TransprensaRemesa" tr
+        WHERE tr."empresaId" = ${empresaId}
+          AND tr.raw_estados IS NOT NULL
+          AND (tr.raw_estados -> -1 ->> 'estado_nombre') ILIKE '%NOVEDAD%'
+        ORDER BY tr."updatedAt" DESC
+        LIMIT 30
+      ) sub`
+    const count = Number(rows[0]?.count ?? 0)
+    if (count > 0) {
+      alertas.push({
+        tipo: 'novedad_transprensa', icono: '🔴',
+        mensaje: `${count} envío${count > 1 ? 's' : ''} con novedad`,
+        url: '/trazabilidad', severidad: 'advertencia',
+      })
+    }
+  } catch {}
+
+  // 5. Órdenes pendientes hace más de 10 días
+  try {
+    const rows = await prisma.$queryRaw<[{ count: bigint }]>`
+      SELECT COUNT(*)::bigint as count
+      FROM ${Prisma.raw(DB_SCHEMA)}."OrdenDespacho"
+      WHERE "empresaId" = ${empresaId}
+        AND estado = 'pendiente'
+        AND "createdAt" <= NOW() - INTERVAL '10 days'`
+    const count = Number(rows[0]?.count ?? 0)
+    if (count > 0) {
+      alertas.push({
+        tipo: 'ordenes_sin_despachar', icono: '🚚',
+        mensaje: `${count} orden${count > 1 ? 'es' : ''} sin despachar`,
+        url: '/bodega', severidad: count >= 3 ? 'advertencia' : 'info',
+      })
+    }
+  } catch {}
+
+  // 6. Inventario — pendiente implementación
 
   return alertas
 }
@@ -111,7 +175,7 @@ export async function GET(req: NextRequest) {
     WHERE empresa_id = ${empresaId} AND resuelta = FALSE
     ORDER BY created_at ASC`
 
-  const ICONO: Record<string, string> = { storage: '☁️', plan: '📅', inventario: '📦', transprensa_conexion: '🚛' }
+  const ICONO: Record<string, string> = { storage: '☁️', plan: '📅', inventario: '📦', transprensa_conexion: '🚛', pagos_revisar: '💵', novedad_transprensa: '🔴', ordenes_sin_despachar: '🚚' }
   const URL_MAP: Record<string, string> = { storage: '/configuracion/almacenamiento', plan: '/configuracion', inventario: '/bodega', transprensa_conexion: '/configuracion' }
 
   const alertas = rows.map((r: any) => ({

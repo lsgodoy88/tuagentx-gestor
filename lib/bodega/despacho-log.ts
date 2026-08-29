@@ -53,7 +53,8 @@ export async function getDespachoLog(params: {
            vnd.nombre as "vendedorNombre",
            tr.estado_atencion as "trEstadoAtencion",
            tr.raw_estados as "trRawEstados",
-           tr.imagen_cumplido as "trImagenCumplido"
+           tr.imagen_cumplido as "trImagenCumplido",
+           tr.numero_remesa as "trNumeroRemesa"
     FROM ${DB_SCHEMA}."DespachoLog" l
     INNER JOIN ${DB_SCHEMA}."OrdenDespacho" o
       ON o."numeroFactura" = l."numeroFactura"
@@ -65,7 +66,7 @@ export async function getDespachoLog(params: {
     WHERE l."empresaId" IN ($1, $2)
       ${vendedorFilter}
       ${cursorClause}
-    GROUP BY l.id, l."numeroFactura", l."clienteNombre", l.modo, l."guiaTransporte", l.transportadora, l."despachadoEl", l."despachadoPorNombre", o."alistadoEl", o.ciudad, o."fotosAlistamiento", o."fotoAlistamiento", o.id, o."fechaOrden", o."fechaFactura", o.direccion, o."num_cajas", o."entregadoEl", o."firmaEntrega", o."urlSeguimiento", ap.nombre, rp.nombre, vnd.nombre, tr.estado_atencion, tr.raw_estados, tr.imagen_cumplido
+    GROUP BY l.id, l."numeroFactura", l."clienteNombre", l.modo, l."guiaTransporte", l.transportadora, l."despachadoEl", l."despachadoPorNombre", o."alistadoEl", o.ciudad, o."fotosAlistamiento", o."fotoAlistamiento", o.id, o."fechaOrden", o."fechaFactura", o.direccion, o."num_cajas", o."entregadoEl", o."firmaEntrega", o."urlSeguimiento", ap.nombre, rp.nombre, vnd.nombre, tr.estado_atencion, tr.raw_estados, tr.imagen_cumplido, tr.numero_remesa
     ORDER BY
       CAST(CASE WHEN l."numeroFactura" ~ '^[0-9]+$' THEN l."numeroFactura" ELSE '0' END AS BIGINT) DESC,
       l.id DESC

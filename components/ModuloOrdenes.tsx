@@ -761,7 +761,7 @@ export default function ModuloOrdenes() {
   const pendientes  = despachosPorTab['pendiente']  || []
   const alistados   = despachosPorTab['alistado']   || []
   const despachados = despachosPorTab['despachado'] || []
-  const hayNovedad = despachados.filter((l: any) => l.modo === 'transportadora').slice(0, 30).some((l: any) => ((l.trRawEstados as any[])?.at(-1)?.estado_nombre || '').toUpperCase().includes('NOVEDAD'))
+  const countNovedad = despachados.filter((l: any) => l.modo === 'transportadora').slice(0, 30).filter((l: any) => ((l.trRawEstados as any[])?.at(-1)?.estado_nombre || '').toUpperCase().includes('NOVEDAD')).length
 
     const despachosVisibles = useMemo(() => {
       const base = tabActivo === 'pendiente' ? pendientes : tabActivo === 'alistado' ? alistados : despachados
@@ -872,7 +872,7 @@ export default function ModuloOrdenes() {
               onClick={() => setPopupFechaOpen(v => !v)}
               className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm"
               style={{background:'#0d1220', border: (fechaFiltro || ordenDesc !== null || ciudadFiltro || iconEstadoFiltro) ? '1px solid #ef4444' : '1px solid #1e2a3d', color: 'white'}}>
-              {hayNovedad ? <span style={{fontSize:16}}>🔴</span> : <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2l-6 6v6l-4-2v-4L4 8V6z"/></svg>}
+              {countNovedad > 0 ? <span style={{width:19,height:19,borderRadius:'50%',background:'#ef4444',color:'white',fontSize:10,fontWeight:700,display:'flex',alignItems:'center',justifyContent:'center',lineHeight:1}}>{countNovedad}</span> : <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M4 6h16v2l-6 6v6l-4-2v-4L4 8V6z"/></svg>}
             </button>
             {popupFechaOpen && (
               <div className="absolute right-0 top-12 z-50 flex items-center gap-2 px-3 py-2 rounded-xl shadow-xl"
@@ -1445,7 +1445,11 @@ export default function ModuloOrdenes() {
                       {log.direccion && <span className="text-zinc-500 text-xs truncate block">{log.direccion}</span>}
                     </div>
                     <span className="text-xs mt-0.5 flex-shrink-0">
-                      {isExpLog ? '▲' : log.modo === 'transportadora' ? (log.trRawEstados?.length ? iconoTransprensa((log.trRawEstados as any[]).at(-1)?.estado_nombre ?? '') : log.num_cajas === 0 ? '⚪' : '🚛') : log.entregadoEl ? '✅' : log.modo === 'personal' ? '🤝' : log.modo === 'repartidor' ? '🚚' : (
+                      {isExpLog ? '▲' : log.modo === 'transportadora' ? (
+                        log.trRawEstados?.length ? iconoTransprensa((log.trRawEstados as any[]).at(-1)?.estado_nombre ?? '') :
+                        log.num_cajas === 0 ? '⚪' :
+                        <span className="relative inline-flex">🚛<span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-zinc-900" /></span>
+                      ) : log.entregadoEl ? '✅' : log.modo === 'personal' ? '🤝' : log.modo === 'repartidor' ? '🚚' : (
                         <span className="relative inline-flex">
                           🚛{log.guiaTransporte && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-zinc-900" />}
                         </span>

@@ -30,7 +30,7 @@ interface Props {
   filtroOrden?: 'asc' | 'desc' | null
   filtroIconEstado?: string
   busquedaExterna?: string
-  onLogsLoaded?: (ciudades: string[], hayNovedad: boolean) => void
+  onLogsLoaded?: (ciudades: string[], countNovedad: number) => void
 }
 
 export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, onGaleriaAbrir, onFirmaAbrir, filtroEnvio = 'todos', filtroFecha = '', filtroCiudad = '', filtroOrden = null, filtroIconEstado = '', busquedaExterna, onLogsLoaded }: Props) {
@@ -80,16 +80,16 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
           const merged = [...prev, ...incoming]
           if (onLogsLoaded) {
             const ciudades = [...new Set(merged.map((l: any) => l.ciudad?.trim()).filter(Boolean))].sort() as string[]
-            const hayNov1 = merged.filter((l: any) => l.modo === 'transportadora').slice(0, 30).some((l: any) => ((l.trRawEstados as any[])?.at(-1)?.estado_nombre || '').toUpperCase().includes('NOVEDAD'))
-            onLogsLoaded(ciudades, hayNov1)
+            const countNov1 = merged.filter((l: any) => l.modo === 'transportadora').slice(0, 30).filter((l: any) => ((l.trRawEstados as any[])?.at(-1)?.estado_nombre || '').toUpperCase().includes('NOVEDAD')).length
+            onLogsLoaded(ciudades, countNov1)
           }
           return merged
         })
       }
       if (reset && onLogsLoaded) {
         const ciudades = [...new Set(incoming.map((l: any) => l.ciudad?.trim()).filter(Boolean))].sort() as string[]
-        const hayNov2 = incoming.filter((l: any) => l.modo === 'transportadora').slice(0, 30).some((l: any) => ((l.trRawEstados as any[])?.at(-1)?.estado_nombre || '').toUpperCase().includes('NOVEDAD'))
-        onLogsLoaded(ciudades, hayNov2)
+        const countNov2 = incoming.filter((l: any) => l.modo === 'transportadora').slice(0, 30).filter((l: any) => ((l.trRawEstados as any[])?.at(-1)?.estado_nombre || '').toUpperCase().includes('NOVEDAD')).length
+        onLogsLoaded(ciudades, countNov2)
       }
       setHayMas(data.hayMas ?? false)
       cursorRef.current = data.nextCursor ?? null
@@ -319,7 +319,11 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
                   {log.direccion && <span className="text-zinc-500 text-xs truncate block">{log.direccion}</span>}
                 </div>
                 <span className="text-xs mt-0.5 flex-shrink-0">
-                  {isExp ? '▲' : log.modo === 'transportadora' ? (log.trRawEstados?.length ? iconoTransprensa((log.trRawEstados as any[]).at(-1)?.estado_nombre ?? '') : log.num_cajas === 0 ? '⚪' : '🚛') : log.entregadoEl ? '✅' : log.modo === 'personal' ? '🤝' : log.modo === 'repartidor' ? '🚚' : (
+                  {isExp ? '▲' : log.modo === 'transportadora' ? (
+                    log.trRawEstados?.length ? iconoTransprensa((log.trRawEstados as any[]).at(-1)?.estado_nombre ?? '') :
+                    log.num_cajas === 0 ? '⚪' :
+                    <span className="relative inline-flex">🚛<span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-zinc-900" /></span>
+                  ) : log.entregadoEl ? '✅' : log.modo === 'personal' ? '🤝' : log.modo === 'repartidor' ? '🚚' : (
                     <span className="relative inline-flex">
                       🚛{log.guiaTransporte && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-zinc-900" />}
                     </span>
