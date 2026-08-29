@@ -322,7 +322,7 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
                   {isExp ? '▲' : log.modo === 'transportadora' ? (
                     log.trRawEstados?.length ? iconoTransprensa((log.trRawEstados as any[]).at(-1)?.estado_nombre ?? '') :
                     log.num_cajas === 0 ? '⚪' :
-                    <span className="relative inline-flex">🚛<span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-zinc-900" /></span>
+                    log.guiaTransporte ? '🚛' : <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current text-zinc-400"><rect x="1" y="4" width="2" height="16"/><rect x="4" y="4" width="1" height="16"/><rect x="6" y="4" width="2" height="16"/><rect x="9" y="4" width="1" height="16"/><rect x="11" y="4" width="3" height="16"/><rect x="15" y="4" width="1" height="16"/><rect x="17" y="4" width="2" height="16"/><rect x="20" y="4" width="1" height="16"/><rect x="22" y="4" width="1" height="16"/></svg>
                   ) : log.entregadoEl ? '✅' : log.modo === 'personal' ? '🤝' : log.modo === 'repartidor' ? '🚚' : (
                     <span className="relative inline-flex">
                       🚛{log.guiaTransporte && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-zinc-900" />}
