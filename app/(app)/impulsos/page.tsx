@@ -388,7 +388,7 @@ export default function RutasFijasPage() {
                     const ventaPorCliente: Record<string, number> = {}
                     rutasEmp.forEach((r: any) => r.clientes.forEach((rc: any) => {
                       if (!(rc.clienteId in metaPorCliente)) metaPorCliente[rc.clienteId] = rc.metaVenta || 0
-                      if (!(rc.clienteId in ventaPorCliente)) ventaPorCliente[rc.clienteId] = ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || ventasHoy[rc.clienteId] || 0
+                      if (!(rc.clienteId in ventaPorCliente)) ventaPorCliente[rc.clienteId] = ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || 0
                     }))
                     const totalMeta = Object.values(metaPorCliente).reduce((a, b) => a + b, 0)
                     const totalVenta = Object.values(ventaPorCliente).reduce((a, b) => a + b, 0)
@@ -443,7 +443,7 @@ export default function RutasFijasPage() {
                       return rutaDia.clientes.reduce((a: number, rc: any) => {
                         if (seen.has(rc.clienteId)) return a
                         seen.add(rc.clienteId)
-                        return a + (ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || ventasHoy[rc.clienteId] || 0)
+                        return a + (ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || 0)
                       }, 0)
                     })() : 0
                     const pctTotal = metaTotal > 0 ? Math.round((logradoTotal / metaTotal) * 100) : null
@@ -898,7 +898,7 @@ export default function RutasFijasPage() {
             </div>
             <div className="overflow-y-auto flex-1 p-4 space-y-2">
               {modalVerRuta.ruta.clientes.map((rc: any, i: number) => {
-                                const logrado = ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || ventasHoy[rc.clienteId] || 0
+                                const logrado = ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || 0
                 const pct = rc.metaVenta > 0 ? Math.round((logrado / rc.metaVenta) * 100) : null
                 return (
                   <div key={rc.id} className="bg-zinc-800 rounded-xl px-3 py-2.5 space-y-1.5">
