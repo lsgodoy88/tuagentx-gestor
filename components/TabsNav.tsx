@@ -3,7 +3,6 @@
 interface Tab {
   id: string
   label: string
-  icon?: string
   activeColor?: string  // legacy — ignorado, usa tab-active
 }
 
@@ -34,7 +33,6 @@ export default function TabsNav({ tabs, active, onChange, className = '' }: Prop
             (active === tab.id ? 'tab-active' : 'text-white hover:text-white')
           }
         >
-          {tab.icon && <span className="mr-1.5">{tab.icon}</span>}
           {tab.label}
         </button>
       ))}

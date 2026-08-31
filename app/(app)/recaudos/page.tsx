@@ -102,6 +102,7 @@ function getColumns(ctx: {
   voucherUrls:   Record<string, string>
   cargarVoucherUrl: (id: string, key: string) => void
   tab: string
+  onAjuste?: (p: Pago) => void
 }): ColDef<Pago>[] {
   const isRevisar = ctx.tab === 'revisar'
   return [
@@ -249,6 +250,31 @@ function getColumns(ctx: {
       key: 'gestor', label: 'Gestor', width: 100, minWidth: 75, hidden: !isRevisar,
       render: p => <span style={{ color: '#fff' }}>{fmtMonto(Number((p as any).nSaldo ?? 0))}</span>,
       renderSub: (sub) => { const d = Math.abs(Number(sub.nSaldo??0)-Number(sub.saldoUptres??0)); return d < 1 ? <span style={{color:'#4b5563'}}>—</span> : <span style={{color:'#fff'}}>{fmtMonto(Number(sub.nSaldo??0))}</span> },
+    },
+    {
+      key: 'dias', label: 'Días', width: 60, minWidth: 50, hidden: !isRevisar,
+      render: p => {
+        const ef = p.envioFecha
+        if (!ef) return <span style={{ color: '#4b5563' }}>—</span>
+        const dias = Math.floor((Date.now() - new Date(ef).getTime()) / 86400000)
+        const color = dias > 20 ? '#ef4444' : dias > 10 ? '#f59e0b' : '#6b7280'
+        return <span style={{ fontWeight: 800, color }}>{dias}d</span>
+      },
+      renderSub: () => <span style={{ color: '#4b5563' }}>—</span>,
+    },
+    {
+      key: 'ajuste', label: 'Ajuste', width: 70, minWidth: 60, hidden: !isRevisar,
+      render: p => {
+        if ((p as any).ajusteManual) return <span className="text-xs text-emerald-400 font-semibold">✔ Ajust.</span>
+        if (!(p as any).syncDeudaId) return <span style={{ color: '#4b5563' }}>—</span>
+        return (
+          <button onClick={e => { e.stopPropagation(); ctx.onAjuste?.(p) }}
+            className="text-xs px-2 py-0.5 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700">
+            📝
+          </button>
+        )
+      },
+      renderSub: () => null,
     },
   ]
 }
@@ -552,7 +578,16 @@ export default function RecaudosPage() {
   }
   if (!isAdmin) return null
 
-  const cols = getColumns({  onLightbox: setLightboxUrl, voucherUrls, cargarVoucherUrl, tab })
+  const cols = getColumns({
+    onLightbox: setLightboxUrl, voucherUrls, cargarVoucherUrl, tab,
+    onAjuste: p => {
+      const diff = Math.max(0, Number((p as any).nSaldo||0) - Number((p as any).saldoUptres||0))
+      setAjusteMonto(String(diff||''))
+      setAjusteNota('')
+      setAjusteMsg('')
+      setModalAjuste({ syncDeudaId: (p as any).syncDeudaId, montoSugerido: diff, cliente: p.Cartera?.Cliente?.nombre||(p as any).clienteNombre||'', factura: p.numeroFactura||0 })
+    },
+  })
   if (tab === 'enviado') {
     cols.push({
       key: 'envioFechaCol', label: 'Envío', width: 110, minWidth: 80,

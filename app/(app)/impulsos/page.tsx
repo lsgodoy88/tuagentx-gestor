@@ -1013,7 +1013,6 @@ function ReporteImpulsoTab() {
   return (
     <div className="space-y-6 w-full">
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <p className="text-zinc-400 text-sm">Metas y ventas de todas las impulsadoras</p>
         <div style={{display:'flex', alignItems:'center', gap:8, width:'100%'}}>
           {/* Desde */}
           <div style={{position:'relative', flex:1}}>
@@ -1104,9 +1103,13 @@ function ReporteImpulsoTabla({ mes }: { mes: string }) {
 
   return (
     <div className="space-y-6 w-full">
-      <div className={`grid gap-4 ${datos.impulsadoras?.length === 1 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'}`}>
+      <div className={`grid gap-4 ${datos.impulsadoras?.length === 1 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
         {datos.impulsadoras?.map((imp: any) => {
           const diasConPuntos = (imp.semana || []).filter((d: any) => d.puntos?.length > 0)
+  const ABREV_DIA: Record<string,string> = {
+    'Lunes':'LUN','Martes':'MAR','Miércoles':'MIE','Jueves':'JUE',
+    'Viernes':'VIE','Sábado':'SAB','Domingo':'DOM'
+  }
           const diaActivo = tabDia[imp.id] ?? 0
 
           return (
@@ -1125,7 +1128,7 @@ function ReporteImpulsoTabla({ mes }: { mes: string }) {
                 <table style={{width:'100%',borderCollapse:'collapse',fontSize:13,minWidth:480}}>
                   <thead>
                     <tr style={{background:'#080d18'}}>
-                      <th style={{...thSt, width:80, borderRight:BORDER_DAY}}>Día</th>
+                      <th style={{...thSt, width:48, borderRight:BORDER_DAY}}>Día</th>
                       <th style={{...thSt, textAlign:'left'}}>Cliente</th>
                       <th style={{...thSt, textAlign:'right', width:120}}>Meta</th>
                       <th style={{...thSt, textAlign:'right', width:120}}>Ventas</th>
@@ -1146,7 +1149,7 @@ function ReporteImpulsoTabla({ mes }: { mes: string }) {
                               whiteSpace:'nowrap', letterSpacing:'0.04em',
                               background: dIdx%2===0?'#0b1628':'#08101e',
                             }}>
-                              {dia.nombre}
+                              {ABREV_DIA[dia.nombre] ?? dia.nombre}
                             </td>
                           )}
                           <td style={{padding:'7px 10px', borderRight:BORDER}}>
@@ -1174,7 +1177,7 @@ function ReporteImpulsoTabla({ mes }: { mes: string }) {
                 <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
                   <thead>
                     <tr style={{background:'#080d18'}}>
-                      <th style={{...thSt, width:90, borderRight:BORDER_DAY}}>Día</th>
+                      <th style={{...thSt, width:56, borderRight:BORDER_DAY}}>Día</th>
                       <th style={{...thSt, textAlign:'left'}}>Cliente</th>
                       <th style={{...thSt, textAlign:'right', width:130}}>Meta</th>
                       <th style={{...thSt, textAlign:'right', width:130}}>Ventas</th>
@@ -1195,7 +1198,7 @@ function ReporteImpulsoTabla({ mes }: { mes: string }) {
                               whiteSpace:'nowrap', letterSpacing:'0.05em',
                               background: dIdx%2===0?'#0b1628':'#08101e',
                             }}>
-                              {dia.nombre}
+                              {ABREV_DIA[dia.nombre] ?? dia.nombre}
                             </td>
                           )}
                           <td style={{padding:'7px 12px', borderRight:BORDER}}>

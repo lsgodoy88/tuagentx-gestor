@@ -686,7 +686,7 @@ export default function EgresosPage() {
           <TabProveedores mes={mes} anio={anio} onChangeFecha={(m,a) => { setMes(m); setAnio(a) }} />
         </div>
         <div style={{ display: tab === 'gastos' ? 'block' : 'none' }}>
-          <ModuloGastos isAdmin={puedeEditarEgresos} hideButton triggerRef={triggerGastos} mes={mes} anio={anio} onChangeFecha={(m,a) => { setMes(m); setAnio(a) }} />
+          <ModuloGastos isAdmin={puedeEditarEgresos} hideButton triggerRef={triggerGastos} />
         </div>
       </div>
     </div>

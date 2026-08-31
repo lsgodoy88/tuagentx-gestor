@@ -110,8 +110,8 @@ function TablaVentas({ meses, esAdmin }: { meses: Mes[], esAdmin: boolean }) {
 }
 
 const TABS = [
-  { id: 'ventas', label: '💼 Ventas' },
-  { id: 'postventa', label: '📦 Postventa' },
+  { id: 'ventas', label: 'Ventas' },
+  { id: 'postventa', label: 'Postventa' },
 ]
 
 export default function VentasPage() {

@@ -479,11 +479,23 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
     let ultimoToken: string | null = null
     const idempotencyKey = crypto.randomUUID()
     const lineasValidas = lineasPago.filter(l => Number(l.monto||0) > 0).map(l => ({ metodoPago: l.metodoPago, monto: Number(l.monto||0), voucherKey: l.voucherKey||null, voucherDatosIA: l.voucherDatosIA||null }))
-    const montoTotal = lineasValidas.reduce((s, l) => s + l.monto, 0)
     const descuentoTotal = Object.values(descuentosPorFactura).reduce((s, v) => s + Number(v || 0), 0)
+    const montoLineas = lineasValidas.reduce((s, l) => s + l.monto, 0)
+    // Valor aplicado = lo que realmente cubre la deuda, nunca más del saldo pendiente
+    const saldoPendiente = (detalleData?.DetalleCartera || [])
+      .filter((d: any) => facturasSeleccionadas.includes(d.id) && d.estado !== 'pagada')
+      .reduce((acc: number, d: any) => acc + Math.max(0, Number(d.saldoPendiente ?? d.valorFactura ?? d.valor)), 0)
+    const montoTotal = Math.min(montoLineas, Math.max(0, saldoPendiente - descuentoTotal))
+    // Distribuir cap proporcionalmente entre líneas con residuo en la última
+    const factor = montoLineas > 0 ? montoTotal / montoLineas : 1
+    const lineasCapadas = lineasValidas.map((l, i, arr) => {
+      if (i < arr.length - 1) return { ...l, monto: Math.round(l.monto * factor) }
+      const sumAntes = arr.slice(0, i).reduce((s, x) => s + Math.round(x.monto * factor), 0)
+      return { ...l, monto: montoTotal - sumAntes }
+    })
     const res = await fetch('/api/cartera/pago-sync', {
       method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Idempotency-Key': idempotencyKey },
-      body: JSON.stringify({ clienteApiId: detalleData.cliente?.apiId || detalleData.clienteApiId || detalleData.apiId, syncDeudaIds: facturasSeleccionadas, monto: montoTotal, descuento: descuentoTotal, descuentosPorFactura: Object.fromEntries(Object.entries(descuentosPorFactura).map(([k,v]) => [k, Number(v||0)])), metodoPago: lineasValidas.length === 1 ? lineasValidas[0].metodoPago : 'mixto', notas: notasPagoRef.current||undefined, lineasPago: lineasValidas, ...(gpsCoords ? { lat: gpsCoords.lat, lng: gpsCoords.lng, gpsAccuracy: gpsRecaudo.pos?.accuracy ?? null } : {}) })
+      body: JSON.stringify({ clienteApiId: detalleData.cliente?.apiId || detalleData.clienteApiId || detalleData.apiId, syncDeudaIds: facturasSeleccionadas, monto: montoTotal, descuento: descuentoTotal, descuentosPorFactura: Object.fromEntries(Object.entries(descuentosPorFactura).map(([k,v]) => [k, Number(v||0)])), metodoPago: lineasCapadas.length === 1 ? lineasCapadas[0].metodoPago : 'mixto', notas: notasPagoRef.current||undefined, lineasPago: lineasCapadas, ...(gpsCoords ? { lat: gpsCoords.lat, lng: gpsCoords.lng, gpsAccuracy: gpsRecaudo.pos?.accuracy ?? null } : {}) })
     })
     const d = await res.json()
     if (d.pago?.reciboToken) ultimoToken = d.pago.reciboToken

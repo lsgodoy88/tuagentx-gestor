@@ -31,10 +31,7 @@ body {
   scrollbar-gutter: stable;
 }
 
-/* Sidebar fijo 224px en desktop — sin JS, sin flash */
-@media (min-width: 1280px) {
-  .main-content { margin-left: 224px; } /* reserva espacio scrollbar sin forzar scroll */
-}
+
 
 /* Cards con borde azul suave */
 .card-dark {
@@ -564,10 +561,13 @@ button:active:not(:disabled) {
   background: #1e243a !important;
   border: 1px solid rgba(59,130,246,0.30) !important;
   border-radius: 0.75rem !important;
+  display: flex !important;
+  width: 100% !important;
 }
 .tab-pills button {
   border-radius: 0.5rem !important;
   border: 1px solid transparent !important;
+  flex: 1 !important;
 }
 
 /* Tab activo — azul limpio */

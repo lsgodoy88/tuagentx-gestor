@@ -549,20 +549,20 @@ export default function EmpleadosPage() {
       <div className="flex gap-1 tab-pills rounded-xl p-1">
         <button onClick={() => setTabPrincipal('equipo')}
           className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'equipo' ? 'tab-active' : 'text-white hover:text-white'}`}>
-          👥 Equipo
+          Equipo
         </button>
         <button onClick={() => setTabPrincipal('rutas')}
           className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'rutas' ? 'tab-active' : 'text-white hover:text-white'}`}>
-          🛣️ Rutas
+          Rutas
         </button>
         <button onClick={() => setTabPrincipal('metas')}
           className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'metas' ? 'tab-active' : 'text-white hover:text-white'}`}>
-          🎯 Metas
+          Metas
         </button>
         {esAdmin && (
           <button onClick={() => { setTabPrincipal('notifica'); if (notifReglas.length === 0) cargarNotifReglas() }}
             className={`flex-1 py-2 text-sm font-semibold transition-colors text-center ${tabPrincipal === 'notifica' ? 'tab-active' : 'text-white hover:text-white'}`}>
-            🔔 Notif.
+            Notif.
           </button>
         )}
       </div>

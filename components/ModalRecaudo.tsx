@@ -79,6 +79,7 @@ export default function ModalRecaudo({
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map())
   const scrollRef = useRef<HTMLDivElement>(null)
   const [notasOpen, setNotasOpen] = React.useState(false)
+  const [_notasAutoOpened, setNotasAutoOpened] = React.useState(false)
   const [notasLocal, setNotasLocal] = React.useState('')
   const [confirmadoSobrepago, setConfirmadoSobrepago] = React.useState(false)
   const [editandoMonto, setEditandoMonto] = React.useState<Set<string>>(new Set())
@@ -87,6 +88,24 @@ export default function ModalRecaudo({
   const montoSeleccionado = (detalleData?.DetalleCartera || [])
     .filter((d: any) => facturasSeleccionadas.includes(d.id))
     .reduce((s: number, d: any) => s + Math.max(0, Number(d.valorFactura ?? d.valor) - Number(d.abonos ?? 0)), 0)
+
+  const _contables = lineasPago.filter(l => l.metodoPago === 'efectivo' || l.voucherDatosIA)
+  const _totalPagado = _contables.reduce((s, l) => s + Number(l.monto || 0), 0)
+  const _totalDescuento = Object.values(descuentosPorFactura).reduce((s, v) => s + Number(v || 0), 0)
+  const _valorAplicado = Math.min(_totalPagado, Math.max(0, montoSeleccionado - _totalDescuento))
+  const _hayPagoCapado = _totalPagado > _valorAplicado && _valorAplicado > 0
+  const _hayValorModificado = lineasPago.some((l: any) => l.valorModificado)
+  const _requiereNota = _hayValorModificado || _hayPagoCapado
+  React.useEffect(() => {
+    if (_requiereNota && !_notasAutoOpened) {
+      setNotasOpen(true)
+      setNotasAutoOpened(true)
+    }
+  }, [_requiereNota])
+
+  React.useEffect(() => {
+    setNotasAutoOpened(false)
+  }, [clienteId])
 
   const totalPagadoActual = lineasPago
     .filter(l => l.metodoPago === 'efectivo' || l.voucherDatosIA)
@@ -493,7 +512,8 @@ export default function ModalRecaudo({
                 const contables = lineasPago.filter(l => l.metodoPago === 'efectivo' || l.voucherDatosIA)
                 const totalPagado = contables.reduce((s, l) => s + Number(l.monto || 0), 0)
                 const totalDescuento = Object.values(descuentosPorFactura).reduce((s, v) => s + Number(v || 0), 0)
-                const saldoRestante = montoSeleccionado - totalPagado - totalDescuento
+                const valorAplicado = Math.min(totalPagado, Math.max(0, montoSeleccionado - totalDescuento))
+                const saldoRestante = montoSeleccionado - valorAplicado - totalDescuento
                 return (
                   <div className="bg-zinc-500/40 border border-blue-500/25 rounded-xl px-4 py-3 space-y-1.5">
                     <div className="flex items-center justify-between mb-2">
@@ -531,8 +551,8 @@ export default function ModalRecaudo({
                     ))}
                     <div className="border-t border-zinc-700 pt-1.5 mt-1.5 space-y-1">
                       <div className="flex justify-between items-center text-sm">
-                        <span className="text-white">Total pagado</span>
-                        <span className="text-white font-bold">{fmt(totalPagado)}</span>
+                        <span className="text-white">Valor Aplicado</span>
+                        <span className="text-white font-bold">{fmt(valorAplicado)}</span>
                       </div>
                       {totalDescuento > 0 && (
                         <div className="flex justify-between items-center text-sm">
@@ -562,10 +582,14 @@ export default function ModalRecaudo({
                   <span>Notas (opcional)</span>
                   <span className="text-zinc-500">{notasOpen ? '▲' : '▼'}</span>
                 </button>
-                <textarea rows={2} placeholder="Observaciones del recaudo..."
-                  value={notasLocal} onChange={e => { setNotasLocal(e.target.value); onNotasChange?.(e.target.value) }}
-                  style={{ display: notasOpen ? 'block' : 'none' }}
-                  className="mt-1.5 w-full bg-blue-950/40 border border-blue-500/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-blue-400 resize-none" />
+                {(() => {
+                  return (
+                    <textarea rows={2} placeholder={_requiereNota ? 'Observación requerida (mín. 3 palabras)...' : 'Observaciones del recaudo...'}
+                      value={notasLocal} onChange={e => { setNotasLocal(e.target.value); onNotasChange?.(e.target.value) }}
+                      style={{ display: notasOpen ? 'block' : 'none', borderColor: _requiereNota && notasLocal.trim().split(/\s+/).filter(Boolean).length < 3 ? '#f97316' : undefined }}
+                      className="mt-1.5 w-full bg-blue-950/40 border border-blue-500/30 rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-blue-400 resize-none" />
+                  )
+                })()}
               </div>
 
               {/* Botón confirmar */}
@@ -575,8 +599,7 @@ export default function ModalRecaudo({
                 const totalMonto = lineasPago.reduce((s, l) => s + Number(l.monto || 0), 0)
                 const sinMonto = totalMonto <= 0
                 const pedirConfirmacionSobrepago = haySobrepago && !confirmadoSobrepago
-                const hayValorModificado = lineasPago.some((l: any) => l.valorModificado)
-                const notasInsuficientes = hayValorModificado && notasLocal.trim().split(/\s+/).filter(Boolean).length < 3
+                const notasInsuficientes = _requiereNota && notasLocal.trim().split(/\s+/).filter(Boolean).length < 3
                 return (
                   <>
                     {/* GPS — solo si vendedor, igual que ModalVisita */}
@@ -597,13 +620,13 @@ export default function ModalRecaudo({
                     {hayTransferenciaSinVoucher && (
                       <p className="text-amber-400 text-xs text-center">📎 Adjunta el comprobante para continuar</p>
                     )}
-                    {notasInsuficientes && (
+                    {_requiereNota && notasLocal.trim().split(/\s+/).filter(Boolean).length < 3 && (
                       <p className="text-amber-400 text-xs text-center">Escribe en Notas una Observación, mín 3 palabras.</p>
                     )}
                     {pedirConfirmacionSobrepago ? (
                       <button onClick={() => setConfirmadoSobrepago(true)} disabled={procesando || hayTransferenciaSinVoucher || sinMonto || notasInsuficientes}
                         className="w-full bg-orange-600 hover:bg-orange-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl text-sm transition-colors">
-                        ⚠️ Confirmar saldo
+                        ⚠️ Confirmar Valor Aplicado
                       </button>
                     ) : (
                       <button onClick={() => { guardarGpsSiCorresponde(); onConfirmar() }} disabled={procesando || hayTransferenciaSinVoucher || sinMonto || notasInsuficientes}

@@ -77,6 +77,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const sidebarExpanded = sidebarOpen
   const collapsed = !sidebarOpen
+
+  // Auto-colapsar sidebar según ancho de ventana (< 70% de 1280px ref = 896px)
+  useEffect(() => {
+    const THRESHOLD = 0.70
+    const check = () => {
+      const ratio = window.innerWidth / window.screen.width
+      setSidebarOpen(ratio >= THRESHOLD)
+    }
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [navigating, setNavigating] = useState(false)
   const [moduloAbierto, setModuloAbierto] = useState(false)
@@ -353,7 +365,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <NetworkBanner />
 
       {/* ── SIDEBAR DESKTOP ── */}
-      <aside className="flex-col hidden md:flex flex-shrink-0 fixed top-0 left-0 h-screen z-10" style={{width: sidebarExpanded ? 224 : 0, transition:"none", overflowX:"hidden", overflowY: sidebarExpanded ? "auto" : "hidden", background:'rgba(8,10,30,0.82)',backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',borderRight:'1px solid rgba(255,255,255,0.10)'}}>
+      <aside className="flex-col hidden md:flex flex-shrink-0 fixed top-0 left-0 h-screen z-10" style={{width: sidebarExpanded ? 224 : 56, transition:"none", overflowX:"hidden", overflowY:"auto", background:'rgba(8,10,30,0.82)',backdropFilter:'blur(20px)',WebkitBackdropFilter:'blur(20px)',borderRight:'1px solid rgba(255,255,255,0.10)'}}>
 
         <div className="flex items-center justify-between px-4 h-14 border-b border-[#1c1c20] flex-shrink-0">
           <div className="flex items-center gap-2.5">
@@ -451,18 +463,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
           </div>
         </div>
+        {/* Toggle colapsar/expandir — al fondo del sidebar */}
+        <div className="mt-auto px-2 pb-4 pt-2 border-t border-white/10">
+          <button
+            onClick={() => setSidebarOpen(o => !o)}
+            title={sidebarOpen ? 'Colapsar' : 'Expandir'}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-zinc-400 hover:text-white hover:bg-[#0f2540] transition-colors ${!sidebarOpen ? 'justify-center' : ''}`}>
+            <span style={{fontSize:16, lineHeight:1}}>{sidebarOpen ? '«' : '»'}</span>
+            {sidebarOpen && <span className="truncate">Colapsar</span>}
+          </button>
+        </div>
       </aside>
 
-      {/* Notch toggle sidebar — centrado vertical */}
-      <button
-        className="hidden md:flex fixed top-1/2 -translate-y-1/2 z-20 items-center justify-center"
-        onClick={() => setSidebarOpen(o => !o)}
-        style={{left: sidebarOpen ? 224 : 0, width:20, height:80, background:'rgba(8,10,30,0.82)', borderRadius:'0 10px 10px 0', border:'1px solid rgba(59,130,246,0.25)', borderLeft:'none', cursor:'pointer', color:'#7aa2c8', fontSize:16, fontWeight:'bold', transition:'none'}}>
-        {sidebarOpen ? '‹' : '›'}
-      </button>
+      
 
       {/* ── MAIN ── */}
-      <main className="flex-1 flex flex-col min-w-0 main-content">
+      <main className={`flex-1 flex flex-col min-w-0 ${sidebarExpanded ? "md:ml-[224px]" : "md:ml-[56px]"}`}>
         {bloqueado && (
           <div className="bg-red-900/80 border-b border-red-700 flex items-center justify-between px-4 h-10 flex-shrink-0 overflow-hidden">
             <span className="text-red-100 text-sm truncate">🔴 Cuenta suspendida</span>

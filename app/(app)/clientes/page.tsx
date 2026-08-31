@@ -396,7 +396,7 @@ export default function ClientesPage() {
       {/* Tabs de página — solo empresa */}
       {esAdmin && (
         <div className="flex gap-1 tab-pills rounded-xl p-1">
-          {([['clientes','👥 Clientes'],['postventa','📱 Postventa']] as const).map(([t,l]) => (
+          {([['clientes','Clientes'],['postventa','Postventa']] as const).map(([t,l]) => (
             <button key={t} onClick={() => { setTab(t as any); if(t==='postventa') cargarPostventa() }}
               className={`flex-1 py-2 text-sm font-semibold transition-colors ${tab===t ? 'tab-active' : 'text-white hover:text-white'}`}>
               {l}

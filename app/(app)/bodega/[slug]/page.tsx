@@ -53,10 +53,10 @@ export default function BodegaEmpresaPage() {
 
   if (loading || !empresa) return <Cargando />
 
-  const tabs: { id: Tab; label: string; icon: string }[] = [
-    { id: 'ordenes',    label: 'Órdenes',    icon: '📋' },
-    { id: 'inventario', label: 'Inventario', icon: '📦' },
-    { id: 'sugerido',   label: 'Sugerido',   icon: '💡' },
+  const tabs: { id: Tab; label: string }[] = [
+    { id: 'ordenes',    label: 'Órdenes'    },
+    { id: 'inventario', label: 'Inventario' },
+    { id: 'sugerido',   label: 'Sugerido'   },
   ]
 
   return (
@@ -74,7 +74,7 @@ export default function BodegaEmpresaPage() {
           {tabs.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)}
               className={`flex-1 py-2 text-sm font-semibold transition-colors ${tab === t.id ? 'tab-active' : 'text-white hover:text-white'}`}>
-              {t.icon} {t.label}
+              {t.label}
             </button>
           ))}
         </div>
