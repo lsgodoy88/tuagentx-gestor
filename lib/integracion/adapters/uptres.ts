@@ -534,7 +534,9 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       expand: 'customer,items',
       includeTotal: 'false',
     }
-    const fromDate = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000) // siempre 10 días — cubre facturas creadas antes y facturadas hoy
+    // Usar desde si viene (ej: recalcularVentasMesImpulsos pasa inicioVentana = hace 3 meses)
+    // Fallback: 10 días para sync periódico del Guardian
+    const fromDate = desde ?? new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)
     baseParams.from = fromDate.toISOString().split('T')[0]
     const manana = new Date(); manana.setDate(manana.getDate() + 1)
     baseParams.to = manana.toISOString().split('T')[0]
