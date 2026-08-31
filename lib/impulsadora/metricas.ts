@@ -84,7 +84,7 @@ export async function calcularImpulsadorasMes(
 ) {
   const inicioMes = new Date(fecha.slice(0, 7) + '-01T00:00:00.000Z')
   const finMes = new Date(new Date(inicioMes).setMonth(inicioMes.getMonth() + 1) - 1)
-  const mesLabel = inicioMes.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })
+  const mesLabel = inicioMes.toISOString().slice(0, 7) // '2026-08' — ISO para queries y response
 
   const whereImp: any = { empresaId, rol: 'impulsadora', activo: true, ...whereImpExtra }
 
