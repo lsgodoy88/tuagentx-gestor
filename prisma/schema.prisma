@@ -43,6 +43,7 @@ model Empresa {
   syncVentasFecha     DateTime?
   syncVentasUltimo    DateTime?
   ultimaSyncBodega          DateTime?
+  fechaInicioBodega         DateTime?          @db.Timestamp(6)
   ultimaSyncClientes        DateTime?
   sync_cursor_clientes      Json?
   sync_cursor_empleados     Json?
@@ -2968,7 +2969,8 @@ model EmpresaVinculada {
   apiKey           String          @unique @default(uuid())
   color            String          @default("#8b5cf6")
   activa           Boolean         @default(true)
-  empresaClienteId String?
+  empresaClienteId   String?
+  fechaInicioBodega DateTime?          @db.Timestamp(6)
   createdAt        DateTime        @default(now())
   empresa          Empresa         @relation(fields: [empresaId], references: [id])
   rutas            Ruta[]

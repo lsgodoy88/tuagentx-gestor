@@ -372,7 +372,7 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
           onClick={cerrarPopup}>
           <div onClick={e => e.stopPropagation()}
             className={`bb-host${subiendo ? ' bb-active' : ''}`}
-            style={{ position:'relative', width:'100%', maxWidth:384, borderRadius:22, padding: subiendo ? 2 : 0, overflow:'hidden' }}>
+            style={{ position:'relative', width:'100%', maxWidth:384, borderRadius:22, padding: subiendo ? 2 : 0 }}>
             <BorderBeam active={subiendo} borderRadius={22} duration={4} />
             <div className="w-full p-5 space-y-4 overflow-y-auto"
               style={{ background:'#141c2e', border: subiendo ? 'none' : '1px solid #1e2a3d', borderRadius:20, maxHeight:'90vh', position:'relative', zIndex:1 }}>

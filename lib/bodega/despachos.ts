@@ -24,7 +24,21 @@ export async function getDespachos(params: {
 
   const empresaIdConsulta = await resolverEmpresaIdOrigen(prisma, empresaId, origenId)
   const estados = estadosFiltro[estado] ?? ['pendiente']
-  const desde = haceNDiasBogota(DIAS)
+  const desdePorVentana = haceNDiasBogota(DIAS)
+
+  // Fecha de inicio bodega: MAX(fechaInicioBodega, hoy - 30 días)
+  // Para vinculadas leer de EmpresaVinculada, para propia de Empresa
+  let fechaInicio: Date | null = null
+  if (origenId) {
+    const vinRows = await prisma.$queryRaw<[{ fechaInicioBodega: Date | null }]>`
+      SELECT "fechaInicioBodega" FROM ${Prisma.raw(DB_SCHEMA)}."EmpresaVinculada" WHERE id = ${origenId} LIMIT 1`
+    fechaInicio = vinRows[0]?.fechaInicioBodega ?? null
+  } else {
+    const empresaRow = await prisma.$queryRaw<[{ fechaInicioBodega: Date | null }]>`
+      SELECT "fechaInicioBodega" FROM ${Prisma.raw(DB_SCHEMA)}."Empresa" WHERE id = ${empresaIdConsulta} LIMIT 1`
+    fechaInicio = empresaRow[0]?.fechaInicioBodega ?? null
+  }
+  const desde = fechaInicio && fechaInicio > desdePorVentana ? fechaInicio : desdePorVentana
   const desdeIso = desde.toISOString()
 
   const qFilter = q

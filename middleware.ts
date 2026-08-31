@@ -118,6 +118,6 @@ export const config = {
      * - _next/static, _next/image, favicon.ico
      * - public files
      */
-    '/((?!_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.jpg$|.*\\.svg$|.*\\.webp$|.*\\.ico$|.*\\.woff2?$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.png$|.*\\.jpg$|.*\\.svg$|.*\\.webp$|.*\\.ico$|.*\\.woff2?$|.*\\.json$).*)',
   ],
 }

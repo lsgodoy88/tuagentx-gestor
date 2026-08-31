@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { prisma } from '@/lib/prisma'
+import { prisma, DB_SCHEMA } from '@/lib/prisma'
+import { Prisma } from '@/app/generated/prisma'
 import { getEmpresaId } from '@/lib/auth-helpers'
 
 async function obtenerEmpresaId() {
@@ -57,4 +58,29 @@ export async function DELETE(req: NextRequest) {
   })
 
   return NextResponse.json({ ok: true })
+}
+
+export async function PATCH(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  const user = session?.user as any
+  if (!['empresa', 'supervisor'].includes(user?.role)) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
+  const empresaId = getEmpresaId(user)
+  const { id, fechaInicioBodega } = await req.json()
+  if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
+  const fecha = fechaInicioBodega ? new Date(fechaInicioBodega) : null
+  const updated = await prisma.empresaVinculada.update({
+    where: { id, empresaId },
+    data: { fechaInicioBodega: fecha },
+  })
+
+  // Sincronización inicial: cancelar pendientes de la vinculada anteriores a la fecha
+  let canceladas = 0
+  if (fecha) {
+    canceladas = Number(await prisma.$executeRawUnsafe(
+      `UPDATE ${DB_SCHEMA}."OrdenDespacho" SET estado = 'cancelado' WHERE "origenVinculadaId" = $1 AND estado = 'pendiente' AND COALESCE("fechaOrdenBogota", "createdAt") < $2`,
+      id, fecha
+    ))
+  }
+
+  return NextResponse.json({ ok: true, fechaInicioBodega: updated.fechaInicioBodega, canceladas })
 }
