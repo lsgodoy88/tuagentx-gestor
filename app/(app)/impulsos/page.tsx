@@ -124,7 +124,10 @@ export default function RutasFijasPage() {
       // Recargar ventas mes — forzar nuevo objeto para trigger re-render
       setVentasMes({})
       const allClientes: any[] = []
-      for (const rf of rutasFijas) for (const cli of (rf.clientes || [])) allClientes.push(cli)
+      const seenIds = new Set<string>()
+      for (const rf of rutasFijas) for (const cli of (rf.clientes || [])) {
+        if (cli.clienteId && !seenIds.has(cli.clienteId)) { seenIds.add(cli.clienteId); allClientes.push(cli) }
+      }
       await loadVentasMes(allClientes)
       await loadVentasHoy()
       await recargarSyncEstado()
@@ -202,12 +205,16 @@ export default function RutasFijasPage() {
     setRutasFijas(todasRutas)
     // Juntar todos los RutaFijaCliente únicos de todas las rutas
     const allClientes: any[] = []
+    const seenClienteIds = new Set<string>()
     for (const rf of todasRutas) {
       for (const cli of (rf.clientes || [])) {
-        allClientes.push(cli)
+        if (cli.clienteId && !seenClienteIds.has(cli.clienteId)) {
+          seenClienteIds.add(cli.clienteId)
+          allClientes.push(cli)
+        }
       }
     }
-    loadVentasMes(allClientes)
+    await loadVentasMes(allClientes)
   }
 
   async function loadCumplimiento() {
@@ -221,11 +228,14 @@ export default function RutasFijasPage() {
       resultados[user?.id] = { ...data, nombre: user?.name }
     } else {
       const impulsadoras = empleados.filter((e: any) => e.rol === 'impulsadora' && e.activo && (esAdmin || esSupervisor ? true : e.vendedorId === user?.id))
-      // Paralelo — todas las impulsadoras en un solo round-trip
-      await Promise.all(impulsadoras.map(async (imp: any) => {
-        const data = await fetch('/api/impulso?impulsadoraId=' + imp.id + '&fecha=' + fecha).then(r => r.json())
-        resultados[imp.id] = { ...data, nombre: imp.nombre }
-      }))
+      // Batch — todas las impulsadoras en UNA sola llamada
+      if (impulsadoras.length > 0) {
+        const ids = impulsadoras.map((e: any) => e.id).join(',')
+        const data = await fetch('/api/impulso/batch?impulsadoraIds=' + ids + '&fecha=' + fecha).then(r => r.json())
+        for (const imp of impulsadoras) {
+          resultados[imp.id] = { ...(data.resultados?.[imp.id] || {}), nombre: imp.nombre }
+        }
+      }
     }
     setCumplimiento(resultados)
     setLoadingCumplimiento(false)
@@ -479,7 +489,7 @@ export default function RutasFijasPage() {
                           <div className="px-2 pb-2 space-y-1">
                             {rutaDia.clientes.map((rc: any, i: number) => {
                               const ventaMesActual = ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || 0
-                              const logrado = ventaMesActual || ventasHoy[rc.clienteId] || 0
+                              const logrado = ventaMesActual
                               const pct = rc.metaVenta > 0 ? Math.round((logrado / rc.metaVenta) * 100) : null
                               // Duplicado si: ya apareció en otro día O ya apareció antes en este mismo día
                               const aparicionesEnEsteDia = rutaDia.clientes.slice(0, i).filter((x: any) => x.clienteId === rc.clienteId).length

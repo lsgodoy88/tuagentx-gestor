@@ -25,6 +25,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Leer de VentaMesCliente — totalVenta real sincronizado con UpTres
+    console.log('[ventas-mes] empresaId:', empresaId, 'clienteIds:', clienteIds, 'meses:', meses)
     const registros = await (prisma as any).ventaMesCliente.findMany({
       where: {
         clienteId: { in: clienteIds },
