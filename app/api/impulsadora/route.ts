@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { syncVentasHistorico } from '@/lib/sync/ventas-historico'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
@@ -102,19 +101,6 @@ export async function POST(req: NextRequest) {
       prisma.rutaFijaCliente.deleteMany({ where: { rutaFijaId: existente.id } }),
       prisma.rutaFija.delete({ where: { id: existente.id } }),
     ])
-  }
-
-  // Fire-and-forget: sync histórico 3 meses para clientes nuevos en la ruta
-  const idsAgregados = existente
-    ? (clienteIds || []).filter((id: string) => !existente.clientes.map((c: any) => c.clienteId).includes(id))
-    : (clienteIds || [])
-
-  if (idsAgregados.length > 0) {
-    // No await — no bloquea el guardado del rutero
-    // Llamada directa sin HTTP loopback — con log de error
-    syncVentasHistorico({ clienteIds: idsAgregados, empresaId })
-      .then(r => console.log(`[impulsadora] Sync histórico: ${r.actualizados} meses, ${r.clientesSincronizados} clientes`))
-      .catch(err => console.error('[impulsadora] Error sync histórico:', err))
   }
 
   const ruta = await prisma.rutaFija.create({

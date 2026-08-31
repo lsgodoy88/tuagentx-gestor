@@ -1,5 +1,5 @@
 import { DIAS } from '@/lib/constants'
-import { prisma, DB_SCHEMA } from '@/lib/prisma'
+import { prisma } from '@/lib/prisma'
 
 export interface PuntoMetrica {
   clienteId: string
@@ -84,7 +84,7 @@ export async function calcularImpulsadorasMes(
 ) {
   const inicioMes = new Date(fecha.slice(0, 7) + '-01T00:00:00.000Z')
   const finMes = new Date(new Date(inicioMes).setMonth(inicioMes.getMonth() + 1) - 1)
-  const mesLabel = inicioMes.toISOString().slice(0, 7) // '2026-08' — ISO para queries y response
+  const mesLabel = inicioMes.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })
 
   const whereImp: any = { empresaId, rol: 'impulsadora', activo: true, ...whereImpExtra }
 
@@ -113,16 +113,14 @@ export async function calcularImpulsadorasMes(
     // Fuente única: VentaMesCliente — acumulado real por mes, independiente
     // de cuándo se sincronizó UpTres. Reemplaza SyncDeuda.modificadoEn que
     // fallaba cuando la sincronización ocurría después del cierre del mes.
-    const mesIso = fecha.slice(0, 7) // '2026-08' — nombre único para evitar shadowing
-    // $queryRawUnsafe bypasea ORM y evita variable shadowing en bundle minificado
-    const ventasMesRaw = await (prisma as any).$queryRawUnsafe(
-      `SELECT "clienteId", "totalVenta"::float8 FROM ${DB_SCHEMA}."VentaMesCliente" WHERE "clienteId" = ANY($1::text[]) AND mes = $2::text`,
-      clienteIds, mesIso
-    ) as { clienteId: string; totalVenta: number }[]
-    for (const ventaRow of ventasMesRaw) {
-      ventasPorCliente[ventaRow.clienteId] = Number(ventaRow.totalVenta || 0)
+    const mesLabel = fecha.slice(0, 7) // '2026-07'
+    const ventasMes = await (prisma as any).ventaMesCliente.findMany({
+      where: { clienteId: { in: clienteIds }, mes: mesLabel },
+      select: { clienteId: true, totalVenta: true }
+    })
+    for (const v of ventasMes) {
+      ventasPorCliente[v.clienteId] = Number(v.totalVenta || 0)
     }
-    const ventasMes = ventasMesRaw
 
     // Fallback para clientes sin apiId que no tienen VentaMesCliente: usar Visita
     const conVentaMes = new Set(ventasMes.map((v: any) => v.clienteId))

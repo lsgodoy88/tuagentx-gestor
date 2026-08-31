@@ -1,5 +1,5 @@
 import { DIAS } from './constants'
-import { prisma } from './prisma'
+import { prisma, DB_SCHEMA } from './prisma'
 
 export interface PuntoMetrica {
   clienteId: string
@@ -84,7 +84,7 @@ export async function calcularImpulsadorasMes(
 ) {
   const inicioMes = new Date(fecha.slice(0, 7) + '-01T00:00:00.000Z')
   const finMes = new Date(new Date(inicioMes).setMonth(inicioMes.getMonth() + 1) - 1)
-  const mesLabel = inicioMes.toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })
+  const mesLabel = inicioMes.toISOString().slice(0, 7) // ISO para queries
 
   const whereImp: any = { empresaId, rol: 'impulsadora', activo: true, ...whereImpExtra }
 
@@ -113,11 +113,11 @@ export async function calcularImpulsadorasMes(
     // Fuente única: VentaMesCliente — acumulado real por mes, independiente
     // de cuándo se sincronizó UpTres. Reemplaza SyncDeuda.modificadoEn que
     // fallaba cuando la sincronización ocurría después del cierre del mes.
-    const mesLabel = fecha.slice(0, 7) // '2026-07'
-    const ventasMes = await (prisma as any).ventaMesCliente.findMany({
-      where: { clienteId: { in: clienteIds }, mes: mesLabel },
-      select: { clienteId: true, totalVenta: true }
-    })
+    const mesIso = fecha.slice(0, 7)
+    const ventasMes = await (prisma as any).$queryRawUnsafe(
+      `SELECT "clienteId", "totalVenta"::float8 FROM ${DB_SCHEMA}."VentaMesCliente" WHERE "clienteId" = ANY($1::text[]) AND mes = $2::text`,
+      clienteIds, mesIso
+    ) as { clienteId: string; totalVenta: number }[]
     for (const v of ventasMes) {
       ventasPorCliente[v.clienteId] = Number(v.totalVenta || 0)
     }

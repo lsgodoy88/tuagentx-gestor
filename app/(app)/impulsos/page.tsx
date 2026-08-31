@@ -3,7 +3,7 @@ import dynamic from 'next/dynamic'
 import TabsNav from '@/components/TabsNav'
 import SelectorMes from '@/components/SelectorMes'
 const CumplimientoTabla = dynamic(() => import('@/components/CumplimientoTabla'), { ssr: false })
-import { useEffect, useState, useRef, useMemo } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { checkPermiso } from '@/lib/permisos'
@@ -90,7 +90,6 @@ export default function RutasFijasPage() {
   const [sincronizandoVentas, setSincronizandoVentas] = useState(false)
   const [expandedCliente, setExpandedCliente] = useState<string|null>(null)
   const mesActual = new Date().toISOString().slice(0,7)
-
   const [ventasHoy, setVentasHoy] = useState<Record<string, number>>({})
   // clienteId -> { [mes: YYYY-MM]: { totalVenta, cantidadVisitas } }
   const [ventasMes, setVentasMes] = useState<Record<string, Record<string, {totalVenta: number, cantidadVisitas: number}>>>({})
@@ -147,25 +146,10 @@ export default function RutasFijasPage() {
         if (!mapa[v.clienteId]) mapa[v.clienteId] = {}
         mapa[v.clienteId][v.mes] = { totalVenta: v.totalVenta, cantidadVisitas: v.cantidadVisitas }
       }
-      setVentasMes(prev => ({ ...prev, ...mapa }))
+      setVentasMes(mapa)
     } catch {}
   }
   const [cumplimiento, setCumplimiento] = useState<Record<string, any>>({})
-
-  // Mapa clienteId -> montoMes derivado del batch (fuente única para mes actual)
-  const ventasMesActualMap = useMemo(() => {
-    const mapa: Record<string, number> = {}
-    for (const empData of Object.values(cumplimiento)) {
-      for (const dia of (empData as any)?.semana || []) {
-        for (const punto of dia?.puntos || []) {
-          if (punto.clienteId && punto.montoMes > 0) {
-            mapa[punto.clienteId] = punto.montoMes
-          }
-        }
-      }
-    }
-    return mapa
-  }, [cumplimiento])
   const [loadingCumplimiento, setLoadingCumplimiento] = useState(false)
   const [mesPDF, setMesPDF] = useState(new Date().toISOString().slice(0, 7))
   const [impSeleccionada, setImpSeleccionada] = useState<string|null>(null)
@@ -244,14 +228,11 @@ export default function RutasFijasPage() {
       resultados[user?.id] = { ...data, nombre: user?.name }
     } else {
       const impulsadoras = empleados.filter((e: any) => e.rol === 'impulsadora' && e.activo && (esAdmin || esSupervisor ? true : e.vendedorId === user?.id))
-      // Batch — todas las impulsadoras en UNA sola llamada
-      if (impulsadoras.length > 0) {
-        const ids = impulsadoras.map((e: any) => e.id).join(',')
-        const data = await fetch('/api/impulso/batch?impulsadoraIds=' + ids + '&fecha=' + fecha).then(r => r.json())
-        for (const imp of impulsadoras) {
-          resultados[imp.id] = { ...(data.resultados?.[imp.id] || {}), nombre: imp.nombre }
-        }
-      }
+      // Paralelo — todas las impulsadoras en un solo round-trip
+      await Promise.all(impulsadoras.map(async (imp: any) => {
+        const data = await fetch('/api/impulso?impulsadoraId=' + imp.id + '&fecha=' + fecha).then(r => r.json())
+        resultados[imp.id] = { ...data, nombre: imp.nombre }
+      }))
     }
     setCumplimiento(resultados)
     setLoadingCumplimiento(false)
@@ -404,7 +385,7 @@ export default function RutasFijasPage() {
                     const ventaPorCliente: Record<string, number> = {}
                     rutasEmp.forEach((r: any) => r.clientes.forEach((rc: any) => {
                       if (!(rc.clienteId in metaPorCliente)) metaPorCliente[rc.clienteId] = rc.metaVenta || 0
-                      if (!(rc.clienteId in ventaPorCliente)) ventaPorCliente[rc.clienteId] = ventasMesActualMap[rc.clienteId] || 0
+                      if (!(rc.clienteId in ventaPorCliente)) ventaPorCliente[rc.clienteId] = ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || ventasHoy[rc.clienteId] || 0
                     }))
                     const totalMeta = Object.values(metaPorCliente).reduce((a, b) => a + b, 0)
                     const totalVenta = Object.values(ventaPorCliente).reduce((a, b) => a + b, 0)
@@ -459,7 +440,7 @@ export default function RutasFijasPage() {
                       return rutaDia.clientes.reduce((a: number, rc: any) => {
                         if (seen.has(rc.clienteId)) return a
                         seen.add(rc.clienteId)
-                        return a + (ventasMesActualMap[rc.clienteId] || 0)
+                        return a + (ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || ventasHoy[rc.clienteId] || 0)
                       }, 0)
                     })() : 0
                     const pctTotal = metaTotal > 0 ? Math.round((logradoTotal / metaTotal) * 100) : null
@@ -504,7 +485,7 @@ export default function RutasFijasPage() {
                         {rutaDia && !esOculto && (
                           <div className="px-2 pb-2 space-y-1">
                             {rutaDia.clientes.map((rc: any, i: number) => {
-                              const ventaMesActual = ventasMesActualMap[rc.clienteId] || 0
+                              const ventaMesActual = ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || 0
                               const logrado = ventaMesActual
                               const pct = rc.metaVenta > 0 ? Math.round((logrado / rc.metaVenta) * 100) : null
                               // Duplicado si: ya apareció en otro día O ya apareció antes en este mismo día
@@ -914,7 +895,7 @@ export default function RutasFijasPage() {
             </div>
             <div className="overflow-y-auto flex-1 p-4 space-y-2">
               {modalVerRuta.ruta.clientes.map((rc: any, i: number) => {
-                                const logrado = ventasMesActualMap[rc.clienteId] || 0
+                                const logrado = ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || ventasHoy[rc.clienteId] || 0
                 const pct = rc.metaVenta > 0 ? Math.round((logrado / rc.metaVenta) * 100) : null
                 return (
                   <div key={rc.id} className="bg-zinc-800 rounded-xl px-3 py-2.5 space-y-1.5">
