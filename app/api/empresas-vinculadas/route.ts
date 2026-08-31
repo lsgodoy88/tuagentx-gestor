@@ -19,17 +19,33 @@ export async function GET() {
 
   const [generadas, conectadas] = await Promise.all([
     prisma.empresaVinculada.findMany({
-      where: { empresaId, activa: true },
+      where: { empresaId },
       include: { _count: { select: { rutas: true } } },
       orderBy: { createdAt: 'asc' },
     }),
     prisma.empresaVinculada.findMany({
       where: { empresaClienteId: empresaId, activa: true },
-      include: { empresa: { select: { nombre: true } }, _count: { select: { rutas: true } } },
+      include: { empresa: { select: { id: true, nombre: true, horaInicioRuta: true, horaFinRuta: true, ciudadEntregaLocal: true, diasHistorialBodega: true, bodegaPuedeEnviar: true, autoAbrirTurno: true, autoCerrarTurno: true } }, _count: { select: { rutas: true } } },
       orderBy: { createdAt: 'asc' },
     }),
   ])
-  return NextResponse.json({ vinculadas: generadas, conectadas: conectadas.map(v => ({ ...v, esConectada: true, nombreEmpresaPrincipal: v.empresa.nombre })) })
+  return NextResponse.json({
+    vinculadas: generadas,
+    conectadas: conectadas.map(v => ({
+      ...v,
+      esConectada: true,
+      nombreEmpresaPrincipal: v.empresa.nombre,
+      configDuena: {
+        horaInicioRuta: v.empresa.horaInicioRuta,
+        horaFinRuta: v.empresa.horaFinRuta,
+        ciudadEntregaLocal: v.empresa.ciudadEntregaLocal,
+        diasHistorialBodega: v.empresa.diasHistorialBodega,
+        bodegaPuedeEnviar: v.empresa.bodegaPuedeEnviar,
+        autoAbrirTurno: v.empresa.autoAbrirTurno,
+        autoCerrarTurno: v.empresa.autoCerrarTurno,
+      }
+    }))
+  })
 }
 
 export async function POST(req: NextRequest) {
@@ -65,12 +81,12 @@ export async function PATCH(req: NextRequest) {
   const user = session?.user as any
   if (!['empresa', 'supervisor'].includes(user?.role)) return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
   const empresaId = getEmpresaId(user)
-  const { id, fechaInicioBodega } = await req.json()
+  const { id, fechaInicioBodega, activa } = await req.json()
   if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 })
-  const fecha = fechaInicioBodega ? new Date(fechaInicioBodega) : null
+  const fecha = fechaInicioBodega !== undefined ? (fechaInicioBodega ? new Date(fechaInicioBodega) : null) : undefined
   const updated = await prisma.empresaVinculada.update({
     where: { id, empresaId },
-    data: { fechaInicioBodega: fecha },
+    data: { ...(fecha !== undefined ? { fechaInicioBodega: fecha } : {}), ...(activa !== undefined ? { activa } : {}) },
   })
 
   // Sincronización inicial: cancelar pendientes de la vinculada anteriores a la fecha

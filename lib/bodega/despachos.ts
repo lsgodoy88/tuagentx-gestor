@@ -38,7 +38,8 @@ export async function getDespachos(params: {
       SELECT "fechaInicioBodega" FROM ${Prisma.raw(DB_SCHEMA)}."Empresa" WHERE id = ${empresaIdConsulta} LIMIT 1`
     fechaInicio = empresaRow[0]?.fechaInicioBodega ?? null
   }
-  const desde = fechaInicio && fechaInicio > desdePorVentana ? fechaInicio : desdePorVentana
+  // Si hay fechaInicioBodega → úsala directamente (reemplaza la ventana de 30 días)
+  const desde = fechaInicio ?? desdePorVentana
   const desdeIso = desde.toISOString()
 
   const qFilter = q

@@ -475,6 +475,59 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     } catch (e) { return null }
   }
 
+  // Fetch histórico de ventas por rango real — para sync inicial de cliente nuevo en ruta
+  // Llama mes a mes para no saturar la API de UpTres
+  async fetchVentasHistorico(desde: Date, hasta: Date, customerId: string): Promise<VentaExterna[]> {
+    const fields = 'id,orderNumber,invoiceNumber,isInvoiced,invoicedAt,customerId,employeeId,total,discount,balance,paymentType,paymentMethod,isDelivered,isShipped,isCompleted,amountItems,comment,createdAt,updatedAt,cityId,address,phone,items'
+    const manana = new Date(hasta); manana.setDate(manana.getDate() + 1)
+
+    const baseParams: Record<string, string> = {
+      fields,
+      expand: 'customer,items',
+      includeTotal: 'false',
+      from: desde.toISOString().split('T')[0],
+      to: manana.toISOString().split('T')[0],
+      customerId,
+    }
+
+    const [activas, cerradas] = await Promise.all([
+      this.fetchAllSinCondition('ordenes', { ...baseParams, condition: 'true' }),
+      this.fetchAllSinCondition('ordenes', { ...baseParams, condition: 'false' }),
+    ])
+
+    const mapaOrdenes = new Map<string, any>()
+    for (const o of [...activas, ...cerradas]) mapaOrdenes.set(o.id, o)
+    const data = Array.from(mapaOrdenes.values())
+    const idsActivas = new Set(activas.map((o: any) => o.id))
+
+    return data.map((o: any) => ({
+      uid: o.id, _id: o.id,
+      numeroOrden: o.orderNumber,
+      numeroFacturado: o.invoiceNumber || null,
+      isInvoiced: o.isInvoiced === true,
+      invoicedAt: o.invoicedAt || null,
+      isActiva: idsActivas.has(o.id),
+      vTotal: o.total,
+      fCreado: o.createdAt,
+      fModificado: o.updatedAt,
+      discount: o.discount || null,
+      balance: o.balance || null,
+      paymentType: o.paymentType || null,
+      paymentMethod: o.paymentMethod || null,
+      isDelivered: o.isDelivered ?? null,
+      isShipped: o.isShipped ?? null,
+      isCompleted: o.isCompleted ?? null,
+      amountItems: o.amountItems ? Number(o.amountItems) : null,
+      cliente: { uid: o.customerId },
+      empleado: { uid: o.employeeId },
+      productos: o.items || [],
+      clienteNombreApi: o.customer ? (`${o.customer.firstName || ''} ${o.customer.lastName || ''}`.trim() || o.customer.tradeName || o.customer.name || null) : null,
+      cityId: o.cityId || o.customer?.cityId || null,
+      direccion: o.address || o.customer?.address || null,
+      telefono: o.phone || o.customer?.phone || null,
+    }))
+  }
+
   async fetchVentas(desde?: Date, customerId?: string): Promise<VentaExterna[]> {
     const baseParams: Record<string, string> = {
       fields: 'id,orderNumber,invoiceNumber,isInvoiced,invoicedAt,customerId,employeeId,total,discount,balance,paymentType,paymentMethod,isDelivered,isShipped,isCompleted,amountItems,comment,createdAt,updatedAt,cityId,address,phone,items',

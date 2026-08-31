@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
   const empresaCliente = await prisma.empresa.findUnique({ where: { id: empresaId }, select: { nombre: true } })
   await prisma.empresaVinculada.update({
     where: { id: vinculada.id },
-    data: { empresaClienteId: empresaId, nombre: empresaCliente?.nombre || 'Empresa vinculada' }
+    data: { empresaClienteId: empresaId, nombre: empresaCliente?.nombre || 'Empresa vinculada', conectadaAt: new Date() }
   })
 
   return NextResponse.json({ ok: true, nombre: vinculada.nombre || vinculada.empresa.nombre })

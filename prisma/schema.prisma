@@ -2970,6 +2970,7 @@ model EmpresaVinculada {
   color            String          @default("#8b5cf6")
   activa           Boolean         @default(true)
   empresaClienteId   String?
+  conectadaAt       DateTime?          @db.Timestamp(6)
   fechaInicioBodega DateTime?          @db.Timestamp(6)
   createdAt        DateTime        @default(now())
   empresa          Empresa         @relation(fields: [empresaId], references: [id])

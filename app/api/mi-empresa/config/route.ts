@@ -91,5 +91,10 @@ export async function GET(req: NextRequest) {
            "ciudadEntregaLocal", "diasHistorialBodega", "bodegaPuedeEnviar", "autoAbrirTurno", "autoCerrarTurno"
     FROM ${Prisma.raw(DB_SCHEMA)}."Empresa" WHERE id = ${empresaId} LIMIT 1
   `
-  return NextResponse.json(rows[0] ?? { horaInicioRuta: '07:00', horaFinRuta: '21:00', autoCrearRuta: false, autoCerrarRuta: false, diasCrearRuta: '0,1,2,3,4', diasCerrarRuta: '0,1,2,3,4', ciudadEntregaLocal: null, diasHistorialBodega: 7, bodegaPuedeEnviar: false, autoAbrirTurno: false, autoCerrarTurno: false })
+  const bodegaRows = await prisma.$queryRaw<[{ count: bigint }]>`
+    SELECT COUNT(*)::bigint as count FROM ${Prisma.raw(DB_SCHEMA)}."Empleado"
+    WHERE "empresaId" = ${empresaId} AND rol = 'bodega' AND activo = true LIMIT 1`
+  const tieneBodega = Number(bodegaRows[0]?.count ?? 0) > 0
+
+  return NextResponse.json({ ...(rows[0] ?? { horaInicioRuta: '07:00', horaFinRuta: '21:00', autoCrearRuta: false, autoCerrarRuta: false, diasCrearRuta: '0,1,2,3,4', diasCerrarRuta: '0,1,2,3,4', ciudadEntregaLocal: null, diasHistorialBodega: 7, bodegaPuedeEnviar: false, autoAbrirTurno: false, autoCerrarTurno: false }), tieneBodega })
 }

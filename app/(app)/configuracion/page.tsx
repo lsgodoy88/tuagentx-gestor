@@ -122,6 +122,7 @@ export default function ConfiguracionPage() {
   const [clientes, setClientes] = useState<any[]>([])
   const [diasHistorialBodega, setDiasHistorialBodega] = useState(7)
   const [bodegaPuedeEnviar, setBodegaPuedeEnviar] = useState(false)
+  const [tieneBodega, setTieneBodega] = useState(false)
 
   // Config empresa — datos generales
   const [cfgEmpNit, setCfgEmpNit] = useState('')
@@ -205,9 +206,16 @@ export default function ConfiguracionPage() {
     setSincInicioMsg(d.canceladas > 0 ? `✅ Fecha guardada. ${d.canceladas} órdenes inactivadas.` : '✅ Fecha guardada.')
   }
 
+  const [sincVinculadaMsg, setSincVinculadaMsg] = useState<Record<string,string>>({})
+  const [confirmVinculada, setConfirmVinculada] = useState<string | null>(null)
+  const [fechaVinculadaLocal, setFechaVinculadaLocal] = useState<Record<string,string>>({})
+
   async function guardarFechaInicioBodega(vinculadaId: string, fecha: string) {
-    await fetch('/api/empresas-vinculadas', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vinculadaId, fechaInicioBodega: fecha || null }) })
+    setSincVinculadaMsg(p => ({ ...p, [vinculadaId]: '' }))
+    const res = await fetch('/api/empresas-vinculadas', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: vinculadaId, fechaInicioBodega: fecha || null }) })
+    const d = await res.json()
     setVinculadas(prev => prev.map(v => v.id === vinculadaId ? { ...v, fechaInicioBodega: fecha || null } : v))
+    setSincVinculadaMsg(p => ({ ...p, [vinculadaId]: d.canceladas > 0 ? `✅ Guardado. ${d.canceladas} órdenes inactivadas.` : '✅ Guardado.' }))
   }
   const [tokenMsg, setTokenMsg] = useState('')
   const [buscandoToken, setBuscandoToken] = useState(false)
@@ -270,6 +278,7 @@ export default function ConfiguracionPage() {
         setCiudadEntregaLocal(d.ciudadEntregaLocal ?? '')
         setDiasHistorialBodega(d.diasHistorialBodega ?? 7)
         setBodegaPuedeEnviar(d.bodegaPuedeEnviar ?? false)
+        setTieneBodega(d.tieneBodega ?? false)
       })
       fetch('/api/recibos/config/empresa').then(r => r.json()).then(d => {
         if (!d.error) {
@@ -665,9 +674,10 @@ export default function ConfiguracionPage() {
       setTokenMsg(data.error || 'Error al conectar')
     }
   }
-  async function eliminarVinculada(id: string) {
-    await fetch(`/api/empresas-vinculadas?id=${id}`, { method: 'DELETE' })
-    setVinculadas(prev => prev.filter(v => v.id !== id))
+  async function toggleActivaVinculada(id: string, activa: boolean) {
+    await fetch('/api/empresas-vinculadas', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, activa }) })
+    setVinculadas(prev => prev.map(v => v.id === id ? { ...v, activa } : v))
+    setConfirmVinculada(null)
   }
 
   const inputClass = 'w-full modal-inner-card rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500'
@@ -742,9 +752,48 @@ export default function ConfiguracionPage() {
             {passwordFields}
           </Seccion>
 
-          <Seccion titulo="Despachos" icono="🚚" isOpen={seccionAbierta === 'entregas'} onToggle={() => toggleSeccion('entregas')}>
+          {/* Sección Despachos: solo si tiene bodega propia o está vinculada */}
+          {(tieneBodega || conectadas.length > 0) && <Seccion titulo="Despachos" icono="🚚" isOpen={seccionAbierta === 'entregas'} onToggle={() => toggleSeccion('entregas')}>
             <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide mb-3">Bodega y Despachos</p>
 
+            {!tieneBodega && conectadas.length > 0 && conectadas[0]?.configDuena && (() => {
+              const cfg = conectadas[0].configDuena
+              return (
+                <div className="space-y-3">
+                  <p className="text-zinc-500 text-xs">🔗 Configuración de <span className="text-white font-semibold">{conectadas[0].nombreEmpresaPrincipal}</span> (solo lectura)</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="rounded-xl px-3 py-2.5 bg-zinc-900 border border-zinc-800">
+                      <p className="text-zinc-500 text-xs mb-0.5">Hora inicio ruta</p>
+                      <p className="text-white text-sm font-medium">{cfg.horaInicioRuta ?? '—'}</p>
+                    </div>
+                    <div className="rounded-xl px-3 py-2.5 bg-zinc-900 border border-zinc-800">
+                      <p className="text-zinc-500 text-xs mb-0.5">Hora fin ruta</p>
+                      <p className="text-white text-sm font-medium">{cfg.horaFinRuta ?? '—'}</p>
+                    </div>
+                    <div className="rounded-xl px-3 py-2.5 bg-zinc-900 border border-zinc-800">
+                      <p className="text-zinc-500 text-xs mb-0.5">Ciudad entrega local</p>
+                      <p className="text-white text-sm font-medium">{cfg.ciudadEntregaLocal ?? 'Todas por transportadora'}</p>
+                    </div>
+                    <div className="rounded-xl px-3 py-2.5 bg-zinc-900 border border-zinc-800">
+                      <p className="text-zinc-500 text-xs mb-0.5">Días historial bodega</p>
+                      <p className="text-white text-sm font-medium">{cfg.diasHistorialBodega ?? '—'}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <div className="rounded-xl px-3 py-2.5 bg-zinc-900 border border-zinc-800 flex-1 flex items-center justify-between">
+                      <p className="text-zinc-400 text-xs">Bodega puede enviar</p>
+                      <span className={`text-xs font-semibold ${cfg.bodegaPuedeEnviar ? 'text-emerald-400' : 'text-zinc-600'}`}>{cfg.bodegaPuedeEnviar ? 'Sí' : 'No'}</span>
+                    </div>
+                    <div className="rounded-xl px-3 py-2.5 bg-zinc-900 border border-zinc-800 flex-1 flex items-center justify-between">
+                      <p className="text-zinc-400 text-xs">Auto abrir turno</p>
+                      <span className={`text-xs font-semibold ${cfg.autoAbrirTurno ? 'text-emerald-400' : 'text-zinc-600'}`}>{cfg.autoAbrirTurno ? 'Sí' : 'No'}</span>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+
+            {bodegaPuedeEnviar && <>
             <div>
               <label className={labelClass}>Ciudad entrega local</label>
               <select value={ciudadEntregaLocal} onChange={e => setCiudadEntregaLocal(e.target.value)} className={inputClass}>
@@ -763,6 +812,7 @@ export default function ConfiguracionPage() {
                 <button onClick={() => setDiasHistorialBodega(Math.min(90, diasHistorialBodega + 1))} className="w-8 h-8 bg-zinc-800 hover:bg-zinc-700 text-white rounded-lg text-lg font-bold flex items-center justify-center">+</button>
               </div>
             </div>
+            </>}
             <div className="flex items-center justify-between py-2">
               <div>
                 <p className="text-white text-sm">Permitir que bodega envíe a despacho</p>
@@ -774,7 +824,7 @@ export default function ConfiguracionPage() {
               </button>
             </div>
 
-            <div className="border-t border-zinc-800 pt-4 mt-2">
+            {bodegaPuedeEnviar && <div className="border-t border-zinc-800 pt-4 mt-2">
               <label className="text-zinc-400 text-xs font-semibold block mb-1">Inicio de pendientes en bodega</label>
               <p className="text-zinc-500 text-xs mb-2">Órdenes anteriores a esta fecha quedan inactivas automáticamente (solo una vez).</p>
               <div className="flex items-center gap-3 flex-wrap">
@@ -788,12 +838,12 @@ export default function ConfiguracionPage() {
                 </button>
               </div>
               {sincInicioMsg && <p className="text-emerald-400 text-xs mt-2">{sincInicioMsg}</p>}
-            </div>
+            </div>}
 
             {msgRutas && <p className="text-sm text-emerald-400">{msgRutas}</p>}
-            {btnGuardar(guardarConfigEntregas, savingRutas, savingRutas)}
+            {tieneBodega && btnGuardar(guardarConfigEntregas, savingRutas, savingRutas)}
 
-          </Seccion>
+          </Seccion>}
 
           <Seccion titulo="Transporte" icono="🚛" isOpen={seccionAbierta === 'transporte'} onToggle={() => toggleSeccion('transporte')}>
             <p className="text-zinc-500 text-xs font-semibold uppercase tracking-wide mb-3">Transportadora de ciudades</p>
@@ -1268,22 +1318,53 @@ export default function ConfiguracionPage() {
             ) : (
               <div className="space-y-2">
                 {vinculadas.map(v => (
-                  <div key={v.id} className="rounded-xl px-4 py-3 flex items-center gap-3" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
-                    <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: v.color }} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-white text-sm font-medium">{v.nombre === 'Pendiente' ? '⏳ Esperando conexión' : v.nombre}</p>
-                      <p className="text-zinc-600 text-xs mt-0.5">{v._count?.rutas ?? 0} rutas · Generada por ti</p>
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-zinc-500 text-xs">🚚 Inicio bodega:</span>
-                        <input type="date" defaultValue={v.fechaInicioBodega ? v.fechaInicioBodega.split('T')[0] : ''}
-                          onChange={e => guardarFechaInicioBodega(v.id, e.target.value)}
-                          className="bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-0.5 text-white text-xs outline-none focus:border-blue-500" />
-                      </div>
+                  <div key={v.id} className="rounded-xl px-4 py-3 space-y-2" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)",opacity: v.activa ? 1 : 0.5}}>
+                    <div className="flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: v.color }} />
+                      <p className="text-white text-sm font-medium flex-1">{v.nombre === 'Pendiente' ? '⏳ Esperando conexión' : v.nombre}</p>
                     </div>
-                    <button onClick={() => eliminarVinculada(v.id)}
-                      className="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded-lg hover:bg-red-500/10 transition-colors flex-shrink-0">
-                      Eliminar
-                    </button>
+                    {v.conectadaAt && <p className="text-zinc-600 text-xs">Integrada el {new Date(v.conectadaAt).toLocaleDateString('es-CO', { day:'2-digit', month:'short', year:'numeric' })}</p>}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-zinc-500 text-xs">🚚 Inicio bodega:</span>
+                      <input type="date"
+                        value={fechaVinculadaLocal[v.id] ?? (v.fechaInicioBodega ? v.fechaInicioBodega.split('T')[0] : '')}
+                        onChange={e => setFechaVinculadaLocal(p => ({ ...p, [v.id]: e.target.value }))}
+                        className="bg-zinc-800 border border-zinc-700 rounded-lg px-2 py-0.5 text-white text-xs outline-none focus:border-blue-500" />
+                      <button
+                        onClick={() => guardarFechaInicioBodega(v.id, fechaVinculadaLocal[v.id] ?? '')}
+                        disabled={!fechaVinculadaLocal[v.id]}
+                        className="bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-semibold px-3 py-1 rounded-lg transition-colors">
+                        Guardar
+                      </button>
+                      {v.activa ? (
+                        <button onClick={() => setConfirmVinculada(v.id)}
+                          className="text-zinc-400 hover:text-red-400 text-sm px-2 py-1 rounded-lg transition-colors">
+                          🚫
+                        </button>
+                      ) : (
+                        <button onClick={() => toggleActivaVinculada(v.id, true)}
+                          className="text-emerald-400 hover:text-emerald-300 text-xs px-2 py-1 rounded-lg hover:bg-emerald-500/10 transition-colors font-semibold">
+                          Reactivar
+                        </button>
+                      )}
+                    </div>
+                    {sincVinculadaMsg[v.id] && <p className="text-emerald-400 text-xs">{sincVinculadaMsg[v.id]}</p>}
+                    {confirmVinculada === v.id && (
+                      <div className="rounded-xl p-3 mt-1 border border-red-500/30 bg-red-500/10 space-y-2">
+                        <p className="text-white text-xs font-semibold">¿Inactivar esta vinculación?</p>
+                        <p className="text-zinc-400 text-xs">No podrá despachar órdenes. El historial se conserva.</p>
+                        <div className="flex gap-2">
+                          <button onClick={() => toggleActivaVinculada(v.id, false)}
+                            className="bg-red-600 hover:bg-red-500 text-white text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors">
+                            Inactivar
+                          </button>
+                          <button onClick={() => setConfirmVinculada(null)}
+                            className="text-zinc-500 text-xs px-2 py-1.5 rounded-lg hover:text-zinc-300 transition-colors">
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
                 {conectadas.map(v => (
