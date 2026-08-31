@@ -77,9 +77,7 @@ export async function middleware(req: NextRequest) {
   // sin revisar cada endpoint: muchas APIs son compartidas entre roles.
   const isAppRoute = !path.startsWith('/api/') && !path.startsWith('/login') && !path.startsWith('/recaudo')
   if (isAppRoute) {
-    const cookieName = process.env.NEXTAUTH_URL?.includes('staggestor')
-      ? 'staging-next-auth.session-token'
-      : '__Secure-next-auth.session-token'
+    const cookieName = process.env.AUTH_COOKIE_NAME ?? 'staging-next-auth.session-token'
     const token = await getToken({ req, secret: process.env.NEXTAUTH_SECRET, cookieName })
 
     if (!token) {
