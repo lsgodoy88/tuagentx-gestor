@@ -1306,8 +1306,8 @@ export default function ConfiguracionPage() {
                   🔗 Token
                 </button>
                 <button onClick={() => { setModalVinculada(true); setMsgVinculada('') }}
-                  disabled={!bodegaPuedeEnviar}
-                  title={!bodegaPuedeEnviar ? 'Requiere módulo bodega activo' : ''}
+                  disabled={!tieneBodega}
+                  title={!tieneBodega ? 'Requiere empleado de bodega activo' : ''}
                   className="bg-violet-600 hover:bg-violet-500 disabled:opacity-30 disabled:cursor-not-allowed text-white font-semibold px-3 py-1.5 rounded-xl text-xs transition-colors">
                   + Nueva
                 </button>

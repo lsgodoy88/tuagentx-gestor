@@ -97,8 +97,8 @@ export async function marcarPlanPagado(
 
   if (aplicados.length > 0) {
     const ultimoMes = aplicados[aplicados.length - 1]
-    const [anio, mes] = ultimoMes.split('-').map(Number)
-    const nuevoPlanFin = new Date(Date.UTC(anio, mes, 1))
+    const [anioStr, mesStr] = ultimoMes.split('-')
+    const nuevoPlanFin = new Date(Date.UTC(Number(anioStr), Number(mesStr), 6)) // mes 1-indexed compensa 0-indexed de UTC → día 6 mes siguiente
     const planFinExistente = empresa?.planFin ? new Date(empresa.planFin) : new Date(0)
     const planFinFinal = nuevoPlanFin > planFinExistente ? nuevoPlanFin : planFinExistente
     await (prisma as any).empresa.update({
