@@ -411,14 +411,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         <div className="flex-shrink-0 border-t border-[#1c1c20] p-2 space-y-0.5">
-          {(isEmpresa || isSupervisor || isEmpleado) && (
-            <button onClick={() => setAsistenteAbierto(true)}
-              title={!sidebarExpanded ? 'TaXBot' : ''}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-zinc-300 hover:text-white hover:bg-[#18181b] transition-colors ${!sidebarExpanded ? 'justify-center' : ''}`}>
-              <span className="relative flex-shrink-0"><RobotIcon size={18} /><span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-emerald-400 rounded-full border border-[#0f0f11]" /></span>
-              {sidebarExpanded && <span className="truncate">TaXBot</span>}
-            </button>
-          )}
+          <button
+            onClick={() => setSidebarOpen(o => !o)}
+            title={sidebarOpen ? 'Ocultar' : 'Expandir'}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-zinc-400 hover:text-white hover:bg-[#0f2540] transition-colors ${!sidebarOpen ? 'justify-center' : ''}`}>
+            <span style={{fontSize:16, lineHeight:1}}>{sidebarOpen ? '«' : '»'}</span>
+            {sidebarOpen && <span className="truncate">Ocultar</span>}
+          </button>
+
           <div className="relative">
             <button onClick={() => setMenuUsuario(m => !m)}
               className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-[#18181b] transition-colors ${!sidebarExpanded ? 'justify-center' : 'bg-[#18181b]'}`}>
@@ -463,16 +463,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             )}
           </div>
         </div>
-        {/* Toggle colapsar/expandir — al fondo del sidebar */}
-        <div className="mt-auto px-2 pb-4 pt-2 border-t border-white/10">
-          <button
-            onClick={() => setSidebarOpen(o => !o)}
-            title={sidebarOpen ? 'Colapsar' : 'Expandir'}
-            className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium text-zinc-400 hover:text-white hover:bg-[#0f2540] transition-colors ${!sidebarOpen ? 'justify-center' : ''}`}>
-            <span style={{fontSize:16, lineHeight:1}}>{sidebarOpen ? '«' : '»'}</span>
-            {sidebarOpen && <span className="truncate">Colapsar</span>}
-          </button>
-        </div>
+
       </aside>
 
       
@@ -683,7 +674,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </div>
           </button>
 
-          {/* Alertas Notch — banda derecha, a la izquierda del TaxBot */}
+          {/* TaXBot flotante PC — estilo WhatsApp */}
+      {(isEmpresa || isSupervisor || isEmpleado) && !asistenteAbierto && (
+        <button
+          onClick={() => setAsistenteAbierto(true)}
+          title="TaXBot"
+          className="hidden md:flex"
+          style={{
+            position:'fixed', bottom:16, right:16, zIndex:3001,
+            width:56, height:56, borderRadius:'50%',
+            background:'linear-gradient(135deg,#1e3a6e,#1d4ed8)',
+            border:'2px solid rgba(59,130,246,0.5)',
+            boxShadow:'0 4px 20px rgba(59,130,246,0.4)',
+            alignItems:'center', justifyContent:'center',
+            cursor:'pointer',
+          }}>
+          <span className="relative">
+            <RobotIcon size={26} />
+            <span style={{position:'absolute',top:-2,right:-2,width:10,height:10,background:'#34d399',borderRadius:'50%',border:'2px solid #1e3a6e',boxShadow:'0 0 4px #34d399'}} />
+          </span>
+        </button>
+      )}
+
+      {/* Alertas Notch — banda derecha, a la izquierda del TaxBot */}
       <div className="md:hidden">{(isEmpresa || isSupervisor) && <AlertasNotch />}</div>
 
       {/* Robot TaXBot — banda derecha, solo en dashboard */}

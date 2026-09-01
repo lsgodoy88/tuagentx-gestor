@@ -244,7 +244,7 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
       )}
 
       {/* Lista */}
-      <div className="space-y-1">
+      <div className={esAdmin || rol === 'vendedor' ? "grid grid-cols-1 md:grid-cols-3 gap-2" : "space-y-1"}>
         {controlFacturas.length === 0 && (
           <div className="text-center text-zinc-500 text-sm py-10">Sin despachos</div>
         )}

@@ -234,7 +234,7 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
     : null
 
   return (
-    <div className="space-y-4 max-w-5xl mx-auto">
+    <div className="space-y-4 max-w-4xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-2 flex-wrap">
           <input ref={fileInputRef} type="file" accept="image/*,application/pdf" className="hidden"
@@ -314,14 +314,29 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
       {!mes && (
         <div className="flex gap-2 items-center">
           <input type="date" value={fechaDesde} onChange={e => setFechaDesde(e.target.value)}
-            className={`bg-[#0d1220] rounded-lg px-3 py-2 text-white text-sm focus:outline-none flex-1 min-w-0 ${filtroModificado ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}
-            style={{colorScheme:'dark'}} />
+            onClick={e => { try { (e.currentTarget as HTMLInputElement).showPicker?.() } catch {} }}
+            style={{
+              flex:1, minWidth:0, background:'rgba(15,20,40,0.90)',
+              border: filtroModificado ? '1px solid rgba(239,68,68,0.60)' : '1px solid rgba(59,130,246,0.30)',
+              borderRadius:10, color:'white', padding:'8px 10px', fontSize:13,
+              outline:'none', cursor:'pointer', fontFamily:'inherit',
+            }} />
           <span className="text-zinc-500 text-sm flex-shrink-0">—</span>
           <input type="date" value={fechaHasta} onChange={e => setFechaHasta(e.target.value)}
-            className={`bg-[#0d1220] rounded-lg px-3 py-2 text-white text-sm focus:outline-none flex-1 min-w-0 ${filtroModificado ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}
-            style={{colorScheme:'dark'}} />
+            onClick={e => { try { (e.currentTarget as HTMLInputElement).showPicker?.() } catch {} }}
+            style={{
+              flex:1, minWidth:0, background:'rgba(15,20,40,0.90)',
+              border: filtroModificado ? '1px solid rgba(239,68,68,0.60)' : '1px solid rgba(59,130,246,0.30)',
+              borderRadius:10, color:'white', padding:'8px 10px', fontSize:13,
+              outline:'none', cursor:'pointer', fontFamily:'inherit',
+            }} />
           <select value={tipoFiltro} onChange={e => setTipoFiltro(e.target.value)}
-            className={`bg-[#0d1220] rounded-lg px-2 py-2 text-white text-sm focus:outline-none flex-shrink-0 ${tipoFiltro ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}>
+            style={{
+              background:'rgba(15,20,40,0.90)', flexShrink:0,
+              border: tipoFiltro ? '1px solid rgba(239,68,68,0.60)' : '1px solid rgba(59,130,246,0.30)',
+              borderRadius:10, color:'white', padding:'8px 8px', fontSize:13,
+              outline:'none', cursor:'pointer', fontFamily:'inherit',
+            }}>
             <option value="">Tipo</option>
             {tipos.map(t => <option key={t.id} value={t.label}>{t.label}</option>)}
           </select>

@@ -89,7 +89,7 @@ export default function RutasFijasPage() {
   const [syncVentas, setSyncVentas] = useState<{usadosHoy:number,restantes:number,ultimoSync:string|null,puedeSync:boolean}|null>(null)
   const [sincronizandoVentas, setSincronizandoVentas] = useState(false)
   const [expandedCliente, setExpandedCliente] = useState<string|null>(null)
-  const mesActual = new Date().toISOString().slice(0,7)
+  const mesActual = new Date().toLocaleDateString('en-CA',{timeZone:'America/Bogota'}).slice(0,7)
   const [ventasHoy, setVentasHoy] = useState<Record<string, number>>({})
   // clienteId -> { [mes: YYYY-MM]: { totalVenta, cantidadVisitas } }
   const [ventasMes, setVentasMes] = useState<Record<string, Record<string, {totalVenta: number, cantidadVisitas: number}>>>({})
@@ -151,7 +151,7 @@ export default function RutasFijasPage() {
   }
   const [cumplimiento, setCumplimiento] = useState<Record<string, any>>({})
   const [loadingCumplimiento, setLoadingCumplimiento] = useState(false)
-  const [mesPDF, setMesPDF] = useState(new Date().toISOString().slice(0, 7))
+  const [mesPDF, setMesPDF] = useState(new Date().toLocaleDateString('en-CA',{timeZone:'America/Bogota'}).slice(0,7))
   const [impSeleccionada, setImpSeleccionada] = useState<string|null>(null)
   const [modalGestion, setModalGestion] = useState(false)
   const [gestionPunto, setGestionPunto] = useState<any>(null)
@@ -352,7 +352,7 @@ export default function RutasFijasPage() {
   function cambiarTab(t: typeof tab) { if (t !== tab) setTab(t) }
 
   return (
-    <div className="space-y-3 max-w-7xl mx-auto">
+    <div className="space-y-3 max-w-4xl mx-auto">
 <div className="tab-pills rounded-xl p-1" style={{display:'flex',gap:4,overflowX:'auto',scrollbarWidth:'none'}}>
           <button onClick={() => cambiarTab('reporte')} className={`py-2 px-4 text-sm font-semibold transition-colors text-center whitespace-nowrap ${tab === 'reporte' ? 'tab-active' : 'text-white hover:text-white'}`}>Reporte</button>
           <button onClick={() => cambiarTab('rutas')} className={`py-2 px-4 text-sm font-semibold transition-colors text-center whitespace-nowrap ${tab === 'rutas' ? 'tab-active' : 'text-white hover:text-white'}`}>Rutero</button>
@@ -385,7 +385,7 @@ export default function RutasFijasPage() {
                     const ventaPorCliente: Record<string, number> = {}
                     rutasEmp.forEach((r: any) => r.clientes.forEach((rc: any) => {
                       if (!(rc.clienteId in metaPorCliente)) metaPorCliente[rc.clienteId] = rc.metaVenta || 0
-                      if (!(rc.clienteId in ventaPorCliente)) ventaPorCliente[rc.clienteId] = ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || ventasHoy[rc.clienteId] || 0
+                      if (!(rc.clienteId in ventaPorCliente)) ventaPorCliente[rc.clienteId] = ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || 0
                     }))
                     const totalMeta = Object.values(metaPorCliente).reduce((a, b) => a + b, 0)
                     const totalVenta = Object.values(ventaPorCliente).reduce((a, b) => a + b, 0)
@@ -440,7 +440,7 @@ export default function RutasFijasPage() {
                       return rutaDia.clientes.reduce((a: number, rc: any) => {
                         if (seen.has(rc.clienteId)) return a
                         seen.add(rc.clienteId)
-                        return a + (ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || ventasHoy[rc.clienteId] || 0)
+                        return a + (ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || 0)
                       }, 0)
                     })() : 0
                     const pctTotal = metaTotal > 0 ? Math.round((logradoTotal / metaTotal) * 100) : null
@@ -895,7 +895,7 @@ export default function RutasFijasPage() {
             </div>
             <div className="overflow-y-auto flex-1 p-4 space-y-2">
               {modalVerRuta.ruta.clientes.map((rc: any, i: number) => {
-                                const logrado = ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || ventasHoy[rc.clienteId] || 0
+                                const logrado = ventasMes[rc.clienteId]?.[mesActual]?.totalVenta || 0
                 const pct = rc.metaVenta > 0 ? Math.round((logrado / rc.metaVenta) * 100) : null
                 return (
                   <div key={rc.id} className="bg-zinc-800 rounded-xl px-3 py-2.5 space-y-1.5">
@@ -959,7 +959,7 @@ export default function RutasFijasPage() {
 }
 
 function ReporteImpulsoTab() {
-  const mesActual = new Date().toISOString().slice(0, 7)
+  const mesActual = new Date().toLocaleDateString('en-CA',{timeZone:'America/Bogota'}).slice(0,7)
   const [mesDesde, setMesDesde] = useState(mesActual)
   const [mesHasta, setMesHasta] = useState(mesActual)
   const [openDesde, setOpenDesde] = useState(false)

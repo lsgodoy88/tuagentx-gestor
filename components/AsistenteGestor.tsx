@@ -90,13 +90,8 @@ export default function AsistenteGestor({ onClose, rol, visible, userId }: Props
     setCargando(false)
   }
 
-  return (
-    <>
-      {!visible && <div style={{display:"none"}} />}
-      <div className="fixed inset-0 bg-black/60 z-[9998]" style={{display: visible ? undefined : "none"}} />
-      <div className="fixed top-0 right-0 w-full md:w-[380px] h-full z-[9999] flex flex-col shadow-2xl border-l border-white/10" style={{ background: "#080a1c", display: visible ? undefined : "none" }}>
-
-        {/* Header */}
+  const chatInner = (
+    <>{/* Header */}
         <div className="p-4 border-b border-zinc-800 flex items-center gap-3">
           <div className="relative w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0" style={{background:"rgba(30,36,58,0.99)",border:"1.5px solid rgba(59,130,246,0.35)"}}>
             <RobotIcon size={28} />
@@ -212,8 +207,38 @@ export default function AsistenteGestor({ onClose, rol, visible, userId }: Props
               </svg>
             </button>
           </div>
-        </div>
+        </div></>
+  )
 
+  return (
+    <>
+      {/* Móvil: full screen con overlay */}
+      <div className="md:hidden">
+        <div className="fixed inset-0 bg-black/60 z-[9998]" style={{display: visible ? undefined : "none"}} onClick={onClose} />
+        <div className="fixed top-0 right-0 w-full h-full z-[9999] flex flex-col shadow-2xl border-l border-white/10" style={{background:"#080a1c", display: visible ? undefined : "none"}}>
+          {chatInner}
+        </div>
+      </div>
+
+      {/* PC: ventana flotante animada desde el botón */}
+      <div className="hidden md:flex">
+        {visible && <div className="fixed inset-0 z-[9998]" onClick={onClose} />}
+        <div style={{
+          position:'fixed', bottom:16, right:16, zIndex:9999,
+          width:380, height:560,
+          display:'flex', flexDirection:'column',
+          borderRadius:20, overflow:'hidden',
+          background:'#080a1c',
+          border:'1px solid rgba(59,130,246,0.25)',
+          boxShadow:'0 24px 60px rgba(0,0,0,0.7)',
+          transformOrigin:'bottom right',
+          transform: visible ? 'scale(1) translateY(0)' : 'scale(0.3) translateY(60px)',
+          opacity: visible ? 1 : 0,
+          pointerEvents: visible ? 'auto' : 'none',
+          transition:'transform 0.25s cubic-bezier(0.34,1.56,0.64,1), opacity 0.2s ease',
+        }}>
+          {chatInner}
+        </div>
       </div>
     </>
   )

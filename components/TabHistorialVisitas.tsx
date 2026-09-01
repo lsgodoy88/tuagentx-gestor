@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { distanciaMetros } from '@/lib/gps'
 import dynamic from 'next/dynamic'
 
 const MapaHistorialCliente = dynamic(() => import('@/components/MapaHistorialCliente'), { ssr: false })
@@ -157,7 +158,7 @@ export default function TabHistorialVisitas({ apiUrl, mostrarEmpleado, mostrarIm
         ) : null
       ) : (
         <div className={mapaClienteKey ? "md:flex gap-4 items-start" : ""}>
-          <div className={mapaClienteKey ? "flex-1 min-w-0 space-y-2" : "space-y-2"}>
+          <div className={mapaClienteKey ? "flex-1 min-w-0 space-y-2 overflow-y-auto" : "space-y-2"} style={mapaClienteKey ? {height:520} : {}}>
             {Object.entries(groups).map(([key, gVisitas]) => {
               const cli = (gVisitas[0] as any)?.cliente
               const conGps = (gVisitas as any[]).find(v => v.lat)
@@ -189,6 +190,9 @@ export default function TabHistorialVisitas({ apiUrl, mostrarEmpleado, mostrarIm
                   {(gVisitas as any[]).map((v: any, i: number) => {
                     const fecha = new Date(v.createdAt).toLocaleDateString('es-CO',{day:'numeric',month:'short',timeZone:'America/Bogota'})
                     const hora = new Date(v.createdAt).toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit',timeZone:'America/Bogota'})
+                    const cliLat = v.cliente?.lat; const cliLng = v.cliente?.lng
+                    const dist = (v.lat && v.lng && cliLat && cliLng) ? distanciaMetros(v.lat, v.lng, cliLat, cliLng) : null
+                    const distBadge = dist === null ? null : dist <= 20 ? { label: 'En el cliente', color: '#16a34a', bg: 'rgba(22,163,74,0.12)' } : dist < 1000 ? { label: `a ${Math.round(dist)}m`, color: '#d97706', bg: 'rgba(217,119,6,0.12)' } : { label: `a ${(dist/1000).toFixed(1)}km`, color: '#dc2626', bg: 'rgba(220,38,38,0.10)' }
                     return (
                       <div key={v.id} className="flex items-center gap-3 px-4 py-2" style={{borderBottom: i < gVisitas.length-1 ? '1px solid #1e2a3d' : 'none'}}>
                         <span className="text-sm flex-shrink-0">{TIPO_ICON[v.tipo]||'📍'}</span>
@@ -197,6 +201,7 @@ export default function TabHistorialVisitas({ apiUrl, mostrarEmpleado, mostrarIm
                         {(mostrarEmpleado || mostrarImpulsadoras) && <span className="text-zinc-600 text-xs flex-shrink-0 hidden md:inline">·</span>}
                         <span className="text-zinc-400 text-xs flex-shrink-0">{fecha} · {hora}</span>
                         <span className="flex-1"/>
+                        {distBadge && <span style={{fontSize:12,fontWeight:600,color:distBadge.color,background:distBadge.bg,borderRadius:6,padding:'2px 6px',flexShrink:0,whiteSpace:'nowrap'}}>{distBadge.label}</span>}
                       </div>
                     )
                   })}

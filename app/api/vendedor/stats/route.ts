@@ -6,6 +6,7 @@ import { authOptions } from '@/lib/auth'
 import { prisma } from '@/lib/prisma'
 import { DIAS } from '@/lib/constants'
 import { withCache } from '@/lib/cache'
+import { getVentasMesImpulsadoras } from '@/lib/impulsadora/metricas'
 
 export async function GET() {
   try {
@@ -228,51 +229,10 @@ export async function GET() {
       ])
     : [[], [], [], [], []]
 
-  // Ventas del mes para clientes de impulsadoras — todos los días de ruta, 1 query batch
-  const rutaFijaClientesAll = impIds.length > 0
-    ? await (prisma as any).rutaFijaCliente.findMany({
-        where: { rutaFija: { empleados: { some: { empleadoId: { in: impIds } } } } },
-        select: { cliente: { select: { apiId: true } }, metaVenta: true, rutaFija: { select: { empleados: { select: { empleadoId: true } } } } },
-      })
-    : []
-  const impClienteApiIds = [...new Set(
-    rutaFijaClientesAll.map((rc: any) => rc.cliente?.apiId).filter(Boolean)
-  )]
-  const ordenesImpMesRaw: any[] = impClienteApiIds.length > 0
-    ? await (prisma as any).ordenDespacho.findMany({
-        where: {
-          empresaId: user.empresaId,
-          clienteApiId: { in: impClienteApiIds },
-          isActiva: true,
-          fechaFactura: { gte: inicioMes, lt: finMes },
-        },
-        select: { clienteApiId: true, balance: true },
-      })
-    : []
-  // Mapa apiId → totalVenta del mes
-  const ventasMesImp = ordenesImpMesRaw.reduce((acc: Record<string, number>, o: any) => {
-    acc[o.clienteApiId] = (acc[o.clienteApiId] || 0) + Number(o.balance || 0)
-    return acc
-  }, {} as Record<string, number>)
-  // Mapa empleadoId → totalVentaMes + totalMetaMes (todos los días, dedup por cliente)
-  const ventasTotalesPorImp: Record<string, number> = {}
-  const metasTotalesPorImp: Record<string, number> = {}
-  const clientesYaPorImp: Record<string, Set<string>> = {}
-  for (const rc of rutaFijaClientesAll) {
-    const apiId = rc.cliente?.apiId
-    if (!apiId) continue
-    const venta = ventasMesImp[apiId] || 0
-    const meta  = rc.metaVenta || 0
-    for (const emp of rc.rutaFija.empleados) {
-      const eid = emp.empleadoId
-      if (!clientesYaPorImp[eid]) clientesYaPorImp[eid] = new Set()
-      if (!clientesYaPorImp[eid].has(apiId)) {
-        clientesYaPorImp[eid].add(apiId)
-        ventasTotalesPorImp[eid] = (ventasTotalesPorImp[eid] || 0) + venta
-        metasTotalesPorImp[eid]  = (metasTotalesPorImp[eid]  || 0) + meta
-      }
-    }
-  }
+  // Ventas del mes para impulsadoras — fuente única: VentaMesCliente
+  const mesLabel = inicioMes.toISOString().slice(0, 7) // 'YYYY-MM'
+  const { porCliente: ventasPorClienteImp, porImp: ventasPorImp } =
+    await getVentasMesImpulsadoras(impIds, mesLabel)
 
   const cumplimiento = impulsadoras.map((imp) => {
     const rutaFija = rutasFijasHoy.find((rf: any) => rf.empleados.some((e: any) => e.empleadoId === imp.id)) || null
@@ -301,7 +261,7 @@ export async function GET() {
       for (const rc of rutaFija.clientes) {
         const entradas = visitasHoyImp.filter(v => v.rutaFijaClienteId === rc.id && v.tipo === 'entrada')
         const salidas  = visitasHoyImp.filter(v => v.rutaFijaClienteId === rc.id && v.tipo === 'salida')
-        const ventaCli = rc.cliente.apiId ? (ventasMesImp[rc.cliente.apiId] || 0) : 0
+        const ventaCli = ventasPorClienteImp.get(rc.clienteId) || 0
         const metaCli = rc.metaVenta || 0
         const base = { nombre: rc.cliente.nombre, nombreComercial: rc.cliente.nombreComercial, orden: rc.orden, metaVenta: metaCli, ventaMes: ventaCli }
         if (entradas.length > 0 && salidas.length > 0) {
@@ -356,8 +316,8 @@ export async function GET() {
       puntoActual, proximoPunto, puntosCompletados, todosLosPuntos,
       alertasGps: alertasGps.map((a: any) => ({ detalle: a.detalle, hora: a.createdAt })),
       proximoDia,
-      totalVentaMes: ventasTotalesPorImp[imp.id] || 0,
-      totalMetaMes:  metasTotalesPorImp[imp.id]  || 0,
+      totalVentaMes: ventasPorImp.get(imp.id)?.totalVenta || 0,
+      totalMetaMes:  ventasPorImp.get(imp.id)?.totalMeta  || 0,
     }
   })
 

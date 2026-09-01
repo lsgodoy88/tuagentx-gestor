@@ -181,7 +181,7 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4" style={{minHeight:'320px'}}>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:items-stretch" style={{minHeight:'320px'}}>
         <div className="lg:col-span-2 border border-zinc-800 rounded-2xl overflow-hidden" style={{background:"#0d1220",height:'clamp(400px, 85vw, 560px)'}}>
           {loading ? (
             <div className="h-full p-4 space-y-3"><div className="shimmer h-full rounded-xl" /></div>
@@ -199,7 +199,7 @@ export default function MapaEnVivo({ embebido = false }: { embebido?: boolean })
           )}
         </div>
 
-        <div className="border border-zinc-800 rounded-2xl p-3 overflow-y-auto" style={{background:"#0d1220", maxHeight: window && window.innerWidth < 1024 ? "none" : "500px"}}>
+        <div className="border border-zinc-800 rounded-2xl p-3 overflow-y-auto" style={{background:"#0d1220", height:'clamp(400px, 85vw, 560px)'}}>
           <p className="text-zinc-600 text-[10px] font-bold tracking-widest mb-2 px-1">TIMELINE</p>
           {datos.visitas.length === 0 ? (
             <p className="text-zinc-600 text-sm px-1">Sin visitas</p>

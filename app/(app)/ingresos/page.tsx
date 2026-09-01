@@ -244,7 +244,7 @@ export default function SaldosPage() {
   const total = saldoAnterior + subIng - subEgr
 
   return (
-    <div className="space-y-3 max-w-7xl mx-auto">
+    <div className="space-y-3 max-w-5xl mx-auto">
 
       {/* Header */}
       <div className="flex items-center justify-between">

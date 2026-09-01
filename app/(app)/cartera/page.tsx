@@ -1668,10 +1668,10 @@ export default function CarteraPage() {
                 <table className="w-full text-sm min-w-[780px]">
                   <thead>
                     <tr style={{background:'#0d1220',borderBottom:'1px solid #1e2a3d'}}>
-                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left",whiteSpace:"nowrap"}}>Fecha</th>
-                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left",whiteSpace:"nowrap"}}>#Recibo</th>
-                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left",whiteSpace:"nowrap"}}>Factura</th>
-                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left",whiteSpace:"nowrap"}}>Cliente</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left",whiteSpace:"nowrap",width:90}}>Fecha</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left",whiteSpace:"nowrap",width:80}}>#Recibo</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left",whiteSpace:"nowrap",width:80}}>Factura</th>
+                      <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"left",width:'30%'}}>Cliente</th>
                       <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",whiteSpace:"nowrap"}}>Efectivo</th>
                       <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",whiteSpace:"nowrap"}}>Transf.</th>
                       <th style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",textAlign:"right",whiteSpace:"nowrap"}}>Descuento</th>

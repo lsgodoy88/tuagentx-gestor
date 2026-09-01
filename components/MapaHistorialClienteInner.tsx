@@ -1,7 +1,7 @@
 'use client'
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet'
 import 'leaflet/dist/leaflet.css'
-import { useEffect } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 function distancia(lat1: number, lng1: number, lat2: number, lng2: number) {
   const R = 6371000
@@ -43,12 +43,49 @@ export default function MapaHistorialClienteInner({ visitas, selected }: Props) 
   const centerLat = cliLat || (conGps.length ? conGps.reduce((s, v) => s + v.lat, 0) / conGps.length : 4.4389)
   const centerLng = cliLng || (conGps.length ? conGps.reduce((s, v) => s + v.lng, 0) / conGps.length : -75.2322)
 
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const [isFs, setIsFs] = useState(false)
+  const toggleFs = () => {
+    if (!document.fullscreenElement) { wrapRef.current?.requestFullscreen() }
+    else { document.exitFullscreen() }
+  }
+  useEffect(() => {
+    const onChange = () => setIsFs(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onChange)
+    return () => document.removeEventListener('fullscreenchange', onChange)
+  }, [])
+
   return (
-    <MapContainer
-      center={[centerLat, centerLng]}
-      zoom={15}
-      style={{ height: '100%', width: '100%' }}
-    >
+    <div ref={wrapRef} style={{position:'relative',width:'100%',height:'100%'}}>
+      {!isFs && (
+        <button onClick={toggleFs} title="Pantalla completa" style={{
+          position:'absolute',top:94,left:8,zIndex:1000,
+          background:'white',border:'2px solid rgba(0,0,0,0.2)',
+          borderRadius:4,width:30,height:30,cursor:'pointer',
+          display:'flex',alignItems:'center',justifyContent:'center',
+          boxShadow:'0 1px 4px rgba(0,0,0,0.3)'
+        }}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="1" y="1" width="12" height="12" rx="1" stroke="#333" strokeWidth="1.5" fill="none"/>
+            <rect x="3.5" y="3.5" width="7" height="7" rx="0.5" stroke="#333" strokeWidth="1.2" fill="none"/>
+          </svg>
+        </button>
+      )}
+      {isFs && (
+        <button onClick={toggleFs} title="Salir pantalla completa" style={{
+          position:'absolute',top:12,right:12,zIndex:1000,
+          background:'rgba(0,0,0,0.55)',border:'none',
+          borderRadius:'50%',width:32,height:32,cursor:'pointer',
+          display:'flex',alignItems:'center',justifyContent:'center',
+          color:'white',fontSize:18,fontWeight:'bold',
+          boxShadow:'0 2px 6px rgba(0,0,0,0.4)'
+        }}>✕</button>
+      )}
+      <MapContainer
+        center={[centerLat, centerLng]}
+        zoom={15}
+        style={{ height: '100%', width: '100%' }}
+      >
       <TileLayer
         url="https://api.maptiler.com/maps/streets-v2/256/{z}/{x}/{y}.png?key=cWjo22T4qDhlXcByRanE"
         attribution='&copy; <a href="https://www.maptiler.com/copyright/">MapTiler</a> &copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
@@ -91,5 +128,6 @@ export default function MapaHistorialClienteInner({ visitas, selected }: Props) 
         )
       })}
     </MapContainer>
+    </div>
   )
 }

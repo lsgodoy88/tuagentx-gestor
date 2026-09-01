@@ -157,3 +157,69 @@ export async function calcularImpulsadorasMes(
     impulsadoras: resultados.filter(Boolean),
   }
 }
+
+
+/**
+ * Fuente única para ventas del mes de impulsadoras.
+ * Usada por: /api/vendedor/stats (Dashboard) y disponible para cualquier
+ * consumidor que necesite totalVenta por impulsadora o por cliente.
+ *
+ * Devuelve:
+ *   porCliente: Map clienteId → totalVenta del mes
+ *   porImp:     Map empleadoId → { totalVenta, totalMeta }
+ */
+export async function getVentasMesImpulsadoras(
+  impIds: string[],
+  mesLabel: string // formato 'YYYY-MM'
+): Promise<{
+  porCliente: Map<string, number>
+  porImp: Map<string, { totalVenta: number; totalMeta: number }>
+}> {
+  if (impIds.length === 0) {
+    return { porCliente: new Map(), porImp: new Map() }
+  }
+
+  // Todas las rutas fijas de estas impulsadoras con sus clientes y metas
+  const rutasFijas = await prisma.rutaFija.findMany({
+    where: { empleados: { some: { empleadoId: { in: impIds } } } },
+    select: {
+      clientes: { select: { clienteId: true, metaVenta: true } },
+      empleados: { select: { empleadoId: true } },
+    },
+  })
+
+  const todosClienteIds = [...new Set(rutasFijas.flatMap((r: any) => r.clientes.map((c: any) => c.clienteId)))]
+
+  // Una sola query a VentaMesCliente
+  const ventasMes = await (prisma as any).ventaMesCliente.findMany({
+    where: { clienteId: { in: todosClienteIds }, mes: mesLabel },
+    select: { clienteId: true, totalVenta: true },
+  })
+
+  const porCliente = new Map<string, number>()
+  for (const v of ventasMes) {
+    porCliente.set(v.clienteId, Number(v.totalVenta || 0))
+  }
+
+  // Agregar por impulsadora con dedup de clientes compartidos
+  const porImp = new Map<string, { totalVenta: number; totalMeta: number }>()
+  const clientesYaPorImp = new Map<string, Set<string>>()
+
+  for (const ruta of rutasFijas) {
+    for (const emp of ruta.empleados) {
+      const eid = emp.empleadoId
+      if (!porImp.has(eid)) porImp.set(eid, { totalVenta: 0, totalMeta: 0 })
+      if (!clientesYaPorImp.has(eid)) clientesYaPorImp.set(eid, new Set())
+      const vistos = clientesYaPorImp.get(eid)!
+      for (const rc of ruta.clientes) {
+        if (vistos.has(rc.clienteId)) continue
+        vistos.add(rc.clienteId)
+        const imp = porImp.get(eid)!
+        imp.totalVenta += porCliente.get(rc.clienteId) || 0
+        imp.totalMeta  += rc.metaVenta || 0
+      }
+    }
+  }
+
+  return { porCliente, porImp }
+}

@@ -15,58 +15,32 @@ export async function GET(req: NextRequest) {
     const clienteIds = raw.split(',').filter(Boolean)
     if (clienteIds.length === 0) return NextResponse.json({ ventas: [] })
 
-    // 3 meses rolling
-    const ahora = new Date(Date.now() - 5*60*60*1000)
-    const meses: { mes: string; inicio: Date; fin: Date }[] = []
+    // 3 meses rolling en Bogotá
+    const ahoraBogota = new Date(Date.now() - 5 * 60 * 60 * 1000)
+    const meses: string[] = []
     for (let i = 0; i < 3; i++) {
-      const d = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1)
-      const inicio = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1)
-      const fin = new Date(ahora.getFullYear(), ahora.getMonth() - i + 1, 0, 23, 59, 59)
-      meses.push({ mes: d.toISOString().slice(0, 7), inicio, fin })
+      const d = new Date(ahoraBogota.getFullYear(), ahoraBogota.getMonth() - i, 1)
+      meses.push(d.toISOString().slice(0, 7))
     }
 
-    // Traer apiIds de los clientes
-    const clientes = await (prisma as any).cliente.findMany({
-      where: { id: { in: clienteIds }, empresaId },
-      select: { id: true, apiId: true }
-    })
-    const apiIdToClienteId = Object.fromEntries(
-      clientes.filter((c: any) => c.apiId).map((c: any) => [c.apiId, c.id])
-    )
-    const apiIds = Object.keys(apiIdToClienteId)
-
-    // Leer directo de OrdenDespacho — siempre fresco
-    const ordenes = await (prisma as any).ordenDespacho.findMany({
+    // Fuente única: VentaMesCliente — misma que usa calcularImpulsadorasMes
+    const rows = await (prisma as any).ventaMesCliente.findMany({
       where: {
+        clienteId: { in: clienteIds },
+        mes: { in: meses },
         empresaId,
-        clienteApiId: { in: apiIds },
-        isActiva: true,
-        fechaFactura: { gte: meses[meses.length - 1].inicio }
       },
-      select: { clienteApiId: true, fechaFactura: true, balance: true }
+      select: { clienteId: true, mes: true, totalVenta: true }
     })
 
-    // Agrupar por clienteId + mes
-    const mapa = new Map<string, { clienteId: string; mes: string; total: number; count: number }>()
-    for (const o of ordenes) {
-      const clienteId = apiIdToClienteId[o.clienteApiId]
-      if (!clienteId || !o.fechaFactura) continue
-      const mes = new Date(o.fechaFactura).toISOString().slice(0, 7)
-      const key = `${clienteId}::${mes}`
-      if (!mapa.has(key)) mapa.set(key, { clienteId, mes, total: 0, count: 0 })
-      const e = mapa.get(key)!
-      e.total += Number(o.balance || 0)
-      e.count += 1
-    }
-
-    const ventas = Array.from(mapa.values()).map(e => ({
-      clienteId: e.clienteId,
-      mes: e.mes,
-      totalVenta: e.total,
-      cantidadVisitas: e.count,
+    const ventas = rows.map((r: any) => ({
+      clienteId: r.clienteId,
+      mes: r.mes,
+      totalVenta: Number(r.totalVenta || 0),
+      cantidadVisitas: 0,
     }))
 
-    return NextResponse.json({ ventas, meses: meses.map(m => m.mes) })
+    return NextResponse.json({ ventas, meses })
   } catch (err: any) {
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
   }

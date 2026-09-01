@@ -187,7 +187,7 @@ export default function VisitasPage() {
   }
 
   return (
-    <div className="max-w-2xl md:max-w-none mx-auto space-y-6 pb-24 md:pb-0">
+    <div className="max-w-2xl md:max-w-5xl mx-auto space-y-6 pb-24 md:pb-0">
       <div className="flex flex-col gap-2">
         {/* Tabs */}
         <div className="flex gap-1 tab-pills rounded-xl p-1">
