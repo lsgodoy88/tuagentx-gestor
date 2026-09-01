@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
       valor: parseFloat(valor),
       fecha: fecha ? new Date(fecha) : new Date(),
       ...(evidenciaKey ? { evidenciaKey } : {}),
+      ...(medioPago ? { medioPago } : {}),
     },
   })
 

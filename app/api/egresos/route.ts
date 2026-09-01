@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
   const egresos = await (prisma as any).egreso.findMany({
     where, orderBy: { fecha: 'asc' },
-    include: { _count: { select: { abonos: true } } }
+    include: { _count: { select: { abonos: true } }, proveedor: { select: { id: true, firstName: true, lastName: true, aplica_retencion: true, porcentaje_retencion: true } } }
   })
   return NextResponse.json({ ok: true, egresos })
 }

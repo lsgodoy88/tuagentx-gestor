@@ -6,10 +6,8 @@ vi.mock('@/lib/prisma', () => ({
 
 import { prisma } from '@/lib/prisma'
 const p = prisma as any
-p.egreso       = { aggregate: vi.fn() }
-p.saldoEfectivo = { aggregate: vi.fn() }
-p.saldoBancos   = { aggregate: vi.fn() }
-p.saldoOtros    = { aggregate: vi.fn() }
+p.egreso          = { aggregate: vi.fn() }
+p.saldoMovimiento = { groupBy: vi.fn() }
 
 import { calcularEgresosMes, calcularSaldoActual } from '@/lib/cartera/saldos'
 
@@ -46,14 +44,16 @@ describe('calcularEgresosMes', () => {
 })
 
 describe('calcularSaldoActual', () => {
-  function mockAggregate(ingreso: number, egreso: number) {
-    return { _sum: { ingreso, egreso } }
+  function mockRows(efectivo: [number,number], bancos: [number,number], otros: [number,number]) {
+    return [
+      { tab_key: 'efectivo', _sum: { ingreso: efectivo[0], egreso: efectivo[1] } },
+      { tab_key: 'bancos',   _sum: { ingreso: bancos[0],   egreso: bancos[1]   } },
+      { tab_key: 'otros',    _sum: { ingreso: otros[0],    egreso: otros[1]    } },
+    ]
   }
 
   it('calcula saldo efectivo, bancos y otros correctamente', async () => {
-    p.saldoEfectivo.aggregate.mockResolvedValue(mockAggregate(500000, 200000))
-    p.saldoBancos.aggregate.mockResolvedValue(mockAggregate(1000000, 300000))
-    p.saldoOtros.aggregate.mockResolvedValue(mockAggregate(100000, 100000))
+    p.saldoMovimiento.groupBy.mockResolvedValue(mockRows([500000,200000],[1000000,300000],[100000,100000]))
     const r = await calcularSaldoActual('emp-01')
     expect(r.efectivo).toBe(300000)
     expect(r.bancos).toBe(700000)
@@ -61,18 +61,17 @@ describe('calcularSaldoActual', () => {
   })
 
   it('saldo negativo permitido (empresa en déficit)', async () => {
-    p.saldoEfectivo.aggregate.mockResolvedValue(mockAggregate(0, 50000))
-    p.saldoBancos.aggregate.mockResolvedValue(mockAggregate(0, 0))
-    p.saldoOtros.aggregate.mockResolvedValue(mockAggregate(0, 0))
+    p.saldoMovimiento.groupBy.mockResolvedValue(mockRows([0,50000],[0,0],[0,0]))
     const r = await calcularSaldoActual('emp-01')
     expect(r.efectivo).toBe(-50000)
   })
 
   it('todos null → 0 en los tres tipos', async () => {
-    const nullAgg = { _sum: { ingreso: null, egreso: null } }
-    p.saldoEfectivo.aggregate.mockResolvedValue(nullAgg)
-    p.saldoBancos.aggregate.mockResolvedValue(nullAgg)
-    p.saldoOtros.aggregate.mockResolvedValue(nullAgg)
+    p.saldoMovimiento.groupBy.mockResolvedValue([
+      { tab_key: 'efectivo', _sum: { ingreso: null, egreso: null } },
+      { tab_key: 'bancos',   _sum: { ingreso: null, egreso: null } },
+      { tab_key: 'otros',    _sum: { ingreso: null, egreso: null } },
+    ])
     const r = await calcularSaldoActual('emp-01')
     expect(r.efectivo).toBe(0)
     expect(r.bancos).toBe(0)

@@ -3415,6 +3415,7 @@ model EgresoAbono {
   valor        Decimal  @default(0)
   fecha        DateTime
   evidenciaKey String?
+  medioPago    String?
   createdAt    DateTime @default(now())
   egreso       Egreso   @relation(fields: [egresoId], references: [id], onDelete: Cascade)
 }

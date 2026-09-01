@@ -253,9 +253,9 @@ export default function SaldosPage() {
           {checkPermiso(session, 'verBitacora') && (
             <select value={vista} onChange={e => cambiarVista(e.target.value as Vista)}
               style={{ background: 'rgba(255,255,255,0.06)', color: 'white', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '6px 10px', fontSize: 13, fontWeight: 600, outline: 'none', cursor: 'pointer' }}>
-              <option value="Día">🔍 Día</option>
-              <option value="Semana">📅 Semana</option>
-              <option value="Mes">📆 Mes</option>
+              <option value="Día" style={{background:'#0d1220',color:'white'}}>🔍 Día</option>
+              <option value="Semana" style={{background:'#0d1220',color:'white'}}>📅 Semana</option>
+              <option value="Mes" style={{background:'#0d1220',color:'white'}}>📆 Mes</option>
             </select>
           )}
           {puedeAdminSaldos && <button onClick={() => setShowConfig(v => !v)}
