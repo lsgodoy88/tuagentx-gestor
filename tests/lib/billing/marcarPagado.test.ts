@@ -126,7 +126,7 @@ describe('marcarPlanPagado — planFin', () => {
       (c: any) => c[0].data.planFin !== undefined
     )
     const planFin = new Date(updateEmpresa[0].data.planFin)
-    expect(planFin).toEqual(new Date(Date.UTC(2026, 9, 1))) // Oct 1 2026
+    expect(planFin).toEqual(new Date(Date.UTC(2026, 9, 6))) // Oct 6 2026 — gracia hasta día 5
   })
 
   it('no retrocede planFin si ya era mayor', async () => {

@@ -430,7 +430,15 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
             initialDescuento={filas[modalAdjIdx!].descuento}
             initialFecha={filas[modalAdjIdx!].fecha}
             initialProveedor={(filas[modalAdjIdx!] as any).proveedorData || null}
-            onClose={() => setModalAdjIdx(null)}
+            onClose={() => {
+              const idx = modalAdjIdx!
+              const fila = filas[idx]
+              if (fila?.esNueva && !fila?.valor) {
+                // Fila nueva sin datos → borrar
+                setFilas(prev => prev.filter((_, i) => i !== idx))
+              }
+              setModalAdjIdx(null)
+            }}
             onAbonoGuardado={(abonoPago, saldo) => {
               const idx = modalAdjIdx!
               setFilas(prev => prev.map((fi, i) => i !== idx ? fi : ({

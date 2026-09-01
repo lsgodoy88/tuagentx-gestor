@@ -105,7 +105,7 @@ describe('marcarPlanPagado — integración BD real', () => {
     await marcarPlanPagado(EMP, 'pago-intg-06', 100000, FECHA)
 
     const emp = await (prisma as any).empresa.findUnique({ where: { id: EMP } })
-    expect(new Date(emp.planFin)).toEqual(new Date(Date.UTC(2026, 9, 1))) // Oct 1
+    expect(new Date(emp.planFin)).toEqual(new Date(Date.UTC(2026, 9, 6))) // Oct 6 — gracia hasta día 5
   })
 
   it('planFin no retrocede si ya era mayor', async () => {

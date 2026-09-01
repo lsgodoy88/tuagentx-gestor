@@ -1209,7 +1209,7 @@ export default function ModuloOrdenes() {
                                   </button>
                                 )}
                                 <button
-                                  disabled={isSaving || !firmaData[d.id]}
+                                  disabled={isSaving || (!firmaData[d.id] && !obsEdit[d.id]?.trim())}
                                   onClick={async () => { await patchOrden(d.id, { estado: 'entregado', entregadoEl: new Date().toISOString(), firmaBase64: firmaData[d.id] || null, observacion: obsEdit[d.id] || null }) }}
                                   className="h-9 px-3 rounded-xl border border-emerald-700 bg-emerald-900/40 hover:bg-emerald-800/60 text-emerald-300 text-xs font-semibold flex-shrink-0 flex items-center justify-center gap-1 disabled:opacity-30 disabled:cursor-not-allowed">
                                   🤝 Enviar

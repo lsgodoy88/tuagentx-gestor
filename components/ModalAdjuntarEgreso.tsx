@@ -19,6 +19,7 @@ type DatosIA = {
   fecha: string | null
   concepto: string | null
   medioPago: string | null
+  proveedor: string | null
 }
 
 const MEDIOS_PAGO = ['BANCO','NEQUI','DAVIPLATA','EFECTIVO','TRANSFERENCIA','PSE']
@@ -124,6 +125,7 @@ export default function ModalAdjuntarEgreso({
   const [retencionOrigen, setRetencionOrigen] = useState<'ia' | 'proveedor' | 'manual'>('manual')
 
   // Proveedor
+  const [proveedorNoEncontrado, setProveedorNoEncontrado] = useState(false)
   const [busqueda, setBusqueda] = useState(() => {
     const p = initialProveedor as any
     if (!p) return ''
@@ -151,6 +153,7 @@ export default function ModalAdjuntarEgreso({
   function seleccionarProveedor(p: Proveedor) {
     setProveedorSel(p)
     setBusqueda(`${p.firstName}${p.lastName ? ' ' + p.lastName : ''}`)
+    setProveedorNoEncontrado(false)
     setProveedores([])
     if (retencionOrigen !== 'ia' && p.aplica_retencion && p.porcentaje_retencion) {
       const pct = parseFloat(p.porcentaje_retencion) || 0
@@ -199,6 +202,15 @@ export default function ModalAdjuntarEgreso({
       if (!valor && ia.valor) setValor(String(Math.round(ia.valor)))
       if (!fecha && ia.fecha) setFecha(ia.fecha)
       if (ia.medioPago) setMedioPago(ia.medioPago)
+      if (ia.proveedor) {
+        setBusqueda(ia.proveedor)
+        fetch('/api/proveedores?modo=todos&q=' + encodeURIComponent(ia.proveedor))
+          .then(r => r.json()).then(dp => {
+            const found = (dp.proveedores || dp)?.[0] || null
+            if (found) { setProveedorSel(found); setBusqueda(found.firstName + (found.lastName ? ' ' + found.lastName : '')); setProveedorNoEncontrado(false) }
+            else { setProveedorNoEncontrado(true) }
+          }).catch(() => {})
+      }
       // Retención: IA tiene prioridad
       if (ia.retencion && ia.retencion > 0) {
         setRetencion(String(Math.round(ia.retencion)))
@@ -351,17 +363,24 @@ export default function ModalAdjuntarEgreso({
         {/* Zona adjunto */}
         <input ref={fileInputRef} type="file" accept="image/*,application/pdf"
           className="hidden" onChange={e => { if (e.target.files?.[0]) handleArchivo(e.target.files[0]) }} />
-        <div
-          className="flex items-center justify-center rounded-xl border-2 border-dashed cursor-pointer transition-colors"
-          style={{ borderColor: evidenciaKey ? '#34d399' : 'rgba(52,211,153,0.45)', background: evidenciaKey ? 'rgba(52,211,153,0.06)' : 'rgba(255,255,255,0.03)', padding: '11px 0' }}
-          onClick={() => fileInputRef.current?.click()}>
-          {subiendo
-            ? <span className="text-zinc-400 text-sm">⏳ Analizando...</span>
-            : evidenciaKey
-              ? <span className="text-emerald-400 text-sm font-semibold">✅ Adjunto cargado — toca para cambiar</span>
+        {evidenciaKey ? (
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{background:"rgba(52,211,153,0.08)",border:"1px solid rgba(52,211,153,0.3)"}}>
+            <span className="text-emerald-400 text-sm">📎</span>
+            <button onClick={async () => { const r = await fetch(`/api/egresos/url?key=${encodeURIComponent(evidenciaKey)}`); const d = await r.json(); if(d.url) window.open(d.url,"_blank") }}
+              style={{background:"none",border:"none",cursor:"pointer",color:"#34d399",fontSize:13,fontWeight:600,flex:1,textAlign:"left"}}>Ver factura adjunta</button>
+            <button onClick={() => setEvidenciaKey("")} style={{background:"none",border:"none",cursor:"pointer",color:"#6b7280",fontSize:16,padding:"0 4px"}} title="Eliminar adjunto">✕</button>
+          </div>
+        ) : (
+          <div
+            className="flex items-center justify-center rounded-xl border-2 border-dashed cursor-pointer transition-colors"
+            style={{ borderColor: "rgba(52,211,153,0.45)", background: "rgba(255,255,255,0.03)", padding: "11px 0" }}
+            onClick={() => fileInputRef.current?.click()}>
+            {subiendo
+              ? <span className="text-zinc-400 text-sm">⏳ Analizando...</span>
               : <span className="text-zinc-500 text-sm">📎 Adjuntar factura</span>
-          }
-        </div>
+            }
+          </div>
+        )}
 
         {/* Proveedor */}
         <div className="relative">
@@ -370,7 +389,7 @@ export default function ModalAdjuntarEgreso({
             value={busqueda}
             onChange={e => { setBusqueda(e.target.value); if (!e.target.value) { setProveedorSel(null); if (retencionOrigen === 'proveedor') { setRetencion(''); setRetencionOrigen('manual') } } }}
             placeholder="Buscar proveedor..."
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500"
+            className={`w-full bg-zinc-800 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500 border ${proveedorNoEncontrado && !proveedorSel ? "border-red-500" : "border-zinc-700"}`}
           />
           {proveedores.length > 0 && (
             <div className="absolute left-0 right-0 top-full mt-1 z-10 rounded-xl overflow-hidden border border-zinc-700"
@@ -441,14 +460,23 @@ export default function ModalAdjuntarEgreso({
             <input ref={fileAbonoRef} type="file" accept="image/*,application/pdf" className="hidden"
               onChange={e => { if (e.target.files?.[0]) handleArchivoPago(e.target.files[0]) }} />
             <div className="flex gap-2">
-              <div
-                className="flex-1 flex items-center justify-center rounded-xl border-2 border-dashed cursor-pointer transition-colors"
-                style={{ borderColor:'rgba(59,130,246,0.35)', background:'rgba(59,130,246,0.04)', padding:'9px 0' }}
-                onClick={() => { if (!openFormAbono) fileAbonoRef.current?.click() }}>
-                {subiendoPago
-                  ? <span className="text-zinc-400 text-sm">⏳ Procesando...</span>
-                  : <span className="text-zinc-500 text-sm">📎 Adjuntar comprobante</span>}
-              </div>
+              {abonoKey ? (
+                <div className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl" style={{background:'rgba(59,130,246,0.08)',border:'1px solid rgba(59,130,246,0.3)'}}>
+                  <span className="text-blue-400 text-sm">📎</span>
+                  <button onClick={async () => { const r = await fetch('/api/egresos/url?key='+encodeURIComponent(abonoKey)); const d = await r.json(); if(d.url) window.open(d.url,'_blank') }}
+                    style={{background:'none',border:'none',cursor:'pointer',color:'#60a5fa',fontSize:13,fontWeight:600,flex:1,textAlign:'left'}}>Ver comprobante</button>
+                  <button onClick={() => setAbonoKey('')} style={{background:'none',border:'none',cursor:'pointer',color:'#6b7280',fontSize:16,padding:'0 4px'}} title="Eliminar">✕</button>
+                </div>
+              ) : (
+                <div
+                  className="flex-1 flex items-center justify-center rounded-xl border-2 border-dashed cursor-pointer transition-colors"
+                  style={{ borderColor:'rgba(59,130,246,0.35)', background:'rgba(59,130,246,0.04)', padding:'9px 0' }}
+                  onClick={() => { if (!openFormAbono) fileAbonoRef.current?.click() }}>
+                  {subiendoPago
+                    ? <span className="text-zinc-400 text-sm">⏳ Procesando...</span>
+                    : <span className="text-zinc-500 text-sm">📎 Adjuntar comprobante</span>}
+                </div>
+              )}
               <button
                 onClick={() => setOpenFormAbono(true)}
                 disabled={openFormAbono}
