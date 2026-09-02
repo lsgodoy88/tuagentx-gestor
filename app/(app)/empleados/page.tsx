@@ -839,9 +839,8 @@ export default function EmpleadosPage() {
                             })() && puedeEditarEmpleados && (
                               <button
                                 onClick={() => eliminarSlotVacio(rc.id)}
-                                className="text-lg leading-none hover:opacity-70 transition-opacity"
-                                title="Eliminar slot vacío">
-                                ❌
+                                className="text-xs px-2 py-1.5 rounded-lg bg-red-600 hover:bg-red-500 text-white font-medium transition-colors">
+                                Borrar
                               </button>
                             )}
                             {puedeEditarEmpleados && <button onClick={() => abrirSlot(rc.id, i + 1, empSlot)}
