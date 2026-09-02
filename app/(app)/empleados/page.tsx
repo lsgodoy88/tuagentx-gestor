@@ -1038,9 +1038,9 @@ export default function EmpleadosPage() {
                   <div className="space-y-2">
                     {/* Botón Asignación inicial — requiere nombre+email+teléfono primero */}
                     <button type="button"
-                      disabled={!editando && (!nombre || !emailEdit || !telefono)}
+                      disabled={!editando && (!nombre || !telefono)}
                       onClick={() => { setAsigMsg(''); setPopupAsignacion(true) }}
-                      className={"w-full flex items-center justify-between px-4 py-3 rounded-xl transition-colors " + (!editando && (!nombre || !emailEdit || !telefono) ? "opacity-40 cursor-not-allowed" : "hover:opacity-90")}
+                      className={"w-full flex items-center justify-between px-4 py-3 rounded-xl transition-colors " + (!editando && (!nombre || !telefono) ? "opacity-40 cursor-not-allowed" : "hover:opacity-90")}
                       style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.30)' }}>
                       <div className="flex items-center gap-2">
                         <span>👤</span>
