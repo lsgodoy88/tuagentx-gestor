@@ -102,7 +102,7 @@ export async function procesarPagoSync(params: {
   let restante = totalAplicado
   for (const d of deudas) {
     if (restante <= 0) break
-    const saldoActual = Number(d.saldo)
+    const saldoActual = d.nSaldo != null ? Math.min(Number(d.nSaldo), Number(d.saldo)) : Number(d.saldo)
     if (saldoActual <= 0) continue
     const aplicar = Math.min(saldoActual, restante)
     aplicaciones.push({ syncDeudaId: d.id, numeroFactura: d.numeroFactura ?? null, externalId: d.externalId, montoAplicado: aplicar })
