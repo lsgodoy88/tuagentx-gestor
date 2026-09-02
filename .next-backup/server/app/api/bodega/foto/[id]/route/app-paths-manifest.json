@@ -1,0 +1,3 @@
+{
+  "/api/bodega/foto/[id]/route": "app/api/bodega/foto/[id]/route.js"
+}

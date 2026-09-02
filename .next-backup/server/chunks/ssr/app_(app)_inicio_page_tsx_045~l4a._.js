@@ -1,0 +1,3 @@
+module.exports=[122500,a=>{"use strict";var b=a.i(187924),c=a.i(572131);class d extends c.default.Component{constructor(a){super(a),this.state={err:null}}static getDerivedStateFromError(a){return{err:a}}render(){return this.state.err?(0,b.jsx)("div",{className:"flex items-center justify-center min-h-screen",children:(0,b.jsxs)("div",{style:{padding:16,color:"#fff",background:"#1a0000",margin:16,borderRadius:8,border:"1px solid #f00",fontSize:11,wordBreak:"break-all"},children:[(0,b.jsx)("b",{children:"ERR:"})," ",String(this.state.err?.message||this.state.err)]})}):this.props.children}}a.s(["default",0,function(){return(0,b.jsx)(d,{children:(0,b.jsx)(b.Fragment,{})})}])}];
+
+//# sourceMappingURL=app_%28app%29_inicio_page_tsx_045~l4a._.js.map

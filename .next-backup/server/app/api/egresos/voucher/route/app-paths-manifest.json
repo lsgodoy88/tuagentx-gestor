@@ -1,0 +1,3 @@
+{
+  "/api/egresos/voucher/route": "app/api/egresos/voucher/route.js"
+}

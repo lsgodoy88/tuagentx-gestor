@@ -1,0 +1,3 @@
+module.exports=[577367,a=>{"use strict";var b=a.i(187924),c=a.i(572131),d=a.i(875003),e=a.i(50944),f=a.i(767550);a.s(["default",0,function(){let{data:a,status:g}=(0,d.useSession)(),h=(0,e.useRouter)(),i=a?.user,j=i?.role==="empresa"||i?.role==="supervisor";return((0,c.useEffect)(()=>{if("unauthenticated"===g)return void h.push("/login");if("authenticated"===g){if(j)return void h.push("/egresos");if(!["vendedor","impulsadora"].includes(i?.role))return void h.push("/inicio")}},[g]),"authenticated"!==g||j)?null:(0,b.jsx)(f.default,{isAdmin:!1})}])}];
+
+//# sourceMappingURL=app_%28app%29_gastos_page_tsx_0glyp4q._.js.map

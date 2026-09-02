@@ -1,0 +1,3 @@
+{
+  "/api/vendedor/sync-ventas/route": "app/api/vendedor/sync-ventas/route.js"
+}

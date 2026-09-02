@@ -1,0 +1,3 @@
+module.exports=[850385,a=>{"use strict";var b=a.i(907997);a.s(["default",0,function(){return(0,b.jsxs)("div",{className:"space-y-4 max-w-7xl mx-auto px-2 pt-2 md:px-4 md:pt-4 animate-pulse",children:[(0,b.jsxs)("div",{className:"flex gap-2",children:[(0,b.jsx)("div",{className:"h-9 flex-1 bg-white/5 rounded-xl"}),(0,b.jsx)("div",{className:"h-9 w-32 bg-white/5 rounded-xl"})]}),(0,b.jsxs)("div",{className:"rounded-2xl border border-white/10 overflow-hidden",children:[(0,b.jsx)("div",{className:"h-12 bg-white/5"}),[...Array(8)].map((a,c)=>(0,b.jsx)("div",{className:"h-20 border-t border-white/5"},c))]})]})}])},265041,a=>{a.n(a.i(850385))}];
+
+//# sourceMappingURL=app_%28app%29_cartera_loading_tsx_0yx0bqg._.js.map

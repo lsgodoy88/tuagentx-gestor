@@ -1038,9 +1038,9 @@ export default function EmpleadosPage() {
                   <div className="space-y-2">
                     {/* Botón Asignación inicial — requiere nombre+email+teléfono primero */}
                     <button type="button"
-                      disabled={!editando && (!nombre || !telefono)}
+                      disabled={!editando && !nombre}
                       onClick={() => { setAsigMsg(''); setPopupAsignacion(true) }}
-                      className={"w-full flex items-center justify-between px-4 py-3 rounded-xl transition-colors " + (!editando && (!nombre || !telefono) ? "opacity-40 cursor-not-allowed" : "hover:opacity-90")}
+                      className={"w-full flex items-center justify-between px-4 py-3 rounded-xl transition-colors " + (!editando && !nombre ? "opacity-40 cursor-not-allowed" : "hover:opacity-90")}
                       style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.30)' }}>
                       <div className="flex items-center gap-2">
                         <span>👤</span>
@@ -1084,32 +1084,7 @@ export default function EmpleadosPage() {
                   </div>
                 )}
 
-                {(slotRol === 'supervisor' || editando?.rol === 'supervisor') && (
-                  <div>
-                    <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Etiqueta / Marca</label>
-                    <input value={etiqueta} onChange={e => setEtiqueta(e.target.value)}
-                      placeholder="Ej: Carmel, Chanel, Nike..."
-                      className="w-full  rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-violet-500" style={{background:"#0d1220",border:"1px solid #1e2a3d"}} />
-                  </div>
-                )}
-                {(slotRol === 'supervisor' || editando?.rol === 'supervisor') && empleados.filter(e => e.rol === 'vendedor' && e.activo).length > 0 && (
-                  <div>
-                    <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Vendedores asignados</label>
-                    <div className="space-y-1 max-h-36 overflow-y-auto  rounded-xl p-2" style={{background:"#0d1220",border:"1px solid #1e2a3d"}}>
-                      {empleados.filter(e => e.rol === 'vendedor' && e.activo).map((v: any) => (
-                        <label key={v.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-zinc-700 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={vendedorIds.includes(v.id)}
-                            onChange={e => setVendedorIds(prev => e.target.checked ? [...prev, v.id] : prev.filter(x => x !== v.id))}
-                            className="accent-violet-500"
-                          />
-                          <span className="text-white text-sm">{v.nombre}</span>
-                        </label>
-                      ))}
-                    </div>
-                  </div>
-                )}
+
                 {(slotRol === 'supervisor' || editando?.rol === 'supervisor') && (
                   <button type="button" onClick={() => setPopupPermisos(true)}
                     className="w-full flex items-center justify-between px-4 py-3 rounded-xl transition-colors hover:opacity-90"

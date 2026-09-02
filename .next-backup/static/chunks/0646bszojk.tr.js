@@ -1,0 +1,10 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,720673,e=>{"use strict";var t=e.i(843476),n=e.i(500932),l=e.i(271645);e.s(["default",0,function(){let e,r,i,o,a,c,s,f=(0,n.c)(7);f[0]===Symbol.for("react.memo_cache_sentinel")?(e=[],f[0]=e):e=f[0];let m=(0,l.useRef)(e),u=(0,l.useRef)(null),d=(0,l.useRef)(null);return f[1]===Symbol.for("react.memo_cache_sentinel")?(r=()=>{let e=d.current,t=u.current;if(!e||!t)return;let n=e.getBoundingClientRect(),l=t.getBoundingClientRect().left-n.left,r=document.createElement("style"),i="";return m.current.forEach((e,t)=>{if(!e)return;let r=((100+Math.max(0,(l-(e.getBoundingClientRect().right-n.left))*800/l))/1400*100).toFixed(2),o=(parseFloat(r)+.1).toFixed(2),a=`tax-er${t}`;i+=`@keyframes ${a} {
+        0%, ${r}%           { color: white; }
+        ${o}%, 71.43% { color: #060a24; }
+        88.57%, 100%          { color: white; }
+      }`,e.style.animation=`${a} 1400ms linear infinite`}),r.textContent=i+=`@keyframes tax-travel {
+      0%, 7.14%                        { transform: translateX(0); }
+      64.29%,
+      71.43%              { transform: translateX(-${l}px); }
+      100%                                                         { transform: translateX(0); }
+    }`,document.head.appendChild(r),t.style.animation="tax-travel 1400ms linear infinite",()=>{r.remove()}},i=[],f[1]=r,f[2]=i):(r=f[1],i=f[2]),(0,l.useEffect)(r,i),f[3]===Symbol.for("react.memo_cache_sentinel")?(o={display:"flex",alignItems:"center",justifyContent:"center",height:"100vh",background:"#060a24"},f[3]=o):o=f[3],f[4]===Symbol.for("react.memo_cache_sentinel")?(a={display:"flex",alignItems:"center"},c=["T","u","A","g","e","n","t"].map((e,n)=>(0,t.jsx)("span",{ref:e=>{m.current[n]=e},style:{fontSize:36,fontWeight:900,color:"white",display:"inline-block"},children:e},n)),f[4]=a,f[5]=c):(a=f[4],c=f[5]),f[6]===Symbol.for("react.memo_cache_sentinel")?(s=(0,t.jsx)("div",{style:o,children:(0,t.jsxs)("div",{ref:d,style:a,children:[c,(0,t.jsx)("span",{ref:u,style:{fontSize:36,fontWeight:900,color:"#3b82f6",display:"inline-block"},children:"X"})]})}),f[6]=s):s=f[6],s}])}]);

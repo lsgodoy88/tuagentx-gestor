@@ -1,0 +1,3 @@
+module.exports=[998885,a=>{"use strict";var b=a.i(907997);a.s(["default",0,function(){return(0,b.jsxs)("div",{className:"space-y-3 max-w-7xl mx-auto px-2 pt-2 md:px-4 md:pt-4 animate-pulse",children:[(0,b.jsx)("div",{className:"h-9 w-full bg-white/5 rounded-xl"}),[...Array(6)].map((a,c)=>(0,b.jsx)("div",{className:"h-20 bg-white/5 rounded-2xl"},c))]})}])},158572,a=>{a.n(a.i(998885))}];
+
+//# sourceMappingURL=app_%28app%29_clientes_loading_tsx_053o0d-._.js.map

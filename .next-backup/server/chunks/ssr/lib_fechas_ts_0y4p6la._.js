@@ -1,0 +1,3 @@
+module.exports=[490262,a=>{"use strict";function b(){return new Date(Date.now()-18e6)}a.s(["anioBogota",0,function(){return b().getUTCFullYear()},"esDelMesBogota",0,function(a,b,c){let d=new Date(("string"==typeof a?new Date(a):a).getTime()-18e6);return d.getUTCMonth()+1===b&&d.getUTCFullYear()===c},"formatFechaCorta",0,function(a){if(!a)return"";let b=new Date(a);return isNaN(b.getTime())?"":new Intl.DateTimeFormat("es-CO",{timeZone:"America/Bogota",day:"2-digit",month:"2-digit",year:"2-digit",hour:"2-digit",minute:"2-digit",hour12:!0}).format(b).replace(/ /g," ").replace("a. m.","am").replace("p. m.","pm").replace("a. m.","am").replace("p. m.","pm")},"mesBogota",0,function(){return b().getUTCMonth()+1}])}];
+
+//# sourceMappingURL=lib_fechas_ts_0y4p6la._.js.map

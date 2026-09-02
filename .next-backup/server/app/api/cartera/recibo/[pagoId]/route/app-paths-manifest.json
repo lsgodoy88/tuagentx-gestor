@@ -1,0 +1,3 @@
+{
+  "/api/cartera/recibo/[pagoId]/route": "app/api/cartera/recibo/[pagoId]/route.js"
+}

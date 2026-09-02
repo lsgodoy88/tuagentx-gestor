@@ -1,0 +1,13 @@
+var R=require("../../../../chunks/[turbopack]_runtime.js")("server/app/api/cartera/[clienteId]/route.js")
+R.c("server/chunks/[root-of-the-server]__12sbk31._.js")
+R.c("server/chunks/lib_integracion_adapters_uptres_ts_098tane._.js")
+R.c("server/chunks/[root-of-the-server]__0ofgmt.._.js")
+R.c("server/chunks/node_modules_bcryptjs_index_0bjz0ul.js")
+R.c("server/chunks/node_modules_next_11synfn._.js")
+R.c("server/chunks/[root-of-the-server]__0la1agp._.js")
+R.c("server/chunks/[root-of-the-server]__09~8~gw._.js")
+R.c("server/chunks/[root-of-the-server]__0-orlhy._.js")
+R.c("server/chunks/[root-of-the-server]__0kbqwqb._.js")
+R.c("server/chunks/_next-internal_server_app_api_cartera_[clienteId]_route_actions_0krd5zn.js")
+R.m(767921)
+module.exports=R.m(767921).exports

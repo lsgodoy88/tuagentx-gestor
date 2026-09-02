@@ -1,0 +1,3 @@
+{
+  "/api/sms/procesar/route": "app/api/sms/procesar/route.js"
+}

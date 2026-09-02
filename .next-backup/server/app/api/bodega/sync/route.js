@@ -1,0 +1,11 @@
+var R=require("../../../../chunks/[turbopack]_runtime.js")("server/app/api/bodega/sync/route.js")
+R.c("server/chunks/lib_integracion_adapters_uptres_ts_098tane._.js")
+R.c("server/chunks/node_modules_bcryptjs_index_0bjz0ul.js")
+R.c("server/chunks/[root-of-the-server]__10h91~m._.js")
+R.c("server/chunks/[root-of-the-server]__0la1agp._.js")
+R.c("server/chunks/[root-of-the-server]__0-orlhy._.js")
+R.c("server/chunks/[root-of-the-server]__09~8~gw._.js")
+R.c("server/chunks/node_modules_next_11synfn._.js")
+R.c("server/chunks/_next-internal_server_app_api_bodega_sync_route_actions_0z-9s69.js")
+R.m(513561)
+module.exports=R.m(513561).exports

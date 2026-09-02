@@ -1,0 +1,10 @@
+var R=require("../../../../chunks/[turbopack]_runtime.js")("server/app/api/empresas-vinculadas/pedidos-pendientes/route.js")
+R.c("server/chunks/[root-of-the-server]__0j-a377._.js")
+R.c("server/chunks/node_modules_next_11synfn._.js")
+R.c("server/chunks/node_modules_bcryptjs_index_0bjz0ul.js")
+R.c("server/chunks/[root-of-the-server]__09~8~gw._.js")
+R.c("server/chunks/[root-of-the-server]__0-orlhy._.js")
+R.c("server/chunks/[root-of-the-server]__0la1agp._.js")
+R.c("server/chunks/0zjb_server_app_api_empresas-vinculadas_pedidos-pendientes_route_actions_0m0orj0.js")
+R.m(220753)
+module.exports=R.m(220753).exports

@@ -1,0 +1,3 @@
+module.exports=[446211,e=>{"use strict";var t=e.i(15270),a=e.i(263955);async function i(e,i){let r=`notif:${i}:${e}`;try{let e=await a.redis.get(r);if(e)return JSON.parse(e)}catch{}let s=await t.prisma.notifRegla.findUnique({where:{id_empresaId:{id:e,empresaId:i}}}),c=s?{activa:s.activa,roles:s.roles}:{activa:!1,roles:[]};try{await a.redis.setex(r,300,JSON.stringify(c))}catch{}return c}e.s(["getRegla",0,i])}];
+
+//# sourceMappingURL=lib_notif-reglas_ts_0yv5z_t._.js.map

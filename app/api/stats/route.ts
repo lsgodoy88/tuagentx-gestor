@@ -87,9 +87,12 @@ export async function GET() {
   // Mapear vendedorApiId → nombre via empleados
   const vendedorNombreMap: Record<string,string> = {}
   ;(await (prisma as any).empleado.findMany({
-    where: { empresaId, rol: 'vendedor', vendedorId: { not: null } },
-    select: { vendedorId: true, nombre: true }
-  })).forEach((e: any) => { if (e.vendedorId) vendedorNombreMap[e.vendedorId] = e.nombre })
+    where: { empresaId, rol: 'vendedor' },
+    select: { vendedorId: true, apiId: true, nombre: true }
+  })).forEach((e: any) => {
+    if (e.apiId) vendedorNombreMap[e.apiId] = e.nombre
+    if (e.vendedorId) vendedorNombreMap[e.vendedorId] = e.nombre
+  })
   const empleadosMap: Record<string, { ventas: number, monto: number }> = {}
   ordenesVendedores.forEach((o: any) => {
     const nombre = vendedorNombreMap[o.vendedorApiId] || 'Sin asignar'

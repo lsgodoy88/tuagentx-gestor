@@ -1,0 +1,3 @@
+{
+  "/api/rutas/[id]/agregar-clientes/route": "app/api/rutas/[id]/agregar-clientes/route.js"
+}

@@ -1,0 +1,1 @@
+(globalThis.TURBOPACK||(globalThis.TURBOPACK=[])).push(["object"==typeof document?document.currentScript:void 0,71829,e=>{"use strict";e.s(["DIAS",0,["Domingo","Lunes","Martes","Miércoles","Jueves","Viernes","Sábado"]])},540009,e=>{e.v(s=>Promise.all(["static/chunks/0zbu4z2q2575a.js"].map(s=>e.l(s))).then(()=>s(213633)))}]);

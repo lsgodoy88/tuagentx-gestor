@@ -1,0 +1,3 @@
+module.exports=[143440,a=>{"use strict";var b=a.i(907997);a.s(["default",0,function(){return(0,b.jsxs)("div",{className:"space-y-3 max-w-7xl mx-auto",children:[(0,b.jsx)("div",{className:"shimmer h-10 rounded-xl"}),(0,b.jsx)("div",{className:"shimmer h-12 rounded-xl"}),Array.from({length:6}).map((a,c)=>(0,b.jsx)("div",{className:"shimmer h-14 rounded-xl"},c))]})}])},843194,a=>{a.n(a.i(143440))}];
+
+//# sourceMappingURL=app_%28app%29_impulsar_loading_tsx_0g9lc8h._.js.map

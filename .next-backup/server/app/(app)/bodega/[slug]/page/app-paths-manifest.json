@@ -1,0 +1,3 @@
+{
+  "/(app)/bodega/[slug]/page": "app/(app)/bodega/[slug]/page.js"
+}

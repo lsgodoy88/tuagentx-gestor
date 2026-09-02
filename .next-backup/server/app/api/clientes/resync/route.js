@@ -1,0 +1,12 @@
+var R=require("../../../../chunks/[turbopack]_runtime.js")("server/app/api/clientes/resync/route.js")
+R.c("server/chunks/lib_integracion_adapters_uptres_ts_098tane._.js")
+R.c("server/chunks/[root-of-the-server]__0d-41r_._.js")
+R.c("server/chunks/[root-of-the-server]__0fkuiv2._.js")
+R.c("server/chunks/lib_jobs_0z269~l._.js")
+R.c("server/chunks/[root-of-the-server]__0ofgmt.._.js")
+R.c("server/chunks/[root-of-the-server]__0-orlhy._.js")
+R.c("server/chunks/[root-of-the-server]__0la1agp._.js")
+R.c("server/chunks/node_modules_next_11synfn._.js")
+R.c("server/chunks/_next-internal_server_app_api_clientes_resync_route_actions_05k8mg6.js")
+R.m(380830)
+module.exports=R.m(380830).exports

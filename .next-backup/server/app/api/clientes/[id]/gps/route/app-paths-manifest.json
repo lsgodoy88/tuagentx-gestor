@@ -1,0 +1,3 @@
+{
+  "/api/clientes/[id]/gps/route": "app/api/clientes/[id]/gps/route.js"
+}

@@ -1,0 +1,3 @@
+{
+  "/api/sms/polling/route": "app/api/sms/polling/route.js"
+}
