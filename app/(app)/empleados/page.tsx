@@ -56,7 +56,7 @@ function PlanActualCard({ resumen, totalEmpleados, empresaId, limites, precios, 
         <div className="px-4 py-3 flex items-center gap-2 cursor-pointer select-none" onClick={() => setAbierto(a => !a)}>
           <div className="flex-1 min-w-0">
             <span className="text-white font-semibold text-sm">Plan actual</span>
-            <span className="text-zinc-500 text-xs ml-2">· {totalEmpleados} empleado{totalEmpleados !== 1 ? "s" : ""} activo{totalEmpleados !== 1 ? "s" : ""}</span>
+            <span className="text-zinc-500 text-xs ml-2">· {totalEmpleados} rol{totalEmpleados !== 1 ? "es" : ""} activo{totalEmpleados !== 1 ? "s" : ""}</span>
           </div>
           {billingEstado && <button onClick={abrirHistorial}
             className={`text-xs font-semibold flex-shrink-0 px-2 py-0.5 rounded-lg border transition-colors ${billingEstado === 'mora' ? 'text-red-400 border-red-500/30 bg-red-500/10 hover:bg-red-500/20' : billingEstado === 'pendiente' ? 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10 hover:bg-yellow-500/20' : 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20'}`}>
@@ -742,6 +742,17 @@ export default function EmpleadosPage() {
       {/* Tab Equipo — contenido original */}
       {tabPrincipal === 'equipo' && (
         <div className="space-y-4">
+          {/* Plan actual — primero */}
+          {esAdmin && empresaId && Object.keys(precios).length > 0 && (() => {
+        const slotMap: Record<string, string> = { vendedor:'maxVendedores', supervisor:'maxSupervisores', bodega:'maxBodega', entregas:'maxEntregas', impulsadora:'maxImpulsadoras' }
+        const resumen = Object.entries(slotMap)
+          .map(([rol, key]) => { const activos = limites[key] ?? 0; const precio = precios[rol] ?? 0; return { rol, activos, precio, subtotal: activos * precio } })
+          .filter(r => r.activos > 0)
+        if (resumen.length === 0) return null
+        const totalEmpleados = resumen.reduce((s, r) => s + r.activos, 0)
+        return <PlanActualCard resumen={resumen} totalEmpleados={totalEmpleados} empresaId={empresaId} limites={limites} precios={precios} montoNegociado={limites.montoNegociado ?? null} billingEstado={enMora} />
+      })()}
+
           {/* Card Almacenamiento Nube */}
           {esAdmin && (
             <a href="/configuracion/almacenamiento" className="block bg-zinc-900 border border-zinc-800 rounded-2xl" style={{padding:20}}>
@@ -767,20 +778,7 @@ export default function EmpleadosPage() {
             </a>
           )}
 
-      {/* Pago plan actual — slots activos */}
-      {esAdmin && empresaId && Object.keys(precios).length > 0 && (() => {
-        const rolesActivos2 = ["vendedor", "supervisor", "bodega", "entregas", "impulsadora"]
-        const resumen = rolesActivos2
-          .map(rol => {
-            const activos = empleados.filter(e => e.rol === rol && e.activo).length
-            const precio = precios[rol] ?? 0
-            return { rol, activos, precio, subtotal: activos * precio }
-          })
-          .filter(r => r.activos > 0)
-        if (resumen.length === 0) return null
-        const totalEmpleados = resumen.reduce((s, r) => s + r.activos, 0)
-        return <PlanActualCard resumen={resumen} totalEmpleados={totalEmpleados} empresaId={empresaId} limites={limites} precios={precios} montoNegociado={limites.montoNegociado ?? null} billingEstado={enMora} />
-      })()}
+
 
       {(() => {
         const haySupervisor = empleados.some(e => e.rol === 'supervisor' && e.activo)

@@ -206,7 +206,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
     return (
       <div className="space-y-6 pb-20 max-w-5xl mx-auto">
         <div>
-          <h1 className="text-base font-bold text-white">Bienvenido, {user?.name?.split(' ')[0]}</h1>
+          <h1 className="text-xl font-bold text-white">Bienvenido, {user?.name?.split(' ')[0]}</h1>
           <p className="text-zinc-400 text-sm mt-1">Superadmin</p>
         </div>
         <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl px-4 py-4 flex items-center justify-between">
@@ -280,7 +280,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
   return (
     <div className="space-y-3 pb-20 md:pb-0 md:max-w-2xl md:mx-auto">
       <div className="flex items-center justify-between px-1">
-        <h1 className="text-[1.05rem] font-bold text-white">Bienvenido, {user?.name?.split(' ')[0]}</h1>
+        <h1 className="text-xl font-bold text-white">Bienvenido, {user?.name?.split(' ')[0]}</h1>
         {user?.empresaNombre && <span className="text-[1.05rem] font-bold text-white">{user.empresaNombre}</span>}
       </div>
       {(isEmpresa || isSupervisor) && (
