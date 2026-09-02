@@ -18,14 +18,14 @@ const ROLES_CONFIG = [
 const ROL_SINGULAR: Record<string, string> = {
   supervisor: 'Supervisor', vendedor: 'Vendedor', entregas: 'Entrega', impulsadora: 'Impulsadora', bodega: 'Bodega',
 }
-function PlanActualCard({ resumen, totalEmpleados, empresaId, limites, precios, montoNegociado, enMora }: {
+function PlanActualCard({ resumen, totalEmpleados, empresaId, limites, precios, montoNegociado, billingEstado }: {
   resumen: { rol: string; activos: number; precio: number; subtotal: number }[]
   totalEmpleados: number
   empresaId: string
   limites: Record<string, number>
   precios: Record<string, number>
   montoNegociado?: number | null
-  enMora?: boolean
+  billingEstado?: 'al_dia'|'pendiente'|'mora'|null
 }) {
   const [abierto, setAbierto] = useState(false)
   const [historialOpen, setHistorialOpen] = useState(false)
@@ -58,10 +58,10 @@ function PlanActualCard({ resumen, totalEmpleados, empresaId, limites, precios, 
             <span className="text-white font-semibold text-sm">Plan actual</span>
             <span className="text-zinc-500 text-xs ml-2">· {totalEmpleados} empleado{totalEmpleados !== 1 ? "s" : ""} activo{totalEmpleados !== 1 ? "s" : ""}</span>
           </div>
-          <button onClick={abrirHistorial}
-            className={`text-xs font-semibold flex-shrink-0 px-2 py-0.5 rounded-lg border ${enMora ? 'text-red-400 border-red-500/30 bg-red-500/10 hover:bg-red-500/20' : 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20'} transition-colors`}>
-            {enMora ? 'En mora ↗' : 'Al día ↗'}
-          </button>
+          {billingEstado && <button onClick={abrirHistorial}
+            className={`text-xs font-semibold flex-shrink-0 px-2 py-0.5 rounded-lg border transition-colors ${billingEstado === 'mora' ? 'text-red-400 border-red-500/30 bg-red-500/10 hover:bg-red-500/20' : billingEstado === 'pendiente' ? 'text-yellow-400 border-yellow-500/30 bg-yellow-500/10 hover:bg-yellow-500/20' : 'text-emerald-400 border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20'}`}>
+            {billingEstado === 'mora' ? 'En mora ↗' : billingEstado === 'pendiente' ? 'Pendiente ↗' : 'Al día ↗'}
+          </button>}
           <span className="text-zinc-500 text-xs flex-shrink-0 ml-1">{abierto ? "▲" : "▼"}</span>
         </div>
         {abierto && (
@@ -253,7 +253,7 @@ export default function EmpleadosPage() {
   const [cantidades, setCantidades] = useState<Record<string, number>>({ supervisor: 0, vendedor: 0, entregas: 0, impulsadora: 0, bodega: 0 })
   const [ampliarAbierto, setAmpliarAbierto] = useState(false)
   const [confirmToggle, setConfirmToggle] = useState(false)
-  const [enMora, setEnMora] = useState(false)
+  const [enMora, setEnMora] = useState<'al_dia'|'pendiente'|'mora'|null>(null)
   const [syncEmpleados, setSyncEmpleados] = useState<any[]>([])
   const [tieneIntegracion, setTieneIntegracion] = useState(false)
   const [apiIdSeleccionado, setApiIdSeleccionado] = useState('')
@@ -345,7 +345,7 @@ export default function EmpleadosPage() {
     setLimites(empRes.limites || {})
     setEmpresaNombre(meRes.nombre || '')
     setEmpresaId(meRes.id || '')
-    fetch('/api/plan-empresa').then(r => r.json()).then(d => { if (d.deudaTotal > 0) setEnMora(true) }).catch(() => {})
+    fetch('/api/plan-empresa').then(r => r.json()).then(d => { if (d.billingEstado) setEnMora(d.billingEstado as any) }).catch(() => {})
     fetch('/api/precios/publico')
       .then(r => r.json())
       .then(d => {
@@ -779,7 +779,7 @@ export default function EmpleadosPage() {
           .filter(r => r.activos > 0)
         if (resumen.length === 0) return null
         const totalEmpleados = resumen.reduce((s, r) => s + r.activos, 0)
-        return <PlanActualCard resumen={resumen} totalEmpleados={totalEmpleados} empresaId={empresaId} limites={limites} precios={precios} montoNegociado={limites.montoNegociado ?? null} enMora={enMora} />
+        return <PlanActualCard resumen={resumen} totalEmpleados={totalEmpleados} empresaId={empresaId} limites={limites} precios={precios} montoNegociado={limites.montoNegociado ?? null} billingEstado={enMora} />
       })()}
 
       {(() => {

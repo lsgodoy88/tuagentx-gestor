@@ -41,8 +41,9 @@ export async function GET() {
   })
 
   const deudaTotal = pendientes.reduce((s: number, p: any) => s + (p.saldo ?? p.monto), 0)
-  const bannerActivo = pendientes.some((p: any) => p.bannerActivo)
   const mesesPendientes = pendientes.map((p: any) => p.mes)
+  // billingEstado derivado de plan.estado — fuente única de verdad para la UI
+  const billingEstado = plan?.estado === 'vencido' ? 'mora' : plan?.estado === 'pendiente' ? 'pendiente' : plan?.estado === 'pagado' ? 'al_dia' : 'sin_plan'
 
-  return NextResponse.json({ plan: plan ?? null, deudaTotal, bannerActivo, mesesPendientes })
+  return NextResponse.json({ plan: plan ?? null, deudaTotal, mesesPendientes, billingEstado })
 }

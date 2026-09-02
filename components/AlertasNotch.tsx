@@ -21,11 +21,26 @@ export default function AlertasNotch() {
   const [alertas, setAlertas] = useState<Alerta[]>([])
   const [abierto, setAbierto] = useState(false)
   const [saliendo, setSaliendo] = useState(false)
+  const [loadingPago, setLoadingPago] = useState(false)
   const router   = useRouter()
   const pathname = usePathname()
   const ref      = useRef<HTMLDivElement>(null)
   const timerRef    = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  async function handlePagar(alertaId: string) {
+    setLoadingPago(true)
+    try {
+      await fetch('/api/alertas', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: alertaId }) }).catch(() => {})
+      const gen = await fetch('/api/plan-empresa/generar', { method: 'POST' })
+      const gd = await gen.json()
+      const monto = gd.deudaTotal > 0 ? gd.deudaTotal : gd.monto
+      if (!monto) return
+      const res = await fetch('/api/pagos/link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ monto }) })
+      const d = await res.json()
+      if (d.linkPago) window.open(d.linkPago, '_blank', 'noopener,noreferrer')
+    } catch {} finally { setLoadingPago(false); setAbierto(false) }
+  }
 
   function cargar() {
     fetch('/api/alertas').then(r => r.json()).then(d => setAlertas(d.alertas ?? [])).catch(() => {})
@@ -91,7 +106,11 @@ export default function AlertasNotch() {
       }}>
         {alertas.map((a, i) => (
           <button key={i}
-            onClick={() => { setAbierto(false); fetch('/api/alertas',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:a.id})}).catch(()=>{}); router.push(a.url) }}
+            onClick={() => {
+              if (a.tipo === 'billing_pendiente' || a.tipo === 'billing_mora') { handlePagar(a.id) }
+              else { setAbierto(false); fetch('/api/alertas',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:a.id})}).catch(()=>{}); router.push(a.url) }
+            }}
+            disabled={loadingPago && (a.tipo === 'billing_pendiente' || a.tipo === 'billing_mora')}
             style={{
               width: '100%',
               borderBottom: i < alertas.length - 1 ? '1px solid rgba(245,158,11,0.2)' : 'none',
@@ -99,9 +118,16 @@ export default function AlertasNotch() {
               display: 'flex', alignItems: 'center', gap: 8,
               textAlign: 'left', cursor: 'pointer',
               background: 'none', border: 'none',
+              opacity: loadingPago && (a.tipo === 'billing_pendiente' || a.tipo === 'billing_mora') ? 0.5 : 1,
             }}>
             <span style={{ fontSize: 16, flexShrink: 0 }}>{a.icono}</span>
-            <span style={{ color: 'white', fontSize: 12, lineHeight: 1.2, fontWeight: 500 }}>{a.mensaje}</span>
+            <span style={{ color: 'white', fontSize: 12, lineHeight: 1.2, fontWeight: 500, flex: 1 }}>{a.mensaje}</span>
+            {(a.tipo === 'billing_pendiente' || a.tipo === 'billing_mora') && (
+              <span style={{ flexShrink: 0, fontSize: 11, fontWeight: 700, color: '#fff', background: a.tipo === 'billing_mora' ? '#7f1d1d' : '#92400e', padding: '3px 8px', borderRadius: 8 }}>
+                {loadingPago ? '...' : 'Pagar'}
+              </span>
+            )}
+
           </button>
         ))}
       </div>

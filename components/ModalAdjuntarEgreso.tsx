@@ -37,6 +37,7 @@ interface Props {
   initialRetencion?: string
   initialDescuento?: string
   initialFecha?: string
+  initialEvidenciaKey?: string
   initialProveedor?: { id: string; firstName: string; lastName: string | null; aplica_retencion: boolean; porcentaje_retencion: string | null } | null
   onAbonoGuardado?: (abonoPago: number, saldo: number) => void
   onGuardado: (data: {
@@ -72,7 +73,7 @@ function comprimirImagen(base64: string): Promise<string> {
 
 export default function ModalAdjuntarEgreso({
   egresoId, categoriaKey, mes, anio,
-  initialConcepto = '', initialFechaReg = '', initialValor = '', initialRetencion = '', initialDescuento = '', initialFecha = '', initialProveedor = null,
+  initialConcepto = '', initialFechaReg = '', initialValor = '', initialRetencion = '', initialDescuento = '', initialFecha = '', initialEvidenciaKey = '', initialProveedor = null,
   onGuardado, onAbonoGuardado, onClose,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -88,7 +89,7 @@ export default function ModalAdjuntarEgreso({
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
 
-  const [evidenciaKey, setEvidenciaKey] = useState('')
+  const [evidenciaKey, setEvidenciaKey] = useState(initialEvidenciaKey)
   const [datosIA, setDatosIA] = useState<DatosIA | null>(null)
 
   const [concepto, setConcepto] = useState(initialConcepto)

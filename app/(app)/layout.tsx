@@ -25,6 +25,69 @@ const DashboardImpulsadora   = dynamic(() => import('./inicio/_components/Dashbo
 
 
 
+
+function BillingBanner({ estado, count, setCount, onClose, loadingPago, onPagar }: {
+  estado: 'pendiente' | 'mora'
+  count: number
+  setCount: (n: number) => void
+  onClose: () => void
+  loadingPago: boolean
+  onPagar: () => void
+}) {
+  const isMora = estado === 'mora'
+  const CIRCUM = 100.53
+  const offset = CIRCUM * (1 - count / 7)
+  React.useEffect(() => {
+    if (count <= 0) { onClose(); return }
+    const t = setTimeout(() => setCount(count - 1), 1000)
+    return () => clearTimeout(t)
+  }, [count])
+
+  const ringColor = isMora ? '#ef4444' : '#d97706'
+  const ringBg = isMora ? '#3a1010' : '#3a2e0a'
+  const btnBg = isMora ? '#7f1d1d' : '#92400e'
+  const toastBg = isMora ? 'rgba(26,15,15,0.97)' : 'rgba(28,26,15,0.97)'
+  const toastBorder = isMora ? '#7f1d1d' : '#92400e'
+  const subColor = isMora ? '#f87171' : '#d97706'
+  const title = isMora ? 'Tu pago está en mora' : 'Pago pendiente'
+  const sub = isMora ? 'Te invitamos a pagar hoy' : 'Hasta el 5 de cada mes'
+
+  const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
+  const posStyle = isMobile
+    ? { bottom:24, left:16, right:16, borderRadius:18, width:'auto' }
+    : { top:24, right:24, width:320, borderRadius:16 }
+  const btnStyle = isMobile
+    ? { flexShrink:0,width:36,height:36,borderRadius:'50%',background:btnBg,border:'none',cursor:'pointer',fontSize:16,display:'flex',alignItems:'center',justifyContent:'center' }
+    : { flexShrink:0,padding:'7px 14px',borderRadius:10,background:btnBg,border:'none',cursor:'pointer',fontSize:13,fontWeight:600,color:'#fff',whiteSpace:'nowrap' as const }
+
+  return (
+    <div style={{
+      position:'fixed', zIndex:9999,
+      background:toastBg, border:`0.5px solid ${toastBorder}`,
+      padding:'14px 16px', display:'flex', alignItems:'center', gap:12,
+      boxShadow:'0 8px 32px rgba(0,0,0,0.5)',
+      transition:'opacity .4s', opacity: count === 0 ? 0 : 1,
+      ...posStyle,
+    }}>
+      <div style={{width:40,height:40,flexShrink:0,position:'relative'}}>
+        <svg width="40" height="40" viewBox="0 0 40 40" style={{transform:'rotate(-90deg)'}}>
+          <circle cx="20" cy="20" r="16" fill="none" stroke={ringBg} strokeWidth="3"/>
+          <circle cx="20" cy="20" r="16" fill="none" stroke={ringColor} strokeWidth="3"
+            strokeDasharray="100.53" strokeDashoffset={offset} strokeLinecap="round"/>
+        </svg>
+        <div style={{position:'absolute',inset:0,display:'flex',alignItems:'center',justifyContent:'center',fontSize:13,fontWeight:500,color:ringColor}}>{count}</div>
+      </div>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{color:'#fff',fontSize:13,fontWeight:500,lineHeight:1.3}}>{title}</div>
+        <div style={{fontSize:11,marginTop:2,color:subColor}}>{sub}</div>
+      </div>
+      <button onClick={onPagar} disabled={loadingPago} aria-label="Pagar" style={{...btnStyle, opacity:loadingPago?0.5:1}}>
+        {isMobile ? '💳' : '💳 Pagar'}
+      </button>
+    </div>
+  )
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -114,8 +177,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   })
   const [loadingRenovar, setLoadingRenovar] = useState(false)
   const [menuUsuario, setMenuUsuario] = useState(false)
-  const [bannerPago, setBannerPago] = useState(false)
-  const [bannerPagoCerrado, setBannerPagoCerrado] = useState(false)
+  const [billingEstado, setBillingEstado] = useState<'al_dia'|'pendiente'|'mora'|'sin_plan'|null>(null)
+  const [bannerVisible, setBannerVisible] = useState(false)
+  const [bannerCount, setBannerCount] = useState(7)
+  const [loadingPago, setLoadingPago] = useState(false)
   const [sincronizandoGps, setSincronizandoGps] = useState(false)
   const user = session?.user as any
   const authUser = status === 'authenticated' ? user : null
@@ -219,11 +284,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         try { sessionStorage.setItem(cacheKey, JSON.stringify(d)) } catch {}
       })
       .catch(() => {})
-    // Banner de pago pendiente — activar cuando billing esté en producción
-    // fetch('/api/plan-empresa')
-    //   .then(r => r.json())
-    //   .then(d => { if (d.bannerActivo) setBannerPago(true) })
-    //   .catch(() => {})
+    // Banner de estado billing
+    fetch('/api/plan-empresa')
+      .then(r => r.json())
+      .then(d => {
+        if (d.billingEstado) {
+          setBillingEstado(d.billingEstado)
+          if (d.billingEstado === 'pendiente' || d.billingEstado === 'mora') setBannerVisible(true)
+        }
+      })
+      .catch(() => {})
   }, [user])
 
   const isSuperAdmin  = user?.role === 'superadmin'
@@ -513,13 +583,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )
         })()}
 
-        {bannerPago && !bannerPagoCerrado && (
-          <div className="bg-amber-900/80 border-b border-amber-700 flex items-center justify-between px-4 h-10 flex-shrink-0 overflow-hidden">
-            <span className="text-white text-sm truncate">⚠️ Tu empresa tiene un pago pendiente. Contacta al administrador.</span>
-            <button onClick={() => setBannerPagoCerrado(true)} className="text-white/60 hover:text-white text-sm leading-none ml-4 flex-shrink-0">✕</button>
-          </div>
-        )}
-
         <div className={`flex-1 overflow-x-clip px-2 pt-2 pb-24 md:px-4 md:pt-4 md:pb-6${bloqueado ? ' pointer-events-none opacity-50' : ''}`}>
           <div className="max-w-screen-xl mx-auto w-full space-y-6">
             <PermisosGuard role={user?.role}>
@@ -753,6 +816,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {navigating && <TuAgentXOverlay />}
 
       {(isEmpresa || isSupervisor || isEmpleado) && <AsistenteGestor onClose={() => setAsistenteAbierto(false)} rol={user?.role} visible={asistenteAbierto} userId={user?.id} />}
+
+      {isEmpresa && bannerVisible && (billingEstado === 'pendiente' || billingEstado === 'mora') && (
+        <BillingBanner
+          estado={billingEstado}
+          count={bannerCount}
+          setCount={setBannerCount}
+          onClose={() => setBannerVisible(false)}
+          loadingPago={loadingPago}
+          onPagar={async () => {
+            setLoadingPago(true)
+            try {
+              const gen = await fetch('/api/plan-empresa/generar', { method: 'POST' })
+              const gd = await gen.json()
+              const montoCheckout = gd.deudaTotal > 0 ? gd.deudaTotal : gd.monto
+              if (!montoCheckout) return
+              const res = await fetch('/api/pagos/link', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ monto: montoCheckout }) })
+              const d = await res.json()
+              if (d.linkPago) window.open(d.linkPago, '_blank', 'noopener,noreferrer')
+            } catch {} finally { setLoadingPago(false) }
+          }}
+        />
+      )}
 
     </div>
     </>

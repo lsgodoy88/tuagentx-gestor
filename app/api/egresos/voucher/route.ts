@@ -9,16 +9,22 @@ import { pdfPrimerarPaginaAJpg } from '@/lib/pdfAJpg'
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
 const PROMPT_EGRESO =
-  'Eres un extractor de datos de facturas y comprobantes de egreso empresarial colombiano. ' +
-  'Extrae: ' +
-  '(1) valor: valor total del documento — los puntos son separadores de miles en Colombia (45.000 = 45000); ' +
-  '(2) retencion: valor de retención en la fuente si aparece explícitamente en el documento, si no aparece devuelve null; ' +
-  '(3) fecha: fecha del documento en formato YYYY-MM-DD — IMPORTANTE: copia la fecha EXACTAMENTE como aparece escrita en el documento, sin restar ni sumar días, sin hacer ningún cálculo de zona horaria. Si el documento dice "16 diciembre 2024 22:07:19", la fecha es 2024-12-16, NO 2024-12-15. La hora no afecta el día. Si no hay fecha usa null; ' +
-  '(4) concepto: descripción breve del egreso (ej: "Arriendo oficina", "Factura proveedor papelería", "Servicio internet"); ' +
-  '(5) medioPago: uno de BANCO, NEQUI, DAVIPLATA, EFECTIVO, TRANSFERENCIA, PSE — o null si no se puede determinar. ' +
-  'Si no encuentras un campo devuelve null. Responde ÚNICAMENTE con JSON válido: {"valor": number, "retencion": number|null, "fecha": "YYYY-MM-DD", "concepto": "string", "medioPago": "string|null"}'
+  'Eres un extractor de datos de facturas y recibos de egreso empresarial colombiano. Tu única tarea es extraer campos específicos con máxima precisión. ' +
+  'REGLAS CRÍTICAS antes de extraer: ' +
+  '- En Colombia los puntos (.) son separadores de miles: 482.400 = 482400, NO 482.4 ' +
+  '- IVA, ICA, impuestos NO son retención. Retención = "RETE FUENTE" o "Retención en la fuente" únicamente. ' +
+  '- Si RETE FUENTE aparece como 0.00 o no aparece, retencion = null (NO uses IVA como retención). ' +
+  '- Copia la fecha EXACTAMENTE como está escrita sin calcular zonas horarias ni restar días. ' +
+  'CAMPOS A EXTRAER: ' +
+  '(1) valor: TOTAL A PAGAR del documento (campo "Total a pagar", "Total", o el monto final). En Colombia puntos=miles. ' +
+  '(2) retencion: solo si existe "RETE FUENTE" o "Retención en la fuente" con valor mayor a 0. Si dice 0.00 o no existe → null. NUNCA uses IVA como retención. ' +
+  '(3) fecha: fecha de generación/emisión en YYYY-MM-DD. La hora no afecta el día. ' +
+  '(4) concepto: nombre del proveedor/empresa emisora + descripción breve (ej: "Dewars Cosmetique - Productos cosméticos"). ' +
+  '(5) proveedor: nombre exacto de la empresa o persona que emite la factura (ej: "DEWARS COSMETIQUE SAS"). ' +
+  '(6) medioPago: uno de BANCO, NEQUI, DAVIPLATA, EFECTIVO, TRANSFERENCIA, PSE según "Medio de Pago" o "Forma de Pago" del documento. null si no se determina. ' +
+  'Responde ÚNICAMENTE con JSON válido sin texto adicional: {"valor": number|null, "retencion": number|null, "fecha": "YYYY-MM-DD"|null, "concepto": string|null, "proveedor": string|null, "medioPago": string|null}'
 
-type DatosIA = { valor: number | null; retencion: number | null; fecha: string | null; concepto: string | null; medioPago: string | null }
+type DatosIA = { valor: number | null; retencion: number | null; fecha: string | null; concepto: string | null; proveedor: string | null; medioPago: string | null }
 
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
@@ -44,7 +50,7 @@ export async function POST(req: NextRequest) {
     imagenBase64 = base64Data
   }
 
-  let datosIA: DatosIA = { valor: null, retencion: null, fecha: null, concepto: null, medioPago: null }
+  let datosIA: DatosIA = { valor: null, retencion: null, fecha: null, concepto: null, proveedor: null, medioPago: null }
   try {
     const msg = await openai.chat.completions.create({
       model: 'gpt-4o',

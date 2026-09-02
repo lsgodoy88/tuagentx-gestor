@@ -27,6 +27,10 @@ export async function GET(req: NextRequest) {
 
   const conDeuda = searchParams.get('conDeuda') === 'true'
   const where: any = { empresaId }
+
+  // Si la empresa tiene vinculadas, excluir clientes sin lista (evita duplicados del sync compartido)
+  const tieneVinculadas = await (prisma as any).empresaVinculada.count({ where: { empresaId, activa: true } })
+  if (tieneVinculadas > 0) where.listaId = { not: null }
   if (conDeuda && user.role === 'vendedor') {
     // Para recaudo: todos los clientes con deuda asignada al vendedor vía SyncDeuda, sin importar lista
     const empData = await prisma.empleado.findUnique({ where: { id: user.id }, select: { apiId: true } })

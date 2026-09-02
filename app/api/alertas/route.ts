@@ -18,7 +18,7 @@ export type Alerta = {
 
 type AlertaDetectada = Omit<Alerta, 'id' | 'vistaPor' | 'createdAt'>
 
-async function detectarAlertas(empresaId: string): Promise<AlertaDetectada[]> {
+async function detectarAlertas(empresaId: string, rol: string): Promise<AlertaDetectada[]> {
   const alertas: AlertaDetectada[] = []
 
   // 1. Almacenamiento
@@ -42,7 +42,22 @@ async function detectarAlertas(empresaId: string): Promise<AlertaDetectada[]> {
     }
   } catch {}
 
-  // 2. Plan por vencer
+  // 2. Billing — solo admin empresa
+  if (rol === 'empresa') try {
+    const planRows = await prisma.$queryRaw<[{ estado: string }]>`
+      SELECT estado FROM ${Prisma.raw(DB_SCHEMA)}."PlanEmpresa"
+      WHERE "empresaId" = ${empresaId}
+        AND mes = TO_CHAR(NOW() AT TIME ZONE 'America/Bogota', 'YYYY-MM')
+      LIMIT 1`
+    const billingEstado = planRows[0]?.estado
+    if (billingEstado === 'pendiente') {
+      alertas.push({ tipo: 'billing_pendiente', icono: '', mensaje: 'Pago pendiente', url: '/configuracion', severidad: 'advertencia' })
+    } else if (billingEstado === 'vencido') {
+      alertas.push({ tipo: 'billing_mora', icono: '', mensaje: 'Pago en mora', url: '/configuracion', severidad: 'critica' })
+    }
+  } catch {}
+
+  // 2b. Plan por vencer
   try {
     const emp = await prisma.$queryRaw<[{ planFin: Date | null }]>`
       SELECT "planFin" FROM ${Prisma.raw(DB_SCHEMA)}."Empresa" WHERE id = ${empresaId} LIMIT 1`
@@ -135,7 +150,7 @@ export async function GET(req: NextRequest) {
   if (!['empresa', 'supervisor'].includes(user.role)) return NextResponse.json({ alertas: [] })
   const empresaId = getEmpresaId(user)
 
-  const detectadas = await detectarAlertas(empresaId)
+  const detectadas = await detectarAlertas(empresaId, user.role)
   const tiposActivos = new Set(detectadas.map(a => a.tipo))
 
   // Resolver alertas que ya no aplican
@@ -175,7 +190,7 @@ export async function GET(req: NextRequest) {
     WHERE empresa_id = ${empresaId} AND resuelta = FALSE
     ORDER BY created_at ASC`
 
-  const ICONO: Record<string, string> = { storage: '☁️', plan: '📅', inventario: '📦', transprensa_conexion: '🚛', pagos_revisar: '💵', novedad_transprensa: '🔴', ordenes_sin_despachar: '🚚' }
+  const ICONO: Record<string, string> = { storage: '☁️', plan: '📅', inventario: '📦', transprensa_conexion: '🚛', pagos_revisar: '💵', novedad_transprensa: '🔴', ordenes_sin_despachar: '🚚', billing_pendiente: '💳', billing_mora: '💳' }
   const URL_MAP: Record<string, string> = { storage: '/configuracion/almacenamiento', plan: '/configuracion', inventario: '/bodega', transprensa_conexion: '/configuracion' }
 
   const alertas = rows.map((r: any) => ({

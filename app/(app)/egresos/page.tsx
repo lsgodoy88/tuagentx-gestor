@@ -64,6 +64,7 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
   const [saved, setSaved] = useState<Record<number, boolean>>({})
   const [subiendoAdj, setSubiendoAdj] = useState<Record<string, boolean>>({})
   const [modalAdjIdx, setModalAdjIdx] = useState<number | null>(null)
+  const [modalEgresoId, setModalEgresoId] = useState<string|null>(null)
   const debounceTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
   const fileInputRefs = useRef<Map<number, HTMLInputElement | null>>(new Map())
 
@@ -85,6 +86,12 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
 
   useEffect(() => { cargar() }, [cargar])
 
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible' && modalAdjIdx === null) cargar() }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [cargar, modalAdjIdx])
+
   // beforeunload — guardar al cerrar/navegar
   useEffect(() => {
     const handler = () => {
@@ -93,8 +100,8 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
           const body = { ...f, categoria: cat.key }
           const url = '/api/egresos'
           const data = JSON.stringify(body)
-          if (navigator.sendBeacon) {
-            navigator.sendBeacon(url + '?method=' + (f.id ? 'PATCH' : 'POST'), new Blob([data], { type: 'application/json' }))
+          if (navigator.sendBeacon && f.id) {
+            navigator.sendBeacon(url + '?method=PATCH', new Blob([data], { type: 'application/json' }))
           }
         }
       })
@@ -105,6 +112,7 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
 
   // Guardar filas pendientes al desmontar (navegación sin onBlur)
   const filasRef = useRef<Fila[]>([])
+  const guardandoNuevaRef = useRef<Set<number>>(new Set())
   useEffect(() => { filasRef.current = filas }, [filas])
   useEffect(() => {
     return () => {
@@ -113,8 +121,6 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
           const body = { ...f, categoria: cat.key }
           if (f.id) {
             fetch('/api/egresos', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-          } else {
-            fetch('/api/egresos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
           }
         }
       })
@@ -222,6 +228,7 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
   async function guardar(idx: number) {
     const f = filas[idx]
     if (!f.concepto && !f.valor) return
+    if (f.esNueva) return  // fila nueva solo se guarda via Enter
     // Si es nueva y no tiene fecha, poner hoy
     if (f.esNueva && !f.fecha) {
       const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
@@ -232,11 +239,8 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
     try {
       if (f.id) {
         await fetch('/api/egresos', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      } else {
-        const res = await fetch('/api/egresos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-        const d = await res.json()
-        setFilas(prev => prev.map((fi, i) => i === idx ? { ...fi, id: d.egreso?.id, esNueva: false } : fi))
       }
+      // POST solo via Enter — nunca desde guardar()
       setSaved(p => ({ ...p, [idx]: true }))
       setTimeout(() => setSaved(p => ({ ...p, [idx]: false })), 1500)
     } catch {}
@@ -337,7 +341,7 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
                         </div>
                       )}
                       {f.id && !modoEliminar && (
-                        <button onClick={e => { e.stopPropagation(); setModalAdjIdx(idx) }}
+                        <button onClick={e => { e.stopPropagation(); setModalEgresoId(f.id); setModalAdjIdx(idx) }}
                           style={{background:'none',border:'none',cursor:'pointer',fontSize:16,padding:'2px 4px',opacity:0.7,transition:'opacity 0.15s'}}
                           onMouseEnter={e=>(e.currentTarget.style.opacity='1')}
                           onMouseLeave={e=>(e.currentTarget.style.opacity='0.7')}
@@ -351,10 +355,11 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
                     {/* CONCEPTO editable */}
                     <td style={{ ...tdStyle, width: 160, minWidth: 160, borderLeft: '2px solid rgba(255,255,255,0.07)' }}>
                       {isEdit
-                        ? <input value={f.concepto} onChange={e => set(idx,'concepto',e.target.value.toUpperCase())} onBlur={() => { if (!f.esNueva) scheduleGuardar(idx) }} autoFocus={f.esNueva}
+                        ? <input value={f.concepto} onChange={e => set(idx,'concepto',e.target.value.toUpperCase())} onBlur={() => { if (f.esNueva && !f.concepto.trim()) { setFilas(prev => prev.filter((_,i) => i !== idx)) } else if (!f.esNueva) scheduleGuardar(idx) }} autoFocus={f.esNueva}
                             onKeyDown={async e => {
-                              if (e.key === 'Enter' && f.esNueva && f.concepto.trim()) {
+                              if (e.key === 'Enter' && f.esNueva && f.concepto.trim() && !guardandoNuevaRef.current.has(idx)) {
                                 e.preventDefault()
+                                guardandoNuevaRef.current.add(idx)
                                 const hoy = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
                                 set(idx, 'fecha', hoy)
                                 // Guardar y abrir modal
@@ -363,7 +368,7 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
                                 const d = await res.json()
                                 setFilas(prev => prev.map((fi, i) => i !== idx ? fi : { ...fi, id: d.egreso?.id, fecha: hoy, esNueva: false }))
                                 setSaved(p => ({ ...p, [idx]: true }))
-                                setTimeout(() => { setSaved(p => ({ ...p, [idx]: false })); setModalAdjIdx(idx) }, 300)
+                                setTimeout(() => { setSaved(p => ({ ...p, [idx]: false })); setModalEgresoId(d.egreso?.id || null); guardandoNuevaRef.current.delete(idx); setModalAdjIdx(idx) }, 300)
                               }
                             }}
                             style={{ background:'transparent',color:'white',border:'none',outline:'none',width:'100%',fontSize:13 }} placeholder="Concepto..." />
@@ -420,7 +425,7 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
       {/* Modal adjuntar egreso */}
       {modalAdjIdx !== null && filas[modalAdjIdx] && (
           <ModalAdjuntarEgreso
-            egresoId={filas[modalAdjIdx!].id}
+            egresoId={modalEgresoId}
             categoriaKey={cat.key}
             mes={mes} anio={anio}
             initialConcepto={filas[modalAdjIdx!].concepto}
@@ -429,6 +434,7 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
             initialRetencion={filas[modalAdjIdx!].retencion}
             initialDescuento={filas[modalAdjIdx!].descuento}
             initialFecha={filas[modalAdjIdx!].fecha}
+            initialEvidenciaKey={filas[modalAdjIdx!].evidenciaKey || ''}
             initialProveedor={(filas[modalAdjIdx!] as any).proveedorData || null}
             onClose={() => {
               const idx = modalAdjIdx!
@@ -436,8 +442,24 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
               if (fila?.esNueva && !fila?.valor) {
                 // Fila nueva sin datos → borrar
                 setFilas(prev => prev.filter((_, i) => i !== idx))
+              } else if (fila?.id) {
+                fetch(`/api/egresos?id=${fila.id}`).then(r => r.json()).then(d => {
+                  if (!d.egreso) return
+                  const e = d.egreso
+                  setFilas(prev => prev.map((fi, i) => i !== idx ? fi : ({
+                    ...fi,
+                    valor: String(Math.round(parseFloat(e.valor)||0)),
+                    retencion: String(Math.round(parseFloat(e.retencion)||0)),
+                    descuento: String(Math.round(parseFloat(e.descuento)||0)),
+                    abonoPago: String(Math.round(parseFloat(e.abonoPago)||0)),
+                    saldo: String(Math.round(parseFloat(e.saldo)||0)),
+                    evidenciaKey: e.evidenciaKey || fi.evidenciaKey,
+                    proveedorId: e.proveedor?.id || null,
+                    proveedorNombre: e.proveedor ? (e.proveedor.firstName + (e.proveedor.lastName ? ' ' + e.proveedor.lastName : '')) : null,
+                  })))
+                })
               }
-              setModalAdjIdx(null)
+              setModalEgresoId(null); setModalAdjIdx(null)
             }}
             onAbonoGuardado={(abonoPago, saldo) => {
               const idx = modalAdjIdx!
@@ -463,7 +485,7 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
                 proveedorId: data.proveedorId,
                 proveedorNombre: data.proveedorNombre || null,
               })))
-              setModalAdjIdx(null)
+              setModalEgresoId(null); setModalAdjIdx(null)
             }}
           />
       )}

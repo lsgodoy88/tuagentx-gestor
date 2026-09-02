@@ -125,6 +125,14 @@ export default function SaldosPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab])
 
+  // Refetch al volver a la tab
+  useEffect(() => {
+    const onVisible = () => { if (document.visibilityState === 'visible' && tab && fecha) cargarDia(fecha, tab) }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, fecha])
+
   function resetDia() {
     setFilas(filasIniciales())
     setFilasGuardadas(new Set())
@@ -285,7 +293,7 @@ export default function SaldosPage() {
           <button key={t.key} onClick={() => setTab(t.key)}
             className={`py-2 text-sm font-semibold transition-colors rounded-lg ${tab === t.key ? 'tab-active' : 'text-white hover:text-white'}`}
             style={{ flexShrink: 0, paddingLeft: 14, paddingRight: 14, whiteSpace: 'nowrap' }}>
-            {t.emoji} {t.nombre}
+            {t.nombre}
           </button>
         ))}
       </div>
