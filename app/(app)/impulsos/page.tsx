@@ -970,8 +970,8 @@ function ReporteImpulsoTab() {
     d.setDate(1)
     d.setMonth(d.getMonth() - i)
     const valor = d.toISOString().slice(0, 7)
-    const label = d.toLocaleDateString('es-CO', {month:'long', year:'numeric', timeZone:'UTC'})
-      .replace(' de ', ' ').replace(/^./, c => c.toUpperCase())
+    const label = d.toLocaleDateString('es-CO', {month:'short', year:'numeric', timeZone:'UTC'})
+      .replace(' de ', ' ').replace(/^./, c => c.toUpperCase()).replace('.', '')
     return { valor, label }
   })
 
@@ -1067,7 +1067,7 @@ function ReporteImpulsoTab() {
             </div>
           </div>
 
-          <div style={{alignSelf:'flex-end'}}>
+          <div style={{alignSelf:'flex-end', flexShrink:0}}>
             <button onClick={abrirPDF}
               className="bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold px-4 py-2 rounded-xl transition-colors whitespace-nowrap">
               📄 PDF

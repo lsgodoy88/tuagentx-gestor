@@ -17,6 +17,9 @@ export async function runSnapshotMes(mesOverride?: string): Promise<{ ventas: nu
 
   console.log(`[snapshot-mes] Cerrando mes ${mesCierre}`)
 
+  // Limpiar snapshots existentes del mes para recalcular desde cero
+  await (prisma as any).$executeRawUnsafe(`DELETE FROM ${DB_SCHEMA}."SnapshotMes" WHERE mes = $1 AND tipo IN ('ventas','recaudo','descuento','cartera')`, mesCierre)
+
   // Ventas por empresa/vendedor del mes cerrado
   const ventasInserted: any = await (prisma as any).$queryRawUnsafe(`
     INSERT INTO ${DB_SCHEMA}."SnapshotMes" (id, empresa_id, mes, tipo, vendedor_api_id, entidad_nombre, datos, creado_en, updated_en)
@@ -34,7 +37,7 @@ export async function runSnapshotMes(mesOverride?: string): Promise<{ ventas: nu
       ),
       NOW(), NOW()
     FROM ${DB_SCHEMA}."OrdenDespacho" od
-    LEFT JOIN ${DB_SCHEMA}."Empleado" e ON e."vendedorId" = od."vendedorApiId" AND e."empresaId" = od."empresaId"
+    LEFT JOIN ${DB_SCHEMA}."Empleado" e ON e."apiId" = od."vendedorApiId" AND e."empresaId" = od."empresaId"
     LEFT JOIN ${DB_SCHEMA}."MetaVenta" mv ON mv."empleadoId" = e.id
       AND mv.mes = EXTRACT(MONTH FROM DATE_TRUNC('month', TO_DATE($1, 'YYYY-MM')))::int
       AND mv.anio = EXTRACT(YEAR  FROM DATE_TRUNC('month', TO_DATE($1, 'YYYY-MM')))::int
@@ -42,7 +45,6 @@ export async function runSnapshotMes(mesOverride?: string): Promise<{ ventas: nu
       AND od."isFacturada" = true
       AND TO_CHAR(od."fechaFactura" AT TIME ZONE 'America/Bogota', 'YYYY-MM') = $1
     GROUP BY od."empresaId", od."vendedorApiId", COALESCE(e.nombre, 'Sin asignar')
-    ON CONFLICT DO NOTHING
     RETURNING id
   `, mesCierre)
 
@@ -70,7 +72,6 @@ export async function runSnapshotMes(mesOverride?: string): Promise<{ ventas: nu
     WHERE v.tipo = 'cobro'
       AND TO_CHAR(DATE_TRUNC('month', v."fechaBogota" AT TIME ZONE 'America/Bogota'), 'YYYY-MM') = $1
     GROUP BY e."empresaId", v."empleadoId", e.nombre
-    ON CONFLICT DO NOTHING
     RETURNING id
   `, mesCierre)
 
@@ -94,7 +95,6 @@ export async function runSnapshotMes(mesOverride?: string): Promise<{ ventas: nu
     WHERE p.descuento > 0
       AND TO_CHAR(DATE_TRUNC('month', p."createdAt" AT TIME ZONE 'America/Bogota'), 'YYYY-MM') = $1
     GROUP BY e."empresaId", p."empleadoId", e.nombre
-    ON CONFLICT DO NOTHING
     RETURNING id
   `, mesCierre)
 
@@ -121,7 +121,6 @@ export async function runSnapshotMes(mesOverride?: string): Promise<{ ventas: nu
     LEFT JOIN ${DB_SCHEMA}."Empleado" e ON e."apiId" = cc."empleadoExternalId" AND e."empresaId" = cc."empresaId"
     WHERE cc."saldoTotal" > 0
     GROUP BY cc."empresaId", cc."empleadoExternalId", cc."empleadoNombre", e.id
-    ON CONFLICT DO NOTHING
     RETURNING id
   `, mesCierre)
 
