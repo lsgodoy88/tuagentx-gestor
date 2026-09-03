@@ -6,7 +6,7 @@ export type TourPaso = {
   id: string
   titulo: string
   desc: string
-  posTooltip?: 'top' | 'bottom' | 'auto'
+  posTooltip?: 'top' | 'bottom' | 'auto' | 'right'
   parentId?: string
   childIndex?: number
   onEnter?: () => void
@@ -18,6 +18,7 @@ interface Props {
   pasos: TourPaso[]
   onFin: () => void
   onOpenNav?: () => void
+  onExpandSidebar?: () => void
 }
 
 const PAD    = 10
@@ -26,21 +27,42 @@ const TT_GAP = 12
 const MARGIN = 10
 
 function findEl(p: TourPaso): HTMLElement | null {
-  // 1. Buscar por data-tour directo — sin validación de visibilidad
-  const direct = document.querySelector(`[data-tour="${p.id}"]`) as HTMLElement | null
+  const isPC = window.innerWidth >= 768
+
+  // En móvil, alertas → componente móvil
+  let id = p.id
+  let parentId = p.parentId
+  if (!isPC && id === 'nav-alertas') id = 'nav-alertas-movil'
+
+  if (isPC) {
+    if (id === 'bottom-nav') return null                     // notch no existe en PC — skip
+    if (id === 'nav-drawer') id = 'nav-sidebar'              // drawer → sidebar
+    if (parentId === 'nav-drawer') parentId = 'nav-sidebar'
+    // nav-item-N → nav-pc-N (Links con data-tour directo)
+    const navItemMatch = id.match(/^nav-item-(\d+)$/)
+    if (navItemMatch) id = `nav-pc-${navItemMatch[1]}`
+  }
+
+  // 1. Buscar por data-tour directo
+  const direct = document.querySelector(`[data-tour="${id}"]`) as HTMLElement | null
   if (direct) return direct
   // 2. Fallback: padre directo (cuando id no existe, usar parentId como spotlight)
-  if (p.parentId !== undefined) {
-    const parent = document.querySelector(`[data-tour="${p.parentId}"]`) as HTMLElement | null
+  if (parentId !== undefined) {
+    const parent = document.querySelector(`[data-tour="${parentId}"]`) as HTMLElement | null
     if (parent) {
-      // Si hay childIndex, buscar hijo específico
-      if (p.childIndex !== undefined) {
+      // Si hay childIndex y no es PC (en PC usamos nav-pc-N directamente)
+      if (p.childIndex !== undefined && !isPC) {
+        // Usar solo Links de navegación directos — evitar botones anidados
         const children = Array.from(
-          parent.querySelectorAll(':scope > a, :scope > button, :scope > [role="button"]')
-        ) as HTMLElement[]
-        if (children[p.childIndex]) return children[p.childIndex]
+          parent.querySelectorAll('[data-tour^="nav-pc-"], a[href]')
+        ).filter(el => !el.closest('[data-tour^="nav-pc-"]')?.parentElement?.closest('[data-tour^="nav-pc-"]')) as HTMLElement[]
+        // Fallback simple: todos los a[href] directos
+        const links = children.length
+          ? children
+          : Array.from(parent.querySelectorAll('a[href]')) as HTMLElement[]
+        if (links[p.childIndex]) return links[p.childIndex]
       }
-      // Sin childIndex o sin hijos — usar el padre como spotlight
+      // Sin childIndex o en PC — usar el padre como spotlight
       return parent
     }
   }
@@ -53,7 +75,7 @@ function getRectVisible(el: HTMLElement): DOMRect | null {
   return null
 }
 
-export default function TourGuiado({ pasos, onFin, onOpenNav }: Props) {
+export default function TourGuiado({ pasos, onFin, onOpenNav, onExpandSidebar }: Props) {
   const [paso, setPaso]   = useState(0)
   const [rect, setRect]   = useState<DOMRect | null>(null)
   const [listo, setListo] = useState(false)
@@ -104,6 +126,7 @@ export default function TourGuiado({ pasos, onFin, onOpenNav }: Props) {
     const p = pasos[paso]
     if (p?.onEnter) p.onEnter()
 
+    const isPC    = typeof window !== 'undefined' && window.innerWidth >= 768
     const isNotch = p?.id === 'bottom-nav'
     const isNav   = p?.id === 'nav-drawer' || p?.id?.startsWith('nav-item') || p?.parentId === 'nav-drawer'
 
@@ -111,9 +134,25 @@ export default function TourGuiado({ pasos, onFin, onOpenNav }: Props) {
       setTimeout(() => setListo(true), 60)
     })
 
-    if (isNav && onOpenNav) {
+    // En PC, si el elemento no existe → saltar al siguiente paso automáticamente
+    if (isPC && isNotch) {
+      setPaso(p => Math.min(p + 1, pasos.length - 1))
+      return
+    }
+
+    // En PC, expandir sidebar antes de remarcar ítems del nav
+    const isSidebarItem = isPC && (p?.id?.startsWith('nav-pc') || p?.id === 'nav-sidebar' || p?.id === 'nav-alertas')
+    if (isSidebarItem && onExpandSidebar) onExpandSidebar()
+
+    // Si el elemento no existe en el DOM → saltar en lugar de esperar 3s
+    const elCheck = findEl(p)
+    if (!elCheck) {
+      setPaso(p => Math.min(p + 1, pasos.length - 1))
+      return
+    }
+
+    if (!isPC && isNav && onOpenNav) {
       onOpenNav()
-      // Esperar 2 frames para que React aplique el estado y el browser haga repaint
       requestAnimationFrame(() => requestAnimationFrame(() => run()))
     } else {
       run()
@@ -157,27 +196,34 @@ export default function TourGuiado({ pasos, onFin, onOpenNav }: Props) {
   const sw = rect ? Math.min(vw - sx, rect.width  + PAD * 2) : 0
   const sh = rect ? Math.min(vh - sy, rect.height + PAD * 2) : 0
 
-  const noEl      = !rect || sw <= 0 || sh <= 0
-  const ttW       = Math.min(TT_W, vw - MARGIN * 2)
-  const spBottom  = sy + sh
-  const spTop     = sy
-  const espAbajo  = vh - spBottom - TT_GAP
-  const espArriba = spTop - TT_GAP
-  // Siempre usar el espacio disponible — posTooltip es solo una sugerencia
-  // Si hay más espacio abajo → abajo, si hay más arriba → arriba
-  const pos = espAbajo >= espArriba ? 'bottom' : 'top'
+  const noEl       = !rect || sw <= 0 || sh <= 0
+  const ttW        = Math.min(TT_W, vw - MARGIN * 2)
+  const spBottom   = sy + sh
+  const spTop      = sy
+  const spRight    = rect ? Math.max(0, rect.right + PAD) : 0
+  const espAbajo   = vh - spBottom - TT_GAP
+  const espArriba  = spTop - TT_GAP
+  const espDerecha = vw - spRight - TT_GAP
 
-  const ttTop  = noEl
+  // posTooltip:'right' tiene prioridad si hay espacio, si no cae a top/bottom
+  const pos = (p.posTooltip === 'right' && espDerecha >= ttW + MARGIN) ? 'right'
+            : espAbajo >= espArriba ? 'bottom' : 'top'
+
+  const ttTop = noEl
     ? vh / 2 - 120
-    : pos === 'bottom'
-      ? spBottom + TT_GAP
-      : Math.max(MARGIN, spTop - TT_GAP - 240)
+    : pos === 'bottom' ? spBottom + TT_GAP
+    : pos === 'right'  ? Math.max(MARGIN, Math.min(vh - 280 - MARGIN, sy + sh / 2 - 140))
+    : Math.max(MARGIN, spTop - TT_GAP - 240)
 
-  const idealLeft = noEl
+  const ttLeft = noEl
     ? vw / 2 - ttW / 2
-    : rect ? rect.left + rect.width / 2 - ttW / 2 : vw / 2 - ttW / 2
-  const ttLeft   = Math.max(MARGIN, Math.min(vw - ttW - MARGIN, idealLeft))
-  const ttMaxH   = noEl ? 280
+    : pos === 'right'
+      ? Math.min(vw - ttW - MARGIN, spRight + TT_GAP)
+      : Math.max(MARGIN, Math.min(vw - ttW - MARGIN,
+          rect ? rect.left + rect.width / 2 - ttW / 2 : vw / 2 - ttW / 2))
+
+  const ttMaxH = noEl ? 280
+    : pos === 'right'  ? Math.max(140, vh - ttTop - MARGIN)
     : pos === 'bottom' ? Math.max(140, vh - ttTop - MARGIN)
     : Math.max(140, spTop - TT_GAP - MARGIN)
 

@@ -170,6 +170,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [asistenteAbierto, setAsistenteAbierto] = useState(false)
   const [tourActivo, setTourActivo]         = useState(false)
+  const [robotHovered, setRobotHovered]     = useState(false)
 
   // pasosTour se calcula después de que user esté disponible (ver más abajo)
   const [bloqueado, setBloqueado] = useState(false)
@@ -215,21 +216,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         desc: 'Seguimiento de productos impulsados y cumplimiento por impulsadora.' },
       { id: 'bottom-nav', titulo: '🧭 Menú de navegación', posTooltip: 'top',
         desc: 'Toca el botón INICIO para abrir el menú con todos los módulos.' },
-      { id: 'nav-drawer', titulo: '🧭 Menú principal', posTooltip: 'top',
+      { id: 'nav-drawer', posTooltip: 'right' as const, titulo: '🧭 Menú principal',
         desc: 'Aquí están todos los módulos. Toca cualquiera para acceder.' },
-      { id: 'nav-item-0', parentId: 'nav-drawer', childIndex: 0, titulo: '🏠 Inicio', posTooltip: 'top',
+      { id: 'nav-item-0', parentId: 'nav-drawer', childIndex: 0, posTooltip: 'right' as const, titulo: '🏠 Inicio',
         desc: 'Tu dashboard con stats del día, botones de acción y resumen del mes.' },
-      { id: 'nav-item-1', parentId: 'nav-drawer', childIndex: 1, titulo: '📋 Visitas', posTooltip: 'top',
+      { id: 'nav-item-1', parentId: 'nav-drawer', childIndex: 1, posTooltip: 'right' as const, titulo: '📋 Visitas',
         desc: 'Historial completo de visitas: clientes, tipo de gestión y resultado.' },
-      { id: 'nav-item-2', parentId: 'nav-drawer', childIndex: 2, titulo: '🏪 Clientes', posTooltip: 'top',
+      { id: 'nav-item-2', parentId: 'nav-drawer', childIndex: 2, posTooltip: 'right' as const, titulo: '🏪 Clientes',
         desc: 'Tu cartera de clientes: saldo, historial de compras y contacto.' },
-      { id: 'nav-item-3', parentId: 'nav-drawer', childIndex: 3, titulo: '💰 Cartera', posTooltip: 'top',
+      { id: 'nav-item-3', parentId: 'nav-drawer', childIndex: 3, posTooltip: 'right' as const, titulo: '💰 Cartera',
         desc: 'Deuda pendiente por cliente. Registra cobros directamente desde aquí.' },
-      { id: 'nav-item-4', parentId: 'nav-drawer', childIndex: 4, titulo: '🚚 Despacho', posTooltip: 'top',
+      { id: 'nav-item-4', parentId: 'nav-drawer', childIndex: 4, posTooltip: 'right' as const, titulo: '🚚 Despacho',
         desc: 'Estado de pedidos: alistados, facturados y en camino.' },
-      { id: 'nav-item-5', parentId: 'nav-drawer', childIndex: 5, titulo: '⚡ Impulsos', posTooltip: 'top',
+      { id: 'nav-item-5', parentId: 'nav-drawer', childIndex: 5, posTooltip: 'right' as const, titulo: '⚡ Impulsos',
         desc: 'Productos que impulsas en cada visita y seguimiento de cumplimiento.' },
-      { id: 'nav-item-6', parentId: 'nav-drawer', childIndex: 6, titulo: '🧾 Gastos', posTooltip: 'top',
+      { id: 'nav-item-6', parentId: 'nav-drawer', childIndex: 6, posTooltip: 'right' as const, titulo: '🧾 Gastos',
         desc: 'Reporta gastos de campo: transporte, viáticos y otros.' },
     ],
     entregas: [
@@ -241,7 +242,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         desc: 'Órdenes despachadas y facturadas hoy. Toca para ver el detalle.' },
       { id: 'bottom-nav', titulo: '🧭 Menú de navegación', posTooltip: 'top',
         desc: 'Toca el botón INICIO para abrir el menú con todos los módulos.' },
-      { id: 'nav-drawer', titulo: '🧭 Menú completo', posTooltip: 'top',
+      { id: 'nav-drawer', posTooltip: 'right' as const, titulo: '🧭 Menú completo',
         desc: 'Accede a Clientes, Rutas de entrega y más desde aquí.' },
     ],
     impulsadora: [
@@ -255,15 +256,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         desc: 'Tu ruta completa del día. Verde = en punto, gris = completado.' },
       { id: 'bottom-nav', titulo: '🧭 Menú de navegación',
         desc: 'Toca INICIO para abrir el menú con todos los módulos.' },
-      { id: 'nav-drawer', titulo: '🧭 Menú completo',
+      { id: 'nav-drawer', posTooltip: 'right' as const, titulo: '🧭 Menú completo',
         desc: 'Desde aquí accedes a todos los módulos de tu rol.' },
-      { id: 'nav-item-0', parentId: 'nav-drawer', childIndex: 0, titulo: '⚡ Inicio',
+      { id: 'nav-item-0', parentId: 'nav-drawer', childIndex: 0, posTooltip: 'right' as const, titulo: '⚡ Inicio',
         desc: 'Tu página principal con la ruta del día y progreso.' },
-      { id: 'nav-item-1', parentId: 'nav-drawer', childIndex: 1, titulo: '📌 Mi semana',
+      { id: 'nav-item-1', parentId: 'nav-drawer', childIndex: 1, posTooltip: 'right' as const, titulo: '📌 Mi semana',
         desc: 'Resumen semanal de tus visitas y cumplimiento por punto.' },
-      { id: 'nav-item-2', parentId: 'nav-drawer', childIndex: 2, titulo: '🎯 Impulsar',
+      { id: 'nav-item-2', parentId: 'nav-drawer', childIndex: 2, posTooltip: 'right' as const, titulo: '🎯 Impulsar',
         desc: 'Registra productos impulsados en cada punto de venta.' },
-      { id: 'nav-item-3', parentId: 'nav-drawer', childIndex: 3, titulo: '🧾 Gastos',
+      { id: 'nav-item-3', parentId: 'nav-drawer', childIndex: 3, posTooltip: 'right' as const, titulo: '🧾 Gastos',
         desc: 'Reporta tus gastos de campo: transporte y viáticos.' },
     ],
     empresa: [
@@ -281,27 +282,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         desc: 'Cartera cobrada vs meta. Toca para ver detalle por vendedor.' },
       { id: 'bottom-nav', titulo: '🧭 Menú de navegación',
         desc: 'Toca INICIO para abrir el menú con todos los módulos.' },
-      { id: 'nav-drawer', titulo: '🧭 Menú de administración',
+      { id: 'nav-alertas', posTooltip: 'right' as const, titulo: '🔔 Alertas',
+        desc: 'Notificaciones del sistema: sincronizaciones, pagos y eventos importantes.' },
+      { id: 'nav-drawer', posTooltip: 'right' as const, titulo: '🧭 Menú de administración',
         desc: 'Accede a todos los módulos desde aquí.' },
-      { id: 'nav-item-0', parentId: 'nav-drawer', childIndex: 0, titulo: '🏠 Inicio',
+      { id: 'nav-item-0', parentId: 'nav-drawer', childIndex: 0, posTooltip: 'right' as const, titulo: '🏠 Inicio',
         desc: 'Dashboard principal con stats del equipo en tiempo real.' },
-      { id: 'nav-item-1', parentId: 'nav-drawer', childIndex: 1, titulo: '💵 Saldos',
+      { id: 'nav-item-1', parentId: 'nav-drawer', childIndex: 1, posTooltip: 'right' as const, titulo: '💵 Saldos',
         desc: 'Saldos en caja, bancos y otros. Control financiero del día.' },
-      { id: 'nav-item-2', parentId: 'nav-drawer', childIndex: 2, titulo: '🛍️ Egresos',
+      { id: 'nav-item-2', parentId: 'nav-drawer', childIndex: 2, posTooltip: 'right' as const, titulo: '🛍️ Egresos',
         desc: 'Gastos y egresos registrados. Control de salidas de dinero.' },
-      { id: 'nav-item-3', parentId: 'nav-drawer', childIndex: 3, titulo: '👥 Activos',
+      { id: 'nav-item-3', parentId: 'nav-drawer', childIndex: 3, posTooltip: 'right' as const, titulo: '👥 Activos',
         desc: 'Empleados activos, roles y permisos del equipo.' },
-      { id: 'nav-item-4', parentId: 'nav-drawer', childIndex: 4, titulo: '🏪 Clientes',
+      { id: 'nav-item-4', parentId: 'nav-drawer', childIndex: 4, posTooltip: 'right' as const, titulo: '🏪 Clientes',
         desc: 'Base de clientes: saldo, historial y estado de cuenta.' },
-      { id: 'nav-item-5', parentId: 'nav-drawer', childIndex: 5, titulo: '💰 Cartera',
+      { id: 'nav-item-5', parentId: 'nav-drawer', childIndex: 5, posTooltip: 'right' as const, titulo: '💰 Cartera',
         desc: 'Deuda consolidada por cliente. Estado de cobros del equipo.' },
-      { id: 'nav-item-6', parentId: 'nav-drawer', childIndex: 6, titulo: '💳 Recaudos',
+      { id: 'nav-item-6', parentId: 'nav-drawer', childIndex: 6, posTooltip: 'right' as const, titulo: '💳 Recaudos',
         desc: 'Historial de recaudos y cobros registrados.' },
-      { id: 'nav-item-7', parentId: 'nav-drawer', childIndex: 7, titulo: '📋 Visitas',
+      { id: 'nav-item-7', parentId: 'nav-drawer', childIndex: 7, posTooltip: 'right' as const, titulo: '📋 Visitas',
         desc: 'Todas las visitas del equipo: clientes, tipo y resultado.' },
-      { id: 'nav-item-8', parentId: 'nav-drawer', childIndex: 8, titulo: '⚡ Impulsos',
+      { id: 'nav-item-8', parentId: 'nav-drawer', childIndex: 8, posTooltip: 'right' as const, titulo: '⚡ Impulsos',
         desc: 'Seguimiento de impulsadoras y cumplimiento por punto.' },
-      { id: 'nav-item-9', parentId: 'nav-drawer', childIndex: 9, titulo: '🏭 Bodega',
+      { id: 'nav-item-9', parentId: 'nav-drawer', childIndex: 9, posTooltip: 'right' as const, titulo: '🏭 Bodega',
         desc: 'Trazabilidad de pedidos: alistamiento, despacho y entrega.' },
     ],
     supervisor: [
@@ -315,15 +318,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         desc: 'Cartera cobrada vs meta. Toca para ver detalle.' },
       { id: 'bottom-nav', titulo: '🧭 Menú de navegación',
         desc: 'Toca INICIO para abrir el menú con todos los módulos.' },
-      { id: 'nav-drawer', titulo: '🧭 Menú',
+      { id: 'nav-drawer', posTooltip: 'right' as const, titulo: '🧭 Menú',
         desc: 'Accede a todos los módulos desde aquí.' },
-      { id: 'nav-item-0', parentId: 'nav-drawer', childIndex: 0, titulo: '🏠 Inicio',
+      { id: 'nav-item-0', parentId: 'nav-drawer', childIndex: 0, posTooltip: 'right' as const, titulo: '🏠 Inicio',
         desc: 'Dashboard principal con stats del equipo.' },
-      { id: 'nav-item-1', parentId: 'nav-drawer', childIndex: 1, titulo: '🏪 Clientes',
+      { id: 'nav-item-1', parentId: 'nav-drawer', childIndex: 1, posTooltip: 'right' as const, titulo: '🏪 Clientes',
         desc: 'Base de clientes con saldo e historial.' },
-      { id: 'nav-item-2', parentId: 'nav-drawer', childIndex: 2, titulo: '💰 Cartera',
+      { id: 'nav-item-2', parentId: 'nav-drawer', childIndex: 2, posTooltip: 'right' as const, titulo: '💰 Cartera',
         desc: 'Deuda consolidada y estado de cobros.' },
-      { id: 'nav-item-3', parentId: 'nav-drawer', childIndex: 3, titulo: '📋 Visitas',
+      { id: 'nav-item-3', parentId: 'nav-drawer', childIndex: 3, posTooltip: 'right' as const, titulo: '📋 Visitas',
         desc: 'Visitas del equipo: clientes, tipo y resultado.' },
     ],
   }
@@ -567,6 +570,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const iconoActivo = navActivo?.icon  || '⚡'
   const labelActivo = navActivo?.label || 'Inicio'
 
+  // Índice global de ítems del sidebar — O(n) calculado antes del render
+  const allSidebarItems = navGroups.flatMap(g =>
+    g.items.filter(item => user?.role === 'impulsadora' ? item.href !== '/inicio' : true)
+  )
+
   return (
     <>
     <div id="bg-grad-base" aria-hidden="true" className="md:opacity-0" style={{position:'fixed',top:0,left:0,right:0,height:'100lvh',zIndex:-1,background:'linear-gradient(160deg, #060f34 0%, #0a1628 12%, #1a3060 30%, #1e3a6e 48%, #0d1f45 65%, #07103a 82%, #0a1848 100%)'}} />
@@ -587,10 +595,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 text-xs" style={{background:'linear-gradient(135deg,#2563eb,#1d4ed8)',boxShadow:'0 0 12px #2563eb40'}}>🗺️</div>
             <span className="text-white font-bold text-sm tracking-tight">Gestor</span>
           </div>
-          {(isEmpresa || isSupervisor) && <AlertasSidebarBadge />}
+          {(isEmpresa || isSupervisor) && <span data-tour="nav-alertas"><AlertasSidebarBadge /></span>}
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+        <nav data-tour="nav-sidebar" className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
           {navGroups.map((group, gi) => (
             <div key={gi}>
               {gi > 0 && (
@@ -605,10 +613,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               {group.items
                 .filter(item => user?.role === 'impulsadora' ? item.href !== '/inicio' : true)
                 .map(item => {
-                  const isActive = pathname === item.href
+                  const isActive  = pathname === item.href
+                  const itemIdx   = allSidebarItems.findIndex(i => i.href === item.href)
                   return (
                     <Link key={item.href} href={item.href} prefetch
-                                            title={!sidebarExpanded ? item.label : ''}
+                      data-tour={`nav-pc-${itemIdx}`}
+                      title={!sidebarExpanded ? item.label : ''}
                       className={`relative flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium ${!sidebarExpanded ? 'justify-center' : ''} ${isActive ? 'text-white' : 'text-white hover:bg-[#0f2540]'}`}
                       style={isActive ? {background:'#1e3a5f'} : {}}>
                       <span className="text-base flex-shrink-0">{item.icon}</span>
@@ -884,9 +894,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </button>
 
           {/* TaXBot flotante PC — estilo WhatsApp */}
-      {(isEmpresa || isSupervisor || isEmpleado) && !asistenteAbierto && (
+      {(isEmpresa || isSupervisor || isEmpleado) && !asistenteAbierto &&
+        ['/inicio', '/impulsadora'].includes(pathname) && (
         <button
           onClick={() => setAsistenteAbierto(true)}
+          onMouseEnter={() => setRobotHovered(true)}
+          onMouseLeave={() => setRobotHovered(false)}
           title="TaXBot"
           className="hidden md:flex"
           style={{
@@ -959,8 +972,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Overlay navegación */}
       {navigating && <TuAgentXOverlay />}
 
-      {(isEmpresa || isSupervisor || isEmpleado) && <AsistenteGestor onClose={() => setAsistenteAbierto(false)} rol={user?.role} visible={asistenteAbierto} userId={user?.id} onStartTour={() => setTourActivo(true)} />}
-      {tourActivo && <TourGuiado pasos={pasosTour} onFin={() => { setTourActivo(false); setDrawerOpen(false); setAsistenteAbierto(true) }} onOpenNav={() => setDrawerOpen(true)} />}
+      {(isEmpresa || isSupervisor || isEmpleado) && <AsistenteGestor onClose={() => setAsistenteAbierto(false)} rol={user?.role} visible={asistenteAbierto} userId={user?.id} onStartTour={() => setTourActivo(true)} robotHovered={robotHovered} />}
+      {tourActivo && <TourGuiado pasos={pasosTour} onFin={() => { setTourActivo(false); setDrawerOpen(false); setAsistenteAbierto(true) }} onOpenNav={() => setDrawerOpen(true)} onExpandSidebar={() => setSidebarOpen(true)} />}
 
       {isEmpresa && bannerVisible && (billingEstado === 'pendiente' || billingEstado === 'mora') && (
         <BillingBanner

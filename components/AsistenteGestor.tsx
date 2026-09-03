@@ -10,7 +10,7 @@ type Msg = {
   chips?: string[]
 }
 
-interface Props { onClose: () => void; rol?: string; visible?: boolean; userId?: string; onStartTour?: () => void }
+interface Props { onClose: () => void; rol?: string; visible?: boolean; userId?: string; onStartTour?: () => void; robotHovered?: boolean }
 
 // ── Chips por rol (menú inicial) ─────────────────────────────────────────────
 // Chips operativos por rol (los primeros que ve el usuario)
@@ -45,7 +45,7 @@ function chipsParaRespuesta(texto: string, rol: string): string[] {
   return []
 }
 
-export default function AsistenteGestor({ onClose, rol, visible, userId, onStartTour }: Props) {
+export default function AsistenteGestor({ onClose, rol, visible, userId, onStartTour, robotHovered }: Props) {
   const rolKey = rol || 'vendedor'
   const esVendedor = ['vendedor','entregas','impulsadora'].includes(rolKey)
 
@@ -80,6 +80,19 @@ export default function AsistenteGestor({ onClose, rol, visible, userId, onStart
   }
 
   const [pendiente, setPendiente] = useState<{ accion: string; texto: string } | null>(null)
+
+  // Bubble "Hola, Estoy aquí" — una vez por sesión
+  const [showBubble, setShowBubble] = useState(false)
+  useEffect(() => {
+    const key = 'taxbot_bubble_' + (userId || 'u')
+    if (sessionStorage.getItem(key)) return
+    const t = setTimeout(() => {
+      setShowBubble(true)
+      sessionStorage.setItem(key, '1')
+      setTimeout(() => setShowBubble(false), 4000)
+    }, 2000)
+    return () => clearTimeout(t)
+  }, []) // eslint-disable-line
   const endRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [msgs])
@@ -282,6 +295,47 @@ export default function AsistenteGestor({ onClose, rol, visible, userId, onStart
 
   return (
     <>
+      {/* Bubble "Hola, Estoy aquí" — una vez por sesión */}
+      {/* Bubble — solo PC, hover sobre el botón robot */}
+      {!visible && (
+        <div
+          className="taxbot-bubble-wrapper hidden md:block"
+          style={{ position:'fixed', bottom:16, right:16, zIndex:9994, width:'auto', height:'auto', pointerEvents:'none' }}
+        >
+          <div
+            className="taxbot-bubble"
+            onClick={(e) => { e.stopPropagation(); setShowBubble(false); onClose() }}
+            style={{
+              position: 'absolute',
+              bottom: 76,
+              right: 0,
+              opacity: (showBubble || robotHovered) ? 1 : 0,
+              transform: (showBubble || robotHovered) ? 'translateY(0) scale(1)' : 'translateY(8px) scale(0.92)',
+              transition: 'opacity 0.28s ease, transform 0.28s ease',
+              pointerEvents: 'auto',
+              cursor: 'pointer',
+              filter: 'drop-shadow(0 4px 16px rgba(96,165,250,0.30))',
+            }}
+          >
+            <svg width="160" height="52" viewBox="0 0 160 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {/* Burbuja principal */}
+              <rect x="1" y="1" width="158" height="40" rx="14" fill="transparent" stroke="#60a5fa" strokeWidth="1.5"/>
+              {/* Cola orgánica apuntando abajo-derecha hacia el robot */}
+              <path d="M130 41 Q138 48 148 51 Q140 44 132 41 Z" fill="transparent" stroke="#60a5fa" strokeWidth="1.5" strokeLinejoin="round"/>
+              {/* Texto */}
+              <text x="50%" y="22" textAnchor="middle" dominantBaseline="middle" fill="#ffffff" fontFamily="system-ui,-apple-system,sans-serif" fontSize="13" fontWeight="600">👋 Hola, estoy aquí</text>
+            </svg>
+          </div>
+        </div>
+      )}
+      <style>{`
+        @keyframes taxbot-bubble-in {
+          from { opacity: 0; transform: translateY(8px) scale(0.95); }
+          to   { opacity: 1; transform: translateY(0)  scale(1); }
+        }
+
+      `}</style>
+
       {/* Móvil: full screen */}
       <div className="md:hidden">
         <div className="fixed inset-0 bg-black/60 z-[9998]" style={{display: visible ? undefined : "none"}} onClick={onClose} />

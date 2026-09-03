@@ -87,7 +87,7 @@ export default function AlertasNotch() {
     : alertas.some(a => a.severidad === 'advertencia') ? 'advertencia' : 'info'
 
   return (
-    <div ref={ref} className={`md:hidden ${saliendo ? 'alertas-notch-salida' : 'alertas-notch'}`} style={{ position: 'fixed', bottom: 0, left: 16, zIndex: 3001, pointerEvents: 'all' }}>
+    <div ref={ref} data-tour="nav-alertas-movil" className={`md:hidden ${saliendo ? 'alertas-notch-salida' : 'alertas-notch'}`} style={{ position: 'fixed', bottom: 0, left: 16, zIndex: 3001, pointerEvents: 'all' }}>
 
       {/* Panel — un solo popup con todas las alertas */}
       <div style={{
