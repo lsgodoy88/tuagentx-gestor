@@ -746,16 +746,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           style={{
             position:'fixed', bottom:16, right:16, zIndex:3001,
             width:56, height:56, borderRadius:'50%',
-            background:'none', border:'none',
+            background:'transparent',
+            border:'2px solid #60a5fa',
             alignItems:'center', justifyContent:'center',
             cursor:'pointer', padding:0,
           }}>
           <span className="relative" style={{display:'flex',alignItems:'center',justifyContent:'center'}}>
-            {/* Glow difuminado detrás */}
-            <span style={{position:'absolute',inset:-8,borderRadius:'50%',background:'radial-gradient(circle,rgba(59,130,246,0.35) 0%,transparent 70%)',filter:'blur(6px)',pointerEvents:'none'}} />
-            <span style={{position:'absolute',inset:0,borderRadius:'50%',background:'radial-gradient(circle,rgba(29,78,216,0.2) 0%,transparent 100%)',pointerEvents:'none'}} />
-            <RobotIcon size={44} />
-            <span style={{position:'absolute',top:0,right:0,width:10,height:10,background:'#34d399',borderRadius:'50%',border:'2px solid #080a1c',boxShadow:'0 0 6px #34d399'}} />
+            <RobotIcon size={36} />
           </span>
         </button>
       )}

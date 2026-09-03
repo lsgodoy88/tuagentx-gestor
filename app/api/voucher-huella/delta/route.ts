@@ -39,8 +39,8 @@ async function runDelta() {
 
       // Idempotente: skip si ya existe alerta para este pago con mismo mensaje
       await (prisma as any).$queryRawUnsafe(`
-        INSERT INTO "${DB_SCHEMA}"."PagoAlerta" (id, pago_id, tipo, mensaje, leida)
-        VALUES (gen_random_uuid(), $1, 'voucher_duplicado', $2, false)
+        INSERT INTO "${DB_SCHEMA}"."PagoAlerta" (id, pago_id, "pagoId", tipo, mensaje, leida)
+        VALUES (gen_random_uuid(), $1, $1, 'voucher_duplicado', $2, false)
         ON CONFLICT DO NOTHING
       `, pagoIds[i], mensaje)
 
