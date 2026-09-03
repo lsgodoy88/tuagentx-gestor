@@ -100,21 +100,21 @@ export default function ImpulsoDashboard() {
   const total = rutaHoy?.clientes?.length || 0
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6 pb-24 md:pb-0">
+    <div data-tour="imp-page" className="max-w-2xl mx-auto space-y-6 pb-24 md:pb-0">
       <div>
         <h1 className="text-2xl font-bold text-white">Hola, {user?.name}</h1>
         <p className="text-zinc-400 text-sm">{DIAS[new Date().getDay()]} - {new Date().toLocaleDateString('es-CO', {day:'numeric', month:'long', timeZone: 'America/Bogota'})}</p>
       </div>
 
       {!rutaHoy ? (
-        <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-10 text-center space-y-3">
+        <div data-tour="imp-contenido" className="bg-zinc-900 border border-zinc-800 rounded-2xl p-10 text-center space-y-3">
           <p className="text-3xl">📌</p>
           <p className="text-white font-semibold">Sin ruta asignada hoy</p>
           <p className="text-zinc-400 text-sm">Tu supervisor aun no ha configurado tu ruta para hoy</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
+        <div data-tour="imp-contenido" className="space-y-4">
+          <div data-tour="imp-progreso" className="bg-zinc-900 border border-zinc-800 rounded-2xl p-4">
             <div className="flex items-center justify-between mb-2">
               <p className="text-white font-semibold">Progreso del dia</p>
               <p className="text-emerald-400 font-bold">{completados}/{total}</p>
@@ -125,7 +125,7 @@ export default function ImpulsoDashboard() {
           </div>
 
           {puntoActual ? (
-            <div className="bg-zinc-900 border border-emerald-500/30 rounded-2xl p-5 space-y-4">
+            <div data-tour="imp-punto" className="bg-zinc-900 border border-emerald-500/30 rounded-2xl p-5 space-y-4">
               <div>
                 <p className="text-zinc-400 text-xs font-semibold mb-1">
                   {puntoActual.estado === 'pendiente' ? 'PROXIMO PUNTO' : 'EN PUNTO'}
@@ -144,6 +144,7 @@ export default function ImpulsoDashboard() {
                 </div>
               )}
               <button
+                data-tour="imp-boton"
                 onClick={() => registrar(puntoActual.estado === 'pendiente' ? 'entrada' : 'salida', puntoActual.rc)}
                 disabled={registrando}
                 className={'w-full font-bold py-5 rounded-2xl text-lg transition-all disabled:opacity-40 ' + (puntoActual.estado === 'pendiente' ? 'bg-emerald-600 hover:bg-emerald-500 text-white' : 'bg-orange-500 hover:bg-orange-400 text-white')}>
@@ -158,7 +159,7 @@ export default function ImpulsoDashboard() {
             </div>
           )}
 
-          <div className="space-y-2">
+          <div data-tour="imp-lista" className="space-y-2">
             <p className="text-zinc-400 text-xs font-semibold">TODOS LOS PUNTOS</p>
             {rutaHoy.clientes.map((rc: any, i: number) => {
               const entrada = llegadas.find((l: any) => l.rutaFijaClienteId === rc.id && l.tipo === 'entrada')

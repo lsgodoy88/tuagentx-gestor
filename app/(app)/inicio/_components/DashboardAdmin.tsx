@@ -288,7 +288,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
 
           <div className="space-y-3">
             {stats && (
-              <div className="rounded-2xl px-4 card-compact hover-lift card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}
+              <div data-tour="stat-saldos" className="rounded-2xl px-4 card-compact hover-lift card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}
                 onClick={() => router.push('/ingresos')} role="button">
                 <div className="flex items-center gap-1.5 mb-2">
                   <span className="text-sm">💰</span>
@@ -310,7 +310,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
               </div>
             )}
             {stats && (
-              <div className="rounded-2xl px-4 card-compact hover-lift card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}
+              <div data-tour="stat-egresos" className="rounded-2xl px-4 card-compact hover-lift card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}
                 onClick={() => router.push('/egresos')} role="button">
                 <div className="flex items-center gap-1.5 mb-2">
                   <span className="text-sm">📋</span>
@@ -335,7 +335,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
           <div>
           <div className="grid grid-cols-2 gap-3">
 
-            <div onClick={() => router.push('/visitas')} className="rounded-2xl px-4 card-compact hover-lift card-glass flex flex-col items-center justify-center" style={{cursor:'pointer',background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div data-tour="stat-visitas" onClick={() => router.push('/visitas')} className="rounded-2xl px-4 card-compact hover-lift card-glass flex flex-col items-center justify-center" style={{cursor:'pointer',background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">👁️</span>
                 <span className="text-white text-sm font-bold tracking-wide">Visitas</span>
@@ -351,7 +351,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
               </div>
             </div>
 
-            <div className="rounded-2xl px-4 card-compact hover-lift card-glass flex flex-col items-center justify-center" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
+            <div data-tour="stat-ordenes" className="rounded-2xl px-4 card-compact hover-lift card-glass flex flex-col items-center justify-center" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",boxShadow:"0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)"}}>
               <div className="flex items-center justify-center gap-1.5 mb-2">
                 <span className="text-sm">📦</span>
                 <span className="text-white text-sm font-bold tracking-wide">Órdenes hoy</span>
@@ -370,7 +370,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
           </div>
           </div>
 
-          <CardRingDrill
+          <div data-tour="stat-ventas"><CardRingDrill
             key={`ventas-${stats.ventasMes||0}`}
             emoji="💼" label="Ventas"
             valorHoy={stats.ventasMes||0} valorMes={stats.metaVentaMes||0} metaMes={stats.metaVentaMes||0}
@@ -380,9 +380,9 @@ export default function DashboardAdmin({ user }: { user: any }) {
             labelHoy="mes" labelMes="meta"
             href="/ventas"
            
-          />
+          /></div>
 
-          <CardRingDrill
+          <div data-tour="stat-recaudo"><CardRingDrill
             key={`recaudo-${stats.recaudoMes||0}`}
             emoji="💰" label="Recaudos"
             valorHoy={stats.recaudoMes||0} valorMes={stats.metaRecaudoMes||0} metaMes={stats.metaRecaudoMes||0}
@@ -391,7 +391,7 @@ export default function DashboardAdmin({ user }: { user: any }) {
             vendedores={stats.recaudoPorVendedor||[]}
             labelHoy="mes" labelMes="meta"
             href="/cobros"
-          />
+          /></div>
 
 
         </div>

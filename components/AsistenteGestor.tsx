@@ -10,23 +10,23 @@ type Msg = {
   chips?: string[]
 }
 
-interface Props { onClose: () => void; rol?: string; visible?: boolean; userId?: string }
+interface Props { onClose: () => void; rol?: string; visible?: boolean; userId?: string; onStartTour?: () => void }
 
 // ── Chips por rol (menú inicial) ─────────────────────────────────────────────
 // Chips operativos por rol (los primeros que ve el usuario)
 const CHIPS_ROL: Record<string, string[]> = {
-  vendedor:    ['¿Cuánto llevo hoy?', '¿Qué clientes tienen saldo?', '¿Cuál es mi ruta hoy?', '¿Cuánto llevo este mes?'],
-  entregas:    ['¿Cuánto llevo hoy?', '¿Pedidos sin entregar?', '¿Cuál es mi ruta hoy?'],
-  impulsadora: ['¿Cuánto llevo hoy?', '¿Cuál es mi ruta hoy?', '¿Cómo van mis metas?'],
-  empresa:     ['¿Cómo vamos hoy?', '¿Cuál es el plan actual?', '¿Quién lleva más hoy?', '¿Sin actividad hoy?'],
-  admin:       ['¿Cómo vamos hoy?', '¿Cuánto recaudamos este mes?', '¿Quién lleva más hoy?', '¿Gastos del mes?'],
-  supervisor:  ['¿Cómo vamos hoy?', '¿Sin actividad hoy?', '¿Quién lleva más hoy?', '¿Esta semana cuánto?'],
+  vendedor:    ['¿Cuánto llevo hoy?', '¿Cuánto llevo este mes?'],
+  entregas:    ['¿Cuánto llevo hoy?', '¿Pedidos sin entregar?'],
+  impulsadora: ['¿Cuánto llevo hoy?', '¿Cómo van mis metas?'],
+  empresa:     ['¿Cómo vamos hoy?', '¿Quién lleva más hoy?', '¿Sin actividad hoy?', '¿Gastos del mes?'],
+  admin:       ['¿Cómo vamos hoy?', '¿Cuánto recaudamos este mes?', '¿Gastos del mes?', '¿Sin actividad hoy?'],
+  supervisor:  ['¿Cómo vamos hoy?', '¿Quién lleva más hoy?', '¿Esta semana cuánto?', '¿Sin actividad hoy?'],
 }
 // Chips fijos al final del menú inicial para todos los roles
-const CHIPS_FIJOS = ['🗺️ Visita guiada', '🚨 Reportar problema']
+const CHIPS_FIJOS = ['🚀 Guía interactiva', '🚨 Reportar problema']
 
 const MENU_INICIAL: Record<string, string[]> = Object.fromEntries(
-  Object.entries(CHIPS_ROL).map(([k, v]) => [k, [...v, ...CHIPS_FIJOS]])
+  Object.entries(CHIPS_ROL).map(([k, v]) => [k, [...CHIPS_FIJOS, ...v]])
 )
 
 // ── Quick replies contextuales post-respuesta ─────────────────────────────────
@@ -45,7 +45,7 @@ function chipsParaRespuesta(texto: string, rol: string): string[] {
   return []
 }
 
-export default function AsistenteGestor({ onClose, rol, visible, userId }: Props) {
+export default function AsistenteGestor({ onClose, rol, visible, userId, onStartTour }: Props) {
   const rolKey = rol || 'vendedor'
   const esVendedor = ['vendedor','entregas','impulsadora'].includes(rolKey)
 
@@ -87,6 +87,15 @@ export default function AsistenteGestor({ onClose, rol, visible, userId }: Props
   async function enviar(textoOverride?: string) {
     const texto = (textoOverride ?? input).trim()
     if (!texto || cargando) return
+
+    // Visita guiada — activar tour overlay sin consumir mensaje
+    if (/visita guiada|guia interactiva|guía interactiva|🗺️|🚀/i.test(texto)) {
+      setInput('')
+      onClose()  // minimizar TaXBot
+      onStartTour?.()
+      return
+    }
+
     if (enviados >= LIMITE_DIARIO) {
       setMsgs(prev => [...prev, { rol: 'bot', texto: 'Alcanzaste el límite de ' + LIMITE_DIARIO + ' mensajes por hoy. Vuelve mañana.' }])
       return

@@ -550,7 +550,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
               </div>
             </div>
           ) : turno?.pausado ? (
-            <div className="card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",borderRadius:16,overflow:"hidden"}}>
+            <div data-tour="turno-activo" className="card-glass" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",borderRadius:16,overflow:"hidden"}}>
               <button onClick={() => setTurnoExpandido(e => !e)} className="w-full flex items-center gap-3 px-4 py-3 text-left">
                 <span className="relative inline-flex h-2.5 w-2.5 flex-shrink-0">
                   
@@ -574,7 +574,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
               )}
             </div>
           ) : turno ? (
-            <div className="w-full md:max-w-2xl md:mx-auto md:w-full">
+            <div data-tour="turno-activo" className="w-full md:max-w-2xl md:mx-auto md:w-full">
               <div className="flex justify-center">
                 <div className="inline-flex items-center gap-2 px-4 py-2 cursor-pointer"
                   style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",borderBottom:turnoExpandido?"none":undefined,borderRadius:turnoExpandido?"16px 16px 0 0":"16px"}}
@@ -622,7 +622,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
               )}
             </div>
           ) : (
-            <div className="card-glass md:max-w-2xl md:mx-auto md:w-full" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",borderRadius:16,overflow:"hidden"}}>
+            <div data-tour="turno-iniciar" className="card-glass md:max-w-2xl md:mx-auto md:w-full" style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.30)",borderRadius:16,overflow:"hidden"}}>
               <div className="flex items-center justify-between gap-2 px-3 py-2.5">
                 <button onClick={iniciarTurno} disabled={bloqueadoTurno || obteniendoGps} className="flex-1 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors">{obteniendoGps ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full" /> Buscando GPS...</> : <>⚡ Iniciar turno</>}</button>
                 <a href="/historial-turnos" className="flex items-center gap-1 bg-zinc-800 border border-zinc-700 text-zinc-400 text-sm font-semibold px-3 py-2 rounded-xl flex-shrink-0">📅</a>
@@ -633,7 +633,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
           {/* Botones acción */}
           {turno && (
             <div className="w-full md:max-w-2xl md:mx-auto space-y-0">
-              <div className="flex gap-2">
+              <div className="flex gap-2" data-tour="botones-accion">
                 {[
                   { tipo: 'visita',  label: 'Visita',   icon: '📍' },
                   { tipo: 'venta',   label: 'Venta',    icon: '💰' },
@@ -641,6 +641,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
                   { tipo: 'entrega', label: 'Entrega',  icon: '📦' },
                 ].map(b => (
                   <button key={b.tipo}
+                    data-tour={`btn-${b.tipo}`}
                     onClick={() => { if (accionActiva === b.tipo) { setAccionActiva(null); setListaAbierta(false) } else { setAccionActiva(b.tipo); setListaAbierta(false) } }}
                     className="flex-1 text-white font-semibold py-2.5 rounded-xl text-sm flex flex-col items-center gap-1 card-glass transition-opacity duration-150"
                     style={{
@@ -712,17 +713,17 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
       {!cargandoTurno && <div className="space-y-4">
         <div className="space-y-3 md:max-w-2xl md:mx-auto">
           <div className="grid grid-cols-2 gap-3">
-            <CardCountAdmin stagger={1} icon="📍" label="Visitas" onClick={() => router.push('/visitas')}
+            <div data-tour="stat-visitas"><CardCountAdmin stagger={1} icon="📍" label="Visitas" onClick={() => router.push('/visitas')}
               primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={statsVendedor.hoy.total||0} /> : '—'}</span>}
               secondary={statsVendedor ? <CountUp end={statsVendedor.hoy.ayer||0} /> : '—'}
-              primaryLabel="hoy" secondaryLabel="ayer" primaryColor="text-white" />
-            <CardCountAdmin stagger={2} icon="📦" label="Órdenes" onClick={() => router.push('/trazabilidad')}
+              primaryLabel="hoy" secondaryLabel="ayer" primaryColor="text-white" /></div>
+            <div data-tour="stat-ordenes"><CardCountAdmin stagger={2} icon="📦" label="Órdenes" onClick={() => router.push('/trazabilidad')}
               primary={<span className={statsVendedor ? 'fade-in-data' : ''}>{statsVendedor ? <CountUp end={statsVendedor.ordenes?.despHoy||0} /> : '—'}</span>}
               secondary={statsVendedor ? <CountUp end={statsVendedor.ordenes?.factHoy||0} /> : '—'}
-              primaryLabel="desp hoy" secondaryLabel="fact hoy" primaryColor="text-amber-400" />
+              primaryLabel="desp hoy" secondaryLabel="fact hoy" primaryColor="text-amber-400" /></div>
           </div>
           {/* Ventas — 20% anillo + 80% valores */}
-          <div className="rounded-2xl hover-lift card-glass" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',padding:'14px 16px',display:'flex',alignItems:'center',minHeight:110,cursor:'pointer'}} onClick={() => router.push('/ventas')}>
+          <div data-tour="stat-ventas" className="rounded-2xl hover-lift card-glass" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',padding:'14px 16px',display:'flex',alignItems:'center',minHeight:110,cursor:'pointer'}} onClick={() => router.push('/ventas')}>
             <div style={{width:'20%',display:'flex',justifyContent:'center',alignItems:'center',flexShrink:0}}>
               <RingChart key={`v-${statsVendedor?.ordenes?.montoMes||0}`} pct={(statsVendedor?.ordenes?.metaVentaMes ?? 0) > 0 ? Math.round(((statsVendedor?.ordenes?.montoMes ?? 0) / statsVendedor!.ordenes!.metaVentaMes!) * 100) : 0} color="#34d399" />
             </div>
@@ -739,7 +740,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
           </div>
 
           {/* Recaudo — 20% anillo + 80% valores */}
-          <div className="rounded-2xl hover-lift card-glass" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',padding:'14px 16px',display:'flex',alignItems:'center',minHeight:110}} onClick={() => router.push('/cartera')}>
+          <div data-tour="stat-recaudo" className="rounded-2xl hover-lift card-glass" style={{background:'rgba(255,255,255,0.08)',border:'1px solid rgba(255,255,255,0.30)',boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',padding:'14px 16px',display:'flex',alignItems:'center',minHeight:110}} onClick={() => router.push('/cartera')}>
             <div style={{width:'20%',display:'flex',justifyContent:'center',alignItems:'center',flexShrink:0}}>
               <RingChart key={`r-${statsVendedor?.recaudo?.mes||0}`} pct={(statsVendedor?.recaudo?.meta ?? 0) > 0 ? Math.round(((statsVendedor?.recaudo?.mes ?? 0) / statsVendedor!.recaudo!.meta!) * 100) : 0} color="#60a5fa" />
             </div>
@@ -762,7 +763,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
           const tieneAlerta = statsVendedor?.cumplimiento?.some((imp: any) => imp.todosLosPuntos?.some((pt: any) => pt.alertaHora)) ?? false
           return (
         <div>
-          <button onClick={() => setMostrarImpulsadoras(v => !v)}
+          <button data-tour="impulsos" onClick={() => setMostrarImpulsadoras(v => !v)}
             className='card-glass' style={{background:'rgba(255,255,255,0.08)',border:`1px solid ${tieneAlerta ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.30)'}`,boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',borderRadius:16,width:'100%',padding:'12px 16px',cursor:'pointer'}}>
             <div className="flex items-center justify-between">
               <span className="text-white font-semibold text-sm">⚡ Impulsos{tieneAlerta && <span className="ml-2 text-red-400 text-xs font-bold">● Alerta</span>}</span>

@@ -3,6 +3,7 @@ import AlertasNotch from '@/components/AlertasNotch'
 import AlertasSidebarBadge from '@/components/AlertasSidebarBadge'
 import React from 'react'
 import AsistenteGestor from '@/components/AsistenteGestor'
+import TourGuiado, { TourPaso } from '@/components/TourGuiado'
 import RobotIcon from '@/components/RobotIcon'
 import { useSession, signOut } from 'next-auth/react'
 import { useRouter, usePathname } from 'next/navigation'
@@ -168,6 +169,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [])
   const navTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [asistenteAbierto, setAsistenteAbierto] = useState(false)
+  const [tourActivo, setTourActivo]         = useState(false)
+
+  // pasosTour se calcula después de que user esté disponible (ver más abajo)
   const [bloqueado, setBloqueado] = useState(false)
   const [diasRestantes, setDiasRestantes] = useState<number | null>(null)
   const [bannerCerrado, setBannerCerrado] = useState(() => {
@@ -183,6 +187,147 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [loadingPago, setLoadingPago] = useState(false)
   const [sincronizandoGps, setSincronizandoGps] = useState(false)
   const user = session?.user as any
+
+  const PASOS_TOUR: Record<string, TourPaso[]> = {
+    vendedor: [
+      { id: 'turno-activo', parentId: 'turno-iniciar', titulo: '⏱️ Tu turno de trabajo', posTooltip: 'bottom',
+        desc: 'Aquí controlas tu turno. Inicia al comenzar tu jornada y termina al finalizar.' },
+      { id: 'botones-accion', titulo: '📍 Botones de acción', posTooltip: 'bottom',
+        desc: 'Toca el tipo de gestión y busca el cliente. Solo disponibles con turno activo.',
+        waitFor: () => document.querySelector('[data-tour="botones-accion"]') ? null : 'Inicia tu turno para continuar' },
+      { id: 'btn-visita', parentId: 'botones-accion', childIndex: 0, titulo: '📍 Visita', posTooltip: 'bottom',
+        desc: 'Registra que visitaste un cliente aunque no haya pedido. Suma a tu historial del día.' },
+      { id: 'btn-venta', parentId: 'botones-accion', childIndex: 1, titulo: '💰 Venta', posTooltip: 'bottom',
+        desc: 'Captura un pedido nuevo. Busca el cliente, agrega productos y confirma.' },
+      { id: 'btn-cobro', parentId: 'botones-accion', childIndex: 2, titulo: '💵 Recaudo', posTooltip: 'bottom',
+        desc: 'Cobra cartera. Selecciona facturas, monto y método de pago.' },
+      { id: 'btn-entrega', parentId: 'botones-accion', childIndex: 3, titulo: '📦 Entrega', posTooltip: 'bottom',
+        desc: 'Confirma que entregaste un pedido. El cliente se actualiza automáticamente.' },
+      { id: 'stat-visitas', titulo: '📊 Visitas hoy / ayer', posTooltip: 'top',
+        desc: 'Visitas de hoy vs ayer. Úsalo para saber si vas a buen ritmo.' },
+      { id: 'stat-ordenes', titulo: '📦 Órdenes desp. / fact.', posTooltip: 'top',
+        desc: 'Órdenes despachadas y facturadas hoy. Toca para ver trazabilidad.' },
+      { id: 'stat-ventas', titulo: '💼 Ventas del mes', posTooltip: 'top',
+        desc: 'Tu avance de ventas vs la meta mensual. Verde = vas bien.' },
+      { id: 'stat-recaudo', titulo: '💰 Recaudo del mes', posTooltip: 'top',
+        desc: 'Cartera cobrada este mes vs tu meta. Toca para ir a tu cartera.' },
+      { id: 'impulsos', titulo: '⚡ Impulsos', posTooltip: 'top',
+        desc: 'Seguimiento de productos impulsados y cumplimiento por impulsadora.' },
+      { id: 'bottom-nav', titulo: '🧭 Menú de navegación', posTooltip: 'top',
+        desc: 'Toca el botón INICIO para abrir el menú con todos los módulos.' },
+      { id: 'nav-drawer', titulo: '🧭 Menú principal', posTooltip: 'top',
+        desc: 'Aquí están todos los módulos. Toca cualquiera para acceder.' },
+      { id: 'nav-item-0', parentId: 'nav-drawer', childIndex: 0, titulo: '🏠 Inicio', posTooltip: 'top',
+        desc: 'Tu dashboard con stats del día, botones de acción y resumen del mes.' },
+      { id: 'nav-item-1', parentId: 'nav-drawer', childIndex: 1, titulo: '📋 Visitas', posTooltip: 'top',
+        desc: 'Historial completo de visitas: clientes, tipo de gestión y resultado.' },
+      { id: 'nav-item-2', parentId: 'nav-drawer', childIndex: 2, titulo: '🏪 Clientes', posTooltip: 'top',
+        desc: 'Tu cartera de clientes: saldo, historial de compras y contacto.' },
+      { id: 'nav-item-3', parentId: 'nav-drawer', childIndex: 3, titulo: '💰 Cartera', posTooltip: 'top',
+        desc: 'Deuda pendiente por cliente. Registra cobros directamente desde aquí.' },
+      { id: 'nav-item-4', parentId: 'nav-drawer', childIndex: 4, titulo: '🚚 Despacho', posTooltip: 'top',
+        desc: 'Estado de pedidos: alistados, facturados y en camino.' },
+      { id: 'nav-item-5', parentId: 'nav-drawer', childIndex: 5, titulo: '⚡ Impulsos', posTooltip: 'top',
+        desc: 'Productos que impulsas en cada visita y seguimiento de cumplimiento.' },
+      { id: 'nav-item-6', parentId: 'nav-drawer', childIndex: 6, titulo: '🧾 Gastos', posTooltip: 'top',
+        desc: 'Reporta gastos de campo: transporte, viáticos y otros.' },
+    ],
+    entregas: [
+      { id: 'botones-accion', titulo: '📦 Botones de acción', posTooltip: 'bottom',
+        desc: 'Registra entregas y visitas. Busca el cliente y confirma.' },
+      { id: 'btn-entrega', parentId: 'botones-accion', childIndex: 3, titulo: '📦 Entrega', posTooltip: 'bottom',
+        desc: 'Confirma que entregaste un pedido. El sistema se actualiza al instante.' },
+      { id: 'stat-ordenes', titulo: '📦 Órdenes del día', posTooltip: 'top',
+        desc: 'Órdenes despachadas y facturadas hoy. Toca para ver el detalle.' },
+      { id: 'bottom-nav', titulo: '🧭 Menú de navegación', posTooltip: 'top',
+        desc: 'Toca el botón INICIO para abrir el menú con todos los módulos.' },
+      { id: 'nav-drawer', titulo: '🧭 Menú completo', posTooltip: 'top',
+        desc: 'Accede a Clientes, Rutas de entrega y más desde aquí.' },
+    ],
+    impulsadora: [
+      { id: 'imp-progreso', titulo: '📊 Progreso del día',
+        desc: 'Cuántos puntos completaste hoy. La barra verde avanza con cada visita.' },
+      { id: 'imp-punto', parentId: 'imp-contenido', titulo: '📍 Próximo punto',
+        desc: 'El cliente que debes visitar ahora. Muestra nombre y dirección.' },
+      { id: 'imp-boton', parentId: 'imp-contenido', titulo: '✅ Registrar entrada / salida',
+        desc: 'Toca al llegar (Entrada) y al salir (Salida). Requiere GPS.' },
+      { id: 'imp-lista', titulo: '📋 Todos los puntos',
+        desc: 'Tu ruta completa del día. Verde = en punto, gris = completado.' },
+      { id: 'bottom-nav', titulo: '🧭 Menú de navegación',
+        desc: 'Toca INICIO para abrir el menú con todos los módulos.' },
+      { id: 'nav-drawer', titulo: '🧭 Menú completo',
+        desc: 'Desde aquí accedes a todos los módulos de tu rol.' },
+      { id: 'nav-item-0', parentId: 'nav-drawer', childIndex: 0, titulo: '⚡ Inicio',
+        desc: 'Tu página principal con la ruta del día y progreso.' },
+      { id: 'nav-item-1', parentId: 'nav-drawer', childIndex: 1, titulo: '📌 Mi semana',
+        desc: 'Resumen semanal de tus visitas y cumplimiento por punto.' },
+      { id: 'nav-item-2', parentId: 'nav-drawer', childIndex: 2, titulo: '🎯 Impulsar',
+        desc: 'Registra productos impulsados en cada punto de venta.' },
+      { id: 'nav-item-3', parentId: 'nav-drawer', childIndex: 3, titulo: '🧾 Gastos',
+        desc: 'Reporta tus gastos de campo: transporte y viáticos.' },
+    ],
+    empresa: [
+      { id: 'stat-saldos', titulo: '💰 Saldos',
+        desc: 'Saldo actual en efectivo, bancos y otros. Toca para ver el detalle.' },
+      { id: 'stat-egresos', titulo: '📋 Egresos del mes',
+        desc: 'Total de egresos del mes: pagados y pendientes. Toca para el detalle.' },
+      { id: 'stat-visitas', titulo: '📍 Visitas del equipo',
+        desc: 'Visitas de hoy vs ayer de todos los vendedores activos.' },
+      { id: 'stat-ordenes', titulo: '📦 Órdenes hoy',
+        desc: 'Órdenes despachadas y facturadas hoy en toda la operación.' },
+      { id: 'stat-ventas', titulo: '💼 Ventas del mes',
+        desc: 'Ventas del equipo vs meta mensual. El anillo muestra el avance.' },
+      { id: 'stat-recaudo', titulo: '💰 Recaudo del mes',
+        desc: 'Cartera cobrada vs meta. Toca para ver detalle por vendedor.' },
+      { id: 'bottom-nav', titulo: '🧭 Menú de navegación',
+        desc: 'Toca INICIO para abrir el menú con todos los módulos.' },
+      { id: 'nav-drawer', titulo: '🧭 Menú de administración',
+        desc: 'Accede a todos los módulos desde aquí.' },
+      { id: 'nav-item-0', parentId: 'nav-drawer', childIndex: 0, titulo: '🏠 Inicio',
+        desc: 'Dashboard principal con stats del equipo en tiempo real.' },
+      { id: 'nav-item-1', parentId: 'nav-drawer', childIndex: 1, titulo: '💵 Saldos',
+        desc: 'Saldos en caja, bancos y otros. Control financiero del día.' },
+      { id: 'nav-item-2', parentId: 'nav-drawer', childIndex: 2, titulo: '🛍️ Egresos',
+        desc: 'Gastos y egresos registrados. Control de salidas de dinero.' },
+      { id: 'nav-item-3', parentId: 'nav-drawer', childIndex: 3, titulo: '👥 Activos',
+        desc: 'Empleados activos, roles y permisos del equipo.' },
+      { id: 'nav-item-4', parentId: 'nav-drawer', childIndex: 4, titulo: '🏪 Clientes',
+        desc: 'Base de clientes: saldo, historial y estado de cuenta.' },
+      { id: 'nav-item-5', parentId: 'nav-drawer', childIndex: 5, titulo: '💰 Cartera',
+        desc: 'Deuda consolidada por cliente. Estado de cobros del equipo.' },
+      { id: 'nav-item-6', parentId: 'nav-drawer', childIndex: 6, titulo: '💳 Recaudos',
+        desc: 'Historial de recaudos y cobros registrados.' },
+      { id: 'nav-item-7', parentId: 'nav-drawer', childIndex: 7, titulo: '📋 Visitas',
+        desc: 'Todas las visitas del equipo: clientes, tipo y resultado.' },
+      { id: 'nav-item-8', parentId: 'nav-drawer', childIndex: 8, titulo: '⚡ Impulsos',
+        desc: 'Seguimiento de impulsadoras y cumplimiento por punto.' },
+      { id: 'nav-item-9', parentId: 'nav-drawer', childIndex: 9, titulo: '🏭 Bodega',
+        desc: 'Trazabilidad de pedidos: alistamiento, despacho y entrega.' },
+    ],
+    supervisor: [
+      { id: 'stat-visitas', titulo: '📍 Visitas del equipo',
+        desc: 'Visitas de hoy vs ayer de todos los vendedores activos.' },
+      { id: 'stat-ordenes', titulo: '📦 Órdenes hoy',
+        desc: 'Órdenes despachadas y facturadas hoy.' },
+      { id: 'stat-ventas', titulo: '💼 Ventas del mes',
+        desc: 'Ventas del equipo vs meta. El anillo muestra el avance.' },
+      { id: 'stat-recaudo', titulo: '💰 Recaudo del mes',
+        desc: 'Cartera cobrada vs meta. Toca para ver detalle.' },
+      { id: 'bottom-nav', titulo: '🧭 Menú de navegación',
+        desc: 'Toca INICIO para abrir el menú con todos los módulos.' },
+      { id: 'nav-drawer', titulo: '🧭 Menú',
+        desc: 'Accede a todos los módulos desde aquí.' },
+      { id: 'nav-item-0', parentId: 'nav-drawer', childIndex: 0, titulo: '🏠 Inicio',
+        desc: 'Dashboard principal con stats del equipo.' },
+      { id: 'nav-item-1', parentId: 'nav-drawer', childIndex: 1, titulo: '🏪 Clientes',
+        desc: 'Base de clientes con saldo e historial.' },
+      { id: 'nav-item-2', parentId: 'nav-drawer', childIndex: 2, titulo: '💰 Cartera',
+        desc: 'Deuda consolidada y estado de cobros.' },
+      { id: 'nav-item-3', parentId: 'nav-drawer', childIndex: 3, titulo: '📋 Visitas',
+        desc: 'Visitas del equipo: clientes, tipo y resultado.' },
+    ],
+  }
+  const pasosTour: TourPaso[] = PASOS_TOUR[(user?.role as string) ?? 'vendedor'] ?? PASOS_TOUR['vendedor']
   const authUser = status === 'authenticated' ? user : null
 
     useEffect(() => {
@@ -299,7 +444,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isSuperAdmin  = user?.role === 'superadmin'
   const isEmpresa     = user?.role === 'empresa'
   const isSupervisor  = user?.role === 'supervisor'
-  const isEmpleado    = ['vendedor', 'entregas'].includes(user?.role)
+  const isEmpleado    = ['vendedor', 'entregas', 'impulsadora'].includes(user?.role)
   const isBodega      = user?.role === 'bodega'
   const [empresasBodega, setEmpresasBodega] = useState<{href:string,label:string,icon:string}[]>([])
   useEffect(() => {
@@ -631,7 +776,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         {/* Grid 4 columnas — scroll vertical */}
-        <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,marginBottom:10,maxHeight:'55vh',overflowY:'auto'}}>
+        <div data-tour="nav-drawer" style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6,marginBottom:10,maxHeight:'55vh',overflowY:'auto'}}>
           {navMovil.map(item => {
             const isAct = pathname === item.href
             return (
@@ -720,6 +865,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           />
           {/* Notch — solo texto blanco */}
           <button
+            data-tour="bottom-nav"
             className="fixed bottom-0 left-1/2 -translate-x-1/2 z-[3000] md:hidden"
             onClick={() => setDrawerOpen(true)}
             style={{background:'none',border:'none',padding:0,cursor:'pointer'}}>
@@ -761,7 +907,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <div className="md:hidden">{(isEmpresa || isSupervisor) && <AlertasNotch />}</div>
 
       {/* Robot TaXBot — banda derecha, solo en dashboard */}
-          <div className="md:hidden">{(isEmpresa || isSupervisor || isEmpleado) && pathname === '/inicio' && !asistenteAbierto && !moduloAbierto && (
+          <div className="md:hidden">{(isEmpresa || isSupervisor || isEmpleado) && ['/inicio','/impulsadora'].includes(pathname) && !asistenteAbierto && !moduloAbierto && (
             <button
               className="fixed z-[3001] md:hidden robot-taxbot"
               onClick={() => setAsistenteAbierto(true)}
@@ -813,7 +959,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Overlay navegación */}
       {navigating && <TuAgentXOverlay />}
 
-      {(isEmpresa || isSupervisor || isEmpleado) && <AsistenteGestor onClose={() => setAsistenteAbierto(false)} rol={user?.role} visible={asistenteAbierto} userId={user?.id} />}
+      {(isEmpresa || isSupervisor || isEmpleado) && <AsistenteGestor onClose={() => setAsistenteAbierto(false)} rol={user?.role} visible={asistenteAbierto} userId={user?.id} onStartTour={() => setTourActivo(true)} />}
+      {tourActivo && <TourGuiado pasos={pasosTour} onFin={() => { setTourActivo(false); setDrawerOpen(false); setAsistenteAbierto(true) }} onOpenNav={() => setDrawerOpen(true)} />}
 
       {isEmpresa && bannerVisible && (billingEstado === 'pendiente' || billingEstado === 'mora') && (
         <BillingBanner
