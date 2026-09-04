@@ -596,7 +596,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
         AND sd.condition = true
         AND sd."externalId" IS NOT NULL
         AND sd."numeroFactura" IS NOT NULL
-        AND sd."externalUpdatedAt" > $3
+        AND sd."externalUpdatedAt" > $3::timestamp
         AND NOT EXISTS (
           SELECT 1 FROM ${schema}."OrdenDespacho" od
           WHERE od."origenId" = sd."externalId" AND od."empresaId" = $2
