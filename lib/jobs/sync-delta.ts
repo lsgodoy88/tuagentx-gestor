@@ -674,6 +674,20 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
               },
               update: {}
             })
+            // Poblar ciudad/direccion/telefono desde Cliente local si no vino de UpTres
+            if (completa.clienteApiId && (!(completa as any).ciudad)) {
+              try {
+                const schema = process.env.DB_SCHEMA || 'gestor'
+                await prisma.$queryRawUnsafe(`
+                  UPDATE ${schema}."OrdenDespacho" od
+                  SET ciudad = c.ciudad, direccion = c.direccion, telefono = c.telefono
+                  FROM ${schema}."Cliente" c
+                  WHERE c."apiId" = od."clienteApiId"
+                  AND od."origenId" = $1
+                  AND od."empresaId" = $2
+                  AND c.ciudad IS NOT NULL`, deuda.externalId, destino)
+              } catch (e: any) { /* ciudad no crítica */ }
+            }
             huecosRecuperados++
             console.log(`[delta] recuperada F_${completa.numeroFactura} orden ${completa.numeroOrden}`)
           } else {
