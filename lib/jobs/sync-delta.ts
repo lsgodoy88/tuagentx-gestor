@@ -238,7 +238,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   // Cartera update — fetch adicional sin cursor para capturar pedidos viejos facturados recientemente
   // Complementa el cursor de cartera que puede saltarse deudas con createdAt anterior a la ventana
   try {
-    const hace2dias = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+    const hace2dias = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000)
     _s = Date.now()
     const deudasUpdate = await adapter.fetchDeudasDesde(hace2dias)
     _t('fetchCarteraUpdate', _s)
