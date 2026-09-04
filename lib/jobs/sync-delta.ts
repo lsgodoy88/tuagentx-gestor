@@ -571,7 +571,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
                 const origenId = String((orden as any).uid || (orden as any)._id)
                 const completa = await adapter.fetchOrdenCompletaPorId(origenId)
                 if (completa && completa.clienteNombre) {
-                  await prisma.ordenDespacho.upsert({ where: { origenId_empresaId: { origenId, empresaId: destino } }, create: { origenId, empresaId: destino, numeroOrden: completa.numeroOrden, numeroFactura: completa.numeroFactura || String(hueco), isFacturada: completa.isFacturada, fechaFactura: completa.fechaFactura ? parseFechaUptresBogota(String(completa.fechaFactura)) : null, totalOrden: completa.totalOrden, balance: completa.balance, paymentType: completa.paymentType, paymentMethod: completa.paymentMethod, clienteApiId: completa.clienteApiId, clienteNit: completa.clienteNit || '', clienteNombre: completa.clienteNombre, vendedorApiId: completa.vendedorApiId, fechaOrden: completa.createdAt ? parseFechaUptresBogota(String(completa.createdAt)) : new Date(), fechaOrdenBogota: completa.createdAt ? parseFechaUptresBogota(String(completa.createdAt)) : new Date(), origen: origenVinculadaId ? 'vinculada' : 'propia', origenVinculadaId, estado: 'pendiente', sincronizadoEn: new Date(), origenSync: 'recuperada' }, update: {} })
+                  await prisma.ordenDespacho.upsert({ where: { origenId_empresaId: { origenId, empresaId: destino } }, create: { origenId, empresaId: destino, numeroOrden: completa.numeroOrden, numeroFactura: completa.numeroFactura || String(hueco), isFacturada: completa.isFacturada, fechaFactura: completa.fechaFactura ? parseFechaUptresBogota(String(completa.fechaFactura)) : null, totalOrden: completa.totalOrden, balance: completa.balance, paymentType: completa.paymentType ? String(completa.paymentType) : null, paymentMethod: completa.paymentMethod != null ? String(completa.paymentMethod) : null, clienteApiId: completa.clienteApiId, clienteNit: completa.clienteNit || '', clienteNombre: completa.clienteNombre, vendedorApiId: completa.vendedorApiId, fechaOrden: completa.createdAt ? parseFechaUptresBogota(String(completa.createdAt)) : new Date(), fechaOrdenBogota: completa.createdAt ? parseFechaUptresBogota(String(completa.createdAt)) : new Date(), origen: origenVinculadaId ? 'vinculada' : 'propia', origenVinculadaId, estado: 'pendiente', sincronizadoEn: new Date(), origenSync: 'recuperada' }, update: {} })
                   huecosRecuperados++
                 }
               }
@@ -584,11 +584,11 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     _t('reconciliadorHuecos', _s)
   }
 
-  // Recuperador SyncDeuda → OrdenDespacho
-  // Busca facturas en SyncDeuda que no existen en OrdenDespacho y las recupera por ID desde UpTres
+  // Recuperador SyncDeuda → OrdenDespacho — solo facturas recientes (30 días)
   _s = Date.now()
   try {
     const schema = process.env.DB_SCHEMA || 'gestor'
+    const hace30dias = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
     const deudasSinOrden: any[] = await prisma.$queryRawUnsafe(`
       SELECT sd."externalId", sd."numeroFactura", sd."numeroOrden"
       FROM ${schema}."SyncDeuda" sd
@@ -596,49 +596,54 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
         AND sd.condition = true
         AND sd."externalId" IS NOT NULL
         AND sd."numeroFactura" IS NOT NULL
+        AND sd."externalUpdatedAt" > $3
         AND NOT EXISTS (
           SELECT 1 FROM ${schema}."OrdenDespacho" od
           WHERE od."origenId" = sd."externalId" AND od."empresaId" = $2
         )
-      LIMIT 20`, integracionId, destino)
+      ORDER BY sd."numeroFactura" DESC
+      LIMIT 10`, integracionId, destino, hace30dias)
 
     if (deudasSinOrden.length > 0) {
-      console.log(`[delta] recuperador SyncDeuda→OrdenDespacho: ${deudasSinOrden.length} órdenes faltantes para ${destino}`)
+      console.log(`[delta] recuperador: ${deudasSinOrden.length} órdenes faltantes para ${destino}`)
       for (const deuda of deudasSinOrden) {
         try {
-          const completa = await adapter.fetchOrdenCompletaPorId(deuda.externalId)
+          // Intentar por uid primero, fallback por orderNumber via fetchVentas (ya validado)
+          let completa = await adapter.fetchOrdenCompletaPorId(deuda.externalId)
+          if (!completa && deuda.numeroOrden) {
+            // fetchVentas ya funciona — buscar la orden en el rango de creación
+            const ventasRango = await adapter.fetchVentas(new Date(Date.now() - 60 * 24 * 60 * 60 * 1000))
+            const match = ventasRango.find((o: any) => String(o.numeroOrden) === String(deuda.numeroOrden))
+            if (match) {
+              const uid = String((match as any).uid || (match as any)._id)
+              completa = await adapter.fetchOrdenCompletaPorId(uid)
+            }
+          }
           if (completa && completa.clienteNombre) {
             await prisma.ordenDespacho.upsert({
               where: { origenId_empresaId: { origenId: deuda.externalId, empresaId: destino } },
               create: {
-                origenId: deuda.externalId,
-                empresaId: destino,
-                numeroOrden: completa.numeroOrden,
-                numeroFactura: completa.numeroFactura,
+                origenId: deuda.externalId, empresaId: destino,
+                numeroOrden: completa.numeroOrden, numeroFactura: completa.numeroFactura,
                 isFacturada: completa.isFacturada,
                 fechaFactura: completa.fechaFactura ? parseFechaUptresBogota(String(completa.fechaFactura)) : null,
-                totalOrden: completa.totalOrden,
-                balance: completa.balance,
-                paymentType: completa.paymentType,
-                paymentMethod: completa.paymentMethod,
-                clienteApiId: completa.clienteApiId,
-                clienteNit: completa.clienteNit || '',
-                clienteNombre: completa.clienteNombre,
-                vendedorApiId: completa.vendedorApiId,
+                totalOrden: completa.totalOrden, balance: completa.balance,
+                paymentType: completa.paymentType ? String(completa.paymentType) : null, paymentMethod: completa.paymentMethod != null ? String(completa.paymentMethod) : null,
+                clienteApiId: completa.clienteApiId, clienteNit: completa.clienteNit || '',
+                clienteNombre: completa.clienteNombre, vendedorApiId: completa.vendedorApiId,
                 fechaOrden: completa.createdAt ? parseFechaUptresBogota(String(completa.createdAt)) : new Date(),
                 fechaOrdenBogota: completa.createdAt ? parseFechaUptresBogota(String(completa.createdAt)) : new Date(),
-                origen: origenVinculadaId ? 'vinculada' : 'propia',
-                origenVinculadaId,
-                estado: 'pendiente',
-                sincronizadoEn: new Date(),
-                origenSync: 'recuperada_sync',
+                origen: origenVinculadaId ? 'vinculada' : 'propia', origenVinculadaId,
+                estado: 'pendiente', sincronizadoEn: new Date(), origenSync: 'recuperada_sync',
               },
               update: {}
             })
             huecosRecuperados++
-            console.log(`[delta] recuperada F_${completa.numeroFactura} orden ${completa.numeroOrden} desde SyncDeuda`)
+            console.log(`[delta] recuperada F_${completa.numeroFactura} orden ${completa.numeroOrden}`)
+          } else {
+            console.warn(`[delta] fetchOrdenCompletaPorId sin datos para ${deuda.externalId} F_${deuda.numeroFactura}`)
           }
-        } catch (e: any) { console.error('[delta] recuperador error orden', deuda.externalId, e.message) }
+        } catch (e: any) { console.error('[delta] recuperador error', deuda.externalId, e.message) }
       }
       if (huecosRecuperados > 0) await invalidatePattern(`g:${destino}:*`)
     }

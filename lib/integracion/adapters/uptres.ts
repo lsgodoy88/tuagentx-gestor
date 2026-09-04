@@ -663,6 +663,41 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     return { data: this._mapearDeudas(data), ultimoCursor }
   }
 
+  // Busca orden completa por orderNumber — fallback cuando el uid ya no existe en UpTres (IDs migrados)
+  async fetchOrdenCompletaPorNumeroOrden(orderNumber: string): Promise<{
+    origenId: string; numeroOrden: string; numeroFactura: string | null
+    isFacturada: boolean; fechaFactura: string | null; totalOrden: number | null
+    balance: number | null; paymentType: string | null; paymentMethod: string | null
+    clienteApiId: string | null; clienteNit: string | null; clienteNombre: string | null
+    vendedorApiId: string | null; createdAt: string | null
+  } | null> {
+    await this.login()
+    const fields = 'id,orderNumber,invoiceNumber,isInvoiced,invoicedAt,total,balance,paymentType,paymentMethod,customerId,employeeId,createdAt,creditDay'
+    try {
+      const res = await fetch(`${BASE}/ordenes?fields=${fields}&expand=customer&orderNumber=${orderNumber}&limit=1`, { headers: this.headers })
+      if (!res.ok) return null
+      const d = await res.json()
+      if (!d.ok || !d.data?.length) return null
+      const o = d.data[0]
+      const c = o.customer || {}
+      return {
+        origenId: o.id,
+        numeroOrden: String(o.orderNumber || ''),
+        numeroFactura: o.invoiceNumber ? String(o.invoiceNumber) : null,
+        isFacturada: o.isInvoiced === true,
+        fechaFactura: o.invoicedAt && o.invoicedAt > '2001' ? o.invoicedAt : null,
+        totalOrden: o.total ? parseFloat(o.total) : null,
+        balance: o.balance ? parseFloat(o.balance) : null,
+        paymentType: o.paymentType || null, paymentMethod: o.paymentMethod || null,
+        clienteApiId: o.customerId || null,
+        clienteNit: c.document ? String(c.document) : null,
+        clienteNombre: (`${c.firstName || ''} ${c.lastName || ''}`.trim()) || c.tradeName || c.name || null,
+        vendedorApiId: o.employeeId || null,
+        createdAt: o.createdAt || null,
+      }
+    } catch (e) { return null }
+  }
+
   async fetchDeudasDesdeConCursor(
     cursor: UpTresCursor | null,
     desde: Date
