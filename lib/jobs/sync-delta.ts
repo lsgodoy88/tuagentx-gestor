@@ -526,7 +526,36 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   _s = Date.now()
   if (true) { // Reconciliador siempre corre — detecta huecos independiente de órdenes nuevas
     try {
+      // Reconciliador corre siempre — busca órdenes sin factura en BD que UpTres ya facturó
+      // Además detecta huecos en las facturas nuevas del delta
       const facturas = toCreate.map((o: any) => parseInt(o.numeroFactura || '0')).filter((n: number) => n > 0)
+      const sinFacturarEnBD = await prisma.ordenDespacho.findMany({
+        where: { empresaId: destino, isFacturada: false, isActiva: true, origenId: { not: null } },
+        select: { id: true, origenId: true, numeroOrden: true }
+      })
+      const hoy = new Date()
+      // Solo llamar UpTres si hay órdenes pendientes de facturar
+      const ordenesHoy = sinFacturarEnBD.length > 0 || facturas.length >= 2
+        ? await adapter.fetchVentas(new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()))
+        : []
+      const porOrigenId = new Map(ordenesHoy.map((o: any) => [String(o.uid || o._id), o]))
+      for (const sinF of sinFacturarEnBD) {
+        const uptres = porOrigenId.get(sinF.origenId!)
+        if (uptres && (uptres as any).isInvoiced && (uptres as any).numeroFacturado) {
+          await prisma.ordenDespacho.update({
+            where: { id: sinF.id },
+            data: {
+              isFacturada: true,
+              numeroFactura: String((uptres as any).numeroFacturado),
+              fechaFactura: (uptres as any).invoicedAt ? parseFechaUptresBogota((uptres as any).invoicedAt) : new Date(),
+              totalOrden: (uptres as any).vTotal ? parseFloat((uptres as any).vTotal) : undefined,
+              reconciliadoEn: new Date(),
+            }
+          })
+          reconciliadas++
+          console.log(`[delta] reconciliada orden ${sinF.numeroOrden} → factura ${(uptres as any).numeroFacturado}`)
+        }
+      }
       if (facturas.length >= 2) {
         const minF = Math.min(...facturas); const maxF = Math.max(...facturas)
         if (maxF - minF < 50) {
@@ -534,8 +563,6 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
           const llegaron = new Set(facturas)
           const huecos = esperados.filter(n => !llegaron.has(n))
           if (huecos.length > 0) {
-            const hoy = new Date()
-            const ordenesHoy = await adapter.fetchVentas(new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()))
             const porFactura = new Map<number, any>()
             for (const o of ordenesHoy) { const inv = parseInt(String((o as any).numeroFacturado || '0')); if (inv > 0) porFactura.set(inv, o) }
             for (const hueco of huecos) {
@@ -556,6 +583,67 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     } catch (e: any) { console.error('[delta] reconciliador-huecos error:', e.message) }
     _t('reconciliadorHuecos', _s)
   }
+
+  // Recuperador SyncDeuda → OrdenDespacho
+  // Busca facturas en SyncDeuda que no existen en OrdenDespacho y las recupera por ID desde UpTres
+  _s = Date.now()
+  try {
+    const schema = process.env.DB_SCHEMA || 'gestor'
+    const deudasSinOrden: any[] = await prisma.$queryRawUnsafe(`
+      SELECT sd."externalId", sd."numeroFactura", sd."numeroOrden"
+      FROM ${schema}."SyncDeuda" sd
+      WHERE sd."integracionId" = $1
+        AND sd.condition = true
+        AND sd."externalId" IS NOT NULL
+        AND sd."numeroFactura" IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM ${schema}."OrdenDespacho" od
+          WHERE od."origenId" = sd."externalId" AND od."empresaId" = $2
+        )
+      LIMIT 20`, integracionId, destino)
+
+    if (deudasSinOrden.length > 0) {
+      console.log(`[delta] recuperador SyncDeuda→OrdenDespacho: ${deudasSinOrden.length} órdenes faltantes para ${destino}`)
+      for (const deuda of deudasSinOrden) {
+        try {
+          const completa = await adapter.fetchOrdenCompletaPorId(deuda.externalId)
+          if (completa && completa.clienteNombre) {
+            await prisma.ordenDespacho.upsert({
+              where: { origenId_empresaId: { origenId: deuda.externalId, empresaId: destino } },
+              create: {
+                origenId: deuda.externalId,
+                empresaId: destino,
+                numeroOrden: completa.numeroOrden,
+                numeroFactura: completa.numeroFactura,
+                isFacturada: completa.isFacturada,
+                fechaFactura: completa.fechaFactura ? parseFechaUptresBogota(String(completa.fechaFactura)) : null,
+                totalOrden: completa.totalOrden,
+                balance: completa.balance,
+                paymentType: completa.paymentType,
+                paymentMethod: completa.paymentMethod,
+                clienteApiId: completa.clienteApiId,
+                clienteNit: completa.clienteNit || '',
+                clienteNombre: completa.clienteNombre,
+                vendedorApiId: completa.vendedorApiId,
+                fechaOrden: completa.createdAt ? parseFechaUptresBogota(String(completa.createdAt)) : new Date(),
+                fechaOrdenBogota: completa.createdAt ? parseFechaUptresBogota(String(completa.createdAt)) : new Date(),
+                origen: origenVinculadaId ? 'vinculada' : 'propia',
+                origenVinculadaId,
+                estado: 'pendiente',
+                sincronizadoEn: new Date(),
+                origenSync: 'recuperada_sync',
+              },
+              update: {}
+            })
+            huecosRecuperados++
+            console.log(`[delta] recuperada F_${completa.numeroFactura} orden ${completa.numeroOrden} desde SyncDeuda`)
+          }
+        } catch (e: any) { console.error('[delta] recuperador error orden', deuda.externalId, e.message) }
+      }
+      if (huecosRecuperados > 0) await invalidatePattern(`g:${destino}:*`)
+    }
+  } catch (e: any) { console.error('[delta] recuperador SyncDeuda error:', e.message) }
+  _t('recuperadorSyncDeuda', _s)
 
   try {
     await (prisma as any).syncLog.create({ data: { integracionId, empresaId: destino, tipo: 'delta', inicio: new Date(inicioTs), fin: new Date(), duracionMs, estado: erroresParciales.length > 0 ? 'parcial' : 'ok', disparadoPor: 'cron', ordenesNuevas: toCreate.length, deudasSincronizadas: deudaToCreate.length, clientesNuevos, deudasNuevasDelta, comprasSincronizadas: ordenes.length, ...(empleadosActualizados ? { empleadosActualizados } : {}), ...(saldosActualizados ? { saldosActualizados } : {}), ...(reconciliadas ? { reconciliadas } : {}), ...(erroresParciales.length > 0 ? { errores: JSON.stringify(erroresParciales) } : {}), detalle: _det } })
