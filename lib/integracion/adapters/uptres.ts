@@ -446,9 +446,12 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     clienteNombre: string | null
     vendedorApiId: string | null
     createdAt: string | null
+    ciudad: string | null
+    direccion: string | null
+    telefono: string | null
   } | null> {
     await this.login()
-    const fields = 'id,orderNumber,invoiceNumber,isInvoiced,invoicedAt,total,balance,paymentType,paymentMethod,customerId,employeeId,createdAt,creditDay'
+    const fields = 'id,orderNumber,invoiceNumber,isInvoiced,invoicedAt,total,balance,paymentType,paymentMethod,customerId,employeeId,createdAt,creditDay,cityId,address,phone'
     try {
       const res = await fetch(`${BASE}/ordenes/${origenId}?fields=${fields}&expand=customer`, { headers: this.headers })
       if (!res.ok) return null
@@ -471,6 +474,9 @@ export class UpTresAdapter implements AdaptadorIntegracion {
         clienteNombre: c.firstName ? `${c.firstName} ${c.lastName || ''}`.trim() : null,
         vendedorApiId: o.employeeId || null,
         createdAt: o.createdAt || null,
+        ciudad: getCiudad(o.cityId || c.cityId),
+        direccion: o.address || c.address || null,
+        telefono: o.phone || c.phone || null,
       }
     } catch (e) { return null }
   }
