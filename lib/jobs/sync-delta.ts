@@ -235,6 +235,34 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     }
   } catch (err: any) { console.error('[delta] deudas error:', err.message); erroresParciales.push('deudas: ' + err.message) }
 
+  // Actualizar SyncDeuda.numeroFactura desde fetchVentas — órdenes ya facturadas en UpTres sin factura local
+  // fetchVentas ya trajo invoiceNumber: cruce por externalId, 0 llamadas HTTP extra
+  let syncDeudasActualizadas = 0
+  try {
+    _s = Date.now()
+    const facturadas = ordenesValidas.filter((o: any) => o.isInvoiced && o.numeroFacturado)
+    if (facturadas.length > 0) {
+      const extIds = facturadas.map((o: any) => String(o.uid || o._id))
+      const sinFactura = await (prisma as any).syncDeuda.findMany({
+        where: { integracionId, externalId: { in: extIds }, numeroFactura: null },
+        select: { id: true, externalId: true }
+      })
+      if (sinFactura.length > 0) {
+        const mapaFacturas = new Map<string, number>()
+        for (const o of facturadas) mapaFacturas.set(String(o.uid || o._id), parseInt(String(o.numeroFacturado)))
+        for (const sd of sinFactura) {
+          const numFact = mapaFacturas.get(sd.externalId)
+          if (numFact) {
+            await (prisma as any).syncDeuda.update({ where: { id: sd.id }, data: { numeroFactura: numFact } })
+            syncDeudasActualizadas++
+          }
+        }
+        if (syncDeudasActualizadas > 0) console.log(`[delta] syncDeuda actualizadas con factura: ${syncDeudasActualizadas} para ${destino}`)
+      }
+    }
+    _t('syncDeudasFactura', _s)
+  } catch (e: any) { console.error('[delta] syncDeudasFactura error:', e.message) }
+
   // Cartera update — fetch adicional sin cursor para capturar pedidos viejos facturados recientemente
   // Complementa el cursor de cartera que puede saltarse deudas con createdAt anterior a la ventana
   try {
