@@ -263,6 +263,46 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     _t('syncDeudasFactura', _s)
   } catch (e: any) { console.error('[delta] syncDeudasFactura error:', e.message) }
 
+  // Insertar en SyncDeuda órdenes facturadas que fetchVentas trajo pero nunca entraron por cursor cartera
+  let syncDeudasInsertadas = 0
+  try {
+    _s = Date.now()
+    const facturadas = ordenesValidas.filter((o: any) => o.isInvoiced && o.numeroFacturado && (o.cliente?.uid || o._id))
+    if (facturadas.length > 0) {
+      const extIds = facturadas.map((o: any) => String(o.uid || o._id))
+      const existentes = await (prisma as any).syncDeuda.findMany({
+        where: { integracionId, externalId: { in: extIds } },
+        select: { externalId: true }
+      })
+      const existentesSet = new Set(existentes.map((d: any) => d.externalId))
+      const nuevas = facturadas.filter((o: any) => !existentesSet.has(String(o.uid || o._id)))
+      if (nuevas.length > 0) {
+        const rows = nuevas.map((o: any) => ({
+          integracionId,
+          externalId: String(o.uid || o._id),
+          clienteApiId: o.cliente?.uid || '',
+          empleadoExternalId: o.empleado?.uid || null,
+          numeroOrden: o.numeroOrden ? parseInt(String(o.numeroOrden)) : null,
+          numeroFactura: parseInt(String(o.numeroFacturado)),
+          valor: parseFloat(o.vTotal ?? '0'),
+          saldo: parseFloat(o.balance ?? o.vTotal ?? '0'),
+          diasCredito: null,
+          fechaVencimiento: null,
+          condition: false,
+          data: o,
+          externalUpdatedAt: o.fModificado ? new Date(o.fModificado) : null,
+          receivableAt: null,
+          sincronizadoEl: new Date(),
+          createdAtBogota: o.fCreado ? toBogota(new Date(o.fCreado as string)) : toBogota(new Date())
+        }))
+        await (prisma as any).syncDeuda.createMany({ data: rows, skipDuplicates: true })
+        syncDeudasInsertadas = rows.length
+        console.log(`[delta] syncDeuda insertadas desde fetchVentas: ${syncDeudasInsertadas} para ${destino}`)
+      }
+    }
+    _t('syncDeudasInsert', _s)
+  } catch (e: any) { console.error('[delta] syncDeudasInsert error:', e.message) }
+
   // Cartera update — fetch adicional sin cursor para capturar pedidos viejos facturados recientemente
   // Complementa el cursor de cartera que puede saltarse deudas con createdAt anterior a la ventana
   try {
