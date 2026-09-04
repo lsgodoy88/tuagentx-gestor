@@ -732,3 +732,17 @@ input[type="date"] { appearance: none; -webkit-appearance: none; }
 .leaflet-control-attribution {
   z-index: 500 !important;
 }
+
+@keyframes shine-sweep {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.shine-sweep {
+  background: linear-gradient(105deg,
+    transparent 40%,
+    rgba(255,255,255,0.55) 50%,
+    transparent 60%
+  ) !important;
+  background-size: 200% 100% !important;
+  animation: shine-sweep 0.9s linear infinite;
+}
