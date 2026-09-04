@@ -152,6 +152,20 @@ export default function LoginPage() {
           © {new Date().getFullYear()} TuAgentX · Todos los derechos reservados
         </p>
       </div>
+
+      {/* Botón tutorial — solo móvil, esquina inferior derecha */}
+      <a
+        href="https://pub-350e7b2c75014258a8e6d7bda6d60d87.r2.dev/Tutorials/Inicio%20Sesion%20Gestor.mp4"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="md:hidden absolute bottom-6 right-5 z-50"
+        title="Ver tutorial"
+      >
+        <svg width="36" height="36" viewBox="0 0 24 24" fill="none">
+          <circle cx="12" cy="12" r="10" stroke="#60a5fa" strokeWidth="1.5"/>
+          <polygon points="10,8 17,12 10,16" fill="#60a5fa"/>
+        </svg>
+      </a>
     </div>
   )
 }
