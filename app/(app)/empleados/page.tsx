@@ -1461,7 +1461,8 @@ export default function EmpleadosPage() {
             <div>
               <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Fecha de inicio de pagos</label>
               <input type="date" value={syncFecha} onChange={e => setSyncFecha(e.target.value)}
-                className="w-full rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500"
+                onClick={e => { try { (e.currentTarget as HTMLInputElement).showPicker?.() } catch {} }}
+                className="w-full rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500 cursor-pointer"
                 style={{background:'#0d1220', border:'1px solid #1e2a3d'}} />
               <p className="text-zinc-600 text-xs mt-1">Los pagos anteriores a esta fecha no se descontarán del saldo base.</p>
               {syncPrimerRecibo && (
@@ -1611,7 +1612,8 @@ export default function EmpleadosPage() {
             <div>
               <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Fecha de inicio de pagos</label>
               <input type="date" value={syncFecha} onChange={e => setSyncFecha(e.target.value)}
-                className="w-full rounded-lg px-3 py-2 text-white text-sm outline-none"
+                onClick={e => { try { (e.currentTarget as HTMLInputElement).showPicker?.() } catch {} }}
+                className="w-full rounded-lg px-3 py-2 text-white text-sm outline-none cursor-pointer"
                 style={{ background: '#0d1220', border: '1px solid #1e2a3d' }} />
               {syncPrimerRecibo && (
                 <p className="text-amber-400 text-xs mt-2">⚠️ Primer recibo: <strong>{syncPrimerRecibo.numeroRecibo}</strong> del {new Date(syncPrimerRecibo.fecha).toLocaleDateString('es-CO')}</p>
