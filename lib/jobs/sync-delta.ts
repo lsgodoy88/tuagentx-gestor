@@ -35,7 +35,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     orderBy: { fechaFactura: 'desc' },
     select: { fechaFactura: true }
   })
-  const empresa = await prisma.empresa.findUnique({ where: { id: destino }, select: { ultimaSyncBodega: true, ultimaSyncClientes: true, sync_cursor_clientes: true, sync_cursor_empleados: true, sync_cursor_cartera: true, sync_cursor_cartera_update: true, sync_cursor_listas: true, sync_cursor_proveedores: true } })
+  const empresa = await prisma.empresa.findUnique({ where: { id: destino }, select: { ultimaSyncBodega: true, ultimaSyncClientes: true, sync_cursor_clientes: true, sync_cursor_empleados: true, sync_cursor_cartera: true, sync_cursor_cartera_update: true, sync_cursor_listas: true, sync_cursor_proveedores: true, fechaInicioBodega: true } })
   const baseDesde = maxFactura?.fechaFactura || empresa?.ultimaSyncBodega
     || new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
   const desde = new Date(baseDesde.getTime() - 30 * 60 * 1000)
@@ -604,6 +604,9 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
       ORDER BY sd."numeroFactura" DESC
       LIMIT 10`, integracionId, destino, hace30dias)
 
+    const hace30diasRec = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    const fechaInicioBodegaRec: Date = (empresa as any)?.fechaInicioBodega ?? hace30diasRec
+
     if (deudasSinOrden.length > 0) {
       console.log(`[delta] recuperador: ${deudasSinOrden.length} órdenes faltantes para ${destino}`)
       for (const deuda of deudasSinOrden) {
@@ -619,7 +622,8 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
               completa = await adapter.fetchOrdenCompletaPorId(uid)
             }
           }
-          if (completa && completa.clienteNombre) {
+          const fechaFacturaOrden = completa?.fechaFactura ? new Date(completa.fechaFactura) : null
+          if (completa && completa.clienteNombre && fechaFacturaOrden && fechaFacturaOrden >= fechaInicioBodegaRec) {
             await prisma.ordenDespacho.upsert({
               where: { origenId_empresaId: { origenId: deuda.externalId, empresaId: destino } },
               create: {
