@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
     // 5. Siempre guardar syncInicioAt en empleado
     await (prisma as any).empleado.update({
       where: { id: empleadoId },
-      data: { syncInicioAt: fechaInicio }
+      data: { syncInicioAt: fechaInicio, syncDeudas: deudasBD.length }
     })
 
     if (deudasBD.length === 0) {

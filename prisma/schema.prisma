@@ -120,6 +120,7 @@ model Empleado {
   configRecibos       Json?                @default("{\"prefijo\": null, \"anchoPapel\": null, \"consecutivoMes\": null, \"consecutivoActual\": 0, \"usarConfigEmpresa\": true}")
   colorFondo           String?
   syncInicioAt        DateTime?              // fecha de inicio del vendedor — base para sync inicial de cartera
+  syncDeudas          Int?                   // cantidad de deudas en el momento de la sincronización inicial
   Cartera             Cartera[]
   DetalleCartera      DetalleCartera[]
   empresa             Empresa              @relation(fields: [empresaId], references: [id])

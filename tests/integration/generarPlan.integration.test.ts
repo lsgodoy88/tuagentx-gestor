@@ -175,4 +175,63 @@ describe('generarPlanMes — integración BD real', () => {
     const r = await generarPlanMes(MES_TEST, 'superadmin-001')
     expect(r.resultados).toHaveLength(0)
   })
+
+  it('plan existente pendiente + negociación cambió → accion=negociacion_actualizada', async () => {
+    await generarPlanMes(MES_TEST, EMP)
+    const NEGOCIADO = 55000
+    await (prisma as any).empresa.update({ where: { id: EMP }, data: { montoNegociado: NEGOCIADO } })
+
+    const r2 = await generarPlanMes(MES_TEST, EMP)
+    expect(r2.resultados[0].accion).toBe('negociacion_actualizada')
+    expect(r2.resultados[0].monto).toBe(NEGOCIADO)
+
+    const plan = await (prisma as any).planEmpresa.findUnique({ where: { empresaId_mes: { empresaId: EMP, mes: MES_TEST } } })
+    expect(plan.monto).toBe(NEGOCIADO)
+    expect(plan.montoOriginal).toBe(NEGOCIADO)
+    expect(plan.saldo).toBe(NEGOCIADO)
+    expect(plan.desglose[0].rol).toBe('negociado')
+  })
+
+  it('plan existente pendiente + negociación NO cambió → accion=ya_existe', async () => {
+    const NEGOCIADO = 55000
+    await (prisma as any).empresa.update({ where: { id: EMP }, data: { montoNegociado: NEGOCIADO } })
+    await generarPlanMes(MES_TEST, EMP)
+    const r2 = await generarPlanMes(MES_TEST, EMP)
+    expect(r2.resultados[0].accion).toBe('ya_existe')
+  })
+
+  it('plan pagado + negociación cambió → no modifica', async () => {
+    await generarPlanMes(MES_TEST, EMP)
+    await (prisma as any).planEmpresa.update({
+      where: { empresaId_mes: { empresaId: EMP, mes: MES_TEST } },
+      data: { estado: 'pagado', saldo: 0 },
+    })
+    await (prisma as any).empresa.update({ where: { id: EMP }, data: { montoNegociado: 99999 } })
+
+    const r2 = await generarPlanMes(MES_TEST, EMP)
+    expect(r2.resultados[0].accion).toBe('ya_existe')
+
+    const plan = await (prisma as any).planEmpresa.findUnique({ where: { empresaId_mes: { empresaId: EMP, mes: MES_TEST } } })
+    expect(plan.estado).toBe('pagado')
+    expect(plan.monto).toBe(MONTO_ESPERADO)
+  })
+
+  it('negociación con abono parcial → saldo correcto tras cambio de monto', async () => {
+    const NEGOCIADO = 55000
+    const ABONO = 20000
+    await (prisma as any).empresa.update({ where: { id: EMP }, data: { montoNegociado: NEGOCIADO } })
+    await generarPlanMes(MES_TEST, EMP)
+    await (prisma as any).planEmpresa.update({
+      where: { empresaId_mes: { empresaId: EMP, mes: MES_TEST } },
+      data: { saldo: NEGOCIADO - ABONO },
+    })
+
+    const NEGOCIADO2 = 60000
+    await (prisma as any).empresa.update({ where: { id: EMP }, data: { montoNegociado: NEGOCIADO2 } })
+    await generarPlanMes(MES_TEST, EMP)
+
+    const plan = await (prisma as any).planEmpresa.findUnique({ where: { empresaId_mes: { empresaId: EMP, mes: MES_TEST } } })
+    expect(plan.montoOriginal).toBe(NEGOCIADO2)
+    expect(plan.saldo).toBe(NEGOCIADO2 - ABONO) // 40000
+  })
 })

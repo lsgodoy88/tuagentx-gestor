@@ -1079,8 +1079,8 @@ export default function EmpleadosPage() {
                         <span className="text-white text-sm font-semibold">Sincronización cartera</span>
                       </div>
                       <div className="flex items-center gap-2">
-                        {syncEvidencia
-                          ? <span className="text-emerald-400 text-xs">{syncEvidencia}</span>
+                        {editando?.syncInicioAt
+                          ? <span className="text-emerald-400 text-xs">✅ {editando.syncDeudas ?? 0} deudas sincronizadas</span>
                           : <span className="text-zinc-500 text-xs">{editando?.apiId ? 'Configurar' : 'Requiere asignación'}</span>}
                         <span className="text-zinc-500 text-xs">›</span>
                       </div>
@@ -1612,26 +1612,39 @@ export default function EmpleadosPage() {
           </div>
           {/* Body */}
           <div className="px-5 py-4 space-y-4">
-            <p className="text-zinc-400 text-xs">El saldo actual de UpTres se usará como base. Solo se contarán los pagos registrados en Gestor desde la fecha indicada.</p>
-            <div>
-              <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Fecha de inicio de pagos</label>
-              <input type="date" value={syncFecha} onChange={e => setSyncFecha(e.target.value)}
-                onClick={e => { try { (e.currentTarget as HTMLInputElement).showPicker?.() } catch {} }}
-                className="w-full rounded-lg px-3 py-2 text-white text-sm outline-none cursor-pointer"
-                style={{ background: '#0d1220', border: '1px solid #1e2a3d' }} />
-              {syncPrimerRecibo && (
-                <p className="text-amber-400 text-xs mt-2">⚠️ Primer recibo: <strong>{syncPrimerRecibo.numeroRecibo}</strong> del {new Date(syncPrimerRecibo.fecha).toLocaleDateString('es-CO')}</p>
-              )}
-            </div>
-            {/* Evidencia post-sync */}
-            {syncEvidencia && (
-              <div className="rounded-xl px-4 py-3 text-center" style={{ background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.30)' }}>
-                <p className="text-emerald-400 text-sm font-bold">{syncEvidencia}</p>
-                <p className="text-zinc-500 text-xs mt-1">Sincronización completada</p>
+            {editando?.syncInicioAt ? (
+              /* READONLY — ya sincronizado */
+              <div className="space-y-3">
+                <div className="rounded-xl px-4 py-3 text-center" style={{ background: 'rgba(16,185,129,0.10)', border: '1px solid rgba(16,185,129,0.30)' }}>
+                  <p className="text-emerald-400 text-sm font-bold">✅ {editando.syncDeudas ?? 0} deudas sincronizadas</p>
+                  <p className="text-zinc-500 text-xs mt-1">Sincronización completada</p>
+                </div>
+                <div>
+                  <p className="text-zinc-500 text-xs font-semibold mb-1">Fecha de inicio de pagos</p>
+                  <p className="text-white text-sm px-3 py-2 rounded-lg" style={{ background: '#0d1220', border: '1px solid #1e2a3d' }}>
+                    {new Date(editando.syncInicioAt).toLocaleDateString('es-CO', { timeZone: 'America/Bogota', day: '2-digit', month: 'long', year: 'numeric' })}
+                  </p>
+                </div>
+                <p className="text-zinc-600 text-xs text-center">La sincronización inicial es inmutable. Contacta soporte para modificarla.</p>
               </div>
-            )}
-            {syncMsg && !syncEvidencia && (
-              <p className={`text-sm text-center ${syncMsg.startsWith('✅') ? 'text-emerald-400' : 'text-red-400'}`}>{syncMsg}</p>
+            ) : (
+              /* EDITABLE — aún no sincronizado */
+              <>
+                <p className="text-zinc-400 text-xs">El saldo actual de UpTres se usará como base. Solo se contarán los pagos registrados en Gestor desde la fecha indicada.</p>
+                <div>
+                  <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Fecha de inicio de pagos</label>
+                  <input type="date" value={syncFecha} onChange={e => setSyncFecha(e.target.value)}
+                    onClick={e => { try { (e.currentTarget as HTMLInputElement).showPicker?.() } catch {} }}
+                    className="w-full rounded-lg px-3 py-2 text-white text-sm outline-none cursor-pointer"
+                    style={{ background: '#0d1220', border: '1px solid #1e2a3d' }} />
+                  {syncPrimerRecibo && (
+                    <p className="text-amber-400 text-xs mt-2">⚠️ Primer recibo: <strong>{syncPrimerRecibo.numeroRecibo}</strong> del {new Date(syncPrimerRecibo.fecha).toLocaleDateString('es-CO')}</p>
+                  )}
+                </div>
+                {syncMsg && (
+                  <p className={`text-sm text-center ${syncMsg.startsWith('✅') ? 'text-emerald-400' : 'text-red-400'}`}>{syncMsg}</p>
+                )}
+              </>
             )}
           </div>
           {/* Footer */}
@@ -1639,9 +1652,9 @@ export default function EmpleadosPage() {
             <button onClick={() => { setPopupSyncForm(false); setSyncMsg('') }}
               className="flex-1 py-2.5 rounded-xl text-sm text-zinc-400 hover:text-white transition-colors"
               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
-              {syncEvidencia ? 'Cerrar' : 'Omitir'}
+              {editando?.syncInicioAt ? 'Cerrar' : 'Omitir'}
             </button>
-            {!syncEvidencia && (
+            {!editando?.syncInicioAt && (
               <button onClick={async () => {
                 if (!editando || !syncFecha) return
                 setSyncLoading(true); setSyncMsg('')
@@ -1652,7 +1665,10 @@ export default function EmpleadosPage() {
                 const data = await res.json()
                 setSyncLoading(false)
                 if (data.error) { setSyncMsg('Error: ' + data.error) }
-                else { setSyncEvidencia(`✅ ${data.actualizadas} deudas sincronizadas`) }
+                else {
+                  // Actualizar editando en memoria → popup cambia a readonly sin reload
+                  setEditando((prev: any) => ({ ...prev, syncInicioAt: data.fechaInicio, syncDeudas: data.actualizadas }))
+                }
               }} disabled={syncLoading || !syncFecha}
                 className="flex-1 py-2.5 rounded-xl text-sm font-bold text-white disabled:opacity-50"
                 style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', border: '1px solid rgba(59,130,246,0.50)' }}>

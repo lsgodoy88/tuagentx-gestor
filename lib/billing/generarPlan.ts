@@ -39,7 +39,29 @@ export async function generarPlanMes(mesOverride?: string, soloEmpresaId?: strin
       where: { empresaId_mes: { empresaId: empresa.id, mes: mesStr } },
     })
     if (existente) {
-      resultados.push({ empresaId: empresa.id, nombre: empresa.nombre, accion: 'ya_existe', mes: mesStr })
+      // Si hay negociación y el monto cambió → actualizar plan pendiente/vencido
+      const montoNegociado = (empresa as any).montoNegociado
+      if (
+        montoNegociado &&
+        ['pendiente', 'vencido'].includes(existente.estado) &&
+        Number(existente.montoOriginal) !== montoNegociado
+      ) {
+        const pagado = Number(existente.montoOriginal ?? existente.monto) - Number(existente.saldo)
+        const nuevoSaldo = Math.max(0, montoNegociado - pagado)
+        await (prisma as any).planEmpresa.update({
+          where: { id: existente.id },
+          data: {
+            monto: montoNegociado,
+            montoOriginal: montoNegociado,
+            saldo: nuevoSaldo,
+            desglose: [{ rol: 'negociado', cantidad: 1, precioUnitario: montoNegociado, subtotal: montoNegociado }],
+            updatedAt: new Date(),
+          },
+        })
+        resultados.push({ empresaId: empresa.id, nombre: empresa.nombre, accion: 'negociacion_actualizada', mes: mesStr, monto: montoNegociado })
+      } else {
+        resultados.push({ empresaId: empresa.id, nombre: empresa.nombre, accion: 'ya_existe', mes: mesStr })
+      }
       continue
     }
 
