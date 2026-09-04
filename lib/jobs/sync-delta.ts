@@ -235,6 +235,46 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     }
   } catch (err: any) { console.error('[delta] deudas error:', err.message); erroresParciales.push('deudas: ' + err.message) }
 
+  // Cartera update — fetch adicional sin cursor para capturar pedidos viejos facturados recientemente
+  // Complementa el cursor de cartera que puede saltarse deudas con createdAt anterior a la ventana
+  try {
+    const hace2dias = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
+    _s = Date.now()
+    const deudasUpdate = await adapter.fetchDeudasDesde(hace2dias)
+    _t('fetchCarteraUpdate', _s)
+    if (deudasUpdate.length > 0) {
+      const extIdsUpdate = deudasUpdate.map((d: any) => String(d.uid || d._id)).filter(Boolean)
+      const existentesUpdate = await (prisma as any).syncDeuda.findMany({
+        where: { integracionId, externalId: { in: extIdsUpdate } },
+        select: { externalId: true }
+      })
+      const existentesUpdateSet = new Set(existentesUpdate.map((d: any) => d.externalId))
+      const nuevasUpdate = deudasUpdate.filter((d: any) => {
+        const extId = String(d.uid || d._id || '')
+        return extId && !existentesUpdateSet.has(extId)
+      })
+      if (nuevasUpdate.length > 0) {
+        const rows = nuevasUpdate.map((d: any) => ({
+          integracionId, externalId: String(d.uid || d._id),
+          clienteApiId: d.cliente?.uid || '', empleadoExternalId: d.empleado?.uid || null,
+          numeroOrden: d.numeroOrden ? parseInt(String(d.numeroOrden)) : null,
+          numeroFactura: d.numeroFacturado ? parseInt(String(d.numeroFacturado)) : null,
+          valor: parseFloat(d.vTotal ?? '0'), saldo: parseFloat(d.vSaldo ?? '0'),
+          diasCredito: d.dias ? parseInt(String(d.dias)) : null,
+          fechaVencimiento: d.fPago ? new Date(d.fPago) : null,
+          condition: true, data: d,
+          externalUpdatedAt: d.fModificado ? new Date(d.fModificado) : null,
+          receivableAt: d.receivableAt ? new Date(d.receivableAt) : null,
+          sincronizadoEl: new Date(),
+          createdAtBogota: d.fCreado ? toBogota(new Date(d.fCreado as string)) : toBogota(new Date())
+        }))
+        await (prisma as any).syncDeuda.createMany({ data: rows, skipDuplicates: true })
+        console.log(`[delta] carteraUpdate: ${nuevasUpdate.length} deudas nuevas para ${destino}`)
+        deudasNuevasDelta += nuevasUpdate.length
+      }
+    }
+  } catch (e: any) { console.error('[delta] carteraUpdate error:', e.message) }
+
   // Notas Crédito — insert-only por orderNumber (nunca pisa registros existentes)
   let ncNuevas: any[] = []
   try {
@@ -612,16 +652,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
       for (const deuda of deudasSinOrden) {
         try {
           // Intentar por uid primero, fallback por orderNumber via fetchVentas (ya validado)
-          let completa = await adapter.fetchOrdenCompletaPorId(deuda.externalId)
-          if (!completa && deuda.numeroOrden) {
-            // fetchVentas ya funciona — buscar la orden en el rango de creación
-            const ventasRango = await adapter.fetchVentas(new Date(Date.now() - 60 * 24 * 60 * 60 * 1000))
-            const match = ventasRango.find((o: any) => String(o.numeroOrden) === String(deuda.numeroOrden))
-            if (match) {
-              const uid = String((match as any).uid || (match as any)._id)
-              completa = await adapter.fetchOrdenCompletaPorId(uid)
-            }
-          }
+          const completa = await adapter.fetchOrdenCompletaPorId(deuda.externalId)
           const fechaFacturaOrden = completa?.fechaFactura ? new Date(completa.fechaFactura) : null
           if (completa && completa.clienteNombre && fechaFacturaOrden && fechaFacturaOrden >= fechaInicioBodegaRec) {
             await prisma.ordenDespacho.upsert({
