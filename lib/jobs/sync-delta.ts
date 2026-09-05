@@ -235,74 +235,6 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     }
   } catch (err: any) { console.error('[delta] deudas error:', err.message); erroresParciales.push('deudas: ' + err.message) }
 
-  // Actualizar SyncDeuda.numeroFactura desde fetchVentas — órdenes ya facturadas en UpTres sin factura local
-  // fetchVentas ya trajo invoiceNumber: cruce por externalId, 0 llamadas HTTP extra
-  let syncDeudasActualizadas = 0
-  try {
-    _s = Date.now()
-    const facturadas = ordenesValidas.filter((o: any) => o.isInvoiced && o.numeroFacturado)
-    if (facturadas.length > 0) {
-      const extIds = facturadas.map((o: any) => String(o.uid || o._id))
-      const sinFactura = await (prisma as any).syncDeuda.findMany({
-        where: { integracionId, externalId: { in: extIds }, numeroFactura: null },
-        select: { id: true, externalId: true }
-      })
-      if (sinFactura.length > 0) {
-        const mapaFacturas = new Map<string, number>()
-        for (const o of facturadas) mapaFacturas.set(String(o.uid || o._id), parseInt(String(o.numeroFacturado)))
-        for (const sd of sinFactura) {
-          const numFact = mapaFacturas.get(sd.externalId)
-          if (numFact) {
-            await (prisma as any).syncDeuda.update({ where: { id: sd.id }, data: { numeroFactura: numFact } })
-            syncDeudasActualizadas++
-          }
-        }
-        if (syncDeudasActualizadas > 0) console.log(`[delta] syncDeuda actualizadas con factura: ${syncDeudasActualizadas} para ${destino}`)
-      }
-    }
-    _t('syncDeudasFactura', _s)
-  } catch (e: any) { console.error('[delta] syncDeudasFactura error:', e.message) }
-
-  // Insertar en SyncDeuda órdenes facturadas que fetchVentas trajo pero nunca entraron por cursor cartera
-  let syncDeudasInsertadas = 0
-  try {
-    _s = Date.now()
-    const facturadas = ordenesValidas.filter((o: any) => o.isInvoiced && o.numeroFacturado && (o.cliente?.uid || o._id))
-    if (facturadas.length > 0) {
-      const extIds = facturadas.map((o: any) => String(o.uid || o._id))
-      const existentes = await (prisma as any).syncDeuda.findMany({
-        where: { integracionId, externalId: { in: extIds } },
-        select: { externalId: true }
-      })
-      const existentesSet = new Set(existentes.map((d: any) => d.externalId))
-      const nuevas = facturadas.filter((o: any) => !existentesSet.has(String(o.uid || o._id)))
-      if (nuevas.length > 0) {
-        const rows = nuevas.map((o: any) => ({
-          integracionId,
-          externalId: String(o.uid || o._id),
-          clienteApiId: o.cliente?.uid || '',
-          empleadoExternalId: o.empleado?.uid || null,
-          numeroOrden: o.numeroOrden ? parseInt(String(o.numeroOrden)) : null,
-          numeroFactura: parseInt(String(o.numeroFacturado)),
-          valor: parseFloat(o.vTotal ?? '0'),
-          saldo: parseFloat(o.balance ?? o.vTotal ?? '0'),
-          diasCredito: null,
-          fechaVencimiento: null,
-          condition: false,
-          data: o,
-          externalUpdatedAt: o.fModificado ? new Date(o.fModificado) : null,
-          receivableAt: null,
-          sincronizadoEl: new Date(),
-          createdAtBogota: o.fCreado ? toBogota(new Date(o.fCreado as string)) : toBogota(new Date())
-        }))
-        await (prisma as any).syncDeuda.createMany({ data: rows, skipDuplicates: true })
-        syncDeudasInsertadas = rows.length
-        console.log(`[delta] syncDeuda insertadas desde fetchVentas: ${syncDeudasInsertadas} para ${destino}`)
-      }
-    }
-    _t('syncDeudasInsert', _s)
-  } catch (e: any) { console.error('[delta] syncDeudasInsert error:', e.message) }
-
   // Cartera update — fetch adicional sin cursor para capturar pedidos viejos facturados recientemente
   // Complementa el cursor de cartera que puede saltarse deudas con createdAt anterior a la ventana
   try {
@@ -721,7 +653,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
         try {
           // Intentar por uid primero, fallback por orderNumber via fetchVentas (ya validado)
           const completa = await adapter.fetchOrdenCompletaPorId(deuda.externalId)
-          const fechaFacturaOrden = completa?.fechaFactura ? new Date(completa.fechaFactura) : null
+          const fechaFacturaOrden = completa?.fechaFactura ? new Date(completa.fechaFactura) : completa?.createdAt ? new Date(completa.createdAt) : null
           if (completa && completa.clienteNombre && fechaFacturaOrden && fechaFacturaOrden >= fechaInicioBodegaRec) {
             await prisma.ordenDespacho.upsert({
               where: { origenId_empresaId: { origenId: deuda.externalId, empresaId: destino } },
