@@ -385,11 +385,22 @@ function TabRotacion({ user }: { user: any }) {
       const params = new URLSearchParams({ page: String(pg), limit: '50', q, linea })
       const res = await fetch('/api/impulsar/rotacion?' + params, { signal: ctrl.signal })
       const data = await res.json()
-      setProductos(data.productos || [])
+      const prods = data.productos || []
+      setProductos(prods)
       setTotal(data.total ?? 0)
       setPages(data.pages ?? 1)
       setPage(pg)
       if (pg === 1) setFiltros(data.filtros ?? { lineas: [] })
+      // Prellenar precioVenta desde ultimoPrecio si el campo está vacío en cache
+      setFilas(prev => {
+        const next = { ...prev }
+        for (const p of prods) {
+          if (p.ultimoPrecio && (!next[p.id]?.precioVenta)) {
+            next[p.id] = { cantidad: next[p.id]?.cantidad ?? '', precioVenta: String(p.ultimoPrecio) }
+          }
+        }
+        return next
+      })
     } catch (e: any) {
       if (e.name !== 'AbortError') console.error(e)
     } finally {
@@ -423,7 +434,18 @@ function TabRotacion({ user }: { user: any }) {
         body: JSON.stringify({ clienteId, filas: filasData })
       })
       const data = await res.json()
-      if (data.ok) { setMsgEnvio(`✅ ${data.guardados} productos enviados al vendedor`); setFilas({}); limpiarCache() }
+      if (data.ok) {
+        setMsgEnvio(`✅ ${data.guardados} productos enviados al vendedor`)
+        // Conservar precioVenta para siguiente reporte — solo limpiar cantidades
+        setFilas(prev => {
+          const next: Record<string, { cantidad: string; precioVenta: string }> = {}
+          for (const [pid, v] of Object.entries(prev)) {
+            if (v.precioVenta) next[pid] = { cantidad: '', precioVenta: v.precioVenta }
+          }
+          return next
+        })
+        limpiarCache()
+      }
       else setMsgEnvio('Error: ' + (data.error || 'desconocido'))
     } catch { setMsgEnvio('Error de red') }
     finally { setEnviando(false) }

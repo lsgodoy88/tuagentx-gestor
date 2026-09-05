@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
 
     const where = conditions.join(' AND ')
 
-    const [rows, countRows, lineas] = await Promise.all([
+    const [rows, countRows, lineas, preciosRows] = await Promise.all([
       (prisma as any).$queryRawUnsafe(`
         SELECT p.id, p.nombre, p.linea, p.marca, p.precio
         FROM ${DB_SCHEMA}."Producto" p
@@ -48,11 +48,24 @@ export async function GET(req: NextRequest) {
         SELECT DISTINCT linea FROM ${DB_SCHEMA}."Producto"
         WHERE "empresaId" = $1 AND condition = true AND linea IS NOT NULL ORDER BY linea
       `, empresaId),
+      // Último precio_venta registrado por producto para esta impulsadora
+      (prisma as any).$queryRawUnsafe(`
+        SELECT DISTINCT ON ("productoId") "productoId", precio_venta
+        FROM ${DB_SCHEMA}."ImpulsoRotacion"
+        WHERE "empresaId" = $1 AND "empleadoId" = $2
+          AND precio_venta IS NOT NULL AND precio_venta > 0
+        ORDER BY "productoId", "createdAt" DESC
+      `, empresaId, user.id),
     ])
+
+    const precioMap: Record<string, number> = {}
+    for (const r of preciosRows as any[]) {
+      precioMap[r.productoId] = Number(r.precio_venta)
+    }
 
     const total = countRows[0]?.total ?? 0
     return NextResponse.json({
-      productos: rows,
+      productos: (rows as any[]).map((p: any) => ({ ...p, ultimoPrecio: precioMap[p.id] ?? null })),
       total,
       page,
       pages: Math.ceil(total / limit),
