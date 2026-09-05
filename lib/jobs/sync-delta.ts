@@ -30,19 +30,15 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   const adapter = new UpTresAdapter(apiKey, apiSecret)
   let _s = Date.now(); await adapter.login(); _t('login', _s)
 
-  const maxFactura = await (prisma as any).ordenDespacho.findFirst({
-    where: { empresaId: destino, isFacturada: true, fechaFactura: { not: null } },
-    orderBy: { fechaFactura: 'desc' },
-    select: { fechaFactura: true }
-  })
   const empresa = await prisma.empresa.findUnique({ where: { id: destino }, select: { ultimaSyncBodega: true, ultimaSyncClientes: true, sync_cursor_clientes: true, sync_cursor_empleados: true, sync_cursor_cartera: true, sync_cursor_cartera_update: true, sync_cursor_listas: true, sync_cursor_proveedores: true, fechaInicioBodega: true } })
-  const hace2dias = new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-  const baseDesde = maxFactura?.fechaFactura || empresa?.ultimaSyncBodega || hace2dias
-  // Siempre retroceder al menos 2 días para capturar órdenes creadas ayer y facturadas hoy
-  const desde = new Date(Math.min(baseDesde.getTime() - 30 * 60 * 1000, hace2dias.getTime()))
+  const hace10dias = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)
+  // desde: siempre mínimo 10 días atrás — captura órdenes creadas antes pero facturadas después
+  // No usar fechaFactura como ancla: avanza con cada factura y deja fuera órdenes anteriores
+  const desde = empresa?.ultimaSyncBodega
+    ? new Date(Math.min(empresa.ultimaSyncBodega.getTime() - 30 * 60 * 1000, hace10dias.getTime()))
+    : hace10dias
 
   _s = Date.now(); const ordenes = await adapter.fetchVentas(desde); _t('fetchVentas', _s)
-  console.log(`[delta] fetchVentas raw: ${ordenes.length} para ${destino} | validas(factura+nombre): ${ordenes.filter((o:any)=>o.numeroFacturado&&(o.clienteNombre||o.clienteNombreApi)).length} | nums: ${ordenes.map((o:any)=>o.numeroOrden).join(',')}`)
   const erroresParciales: string[] = []
 
   if (!ordenes.length) {
