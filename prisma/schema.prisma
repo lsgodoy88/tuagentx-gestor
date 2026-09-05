@@ -195,6 +195,7 @@ model Cliente {
   impulsoInventarios ImpulsoInventario[]
   impulsoRotaciones  ImpulsoRotacion[]
   impulsoEventos     ImpulsoEvento[]
+  clienteListas      ClienteLista[]
 
   @@index([empresaId], map: "idx_cliente_empresa")
   @@index([listaId], map: "idx_cliente_lista")
@@ -431,8 +432,9 @@ model ListaClientes {
   nombre     String
   empresaId  String
   createdAt  DateTime?       @default(now()) @db.Timestamp(6)
-  clientes   Cliente[]
-  vendedores EmpleadoLista[]
+  clientes      Cliente[]
+  vendedores    EmpleadoLista[]
+  clienteListas ClienteLista[]
 
   @@map("ListaClientes")
 }
@@ -463,6 +465,16 @@ model Proveedor {
   updatedAt            DateTime? @db.Timestamp(6)
 
   @@map("Proveedor")
+}
+
+model ClienteLista {
+  clienteId String
+  listaId   String
+  cliente   Cliente       @relation(fields: [clienteId], references: [id])
+  lista     ListaClientes @relation(fields: [listaId], references: [id])
+
+  @@id([clienteId, listaId])
+  @@map("ClienteLista")
 }
 
 model EmpleadoLista {

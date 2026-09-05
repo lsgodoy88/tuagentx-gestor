@@ -338,8 +338,28 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
           })
         }
 
-        // Actualizar Cliente.listaId donde apiId esté en lista.clienteApiIds
+        // Sync clientes de esta lista
         if (lista.clienteApiIds.length > 0) {
+          // Obtener ids locales de los clientes que UpTres incluye en esta lista
+          const clientesEnLista = await (prisma as any).cliente.findMany({
+            where: { empresaId: destino, apiId: { in: lista.clienteApiIds } },
+            select: { id: true },
+          })
+          const clienteIdsEnLista: string[] = clientesEnLista.map((c: any) => c.id)
+
+          // Upsert en ClienteLista (N:N) — cada cliente puede estar en múltiples listas
+          if (clienteIdsEnLista.length > 0) {
+            await (prisma as any).clienteLista.createMany({
+              data: clienteIdsEnLista.map((clienteId: string) => ({ clienteId, listaId: listaLocal.id })),
+              skipDuplicates: true,
+            })
+            // Eliminar relaciones que UpTres ya no incluye en esta lista
+            await (prisma as any).clienteLista.deleteMany({
+              where: { listaId: listaLocal.id, clienteId: { notIn: clienteIdsEnLista } },
+            })
+          }
+
+          // Mantener Cliente.listaId para compatibilidad con APIs aún no migradas
           await (prisma as any).cliente.updateMany({
             where: { empresaId: destino, apiId: { in: lista.clienteApiIds } },
             data: { listaId: listaLocal.id },
