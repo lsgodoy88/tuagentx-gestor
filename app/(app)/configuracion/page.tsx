@@ -562,7 +562,7 @@ export default function ConfiguracionPage() {
 
   async function syncNocturno() {
     setSincronizandoNocturno(true); setMsgSync('')
-    const res = await fetch('/api/sync/nocturno', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
+    const res = await fetch('/api/sync/nocturno?modo=completo', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
     const data = await res.json()
     setSincronizandoNocturno(false)
     if (data.ok) {
