@@ -41,6 +41,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   const desde = new Date(baseDesde.getTime() - 30 * 60 * 1000)
 
   _s = Date.now(); const ordenes = await adapter.fetchVentas(desde); _t('fetchVentas', _s)
+  console.log(`[delta] fetchVentas raw: ${ordenes.length} para ${destino} | validas(factura+nombre): ${ordenes.filter((o:any)=>o.numeroFacturado&&(o.clienteNombre||o.clienteNombreApi)).length}`)
   const erroresParciales: string[] = []
 
   if (!ordenes.length) {
