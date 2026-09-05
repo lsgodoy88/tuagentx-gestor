@@ -286,6 +286,7 @@ export default function EmpleadosPage() {
   const [metasEdit, setMetasEdit] = useState<Record<string, {recaudo: string, venta: string}>>({})
   const [metasCargando, setMetasCargando] = useState(false)
   const [metasGuardando, setMetasGuardando] = useState(false)
+  const [metasDirty, setMetasDirty] = useState(false)
   // Tab rutas
   const [subTabRutas, setSubTabRutas] = useState<'hoy' | 'historial'>('hoy')
   const [turnosHoy, setTurnosHoy] = useState<any[]>([])
@@ -523,6 +524,7 @@ export default function EmpleadosPage() {
       edit[m] = { recaudo: r ? Math.round(Number(r.metaPesos)).toLocaleString('es-CO') : '', venta: v ? Math.round(Number(v.metaPesos)).toLocaleString('es-CO') : '' }
     }
     setMetasEdit(edit)
+    setMetasDirty(false)
     setMetasCargando(false)
   }
 
@@ -538,6 +540,7 @@ export default function EmpleadosPage() {
       venta.push({ mes: m, metaPesos: v ? parseInt(v.replace(/[^0-9]/g, ''), 10) || null : null })
     }
     await fetch('/api/metas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ empleadoId: metasEmpleadoId, anio: metasAnio, recaudo, venta }) })
+    setMetasDirty(false)
     setMetasGuardando(false)
   }
 
@@ -1279,7 +1282,7 @@ export default function EmpleadosPage() {
                           type="text"
                           inputMode="numeric"
                           value={metasEdit[mes]?.recaudo || ''}
-                          onChange={e => setMetasEdit(p => ({...p, [mes]: {...p[mes], recaudo: parseMeta(e.target.value)}}))}
+                          onChange={e => { setMetasEdit(p => ({...p, [mes]: {...p[mes], recaudo: parseMeta(e.target.value)}})); setMetasDirty(true) }}
                           onBlur={e => { if (e.target.value) setMetasEdit(p => ({...p, [mes]: {...p[mes], recaudo: fmtMeta(e.target.value)}})) }}
                           placeholder="Sin meta"
                           className="w-full rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-zinc-600 outline-none transition-colors focus:border-blue-500/60"
@@ -1291,7 +1294,7 @@ export default function EmpleadosPage() {
                           type="text"
                           inputMode="numeric"
                           value={metasEdit[mes]?.venta || ''}
-                          onChange={e => setMetasEdit(p => ({...p, [mes]: {...p[mes], venta: parseMeta(e.target.value)}}))}
+                          onChange={e => { setMetasEdit(p => ({...p, [mes]: {...p[mes], venta: parseMeta(e.target.value)}})); setMetasDirty(true) }}
                           onBlur={e => { if (e.target.value) setMetasEdit(p => ({...p, [mes]: {...p[mes], venta: fmtMeta(e.target.value)}})) }}
                           placeholder="Sin meta"
                           className="w-full rounded-lg px-2.5 py-1.5 text-sm text-white placeholder-zinc-600 outline-none transition-colors focus:border-blue-500/60"
@@ -1306,7 +1309,7 @@ export default function EmpleadosPage() {
               <div className="px-4 py-3">
                 <button
                   onClick={guardarMetas}
-                  disabled={metasGuardando}
+                  disabled={metasGuardando || !metasDirty}
                   className="w-full py-2.5 rounded-xl text-sm font-bold text-white transition-colors disabled:opacity-50"
                   style={{background:'rgba(59,130,246,0.20)',border:'1px solid rgba(59,130,246,0.40)'}}>
                   {metasGuardando ? 'Guardando...' : '💾 Guardar metas'}

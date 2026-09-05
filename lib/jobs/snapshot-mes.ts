@@ -103,24 +103,23 @@ export async function runSnapshotMes(mesOverride?: string): Promise<{ ventas: nu
   // Cartera al cierre — total, pendiente y clientes por vendedor desde CarteraCache
   const carteraInserted: any = await (prisma as any).$queryRawUnsafe(`
     INSERT INTO ${DB_SCHEMA}."SnapshotMes" (id, empresa_id, mes, tipo, empleado_id, vendedor_api_id, entidad_nombre, datos, creado_en, updated_en)
-    SELECT
-      gen_random_uuid()::text,
-      cc."empresaId",
-      $1,
-      'cartera',
-      e.id,
-      cc."empleadoExternalId",
-      cc."empleadoNombre",
-      jsonb_build_object(
-        'total',     SUM(cc."saldoTotal")::float,
-        'pendiente', SUM(cc."saldoPendiente")::float,
-        'clientes',  COUNT(*)::int
-      ),
+    SELECT gen_random_uuid()::text, sub.empresa_id, $1, 'cartera',
+      sub.empleado_id, sub.vendedor_api_id, sub.nombre,
+      jsonb_build_object('total', sub.total, 'pendiente', sub.pendiente, 'clientes', sub.clientes),
       NOW(), NOW()
-    FROM ${DB_SCHEMA}."CarteraCache" cc
-    LEFT JOIN ${DB_SCHEMA}."Empleado" e ON e."apiId" = cc."empleadoExternalId" AND e."empresaId" = cc."empresaId"
-    WHERE cc."saldoTotal" > 0
-    GROUP BY cc."empresaId", cc."empleadoExternalId", cc."empleadoNombre", e.id
+    FROM (
+      SELECT cc."empresaId" AS empresa_id, e.id AS empleado_id, cc."empleadoExternalId" AS vendedor_api_id,
+        COALESCE(MAX(cc."empleadoNombre"), MAX(e.nombre), 'Sin nombre') AS nombre,
+        SUM(cc."saldoTotal")::float AS total,
+        SUM(cc."saldoPendiente")::float AS pendiente,
+        COUNT(*)::int AS clientes
+      FROM ${DB_SCHEMA}."CarteraCache" cc
+      LEFT JOIN ${DB_SCHEMA}."Empleado" e ON e."apiId" = cc."empleadoExternalId" AND e."empresaId" = cc."empresaId"
+      WHERE cc."saldoTotal" > 0
+      GROUP BY cc."empresaId", e.id, cc."empleadoExternalId"
+    ) sub
+    ON CONFLICT ON CONSTRAINT "SnapshotMes_unique"
+      DO UPDATE SET datos = EXCLUDED.datos, entidad_nombre = EXCLUDED.entidad_nombre, updated_en = NOW()
     RETURNING id
   `, mesCierre)
 
