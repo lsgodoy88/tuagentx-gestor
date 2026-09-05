@@ -1273,7 +1273,7 @@ function RotacionTab() {
       <p className="text-zinc-400 text-xs px-1">Rotación — últimos 14 días</p>
       {snapshots.map((snap: any) => {
         const montoTotal = snap.filas.reduce((acc: number, f: any) => {
-          const cant = f.sugerido ?? 0
+          const cant = f.cantidad ?? 0
           const prv  = f.precioVenta ?? 0
           return acc + cant * prv
         }, 0)
@@ -1311,7 +1311,7 @@ function RotacionTab() {
                     </thead>
                     <tbody>
                       {snap.filas.map((f: any, i: number) => {
-                        const cant  = f.sugerido ?? 0
+                        const cant  = f.cantidad ?? 0
                         const prv   = f.precioVenta ?? null
                         const total = prv != null && cant > 0 ? cant * prv : null
                         return (
