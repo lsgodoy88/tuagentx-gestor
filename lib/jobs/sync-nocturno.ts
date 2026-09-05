@@ -7,6 +7,7 @@ import { prisma } from '@/lib/prisma'
 import { invalidatePattern } from '@/lib/cache'
 import { invalidarCacheClientes } from '@/lib/cartera/saldoCliente'
 import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
+import crypto from 'crypto'
 import { decrypt } from '@/lib/crypto-uptres'
 import { calcularEstado } from '@/lib/cartera/index'
 import { nowBogota } from '@/lib/fechas'
@@ -585,6 +586,38 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
         await invalidatePattern(`g:${intg.empresaId}:*`)
       } else {
         await invalidarCacheClientes(intg.empresaId, clienteApiIdsActualizados).catch(() => {})
+      }
+
+      // Sync listas completo — trae todas las listas sin filtro de fecha
+      if (modo === 'completo') {
+        try {
+          const { data: listasAll } = await adapter.fetchListasClientesConCursor(null, new Date('2020-01-01'))
+          for (const lista of listasAll) {
+            const listaLocal = await (prisma as any).listaClientes.upsert({
+              where: { api_id_empresaId: { api_id: lista.apiId, empresaId: intg.empresaId } },
+              create: { id: crypto.randomUUID(), api_id: lista.apiId, nombre: lista.nombre, empresaId: intg.empresaId },
+              update: { nombre: lista.nombre },
+            })
+            if (lista.clienteApiIds.length === 0) continue
+            const clientesEnLista = await (prisma as any).cliente.findMany({
+              where: { empresaId: intg.empresaId, apiId: { in: lista.clienteApiIds } },
+              select: { id: true },
+            })
+            const clienteIds = clientesEnLista.map((c: any) => c.id)
+            if (clienteIds.length > 0) {
+              await (prisma as any).clienteLista.createMany({
+                data: clienteIds.map((clienteId: string) => ({ clienteId, listaId: listaLocal.id })),
+                skipDuplicates: true,
+              })
+              await (prisma as any).clienteLista.deleteMany({
+                where: { listaId: listaLocal.id, clienteId: { notIn: clienteIds } },
+              })
+            }
+          }
+          console.log(`[sync-nocturno] listas completo: ${listasAll.length} listas sincronizadas`)
+        } catch (eListas: any) {
+          console.error(`[sync-nocturno] syncListas fallo (no critico):`, eListas.message)
+        }
       }
 
       // Sync productos (delta o completo segun modo)
