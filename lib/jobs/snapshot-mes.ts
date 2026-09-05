@@ -6,6 +6,7 @@
  */
 
 import { prisma } from '@/lib/prisma'
+import { calcularNSaldoBatch } from '@/lib/cartera/calcularSaldo'
 
 const DB_SCHEMA = process.env.DB_SCHEMA || 'gestor'
 
@@ -100,30 +101,82 @@ export async function runSnapshotMes(mesOverride?: string): Promise<{ ventas: nu
 
   const descuento = Array.isArray(descuentoInserted) ? descuentoInserted.length : 0
 
-  // Cartera al cierre — total, pendiente y clientes por vendedor desde CarteraCache
-  const carteraInserted: any = await (prisma as any).$queryRawUnsafe(`
-    INSERT INTO ${DB_SCHEMA}."SnapshotMes" (id, empresa_id, mes, tipo, empleado_id, vendedor_api_id, entidad_nombre, datos, creado_en, updated_en)
-    SELECT gen_random_uuid()::text, sub.empresa_id, $1, 'cartera',
-      sub.empleado_id, sub.vendedor_api_id, sub.nombre,
-      jsonb_build_object('total', sub.total, 'pendiente', sub.pendiente, 'clientes', sub.clientes),
-      NOW(), NOW()
-    FROM (
-      SELECT cc."empresaId" AS empresa_id, e.id AS empleado_id, cc."empleadoExternalId" AS vendedor_api_id,
-        COALESCE(MAX(cc."empleadoNombre"), MAX(e.nombre), 'Sin nombre') AS nombre,
-        SUM(cc."saldoTotal")::float AS total,
-        SUM(cc."saldoPendiente")::float AS pendiente,
-        COUNT(*)::int AS clientes
-      FROM ${DB_SCHEMA}."CarteraCache" cc
-      LEFT JOIN ${DB_SCHEMA}."Empleado" e ON e."apiId" = cc."empleadoExternalId" AND e."empresaId" = cc."empresaId"
-      WHERE cc."saldoTotal" > 0
-      GROUP BY cc."empresaId", e.id, cc."empleadoExternalId"
-    ) sub
-    ON CONFLICT ON CONSTRAINT "SnapshotMes_unique"
-      DO UPDATE SET datos = EXCLUDED.datos, entidad_nombre = EXCLUDED.entidad_nombre, updated_en = NOW()
-    RETURNING id
-  `, mesCierre)
+  // Cartera al cierre — nSaldo real por vendedor usando calcularNSaldoBatch (misma lógica que PDF)
+  // 1. Traer todas las deudas activas con saldo > 0 por empresa/vendedor
+  const integraciones: any[] = await (prisma as any).integracion.findMany({
+    where: { tipo: 'uptres', activa: true },
+    select: { id: true, empresaId: true },
+  })
 
-  const cartera = Array.isArray(carteraInserted) ? carteraInserted.length : 0
+  let carteraCount = 0
+  for (const integ of integraciones) {
+    const deudas: any[] = await (prisma as any).$queryRawUnsafe(`
+      SELECT sd.id, sd.valor, sd.saldo, sd."nSaldo", sd."nSaldoBase", sd."nSaldoBaseAt",
+             sd."ajusteManual", sd."empleadoExternalId", sd."clienteApiId"
+      FROM ${DB_SCHEMA}."SyncDeuda" sd
+      WHERE sd."integracionId" = $1
+        AND sd.condition = true
+        AND sd."clienteApiId" IS NOT NULL
+        AND sd.saldo::numeric > 0
+        AND sd."empleadoExternalId" IS NOT NULL
+    `, integ.id)
+
+    if (deudas.length === 0) continue
+
+    const deudaIds = deudas.map((d: any) => d.id)
+    const aplicaciones: any[] = await (prisma as any).$queryRawUnsafe(`
+      SELECT pcd."syncDeudaId", pcd."montoAplicado", pcd."createdAt"
+      FROM ${DB_SCHEMA}."PagoCarteraDeuda" pcd
+      WHERE pcd."syncDeudaId" = ANY($1::text[])
+    `, deudaIds)
+
+    const nSaldos = calcularNSaldoBatch(deudas, aplicaciones)
+
+    // Agrupar nSaldo por vendedorApiId
+    const porVendedor = new Map<string, { total: number; clientes: Set<string> }>()
+    for (const d of deudas) {
+      const { nSaldo } = nSaldos[d.id] ?? { nSaldo: 0 }
+      if (nSaldo <= 0) continue
+      const vid = d.empleadoExternalId
+      if (!porVendedor.has(vid)) porVendedor.set(vid, { total: 0, clientes: new Set() })
+      const entry = porVendedor.get(vid)!
+      entry.total += nSaldo
+      if (d.clienteApiId) entry.clientes.add(d.clienteApiId)
+    }
+
+    if (porVendedor.size === 0) continue
+
+    // Resolver nombres de empleados
+    const apiIds = [...porVendedor.keys()]
+    const empleados: any[] = await (prisma as any).empleado.findMany({
+      where: { apiId: { in: apiIds }, empresaId: integ.empresaId },
+      select: { id: true, apiId: true, nombre: true },
+    })
+    const empMap = new Map(empleados.map((e: any) => [e.apiId, e]))
+
+    // Upsert un row por vendedor
+    const upserts = [...porVendedor.entries()].map(([apiId, data]) => {
+      const emp = empMap.get(apiId)
+      return (prisma as any).$queryRawUnsafe(`
+        INSERT INTO ${DB_SCHEMA}."SnapshotMes" (id, empresa_id, mes, tipo, empleado_id, vendedor_api_id, entidad_nombre, datos, creado_en, updated_en)
+        VALUES ($1, $2, $3, 'cartera', $4, $5, $6, $7::jsonb, NOW(), NOW())
+        ON CONFLICT ON CONSTRAINT "SnapshotMes_unique"
+          DO UPDATE SET datos = EXCLUDED.datos, entidad_nombre = EXCLUDED.entidad_nombre, updated_en = NOW()
+      `,
+        `snap-${integ.empresaId}-${apiId}-${mesCierre}`.slice(0, 30) + Math.random().toString(36).slice(2,8),
+        integ.empresaId,
+        mesCierre,
+        emp?.id ?? null,
+        apiId,
+        emp?.nombre ?? 'Sin nombre',
+        JSON.stringify({ total: Math.round(data.total), clientes: data.clientes.size })
+      )
+    })
+    await Promise.all(upserts)
+    carteraCount += upserts.length
+  }
+
+  const cartera = carteraCount
 
   console.log(`[snapshot-mes] ✓ mes=${mesCierre} ventas=${ventas} recaudo=${recaudo} descuento=${descuento} cartera=${cartera}`)
   return { mes: mesCierre, ventas, recaudo, descuento, cartera }
