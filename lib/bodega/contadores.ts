@@ -14,13 +14,7 @@ export async function getContadoresBodega(empresaId: string) {
     select: { nombre: true },
   })
 
-  // Leer fechaInicioBodega de la empresa propia (aplica también a vinculadas)
   const hace30dias = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-  const empresaData = await (prisma as any).empresa.findUnique({
-    where: { id: empresaId },
-    select: { fechaInicioBodega: true },
-  })
-  const fechaInicio: Date = empresaData?.fechaInicioBodega ?? hace30dias
 
   const empresas = [
     { id: empresaId, nombre: propiaEmpresa?.nombre || 'Principal', slug: 'propia', clienteId: empresaId },
@@ -32,8 +26,17 @@ export async function getContadoresBodega(empresaId: string) {
     })),
   ]
 
+  // Leer fechaInicioBodega de cada empresa individualmente — fuente de verdad por empresa
+  const empresaIds = [...new Set(empresas.map(e => e.clienteId))]
+  const fechasInicio = await (prisma as any).empresa.findMany({
+    where: { id: { in: empresaIds } },
+    select: { id: true, fechaInicioBodega: true },
+  })
+  const fechaInicioPorEmpresa = new Map<string, Date>(fechasInicio.map((e: any) => [e.id as string, (e.fechaInicioBodega ?? hace30dias) as Date]))
+
   const contadores = await Promise.all(
     empresas.map(async e => {
+      const fechaInicio: Date = fechaInicioPorEmpresa.get(e.clienteId) ?? hace30dias
       const [pendientes, alistados, entregados, agotados, stockBajo] = await Promise.all([
         prisma.ordenDespacho.count({ where: { empresaId: e.clienteId, estado: 'pendiente', isActiva: true, fechaOrden: { gte: fechaInicio } } }),
         prisma.ordenDespacho.count({ where: { empresaId: e.clienteId, estado: 'alistado' } }),
