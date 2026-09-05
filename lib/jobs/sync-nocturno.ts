@@ -594,7 +594,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
           const { data: listasAll } = await adapter.fetchListasClientesConCursor(null, new Date('2020-01-01'))
           for (const lista of listasAll) {
             const listaLocal = await (prisma as any).listaClientes.upsert({
-              where: { api_id_empresaId: { api_id: lista.apiId, empresaId: intg.empresaId } },
+              where: { api_id: lista.apiId },
               create: { id: crypto.randomUUID(), api_id: lista.apiId, nombre: lista.nombre, empresaId: intg.empresaId },
               update: { nombre: lista.nombre },
             })
