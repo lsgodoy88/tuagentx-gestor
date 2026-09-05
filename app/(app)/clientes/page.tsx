@@ -47,7 +47,7 @@ function getClienteColumns(ctx: {
     },
     {
       key: 'vendedor', label: 'Vendedor', width: 130, minWidth: 80,
-      render: (c: any) => <span style={{textTransform:'capitalize'}}>{c.lista?.vendedores?.[0]?.empleado?.nombre?.split(' ')[0] || '—'}</span>,
+      render: (c: any) => <span style={{textTransform:'capitalize'}}>{c.clienteListas?.[0]?.lista?.vendedores?.[0]?.empleado?.nombre?.split(' ')[0] || c.lista?.vendedores?.[0]?.empleado?.nombre?.split(' ')[0] || '—'}</span>,
     },
     {
       key: 'acciones', label: 'Acciones', width: 170, minWidth: 120,
@@ -274,7 +274,7 @@ export default function ClientesPage() {
               <div className="flex-1 min-w-0">
                 <p className="text-white font-semibold">{lista.nombre}</p>
                 <div className="flex items-center gap-3 mt-1">
-                  <span className="text-zinc-500 text-xs">{lista._count?.clientes ?? 0} clientes</span>
+                  <span className="text-zinc-500 text-xs">{lista._count?.clienteListas ?? lista._count?.clientes ?? 0} clientes</span>
                   {nombresV.length > 0 ? (
                     <><span className="text-zinc-600 text-xs">·</span><span className="text-emerald-400 text-xs">{nombresV.join(', ')}</span></>
                   ) : (
@@ -732,12 +732,18 @@ export default function ClientesPage() {
             </div>
             {esAdmin && (
               <div>
-                <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Lista</label>
-                <select value={editForm.listaId||''} onChange={e => setEditForm({...editForm, listaId: e.target.value})}
-                  className="w-full  rounded-xl px-4 py-2.5 text-white text-sm outline-none focus:border-emerald-500" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
-                  <option value="">Sin lista</option>
-                  {listas.map((l:any) => <option key={l.id} value={l.id}>{l.nombre}</option>)}
-                </select>
+                <label className="text-zinc-400 text-xs font-semibold block mb-1.5">Listas</label>
+                <div className="w-full rounded-xl px-4 py-2.5 text-sm min-h-[42px]" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
+                  {(editando as any)?.clienteListas?.length > 0
+                    ? (editando as any).clienteListas.map((cl: any) => (
+                        <span key={cl.lista?.id || cl.listaId} className="inline-block bg-zinc-700 text-zinc-200 text-xs rounded-lg px-2 py-0.5 mr-1 mb-1">
+                          {cl.lista?.nombre || cl.listaId}
+                        </span>
+                      ))
+                    : <span className="text-zinc-500">Sin lista</span>
+                  }
+                </div>
+                <p className="text-zinc-600 text-xs mt-1">Las listas se asignan automáticamente desde UpTres</p>
               </div>
             )}
 

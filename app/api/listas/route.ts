@@ -9,7 +9,7 @@ export async function GET(req: NextRequest) {
   const empresaId = (session.user as any).id
   const listas = await prisma.listaClientes.findMany({
     where: { empresaId },
-    include: { vendedores: { include: { empleado: { select: { id: true, nombre: true } } } }, _count: { select: { clientes: true } } },
+    include: { vendedores: { include: { empleado: { select: { id: true, nombre: true } } } }, _count: { select: { clienteListas: true } } },
     orderBy: { nombre: 'asc' }
   })
   return NextResponse.json(listas)

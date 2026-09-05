@@ -38,20 +38,21 @@ export async function POST(req: NextRequest) {
       where: { id: empleadoId, empresaId },
       select: {
         id: true, nombre: true, apiId: true,
-        listasAsignadas: { select: { listaId: true }, take: 1 }
+        listasAsignadas: { select: { listaId: true } }
       }
     })
     if (!empleado) return NextResponse.json({ error: 'Empleado no encontrado' }, { status: 404 })
     if (!empleado.apiId) return NextResponse.json({ error: 'Empleado sin API ID de UpTres' }, { status: 400 })
 
-    const listaId = empleado.listasAsignadas?.[0]?.listaId
-    if (!listaId) return NextResponse.json({ error: 'Empleado sin lista asignada' }, { status: 400 })
+    const listaIds = empleado.listasAsignadas?.map((l: any) => l.listaId) ?? []
+    if (listaIds.length === 0) return NextResponse.json({ error: 'Empleado sin lista asignada' }, { status: 400 })
 
-    // 2. Clientes de la lista
-    const clientes = await (prisma as any).cliente.findMany({
-      where: { listaId, empresaId },
-      select: { apiId: true }
+    // 2. Clientes de las listas (N:N via ClienteLista)
+    const clienteListaRows = await (prisma as any).clienteLista.findMany({
+      where: { listaId: { in: listaIds }, cliente: { empresaId } },
+      select: { cliente: { select: { apiId: true } } },
     })
+    const clientes = clienteListaRows.map((r: any) => r.cliente).filter(Boolean)
     const clienteApiIds = clientes.map((c: any) => c.apiId).filter(Boolean)
     if (clienteApiIds.length === 0) {
       return NextResponse.json({ error: 'No hay clientes en la lista del empleado' }, { status: 400 })

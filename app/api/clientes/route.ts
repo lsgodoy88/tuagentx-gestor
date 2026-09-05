@@ -30,7 +30,14 @@ export async function GET(req: NextRequest) {
 
   // Si la empresa tiene vinculadas, excluir clientes sin lista (evita duplicados del sync compartido)
   const tieneVinculadas = await (prisma as any).empresaVinculada.count({ where: { empresaId, activa: true } })
-  if (tieneVinculadas > 0) where.listaId = { not: null }
+  if (tieneVinculadas > 0) {
+    const conLista = await (prisma as any).clienteLista.findMany({
+      where: { cliente: { empresaId } },
+      select: { clienteId: true },
+      distinct: ['clienteId'],
+    })
+    where.id = { in: conLista.map((r: any) => r.clienteId) }
+  }
   if (conDeuda && user.role === 'vendedor') {
     // Para recaudo: todos los clientes con deuda asignada al vendedor vía SyncDeuda, sin importar lista
     const empData = await prisma.empleado.findUnique({ where: { id: user.id }, select: { apiId: true } })
@@ -57,13 +64,24 @@ export async function GET(req: NextRequest) {
 
   // Si es vendedor, filtrar solo sus clientes (solo cuando NO es conDeuda — ya se filtró arriba)
   if (listaFilter && user.role === 'empresa') {
-    where.listaId = listaFilter
+    const enLista = await (prisma as any).clienteLista.findMany({
+      where: { listaId: listaFilter },
+      select: { clienteId: true },
+    })
+    where.id = { in: enLista.map((r: any) => r.clienteId) }
   }
 
   if (user.role === 'vendedor' && !conDeuda) {
     const listasAsignadas = await prisma.empleadoLista.findMany({ where: { empleadoId: user.id }, select: { listaId: true } })
     const listaIds = listasAsignadas.map((l: any) => l.listaId)
-    if (listaIds.length > 0) { where.listaId = { in: listaIds } } else { return NextResponse.json({ clientes: [], total: 0, page, pages: 0 }) }
+    if (listaIds.length === 0) return NextResponse.json({ clientes: [], total: 0, page, pages: 0 })
+    const enListas = await (prisma as any).clienteLista.findMany({
+      where: { listaId: { in: listaIds } },
+      select: { clienteId: true },
+      distinct: ['clienteId'],
+    })
+    if (enListas.length === 0) return NextResponse.json({ clientes: [], total: 0, page, pages: 0 })
+    where.id = { in: enListas.map((r: any) => r.clienteId) }
   }
   // Si es supervisor, filtrar por listas de sus vendedores asignados
   if (user.role === 'supervisor') {
@@ -72,7 +90,14 @@ export async function GET(req: NextRequest) {
     if (vendedorIds.length === 0) return NextResponse.json({ clientes: [], total: 0, page, pages: 0 })
     const listasAsignadas = await prisma.empleadoLista.findMany({ where: { empleadoId: { in: vendedorIds } }, select: { listaId: true } })
     const listaIds = [...new Set(listasAsignadas.map((l: any) => l.listaId))]
-    if (listaIds.length > 0) { where.listaId = { in: listaIds } } else { return NextResponse.json({ clientes: [], total: 0, page, pages: 0 }) }
+    if (listaIds.length === 0) return NextResponse.json({ clientes: [], total: 0, page, pages: 0 })
+    const enListas = await (prisma as any).clienteLista.findMany({
+      where: { listaId: { in: listaIds } },
+      select: { clienteId: true },
+      distinct: ['clienteId'],
+    })
+    if (enListas.length === 0) return NextResponse.json({ clientes: [], total: 0, page, pages: 0 })
+    where.id = { in: enListas.map((r: any) => r.clienteId) }
   }
   // Si es entregas, filtrar por ciudades asignadas
   if (user.role === 'entregas') {
@@ -117,6 +142,20 @@ export async function GET(req: NextRequest) {
         vendedores: {
           take: 1,
           select: { empleado: { select: { nombre: true } } }
+        }
+      }
+    },
+    clienteListas: {
+      select: {
+        lista: {
+          select: {
+            id: true,
+            nombre: true,
+            vendedores: {
+              take: 1,
+              select: { empleado: { select: { nombre: true } } }
+            }
+          }
         }
       }
     },
