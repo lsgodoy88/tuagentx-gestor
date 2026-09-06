@@ -1749,9 +1749,14 @@ export default function CarteraPage() {
                             </td>
                             <td className="px-4 py-3 text-right text-blue-400 font-semibold whitespace-nowrap" style={{borderBottom: subFacturas.length > 0 ? 'none' : '1px solid #1e2a3d'}}>
                               {(() => {
-                                const hayMod = Array.isArray(p.lineasPago) && p.lineasPago.some((l: any) =>
-                                  l.valorModificado || (l.voucherDatosIA?.valor != null && Number(l.monto) !== Number(l.voucherDatosIA.valor))
-                                )
+                                const hayMod = Array.isArray(p.lineasPago) && p.lineasPago.some((l: any) => {
+                                  if (l.valorModificado) return true
+                                  if (l.voucherDatosIA?.valor != null) {
+                                    const diff = Math.abs(Number(l.monto) - Number(l.voucherDatosIA.valor))
+                                    return diff >= 1000  // excepción: diferencia < $1.000 no muestra ⚠️
+                                  }
+                                  return false
+                                })
                                 return p._transf > 0
                                   ? <span className="inline-flex items-center gap-1">{hayMod && <span title="Valor modificado respecto al comprobante" style={{fontSize:9, opacity:0.7}}>⚠️</span>}{fmt(p._transf)}</span>
                                   : '—'
