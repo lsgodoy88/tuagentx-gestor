@@ -1093,7 +1093,7 @@ export default function ConfiguracionPage() {
                         </button>
                         <button onClick={syncNocturno} disabled={sincronizando || sincronizandoNocturno}
                           className={`bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/20 font-semibold px-4 py-2 rounded-xl text-sm transition-colors ${sincronizandoNocturno ? 'btn-shimmer' : ''}`}>
-                          {sincronizandoNocturno ? 'Sincronizando...' : '🌙 Sync Nocturno'}
+                          {sincronizandoNocturno ? 'Sincronizando...' : '🌙 Sync Completo'}
                         </button>
 
                       </div>

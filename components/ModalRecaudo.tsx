@@ -94,8 +94,10 @@ export default function ModalRecaudo({
   const _totalDescuento = Object.values(descuentosPorFactura).reduce((s, v) => s + Number(v || 0), 0)
   const _valorAplicado = Math.min(_totalPagado, Math.max(0, montoSeleccionado - _totalDescuento))
   const _hayPagoCapado = _totalPagado > _valorAplicado && _valorAplicado > 0
+  const _difCapado = _totalPagado - _valorAplicado  // diferencia entre comprobante y valor capado
   const _hayValorModificado = lineasPago.some((l: any) => l.valorModificado)
-  const _requiereNota = _hayValorModificado || _hayPagoCapado
+  // Excepción: diferencia < $1.000 → no exige nota (redondeo/centavos)
+  const _requiereNota = _hayValorModificado || (_hayPagoCapado && _difCapado >= 1000)
   React.useEffect(() => {
     if (_requiereNota && !_notasAutoOpened) {
       setNotasOpen(true)
@@ -112,7 +114,8 @@ export default function ModalRecaudo({
     .reduce((s, l) => s + Number(l.monto || 0), 0)
   const totalDescuentoActual = Object.values(descuentosPorFactura).reduce((s, v) => s + Number(v || 0), 0)
   const saldoRestanteActual = montoSeleccionado - totalPagadoActual - totalDescuentoActual
-  const haySobrepago = saldoRestanteActual < 0 || (saldoRestanteActual > 0 && saldoRestanteActual < 1000)
+  // Excepción: diferencia < $1.000 (redondeo) no requiere confirmación naranja
+  const haySobrepago = (saldoRestanteActual < -1000) || (saldoRestanteActual > 0 && saldoRestanteActual < 1000)
 
   React.useEffect(() => { setConfirmadoSobrepago(false) }, [lineasPago, descuentosPorFactura, facturasSeleccionadas])
   React.useEffect(() => {
