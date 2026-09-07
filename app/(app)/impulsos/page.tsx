@@ -1466,11 +1466,13 @@ function EventosTab() {
       {/* Filtros fecha — estilo Gastos */}
       <div className="flex gap-2 items-center">
         <input type="date" value={desde} onChange={e => setDesde(e.target.value)}
-          className={'bg-[#0d1220] rounded-lg px-3 py-2 text-white text-sm focus:outline-none flex-1 min-w-0 ' + (filtroModificado ? 'border border-red-500' : 'border border-[#1e2a3d]')}
+          onFocus={e => { try { (e.target as HTMLInputElement).showPicker() } catch {} }}
+          className={'bg-[#0d1220] rounded-lg px-3 py-2 text-white text-sm focus:outline-none flex-1 min-w-0 cursor-pointer ' + (filtroModificado ? 'border border-red-500' : 'border border-[#1e2a3d]')}
           style={{ colorScheme: 'dark' }} />
         <span className="text-zinc-500 text-sm flex-shrink-0">—</span>
         <input type="date" value={hasta} onChange={e => setHasta(e.target.value)}
-          className={'bg-[#0d1220] rounded-lg px-3 py-2 text-white text-sm focus:outline-none flex-1 min-w-0 ' + (filtroModificado ? 'border border-red-500' : 'border border-[#1e2a3d]')}
+          onFocus={e => { try { (e.target as HTMLInputElement).showPicker() } catch {} }}
+          className={'bg-[#0d1220] rounded-lg px-3 py-2 text-white text-sm focus:outline-none flex-1 min-w-0 cursor-pointer ' + (filtroModificado ? 'border border-red-500' : 'border border-[#1e2a3d]')}
           style={{ colorScheme: 'dark' }} />
       </div>
 

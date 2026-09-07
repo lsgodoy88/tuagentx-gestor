@@ -140,7 +140,7 @@ interface CardSubProps {
 export function CardSub({ children, alerta = false, className = '', style }: CardSubProps) {
   return (
     <div
-      className={['rounded-xl', className].filter(Boolean).join(' ')}
+      className={['rounded-xl card-glass', className].filter(Boolean).join(' ')}
       style={{
         background: alerta ? 'rgba(127,29,29,0.50)' : 'rgba(255,255,255,0.08)',
         border: alerta ? '1px solid rgba(239,68,68,0.30)' : '1px solid rgba(255,255,255,0.30)',

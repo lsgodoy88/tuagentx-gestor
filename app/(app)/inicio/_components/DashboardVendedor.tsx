@@ -837,7 +837,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
         {(() => {
           const tieneAlerta = statsVendedor?.cumplimiento?.some((imp: any) => imp.todosLosPuntos?.some((pt: any) => pt.alertaHora)) ?? false
           return (
-        <div>
+        <div className="space-y-3 md:max-w-2xl md:mx-auto">
           <button data-tour="impulsos" onClick={() => setMostrarImpulsadoras(v => !v)}
             className='card-glass' style={{background:'rgba(255,255,255,0.08)',border:`1px solid ${tieneAlerta ? 'rgba(239,68,68,0.4)' : 'rgba(255,255,255,0.30)'}`,boxShadow:'0 4px 24px rgba(0,0,0,0.25),inset 0 1px 0 rgba(255,255,255,0.25)',borderRadius:16,width:'100%',padding:'12px 16px',cursor:'pointer'}}>
             <div className="flex items-center justify-between">

@@ -194,7 +194,7 @@ export default function CarteraPage() {
 
   async function cargarDatos(q = '') {
     setPaginaActual(1)
-    const url = q ? `/api/cartera?limit=15&q=${encodeURIComponent(q)}` : '/api/cartera?limit=15'
+    const url = q ? `/api/cartera?limit=500&q=${encodeURIComponent(q)}` : '/api/cartera?limit=500'
 
     // Stale-while-revalidate: mostrar caché inmediatamente, red en paralelo
     if (!q) {
@@ -398,7 +398,10 @@ export default function CarteraPage() {
     window.addEventListener('mousemove',onMove); window.addEventListener('mouseup',onUp)
   }, [cpcWidths])
 
+  const PAGE_SIZE = 15
   const filtradas = carteras
+  const totalPaginas = Math.ceil(filtradas.length / PAGE_SIZE)
+  const filtradasPagina = filtradas.slice((paginaActual - 1) * PAGE_SIZE, paginaActual * PAGE_SIZE)
 
   // --- Importar ---
 
@@ -1408,7 +1411,7 @@ export default function CarteraPage() {
 
           {/* MÓVIL — cards colapsables (sin cambios) */}
           <div className="md:hidden">
-            {filtradas.map((c: any) => (
+            {filtradasPagina.map((c: any) => (
               <CarteraCard
                 key={c.id}
                 cartera={c}
@@ -1461,14 +1464,14 @@ export default function CarteraPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filtradas.map((cartera: any, ci: number) => {
+                      {filtradasPagina.map((cartera: any, ci: number) => {
                         const deudas = [...(cartera.DetalleCartera || [])].sort((a: any, b: any) => {
                           const fa = a.fechaVencimiento ? new Date(a.fechaVencimiento).getTime() : Infinity
                           const fb = b.fechaVencimiento ? new Date(b.fechaVencimiento).getTime() : Infinity
                           return fa - fb
                         })
                         const esSupervisor = user?.role === 'empresa' || user?.role === 'supervisor'
-                        const esUltimoCliente = ci === filtradas.length - 1
+                        const esUltimoCliente = ci === filtradasPagina.length - 1
                         return deudas.map((d: any, di: number) => {
                           const esPrimera = di === 0
                           const esUltimaDeuda = di === deudas.length - 1
@@ -1556,7 +1559,24 @@ export default function CarteraPage() {
             )}
           </div>
 
-          {/* Paginación eliminada — limit=500 trae todo el mes/día de una vez */}
+          {/* Paginación */}
+          {totalPaginas > 1 && (
+            <div className="flex items-center justify-between mt-3 px-1">
+              <button
+                onClick={() => setPaginaActual(p => Math.max(1, p - 1))}
+                disabled={paginaActual === 1}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-zinc-800 border border-zinc-700 text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-700 transition-colors">
+                ← Anterior
+              </button>
+              <span className="text-zinc-500 text-xs">{paginaActual} / {totalPaginas}</span>
+              <button
+                onClick={() => setPaginaActual(p => Math.min(totalPaginas, p + 1))}
+                disabled={paginaActual === totalPaginas}
+                className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium bg-zinc-800 border border-zinc-700 text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-700 transition-colors">
+                Siguiente →
+              </button>
+            </div>
+          )}
         </div>
       </div>)}
       {/* PAGOS */}
