@@ -171,6 +171,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
 
   // Recaudo rápido
   const [modalRecaudoRapido, setModalRecaudoRapido] = useState(false)
+  const [cuentasBancarias, setCuentasBancarias] = useState<any[]>([])
   const [rrBuscarCartera, setRrBuscarCartera] = useState('')
   const [rrCartera, setRrCartera]       = useState<any[]>([])
   const [rrLoadingCartera, setRrLoadingCartera] = useState(false)
@@ -205,6 +206,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
     // corto para navegadores sin soporte (Safari).
     const precargar = () => {
       import('@/components/ModalRecaudo').catch(() => {})
+      fetch('/api/cuentas-bancarias').then(r => r.json()).then(d => { if (Array.isArray(d)) setCuentasBancarias(d) }).catch(() => {})
       import('@/components/ModalVisita').catch(() => {})
       import('@/components/CarteraCard').catch(() => {})
     }
@@ -455,13 +457,86 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
     } else { setRrSinDeuda(true) }
   }
 
+  // Corrige orientación EXIF antes de enviar a la IA — sin librerías externas
+  async function corregirOrientacionImagen(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const buffer = e.target?.result as ArrayBuffer
+        // Leer orientación EXIF del buffer
+        let orientation = 1
+        try {
+          const view = new DataView(buffer)
+          if (view.getUint16(0, false) === 0xFFD8) {
+            let offset = 2
+            while (offset < view.byteLength) {
+              const marker = view.getUint16(offset, false)
+              offset += 2
+              if (marker === 0xFFE1) {
+                if (view.getUint32(offset + 2, false) === 0x45786966) {
+                  const little = view.getUint16(offset + 10, false) === 0x4949
+                  const tags = view.getUint16(offset + 14, little)
+                  for (let i = 0; i < tags; i++) {
+                    if (view.getUint16(offset + 16 + i * 12, little) === 0x0112) {
+                      orientation = view.getUint16(offset + 16 + i * 12 + 8, little)
+                      break
+                    }
+                  }
+                }
+                break
+              }
+              if ((marker & 0xFF00) !== 0xFF00) break
+              offset += view.getUint16(offset, false)
+            }
+          }
+        } catch {}
+
+        // Si no hay rotación necesaria, leer directo como dataURL
+        if (orientation <= 1) {
+          const r2 = new FileReader()
+          r2.onload = ev => resolve(ev.target?.result as string)
+          r2.onerror = reject
+          r2.readAsDataURL(file)
+          return
+        }
+
+        // Rotar en canvas
+        const img = new Image()
+        const url = URL.createObjectURL(file)
+        img.onload = () => {
+          const canvas = document.createElement('canvas')
+          const ctx = canvas.getContext('2d')!
+          const { naturalWidth: w, naturalHeight: h } = img
+          const swap = orientation >= 5
+          canvas.width = swap ? h : w
+          canvas.height = swap ? w : h
+          const transforms: Record<number, () => void> = {
+            2: () => { ctx.transform(-1, 0, 0, 1, w, 0) },
+            3: () => { ctx.transform(-1, 0, 0, -1, w, h) },
+            4: () => { ctx.transform(1, 0, 0, -1, 0, h) },
+            5: () => { ctx.transform(0, 1, 1, 0, 0, 0) },
+            6: () => { ctx.transform(0, 1, -1, 0, h, 0) },
+            7: () => { ctx.transform(0, -1, -1, 0, h, w) },
+            8: () => { ctx.transform(0, -1, 1, 0, 0, w) },
+          }
+          transforms[orientation]?.()
+          ctx.drawImage(img, 0, 0)
+          URL.revokeObjectURL(url)
+          resolve(canvas.toDataURL('image/jpeg', 0.92))
+        }
+        img.onerror = reject
+        img.src = url
+      }
+      reader.onerror = reject
+      reader.readAsArrayBuffer(file)
+    })
+  }
+
   async function subirVoucherArchivo(lineaId: string, file: File) {
     setLineasPago(prev => prev.map(l => l.id === lineaId ? { ...l, cargandoVoucher: true } : l))
     try {
-      const archivoBase64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader(); reader.onload = e => resolve(e.target?.result as string); reader.onerror = reject; reader.readAsDataURL(file)
-      })
-      const res = await fetch('/api/cartera/voucher', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archivoBase64, mimeType: file.type, pagoId: genId() }) })
+      const archivoBase64 = await corregirOrientacionImagen(file)
+      const res = await fetch('/api/cartera/voucher', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ archivoBase64, mimeType: 'image/jpeg', pagoId: genId() }) })
       const d = await res.json()
       setLineasPago(prev => prev.map(l => l.id === lineaId ? { ...l, voucherKey: d.key, voucherDatosIA: d.datosIA, cargandoVoucher: false, monto: d.datosIA?.valor ? String(Math.round(d.datosIA.valor)) : l.monto } : l))
     } catch { alert('Error al procesar el comprobante'); setLineasPago(prev => prev.map(l => l.id === lineaId ? { ...l, cargandoVoucher: false } : l)) }
@@ -1045,7 +1120,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
           onClose={() => { setRecaudandoCartera(null); setDetalleData(null); setLineasPago([crearLinea()]); setDescuentosPorFactura({}); setFacturasSeleccionadas([]); notasPagoRef.current = '' }}
           onSetLineasPago={setLineasPago} onSetFacturasSeleccionadas={setFacturasSeleccionadas}
           descuentosPorFactura={descuentosPorFactura} onSetDescuentosPorFactura={setDescuentosPorFactura}
-          onSubirVoucher={subirVoucherArchivo} onConfirmar={registrarPago} onNotasChange={(v: string) => { notasPagoRef.current = v }} crearLinea={crearLinea}
+          onSubirVoucher={subirVoucherArchivo} onConfirmar={registrarPago} onNotasChange={(v: string) => { notasPagoRef.current = v }} crearLinea={crearLinea} cuentasBancarias={cuentasBancarias}
         />
       )}
     </div>

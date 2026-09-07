@@ -8,23 +8,27 @@ import { pdfPrimerarPaginaAJpg } from '@/lib/pdfAJpg'
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
-const PROMPT_EXTRACCION = `Analiza esta imagen de comprobante(s) de pago colombiano(s).
+const PROMPT_EXTRACCION = `Analiza esta imagen de comprobante(s) de pago colombiano(s). IMPORTANTE: la imagen puede estar rotada 90°, 180° o en cualquier orientación — analiza el contenido independientemente de la rotación.
 
 REGLAS CRITICAS:
 - valor: busca el monto mas destacado (VALOR, TOTAL, MONTO). En Colombia los puntos son miles: $300.000 = 300000, $2.000.000 = 2000000. NUNCA devuelvas null si hay numero visible.
-- fecha: puede venir como "JUL 22 2026 14:18:12", "22/07/2026", "2026-07-22" — convierte siempre a "YYYY-MM-DD HH:mm:ss"
-- banco: extrae la red o entidad (Redeban, Bancolombia, Nequi, Daviplata, PSE, Efecty, etc.). Para Corresponsal Bancario incluye ambas: "Redeban / Bancolombia"
+- fecha: busca el campo "Fecha", "Fecha Transaccion" o cualquier fecha visible en el comprobante. Puede venir como: "AGO 31 2026 17:05:32", "04 Sept 2026 - 08:54 a.m.", "04/09/2026 08:54", "2026-09-04". Convierte siempre a "YYYY-MM-DD HH:mm:ss". Los meses abreviados en español: Ene=01 Feb=02 Mar=03 Abr=04 May=05 Jun=06 Jul=07 Ago=08 Sept/Sep=09 Oct=10 Nov=11 Dic=12. CONTEXTO: año siempre 2026 — si lees otro año verifica dos veces.
+- banco: extrae la red o entidad destino (Redeban, Bancolombia, Nequi, Daviplata, PSE, Efecty, etc.). Para Corresponsal Bancario incluye ambas: "Redeban / Bancolombia"
+- numero_cuenta: numero de cuenta o celular DESTINO donde se recibio el dinero. Busca campos como "Cuenta Ahorros", "Cuenta Corriente", "Cuenta destino", "No. cuenta", "Numero celular destino", "A la cuenta", "Destino". Extrae SOLO el numero, sin texto. Si no puedes leer el numero, devuelve null.
+- titular: nombre completo de la persona que recibio el dinero. En comprobantes Wompi/Bancolombia aparece como "Titular" seguido del nombre en la misma linea o la siguiente (ejemplo: "Titular HECTOR DURAN G" o "Titular:\nHECTOR DURAN G"). Tambien busca "A nombre de:", "Beneficiario:". Extrae SOLO el nombre en mayusculas, sin otros datos. Si no aparece, devuelve null.
 - referencia: prioridad RECIBO > RRN > APRO > No. transaccion
 
-Si hay VARIOS recibos devuelve UN objeto por cada uno. Si solo hay uno, array de un elemento.
+Si hay VARIOS recibos FISICAMENTE SEPARADOS devuelve UN objeto por cada uno. Si solo hay uno, array de un elemento. CRITICO: si el monto total es uno solo (un solo MONTO o TOTAL visible), devuelve UN SOLO objeto aunque haya varios numeros de referencia — RRN, APRO, CHEQ, No. son datos internos de UNA sola transaccion, no recibos distintos. Si hay varios recibos, cada uno DEBE tener su propia fecha visible — NUNCA inventes ni reutilices la fecha de otro recibo. Si no puedes leer la fecha de un recibo especifico, devuelve fecha: null para ese recibo.
 
 Responde UNICAMENTE con array JSON valido, sin texto, sin backticks:
-[{"valor": 300000, "fecha": "2026-07-22 14:18:12", "banco": "Redeban / Bancolombia", "referencia": "017706"}]`
+[{"valor": 300000, "fecha": "2026-07-22 14:18:12", "banco": "Redeban / Bancolombia", "numero_cuenta": "86982430994", "titular": "HECTOR DURAN G", "referencia": "017706"}]`
 
 export type DatosIAPago = {
   valor: number | null
   fecha: string | null
   banco: string | null
+  numero_cuenta?: string | null
+  titular?: string | null
   referencia: string | null
 }
 
@@ -94,6 +98,21 @@ export async function POST(req: NextRequest) {
   }
 
   if (pagos.length === 0) pagos = [{ valor: null, fecha: null, banco: null, referencia: null }]
+
+  // Corrección post-extracción: si el año es anterior a 2024, reemplazar con el año actual
+  const anioActual = new Date().getFullYear()
+  pagos = pagos.map((p: any) => {
+    if (!p.fecha) return p
+    const anioMatch = p.fecha.match(/^(\d{4})/)
+    if (anioMatch) {
+      const anio = parseInt(anioMatch[1])
+      if (anio < anioActual - 1) {
+        console.warn(`[voucher] año corregido: ${anio} → ${anioActual} en fecha "${p.fecha}"`)
+        p.fecha = p.fecha.replace(/^\d{4}/, String(anioActual))
+      }
+    }
+    return p
+  })
 
   const uploadKey = key.status === 'fulfilled' ? key.value : await subirVoucherConEmpresa(imagenBase64, pagoId, empresaId)
   console.log(`[voucher-timing] total: ${Date.now()-t0}ms | pagos: ${pagos.length}`)

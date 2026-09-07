@@ -259,6 +259,8 @@ export async function procesarPagoSync(params: {
         valor: l.voucherDatosIA?.valor ? String(Math.round(Number(l.voucherDatosIA.valor))) : null,
         fecha: l.voucherDatosIA?.fecha ?? null,
         banco: l.voucherDatosIA?.banco ?? null,
+        numeroCuenta: l.voucherDatosIA?.numero_cuenta ?? null,
+        titular: l.voucherDatosIA?.titular ?? null,
         pagoId: pago.id,
         empresaId,
         vendedorNombre: vendedorNom ?? null,

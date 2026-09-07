@@ -1386,6 +1386,16 @@ export default function CarteraPage() {
             )}
             </div>{/* fin grid estadísticas */}
 
+            {/* Botón Relación Transferencias */}
+            {isAdmin && (
+              <div className="flex justify-end mt-4">
+                <button
+                  onClick={() => window.location.href = '/cartera/relacion-transferencias'}
+                  style={{background:'rgba(59,130,246,0.15)',border:'1px solid rgba(59,130,246,0.35)',borderRadius:12,color:'#93c5fd',padding:'10px 20px',fontSize:14,fontWeight:600,cursor:'pointer'}}>
+                  📋 Relación Transferencias
+                </button>
+              </div>
+            )}
 
           </div>
         )

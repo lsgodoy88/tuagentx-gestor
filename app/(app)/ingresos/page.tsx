@@ -92,6 +92,11 @@ export default function SaldosPage() {
   const [buscando, setBuscando]         = useState(false)
   const [categorias, setCategorias]     = useState<Categoria[]>([])
   const [showConfig, setShowConfig]     = useState(false)
+  const [cuentasBancarias, setCuentasBancarias] = useState<any[]>([])
+  const [nuevaCuenta, setNuevaCuenta] = useState({ label: '', titular: '', banco: '', numeroCuenta: '' })
+  const [editandoCuenta, setEditandoCuenta] = useState<any | null>(null)
+  const [editForm, setEditForm] = useState({ label: '', titular: '', banco: '', numeroCuenta: '' })
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const [nuevaCat, setNuevaCat]         = useState({ tipo: 'ingreso', nombre: '' })
   const [filaSheet, setFilaSheet]       = useState<number | null>(null)
   const [filasGuardadas, setFilasGuardadas] = useState<Set<number>>(new Set())
@@ -266,7 +271,12 @@ export default function SaldosPage() {
               <option value="Mes" style={{background:'#0d1220',color:'white'}}>📆 Mes</option>
             </select>
           )}
-          {puedeAdminSaldos && <button onClick={() => setShowConfig(v => !v)}
+          {puedeAdminSaldos && <button onClick={async () => {
+            setShowConfig(v => {
+              if (!v) fetch('/api/cuentas-bancarias').then(r => r.json()).then(d => setCuentasBancarias(Array.isArray(d) ? d : []))
+              return !v
+            })
+          }}
             style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid ' + (showConfig ? 'rgba(59,130,246,0.5)' : '#1e2a3d'), background: showConfig ? 'rgba(59,130,246,0.15)' : 'rgba(13,18,32,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 17 }}>&#9881;</button>}
         </div>
       </div>
@@ -377,6 +387,100 @@ export default function SaldosPage() {
                   {!categorias.filter(c => c.tipo === tipo).length && <p style={{ color: '#374151', fontSize: 12, fontStyle: 'italic' }}>Sin categorías</p>}
                 </div>
               ))}
+            </div>
+
+            {/* ── Cuentas Bancarias ── */}
+            <div style={{ borderTop: '1px solid #1e2a3d', marginTop: 16, paddingTop: 16 }}>
+              <p style={{ color: 'white', fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Cuentas Bancarias</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
+                <input value={nuevaCuenta.label} onChange={e => setNuevaCuenta(p => ({ ...p, label: e.target.value }))}
+                  placeholder="Nombre personalizado (Ej: Cuenta Principal)"
+                  style={{ background: '#141c2e', color: 'white', border: '1px solid #1e2a3d', borderRadius: 8, padding: '6px 10px', fontSize: 13, outline: 'none' }} />
+                <input value={nuevaCuenta.titular} onChange={e => setNuevaCuenta(p => ({ ...p, titular: e.target.value }))}
+                  placeholder="Titular de la cuenta (Ej: HECTOR DURAN G)"
+                  style={{ background: '#141c2e', color: 'white', border: '1px solid #1e2a3d', borderRadius: 8, padding: '6px 10px', fontSize: 13, outline: 'none' }} />
+                <input value={nuevaCuenta.banco} onChange={e => setNuevaCuenta(p => ({ ...p, banco: e.target.value }))}
+                  placeholder="Banco (Ej: Bancolombia, Nequi...)"
+                  style={{ background: '#141c2e', color: 'white', border: '1px solid #1e2a3d', borderRadius: 8, padding: '6px 10px', fontSize: 13, outline: 'none' }} />
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input value={nuevaCuenta.numeroCuenta} onChange={e => setNuevaCuenta(p => ({ ...p, numeroCuenta: e.target.value }))}
+                    placeholder="Número de cuenta o celular"
+                    style={{ flex: 1, background: '#141c2e', color: 'white', border: '1px solid #1e2a3d', borderRadius: 8, padding: '6px 10px', fontSize: 13, outline: 'none' }} />
+                  <button onClick={async () => {
+                    if (!nuevaCuenta.label.trim() || !nuevaCuenta.banco.trim() || !nuevaCuenta.numeroCuenta.trim()) return
+                    const res = await fetch('/api/cuentas-bancarias', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nuevaCuenta) }).then(r => r.json())
+                    if (!res.error) { setCuentasBancarias(prev => [...prev, res]); setNuevaCuenta({ label: '', titular: '', banco: '', numeroCuenta: '' }) }
+                  }} style={{ background: 'rgba(59,130,246,0.2)', color: '#93c5fd', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, padding: '6px 14px', fontSize: 15, cursor: 'pointer', fontWeight: 700 }}>+</button>
+                </div>
+              </div>
+              {cuentasBancarias.map(c => (
+                <div key={c.id}>
+                  {editandoCuenta?.id === c.id ? (
+                    // Modo edición
+                    <div style={{ padding: '10px 0', borderBottom: '1px solid #1e2a3d' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+                        <input value={editForm.label} onChange={e => setEditForm(p => ({ ...p, label: e.target.value }))}
+                          placeholder="Nombre personalizado"
+                          style={{ background: '#141c2e', color: 'white', border: '1px solid rgba(59,130,246,0.4)', borderRadius: 8, padding: '8px 10px', fontSize: 14, outline: 'none' }} />
+                        <input value={editForm.titular} onChange={e => setEditForm(p => ({ ...p, titular: e.target.value }))}
+                          placeholder="Titular"
+                          style={{ background: '#141c2e', color: 'white', border: '1px solid rgba(59,130,246,0.4)', borderRadius: 8, padding: '8px 10px', fontSize: 14, outline: 'none' }} />
+                        <input value={editForm.banco} onChange={e => setEditForm(p => ({ ...p, banco: e.target.value }))}
+                          placeholder="Banco"
+                          style={{ background: '#141c2e', color: 'white', border: '1px solid rgba(59,130,246,0.4)', borderRadius: 8, padding: '8px 10px', fontSize: 14, outline: 'none' }} />
+                        <input value={editForm.numeroCuenta} onChange={e => setEditForm(p => ({ ...p, numeroCuenta: e.target.value }))}
+                          placeholder="Número de cuenta"
+                          style={{ background: '#141c2e', color: 'white', border: '1px solid rgba(59,130,246,0.4)', borderRadius: 8, padding: '8px 10px', fontSize: 14, outline: 'none' }} />
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={async () => {
+                          if (!editForm.label.trim() || !editForm.banco.trim() || !editForm.numeroCuenta.trim()) return
+                          const res = await fetch('/api/cuentas-bancarias', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: c.id, ...editForm }) }).then(r => r.json())
+                          if (!res.error) { setCuentasBancarias(prev => prev.map(x => x.id === c.id ? { ...x, ...editForm } : x)); setEditandoCuenta(null) }
+                        }} style={{ flex: 1, background: 'rgba(16,185,129,0.2)', color: '#34d399', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 8, padding: '8px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                          Guardar
+                        </button>
+                        <button onClick={() => setEditandoCuenta(null)}
+                          style={{ flex: 1, background: 'rgba(100,116,139,0.2)', color: '#94a3b8', border: '1px solid #1e2a3d', borderRadius: 8, padding: '8px', fontSize: 14, cursor: 'pointer' }}>
+                          Cancelar
+                        </button>
+                      </div>
+                      {/* Confirmar eliminación */}
+                      {confirmDeleteId === c.id ? (
+                        <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                          <button onClick={async () => {
+                            await fetch('/api/cuentas-bancarias', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: c.id }) })
+                            setCuentasBancarias(prev => prev.filter(x => x.id !== c.id))
+                            setEditandoCuenta(null); setConfirmDeleteId(null)
+                          }} style={{ flex: 1, background: 'rgba(239,68,68,0.2)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '8px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+                            Sí, eliminar
+                          </button>
+                          <button onClick={() => setConfirmDeleteId(null)}
+                            style={{ flex: 1, background: 'none', color: '#94a3b8', border: '1px solid #1e2a3d', borderRadius: 8, padding: '8px', fontSize: 14, cursor: 'pointer' }}>
+                            No
+                          </button>
+                        </div>
+                      ) : (
+                        <button onClick={() => setConfirmDeleteId(c.id)}
+                          style={{ marginTop: 8, width: '100%', background: 'none', color: '#f87171', border: 'none', cursor: 'pointer', fontSize: 13, textAlign: 'left', padding: '4px 0' }}>
+                          🗑 Eliminar cuenta
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    // Modo vista
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #1e2a3d' }}>
+                      <div>
+                        <p style={{ color: 'white', fontSize: 14, margin: 0, fontWeight: 500 }}>{c.label}</p>
+                        <p style={{ color: '#64748b', fontSize: 12, margin: 0 }}>{c.titular ? `${c.titular} · ` : ''}{c.banco} · {c.numeroCuenta}</p>
+                      </div>
+                      <button onClick={() => { setEditandoCuenta(c); setEditForm({ label: c.label, titular: c.titular || '', banco: c.banco, numeroCuenta: c.numeroCuenta }); setConfirmDeleteId(null) }}
+                        style={{ color: '#93c5fd', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18 }}>✏️</button>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {!cuentasBancarias.length && <p style={{ color: '#374151', fontSize: 13, fontStyle: 'italic' }}>Sin cuentas registradas</p>}
             </div>
           </div>
         </div>

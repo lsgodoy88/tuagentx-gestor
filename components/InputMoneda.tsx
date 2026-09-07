@@ -36,7 +36,7 @@ export default function InputMoneda({ value, onChange, placeholder = '0', classN
   }
 
   return (
-    <div className="relative">
+    <div className="relative" style={style}>
       {prefix && <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-sm pointer-events-none">{prefix}</span>}
       <input
         type="text"

@@ -31,12 +31,13 @@ interface ModalRecaudoProps {
   onNotasChange?: (v: string) => void
   onConfirmar: () => void
   crearLinea: () => LineaPago
+  cuentasBancarias?: { id: string; label: string; titular?: string; banco: string; numeroCuenta: string }[]
 }
 
 export default function ModalRecaudo({
   cartera, detalleData, loadingDetalle, lineasPago, facturasSeleccionadas, descuentosPorFactura, onSetDescuentosPorFactura,
   procesando, fmt, onClose, onSetLineasPago, onSetFacturasSeleccionadas,
-  onSubirVoucher, onConfirmar, crearLinea, onNotasChange,
+  onSubirVoucher, onConfirmar, crearLinea, onNotasChange, cuentasBancarias = [],
 }: ModalRecaudoProps) {
   const clienteId = cartera?.clienteId || cartera?.cliente?.id || null
 
@@ -240,11 +241,13 @@ export default function ModalRecaudo({
 
                     {/* Efectivo */}
                     {linea.metodoPago === 'efectivo' && (
-                      <div className="flex items-center gap-2">
+                      <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:8 }}>
                         <label className="text-white text-sm font-semibold whitespace-nowrap">Monto *</label>
-                        <InputMoneda value={linea.monto}
-                          onChange={val => onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, monto: val } : l))}
-                          className="flex-1 bg-blue-950/40 border border-emerald-500/60 rounded-xl pr-4 py-2.5 text-white text-sm outline-none focus:border-emerald-400" />
+                        <div style={{ flex:1, maxWidth:'70%' }}>
+                          <InputMoneda value={linea.monto}
+                            onChange={val => onSetLineasPago(prev => prev.map(l => l.id === linea.id ? { ...l, monto: val } : l))}
+                            className="w-full bg-blue-950/40 border border-emerald-500/60 rounded-xl pr-4 py-2.5 text-white text-sm outline-none focus:border-emerald-400" />
+                        </div>
                       </div>
                     )}
 
@@ -300,7 +303,11 @@ export default function ModalRecaudo({
                                 )
                                 // Referencias ya existentes (Capa 2)
                                 const refsExistentes = new Set(
-                                  lineasPago.map((l: any) => l.voucherDatosIA?.referencia).filter(Boolean)
+                                  lineasPago
+                                    .map((l: any) => l.voucherDatosIA?.referencia && l.voucherDatosIA?.valor
+                                      ? `${l.voucherDatosIA.referencia}:${Math.round(l.voucherDatosIA.valor)}`
+                                      : null)
+                                    .filter(Boolean)
                                 )
 
                                 let lineasNuevas: any[] = []
@@ -323,19 +330,34 @@ export default function ModalRecaudo({
                                   const pagos: any[] = Array.isArray(data.pagos) && data.pagos.length > 0 ? data.pagos : [data.datosIA]
 
                                   const lineasArchivo = pagos.map((p: any) => {
-                                    // Capa 2: advertencia si referencia ya existe
-                                    const refDuplicada = p?.referencia && refsExistentes.has(p.referencia)
-                                    if (p?.referencia) refsExistentes.add(p.referencia)
+                                    // Auto-match con cuentas configuradas
+                                    const _cuenta = p?.numero_cuenta?.trim()
+                                    const _titular = p?.titular?.trim()
+                                    const _matchAuto = (cuentasBancarias as any[]).find((c: any) => {
+                                      if (_cuenta && _cuenta.length >= 3 && c.numeroCuenta.slice(-3) === _cuenta.slice(-3)) return true
+                                      if (c.titular?.trim() && _titular) {
+                                        if (_titular.toLowerCase().includes(c.titular.trim().split(' ')[0].toLowerCase())) return true
+                                      }
+                                      return false
+                                    })
+                                    // Si hay match automático → completar numero_cuenta y banco desde la cuenta configurada
+                                    const datosIA = _matchAuto && !_cuenta
+                                      ? { ...p, numero_cuenta: _matchAuto.numeroCuenta, banco: p.banco || _matchAuto.banco }
+                                      : p
+                                    // Capa 2: advertencia si misma referencia Y mismo valor (no duplicar si valores distintos)
+                                    const refKey = p?.referencia && p?.valor ? `${p.referencia}:${Math.round(p.valor)}` : null
+                                    const refDuplicada = refKey && refsExistentes.has(refKey)
+                                    if (refKey) refsExistentes.add(refKey)
                                     return {
                                       ...crearLinea(),
                                       id: crypto.randomUUID(),
                                       metodoPago: 'transferencia' as const,
                                       voucherKey: data.key,
-                                      voucherDatosIA: p,
+                                      voucherDatosIA: datosIA,
                                       cargandoVoucher: false,
                                       monto: p?.valor ? String(Math.round(p.valor)) : '',
                                       hashArchivo: hash,
-                                      alertaDuplicado: refDuplicada ? `⚠️ Ref. ${p.referencia} ya fue cargada en este recaudo` : undefined,
+                                      alertaDuplicado: refDuplicada ? `⚠️ Ref. ${p.referencia} ($${Math.round(p.valor).toLocaleString('es-CO')}) ya fue cargada en este recaudo` : undefined,
                                     }
                                   })
                                   lineasNuevas = [...lineasNuevas, ...lineasArchivo]
@@ -374,19 +396,93 @@ export default function ModalRecaudo({
                         {linea.voucherDatosIA && !linea.cargandoVoucher && (
                           <div className="bg-zinc-500/40 border border-emerald-400/30 rounded-xl px-4 py-3 space-y-2.5">
                             <div className="flex items-center justify-between">
-                              <span className="text-emerald-400 text-xs font-semibold">✅ Comprobante procesado</span>
+                              {!linea.voucherDatosIA.fecha
+                                ? <span className="text-red-400 text-xs font-semibold">🚫 Comprobante ilegible rechazado</span>
+                                : !(linea.voucherDatosIA.numero_cuenta?.trim())
+                                  ? <span className="text-amber-400 text-xs font-semibold">⚠️ Comprobante incompleto o borroso</span>
+                                  : <span className="text-emerald-400 text-xs font-semibold">✅ Comprobante procesado</span>
+                              }
                               <button onClick={() => {
                                 onSetLineasPago(prev => prev.map(l =>
                                   l.id === linea.id ? { ...l, voucherKey: null, voucherDatosIA: null, monto: '' } : l
                                 ))
-                              }} className="text-zinc-500 hover:text-red-400 text-xs">✕ Quitar</button>
+                              }} className="text-zinc-400 hover:text-red-400 transition-colors" style={{ fontSize:18, lineHeight:1, background:'none', border:'none', cursor:'pointer', padding:'0 2px' }}>✕</button>
                             </div>
-                            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-                              {linea.voucherDatosIA.valor != null && <div><span className="text-zinc-500">Valor:</span> <span className="text-white font-semibold">{fmt(linea.voucherDatosIA.valor)}</span></div>}
-                              {linea.voucherDatosIA.fecha && <div><span className="text-zinc-500">Fecha:</span> <span className="text-white">{linea.voucherDatosIA.fecha}</span></div>}
-                              {linea.voucherDatosIA.banco && <div className="col-span-2"><span className="text-zinc-500">Banco:</span> <span className="text-white">{linea.voucherDatosIA.banco}</span></div>}
-                              {linea.voucherDatosIA.referencia && <div className="col-span-2"><span className="text-zinc-500">Ref:</span> <span className="text-white">{linea.voucherDatosIA.referencia}</span></div>}
+                            <div className="flex flex-col gap-y-1 text-xs">
+                              <div className="flex gap-x-4">
+                                <div><span className="text-zinc-500">Valor: </span><span className="text-white font-semibold">{linea.voucherDatosIA.valor != null ? fmt(linea.voucherDatosIA.valor) : '—'}</span></div>
+                                {linea.voucherDatosIA.referencia && <div><span className="text-zinc-500">Ref: </span><span className="text-white">{linea.voucherDatosIA.referencia}</span></div>}
+                              </div>
+                              <div><span className="text-zinc-500">Banco: </span><span className="text-white">{linea.voucherDatosIA.banco || '—'}</span></div>
+                              {(() => {
+                                const cuenta = linea.voucherDatosIA.numero_cuenta?.trim()
+                                const titular = linea.voucherDatosIA.titular?.trim()
+                                const cuentas: any[] = (cuentasBancarias as any[]) || []
+                                const match = cuentas.find((c: any) => {
+                                  // Match por últimos 3 dígitos de la cuenta
+                                  if (cuenta && cuenta.length >= 3 && c.numeroCuenta.slice(-3) === cuenta.slice(-3)) return true
+                                  // Match por titular (primer apellido del titular configurado)
+                                  const titularConfig = c.titular?.trim()
+                                  if (titularConfig && titular) {
+                                    const primerApellidoConfig = titularConfig.split(' ')[0].toLowerCase()
+                                    if (titular.toLowerCase().includes(primerApellidoConfig)) return true
+                                  }
+                                  return false
+                                })
+                                const titularCorto = titular ? titular.split(' ').slice(0,2).join(' ') : null
+                                const cuentaCorta = cuenta ? cuenta.slice(-4) : null
+                                const display = titularCorto && cuentaCorta ? `${titularCorto}/${cuentaCorta}`
+                                  : titularCorto || (cuentaCorta ? `****${cuentaCorta}` : '—')
+                                return (
+                                  <div>
+                                    <span className="text-zinc-500">Cuenta: </span>
+                                    <span className={match ? 'text-emerald-400 font-semibold' : 'text-white'}>{display}</span>
+                                    {match && <span className="text-emerald-500 text-xs ml-1">✓ {match.label}</span>}
+                                  </div>
+                                )
+                              })()}
+                              <div><span className="text-zinc-500">Fecha: </span><span className="text-white">{linea.voucherDatosIA.fecha || '—'}</span></div>
                             </div>
+                            {(() => {
+                              const _cuenta = linea.voucherDatosIA.numero_cuenta?.trim()
+                              const _titular = linea.voucherDatosIA.titular?.trim()
+                              const _cuentas: any[] = (cuentasBancarias as any[]) || []
+                              const _match = _cuentas.find((c: any) => {
+                                if (_cuenta && _cuenta.length >= 3 && c.numeroCuenta.slice(-3) === _cuenta.slice(-3)) return true
+                                if (c.titular?.trim() && _titular) {
+                                  if (_titular.toLowerCase().includes(c.titular.trim().split(' ')[0].toLowerCase())) return true
+                                }
+                                return false
+                              })
+                              // Si hay match → la cuenta queda resuelta, no mostrar dropdown aunque falte numero_cuenta
+                              const necesitaDropdown = (!_cuenta || !linea.voucherDatosIA.fecha) && !_match
+                              return necesitaDropdown
+                            })() && (
+                              <div className="mt-2 space-y-2">
+                                {(cuentasBancarias as any[]).length > 0 && (
+                                  <div className="space-y-1">
+                                    <p className="text-zinc-500 text-xs">O selecciona la cuenta destino:</p>
+                                    <select
+                                      value={(linea as any).cuentaManual || ''}
+                                      onChange={e => {
+                                        const sel = (cuentasBancarias as any[]).find(c => c.id === e.target.value)
+                                        onSetLineasPago((prev: any) => prev.map((l: any) => l.id === linea.id
+                                          ? { ...l, cuentaManual: e.target.value,
+                                              voucherDatosIA: { ...l.voucherDatosIA, banco: sel?.banco ?? l.voucherDatosIA.banco, numero_cuenta: sel?.numeroCuenta ?? l.voucherDatosIA.numero_cuenta }
+                                            } : l
+                                        ))
+                                      }}
+                                      className="w-full rounded-lg px-3 py-2 text-white text-xs outline-none"
+                                      style={{ background: '#141c2e', border: '1px solid rgba(245,158,11,0.4)' }}>
+                                      <option value="">— Seleccionar cuenta —</option>
+                                      {(cuentasBancarias as any[]).map(c => (
+                                        <option key={c.id} value={c.id}>{c.label} · {c.numeroCuenta}</option>
+                                      ))}
+                                    </select>
+                                  </div>
+                                )}
+                              </div>
+                            )}
                             {(linea as any).alertaDuplicado && (
                               <p className="text-amber-400 text-xs font-semibold mt-1">{(linea as any).alertaDuplicado}</p>
                             )}
@@ -599,6 +695,8 @@ export default function ModalRecaudo({
               {(() => {
                 const transferenciasSinVoucher = lineasPago.filter(l => l.metodoPago === 'transferencia' && !l.voucherDatosIA && !l.cargandoVoucher)
                 const hayTransferenciaSinVoucher = transferenciasSinVoucher.length > 0
+                const hayCuentaIncompleta = lineasPago.some((l: any) => l.metodoPago === 'transferencia' && l.voucherDatosIA && !l.voucherDatosIA.numero_cuenta)
+                const hayFechaIlegible = lineasPago.some((l: any) => l.metodoPago === 'transferencia' && l.voucherDatosIA && !l.voucherDatosIA.fecha)
                 const totalMonto = lineasPago.reduce((s, l) => s + Number(l.monto || 0), 0)
                 const sinMonto = totalMonto <= 0
                 const pedirConfirmacionSobrepago = haySobrepago && !confirmadoSobrepago

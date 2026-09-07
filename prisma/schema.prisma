@@ -3627,6 +3627,20 @@ model PushSuscripcionAdmin {
   @@map("PushSuscripcionAdmin")
 }
 
+model CuentaBancaria {
+  id           String   @id @default(cuid())
+  empresaId    String   @map("empresa_id")
+  label        String
+  titular      String?
+  banco        String
+  numeroCuenta String   @map("numero_cuenta")
+  orden        Int      @default(0)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([empresaId])
+  @@map("CuentaBancaria")
+}
+
 model VoucherHuella {
   id             String   @id @default(cuid())
   hashArchivo    String?  @map("hash_archivo")
@@ -3634,6 +3648,8 @@ model VoucherHuella {
   valor          Decimal? @db.Decimal(14, 2)
   fecha          String?
   banco          String?
+  numeroCuenta   String?  @map("numero_cuenta")
+  titular        String?
   pagoId         String   @map("pago_id")
   empresaId      String   @map("empresa_id")
   vendedorNombre String?  @map("vendedor_nombre")
