@@ -49,8 +49,14 @@ export async function POST(req: NextRequest) {
   const user = session.user as any
   const empresaId = getEmpresaId(user)
 
-  const { diaSemana, empleadoIds, clienteIds, metas, horas } = await req.json()
-  // clienteIds: string[], metas: Record<string, number>, horas: Record<string, string> opcional ("HH:mm")
+  const body = await req.json()
+  const { diaSemana, empleadoIds } = body
+  // Nuevo formato: clientes:[{uid,clienteId,meta,hora}] — permite mismo cliente varias veces
+  // Retrocompat: clienteIds + metas + horas (formato antiguo)
+  const clientesEntradas: { uid: string, clienteId: string, meta?: number, hora?: string }[] =
+    Array.isArray(body.clientes)
+      ? body.clientes
+      : (body.clienteIds || []).map((id: string) => ({ uid: id, clienteId: id, meta: body.metas?.[id], hora: body.horas?.[id] }))
   if (diaSemana === undefined) return NextResponse.json({ error: 'Día requerido' }, { status: 400 })
 
   const nombre = DIAS[diaSemana]
@@ -66,20 +72,20 @@ export async function POST(req: NextRequest) {
   const cambios: string[] = []
   if (existente) {
     const idsAnteriores = existente.clientes.map((c: any) => c.clienteId)
-    const idsNuevos: string[] = clienteIds || []
+    const idsNuevos: string[] = clientesEntradas.map(c => c.clienteId)
     const agregados = idsNuevos.filter((id: string) => !idsAnteriores.includes(id))
     const quitados = idsAnteriores.filter((id: string) => !idsNuevos.includes(id))
     if (agregados.length > 0) cambios.push(`Clientes agregados: ${agregados.length}`)
     if (quitados.length > 0) cambios.push(`Clientes quitados: ${quitados.length}`)
     for (const rc of existente.clientes) {
       const metaAnterior = (rc as any).metaVenta || 0
-      const metaNueva = metas?.[rc.clienteId] || 0
+      const metaNueva = clientesEntradas.find(c => c.clienteId === rc.clienteId)?.meta || 0
       if (metaAnterior !== metaNueva) {
         cambios.push(`Meta ${rc.cliente.nombre}: $${metaAnterior.toLocaleString('es-CO')} -> $${metaNueva.toLocaleString('es-CO')}`)
       }
     }
   } else {
-    cambios.push(`Ruta creada: ${nombre} con ${(clienteIds||[]).length} clientes`)
+    cambios.push(`Ruta creada: ${nombre} con ${clientesEntradas.length} clientes`)
   }
 
   if (cambios.length > 0) {
@@ -114,18 +120,14 @@ export async function POST(req: NextRequest) {
         create: (empleadoIds || []).map((id: string) => ({ id: crypto.randomUUID(), empleadoId: id }))
       },
       clientes: {
-        create: (clienteIds || []).map((id: string, i: number) => {
-          // Preserva horaEntrada del cliente si ya existía en la ruta anterior y el formulario
-          // no manda una nueva explícita -- evita la pérdida silenciosa del campo en cada guardado
-          // del día (mismo patrón deleteMany+create que ya causó bugs en listas de empleados)
-          const horaExistente = existente?.clientes.find((c: any) => c.clienteId === id)?.horaEntrada || null
-          const horaNueva = horas?.[id]
+        create: clientesEntradas.map((entrada, i) => {
+          const horaExistente = existente?.clientes.find((c: any) => c.clienteId === entrada.clienteId)?.horaEntrada || null
           return {
             id: crypto.randomUUID(),
-            clienteId: id,
+            clienteId: entrada.clienteId,
             orden: i,
-            metaVenta: metas?.[id] || null,
-            horaEntrada: horaNueva !== undefined ? (horaNueva || null) : horaExistente,
+            metaVenta: entrada.meta || null,
+            horaEntrada: entrada.hora !== undefined ? (entrada.hora || null) : horaExistente,
           }
         })
       }

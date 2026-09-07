@@ -61,11 +61,12 @@ export default function RutasFijasPage() {
   const [empSeleccionado, setEmpSeleccionado] = useState<any>(null)
   const [modal, setModal] = useState(false)
   const [diaSemana, setDiaSemana] = useState(1)
-  const [cliSeleccionados, setCliSeleccionados] = useState<string[]>([])
+  const [cliSeleccionados, setCliSeleccionados] = useState<string[]>([]) // uids
+  const uidToClienteIdRef = useRef<Record<string,string>>({})
   const [metas, setMetas] = useState<Record<string, number>>({})
   const [horas, setHoras] = useState<Record<string, string>>({})
   const [horaInputTmp, setHoraInputTmp] = useState<{ hora: string; minuto: string; meridiano: 'AM' | 'PM' }>({ hora: '', minuto: '', meridiano: 'AM' })
-  const [modalMeta, setModalMeta] = useState<{id: string, nombre: string, rutaFijaId?: string} | null>(null)
+  const [modalMeta, setModalMeta] = useState<{id: string, nombre: string, rutaFijaId?: string, soloHora?: boolean, metaFija?: number} | null>(null)
   const [inputMeta, setInputMeta] = useState('')
   const [promedio, setPromedio] = useState<any>(null)
   const [calculandoPromedio, setCalculandoPromedio] = useState(false)
@@ -278,14 +279,22 @@ export default function RutasFijasPage() {
   function abrirDia(emp: any, dia: number, rutaExistente?: any) {
     setEmpSeleccionado(emp)
     setDiaSemana(dia)
-    setCliSeleccionados(rutaExistente ? rutaExistente.clientes.map((c: any) => c.clienteId) : [])
     const metasIniciales: Record<string, number> = {}
     const horasIniciales: Record<string, string> = {}
+    const uidMapInicial: Record<string, string> = {}
     if (rutaExistente) {
-      rutaExistente.clientes.forEach((c: any) => {
-        if (c.metaVenta) metasIniciales[c.clienteId] = c.metaVenta
-        if (c.horaEntrada) horasIniciales[c.clienteId] = c.horaEntrada
+      const uids = rutaExistente.clientes.map((c: any) => {
+        const uid = c.clienteId + '_' + c.id
+        uidMapInicial[uid] = c.clienteId
+        if (c.metaVenta) metasIniciales[uid] = c.metaVenta
+        if (c.horaEntrada) horasIniciales[uid] = c.horaEntrada
+        return uid
       })
+      setCliSeleccionados(uids)
+    } else {
+      setCliSeleccionados([])
+    }
+    if (rutaExistente) {
       // Asegurar que los clientes ya asignados estén en la lista para mostrar su nombre
       setClientes(prev => {
         const existentes = new Map(prev.map((x: any) => [x.id, x]))
@@ -297,6 +306,7 @@ export default function RutasFijasPage() {
     }
     setMetas(metasIniciales)
     setHoras(horasIniciales)
+    uidToClienteIdRef.current = uidMapInicial
     setBuscarCli('')
     setRutaFijaIdModal(rutaExistente?.id || null)
     setPriorizableHoy(rutaExistente?.priorizableHoy || false)
@@ -320,11 +330,23 @@ export default function RutasFijasPage() {
     await fetch('/api/impulsadora', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ diaSemana, empleadoIds: [empSeleccionado.id], clienteIds: cliSeleccionados, metas, horas })
+      body: JSON.stringify({
+        diaSemana,
+        empleadoIds: [empSeleccionado.id],
+        clientes: cliSeleccionados.map((uid) => ({
+          uid,
+          // uidToClienteId puede no estar sincronizado por React batching
+          // El uid tiene formato clienteId_sufijo — extraer clienteId real
+          clienteId: uidToClienteIdRef.current[uid] || uid.replace(/_[^_]+$/, ''),
+          meta: metas[uid] || null,
+          hora: horas[uid] || null,
+        }))
+      })
     })
     setLoading(false)
     setModal(false)
     setCliSeleccionados([])
+    uidToClienteIdRef.current = {}
     setBuscarCli('')
     setMetas({})
     loadData()
@@ -608,8 +630,9 @@ export default function RutasFijasPage() {
               {cliSeleccionados.length > 0 && (
                 <div className="space-y-2">
                   <p className="text-zinc-400 text-xs font-semibold">SELECCIONADOS</p>
-                  {[...cliSeleccionados].sort((a,b) => (metas[b]||0) - (metas[a]||0)).map((cid, idx) => {
-                    const cli: any = clientes.find((x: any) => x.id === cid)
+                  {cliSeleccionados.map((cid, idx) => {
+                    const clienteIdReal = uidToClienteIdRef.current[cid] || cid
+                    const cli: any = clientes.find((x: any) => x.id === clienteIdReal)
                       || rutasFijas.flatMap((r: any) => r.clientes || []).find((rc: any) => rc.clienteId === cid)?.cliente
                       || { id: cid, nombre: cid.startsWith('cm') || cid.length > 24 ? 'Cargando...' : cid }
                     const meta = metas[cid]
@@ -624,7 +647,7 @@ export default function RutasFijasPage() {
                           {puedeEditarImpulsos && <button onClick={() => { setModalMeta({id: cid, nombre: cli.nombre}); setInputMeta(meta > 0 ? String(meta) : '') }}
                             title="Editar meta y hora"
                             className="text-zinc-400 hover:text-white text-sm flex-shrink-0 px-1">✏️</button>}
-                          {puedeEditarImpulsos && <button onClick={() => { setCliSeleccionados(p => p.filter(x => x !== cid)); setMetas(m => { const n={...m}; delete n[cid]; return n }); setHoras(h => { const n={...h}; delete n[cid]; return n }) }}
+                          {puedeEditarImpulsos && <button onClick={() => { setCliSeleccionados(p => p.filter(x => x !== cid)); delete uidToClienteIdRef.current[cid]; setMetas(m => { const n={...m}; delete n[cid]; return n }); setHoras(h => { const n={...h}; delete n[cid]; return n }) }}
                             title="Quitar cliente"
                             className="text-zinc-500 hover:text-red-400 text-sm flex-shrink-0 px-1">🗑️</button>}
                         </div>
@@ -656,20 +679,31 @@ export default function RutasFijasPage() {
                         {c.nombreComercial && <p className="text-zinc-500 text-xs ml-5">{c.nombreComercial}</p>}
                       </div>
                       <button onClick={() => {
-                          // Buscar meta existente en cualquier ruta de este empleado
+                          // Buscar meta: primero en estado local (ya agregado esta sesión),
+                          // luego en rutasFijas (guardado en BD)
                           let metaExistente = 0
-                          if (empSeleccionado) {
+                          const uidExistente = Object.entries(uidToClienteIdRef.current).find(([, cid]) => cid === c.id)
+                          if (uidExistente) {
+                            metaExistente = metas[uidExistente[0]] || 0
+                          }
+                          if (!metaExistente && empSeleccionado) {
                             const rutasEmp = rutasFijas.filter(r => r.empleados.some((re: any) => re.empleadoId === empSeleccionado.id))
                             for (const r of rutasEmp) {
                               const rc = r.clientes.find((rc: any) => rc.clienteId === c.id)
                               if (rc?.metaVenta) { metaExistente = rc.metaVenta; break }
                             }
                           }
+                          // Generar uid único — permite mismo cliente varias veces
+                          const uid = c.id + '_' + Date.now()
+                          uidToClienteIdRef.current[uid] = c.id
                           if (metaExistente > 0) {
-                            setMetas(m => ({ ...m, [c.id]: metaExistente }))
-                            setCliSeleccionados(p => [...p, c.id])
+                            // Meta existente → agregar a lista y abrir modal solo para la hora
+                            setMetas(m => ({ ...m, [uid]: metaExistente }))
+                            setCliSeleccionados(p => [...p, uid])
+                            setModalMeta({id: uid, nombre: c.nombre, soloHora: true, metaFija: metaExistente}); setInputMeta('')
                           } else {
-                            setModalMeta({id: c.id, nombre: c.nombre}); setInputMeta('')
+                            // Sin meta → abrir modal completo
+                            setModalMeta({id: uid, nombre: c.nombre}); setInputMeta('')
                           }
                         }}
                         className="text-blue-400 text-xs bg-blue-500/10 border border-blue-500/20 px-2 py-1 rounded-lg flex-shrink-0">
@@ -690,7 +724,7 @@ export default function RutasFijasPage() {
               </div>
             </div>
             <div className="flex gap-2 p-4 border-t border-zinc-800 flex-shrink-0">
-              <button onClick={() => { setModal(false); setCliSeleccionados([]); setBuscarCli(''); setMetas({}) }}
+              <button onClick={() => { setModal(false); setCliSeleccionados([]); uidToClienteIdRef.current = {}; setBuscarCli(''); setMetas({}) }}
                 className="flex-1 bg-zinc-800 text-white text-sm py-3 rounded-xl">Cancelar</button>
               <button onClick={guardar}
                 disabled={loading || cliSeleccionados.length === 0 || cliSeleccionados.some(id => !metas[id] || metas[id] <= 0)}
@@ -722,7 +756,7 @@ export default function RutasFijasPage() {
                 <p className="text-zinc-500 text-xs">Sin historial de ventas en los últimos 3 meses</p>
               )
             ) : (
-              <button onClick={() => calcularPromedio(modalMeta.id)} disabled={calculandoPromedio}
+              <button onClick={() => calcularPromedio(uidToClienteIdRef.current[modalMeta.id] || modalMeta.id)} disabled={calculandoPromedio}
                 className="w-full flex items-center justify-center gap-2 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 border border-zinc-700 text-zinc-300 text-sm py-2.5 rounded-xl transition-colors">
                 {calculandoPromedio ? (
                   <><span className="animate-spin">⏳</span> Calculando...</>
@@ -735,12 +769,18 @@ export default function RutasFijasPage() {
             <div className="flex items-stretch gap-2">
               <div className="w-1/2 min-w-0">
                 <p className="text-zinc-400 text-xs mb-1">Meta</p>
+                {modalMeta.soloHora ? (
+                  <div className="w-full h-12 bg-zinc-900 border border-zinc-700 rounded-xl px-3 flex items-center text-white text-base opacity-60">
+                    ${(modalMeta.metaFija || 0).toLocaleString('es-CO')}
+                  </div>
+                ) : (
                 <input type="text" inputMode="numeric"
                   value={inputMeta ? Number(inputMeta).toLocaleString('es-CO') : ''}
                   onChange={e => setInputMeta(e.target.value.replace(/[^0-9]/g, ''))}
                   placeholder="Ej: 500.000"
                   autoFocus
                   className="w-full h-12 bg-zinc-800 border border-emerald-500 rounded-xl px-3 text-white text-base outline-none" />
+                )}
               </div>
               <div className="w-1/2 min-w-0">
                 <p className="text-zinc-400 text-xs mb-1">Hora</p>
@@ -805,15 +845,17 @@ export default function RutasFijasPage() {
             <div className="flex gap-2">
               <button onClick={() => { setModalMeta(null); setInputMeta(''); setPromedio(null) }}
                 className="flex-1 bg-zinc-800 text-white text-sm py-3 rounded-xl">Cancelar</button>
-              <button disabled={(!inputMeta || Number(inputMeta) <= 0) && !horas[modalMeta.id]}
+              <button disabled={modalMeta.soloHora ? !horas[modalMeta.id] : (!inputMeta || Number(inputMeta) <= 0) && !horas[modalMeta.id]}
                 onClick={async () => {
                   const tieneMeta = !!inputMeta && Number(inputMeta) > 0
-                  const meta = tieneMeta ? Number(inputMeta) : 0
+                  // soloHora: preservar meta ya seteada, no sobreescribir con 0
+                  const meta = modalMeta.soloHora ? (modalMeta.metaFija || metas[modalMeta.id] || 0) : (tieneMeta ? Number(inputMeta) : 0)
                   const hora = horas[modalMeta.id] || ''
+                  const clienteIdReal = uidToClienteIdRef.current[modalMeta.id] || modalMeta.id
                   setMetas(m => ({ ...m, [modalMeta.id]: meta }))
                   if (!cliSeleccionados.includes(modalMeta.id)) setCliSeleccionados(p => [...p, modalMeta.id])
                   if (tieneMeta) {
-                    await fetch('/api/clientes/' + modalMeta.id + '/meta', {
+                    await fetch('/api/clientes/' + clienteIdReal + '/meta', {
                       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
                       body: JSON.stringify({ metaVenta: meta })
                     }).catch(() => {})

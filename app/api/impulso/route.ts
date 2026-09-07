@@ -44,9 +44,10 @@ export async function GET(req: NextRequest) {
   if (integracion) {
     modoSync = true
     // Obtener apiIds de los clientes en rutas fijas
-    const clienteIds = rutasFijas.flatMap((r: any) =>
+    // Deduplicar clienteIds — un cliente puede aparecer varias veces en la ruta (múltiples visitas)
+    const clienteIds = [...new Set(rutasFijas.flatMap((r: any) =>
       (r.clientes || []).map((c: any) => c.clienteId)
-    )
+    ))]
     const clientes = await (prisma as any).cliente.findMany({
       where: { id: { in: clienteIds }, apiId: { not: null } },
       select: { id: true, apiId: true }

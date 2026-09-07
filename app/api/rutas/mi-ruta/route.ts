@@ -154,10 +154,14 @@ export async function GET(req: Request) {
   const todasRutas = rutasLinks.map((l: any) => l.ruta)
 
   // Rutas HOY — incluye cerradas para mostrar entregados del día completo
+  // + rutas de días anteriores iniciadas pero no cerradas (pedidos rezagados del repartidor)
   const rutasHoy = todasRutas.filter((r: any) =>
-    r.fecha &&
-    new Date(r.fecha) >= hoyInicio &&
-    new Date(r.fecha) < mananaInicio
+    r.fecha && (
+      // Ruta de hoy (normal)
+      (new Date(r.fecha) >= hoyInicio && new Date(r.fecha) < mananaInicio) ||
+      // Ruta de días anteriores activa sin cerrar — pendientes rezagados
+      (new Date(r.fecha) < hoyInicio && !r.cerrada && r.iniciada)
+    )
   )
 
   // Rutas MAÑANA

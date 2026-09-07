@@ -37,9 +37,11 @@ export async function getConsecutivo(empleadoId: string): Promise<string> {
       .filter((w: string) => w.length > 0 && !/^(de|del|la|el|los|las|y|da|do)$/i.test(w))
       .map((w: string) => w[0].toUpperCase())
     const primera = iniciales[0] || 'X'
-    // penúltima = primer apellido en nombres de 3+ palabras; igual a primera si solo hay 1 palabra
-    const penultima = iniciales.length > 1 ? iniciales[Math.max(0, iniciales.length - 2)] : primera
-    const inicialesEmpleado = (primera + penultima) || 'XX'
+    // Regla Colombia: primer nombre + primer apellido
+    // 2-3 palabras: último  | 4+ palabras: penúltimo (hay segundo nombre)
+    const idxApellido = Math.max(1, iniciales.length >= 4 ? iniciales.length - 2 : iniciales.length - 1)
+    const apellido = iniciales[idxApellido] || primera
+    const inicialesEmpleado = (primera + apellido) || 'XX'
 
     // Prefijo: explícito en empleado > iniciales del empleado
     const prefijo = cfg.prefijo || inicialesEmpleado

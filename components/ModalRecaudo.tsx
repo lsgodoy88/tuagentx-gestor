@@ -41,24 +41,20 @@ export default function ModalRecaudo({
 }: ModalRecaudoProps) {
   const clienteId = cartera?.clienteId || cartera?.cliente?.id || null
 
-  // GPS — igual que ModalVisita
+  // GPS — captura en background desde que abre el modal
   useEffect(() => {
     notifyModuleOpen()
     return () => { notifyModuleClose() }
   }, [])
 
-  const [capturarGps, setCapturarGps] = useState(false)
   const [gpsStatus, setGpsStatus] = useState<'idle'|'buscando'|'ok'|'error'>('idle')
   const [gpsCoords, setGpsCoords] = useState<{lat:number,lng:number}|null>(null)
+  const [popupGps, setPopupGps] = useState(false)
+  const [guardandoGps, setGuardandoGps] = useState(false)
 
   useEffect(() => {
     if (!clienteId) return
-    // Verificar si el cliente ya tiene GPS real
-    fetch(`/api/cartera/${clienteId}`).then(r => r.json()).then(d => {
-      const cl = d?.cartera?.cliente
-      if (cl) setCapturarGps(!cl.ubicacionReal)
-    }).catch(() => {})
-    // Iniciar GPS en background
+    // Capturar GPS en background siempre
     if (navigator.geolocation) {
       setGpsStatus('buscando')
       navigator.geolocation.getCurrentPosition(
@@ -69,13 +65,30 @@ export default function ModalRecaudo({
     }
   }, [clienteId])
 
-  async function guardarGpsSiCorresponde() {
-    if (!capturarGps || !clienteId || !gpsCoords) return
+  async function guardarGpsCliente() {
+    if (!clienteId || !gpsCoords) return
+    setGuardandoGps(true)
     await fetch('/api/clientes/gps', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: clienteId, lat: gpsCoords.lat, lng: gpsCoords.lng })
     }).catch(() => {})
+    setGuardandoGps(false)
+  }
+
+  async function handleConfirmar() {
+    if (gpsCoords) {
+      // Mostrar popup solo si hay GPS disponible
+      setPopupGps(true)
+    } else {
+      onConfirmar()
+    }
+  }
+
+  async function responderPopupGps(estaAhi: boolean) {
+    setPopupGps(false)
+    if (estaAhi) await guardarGpsCliente()
+    onConfirmar()
   }
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map())
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -124,6 +137,31 @@ export default function ModalRecaudo({
   }, [lineasPago.length])
 
   return (
+    <>
+    {/* Popup GPS post-confirmación */}
+    {popupGps && (
+      <div className="fixed inset-0 z-[9999] flex items-end justify-center pb-8 px-4" style={{background:'rgba(0,0,0,0.6)'}}>
+        <div className="w-full max-w-sm rounded-2xl p-5 text-center" style={{background:'#1e2030',border:'1px solid rgba(59,130,246,0.30)',boxShadow:'0 8px 32px rgba(0,0,0,0.5)'}}>
+          <div className="text-3xl mb-3">📍</div>
+          <p className="text-white font-bold text-base mb-1">¿Estás donde el cliente?</p>
+          <p className="text-zinc-400 text-sm mb-5">Guardaremos tu ubicación actual como la dirección del cliente</p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => responderPopupGps(false)}
+              disabled={guardandoGps}
+              className="flex-1 py-3 rounded-xl bg-zinc-700 text-white font-semibold text-sm">
+              No
+            </button>
+            <button
+              onClick={() => responderPopupGps(true)}
+              disabled={guardandoGps}
+              className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm">
+              {guardandoGps ? '📡 Guardando...' : 'Sí, guardar ubicación'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     <div className="fixed inset-0 flex items-center justify-center z-50 px-2" style={{background:"#0f1729"}}>
       <div style={{ width:'100%', maxWidth:512 }}>
         <div className="rounded-2xl w-full max-h-[90vh] flex flex-col overflow-hidden" style={{background:"#0f172a", border:'1px solid rgba(59,130,246,0.50)'}}>
@@ -703,21 +741,7 @@ export default function ModalRecaudo({
                 const notasInsuficientes = _requiereNota && notasLocal.trim().split(/\s+/).filter(Boolean).length < 3
                 return (
                   <>
-                    {/* GPS — solo si vendedor, igual que ModalVisita */}
-                    <div className="flex items-center gap-3 rounded-xl px-4 py-3" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
-                      <input type="checkbox" id="capturarGpsRecaudo" checked={capturarGps}
-                        onChange={e => setCapturarGps(e.target.checked)}
-                        className="w-4 h-4 accent-emerald-500" />
-                      <label htmlFor="capturarGpsRecaudo" className="text-white text-sm cursor-pointer">
-                        Guardar ubicación de este cliente
-                      </label>
-                    </div>
-                    {gpsStatus === 'buscando' && capturarGps && (
-                      <p className="text-zinc-500 text-xs">📡 Obteniendo GPS...</p>
-                    )}
-                    {gpsStatus === 'ok' && capturarGps && (
-                      <p className="text-emerald-400 text-xs">📍 Ubicación lista</p>
-                    )}
+
                     {hayTransferenciaSinVoucher && (
                       <p className="text-amber-400 text-xs text-center">📎 Adjunta el comprobante para continuar</p>
                     )}
@@ -730,7 +754,7 @@ export default function ModalRecaudo({
                         ⚠️ Confirmar Valor Aplicado
                       </button>
                     ) : (
-                      <button onClick={() => { guardarGpsSiCorresponde(); onConfirmar() }} disabled={procesando || hayTransferenciaSinVoucher || sinMonto || notasInsuficientes}
+                      <button onClick={handleConfirmar} disabled={procesando || hayTransferenciaSinVoucher || sinMonto || notasInsuficientes}
                         className="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold py-3 rounded-xl text-sm transition-colors">
                         {procesando ? 'Procesando...' : '✅ Confirmar recaudo'}
                       </button>
@@ -744,5 +768,6 @@ export default function ModalRecaudo({
         </div>
       </div>
     </div>
+  </>
   )
 }

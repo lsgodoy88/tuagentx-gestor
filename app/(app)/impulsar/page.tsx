@@ -423,8 +423,9 @@ function TabRotacion({ user }: { user: any }) {
         cantidad: parseFloat(v.cantidad),
         precioVenta: parseFloat(v.precioVenta),
       }))
-    const filasIncompletas = Object.values(filas).filter(v => (v.cantidad && !v.precioVenta) || (!v.cantidad && v.precioVenta)).length
-    if (filasIncompletas > 0) { setMsgEnvio(`${filasIncompletas} producto(s) sin Cant. o Precio V. — completa ambos campos`); return }
+    // Solo error si tiene cantidad pero no precio — el prellenado de precio sin cantidad no es error
+    const filasIncompletas = Object.values(filas).filter(v => v.cantidad && !v.precioVenta).length
+    if (filasIncompletas > 0) { setMsgEnvio(`${filasIncompletas} producto(s) con cantidad sin precio — completa el precio`); return }
     if (filasData.length === 0) { setMsgEnvio('No hay datos para enviar'); return }
     setEnviando(true); setMsgEnvio('')
     try {
