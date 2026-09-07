@@ -56,6 +56,8 @@ export default function RutasFijasPage() {
   const [empleados, setEmpleados] = useState<any[]>([])
   const [clientes, setClientes] = useState<any[]>([])
   const [rutasFijas, setRutasFijas] = useState<any[]>([])
+  const [rutaFijaIdModal, setRutaFijaIdModal] = useState<string | null>(null)
+  const [priorizableHoy, setPriorizableHoy] = useState(false)
   const [empSeleccionado, setEmpSeleccionado] = useState<any>(null)
   const [modal, setModal] = useState(false)
   const [diaSemana, setDiaSemana] = useState(1)
@@ -296,8 +298,23 @@ export default function RutasFijasPage() {
     setMetas(metasIniciales)
     setHoras(horasIniciales)
     setBuscarCli('')
+    setRutaFijaIdModal(rutaExistente?.id || null)
+    setPriorizableHoy(rutaExistente?.priorizableHoy || false)
     setModal(true)
   }
+  async function togglePriorizable() {
+    if (!rutaFijaIdModal) return
+    const nuevo = !priorizableHoy
+    setPriorizableHoy(nuevo)
+    await fetch('/api/impulsadora/priorizable', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rutaFijaId: rutaFijaIdModal, priorizableHoy: nuevo })
+    })
+    // Actualizar local en rutasFijas
+    setRutasFijas(prev => prev.map(r => r.id === rutaFijaIdModal ? { ...r, priorizableHoy: nuevo } : r))
+  }
+
   async function guardar() {
     setLoading(true)
     await fetch('/api/impulsadora', {
@@ -572,7 +589,18 @@ export default function RutasFijasPage() {
         <div className="fixed inset-0 bg-black/95 flex items-start justify-center z-50 p-4 pt-[5vh]">
           <div className="bg-zinc-900 border border-zinc-800 rounded-2xl w-full max-w-md overflow-hidden flex flex-col" style={{maxHeight: "88vh"}}>
             <div className="px-5 pt-5 pb-3 border-b border-zinc-800 flex-shrink-0">
-              <h3 className="text-white font-bold">{empSeleccionado.nombre} - {DIAS[diaSemana]}</h3>
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-white font-bold">{empSeleccionado.nombre} - {DIAS[diaSemana]}</h3>
+                {rutaFijaIdModal && (
+                  <button
+                    onClick={togglePriorizable}
+                    title={priorizableHoy ? 'Desactivar priorización' : 'Activar priorización'}
+                    className="text-xl transition-opacity"
+                    style={{ opacity: priorizableHoy ? 1 : 0.3 }}>
+                    🔂
+                  </button>
+                )}
+              </div>
               <p className="text-zinc-500 text-xs mt-0.5">{cliSeleccionados.length} clientes seleccionados</p>
 <p className="text-zinc-600 text-[10px] mt-1">📍 tiene GPS confirmado</p>
             </div>

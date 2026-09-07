@@ -12,6 +12,8 @@ export default function ImpulsoDashboard() {
   const [loading, setLoading] = useState(true)
   const [registrando, setRegistrando] = useState(false)
   const [error, setError] = useState('')
+  const [ordenLocal, setOrdenLocal] = useState<string[]>([]) // ids de RutaFijaCliente priorizados
+  const [popupRc, setPopupRc] = useState<any>(null) // cliente con popup abierto
 
   useEffect(() => { loadData() }, [])
 
@@ -161,27 +163,59 @@ export default function ImpulsoDashboard() {
 
           <div data-tour="imp-lista" className="space-y-2">
             <p className="text-zinc-400 text-xs font-semibold">TODOS LOS PUNTOS</p>
-            {rutaHoy.clientes.map((rc: any, i: number) => {
-              const entrada = llegadas.find((l: any) => l.rutaFijaClienteId === rc.id && l.tipo === 'entrada')
-              const salida = llegadas.find((l: any) => l.rutaFijaClienteId === rc.id && l.tipo === 'salida')
-              return (
-                <div key={rc.id} className={'rounded-xl p-3 flex items-center gap-3 border ' + (salida ? 'bg-zinc-900/50 border-zinc-700/30' : entrada ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-zinc-900 border-zinc-800')}>
-                  <div className={'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ' + (salida ? 'bg-zinc-700 text-zinc-400' : entrada ? 'bg-emerald-500 text-black' : 'bg-zinc-700 text-white')}>
-                    {salida ? 'ok' : entrada ? '>' : i+1}
+            {(() => {
+              // Orden local: priorizados al frente, resto por orden original
+              const priorizados = ordenLocal.filter(id => rutaHoy.clientes.some((rc: any) => rc.id === id))
+              const resto = rutaHoy.clientes.filter((rc: any) => !priorizados.includes(rc.id))
+              const clientesOrdenados = [
+                ...priorizados.map((id: string) => rutaHoy.clientes.find((rc: any) => rc.id === id)),
+                ...resto
+              ]
+              return clientesOrdenados.map((rc: any, i: number) => {
+                const entrada = llegadas.find((l: any) => l.rutaFijaClienteId === rc.id && l.tipo === 'entrada')
+                const salida = llegadas.find((l: any) => l.rutaFijaClienteId === rc.id && l.tipo === 'salida')
+                const yaVisitado = !!salida
+                const puedeIrPrimero = rutaHoy.priorizableHoy && !yaVisitado && !entrada
+                return (
+                  <div key={rc.id} className="relative">
+                    <div className={'rounded-xl p-3 flex items-center gap-3 border ' + (salida ? 'bg-zinc-900/50 border-zinc-700/30' : entrada ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-zinc-900 border-zinc-800')}>
+                      <div className={'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ' + (salida ? 'bg-zinc-700 text-zinc-400' : entrada ? 'bg-emerald-500 text-black' : 'bg-zinc-700 text-white')}>
+                        {salida ? 'ok' : entrada ? '>' : i+1}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={'text-sm font-medium ' + (salida ? 'text-zinc-500' : 'text-white')}>{rc.cliente.nombre}</p>
+                        {entrada && <p className="text-zinc-500 text-xs">Entrada: {new Date(entrada.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})}</p>}
+                        {salida && <p className="text-zinc-500 text-xs">Salida: {new Date(salida.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})}</p>}
+                      </div>
+                      {salida && entrada && (
+                        <span className="text-zinc-500 text-xs flex-shrink-0">
+                          {Math.round((new Date(salida.createdAt).getTime() - new Date(entrada.createdAt).getTime()) / 60000)} min
+                        </span>
+                      )}
+                      {puedeIrPrimero && (
+                        <button
+                          onClick={() => setPopupRc(popupRc?.id === rc.id ? null : rc)}
+                          className="text-base flex-shrink-0 ml-1">
+                          🔂
+                        </button>
+                      )}
+                    </div>
+                    {popupRc?.id === rc.id && (
+                      <div className="absolute right-0 top-full mt-1 z-50 bg-zinc-800 border border-zinc-700 rounded-xl shadow-xl px-4 py-3 flex items-center gap-2 whitespace-nowrap">
+                        <button
+                          onClick={() => {
+                            setOrdenLocal(prev => [rc.id, ...prev.filter(id => id !== rc.id)])
+                            setPopupRc(null)
+                          }}
+                          className="text-sm font-semibold text-white flex items-center gap-2">
+                          🔂 Asignar primero
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <p className={'text-sm font-medium ' + (salida ? 'text-zinc-500' : 'text-white')}>{rc.cliente.nombre}</p>
-                    {entrada && <p className="text-zinc-500 text-xs">Entrada: {new Date(entrada.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})}</p>}
-                    {salida && <p className="text-zinc-500 text-xs">Salida: {new Date(salida.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})}</p>}
-                  </div>
-                  {salida && entrada && (
-                    <span className="text-zinc-500 text-xs flex-shrink-0">
-                      {Math.round((new Date(salida.createdAt).getTime() - new Date(entrada.createdAt).getTime()) / 60000)} min
-                    </span>
-                  )}
-                </div>
-              )
-            })}
+                )
+              })
+            })()}
           </div>
         </div>
       )}

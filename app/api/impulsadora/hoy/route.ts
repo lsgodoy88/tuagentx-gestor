@@ -11,15 +11,19 @@ export async function GET() {
   if (!session) return NextResponse.json(null)
   const user = session.user as any
 
-  const hoy = nowBogota()
-  const diaSemana = hoy.getDay()
+  // getDay() correcto en Bogotá sin doble offset
+  const diaSemana = new Date(new Date().toLocaleDateString('en-US', { timeZone: 'America/Bogota' })).getDay()
 
   const rutaFija = await prisma.rutaFija.findFirst({
     where: {
       diaSemana,
       empleados: { some: { empleadoId: user.id } }
     },
-    include: {
+    select: {
+      id: true,
+      nombre: true,
+      diaSemana: true,
+      priorizableHoy: true,
       clientes: {
         select: { id: true, clienteId: true, orden: true, metaVenta: true, cliente: { select: { id: true, nombre: true, nombreComercial: true, lat: true, lng: true, latTmp: true, lngTmp: true, ubicacionReal: true, direccion: true } } },
         orderBy: { orden: 'asc' }

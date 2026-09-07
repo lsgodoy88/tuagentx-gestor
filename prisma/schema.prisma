@@ -344,16 +344,17 @@ model RutaCliente {
 }
 
 model RutaFija {
-  id           String             @id @default(cuid())
-  nombre       String
-  diaSemana    Int
-  empresaId    String
-  subEmpresaId String?
-  createdAt    DateTime           @default(now())
-  empresa      Empresa            @relation(fields: [empresaId], references: [id])
-  subEmpresa   SubEmpresa?        @relation(fields: [subEmpresaId], references: [id])
-  clientes     RutaFijaCliente[]
-  empleados    RutaFijaEmpleado[]
+  id              String             @id @default(cuid())
+  nombre          String
+  diaSemana       Int
+  empresaId       String
+  subEmpresaId    String?
+  createdAt       DateTime           @default(now())
+  priorizableHoy  Boolean            @default(false)
+  empresa         Empresa            @relation(fields: [empresaId], references: [id])
+  subEmpresa      SubEmpresa?        @relation(fields: [subEmpresaId], references: [id])
+  clientes        RutaFijaCliente[]
+  empleados       RutaFijaEmpleado[]
 
   @@map("RutaFija")
 }

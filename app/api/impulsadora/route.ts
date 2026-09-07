@@ -109,6 +109,7 @@ export async function POST(req: NextRequest) {
       nombre,
       diaSemana,
       empresaId,
+      priorizableHoy: existente?.priorizableHoy ?? false,
       empleados: {
         create: (empleadoIds || []).map((id: string) => ({ id: crypto.randomUUID(), empleadoId: id }))
       },
