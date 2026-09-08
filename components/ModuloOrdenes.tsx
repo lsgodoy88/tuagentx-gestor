@@ -1265,14 +1265,18 @@ export default function ModuloOrdenes() {
                               { icon: '📋', label: 'Orden',      fecha: d.fechaOrden,    quien: null },
                               { icon: '🧾', label: 'Facturado',  fecha: d.fechaFactura,  quien: null },
                               { icon: '📦', label: 'Alistado',   fecha: d.alistadoEl,    quien: d.alistadoPor?.nombre || null },
-                              ...(!d.guiaTransporte && !d.repartidorId && d.estado === 'entregado' ? [] : [{ icon: d.guiaTransporte ? '🚛' : '🚚', label: d.guiaTransporte ? 'Transporte' : 'Despacho', fecha: despachadoEl, quien: [d.repartidor?.nombre, d.num_cajas > 0 && !d.firmaEntrega ? `${d.num_cajas} caja${d.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · '), firmaEntrega: d.firmaEntrega, observacion: d.observacion, alistadoPorNombre: d.alistadoPor?.nombre }]),
+                              ...(!d.guiaTransporte && !d.repartidorId && d.estado === 'entregado' ? [] : [{ icon: d.guiaTransporte ? '🚛' : '🚚', label: d.guiaTransporte ? 'Transporte' : 'Despacho', fecha: despachadoEl, quien: d.num_cajas > 0 ? `${d.num_cajas} caja${d.num_cajas > 1 ? 's' : ''}` : null, quienColor: 'white', esStepDespacho: true, firmaEntrega: d.firmaEntrega, observacion: d.observacion, alistadoPorNombre: d.alistadoPor?.nombre }]),
                               { icon: d.guiaTransporte ? (d.num_cajas ? (d.trRawEstados?.length ? iconoTransprensa((d.trRawEstados as any[]).at(-1)?.estado_nombre ?? '') : '🚛') : '⚪') : '✅', label: 'Entregado',  fecha: d.entregadoEl,   quien: null },
                             ].map((e: any, i) => (
                               <div key={i} className="flex items-center gap-2 py-1">
                                 <span className="text-base flex-shrink-0">{e.icon}</span>
                                 <span className="text-zinc-400 text-xs w-[60px] flex-shrink-0">{e.label}</span>
                                 <span className="text-white text-xs flex-shrink-0">{e.fecha ? formatFechaCorta(e.fecha) : '—'}</span>
-                                {e.quien && <span className="text-zinc-500 text-xs truncate flex-1">{e.quien}</span>}
+                                {e.quien && (
+                                  e.quienColor === 'white'
+                                    ? <span className="text-white text-xs ml-auto text-center flex-shrink-0 w-14">{e.quien}</span>
+                                    : <span className="text-zinc-500 text-xs truncate flex-1">{e.quien}</span>
+                                )}
                                 {e.firmaEntrega && (
                                   <button onClick={() => abrirGaleriaConUrls([e.firmaEntrega], null, true)}
                                     className="text-zinc-400 hover:text-white text-base flex-shrink-0">📸</button>
@@ -1472,7 +1476,7 @@ export default function ModuloOrdenes() {
                         { icon: '🧾', label: 'Facturado',  fecha: log.fechaFactura,  quien: 'Admin' },
                         { icon: '📦', label: 'Alistado',   fecha: log.alistadoEl,    quien: log.alistadoPor?.nombre || null,
                           accion: fotos2.length > 0 ? () => abrirGaleriaConUrls(fotos2, log.alistadoEl) : null },
-                        ...(log.modo === 'personal' ? [] : [{ icon: log.modo === 'repartidor' ? '🚚' : '🚛', label: log.modo === 'repartidor' ? 'Despacho' : 'Transporte', fecha: log.despachadoEl, quien: log.modo === 'repartidor' ? ([log.despachadoPorNombre || log.repartidor?.nombre, log.num_cajas > 0 ? `${log.num_cajas} caja${log.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · ') || null) : (log.num_cajas > 0 ? `${log.num_cajas} caja${log.num_cajas > 1 ? 's' : ''}` : null), esDespacho: true, observacion: log.observacion }]),
+                        ...(log.modo === 'personal' ? [] : [{ icon: log.modo === 'repartidor' ? '🚚' : '🚛', label: log.modo === 'repartidor' ? 'Despacho' : 'Transporte', fecha: log.despachadoEl, quien: log.num_cajas > 0 ? `${log.num_cajas} caja${log.num_cajas > 1 ? 's' : ''}` : null, quienColor: 'white', esDespacho: false, esStepDespacho: true, observacion: log.observacion }]),
                         ...(log.modo === 'transportadora' && log.trRawEstados?.length
                           ? [{
                               icon: iconoTransprensa((log.trRawEstados as any[]).at(-1)?.estado_nombre ?? ''),
@@ -1495,7 +1499,9 @@ export default function ModuloOrdenes() {
                           <span className="text-zinc-400 text-xs w-[60px] flex-shrink-0">{e.label}</span>
                           <span className="text-white text-xs flex-shrink-0">{e.fecha ? formatFechaCorta(e.fecha) : '—'}</span>
                           {e.quien && (
-                            e.esDespacho
+                            e.quienColor === 'white'
+                              ? <span className="text-white text-xs ml-auto text-center flex-shrink-0 w-14">{e.quien}</span>
+                              : e.esDespacho
                               ? <span className="text-xs truncate flex-1">
                                   {e.quien.split(' · ').map((part: string, pi: number) => (
                                     <span key={pi} className={pi === 0 ? 'text-zinc-500' : 'text-white'}>
