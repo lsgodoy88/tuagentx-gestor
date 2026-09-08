@@ -184,7 +184,10 @@ async function autoAsignarGuias(
       try {
         await (prisma as any).ordenDespacho.update({
           where: { id: orden.id },
-          data: { guiaTransporte: matched.numero_remesa },
+          data: {
+            guiaTransporte: matched.numero_remesa,
+            urlSeguimiento: `https://transprensa.com/Seguimiento/?remesa_codigo=${matched.numero_remesa}`,
+          },
         })
         asignadas++
         console.log(`[transprensa] auto-guía fac=${orden.numeroFactura} → ${matched.numero_remesa}`)
