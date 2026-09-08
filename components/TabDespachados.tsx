@@ -186,7 +186,9 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
       const icono = log.modo === 'transportadora'
         ? (log.trRawEstados?.length ? iconoTransprensa(last?.estado_nombre ?? '') : log.num_cajas === 0 ? '⚪' : '🚛')
         : log.entregadoEl ? '✅' : '🚛'
-      if (icono !== filtroIconEstado) return false
+      if (filtroIconEstado === 'BARCODE') {
+        if (log.modo !== 'transportadora' || !!log.guiaTransporte || !(log.num_cajas > 0)) return false
+      } else if (icono !== filtroIconEstado) return false
     }
     if (filtroEnvio !== 'todos') {
       const ciudadOrden = log.ciudad?.split('/').pop()?.trim().toLowerCase() ?? ''
@@ -281,7 +283,9 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
               const icono = log.modo === 'transportadora'
                 ? (log.trRawEstados?.length ? iconoTransprensa(last?.estado_nombre ?? '') : log.num_cajas === 0 ? '⚪' : '🚛')
                 : log.entregadoEl ? '✅' : '🚛'
-              if (icono !== filtroIconEstado) return false
+              if (filtroIconEstado === 'BARCODE') {
+                if (log.modo !== 'transportadora' || !!log.guiaTransporte || !(log.num_cajas > 0)) return false
+              } else if (icono !== filtroIconEstado) return false
             }
             return true
           })
@@ -342,8 +346,9 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
                       icon: log.modo === 'repartidor' ? '🚚' : '🚛',
                       label: log.modo === 'repartidor' ? 'Despacho' : 'Transporte',
                       fecha: log.despachadoEl,
-                      quien: [log.despachadoPorNombre || log.repartidor?.nombre, log.num_cajas > 0 ? `${log.num_cajas} caja${log.num_cajas > 1 ? 's' : ''}` : null].filter(Boolean).join(' · ') || null,
-                      esDespacho: true,
+                      quien: log.num_cajas > 0 ? `${log.num_cajas} caja${log.num_cajas > 1 ? 's' : ''}` : null,
+                      esDespacho: false,
+                      quienColor: 'white',
                       observacion: log.observacion,
                     }]),
                     ...(log.modo === 'transportadora' && log.trRawEstados?.length
@@ -377,7 +382,7 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
                                 </span>
                               ))}
                             </span>
-                          : <span className="text-zinc-500 text-xs truncate flex-1">{e.quien}</span>
+                          : <span className={`${e.quienColor === 'white' ? 'text-white' : 'text-zinc-500'} text-xs truncate flex-1`}>{e.quien}</span>
                       )}
                       {e.fotos?.length > 0 && (
                         <button onClick={ev => { ev.stopPropagation(); onGaleriaAbrir ? onGaleriaAbrir(e.fotos, log.alistadoEl) : null }}

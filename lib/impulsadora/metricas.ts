@@ -49,6 +49,7 @@ export function buildSemana(
       const pct = meta > 0 ? Math.round((montoMes / meta) * 100) : null
       const semaforo = pct === null ? 'gris' : pct >= 80 ? 'verde' : pct >= 50 ? 'amarillo' : 'rojo'
       const esPrimero = !yaVistos.has(rc.clienteId)
+      yaVistos.add(rc.clienteId)
       return {
         clienteId: rc.clienteId,
         nombre: rc.cliente.nombre,

@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
     configurado: true,
     activa: intg.activa,
     usuario_login: config?.usuario_login ?? '',
+    nit_remitente: config?.nit_remitente ?? '',
   })
 }
 
@@ -33,8 +34,18 @@ export async function POST(req: NextRequest) {
   const user = session.user as any
   if (user.role !== 'empresa') return NextResponse.json({ error: 'Solo empresa' }, { status: 403 })
 
-  const { usuario_login, usuario_password } = await req.json()
-  if (!usuario_login || !usuario_password)
+  const { usuario_login, usuario_password, nit_remitente } = await req.json()
+
+  // Si solo viene nit_remitente (sin password), hacer patch del config existente
+  if (!usuario_password && nit_remitente !== undefined && nit_remitente !== null) {
+    const existing = await (prisma as any).integracion.findFirst({ where: { empresaId: user.id, tipo: TIPO } })
+    if (!existing) return NextResponse.json({ error: 'Configura primero usuario y contraseña' }, { status: 400 })
+    const config = { ...(existing.config as any), nit_remitente: nit_remitente.trim() }
+    await (prisma as any).integracion.update({ where: { id: existing.id }, data: { config, updatedAt: new Date() } })
+    return NextResponse.json({ ok: true })
+  }
+
+  if ((!usuario_login || !usuario_password) && nit_remitente === undefined)
     return NextResponse.json({ error: 'usuario_login y usuario_password requeridos' }, { status: 400 })
 
   // Validar credenciales antes de guardar
@@ -52,7 +63,8 @@ export async function POST(req: NextRequest) {
   }
 
   const encPassword = encrypt(usuario_password, process.env.UPTRES_SECRET!)
-  const config = { usuario_login, usuario_password: encPassword }
+  const config: any = { usuario_login, usuario_password: encPassword }
+  if (nit_remitente) config.nit_remitente = nit_remitente.trim()
 
   const existing = await (prisma as any).integracion.findFirst({
     where: { empresaId: user.id, tipo: TIPO }

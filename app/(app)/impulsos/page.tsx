@@ -63,6 +63,7 @@ export default function RutasFijasPage() {
   const [diaSemana, setDiaSemana] = useState(1)
   const [cliSeleccionados, setCliSeleccionados] = useState<string[]>([]) // uids
   const uidToClienteIdRef = useRef<Record<string,string>>({})
+  const tabScrollRef = useRef<HTMLDivElement>(null)
   const [metas, setMetas] = useState<Record<string, number>>({})
   const [horas, setHoras] = useState<Record<string, string>>({})
   const [horaInputTmp, setHoraInputTmp] = useState<{ hora: string; minuto: string; meridiano: 'AM' | 'PM' }>({ hora: '', minuto: '', meridiano: 'AM' })
@@ -392,13 +393,24 @@ export default function RutasFijasPage() {
 
   return (
     <div className="space-y-3 max-w-4xl mx-auto">
-<div className="tab-pills rounded-xl p-1" style={{display:'flex',gap:4,overflowX:'auto',scrollbarWidth:'none'}}>
+<div className="tab-pills-wrap" data-fade="true">
+<div
+  ref={tabScrollRef}
+  className="tab-pills rounded-xl p-1"
+  style={{display:'flex',gap:4,overflowX:'auto',scrollbarWidth:'none'}}
+  onScroll={e => {
+    const el = e.currentTarget
+    const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 4
+    el.closest('[data-fade]')?.setAttribute('data-fade', atEnd ? 'false' : 'true')
+  }}
+>
           <button onClick={() => cambiarTab('reporte')} className={`py-2 px-4 text-sm font-semibold transition-colors text-center whitespace-nowrap ${tab === 'reporte' ? 'tab-active' : 'text-white hover:text-white'}`}>Reporte</button>
           <button onClick={() => cambiarTab('rutas')} className={`py-2 px-4 text-sm font-semibold transition-colors text-center whitespace-nowrap ${tab === 'rutas' ? 'tab-active' : 'text-white hover:text-white'}`}>Rutero</button>
           {esVendedor && <button onClick={() => cambiarTab('sugeridos')} className={`py-2 px-4 text-sm font-semibold transition-colors text-center whitespace-nowrap ${tab === 'sugeridos' ? 'tab-active' : 'text-white hover:text-white'}`}>Sugeridos</button>}
           {(esVendedor || esAdmin || esSupervisor) && <button onClick={() => cambiarTab('rotacion')} className={`py-2 px-4 text-sm font-semibold transition-colors text-center whitespace-nowrap ${tab === 'rotacion' ? 'tab-active' : 'text-white hover:text-white'}`}>Rotación</button>}
           {(esVendedor || esAdmin || esSupervisor) && <button onClick={() => cambiarTab('eventos')} className={`py-2 px-4 text-sm font-semibold transition-colors text-center whitespace-nowrap ${tab === 'eventos' ? 'tab-active' : 'text-white hover:text-white'}`}>Eventos</button>}
         </div>
+</div>
 
       {tab === 'rutas' && (
         <div className="space-y-4">

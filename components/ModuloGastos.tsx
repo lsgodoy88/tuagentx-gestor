@@ -445,6 +445,7 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
                 type="date"
                 value={borradorFechaDoc}
                 onChange={e => setBorradorFechaDoc(e.target.value)}
+                onFocus={e => { try { (e.currentTarget as HTMLInputElement).showPicker?.() } catch {} }}
                 className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500"
               />
             </div>

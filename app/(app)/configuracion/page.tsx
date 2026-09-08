@@ -110,6 +110,7 @@ export default function ConfiguracionPage() {
   const [msgDespachos, setMsgDespachos] = useState('')
   const [transprensaLogin, setTransprensaLogin] = useState('')
   const [transprensaPassword, setTransprensaPassword] = useState('')
+  const [transprensaNitRemitente, setTransprensaNitRemitente] = useState('')
   const [transprensaConfigurado, setTransprensaConfigurado] = useState(false)
   const [savingTransprensa, setSavingTransprensa] = useState(false)
   const [msgTransprensa, setMsgTransprensa] = useState('')
@@ -234,7 +235,7 @@ export default function ConfiguracionPage() {
 
   useEffect(() => {
     fetch('/api/empresa/despachos').then(r=>r.json()).then(d=>{ setTransportadora(d.transportadora||''); setUrlBase(d.urlBase||'') }).catch(()=>{})
-    fetch('/api/integracion/transprensa').then(r=>r.json()).then(d=>{ if(d.configurado){ setTransprensaConfigurado(true); setTransprensaLogin(d.usuario_login||'') } }).catch(()=>{})
+    fetch('/api/integracion/transprensa').then(r=>r.json()).then(d=>{ if(d.configurado){ setTransprensaConfigurado(true); setTransprensaLogin(d.usuario_login||''); setTransprensaNitRemitente(d.nit_remitente||'') } }).catch(()=>{})
   }, [])
 
   useEffect(() => {
@@ -330,9 +331,18 @@ export default function ConfiguracionPage() {
   }
 
   async function guardarTransprensa() {
+    // Si no hay contraseña pero hay NIT → patch solo NIT
+    if (!transprensaPassword && transprensaConfigurado) {
+      setSavingTransprensa(true)
+      const r = await fetch('/api/integracion/transprensa', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ nit_remitente: transprensaNitRemitente }) }).then(r=>r.json()).catch(()=>({ok:false}))
+      setSavingTransprensa(false)
+      setMsgTransprensa(r.ok ? '✅ Guardado' : r.error || 'Error al guardar')
+      setTimeout(() => setMsgTransprensa(''), 3000)
+      return
+    }
     if (!transprensaLogin || !transprensaPassword) { setMsgTransprensa('Usuario y contraseña requeridos'); return }
     setSavingTransprensa(true)
-    const r = await fetch('/api/integracion/transprensa', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ usuario_login: transprensaLogin, usuario_password: transprensaPassword }) })
+    const r = await fetch('/api/integracion/transprensa', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({ usuario_login: transprensaLogin, usuario_password: transprensaPassword, nit_remitente: transprensaNitRemitente }) })
     setSavingTransprensa(false)
     if (r.ok) { setTransprensaConfigurado(true); setTransprensaPassword(''); setMsgTransprensa('✅ Guardado') }
     else setMsgTransprensa('Error al guardar')
@@ -889,6 +899,12 @@ export default function ConfiguracionPage() {
                 </div>
               )}
               <div>
+                <label className="text-zinc-400 text-xs mb-1 block">NIT Remitente <span className="text-zinc-600">(match automático de guías)</span></label>
+                <input value={transprensaNitRemitente} onChange={e => setTransprensaNitRemitente(e.target.value)}
+                  placeholder="NIT del remitente"
+                  className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 text-white text-sm focus:outline-none focus:border-blue-500" />
+              </div>
+              <div>
                 <label className="text-zinc-400 text-xs mb-1 block">Usuario</label>
                 <input value={transprensaLogin} onChange={e => setTransprensaLogin(e.target.value)}
                   placeholder="usuario_login"
@@ -902,7 +918,10 @@ export default function ConfiguracionPage() {
                     className="w-full bg-zinc-900 border border-zinc-700 rounded-xl px-3 py-2 pr-10 text-white text-sm focus:outline-none focus:border-blue-500" />
                   <button type="button" onClick={() => setShowTransprensaPass(p => !p)}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-white text-xs">
-                    {showTransprensaPass ? '🙈' : '👁️'}
+                    {showTransprensaPass
+                      ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                      : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    }
                   </button>
                 </div>
               </div>

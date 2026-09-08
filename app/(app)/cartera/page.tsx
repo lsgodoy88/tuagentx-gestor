@@ -529,7 +529,7 @@ export default function CarteraPage() {
     { id: 'pagos', label: 'Pagos' },
     { id: 'clientes', label: 'Cartera' },
     { id: 'cartera', label: 'Reportes' },
-    ...((isAdmin || esVendedor) ? [{ id: 'comisiones', label: 'Bonus' }] : []),
+    ...((isAdmin || esVendedor) ? [{ id: 'comisiones', label: 'Comisión' }] : []),
   ] as const
 
 

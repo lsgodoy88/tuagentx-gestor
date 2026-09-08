@@ -169,13 +169,14 @@ const FILTRO_ESTADOS_TRAZ = [
   { ic: '🚛', lbl: 'En tránsito' },
   { ic: '⚪', lbl: 'Sin cajas' },
   { ic: '✅', lbl: 'Entregado manual' },
+  { ic: 'BARCODE', lbl: 'Sin guía' },
 ]
 function FiltroIconEstadoTraz({ value, onChange, open, setOpen }: { value: string, onChange: (v: string) => void, open: boolean, setOpen: (v: boolean) => void }) {
   return (
     <div style={{position:'relative'}}>
       <button onClick={() => setOpen(!open)}
         style={{width:28,height:28,borderRadius:6,border:value?'1px solid #ef4444':'1px solid #1e2a3d',background:'#111827',cursor:'pointer',fontSize:14,display:'flex',alignItems:'center',justifyContent:'center'}}>
-        {value || '🟢'}
+        {value === 'BARCODE' ? <svg viewBox="0 0 24 24" style={{width:14,height:14,fill:'currentColor'}}><rect x="1" y="4" width="2" height="16"/><rect x="4" y="4" width="1" height="16"/><rect x="6" y="4" width="2" height="16"/><rect x="9" y="4" width="1" height="16"/><rect x="11" y="4" width="3" height="16"/><rect x="15" y="4" width="1" height="16"/><rect x="17" y="4" width="2" height="16"/><rect x="20" y="4" width="1" height="16"/><rect x="22" y="4" width="1" height="16"/></svg> : value || '🟢'}
       </button>
       {open && <div style={{position:'fixed',inset:0,zIndex:998}} onClick={() => setOpen(false)} />}
       {open && (
@@ -183,7 +184,10 @@ function FiltroIconEstadoTraz({ value, onChange, open, setOpen }: { value: strin
           {FILTRO_ESTADOS_TRAZ.map(({ ic, lbl }) => (
             <button key={ic} onClick={() => { onChange(ic); setOpen(false) }}
               style={{display:'flex',alignItems:'center',gap:8,width:'100%',padding:'8px 12px',background:value===ic?'rgba(59,130,246,0.15)':'none',border:'none',borderBottom:'1px solid #1a2235',color:ic?'white':'#9ca3af',fontSize:13,cursor:'pointer',textAlign:'left',whiteSpace:'nowrap'}}>
-              <span style={{fontSize:15}}>{ic || '✕'}</span> {lbl}
+              {ic === 'BARCODE'
+                ? <svg viewBox="0 0 24 24" style={{width:15,height:15,fill:'currentColor',flexShrink:0}}><rect x="1" y="4" width="2" height="16"/><rect x="4" y="4" width="1" height="16"/><rect x="6" y="4" width="2" height="16"/><rect x="9" y="4" width="1" height="16"/><rect x="11" y="4" width="3" height="16"/><rect x="15" y="4" width="1" height="16"/><rect x="17" y="4" width="2" height="16"/><rect x="20" y="4" width="1" height="16"/><rect x="22" y="4" width="1" height="16"/></svg>
+                : <span style={{fontSize:15}}>{ic || '✕'}</span>
+              } {lbl}
             </button>
           ))}
         </div>
