@@ -219,7 +219,21 @@ async function syncEmpresa(empresaId: string): Promise<{ actualizadas: number; e
     throw e
   }
 
-  // Órdenes en_transito con guiaTransporte para esta empresa
+  let actualizadas = 0, entregadas = 0, errores = 0
+
+  // Auto-asignar guías a órdenes sin guía si hay nit_remitente configurado — PRIMERO
+  let asignadas = 0
+  if (config.nit_remitente) {
+    try {
+      const r = await autoAsignarGuias(empresaId, token, config.nit_remitente)
+      asignadas = r.asignadas
+      if (asignadas > 0) console.log(`[transprensa] ${empresaId}: ${asignadas} guías auto-asignadas`)
+    } catch (e: any) {
+      console.error(`[transprensa] error auto-asignando guías ${empresaId}:`, e.message)
+    }
+  }
+
+  // Órdenes en_transito con guiaTransporte — consultado DESPUÉS de auto-asignación
   const ordenes = await (prisma as any).ordenDespacho.findMany({
     where: {
       empresaId,
@@ -238,20 +252,6 @@ async function syncEmpresa(empresaId: string): Promise<{ actualizadas: number; e
     },
     select: { id: true, guiaTransporte: true, numeroFactura: true }
   })
-
-  let actualizadas = 0, entregadas = 0, errores = 0
-
-  // Auto-asignar guías a órdenes sin guía si hay nit_remitente configurado
-  let asignadas = 0
-  if (config.nit_remitente) {
-    try {
-      const r = await autoAsignarGuias(empresaId, token, config.nit_remitente)
-      asignadas = r.asignadas
-      if (asignadas > 0) console.log(`[transprensa] ${empresaId}: ${asignadas} guías auto-asignadas`)
-    } catch (e: any) {
-      console.error(`[transprensa] error auto-asignando guías ${empresaId}:`, e.message)
-    }
-  }
 
   for (const orden of ordenes) {
     try {
