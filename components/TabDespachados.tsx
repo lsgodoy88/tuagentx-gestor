@@ -348,6 +348,7 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
                       fecha: log.despachadoEl,
                       quien: log.num_cajas > 0 ? `${log.num_cajas} caja${log.num_cajas > 1 ? 's' : ''}` : null,
                       esDespacho: false,
+                      esStepDespacho: true,
                       quienColor: 'white',
                       observacion: log.observacion,
                     }]),
@@ -382,7 +383,9 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
                                 </span>
                               ))}
                             </span>
-                          : <span className={`${e.quienColor === 'white' ? 'text-white' : 'text-zinc-500'} text-xs truncate flex-1`}>{e.quien}</span>
+                          : e.quienColor === 'white'
+                          ? <span className="text-white text-xs ml-auto text-center flex-shrink-0 w-14">{e.quien}</span>
+                          : <span className="text-zinc-500 text-xs truncate flex-1">{e.quien}</span>
                       )}
                       {e.fotos?.length > 0 && (
                         <button onClick={ev => { ev.stopPropagation(); onGaleriaAbrir ? onGaleriaAbrir(e.fotos, log.alistadoEl) : null }}
@@ -401,10 +404,10 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
                           className={`text-base flex-shrink-0 ${obsPopup === log.id ? 'text-white' : 'text-zinc-400 hover:text-white'}`}>✍🏼</button>
                       )}
                       {/* Barcode/Guía — solo en etapa despacho */}
-                      {e.esDespacho && log.modo === 'transportadora' && (
+                      {e.esStepDespacho && log.modo === 'transportadora' && (
                         urlSeguimiento ? (
                           <button onClick={() => window.open(urlSeguimiento, '_blank')}
-                            className="flex-shrink-0 text-lg">🔗</button>
+                            className="flex-shrink-0 text-lg">📍</button>
                         ) : (esAdmin || esBodega) ? (
                           <button onClick={ev => { ev.stopPropagation(); setGuiaPopup(guiaPopup === log.id ? null : log.id); setGuiaEditando(null); setEditGuia(p => ({ ...p, [log.id]: log.guiaTransporte ?? '' })) }}
                             className="flex-shrink-0 relative text-zinc-500 hover:text-white"

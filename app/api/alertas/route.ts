@@ -138,7 +138,28 @@ async function detectarAlertas(empresaId: string, rol: string): Promise<AlertaDe
     }
   } catch {}
 
-  // 6. Inventario — pendiente implementación
+  // 6. Órdenes transporte con cajas sin guía hace más de 5 días
+  try {
+    const rows = await prisma.$queryRaw<[{ count: bigint }]>`
+      SELECT COUNT(*)::bigint as count
+      FROM ${Prisma.raw(DB_SCHEMA)}."OrdenDespacho"
+      WHERE "empresaId" = ${empresaId}
+        AND modo_despacho IN ('transportadora', 'transporte')
+        AND num_cajas > 0
+        AND "guiaTransporte" IS NULL
+        AND estado IN ('en_transito', 'despachado', 'alistado')
+        AND "createdAt" <= NOW() - INTERVAL '5 days'`
+    const count = Number(rows[0]?.count ?? 0)
+    if (count > 0) {
+      alertas.push({
+        tipo: 'ordenes_sin_guia', icono: '🚛',
+        mensaje: `${count} orden${count > 1 ? 'es' : ''} sin guía de transporte`,
+        url: '/trazabilidad', severidad: 'advertencia',
+      })
+    }
+  } catch {}
+
+  // 7. Inventario — pendiente implementación
 
   return alertas
 }
@@ -190,8 +211,8 @@ export async function GET(req: NextRequest) {
     WHERE empresa_id = ${empresaId} AND resuelta = FALSE
     ORDER BY created_at ASC`
 
-  const ICONO: Record<string, string> = { storage: '☁️', plan: '📅', inventario: '📦', transprensa_conexion: '🚛', pagos_revisar: '💵', novedad_transprensa: '🔴', ordenes_sin_despachar: '🚚', billing_pendiente: '💳', billing_mora: '💳' }
-  const URL_MAP: Record<string, string> = { storage: '/configuracion/almacenamiento', plan: '/configuracion', inventario: '/bodega', transprensa_conexion: '/configuracion' }
+  const ICONO: Record<string, string> = { storage: '☁️', plan: '📅', inventario: '📦', transprensa_conexion: '🚛', pagos_revisar: '💵', novedad_transprensa: '🔴', ordenes_sin_despachar: '🚚', ordenes_sin_guia: '🚛', billing_pendiente: '💳', billing_mora: '💳' }
+  const URL_MAP: Record<string, string> = { storage: '/configuracion/almacenamiento', plan: '/configuracion', inventario: '/bodega', transprensa_conexion: '/configuracion', ordenes_sin_guia: '/trazabilidad' }
 
   const alertas = rows.map((r: any) => ({
     ...r,
