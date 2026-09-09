@@ -50,7 +50,7 @@ describe('runSyncTransprensa', () => {
   it('retorna 0 empresas si no hay integraciones activas', async () => {
     p.integracion = { findMany: vi.fn().mockResolvedValue([]) }
     const r = await runSyncTransprensa()
-    expect(r).toEqual({ ok: true, empresas: 0, actualizadas: 0, entregadas: 0, errores: 0 })
+    expect(r).toEqual({ ok: true, empresas: 0, actualizadas: 0, entregadas: 0, errores: 0, asignadas: 0 })
   })
 
   it('marca orden como entregada cuando Transprensa retorna ENTREGADO', async () => {

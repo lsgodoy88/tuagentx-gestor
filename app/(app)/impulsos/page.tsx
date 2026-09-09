@@ -3,7 +3,7 @@ import dynamic from 'next/dynamic'
 import TabsNav from '@/components/TabsNav'
 import SelectorMes from '@/components/SelectorMes'
 const CumplimientoTabla = dynamic(() => import('@/components/CumplimientoTabla'), { ssr: false })
-import { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import { checkPermiso } from '@/lib/permisos'
@@ -88,6 +88,9 @@ export default function RutasFijasPage() {
   const [loading, setLoading] = useState(false)
   const [diasAbiertosEmp, setDiasAbiertosEmp] = useState<Record<string, Set<number>>>({})
   const [tab, setTab] = useState<'rutas'|'reporte'|'sugeridos'|'rotacion'|'eventos'>('reporte')
+  const empleadosModificadosRef = useRef<Set<string>>(new Set())
+  const empleadosParaRefreshRef = useRef<string[]>([])
+  const [reporteRefreshToken, setReporteRefreshToken] = useState(0)
   const [modalVerRuta, setModalVerRuta] = useState<{emp: any, dia: number, ruta: any}|null>(null)
   const [bottomSheet, setBottomSheet] = useState<{rc: any, rutaId: string}|null>(null)
   const [syncVentas, setSyncVentas] = useState<{usadosHoy:number,restantes:number,ultimoSync:string|null,puedeSync:boolean}|null>(null)
@@ -350,6 +353,7 @@ export default function RutasFijasPage() {
     uidToClienteIdRef.current = {}
     setBuscarCli('')
     setMetas({})
+    if (empSeleccionado?.id) empleadosModificadosRef.current.add(empSeleccionado.id)
     loadData()
   }
   async function eliminarDia(rutaId: string) {
@@ -389,7 +393,16 @@ export default function RutasFijasPage() {
     (!esImpulsadora || e.id === user?.id) &&
     (!esVendedor || e.vendedorId === user?.id)
   )
-  function cambiarTab(t: typeof tab) { if (t !== tab) setTab(t) }
+  function cambiarTab(t: typeof tab) {
+    if (t !== tab) {
+      if (t === 'reporte' && empleadosModificadosRef.current.size > 0) {
+        empleadosParaRefreshRef.current = [...empleadosModificadosRef.current]
+        empleadosModificadosRef.current = new Set()
+        setReporteRefreshToken(prev => prev + 1)
+      }
+      setTab(t)
+    }
+  }
 
   return (
     <div className="space-y-3 max-w-4xl mx-auto">
@@ -1032,7 +1045,7 @@ export default function RutasFijasPage() {
         </div>
       )}
 
-      {tab === 'reporte' && <ReporteImpulsoTab />}
+      {tab === 'reporte' && <ReporteImpulsoTab refreshToken={reporteRefreshToken} empleadosParaRefresh={empleadosParaRefreshRef} />}
       {tab === 'sugeridos' && <GestionInventarioTab />}
       {tab === 'rotacion' && <RotacionTab />}
       {tab === 'eventos' && <EventosTab />}
@@ -1040,7 +1053,7 @@ export default function RutasFijasPage() {
   )
 }
 
-function ReporteImpulsoTab() {
+function ReporteImpulsoTab({ refreshToken = 0, empleadosParaRefresh }: { refreshToken?: number; empleadosParaRefresh?: React.MutableRefObject<string[]> }) {
   const mesActual = new Date().toLocaleDateString('en-CA',{timeZone:'America/Bogota'}).slice(0,7)
   const [mesDesde, setMesDesde] = useState(mesActual)
   const [mesHasta, setMesHasta] = useState(mesActual)
@@ -1158,15 +1171,16 @@ function ReporteImpulsoTab() {
         </div>
       </div>
 
-      <ReporteImpulsoTabla mes={mesDesde} />
+      <ReporteImpulsoTabla mes={mesDesde} refreshToken={refreshToken} empleadosParaRefresh={empleadosParaRefresh} />
     </div>
   )
 }
 
-function ReporteImpulsoTabla({ mes }: { mes: string }) {
+function ReporteImpulsoTabla({ mes, refreshToken = 0, empleadosParaRefresh }: { mes: string; refreshToken?: number; empleadosParaRefresh?: React.MutableRefObject<string[]> }) {
   const [datos, setDatos] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [tabDia, setTabDia] = useState<Record<string, number>>({})
+  const prevRefreshToken = useRef(0)
 
   useEffect(() => {
     setLoading(true)
@@ -1174,6 +1188,27 @@ function ReporteImpulsoTabla({ mes }: { mes: string }) {
       .then(r => r.json())
       .then(d => { setDatos(d); setLoading(false) })
   }, [mes])
+
+  // Refresh parcial: solo impulsadoras modificadas
+  useEffect(() => {
+    if (refreshToken === 0 || refreshToken === prevRefreshToken.current) return
+    prevRefreshToken.current = refreshToken
+    const ids = empleadosParaRefresh?.current ?? []
+    if (ids.length === 0) return
+    Promise.all(
+      ids.map(id =>
+        fetch('/api/impulso/pdf?fecha=' + mes + '-01&empleadoId=' + id).then(r => r.json())
+      )
+    ).then(resultados => {
+      setDatos((prev: any) => {
+        if (!prev) return prev
+        const impActualizadas = resultados.flatMap((r: any) => r.impulsadoras || [])
+        const impMap = new Map((prev.impulsadoras || []).map((i: any) => [i.id, i]))
+        impActualizadas.forEach((imp: any) => impMap.set(imp.id, imp))
+        return { ...prev, impulsadoras: [...impMap.values()] }
+      })
+    })
+  }, [refreshToken])
 
   const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
   const pctColor = (pct: number | null): React.CSSProperties =>

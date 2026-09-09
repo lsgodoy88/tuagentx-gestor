@@ -82,6 +82,12 @@ export async function GET(req: NextRequest) {
   if (user.role === 'vendedor') whereImpExtra = { vendedorId: user.id }
   if (user.role === 'impulsadora') whereImpExtra = { id: user.id }
 
+  // Filtro por empleadoId específico (para refresh parcial post-edición rutero)
+  const empleadoId = searchParams.get('empleadoId')
+  if (empleadoId && ['empresa', 'supervisor', 'vendedor'].includes(user.role)) {
+    whereImpExtra = { ...whereImpExtra, id: empleadoId }
+  }
+
   const data = await calcularImpulsadorasMes(empresaId, fecha, whereImpExtra)
   return NextResponse.json({ ...data, snapshot: false })
 }

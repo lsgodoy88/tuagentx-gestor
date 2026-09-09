@@ -17,6 +17,7 @@ export function useOrdenesData(origenForzado: string) {
   const [cursores, setCursores] = useState<Record<string, string | null>>({ pendiente: null, alistado: null, despachado: null })
   const [hayMasPorTab, setHayMasPorTab] = useState<Record<string, boolean>>({ pendiente: false, alistado: false, despachado: false })
   const [cargandoMasTab, setCargandoMasTab] = useState(false)
+  const [refrescando, setRefrescando] = useState(false)
   const [ciudadLocal, setCiudadLocal] = useState<string | null>(null)
   const [bodegaPuedeEnviar, setBodegaPuedeEnviar] = useState(false)
   const [ultimaSync, setUltimaSync] = useState<string | null>(null)
@@ -53,7 +54,9 @@ export function useOrdenesData(origenForzado: string) {
   }
 
   async function cargarDatos(origen: string, busqueda = '') {
-    setCargando(true)
+    const hayCache = !!getOrdenesCache(origen)
+    if (!hayCache) setCargando(true)
+    else setRefrescando(true)
     clearOrdenesCache(origen)
     try {
       await Promise.all([
@@ -67,6 +70,7 @@ export function useOrdenesData(origenForzado: string) {
       })
     } finally {
       setCargando(false)
+      setRefrescando(false)
     }
   }
 
@@ -103,6 +107,7 @@ export function useOrdenesData(origenForzado: string) {
     cargando,
     cursores, hayMasPorTab, cargandoMasTab,
     ciudadLocal, bodegaPuedeEnviar, ultimaSync,
+    refrescando,
     cargarTab, cargarDatos, cargarMasTab,
     actualizarOrden, moverOrdenEntreTab,
     limpiarCache: () => clearOrdenesCache(origenForzado),

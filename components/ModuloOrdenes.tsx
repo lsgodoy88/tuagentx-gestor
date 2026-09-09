@@ -148,6 +148,7 @@ export default function ModuloOrdenes() {
   const {
     despachosPorTab, setDespachosPorTab,
     cargando,
+    refrescando,
     cursores, hayMasPorTab, cargandoMasTab,
     ciudadLocal, bodegaPuedeEnviar, ultimaSync,
     cargarDatos: cargarDatosHook,
@@ -248,6 +249,7 @@ export default function ModuloOrdenes() {
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const trackRef = useRef<MediaStreamTrack | null>(null)
   const enviandoFotosRef = useRef(false)
+  const cargadoInicialRef = useRef(false)
 
   const esAdmin = user?.role === 'empresa' || user?.role === 'supervisor'
 
@@ -308,6 +310,8 @@ export default function ModuloOrdenes() {
     if (status === 'unauthenticated') { router.push('/login'); return }
     if (status !== 'authenticated') return
     if (!['empresa', 'supervisor', 'bodega'].includes(user?.role)) { router.push('/inicio'); return }
+    if (cargadoInicialRef.current) return
+    cargadoInicialRef.current = true
     if (origenForzado && origenForzado !== 'propia') {
       // Viene de /bodega/[slug] — usar empresa forzada, no cargar selector
       cargarDatos(origenForzado)
@@ -337,7 +341,6 @@ export default function ModuloOrdenes() {
         }
       })
       .catch(() => {})
-    limpiarCache()
   }, [status, origenForzado])
 
   async function cargarTab(tab: 'pendiente'|'alistado'|'despachado', origen?: string, reset = false) {
@@ -946,11 +949,18 @@ export default function ModuloOrdenes() {
       </div>
 
 
-      {despachosVisibles.length === 0 && busquedaRemota.length === 0 && tabActivo !== 'despachado' ? (
+      {refrescando && (
+        <div className="space-y-2 animate-pulse">
+          {[...Array(3)].map((_,i) => (
+            <div key={i} className="h-20 bg-zinc-800/60 rounded-2xl" />
+          ))}
+        </div>
+      )}
+      {!refrescando && despachosVisibles.length === 0 && busquedaRemota.length === 0 && tabActivo !== 'despachado' ? (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-10 text-center">
           {buscandoRemoto ? <p className="text-zinc-300 text-sm">Buscando...</p> : <p className="text-zinc-300 text-sm">Sin órdenes en el período configurado</p>}
         </div>
-      ) : tabActivo === 'despachado' ? null : (() => {
+      ) : tabActivo === 'despachado' ? null : refrescando ? null : (() => {
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
 

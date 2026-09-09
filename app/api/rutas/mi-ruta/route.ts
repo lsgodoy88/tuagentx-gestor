@@ -172,19 +172,12 @@ export async function GET(req: Request) {
     new Date(r.fecha) < pasadoInicio
   )
 
-  // Consolidar clientes de todas las rutas hoy/mañana
-  // Ordenar: rezagos primero, luego por orden
+  // Consolidar clientes de todas las rutas hoy/mañana (sin orden aún — se ordena post-enrich)
   const clientesHoyRaw = rutasHoy
     .flatMap((r: any) => r.clientes.map((rc: any) => ({ ...rc, _rutaId: r.id, _rutaIniciada: r.iniciada })))
-    .sort((a: any, b: any) => {
-      if (a.rezago && !b.rezago) return -1
-      if (!a.rezago && b.rezago) return 1
-      return a.orden - b.orden
-    })
 
   const clientesMañanaRaw = rutasMañana
     .flatMap((r: any) => r.clientes.map((rc: any) => ({ ...rc, _rutaId: r.id })))
-    .sort((a: any, b: any) => a.orden - b.orden)
 
   // Iniciada = true si alguna ruta hoy está iniciada y no cerrada
   const iniciada = rutasHoy.some((r: any) => r.iniciada && !r.cerrada)
@@ -194,10 +187,19 @@ export async function GET(req: Request) {
 
   const rutaPrincipal = rutaAbierta ?? rutasHoy[0] ?? null
 
-  const [clientesHoy, clientesMañana] = await Promise.all([
+  const [clientesHoyEnriched, clientesMañana] = await Promise.all([
     enrichRutaClientes(clientesHoyRaw),
     enrichRutaClientes(clientesMañanaRaw)
   ])
+
+  // Ordenar post-enrich: rezagos primero, luego por fecha de creación de orden ASC
+  const clientesHoy = clientesHoyEnriched.sort((a: any, b: any) => {
+    if (a.rezago && !b.rezago) return -1
+    if (!a.rezago && b.rezago) return 1
+    const fechaA = a.ordenCreadaEl ? new Date(a.ordenCreadaEl).getTime() : 0
+    const fechaB = b.ordenCreadaEl ? new Date(b.ordenCreadaEl).getTime() : 0
+    return fechaA - fechaB
+  })
 
   // Geocodificación lazy en background
   if (user.role === 'entregas' && clientesHoyRaw.length > 0) {

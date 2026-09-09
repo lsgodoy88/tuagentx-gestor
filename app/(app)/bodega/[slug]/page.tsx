@@ -32,7 +32,8 @@ export default function BodegaEmpresaPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!user) return
+    if (!user?.id) return
+    if (empresa) return // ya cargado — evita doble fetch por re-render de useSession
     if (!['empresa', 'supervisor', 'bodega'].includes(user.role)) {
       router.replace('/inicio'); return
     }
@@ -49,7 +50,7 @@ export default function BodegaEmpresaPage() {
         setLoading(false)
       })
       .catch(() => setLoading(false))
-  }, [slug, user])
+  }, [slug, user?.id])
 
   if (loading || !empresa) return <Cargando />
 
