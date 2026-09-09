@@ -86,6 +86,7 @@ export default function ModalAdjuntarEgreso({
   }, [])
 
   const [subiendo, setSubiendo] = useState(false)
+  const [hasChanges, setHasChanges] = useState(false)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
 
@@ -110,6 +111,9 @@ export default function ModalAdjuntarEgreso({
   const [abonoKey, setAbonoKey] = useState('')
   const [guardandoAbono, setGuardandoAbono] = useState(false)
   const [errorAbono, setErrorAbono] = useState('')
+  const [eliminandoAbono, setEliminandoAbono] = useState<string | null>(null)
+  const [modoEditarAbonos, setModoEditarAbonos] = useState(false)
+  const [abonoSeleccionado, setAbonoSeleccionado] = useState<string | null>(null)
   const fileAbonoRef = useRef<HTMLInputElement>(null)
 
   // Cargar abonos al abrir (si hay egresoId)
@@ -259,6 +263,7 @@ export default function ModalAdjuntarEgreso({
         if (!res.ok) throw new Error(await res.text())
       }
 
+      setHasChanges(false)
       onGuardado({
         evidenciaKey,
         concepto: body.concepto,
@@ -301,7 +306,11 @@ export default function ModalAdjuntarEgreso({
   }
 
   async function confirmarAbono() {
-    if (!abonoValor || !egresoId) return
+    if (!abonoValor || !abonoFecha || !abonoMedio || !egresoId) return
+    const valorAbono = parseFloat(abonoValor)
+    const tieneComprobante = !!abonoKey
+    if (!tieneComprobante && saldo > 0 && valorAbono > saldo) { setErrorAbono('Efectivo no permite sobrepago'); return }
+    if (tieneComprobante && saldo > 0 && valorAbono > saldo + 1000) { setErrorAbono('Con comprobante el máximo es saldo + $1.000'); return }
     setGuardandoAbono(true); setErrorAbono('')
     try {
       const res = await fetch('/api/egresos/abono', {
@@ -317,10 +326,36 @@ export default function ModalAdjuntarEgreso({
     finally { setGuardandoAbono(false) }
   }
 
+  async function eliminarAbono(abonoId: string) {
+    if (!egresoId) return
+    setEliminandoAbono(abonoId)
+    try {
+      const res = await fetch('/api/egresos/abono', {
+        method: 'DELETE', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ abonoId, egresoId }),
+      })
+      const d = await res.json()
+      if (!res.ok) throw new Error(d.error)
+      setAbonos(prev => prev.filter(a => a.id !== abonoId))
+      if (onAbonoGuardado && d.abonoPago !== undefined) onAbonoGuardado(d.abonoPago, d.saldo)
+    } catch { setErrorAbono('Error al eliminar abono') }
+    finally { setEliminandoAbono(null) }
+  }
+
+  function handleClose() {
+    if (hasChanges && !window.confirm('¿Salir sin guardar los cambios?')) return
+    onClose()
+  }
+
   async function verUrl(key: string) {
     const r = await fetch(`/api/egresos/url?key=${encodeURIComponent(key)}`)
     const d = await r.json()
     if (d.url) window.open(d.url, '_blank')
+  }
+
+  const abrevMedio = (m: string) => {
+    const map: Record<string,string> = { TRANSFERENCIA:'Transf.', DAVIPLATA:'Davip.', EFECTIVO:'Efect.', BANCO:'Banco', NEQUI:'Nequi', PSE:'PSE' }
+    return map[m] ?? m
   }
 
   const fmtF = (f: string) => { if (!f) return ''; return new Date(f.slice(0,10) + 'T12:00:00').toLocaleDateString('es-CO', { day:'2-digit', month:'2-digit', year:'2-digit' }) }
@@ -334,32 +369,29 @@ export default function ModalAdjuntarEgreso({
   const saldo = Math.max(0, valorNum - retencionNum - descuentoNum - totalAbonos)
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4"
-      style={{ background: 'rgba(0,0,0,0.65)', overscrollBehavior: 'contain' }} onClick={onClose}>
-      <div
-          onClick={e => e.stopPropagation()}
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-2"
+      style={{ background: '#0f1729' }} onClick={handleClose}>
+      <div style={{ width: '100%', maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+        <div
           className={`bb-host${subiendo ? ' bb-active' : ''}`}
-          style={{
-            position: 'relative',
-            width: '100%',
-            maxWidth: 384,
-            borderRadius: 22,
-            padding: subiendo ? 2 : 0,
-            background: subiendo ? undefined : 'transparent',
-            overflow: 'hidden',
-          }}>
+          style={{ position: 'relative', borderRadius: 22, padding: subiendo ? 2 : 0 }}>
         <BorderBeam active={subiendo} borderRadius={22} duration={4} />
         <div
           className="w-full p-5 space-y-4 overflow-y-auto"
-          style={{ background: '#141c2e', border: subiendo ? 'none' : '1px solid #1e2a3d', borderRadius: 20, maxHeight: '92vh', position: 'relative', zIndex: 1, overscrollBehavior: 'contain' }}>
+          style={{ background: '#0f172a', border: subiendo ? 'none' : '1px solid rgba(59,130,246,0.50)', borderRadius: 22, maxHeight: '90vh', position: 'relative', zIndex: 1, overscrollBehavior: 'contain', overflowY: 'auto', overflowX: 'hidden' }}>
 
-        <div className="flex items-start justify-between mb-1">
+        {/* Header */}
+        <div className="flex items-center justify-between pb-3 mb-1" style={{borderBottom:'1px solid rgba(59,130,246,0.30)'}}>
           <div>
             <h3 className="text-white font-bold text-base">{initialConcepto || 'Egreso'}</h3>
             {initialFechaReg && <p className="text-zinc-500 text-xs mt-0.5">{fmtF(initialFechaReg)}</p>}
           </div>
-          <button onClick={onClose} style={{background:'none',border:'none',cursor:'pointer',color:'#6b7280',fontSize:20,lineHeight:1,padding:'0 0 0 8px',flexShrink:0}} title="Cerrar">✕</button>
+          <button onClick={handleClose} style={{background:'none',border:'none',cursor:'pointer',color:'#6b7280',fontSize:20,lineHeight:1,padding:'0 0 0 8px',flexShrink:0}} title="Cerrar">✕</button>
         </div>
+
+        {/* ── SECCIÓN FACTURA/EGRESO ── */}
+        <div className="rounded-2xl p-4 space-y-3" style={{background:'rgba(82,82,91,0.40)',border:'1px solid rgba(59,130,246,0.25)'}}>
+          <p className="text-zinc-300 text-xs font-bold uppercase tracking-wide mb-1">📄 Factura / Egreso</p>
 
         {/* Zona adjunto */}
         <input ref={fileInputRef} type="file" accept="image/*,application/pdf"
@@ -374,11 +406,11 @@ export default function ModalAdjuntarEgreso({
         ) : (
           <div
             className="flex items-center justify-center rounded-xl border-2 border-dashed cursor-pointer transition-colors"
-            style={{ borderColor: "rgba(52,211,153,0.45)", background: "rgba(255,255,255,0.03)", padding: "11px 0" }}
+            style={{ borderColor: "rgba(251,146,60,0.70)", background: "rgba(251,146,60,0.05)", padding: "11px 0" }}
             onClick={() => fileInputRef.current?.click()}>
             {subiendo
               ? <span className="text-zinc-400 text-sm">⏳ Analizando...</span>
-              : <span className="text-zinc-500 text-sm">📎 Adjuntar factura</span>
+              : <span className="text-white text-sm">📎 Adjuntar factura</span>
             }
           </div>
         )}
@@ -416,7 +448,7 @@ export default function ModalAdjuntarEgreso({
         {/* Concepto */}
         <div>
           <label className="text-zinc-400 text-xs font-semibold block mb-1">Concepto</label>
-          <input type="text" value={concepto} onChange={e => setConcepto(e.target.value.toUpperCase())}
+          <input type="text" value={concepto} onChange={e => { setConcepto(e.target.value.toUpperCase()); setHasChanges(true) }}
             placeholder="Ej: Arriendo, factura proveedor..."
             className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500" />
         </div>
@@ -425,7 +457,7 @@ export default function ModalAdjuntarEgreso({
         <div className="flex gap-3">
           <div className="flex-1">
             <label className="text-zinc-400 text-xs font-semibold block mb-1">Valor</label>
-            <InputMoneda value={valor} onChange={setValor}
+            <InputMoneda value={valor} onChange={v => { setValor(v); setHasChanges(true) }}
               className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500" />
           </div>
           <div className="flex-1">
@@ -454,6 +486,19 @@ export default function ModalAdjuntarEgreso({
           </div>
         </div>
 
+        </div>{/* /SECCIÓN FACTURA */}
+
+        {/* ── SECCIÓN ABONOS ── */}
+        {egresoId && (
+        <div className="rounded-2xl p-4 space-y-3" style={{background:'rgba(82,82,91,0.40)',border:'1px solid rgba(52,211,153,0.35)'}}>
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-emerald-300 text-xs font-bold uppercase tracking-wide">💳 Abonos / Pagos</p>
+            {abonos.length > 0 && (
+              <button onClick={() => { setModoEditarAbonos(m => !m); setAbonoSeleccionado(null) }}
+                style={{background:'none',border:'none',cursor:'pointer',fontSize:16,padding:'0 2px',opacity: modoEditarAbonos ? 1 : 0.5}}>✏️</button>
+            )}
+          </div>
+
         {/* Adjuntar Pago */}
         {egresoId && (
           <div>
@@ -471,11 +516,11 @@ export default function ModalAdjuntarEgreso({
               ) : (
                 <div
                   className="flex-1 flex items-center justify-center rounded-xl border-2 border-dashed cursor-pointer transition-colors"
-                  style={{ borderColor:'rgba(59,130,246,0.35)', background:'rgba(59,130,246,0.04)', padding:'9px 0' }}
+                  style={{ borderColor:'rgba(52,211,153,0.70)', background:'rgba(52,211,153,0.05)', padding:'9px 0' }}
                   onClick={() => { if (!openFormAbono) fileAbonoRef.current?.click() }}>
                   {subiendoPago
                     ? <span className="text-zinc-400 text-sm">⏳ Procesando...</span>
-                    : <span className="text-zinc-500 text-sm">📎 Adjuntar comprobante</span>}
+                    : <span className="text-white text-sm">📎 Adjuntar pago</span>}
                 </div>
               )}
               <button
@@ -490,13 +535,13 @@ export default function ModalAdjuntarEgreso({
 
         {/* Form abono inline */}
         {openFormAbono && (
-          <div className="rounded-xl p-3 space-y-3" style={{background:'rgba(59,130,246,0.07)',border:'1px solid rgba(59,130,246,0.25)'}}>
-            <p className="text-blue-400 text-xs font-bold">Pago #{abonos.length + 1}</p>
+          <div className="rounded-xl p-3 space-y-3" style={{background:'rgba(52,211,153,0.08)',border:'1px solid rgba(52,211,153,0.35)'}}>
+            <p><span className="text-white font-bold text-lg">Pago </span><span className="text-emerald-400 font-bold text-lg">#{abonos.length + 1}</span></p>
             {/* Valor + Medio */}
             <div className="flex gap-2">
               <div className="flex-1">
                 <label className="text-zinc-400 text-xs font-semibold block mb-1">Valor</label>
-                <InputMoneda value={abonoValor} onChange={setAbonoValor}
+                <InputMoneda value={abonoValor} onChange={v => { const n = parseFloat(v) || 0; setAbonoValor(saldo > 0 && n > saldo ? String(Math.round(saldo)) : v) }}
                   className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500" />
               </div>
               <div className="flex-1">
@@ -519,7 +564,7 @@ export default function ModalAdjuntarEgreso({
             <div className="flex gap-2">
               <button onClick={() => { setOpenFormAbono(false); setAbonoValor(''); setAbonoFecha(''); setAbonoMedio(''); setAbonoKey('') }}
                 className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm font-semibold py-2 rounded-xl">Cancelar</button>
-              <button onClick={confirmarAbono} disabled={!abonoValor || guardandoAbono}
+              <button onClick={confirmarAbono} disabled={!abonoValor || !abonoFecha || !abonoMedio || guardandoAbono}
                 className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm font-semibold py-2 rounded-xl">
                 {guardandoAbono ? 'Guardando...' : 'Confirmar'}
               </button>
@@ -535,15 +580,29 @@ export default function ModalAdjuntarEgreso({
               ? <div className="flex justify-center py-2"><span className="w-5 h-5 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" /></div>
               : <div className="space-y-1">
                   {abonos.map((a, i) => (
-                    <div key={a.id} className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{background:'rgba(255,255,255,0.04)',border:'1px solid #1e2a3d'}}>
-                      <span className="text-zinc-500 text-xs flex-shrink-0">#{i+1}</span>
-                      <span className="text-white text-sm font-semibold flex-shrink-0">{fmtM(a.valor)}</span>
-                      <span className="text-zinc-400 text-xs flex-shrink-0">{fmtF(a.fecha)}</span>
-                      {a.medioPago && <span className="text-violet-400 text-xs flex-shrink-0">{a.medioPago}</span>}
-                      <span className="flex-1" />
-                      {a.evidenciaKey && (
-                        <button onClick={() => verUrl(a.evidenciaKey!)}
-                          style={{background:'none',border:'none',cursor:'pointer',fontSize:14,padding:0,color:'#94a3b8'}}>📎</button>
+                    <div key={a.id}
+                      onClick={() => { if (modoEditarAbonos) setAbonoSeleccionado(s => s === a.id ? null : a.id) }}
+                      className="px-3 py-2.5 rounded-xl transition-all"
+                      style={{background: modoEditarAbonos && abonoSeleccionado === a.id ? 'rgba(239,68,68,0.12)' : 'rgba(82,82,91,0.40)', border: modoEditarAbonos && abonoSeleccionado === a.id ? '1px solid rgba(239,68,68,0.50)' : '1px solid rgba(52,211,153,0.30)', cursor: modoEditarAbonos ? 'pointer' : 'default'}}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-white font-bold text-base flex-shrink-0">#{i+1}</span>
+                        <span className="text-white text-sm font-semibold flex-shrink-0">{fmtM(a.valor)}</span>
+                        {a.medioPago && <span className="text-violet-300 text-sm font-medium flex-shrink-0">{abrevMedio(a.medioPago)}</span>}
+                        <span className="text-white text-xs flex-shrink-0">{fmtF(a.fecha)}</span>
+                        <span className="flex-1" />
+                        {a.evidenciaKey && (
+                          <button onClick={e => { e.stopPropagation(); verUrl(a.evidenciaKey!) }}
+                            style={{background:'none',border:'none',cursor:'pointer',fontSize:16,padding:0,color:'#94a3b8'}}>📎</button>
+                        )}
+                      </div>
+                      {modoEditarAbonos && abonoSeleccionado === a.id && (
+                        <button
+                          onClick={e => { e.stopPropagation(); eliminarAbono(a.id) }}
+                          disabled={eliminandoAbono === a.id}
+                          className="w-full mt-2 py-2 rounded-xl font-bold text-sm text-white"
+                          style={{background: eliminandoAbono === a.id ? 'rgba(239,68,68,0.4)' : '#dc2626', border:'none', cursor:'pointer'}}>
+                          {eliminandoAbono === a.id ? 'Eliminando...' : 'Eliminar pago'}
+                        </button>
                       )}
                     </div>
                   ))}
@@ -552,9 +611,11 @@ export default function ModalAdjuntarEgreso({
           </div>
         )}
 
+        </div>)}{/* /SECCIÓN ABONOS */}
+
         {/* Saldo a pagar */}
         {valorNum > 0 && (
-          <div className="flex justify-between items-center px-1 py-2 rounded-xl" style={{background:'rgba(245,158,11,0.08)',border:'1px solid rgba(245,158,11,0.20)'}}>
+          <div className="flex justify-between items-center px-4 py-3 rounded-xl" style={{background:'rgba(245,158,11,0.10)',border:'1px solid rgba(245,158,11,0.30)'}}>
             <span className="text-zinc-400 text-sm font-semibold">Saldo a pagar</span>
             <span className="text-amber-400 font-bold text-lg">{fmtM(saldo)}</span>
           </div>
@@ -563,15 +624,16 @@ export default function ModalAdjuntarEgreso({
         {error && <p className="text-red-400 text-xs">{error}</p>}
 
         <div className="flex gap-2 pt-1 pb-safe" style={{paddingBottom:"max(24px, env(safe-area-inset-bottom))"}}>
-          <button onClick={onClose}
-            className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 font-semibold text-sm py-2.5 rounded-xl transition-colors">
+          <button onClick={handleClose}
+            className="flex-1 py-2.5 rounded-xl bg-zinc-700 text-white font-semibold text-sm">
             Cancelar
           </button>
           <button onClick={guardar}
             disabled={!concepto.trim() || !valor || guardando}
-            className="flex-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-semibold text-sm py-2.5 rounded-xl transition-colors">
+            className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-sm">
             {guardando ? 'Guardando...' : 'Guardar'}
           </button>
+        </div>
         </div>
         </div>
       </div>

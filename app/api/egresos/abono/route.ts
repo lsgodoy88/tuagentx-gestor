@@ -17,6 +17,13 @@ export async function POST(req: NextRequest) {
   const egreso = await (prisma as any).egreso.findFirst({ where: { id: egresoId, empresaId } })
   if (!egreso) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
 
+  // Validar máximo según medio
+  const valorNum = parseFloat(valor)
+  const saldoActual = parseFloat(egreso.saldo)
+  const tieneComprobante = !!evidenciaKey
+  if (!tieneComprobante && valorNum > saldoActual) return NextResponse.json({ error: 'Efectivo no permite sobrepago' }, { status: 400 })
+  if (tieneComprobante && valorNum > saldoActual + 1000) return NextResponse.json({ error: 'Con comprobante el máximo es saldo + $1.000' }, { status: 400 })
+
   // Crear abono
   await (prisma as any).egresoAbono.create({
     data: {
@@ -65,4 +72,35 @@ export async function GET(req: NextRequest) {
     orderBy: { createdAt: 'asc' },
   })
   return NextResponse.json({ abonos })
+}
+
+export async function DELETE(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+  const user = session.user as any
+  const empresaId = getEmpresaId(user)
+  const { abonoId, egresoId } = await req.json()
+  if (!abonoId || !egresoId) return NextResponse.json({ error: 'abonoId y egresoId requeridos' }, { status: 400 })
+
+  // Verificar que el egreso pertenece a la empresa
+  const egreso = await (prisma as any).egreso.findFirst({ where: { id: egresoId, empresaId } })
+  if (!egreso) return NextResponse.json({ error: 'No encontrado' }, { status: 404 })
+
+  await (prisma as any).egresoAbono.delete({ where: { id: abonoId } })
+
+  // Recalcular abonoPago y saldo
+  const agg = await (prisma as any).egresoAbono.aggregate({ where: { egresoId }, _sum: { valor: true } })
+  const totalAbono = parseFloat(agg._sum.valor || 0)
+  const v = parseFloat(egreso.valor)
+  const r = parseFloat(egreso.retencion)
+  const d = parseFloat(egreso.descuento)
+  const nuevoSaldo = Math.max(0, v - r - totalAbono - d)
+  const nuevoEstado = nuevoSaldo <= 0 ? 'ok' : 'pendiente'
+
+  await (prisma as any).egreso.update({
+    where: { id: egresoId },
+    data: { abonoPago: totalAbono, saldo: nuevoSaldo, estado: nuevoEstado },
+  })
+
+  return NextResponse.json({ ok: true, abonoPago: totalAbono, saldo: nuevoSaldo, estado: nuevoEstado })
 }

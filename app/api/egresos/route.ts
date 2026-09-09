@@ -23,16 +23,17 @@ export async function GET(req: NextRequest) {
 
   // totalOnly — para el total general en EgresosPage
   if (searchParams.get('totalOnly') === '1') {
-    const agg = await (prisma as any).egreso.aggregate({ where, _sum: { valor: true, abonoPago: true, saldo: true } })
+    const agg = await (prisma as any).egreso.aggregate({ where, _sum: { valor: true, retencion: true, descuento: true, abonoPago: true, saldo: true } })
+    const totalNeto = Math.round(Number(agg._sum.valor || 0) - Number(agg._sum.retencion || 0) - Number(agg._sum.descuento || 0))
     return NextResponse.json({
-      total:     Math.round(Number(agg._sum.valor    || 0)),
+      total:     totalNeto,
       pagado:    Math.round(Number(agg._sum.abonoPago || 0)),
       pendiente: Math.round(Number(agg._sum.saldo    || 0)),
     })
   }
 
   const egresos = await (prisma as any).egreso.findMany({
-    where, orderBy: { fecha: 'asc' },
+    where, orderBy: { createdAt: 'asc' },
     include: { _count: { select: { abonos: true } }, proveedor: { select: { id: true, firstName: true, lastName: true, aplica_retencion: true, porcentaje_retencion: true } } }
   })
   return NextResponse.json({ ok: true, egresos })
@@ -71,7 +72,7 @@ export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session?.user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
   const body = await req.json()
-  const { id, ...data } = body
+  const { id, saldo: _s, abonoPago: _a, ...data } = body
   if (data.fecha) data.fecha = new Date(data.fecha)
   if (data.fechaPago) data.fechaPago = new Date(data.fechaPago)
   const egreso = await (prisma as any).egreso.update({ where: { id }, data })

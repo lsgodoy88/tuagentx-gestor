@@ -49,7 +49,7 @@ function NumInput({ value, onChange, onBlur, width = 90 }: { value: string; onCh
 }
 
 
-function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { cat: { id:string; key: string; label: string; emoji: string }; mes: number; anio: number; scrollRefs: React.MutableRefObject<HTMLDivElement[]>; onCatUpdate?: (id:string, label:string, emoji:string) => void; isAdmin?: boolean }) {
+function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, onTotalesUpdate, isAdmin = false }: { cat: { id:string; key: string; label: string; emoji: string }; mes: number; anio: number; scrollRefs: React.MutableRefObject<HTMLDivElement[]>; onCatUpdate?: (id:string, label:string, emoji:string) => void; onTotalesUpdate?: () => void; isAdmin?: boolean }) {
   const [editandoTitulo, setEditandoTitulo] = React.useState(false)
   const [nuevoLabel, setNuevoLabel] = React.useState(cat.label)
   const [modoEliminar, setModoEliminar] = useState(false)
@@ -459,7 +459,9 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
                   })))
                 })
               }
+              setEditando(p => ({ ...p, [idx]: false }))
               setModalEgresoId(null); setModalAdjIdx(null)
+              cargar(); onTotalesUpdate?.()
             }}
             onAbonoGuardado={(abonoPago, saldo) => {
               const idx = modalAdjIdx!
@@ -485,7 +487,9 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, isAdmin = false }: { c
                 proveedorId: data.proveedorId,
                 proveedorNombre: data.proveedorNombre || null,
               })))
+              setEditando(p => ({ ...p, [idx]: false }))
               setModalEgresoId(null); setModalAdjIdx(null)
+              cargar(); onTotalesUpdate?.()
             }}
           />
       )}
@@ -575,6 +579,7 @@ export default function EgresosPage() {
   const [anio, setAnio] = useState(hoy.getFullYear())
   const [showCal, setShowCal] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
+  const [totalesKey, setTotalesKey] = useState(0)
   const [totalGeneral, setTotalGeneral] = useState<{total:number,pagado:number,pendiente:number}|null>(null)
   const [categorias, setCategorias] = useState<{id:string,key:string,label:string,emoji:string}[]>([])
   const [showCategorias, setShowCategorias] = useState(false)
@@ -592,7 +597,7 @@ export default function EgresosPage() {
       .then(r => r.json())
       .then(d => { if (d.total !== undefined) setTotalGeneral({ total: d.total, pagado: d.pagado, pendiente: d.pendiente }) })
       .catch(() => {})
-  }, [mes, anio, reloadKey])
+  }, [mes, anio, reloadKey, totalesKey])
   const triggerGastos = useRef<(() => void) | null>(null)
   const calRef = useRef<HTMLDivElement>(null)
   const [tab, setTab] = useState<'egresos' | 'gastos' | 'proveedores'>('egresos')
@@ -619,7 +624,7 @@ export default function EgresosPage() {
         <div style={{ display: tab === 'egresos' ? 'block' : 'none' }} className="space-y-4">
             {totalGeneral !== null && (
               <>
-                <div className="flex justify-between px-4 py-3 rounded-2xl border border-zinc-800" style={{background:'#0f1623'}}>
+                <div className="flex justify-between px-4 py-3 rounded-2xl" style={{background:'#0d1b35', border:'1px solid #1e40af'}}>
                   <div className="flex flex-col items-center">
                     <span className="text-white text-xs">Total</span>
                     <span className="text-white text-sm font-bold">{fmt(totalGeneral.total)}</span>
@@ -633,19 +638,24 @@ export default function EgresosPage() {
                     <span className={`text-sm font-bold ${totalGeneral.pendiente > 0 ? 'text-red-400' : 'text-white'}`}>{fmt(totalGeneral.pendiente)}</span>
                   </div>
                 </div>
-                <div className="flex justify-end" ref={calRef}>
-                  <button onClick={() => setShowCal(s => !s)}
-                    className="flex items-center justify-center bg-zinc-800 border border-zinc-700 text-white text-lg px-3 py-1.5 rounded-xl hover:bg-zinc-700 transition-colors">
-                    📅
-                  </button>
-                  {showCal && <div style={{position:'absolute', zIndex:50}}><CalendarioPopup mes={mes} anio={anio} onChange={(m,a) => { setMes(m); setAnio(a) }} onClose={() => setShowCal(false)} /></div>}
-                </div>
+
               </>
             )}
-            {categorias.map(cat => <Tabla key={`${cat.key}-${reloadKey}`} cat={cat} mes={mes} anio={anio} scrollRefs={scrollRefs} isAdmin={puedeEditarEgresos} onCatUpdate={puedeAdminEgresos ? (id, label, emoji) => {
+            {categorias.map(cat => <Tabla key={cat.key} cat={cat} mes={mes} anio={anio} scrollRefs={scrollRefs} isAdmin={puedeEditarEgresos} onTotalesUpdate={() => setTotalesKey(k => k+1)} onCatUpdate={puedeAdminEgresos ? (id, label, emoji) => {
               fetch('/api/egresos/categorias', { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id, label, emoji}) })
                 .then(() => setReloadKey(k => k+1))
             } : undefined} />)}
+            {/* Selectores mes/año */}
+            <div className="flex items-center gap-2 justify-end">
+              <select value={mes} onChange={e => setMes(Number(e.target.value))}
+                className="bg-zinc-800 border border-zinc-700 text-white text-sm rounded-xl px-3 py-1.5 cursor-pointer">
+                {MESES.map((ml, i) => <option key={i} value={i+1}>{ml}</option>)}
+              </select>
+              <select value={anio} onChange={e => setAnio(Number(e.target.value))}
+                className="bg-zinc-800 border border-zinc-700 text-white text-sm rounded-xl px-3 py-1.5 cursor-pointer">
+                {[2024,2025,2026,2027].map(yr => <option key={yr} value={yr}>{yr}</option>)}
+              </select>
+            </div>
             {/* Botón gestión de categorías — solo admin */}
             {puedeAdminEgresos && <button onClick={() => setShowCategorias(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-zinc-500 hover:text-zinc-200 text-xs transition-colors"
