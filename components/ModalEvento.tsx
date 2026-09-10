@@ -38,6 +38,7 @@ export default function ModalEvento({ onGuardado, onClose }: Props) {
   // Fotos — hasta 4
   const [fotos, setFotos] = useState<{ base64: string; key: string; subiendo: boolean }[]>([])
   const [subiendo, setSubiendo] = useState(false)
+  const enviandoRef = useRef(false)
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState('')
 
@@ -97,6 +98,8 @@ export default function ModalEvento({ onGuardado, onClose }: Props) {
   }
 
   async function guardar() {
+    if (enviandoRef.current) return  // guard doble tap — ref es síncrono
+    enviandoRef.current = true
     if (fotos.length === 0) { setError('Adjunta al menos 1 foto'); return }
     if (fotos.some(f => f.subiendo)) { setError('Espera a que terminen de subir las fotos'); return }
     if (!clienteId) { setError('Selecciona un cliente'); return }
@@ -123,6 +126,7 @@ export default function ModalEvento({ onGuardado, onClose }: Props) {
       setError('Error: ' + (e?.message || ''))
     } finally {
       setGuardando(false)
+      enviandoRef.current = false
     }
   }
 

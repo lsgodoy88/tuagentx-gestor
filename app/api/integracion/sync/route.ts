@@ -44,8 +44,11 @@ async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor
     where: { nit: { in: nits }, empresaId },
     select: { id: true, nit: true, apiId: true, ciudad: true, departamento: true, direccion: true, telefono: true, email: true, nombre: true, listaId: true }
   })
+  // Mapa por NIT y por apiId — apiId tiene precedencia (más preciso que NIT)
   const mapaExistentes: Record<string, any> = {}
-  existentesCli.forEach((e: any) => { mapaExistentes[e.nit] = e })
+  existentesCli.forEach((e: any) => { if (e.nit) mapaExistentes[e.nit] = e })
+  const mapaExistentesPorApiId: Record<string, any> = {}
+  existentesCli.forEach((e: any) => { if (e.apiId) mapaExistentesPorApiId[e.apiId] = e })
 
   // Log diagnóstico — ver si UpTres devuelve employeeId
   const sinEmployeeId = clientesExt.filter((c: any) => !c.employeeId).length
@@ -70,10 +73,12 @@ async function ejecutarDelta(integracion: any, logs: string[] = [], disparadoPor
     const uid = (c as any).uid?.trim() || (c as any)._id?.trim()
     if (!doc || !uid) continue
     const nombre = `${(c as any).name || ''} ${(c as any).lastName || ''}`.trim() || 'Sin nombre'
-    const ex = mapaExistentes[doc]
+    const ex = mapaExistentesPorApiId[uid] || mapaExistentes[doc]
     if (ex) {
-      // Solo actualizar direccion, telefono y listaId (si está vacío)
+      // Actualizar nombre si cambió en UpTres, además de dirección, teléfono y lista
       const cambio: any = {}
+      if (nombre && nombre !== ex.nombre) cambio.nombre = nombre
+      if (uid && uid !== ex.apiId) cambio.apiId = uid
       const dir = (c as any).dir || undefined
       const tel = (c as any).nCel || undefined
       const empId = (c as any).employeeId || null

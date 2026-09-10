@@ -189,6 +189,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
   const [lineasPago, setLineasPago]     = useState<LineaPago[]>([crearLinea()])
   const [descuentosPorFactura, setDescuentosPorFactura] = useState<Record<string,string>>({})
   const notasPagoRef = useRef('')
+  const enviandoPagoRef = useRef(false)
   const [guardandoPago, setGuardandoPago] = useState(false)
   const fileInputRefs = useRef<Map<string, HTMLInputElement | null>>(new Map())
 
@@ -552,7 +553,8 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
     if (!detalleData) return
     const total = lineasPago.reduce((s, l) => s + Number(l.monto || 0), 0)
     if (total === 0) return
-    if (guardandoPago) return  // prevenir doble tap
+    if (enviandoPagoRef.current) return  // guard doble tap — ref es síncrono
+    enviandoPagoRef.current = true
     setGuardandoPago(true)
     let gpsCoords: { lat: number; lng: number } | null = null
     if (gpsRecaudo.estado === 'ok' && gpsRecaudo.pos) gpsCoords = { lat: gpsRecaudo.pos.lat, lng: gpsRecaudo.pos.lng }
@@ -581,6 +583,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
     const d = await res.json()
     if (d.pago?.reciboToken) ultimoToken = d.pago.reciboToken
     setGuardandoPago(false)
+    enviandoPagoRef.current = false
     if (ultimoToken) window.open('/recaudo/recibo?token=' + ultimoToken, '_blank')
     setRecaudandoCartera(null); setLineasPago([crearLinea()]); setDescuentosPorFactura({}); notasPagoRef.current = ''
   }

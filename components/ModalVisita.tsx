@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import FotoEntrega from '@/components/FotoEntrega'
 import { fetchApi, errorMsg } from '@/lib/fetchApi'
 import { useGpsContext } from '@/lib/gps-context'
@@ -52,6 +52,7 @@ export default function ModalVisita({
   titulo, extraData = {}, distanciaLejos, facturaPreset, empresaOrigen,
   clienteNuevo = false
 }: Props) {
+  const enviandoRef = useRef(false)
   const [cliente, setCliente] = useState<Cliente | null>(clienteInicial || null)
   const gpsDemand = useGpsEnDemanda()
   const [tipo, setTipo] = useState(tipoForzado || 'visita')
@@ -125,6 +126,8 @@ export default function ModalVisita({
   }
 
   async function registrar() {
+    if (enviandoRef.current) return  // guard doble tap — ref es síncrono
+    enviandoRef.current = true
     const cl = cliente || clienteInicial
     if (!cl) return
 
@@ -143,7 +146,7 @@ export default function ModalVisita({
       } else if (esperarGps) {
         // Tras 3 intentos fallidos: preguntar
         const ok = window.confirm('No se pudo obtener tu ubicación tras 3 intentos. ¿Guardar sin GPS?')
-        if (!ok) { setLoading(false); return }
+        if (!ok) { setLoading(false); enviandoRef.current = false; return }
       }
     } else if (gpsDemand.estado === 'ok' && gpsDemand.pos) {
       ubicacion = { lat: gpsDemand.pos.lat, lng: gpsDemand.pos.lng }
@@ -167,6 +170,7 @@ export default function ModalVisita({
       })
     })
     setLoading(false)
+    enviandoRef.current = false
 
     if (!data || data.error) {
       setError(errorMsg(data, 'Error al registrar visita'))
