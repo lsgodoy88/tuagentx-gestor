@@ -810,7 +810,7 @@ export async function fetchProductosUptresConCursor(
 
   while (pagina++ < MAX_PAGINAS) {
     const p = new URLSearchParams({ condition: 'true', fields: '', limit: '80' })
-    if (desde) p.set('from', desde.toISOString())
+    if (desde) p.set('from', desde.toISOString().slice(0, 10))
     if (cursorDate && cursorId) { p.set('cursorDate', cursorDate); p.set('cursorId', cursorId) }
 
     let texto = ''
@@ -878,7 +878,7 @@ export async function fetchProductosUptres(
       fields: '',
       limit: '80',
     })
-    if (desde) p.set('from', desde.toISOString())
+    if (desde) p.set('from', desde.toISOString().slice(0, 10))
     if (cursorDate && cursorId) {
       p.set('cursorDate', cursorDate)
       p.set('cursorId', cursorId)
