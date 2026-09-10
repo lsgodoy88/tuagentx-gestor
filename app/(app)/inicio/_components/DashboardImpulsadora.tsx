@@ -194,10 +194,14 @@ export default function DashboardImpulsadora() {
                       <div className={'w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ' + (salida ? 'bg-zinc-700 text-zinc-400' : entrada ? 'bg-emerald-500 text-black' : 'bg-zinc-700 text-white')}>
                         {salida ? 'ok' : entrada ? '>' : i+1}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className={'text-sm font-medium ' + (salida ? 'text-zinc-500' : 'text-white')}>{rc.cliente.nombre}</p>
-                        {entrada && <p className="text-zinc-500 text-xs">Entrada: {new Date(entrada.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})}</p>}
-                        {salida && <p className="text-zinc-500 text-xs">Salida: {new Date(salida.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})}</p>}
+                      <div className="flex-1 min-w-0 flex items-center gap-2 overflow-hidden">
+                        <p className={'text-[13px] font-medium truncate flex-1 min-w-0 ' + (salida ? 'text-zinc-500' : 'text-white')}>{rc.cliente.nombre}</p>
+                        {entrada
+                          ? <span className="text-emerald-400 text-xs flex-shrink-0">{new Date(entrada.createdAt).toLocaleTimeString('es-CO', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Bogota'})}</span>
+                          : rc.horaEntrada
+                            ? <span className="text-white text-xs flex-shrink-0">{(() => { const [h,m] = rc.horaEntrada.split(':').map(Number); const ampm = h >= 12 ? 'PM' : 'AM'; const h12 = h % 12 || 12; return `🕓 ${h12}:${String(m).padStart(2,'0')}${ampm}` })()}</span>
+                            : null
+                        }
                       </div>
                       {salida && entrada && (
                         <span className="text-zinc-500 text-xs flex-shrink-0">

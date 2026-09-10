@@ -25,7 +25,7 @@ export async function GET() {
       diaSemana: true,
       priorizableHoy: true,
       clientes: {
-        select: { id: true, clienteId: true, orden: true, metaVenta: true, cliente: { select: { id: true, nombre: true, nombreComercial: true, lat: true, lng: true, latTmp: true, lngTmp: true, ubicacionReal: true, direccion: true } } },
+        select: { id: true, clienteId: true, orden: true, metaVenta: true, horaEntrada: true, cliente: { select: { id: true, nombre: true, nombreComercial: true, lat: true, lng: true, latTmp: true, lngTmp: true, ubicacionReal: true, direccion: true } } },
         orderBy: { orden: 'asc' }
       }
     }

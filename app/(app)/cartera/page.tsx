@@ -156,6 +156,7 @@ export default function CarteraPage() {
   const [descuentosPorFactura, setDescuentosPorFactura] = useState<Record<string,string>>({})
   const [guardandoPago, setGuardandoPago] = useState(false)
   const [dlShine, setDlShine] = useState(false)
+  const [dlOrdenPopup, setDlOrdenPopup] = useState(false)
   const fileInputRefs = useRef<Map<string, HTMLInputElement | null>>(new Map())
   const guardandoPagoRef = useRef(false) // ref síncrono — bloquea doble tap antes del re-render
   const filtroDiaInputRef = useRef<HTMLInputElement>(null)
@@ -733,69 +734,7 @@ export default function CarteraPage() {
                 ))}
               </select>
               <button
-                onClick={async () => {
-                  setDlShine(true)
-                  try {
-                    const isAdmin = user?.role === 'empresa' || user?.role === 'supervisor'
-                    const url = isAdmin ? '/api/cartera/pdf/admin' : '/api/cartera/pdf'
-                    const r = await fetch(url)
-                    if (!r.ok) { alert('Error generando PDF'); return }
-                    const d = await r.json()
-                    const { default: jsPDF } = await import('jspdf')
-                    const { default: autoTable } = await import('jspdf-autotable')
-                    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' })
-                    const fmtNum = (n: number) => n.toLocaleString('es-CO')
-                    doc.setFontSize(10)
-                    doc.setFont('helvetica', 'bold')
-                    doc.text(isAdmin ? `${d.empresa} — Cartera General` : `${d.empresa} — ${d.vendedor}`, 14, 14)
-                    doc.setFont('helvetica', 'normal')
-                    doc.setFontSize(8)
-                    doc.text(`Generado: ${new Date(d.generadoEn).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}`, 14, 20)
-                    const pageW = doc.internal.pageSize.getWidth()
-                    const margin = 5
-                    if (isAdmin) {
-                      autoTable(doc, {
-                        startY: 22,
-                        margin: { left: margin, right: margin, top: 5, bottom: 5 },
-                        head: [['Orden','Factura','Elect.','F. Fact.','Cliente','Dirección','Celular','Ciudad','Vendedor','Venta','Saldo','F. Vence','Edad']],
-                        body: d.filas.map((f: any) => { const vparts = (f.vendedor||'').split(' '); const vAbr = vparts.length >= 2 ? `${vparts[0]} ${vparts[vparts.length-1][0]}.` : f.vendedor; return [f.orden, f.factura, f.electronica, f.fechaFactura, f.cliente, f.direccion, f.celular, f.ciudad, vAbr, fmtNum(f.venta), fmtNum(f.saldo), f.fechaVence, f.edadcartera] }),
-                        foot: [['','','','','','','','','','Total', fmtNum(d.totalSaldo),'','']],
-                        tableWidth: pageW - margin * 2,
-                        styles: { fontSize: 7, cellPadding: 1.5, overflow: 'ellipsize', lineWidth: 0.1, lineColor: [220,220,220] },
-                        headStyles: { fillColor: [255,255,255], textColor: 0, fontStyle: 'bold', lineWidth: 0.1, lineColor: [180,180,180] },
-                        footStyles: { fillColor: [255,255,255], textColor: 0, fontStyle: 'bold' },
-                        columnStyles: {
-                          4: { cellWidth: 'auto' },
-                          5: { cellWidth: 'auto' },
-                          8: { cellWidth: 22 },
-                          9: { halign: 'right' },
-                          10: { halign: 'right' },
-                        },
-                      })
-                    } else {
-                      autoTable(doc, {
-                        startY: 22,
-                        margin: { left: margin, right: margin, top: 5, bottom: 5 },
-                        head: [['Orden','Factura','Elect.','F. Fact.','Cliente','Dirección','Celular','Ciudad','Venta','Saldo','F. Vence','Edad']],
-                        body: d.filas.map((f: any) => [f.orden, f.factura, f.electronica, f.fechaFactura, f.cliente, f.direccion, f.celular, f.ciudad, fmtNum(f.venta), fmtNum(f.saldo), f.fechaVence, f.edadcartera]),
-                        foot: [['','','','','','','','','Total', fmtNum(d.totalSaldo),'','']],
-                        tableWidth: pageW - margin * 2,
-                        styles: { fontSize: 7, cellPadding: 1.5, overflow: 'ellipsize', lineWidth: 0.1, lineColor: [220,220,220] },
-                        headStyles: { fillColor: [255,255,255], textColor: 0, fontStyle: 'bold', lineWidth: 0.1, lineColor: [180,180,180] },
-                        footStyles: { fillColor: [255,255,255], textColor: 0, fontStyle: 'bold' },
-                        columnStyles: {
-                          4: { cellWidth: 'auto' },
-                          5: { cellWidth: 'auto' },
-                          8: { halign: 'right' },
-                          9: { halign: 'right' },
-                        },
-                      })
-                    }
-                    const fecha = new Date().toISOString().slice(0,10)
-                    const nombre = isAdmin ? 'cartera-general' : `cartera-${d.vendedor.replace(/\s+/g,'-')}`
-                    doc.save(`${nombre}-${fecha}.pdf`)
-                  } catch(e) { alert('Error: ' + e) } finally { setDlShine(false) }
-                }}
+                onClick={() => setDlOrdenPopup(true)}
                 id="btn-dl-cartera"
                 style={{ background: '#060a24', border: '1px solid rgba(59,130,246,0.25)', borderRadius: '12px', padding: '10px 14px', position: 'relative', overflow: 'hidden' }}
                 className="text-white text-lg hover:border-emerald-500 transition-colors"
@@ -812,6 +751,131 @@ export default function CarteraPage() {
                   }} />
                 )}
               </button>
+
+              {/* Popup orden PDF */}
+              {dlOrdenPopup && (
+                <div className="fixed inset-0 z-50 flex items-start justify-center pt-16" style={{background:'rgba(0,0,0,0.92)', backdropFilter:'blur(6px)'}} onClick={() => setDlOrdenPopup(false)}>
+                  <div className="bg-[#0d1220] border border-[#1e2a3d] rounded-2xl p-5 shadow-2xl" style={{width:320}} onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-white font-semibold text-sm">Ordenar PDF por</p>
+                      <button onClick={() => setDlOrdenPopup(false)} className="text-zinc-500 hover:text-white text-lg leading-none">✕</button>
+                    </div>
+                    {([
+                      { key: 'alfa',        label: '🅰️ Nombre del cliente A-Z' },
+                      { key: 'asc',         label: '🔼 Por factura  Ascendente' },
+                      { key: 'desc',        label: '🔽 Por factura  Descendente' },
+                      { key: 'ciudad_alfa', label: '📌 Ciudad + Nombre cliente A-Z' },
+                      { key: 'ciudad_desc', label: '📌 Ciudad + Factura Descendente' },
+                    ] as {key:string, label:string}[]).map(op => (
+                      <button key={op.key} onClick={async () => {
+                        setDlOrdenPopup(false)
+                        setDlShine(true)
+                        try {
+                          const isAdmin = user?.role === 'empresa' || user?.role === 'supervisor'
+                          const url = isAdmin ? '/api/cartera/pdf/admin' : '/api/cartera/pdf'
+                          const r = await fetch(url)
+                          if (!r.ok) { alert('Error generando PDF'); return }
+                          const d = await r.json()
+                          if (op.key === 'alfa') {
+                            d.filas.sort((a: any, b: any) => (a.cliente || '').localeCompare(b.cliente || '', 'es', { sensitivity: 'base' }))
+                          } else if (op.key === 'asc') {
+                            d.filas.sort((a: any, b: any) => parseInt(a.factura || '0', 10) - parseInt(b.factura || '0', 10))
+                          } else if (op.key === 'desc') {
+                            d.filas.sort((a: any, b: any) => parseInt(b.factura || '0', 10) - parseInt(a.factura || '0', 10))
+                          } else if (op.key === 'ciudad_alfa') {
+                            d.filas.sort((a: any, b: any) => {
+                              const cc = (a.ciudad || '').localeCompare(b.ciudad || '', 'es', { sensitivity: 'base' })
+                              if (cc !== 0) return cc
+                              return (a.cliente || '').localeCompare(b.cliente || '', 'es', { sensitivity: 'base' })
+                            })
+                          } else {
+                            d.filas.sort((a: any, b: any) => {
+                              const cc = (a.ciudad || '').localeCompare(b.ciudad || '', 'es', { sensitivity: 'base' })
+                              if (cc !== 0) return cc
+                              return parseInt(b.factura || '0', 10) - parseInt(a.factura || '0', 10)
+                            })
+                          }
+                          const { default: jsPDF } = await import('jspdf')
+                          const { default: autoTable } = await import('jspdf-autotable')
+                          const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'letter' })
+                          const fmtNum = (n: number) => n.toLocaleString('es-CO')
+                          doc.setFontSize(10)
+                          doc.setFont('helvetica', 'bold')
+                          doc.text(isAdmin ? `${d.empresa} — Cartera General` : `${d.empresa} — ${d.vendedor}`, 14, 14)
+                          doc.setFont('helvetica', 'normal')
+                          doc.setFontSize(8)
+                          doc.text(`Generado: ${new Date(d.generadoEn).toLocaleString('es-CO', { timeZone: 'America/Bogota' })}`, 14, 20)
+                          const pageW = doc.internal.pageSize.getWidth()
+                          const margin = 5
+                          if (isAdmin) {
+                            const filasCiudad = d.filas.map((f: any) => { const vparts = (f.vendedor||'').split(' '); const vAbr = vparts.length >= 2 ? `${vparts[0]} ${vparts[vparts.length-1][0]}.` : f.vendedor; return [f.orden, f.factura, f.electronica, f.fechaFactura, f.cliente, f.direccion, f.celular, f.ciudad, vAbr, fmtNum(f.venta), fmtNum(f.saldo), f.fechaVence, f.edadcartera] })
+                            autoTable(doc, {
+                              startY: 22,
+                              margin: { left: margin, right: margin, top: 5, bottom: 5 },
+                              head: [['Orden','Factura','Elect.','F. Fact.','Cliente','Dirección','Celular','Ciudad','Vendedor','Venta','Saldo','F. Vence','Edad']],
+                              body: filasCiudad,
+                              foot: [['','','','','','','','','','Total', fmtNum(d.totalSaldo),'','']],
+                              tableWidth: pageW - margin * 2,
+                              styles: { fontSize: 7, cellPadding: 1.5, overflow: 'ellipsize', lineWidth: 0.1, lineColor: [220,220,220] },
+                              headStyles: { fillColor: [255,255,255], textColor: 0, fontStyle: 'bold', lineWidth: 0.1, lineColor: [180,180,180] },
+                              footStyles: { fillColor: [255,255,255], textColor: 0, fontStyle: 'bold' },
+                              columnStyles: { 4: { cellWidth: 'auto' }, 5: { cellWidth: 'auto' }, 8: { cellWidth: 22 }, 9: { halign: 'right' }, 10: { halign: 'right' } },
+                              ...(['ciudad_alfa','ciudad_desc'].includes(op.key) ? (() => { let lastCiudadA = ''; return { didDrawCell: (data: any) => {
+                                if (data.section === 'body' && data.column.index === 0) {
+                                  const ciudadActual = String(data.row.raw?.[7] ?? '')
+                                  if (ciudadActual !== lastCiudadA && lastCiudadA !== '') {
+                                    doc.setDrawColor(80, 80, 80)
+                                    doc.setLineWidth(0.2)
+                                    doc.line(margin, data.cell.y - 0.3, pageW - margin, data.cell.y - 0.3)
+                                    doc.setDrawColor(220, 220, 220)
+                                    doc.setLineWidth(0.1)
+                                  }
+                                  lastCiudadA = ciudadActual
+                                }
+                              }}})() : {}),
+                            })
+                          } else {
+                            const filasVend = d.filas.map((f: any) => [f.orden, f.factura, f.electronica, f.fechaFactura, f.cliente, f.direccion, f.celular, f.ciudad, fmtNum(f.venta), fmtNum(f.saldo), f.fechaVence, f.edadcartera])
+                            autoTable(doc, {
+                              startY: 22,
+                              margin: { left: margin, right: margin, top: 5, bottom: 5 },
+                              head: [['Orden','Factura','Elect.','F. Fact.','Cliente','Dirección','Celular','Ciudad','Venta','Saldo','F. Vence','Edad']],
+                              body: filasVend,
+                              foot: [['','','','','','','','','Total', fmtNum(d.totalSaldo),'','']],
+                              tableWidth: pageW - margin * 2,
+                              styles: { fontSize: 7, cellPadding: 1.5, overflow: 'ellipsize', lineWidth: 0.1, lineColor: [220,220,220] },
+                              headStyles: { fillColor: [255,255,255], textColor: 0, fontStyle: 'bold', lineWidth: 0.1, lineColor: [180,180,180] },
+                              footStyles: { fillColor: [255,255,255], textColor: 0, fontStyle: 'bold' },
+                              columnStyles: { 4: { cellWidth: 'auto' }, 5: { cellWidth: 'auto' }, 8: { halign: 'right' }, 9: { halign: 'right' } },
+                              ...(['ciudad_alfa','ciudad_desc'].includes(op.key) ? (() => { let lastCiudadV = ''; return { didDrawCell: (data: any) => {
+                                if (data.section === 'body' && data.column.index === 0) {
+                                  const ciudadActual = String(data.row.raw?.[7] ?? '')
+                                  if (ciudadActual !== lastCiudadV && lastCiudadV !== '') {
+                                    doc.setDrawColor(80, 80, 80)
+                                    doc.setLineWidth(0.2)
+                                    doc.line(margin, data.cell.y - 0.3, pageW - margin, data.cell.y - 0.3)
+                                    doc.setDrawColor(220, 220, 220)
+                                    doc.setLineWidth(0.1)
+                                  }
+                                  lastCiudadV = ciudadActual
+                                }
+                              }}})() : {}),
+                            })
+                          }
+                          const fecha = new Date().toISOString().slice(0,10)
+                          const nombre = isAdmin ? 'cartera-general' : `cartera-${d.vendedor.replace(/\s+/g,'-')}`
+                          doc.save(`${nombre}-${fecha}.pdf`)
+                        } catch(e) { alert('Error: ' + e) } finally { setDlShine(false) }
+                      }}
+                      className="w-full text-left px-4 py-3 rounded-xl mb-2 last:mb-0 transition-colors hover:border-blue-500/50 whitespace-nowrap"
+                      style={{background:'#1a2540', border:'1px solid #1e2a3d'}}>
+                        <p className="text-white text-sm font-medium">{op.label}</p>
+                      </button>
+                    ))}
+
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Meta del mes — vendedor: card destacada con cartera, %, meta y cumplimiento */}

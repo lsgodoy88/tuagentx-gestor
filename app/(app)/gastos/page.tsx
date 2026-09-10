@@ -22,5 +22,5 @@ export default function GastosPage() {
 
   if (status !== 'authenticated' || isAdmin) return null
 
-  return <ModuloGastos isAdmin={false} />
+  return <ModuloGastos isAdmin={true} />
 }
