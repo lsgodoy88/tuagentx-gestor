@@ -6,9 +6,10 @@ const Inner = dynamic(() => import('./MapaHistorialClienteInner'), { ssr: false 
 interface Props {
   visitas: any[]
   selected?: { lat: number; lng: number } | null
+  canEditClientes?: boolean
 }
 
-export default function MapaHistorialCliente({ visitas, selected }: Props) {
+export default function MapaHistorialCliente({ visitas, selected, canEditClientes = false }: Props) {
   const conGps = visitas.filter(v => v.lat && v.lng)
   if (conGps.length === 0) {
     return (
@@ -19,7 +20,7 @@ export default function MapaHistorialCliente({ visitas, selected }: Props) {
   }
   return (
     <div style={{ width: '100%', height: '100%', borderRadius: 12, overflow: 'hidden', border: '1px solid #1e3a5f' }}>
-      <Inner visitas={visitas} selected={selected} />
+      <Inner visitas={visitas} selected={selected} canEditClientes={canEditClientes} />
     </div>
   )
 }

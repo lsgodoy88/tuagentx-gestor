@@ -19,12 +19,14 @@ export const PERMISOS_SUPERVISOR_DEFAULT: Record<string, boolean> = {
   // Clientes
   verClientes:      true,
   editarClientes:   true,
+  adminClientes:    false,
   // Cartera
   verCartera:       true,
   editarCartera:    true,
   // Recaudos
   verRecaudos:      true,
   editarRecaudos:   true,
+  adminRecaudos:    false,
   // Visitas
   verVisitas:       true,
   registrarVisitas: true,
@@ -72,12 +74,13 @@ export const PERMISOS_CATALOGO: PermisoModulo[] = [
     modulo: 'Egresos',  icon: '🛍️',
     ver:    { key: 'verEgresos',    label: 'Ver' },
     editar: { key: 'editarEgresos', label: 'Agregar / editar filas', requiere: 'verEgresos' },
-    admin:  { key: 'adminEgresos',  label: 'Categorías · Renombrar tabs', requiere: 'verEgresos' },
+    admin:  { key: 'adminEgresos',  label: 'Eliminar filas · Eliminar abonos · Categorías', requiere: 'verEgresos' },
   },
   {
     modulo: 'Clientes', icon: '🏪',
     ver:    { key: 'verClientes',    label: 'Ver' },
     editar: { key: 'editarClientes', label: 'Editar clientes', requiere: 'verClientes' },
+    admin:  { key: 'adminClientes',  label: 'Eliminar clientes', requiere: 'verClientes' },
   },
   {
     modulo: 'Cartera',  icon: '💰',
@@ -87,7 +90,8 @@ export const PERMISOS_CATALOGO: PermisoModulo[] = [
   {
     modulo: 'Recaudos', icon: '💳',
     ver:    { key: 'verRecaudos',    label: 'Ver' },
-    editar: { key: 'editarRecaudos', label: 'Enviar / Eliminar', requiere: 'verRecaudos' },
+    editar: { key: 'editarRecaudos', label: 'Enviar recaudos', requiere: 'verRecaudos' },
+    admin:  { key: 'adminRecaudos',  label: 'Eliminar recaudos', requiere: 'verRecaudos' },
   },
   {
     modulo: 'Visitas',  icon: '📋',

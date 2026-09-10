@@ -275,13 +275,13 @@ export default function ModuloGastos({ isAdmin, hideButton = false, triggerRef, 
               </div>
             </div>
           )}
-          <button
+          {isAdmin && <button
             onClick={() => setPopupAbierto(true)}
             disabled={subiendo}
             className="text-white text-sm font-semibold px-3 py-1.5 rounded-xl transition-colors border border-zinc-700 hover:border-zinc-500 disabled:opacity-50"
             style={{background:'rgba(255,255,255,0.06)'}}>
             {subiendo ? '⏳ Analizando...' : '+ Agregar Gasto'}
-          </button>
+          </button>}
           {onChangeFecha && mes && anio && (
             <div className="relative ml-auto flex items-center gap-2" ref={calRef}>
               {isAdmin && <button onClick={() => setShowTipos(true)}

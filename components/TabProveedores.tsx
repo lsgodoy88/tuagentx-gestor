@@ -142,7 +142,7 @@ function ModalProveedor({ proveedor, onClose, onGuardado }: {
   )
 }
 
-export default function TabProveedores({ mes, anio, onChangeFecha }: { mes: number; anio: number; onChangeFecha: (m: number, a: number) => void }) {
+export default function TabProveedores({ mes, anio, onChangeFecha, canEdit = false }: { mes: number; anio: number; onChangeFecha: (m: number, a: number) => void; canEdit?: boolean }) {
   const [proveedores, setProveedores] = useState<Proveedor[]>([])
   const [q, setQ] = useState('')
   const [modal, setModal] = useState<{ open: boolean; proveedor?: Proveedor | null }>({ open: false })
@@ -186,11 +186,11 @@ export default function TabProveedores({ mes, anio, onChangeFecha }: { mes: numb
       <div className="flex items-center gap-2">
         <input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar proveedor..."
           style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, color: 'white', flex: 1, fontSize: 13, padding: '7px 12px' }} />
-        <button onClick={() => setModal({ open: true, proveedor: null })}
+        {canEdit && <button onClick={() => setModal({ open: true, proveedor: null })}
           className="text-white text-sm font-semibold px-3 py-1.5 rounded-xl transition-colors border border-zinc-700 hover:border-zinc-500"
           style={{ background: 'rgba(255,255,255,0.06)', whiteSpace: 'nowrap' }}>
           👤 Nuevo
-        </button>
+        </button>}
         <div className="relative" ref={calRef}>
           <button onClick={() => setShowCal(s => !s)}
             className="flex items-center justify-center bg-zinc-800 border border-zinc-700 text-white text-lg font-semibold px-3 py-2 rounded-xl hover:bg-zinc-700 transition-colors">

@@ -111,9 +111,10 @@ export default function BuscadorInlineAccion({ accion, onSeleccionar, onNuevoPro
               <div className="px-2 pt-2 space-y-1">
                 {clientes.map(cl => (
                   <button key={cl.id} onClick={() => onSeleccionar(cl)}
-                    className="w-full text-left px-3 py-2 rounded-xl text-white text-sm hover:bg-white/10 transition-colors">
-                    <span className="font-medium">{cl.nombre}</span>
-                    {cl.nombreComercial && <span className="text-zinc-400 text-xs ml-1">· {cl.nombreComercial}</span>}
+                    className="w-full text-left px-3 rounded-xl text-white text-sm hover:bg-white/10 transition-colors flex items-center gap-2 min-w-0 overflow-hidden"
+                    style={{height:'40px', maxHeight:'40px'}}>
+                    <span className="font-medium truncate flex-1 min-w-0">{cl.nombre}</span>
+                    {cl.ciudad && <span className="text-blue-400 text-xs font-bold flex-shrink-0">{cl.ciudad.substring(0,3).toUpperCase()}</span>}
                   </button>
                 ))}
               </div>

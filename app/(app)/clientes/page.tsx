@@ -79,6 +79,7 @@ export default function ClientesPage() {
   const router = useRouter()
   const esAdmin = (session?.user as any)?.role === 'empresa'
   const puedeEditar = esAdmin || checkPermiso(session, 'editarClientes')
+  const puedeAdminClientes = esAdmin || checkPermiso(session, 'adminClientes')
   const userRole = (session?.user as any)?.role
   const rol: 'vendedor' | 'entregador' | 'admin' | 'supervisor' | 'empresa' =
     userRole === 'empresa' ? 'empresa' :
@@ -190,6 +191,7 @@ export default function ClientesPage() {
   }
 
   async function eliminar(id: string) {
+    if (!puedeAdminClientes) return
     if (!confirm('¿Eliminar cliente?')) return
     await fetch('/api/clientes', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
     loadClientes(buscar, null)

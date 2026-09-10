@@ -3,6 +3,8 @@ import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaf
 import 'leaflet/dist/leaflet.css'
 import { useEffect, useRef, useState } from 'react'
 
+import { useCallback } from 'react'
+
 function distancia(lat1: number, lng1: number, lat2: number, lng2: number) {
   const R = 6371000
   const dLat = (lat2 - lat1) * Math.PI / 180
@@ -33,9 +35,28 @@ function FlyTo({ center }: { center: [number, number] }) {
 interface Props {
   visitas: any[]
   selected?: { lat: number; lng: number } | null
+  canEditClientes?: boolean
 }
 
-export default function MapaHistorialClienteInner({ visitas, selected }: Props) {
+export default function MapaHistorialClienteInner({ visitas, selected, canEditClientes = false }: Props) {
+  const [confirmando, setConfirmando] = useState<string | null>(null)
+  const [guardandoGpsReal, setGuardandoGpsReal] = useState(false)
+
+  const establecerGpsReal = useCallback(async (v: any) => {
+    const clienteId = v.clienteId || v.cliente?.id
+    if (!clienteId) return
+    setGuardandoGpsReal(true)
+    try {
+      await fetch(`/api/clientes/${clienteId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lat: v.lat, lng: v.lng, ubicacionReal: true }),
+      })
+    } catch {}
+    setGuardandoGpsReal(false)
+    setConfirmando(null)
+  }, [])
+
   const conGps = visitas.filter(v => v.lat && v.lng)
   const cliLat = conGps[0]?.cliente?.lat
   const cliLng = conGps[0]?.cliente?.lng
@@ -118,11 +139,35 @@ export default function MapaHistorialClienteInner({ visitas, selected }: Props) 
             radius={isSelected ? 10 : 7}
             pathOptions={{ color, fillColor: color, fillOpacity: 0.85, weight: isSelected ? 3 : 1.5 }}
           >
-            <Popup>
+            <Popup closeButton={false} autoPan={false}>
               <b style={{ textTransform: 'capitalize' }}>{v.tipo}</b><br />
               {fecha} · {hora}<br />
               <span style={{ color }}>{distLabel(dist)} del cliente</span>
               {v.monto ? <><br />${Number(v.monto).toLocaleString('es-CO')}</> : null}
+              {canEditClientes && !v.cliente?.ubicacionReal && (
+                confirmando === v.id ? (
+                  <div style={{marginTop:6}}>
+                    <p style={{fontSize:11,color:'#f59e0b',marginBottom:4}}>¿Establecer como ubicación del cliente?</p>
+                    <div style={{display:'flex',gap:6}}>
+                      <button onClick={() => setConfirmando(null)}
+                        style={{flex:1,padding:'4px 0',borderRadius:6,border:'1px solid #4b5563',background:'#374151',color:'white',fontSize:11,cursor:'pointer'}}>
+                        Cancelar
+                      </button>
+                      <button onClick={() => establecerGpsReal(v)} disabled={guardandoGpsReal}
+                        style={{flex:1,padding:'4px 0',borderRadius:6,border:'none',background:'#16a34a',color:'white',fontSize:11,fontWeight:'bold',cursor:'pointer'}}>
+                        {guardandoGpsReal ? '...' : 'Sí'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div style={{marginTop:6}}>
+                    <button onClick={e => { e.stopPropagation(); setConfirmando(v.id) }}
+                      style={{background:'none',border:'1px solid #f59e0b',borderRadius:6,color:'#f59e0b',fontSize:11,padding:'3px 8px',cursor:'pointer',width:'100%'}}>
+                      📌 Establecer ubicación
+                    </button>
+                  </div>
+                )
+              )}
             </Popup>
           </CircleMarker>
         )

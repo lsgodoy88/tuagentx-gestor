@@ -3416,6 +3416,7 @@ model Egreso {
   updatedAt   DateTime @updatedAt
   empresa          Empresa          @relation(fields: [empresaId], references: [id])
   abonos           EgresoAbono[]
+  adjuntos         EgresoAdjunto[]
 
   proveedorId  String?
   proveedor    Proveedor? @relation(fields: [proveedorId], references: [id])
@@ -3432,6 +3433,20 @@ model EgresoAbono {
   medioPago    String?
   createdAt    DateTime @default(now())
   egreso       Egreso   @relation(fields: [egresoId], references: [id], onDelete: Cascade)
+}
+
+model EgresoAdjunto {
+  id        String   @id @default(cuid())
+  egresoId  String
+  abonoId   String?
+  tipo      String   // 'factura' | 'pago'
+  key       String
+  createdAt DateTime @default(now())
+  egreso    Egreso   @relation(fields: [egresoId], references: [id], onDelete: Cascade)
+
+  @@index([egresoId])
+  @@index([abonoId])
+  @@map("EgresoAdjunto")
 }
 
 model Producto {

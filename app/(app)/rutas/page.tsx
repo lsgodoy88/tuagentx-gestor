@@ -212,6 +212,7 @@ export default function RutasPage() {
   const esSupervisor = user?.role === 'supervisor'
   const esEmpresa = user?.role === 'empresa'
   const puedeAsignar = !user || esEmpresa || checkPermiso(session, 'asignarRutas')
+  const puedeEditarClientes = esEmpresa || checkPermiso(session, 'editarClientes')
 
   // Tab principal
   const [tabPrincipal, setTabPrincipal] = useState<'mapa' | 'ruta' | 'historial'>('mapa')
@@ -562,7 +563,7 @@ export default function RutasPage() {
       {tabPrincipal === 'mapa' && <div style={{marginTop:-12}}><MapaEnVivo embebido /></div>}
 
       {tabPrincipal === 'historial' && (
-        <TabHistorialVisitas apiUrl="/api/visitas/admin" mostrarEmpleado={true} />
+        <TabHistorialVisitas apiUrl="/api/visitas/admin" mostrarEmpleado={true} canEditClientes={puedeEditarClientes} />
       )}
 
       {tabPrincipal === 'ruta' && <TabEntregasAdmin />}

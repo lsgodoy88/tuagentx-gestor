@@ -49,7 +49,7 @@ function NumInput({ value, onChange, onBlur, width = 90 }: { value: string; onCh
 }
 
 
-function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, onTotalesUpdate, isAdmin = false }: { cat: { id:string; key: string; label: string; emoji: string }; mes: number; anio: number; scrollRefs: React.MutableRefObject<HTMLDivElement[]>; onCatUpdate?: (id:string, label:string, emoji:string) => void; onTotalesUpdate?: () => void; isAdmin?: boolean }) {
+function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, onTotalesUpdate, isAdmin = false, canEdit = false, canAdmin = false }: { cat: { id:string; key: string; label: string; emoji: string }; mes: number; anio: number; scrollRefs: React.MutableRefObject<HTMLDivElement[]>; onCatUpdate?: (id:string, label:string, emoji:string) => void; onTotalesUpdate?: () => void; isAdmin?: boolean; canEdit?: boolean; canAdmin?: boolean }) {
   const [editandoTitulo, setEditandoTitulo] = React.useState(false)
   const [nuevoLabel, setNuevoLabel] = React.useState(cat.label)
   const [modoEliminar, setModoEliminar] = useState(false)
@@ -398,8 +398,8 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, onTotalesUpdate, isAdm
             <tfoot>
               <tr style={{ borderTop: '2px solid #1e2a3d', background: '#0a1020' }}>
                 <td style={{ ...tdStyle, borderLeft: 'none' }}>
-                  <button onClick={() => { const f = filaVacia(cat.key); setFilas(p => [...p, f]); setTimeout(() => setEditando(p => ({...p, [filas.length]: true})), 50) }}
-                    className="flex items-center justify-center w-5 h-5 rounded-full border border-zinc-700 hover:border-zinc-400 text-zinc-500 hover:text-zinc-200 text-sm transition-colors">+</button>
+                  {canEdit && <button onClick={() => { const f = filaVacia(cat.key); setFilas(p => [...p, f]); setTimeout(() => setEditando(p => ({...p, [filas.length]: true})), 50) }}
+                    className="flex items-center justify-center w-5 h-5 rounded-full border border-zinc-700 hover:border-zinc-400 text-zinc-500 hover:text-zinc-200 text-sm transition-colors">+</button>}
                 </td>
                 <td style={{ ...tdStyle, borderLeft: 'none' }} />
                 <td style={{ ...tdStyle, borderLeft: 'none' }} />
@@ -426,6 +426,8 @@ function Tabla({ cat, mes, anio, scrollRefs, onCatUpdate, onTotalesUpdate, isAdm
       {modalAdjIdx !== null && filas[modalAdjIdx] && (
           <ModalAdjuntarEgreso
             egresoId={modalEgresoId}
+            canEdit={canEdit}
+            canAdmin={canAdmin}
             categoriaKey={cat.key}
             mes={mes} anio={anio}
             initialConcepto={filas[modalAdjIdx!].concepto}
@@ -641,7 +643,7 @@ export default function EgresosPage() {
 
               </>
             )}
-            {categorias.map(cat => <Tabla key={cat.key} cat={cat} mes={mes} anio={anio} scrollRefs={scrollRefs} isAdmin={puedeEditarEgresos} onTotalesUpdate={() => setTotalesKey(k => k+1)} onCatUpdate={puedeAdminEgresos ? (id, label, emoji) => {
+            {categorias.map(cat => <Tabla key={cat.key} cat={cat} mes={mes} anio={anio} scrollRefs={scrollRefs} isAdmin={puedeAdminEgresos} canEdit={puedeEditarEgresos} canAdmin={puedeAdminEgresos} onTotalesUpdate={() => setTotalesKey(k => k+1)} onCatUpdate={puedeAdminEgresos ? (id, label, emoji) => {
               fetch('/api/egresos/categorias', { method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id, label, emoji}) })
                 .then(() => setReloadKey(k => k+1))
             } : undefined} />)}
@@ -706,7 +708,7 @@ export default function EgresosPage() {
             )}
           </div>
         <div style={{ display: tab === 'proveedores' ? 'block' : 'none' }}>
-          <TabProveedores mes={mes} anio={anio} onChangeFecha={(m,a) => { setMes(m); setAnio(a) }} />
+          <TabProveedores mes={mes} anio={anio} onChangeFecha={(m,a) => { setMes(m); setAnio(a) }} canEdit={puedeEditarEgresos} />
         </div>
         <div style={{ display: tab === 'gastos' ? 'block' : 'none' }}>
           <ModuloGastos isAdmin={puedeEditarEgresos} hideButton triggerRef={triggerGastos} />

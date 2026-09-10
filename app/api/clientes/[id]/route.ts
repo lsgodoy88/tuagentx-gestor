@@ -26,7 +26,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     return NextResponse.json(cliente)
   }
 
-  const { nit, nombre, nombreComercial, direccion, telefono, ciudad, listaId, apiId, maps: mapsManual } = body
+  const { nit, nombre, nombreComercial, direccion, telefono, ciudad, listaId, apiId, maps: mapsManual, lat, lng, ubicacionReal } = body
 
   // Nunca sobreescribir apiId si ya tiene valor en BD
   const existing = await prisma.cliente.findUnique({ where: { id }, select: { apiId: true, maps: true } })
@@ -52,6 +52,9 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
       listaId: listaId !== undefined ? (listaId || null) : undefined,
       maps: mapsUrl,
       ...(nuevoApiId !== undefined ? { apiId: nuevoApiId } : {}),
+      ...(lat !== undefined ? { lat } : {}),
+      ...(lng !== undefined ? { lng } : {}),
+      ...(ubicacionReal !== undefined ? { ubicacionReal } : {}),
     }
   })
   return NextResponse.json(cliente)

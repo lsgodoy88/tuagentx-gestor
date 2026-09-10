@@ -15,6 +15,7 @@ export default function VisitasPage() {
   const user = session?.user as any
   const isEntregas = user?.role === 'entregas'
   const puedeRegistrar = user?.role !== 'supervisor' || checkPermiso(session, 'registrarVisitas')
+  const puedeEditarClientes = user?.role === 'empresa' || checkPermiso(session, 'editarClientes')
 
   // Hoy
   const [visitasHoy, setVisitasHoy] = useState<any[]>([])
@@ -315,7 +316,7 @@ export default function VisitasPage() {
       )}
 
       {tab === 'historial' && (
-        <TabHistorialVisitas apiUrl="/api/visitas/todas" mostrarEmpleado={false} mostrarImpulsadoras={true} />
+        <TabHistorialVisitas apiUrl="/api/visitas/todas" mostrarEmpleado={false} mostrarImpulsadoras={true} canEditClientes={puedeEditarClientes} />
       )}
 
       <ModalVisita

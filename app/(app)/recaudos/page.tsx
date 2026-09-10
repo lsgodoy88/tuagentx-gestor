@@ -323,6 +323,7 @@ export default function RecaudosPage() {
 
   const isAdmin = user?.role === 'empresa' || user?.role === 'supervisor'
   const puedeEditarRecaudos = user?.role === 'empresa' || checkPermiso(session, 'editarRecaudos')
+  const puedeAdminRecaudos  = user?.role === 'empresa' || checkPermiso(session, 'adminRecaudos')
 
   const cargarVoucherUrl = async (pagoId: string, voucherKey: string) => {
     if (voucherUrls[pagoId]) return
@@ -449,7 +450,7 @@ export default function RecaudosPage() {
 
   function iniciarLongPress(pagoId: string) {
     if (tab === 'revisar') return
-    longPressTimer.current = setTimeout(() => setMarcadoEliminar(pagoId), 600)
+    longPressTimer.current = setTimeout(() => { if (puedeAdminRecaudos) setMarcadoEliminar(pagoId) }, 600)
   }
   function cancelarLongPress() {
     if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null }
@@ -660,7 +661,7 @@ export default function RecaudosPage() {
         {/* Eliminar por recibo — oculto en tab Revisar */}
         {tab !== 'revisar' && puedeEditarRecaudos && <div style={{position:'relative',flexShrink:0}} data-popover-eliminar>
           <button
-            onClick={() => modalEliminarPaso === 'cerrado' ? abrirModalEliminar() : cerrarModalEliminar()}
+            onClick={() => { if (!puedeAdminRecaudos) return; modalEliminarPaso === 'cerrado' ? abrirModalEliminar() : cerrarModalEliminar() }}
             title="Eliminar por recibo"
             style={{flexShrink:0,background:'#1e2a3d',border:'1px solid #1e3a5f',borderRadius:'0.75rem',padding:'8px 14px',display:'flex',alignItems:'center',height:40,boxSizing:'border-box',fontSize:18,lineHeight:1,cursor:'pointer'}}>
             🗑️
@@ -794,7 +795,7 @@ export default function RecaudosPage() {
                       onMouseLeave={cancelarLongPress}
                       style={{ background: '#060a24', position: 'relative' }}
                       className={`border ${marcadoEliminar === pago.id ? 'border-red-500' : tieneVariacion ? 'border-red-500/40' : seleccionado ? 'border-blue-500/60' : 'border-zinc-800'} ${abierto ? 'rounded-t-[10px]' : 'rounded-[10px]'} px-[11px] py-[9px] flex items-center gap-2 cursor-pointer select-none`}>
-                      {marcadoEliminar === pago.id && puedeEditarRecaudos && (
+                      {marcadoEliminar === pago.id && puedeAdminRecaudos && (
                         <div onClick={e => e.stopPropagation()}
                           className="absolute -top-3 right-2 flex items-center gap-1.5 z-10">
                           <button onClick={() => eliminarPago(pago.id)} disabled={eliminando}

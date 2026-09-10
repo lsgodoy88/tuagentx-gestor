@@ -345,6 +345,12 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
   // ── Funciones modales ────────────────────────────────────────────────────
   function abrirModalVisita(tipo: string) { setModalVisita({ open: true, tipo }) }
 
+  function onUbicacionGuardada(clienteId: string) {
+    setClientesOrdenados(prev => prev.map((c: any) => c.id === clienteId ? { ...c, ubicacionReal: true } : c))
+    setClienteInicialLibre((prev: any) => prev?.id === clienteId ? { ...prev, ubicacionReal: true } : prev)
+    setClienteModal((prev: any) => prev?.id === clienteId ? { ...prev, ubicacionReal: true } : prev)
+  }
+
   async function rrLoadCartera(q: string) {
     setRrLoadingCartera(true)
     const data = await fetchApi(`/api/cartera?q=${encodeURIComponent(q)}&limit=50`)
@@ -1015,6 +1021,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
         open={modalVisita.open}
         onClose={() => { setModalVisita({ open: false, tipo: 'visita' }); setClienteInicialLibre(null) }}
         onRegistrado={recargarRutaVisitas}
+        onUbicacionGuardada={onUbicacionGuardada}
         clienteInicial={clienteInicialLibre || undefined}
         tipoForzado={modalVisita.tipo !== 'visita' && modalVisita.tipo !== 'venta' && modalVisita.tipo !== 'cobro' && modalVisita.tipo !== 'entrega' ? undefined : modalVisita.tipo as any}
         puedeCapturarGps={puedeCapturarGps}
@@ -1025,6 +1032,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
         key={clienteModal?.id || 'sin-cliente-ruta'}
         open={!!clienteModal}
         onClose={() => setClienteModal(null)}
+        onUbicacionGuardada={onUbicacionGuardada}
         facturaPreset={clienteModal?.numeroFactura || undefined}
         onRegistrado={() => {
           if (clienteModal?.ordenDespachoId) setOrdenesEntregadas(prev => new Set([...prev, clienteModal.ordenDespachoId]))
@@ -1044,6 +1052,7 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
           open={modalVisitaNuevo}
           onClose={() => { setModalVisitaNuevo(false); setClienteInicialLibre(null); setListaAbierta(false) }}
           onRegistrado={recargarRutaVisitas}
+          onUbicacionGuardada={onUbicacionGuardada}
           tipoForzado="visita"
           puedeCapturarGps={puedeCapturarGps}
           titulo="✨ Cliente Nuevo"

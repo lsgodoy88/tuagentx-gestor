@@ -32,6 +32,7 @@ interface Props {
   open: boolean
   onClose: () => void
   onRegistrado?: () => void
+  onUbicacionGuardada?: (clienteId: string) => void
   instance?: string
   clienteInicial?: Cliente
   tipoForzado?: string
@@ -45,7 +46,7 @@ interface Props {
 }
 
 export default function ModalVisita({
-  open, onClose, onRegistrado,
+  open, onClose, onRegistrado, onUbicacionGuardada,
   clienteInicial, tipoForzado,
   puedeCapturarGps = false,
   titulo, extraData = {}, distanciaLejos, facturaPreset, empresaOrigen,
@@ -62,6 +63,10 @@ export default function ModalVisita({
   const [firma, setFirma] = useState<string | null>(null)  // foto entrega
   const [quienRecibe, setQuienRecibe] = useState('')
   const [capturarGps, setCapturarGps] = useState(false)
+  const [popupGps, setPopupGps] = useState(false)
+  const [guardandoGps, setGuardandoGps] = useState(false)
+  const [visitaIdParaGps, setVisitaIdParaGps] = useState<string|null>(null)
+  const [clienteIdParaGps, setClienteIdParaGps] = useState<string|null>(null)
   const [loading, setLoading] = useState(false)
   const [exito, setExito] = useState(false)
   const [obteniendo, setObteniendo] = useState(false)
@@ -171,11 +176,14 @@ export default function ModalVisita({
       alert('Visita registrada. Estás a ' + data.alertaDistancia + 'm del cliente')
     }
     setExito(true)
-    setTimeout(() => {
-      setExito(false)
-      onClose()
-      onRegistrado?.()
-    }, 900)
+    const clPost = cliente || clienteInicial
+    if (puedeCapturarGps && clPost && !clPost.ubicacionReal && data.visita?.id) {
+      setVisitaIdParaGps(data.visita.id)
+      setClienteIdParaGps(clPost.id)
+      setTimeout(() => { setExito(false); setPopupGps(true) }, 900)
+    } else {
+      setTimeout(() => { setExito(false); onClose(); onRegistrado?.() }, 900)
+    }
 
     // GPS en background para los casos donde no se esperó
     if (!esperarGps) {
@@ -207,6 +215,28 @@ export default function ModalVisita({
     }
   }
 
+  function responderPopupGps(guardar: boolean) {
+    setPopupGps(false)
+    onClose()
+    onRegistrado?.()
+    // Guardar GPS en background — no bloquea el cierre
+    if (guardar && clienteIdParaGps) {
+      const cid = clienteIdParaGps
+      ;(async () => {
+        try {
+          const pos = gpsDemand.pos || await gpsDemand.obtener()
+          if (pos) {
+            await fetchApi(`/api/clientes/${cid}`, {
+              method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ lat: pos.lat, lng: pos.lng, ubicacionReal: true }),
+            })
+            onUbicacionGuardada?.(cid)
+          }
+        } catch {}
+      })()
+    }
+  }
+
   useEffect(() => {
     if (open) { gpsDemand.iniciar(); setNombreLibre(clienteNuevo && clienteInicial?.nombre ? clienteInicial.nombre : ''); setModoNuevo(clienteNuevo) }
     else gpsDemand.reset()
@@ -221,6 +251,25 @@ export default function ModalVisita({
 
 
   return (
+    <>
+    {/* Popup GPS post-registro */}
+    {popupGps && (
+      <div className="fixed inset-0 z-[9999] flex items-end justify-center pb-8 px-4" style={{background:'rgba(0,0,0,0.6)'}}>
+        <div className="w-full max-w-sm rounded-2xl p-5 text-center" style={{background:'#1e2030',border:'1px solid rgba(59,130,246,0.30)',boxShadow:'0 8px 32px rgba(0,0,0,0.5)'}}>
+          <div className="text-3xl mb-3">📍</div>
+          <p className="text-white font-bold text-base mb-1">¿Estás donde el cliente?</p>
+          <p className="text-zinc-400 text-sm mb-5">Guardaremos tu ubicación actual como la dirección del cliente</p>
+          <div className="flex gap-3">
+            <button onClick={() => responderPopupGps(false)} disabled={guardandoGps}
+              className="flex-1 py-3 rounded-xl bg-zinc-700 text-white font-semibold text-sm">No</button>
+            <button onClick={() => responderPopupGps(true)} disabled={guardandoGps}
+              className="flex-1 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-sm">
+              {guardandoGps ? '📡 Guardando...' : 'Sí, guardar ubicación'}
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
     <div className="fixed inset-0 flex items-start justify-center z-[1000] pt-4 px-4 pb-4" style={{background:"#0f1729"}}>
       <div className="rounded-2xl w-full max-w-md p-6 pb-6 space-y-4 max-h-[88vh] overflow-y-auto overscroll-contain" style={{background:"#0f172a",border:"1px solid rgba(59,130,246,0.50)"}}>
 
@@ -403,16 +452,7 @@ export default function ModalVisita({
                     </div>
                   )}
                   {/* Checkbox solo para vendedor autorizado */}
-                  {puedeCapturarGps && !modoNuevo && (
-                    <div className="flex items-center gap-3  rounded-xl px-4 py-3" style={{background:"#1e2030",border:"1px solid rgba(59,130,246,0.20)"}}>
-                      <input type="checkbox" id="capturarGpsModal" checked={capturarGps}
-                        onChange={e => setCapturarGps(e.target.checked)}
-                        className="w-4 h-4 accent-emerald-500" />
-                      <label htmlFor="capturarGpsModal" className="text-zinc-300 text-sm cursor-pointer">
-                        {clienteActual!.ubicacionReal ? 'Actualizar ubicación de este cliente' : 'Guardar ubicación de este cliente'}
-                      </label>
-                    </div>
-                  )}
+
                   {/* Barra progreso GPS en background (vendedor) */}
                   {puedeCapturarGps && obteniendo && (
                     <div className="space-y-1">
@@ -454,5 +494,6 @@ export default function ModalVisita({
         )}
       </div>
     </div>
+  </>
   )
 }

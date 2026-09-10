@@ -77,18 +77,22 @@ export default function ModalRecaudo({
   }
 
   async function handleConfirmar() {
-    if (gpsCoords) {
-      // Mostrar popup solo si hay GPS disponible
+    const tieneGpsReal = !!(cartera?.cliente?.ubicacionReal)
+    const yaGuardoGps = clienteId ? !!sessionStorage.getItem(`gpsReal_${clienteId}`) : false
+    if (gpsCoords && !tieneGpsReal && !yaGuardoGps) {
       setPopupGps(true)
     } else {
       onConfirmar()
     }
   }
 
-  async function responderPopupGps(estaAhi: boolean) {
+  function responderPopupGps(estaAhi: boolean) {
     setPopupGps(false)
-    if (estaAhi) await guardarGpsCliente()
     onConfirmar()
+    // Guardar GPS en background — no bloquea
+    if (estaAhi) {
+      guardarGpsCliente().catch(() => {})
+    }
   }
   const fileInputRefs = useRef<Map<string, HTMLInputElement>>(new Map())
   const scrollRef = useRef<HTMLDivElement>(null)

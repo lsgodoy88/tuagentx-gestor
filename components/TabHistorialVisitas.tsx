@@ -9,12 +9,13 @@ const TIPO_ICON: Record<string,string> = { venta:'💰', cobro:'💵', recaudo:'
 const VIS_LIMIT = 15
 
 interface Props {
-  apiUrl: string           // '/api/visitas/admin' o '/api/visitas/todas'
-  mostrarEmpleado: boolean // admin ve filtro de empleado, vendedor no
-  mostrarImpulsadoras?: boolean // vendedor ve selector de sus impulsadoras
+  apiUrl: string
+  mostrarEmpleado: boolean
+  mostrarImpulsadoras?: boolean
+  canEditClientes?: boolean
 }
 
-export default function TabHistorialVisitas({ apiUrl, mostrarEmpleado, mostrarImpulsadoras }: Props) {
+export default function TabHistorialVisitas({ apiUrl, mostrarEmpleado, mostrarImpulsadoras, canEditClientes = false }: Props) {
   const [visitas, setVisitas] = useState<any[]>([])
   const [visTotal, setVisTotal] = useState(0)
   const [visPage, setVisPage] = useState(1)
@@ -182,7 +183,7 @@ export default function TabHistorialVisitas({ apiUrl, mostrarEmpleado, mostrarIm
                   {/* Mapa inline móvil */}
                   {isMapaAbierto && (
                     <div className="md:hidden" style={{height:260,borderBottom:'1px solid #1e2a3d'}}>
-                      <MapaHistorialCliente visitas={gVisitas} selected={visSelectedGps} />
+                      <MapaHistorialCliente visitas={gVisitas} selected={visSelectedGps} canEditClientes={canEditClientes} />
                     </div>
                   )}
 
@@ -216,6 +217,7 @@ export default function TabHistorialVisitas({ apiUrl, mostrarEmpleado, mostrarIm
               <MapaHistorialCliente
                 visitas={mapaClienteKey ? groups[mapaClienteKey] || [] : visitas}
                 selected={visSelectedGps}
+                canEditClientes={canEditClientes}
               />
             </div>
           )}

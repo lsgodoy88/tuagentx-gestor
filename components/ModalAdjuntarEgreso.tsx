@@ -39,6 +39,8 @@ interface Props {
   initialFecha?: string
   initialEvidenciaKey?: string
   initialProveedor?: { id: string; firstName: string; lastName: string | null; aplica_retencion: boolean; porcentaje_retencion: string | null } | null
+  canEdit?: boolean
+  canAdmin?: boolean
   onAbonoGuardado?: (abonoPago: number, saldo: number) => void
   onGuardado: (data: {
     evidenciaKey: string
@@ -74,9 +76,17 @@ function comprimirImagen(base64: string): Promise<string> {
 export default function ModalAdjuntarEgreso({
   egresoId, categoriaKey, mes, anio,
   initialConcepto = '', initialFechaReg = '', initialValor = '', initialRetencion = '', initialDescuento = '', initialFecha = '', initialEvidenciaKey = '', initialProveedor = null,
+  canEdit = false, canAdmin = false,
   onGuardado, onAbonoGuardado, onClose,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!egresoId) return
+    fetch(`/api/egresos/adjuntos?egresoId=${egresoId}`)
+      .then(r => r.json())
+      .then(d => setAdjuntosFactura((d.adjuntos || []).filter((a: any) => a.tipo === 'factura')))
+  }, [egresoId])
 
   useEffect(() => {
     notifyModuleOpen()
@@ -91,6 +101,7 @@ export default function ModalAdjuntarEgreso({
   const [error, setError] = useState('')
 
   const [evidenciaKey, setEvidenciaKey] = useState(initialEvidenciaKey)
+  const [adjuntosFactura, setAdjuntosFactura] = useState<{id:string; key:string}[]>([])
   const [datosIA, setDatosIA] = useState<DatosIA | null>(null)
 
   const [concepto, setConcepto] = useState(initialConcepto)
@@ -200,7 +211,17 @@ export default function ModalAdjuntarEgreso({
       const data = await res.json()
       if (!res.ok) throw new Error(data.error || 'Error subiendo')
       const ia: DatosIA = data.datosIA || {}
-      setEvidenciaKey(data.key || '')
+      if (egresoId && data.key) {
+        // Egreso ya guardado → registrar en EgresoAdjunto
+        const res2 = await fetch('/api/egresos/adjuntos', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ egresoId, tipo: 'factura', key: data.key }),
+        })
+        const d2 = await res2.json()
+        if (d2.adjunto) setAdjuntosFactura(prev => [...prev, { id: d2.adjunto.id, key: d2.adjunto.key }])
+      } else {
+        setEvidenciaKey(data.key || '')
+      }
       setDatosIA(ia)
       // Autocompletar campos vacíos
       if (!concepto.trim() && ia.concepto) setConcepto(ia.concepto.toUpperCase())
@@ -241,7 +262,7 @@ export default function ModalAdjuntarEgreso({
         concepto: concepto.trim().toUpperCase(),
         valor: v, retencion: r, descuento: descuentoNum, saldo,
         fecha: fechaFinal,
-        ...(evidenciaKey ? { evidenciaKey } : {}),
+        evidenciaKey: evidenciaKey || null,
         ...(proveedorSel ? { proveedorId: proveedorSel.id } : {}),
         ...(medioPago ? { medioPago } : {}),
       }
@@ -394,23 +415,43 @@ export default function ModalAdjuntarEgreso({
           <p className="text-zinc-300 text-xs font-bold uppercase tracking-wide mb-1">📄 Factura / Egreso</p>
 
         {/* Zona adjunto */}
-        <input ref={fileInputRef} type="file" accept="image/*,application/pdf"
-          className="hidden" onChange={e => { if (e.target.files?.[0]) handleArchivo(e.target.files[0]) }} />
-        {evidenciaKey ? (
+        {canEdit && <input ref={fileInputRef} type="file" accept="image/*,application/pdf"
+          className="hidden" onChange={e => { if (e.target.files?.[0]) handleArchivo(e.target.files[0]) }} />}
+
+        {/* Egreso guardado — historial de adjuntos */}
+        {egresoId && adjuntosFactura.length > 0 && (
+          <div className="space-y-1.5">
+            {adjuntosFactura.map((a, i) => (
+              <div key={a.id} className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{background:"rgba(52,211,153,0.08)",border:"1px solid rgba(52,211,153,0.3)"}}>
+                <span className="text-emerald-400 text-sm">📎</span>
+                <button onClick={async () => { const r = await fetch(`/api/egresos/url?key=${encodeURIComponent(a.key)}`); const d = await r.json(); if(d.url) window.open(d.url,"_blank") }}
+                  style={{background:"none",border:"none",cursor:"pointer",color:"#34d399",fontSize:13,fontWeight:600,flex:1,textAlign:"left"}}>
+                  Ver factura adjunta #{i + 1}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Egreso nuevo (pre-guardado) — un solo adjunto con opción de eliminar */}
+        {!egresoId && evidenciaKey && (
           <div className="flex items-center gap-2 px-3 py-2 rounded-xl" style={{background:"rgba(52,211,153,0.08)",border:"1px solid rgba(52,211,153,0.3)"}}>
             <span className="text-emerald-400 text-sm">📎</span>
             <button onClick={async () => { const r = await fetch(`/api/egresos/url?key=${encodeURIComponent(evidenciaKey)}`); const d = await r.json(); if(d.url) window.open(d.url,"_blank") }}
               style={{background:"none",border:"none",cursor:"pointer",color:"#34d399",fontSize:13,fontWeight:600,flex:1,textAlign:"left"}}>Ver factura adjunta</button>
             <button onClick={() => setEvidenciaKey("")} style={{background:"none",border:"none",cursor:"pointer",color:"#6b7280",fontSize:16,padding:"0 4px"}} title="Eliminar adjunto">✕</button>
           </div>
-        ) : (
+        )}
+
+        {/* Botón adjuntar — siempre visible si canEdit */}
+        {canEdit && (
           <div
             className="flex items-center justify-center rounded-xl border-2 border-dashed cursor-pointer transition-colors"
             style={{ borderColor: "rgba(251,146,60,0.70)", background: "rgba(251,146,60,0.05)", padding: "11px 0" }}
             onClick={() => fileInputRef.current?.click()}>
             {subiendo
               ? <span className="text-zinc-400 text-sm">⏳ Analizando...</span>
-              : <span className="text-white text-sm">📎 Adjuntar factura</span>
+              : <span className="text-white text-sm">📎 {egresoId && adjuntosFactura.length > 0 ? 'Adjuntar nueva versión' : 'Adjuntar factura'}</span>
             }
           </div>
         )}
@@ -489,18 +530,18 @@ export default function ModalAdjuntarEgreso({
         </div>{/* /SECCIÓN FACTURA */}
 
         {/* ── SECCIÓN ABONOS ── */}
-        {egresoId && (
+        {egresoId && (canEdit || abonos.length > 0) && (
         <div className="rounded-2xl p-4 space-y-3" style={{background:'rgba(82,82,91,0.40)',border:'1px solid rgba(52,211,153,0.35)'}}>
           <div className="flex items-center justify-between mb-1">
             <p className="text-emerald-300 text-xs font-bold uppercase tracking-wide">💳 Abonos / Pagos</p>
-            {abonos.length > 0 && (
+            {canAdmin && abonos.length > 0 && (
               <button onClick={() => { setModoEditarAbonos(m => !m); setAbonoSeleccionado(null) }}
                 style={{background:'none',border:'none',cursor:'pointer',fontSize:16,padding:'0 2px',opacity: modoEditarAbonos ? 1 : 0.5}}>✏️</button>
             )}
           </div>
 
         {/* Adjuntar Pago */}
-        {egresoId && (
+        {canEdit && (
           <div>
             <label className="text-zinc-400 text-xs font-semibold block mb-1">Pago</label>
             <input ref={fileAbonoRef} type="file" accept="image/*,application/pdf" className="hidden"
@@ -626,13 +667,13 @@ export default function ModalAdjuntarEgreso({
         <div className="flex gap-2 pt-1 pb-safe" style={{paddingBottom:"max(24px, env(safe-area-inset-bottom))"}}>
           <button onClick={handleClose}
             className="flex-1 py-2.5 rounded-xl bg-zinc-700 text-white font-semibold text-sm">
-            Cancelar
+            Cerrar
           </button>
-          <button onClick={guardar}
+          {canEdit && <button onClick={guardar}
             disabled={!concepto.trim() || !valor || guardando}
             className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-sm">
             {guardando ? 'Guardando...' : 'Guardar'}
-          </button>
+          </button>}
         </div>
         </div>
         </div>
