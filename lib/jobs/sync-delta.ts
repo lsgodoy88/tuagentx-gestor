@@ -646,7 +646,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   _s = Date.now()
   try {
     const schema = process.env.DB_SCHEMA || 'gestor'
-    const hace30dias = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    const hace10dias = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString()
     const deudasSinOrden: any[] = await prisma.$queryRawUnsafe(`
       SELECT sd."externalId", sd."numeroFactura", sd."numeroOrden"
       FROM ${schema}."SyncDeuda" sd
@@ -660,7 +660,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
           WHERE od."origenId" = sd."externalId" AND od."empresaId" = $2
         )
       ORDER BY sd."numeroFactura" DESC
-      LIMIT 10`, integracionId, destino, hace30dias)
+      LIMIT 10`, integracionId, destino, hace10dias)
 
     const hace30diasRec = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
     const fechaInicioBodegaRec: Date = (empresa as any)?.fechaInicioBodega ?? hace30diasRec
@@ -709,7 +709,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
             huecosRecuperados++
             console.log(`[delta] recuperada F_${completa.numeroFactura} orden ${completa.numeroOrden}`)
           } else {
-            console.warn(`[delta] fetchOrdenCompletaPorId sin datos para ${deuda.externalId} F_${deuda.numeroFactura}`)
+            console.log(`[delta] recuperador sin datos UpTres F_${deuda.numeroFactura} — omitiendo`)
           }
         } catch (e: any) { console.error('[delta] recuperador error', deuda.externalId, e.message) }
       }

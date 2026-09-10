@@ -11,7 +11,8 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Sin acceso' }, { status: 403 })
   }
 
-  const empresaId = user.empresaId || user.id
+  try {
+    const empresaId = user.empresaId || user.id
   const q = req.nextUrl.searchParams.get('q')?.trim() || ''
   if (!q) return NextResponse.json({ ordenes: [], fuente: null })
 
@@ -82,8 +83,11 @@ export async function GET(req: NextRequest) {
     select: SELECT
   })
 
-  return NextResponse.json({
-    ordenes: ordenesDirectas,
-    fuente: ordenesDirectas.length > 0 ? 'bd' : 'no_encontrado'
-  })
+    return NextResponse.json({
+      ordenes: ordenesDirectas,
+      fuente: ordenesDirectas.length > 0 ? 'bd' : 'no_encontrado'
+    })
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }

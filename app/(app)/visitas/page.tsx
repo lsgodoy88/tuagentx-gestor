@@ -206,8 +206,7 @@ export default function VisitasPage() {
         {tab === 'historial' && (
           <div className="hidden md:flex gap-2 items-center">
             {/* Buscador con autocomplete */}
-            <div style={{position:'relative',display:'flex',alignItems:'center',background:'#1e243a',border:'1px solid #1e3a5f',borderRadius:10,padding:'0 10px',gap:6}}>
-              <span style={{color:'#4b7cb5',fontSize:14,flexShrink:0}}>🔍</span>
+            <div className="relative min-w-0 flex-1">
               <input value={buscarHistorial} onChange={e => {
                 const q = e.target.value
                 setBuscarHistorial(q)
@@ -220,16 +219,16 @@ export default function VisitasPage() {
                 autoComplete="off"
                 onFocus={() => { if (buscarHistorial.length >= 2) setShowSug(true) }}
                 onBlur={() => setTimeout(() => setShowSug(false), 200)}
-                style={{background:'none',border:'none',color:'white',fontSize:12,outline:'none',width:180,padding:'7px 0'}} />
-              {buscarHistorial && <button onClick={()=>{setBuscarHistorial('');setSugerencias([]);loadHistorial('','',null)}} style={{background:'none',border:'none',color:'#6b7280',cursor:'pointer',fontSize:14,padding:0,flexShrink:0}}>×</button>}
+                className={`min-w-0 w-full bg-[#0d1220] text-white rounded-lg px-3 py-2 text-sm focus:outline-none ${buscarHistorial ? 'border border-red-500' : 'border border-[#1e2a3d]'}`} />
+              {buscarHistorial && <button onClick={()=>{setBuscarHistorial('');setSugerencias([]);loadHistorial('','',null)}} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 text-base leading-none">×</button>}
               {showSug && sugerencias.length > 0 && (
-                <div style={{position:'absolute',top:'100%',left:0,zIndex:50,background:'#1e243a',border:'1px solid #1e3a5f',borderRadius:10,minWidth:260,marginTop:4,overflow:'hidden'}}>
+                <div style={{position:'absolute',top:'100%',left:0,zIndex:50,background:'#0d1220',border:'1px solid #1e2a3d',borderRadius:10,minWidth:260,marginTop:4,overflow:'hidden'}}>
                   {sugerencias.map((cl:any) => (
                     <button key={cl.id} onMouseDown={() => {
                       setShowSug(false); setSugerencias([])
                       setBuscarHistorial(cl.nit || cl.nombre)
                       loadHistorial(cl.nit || cl.nombre, '', null)
-                    }} style={{width:'100%',textAlign:'left',padding:'8px 14px',background:'none',border:'none',borderBottom:'1px solid #1e3a5f',color:'white',fontSize:12,cursor:'pointer'}}
+                    }} style={{width:'100%',textAlign:'left',padding:'8px 14px',background:'none',border:'none',borderBottom:'1px solid #1e2a3d',color:'white',fontSize:12,cursor:'pointer'}}
                       onMouseEnter={e=>(e.currentTarget.style.background='#0f2540')}
                       onMouseLeave={e=>(e.currentTarget.style.background='none')}>
                       <span style={{fontWeight:500}}>{cl.nombre}</span>
@@ -241,8 +240,8 @@ export default function VisitasPage() {
             </div>
             {/* Dropdown empleados */}
             <select onChange={e => { setBuscarHistorial(''); loadHistorial('', fechaHistorial, null) }}
-              style={{background:'#1e243a',border:'1px solid #1e3a5f',borderRadius:10,padding:'7px 10px',color:'white',fontSize:12,outline:'none',cursor:'pointer'}}>
-              <option value="">Todos los empleados</option>
+              className="flex-shrink-0 bg-[#0d1220] text-white rounded-lg px-2 py-2 text-sm focus:outline-none cursor-pointer border border-[#1e2a3d]">
+              <option value="">Empleados</option>
             </select>
             {/* Calendario */}
             <div className="relative flex-shrink-0">
@@ -252,14 +251,12 @@ export default function VisitasPage() {
                 setBuscarHistorial('')
                 clearTimeout(debounceRef.current)
                 loadHistorial('', f, null)
-              }} className="absolute inset-0 opacity-0 cursor-pointer w-full" />
-              <div style={{display:'flex',alignItems:'center',gap:4,padding:'7px 10px',borderRadius:10,fontSize:12,border:'1px solid',cursor:'pointer',
-                background: fechaHistorial ? '#09091e' : '#1e243a',
-                borderColor: fechaHistorial ? '#2563eb' : '#1e3a5f',
-                color: fechaHistorial ? 'white' : 'rgba(255,255,255,0.5)'}}>
-                📅{fechaHistorial ? ' '+new Date(fechaHistorial + 'T12:00:00Z').toLocaleDateString('es-CO', {day:'numeric', month:'short', timeZone: 'America/Bogota'}) : ''}
-                {fechaHistorial && <button onClick={e => { e.stopPropagation(); setFechaHistorial(''); loadHistorial('', '', null) }} style={{background:'none',border:'none',color:'rgba(255,255,255,0.7)',cursor:'pointer',fontSize:14,lineHeight:1,padding:0,marginLeft:2}}>×</button>}
-              </div>
+              }} className="absolute opacity-0 pointer-events-none" style={{top:0,left:0,width:1,height:1}} id="vis-fecha-historial" />
+              <button onClick={() => (document.getElementById('vis-fecha-historial') as HTMLInputElement)?.showPicker?.()}
+                className="w-10 h-10 rounded-xl flex items-center justify-center"
+                style={{background:'#0d1220', border: fechaHistorial ? '1px solid #ef4444' : '1px solid #1e2a3d', color:'white', cursor:'pointer'}}>
+                📅
+              </button>
             </div>
           </div>
         )}

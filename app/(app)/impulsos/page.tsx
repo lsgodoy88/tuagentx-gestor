@@ -1099,16 +1099,16 @@ function ReporteImpulsoTab({ refreshToken = 0, empleadosParaRefresh }: { refresh
 
   const dropdownStyle = (open: boolean): React.CSSProperties => ({
     position:'absolute', top:'calc(100% + 6px)', left:0, zIndex:50,
-    background:'#1e2030', border:'1px solid #1a3557', borderRadius:12,
+    background:'#0d1220', border:'1px solid #1e2a3d', borderRadius:8,
     overflow:'hidden', minWidth:180, boxShadow:'0 8px 24px rgba(0,0,0,0.5)',
     display: open ? 'block' : 'none',
   })
 
   const btnMesStyle: React.CSSProperties = {
     display:'flex', alignItems:'center', justifyContent:'space-between', gap:8,
-    background:'#1e2030', border:'1px solid #1a3557',
-    borderRadius:12, padding:'8px 14px', color:'white',
-    fontSize:14, fontWeight:600, cursor:'pointer', whiteSpace:'nowrap',
+    background:'#0d1220', border:'1px solid #1e2a3d',
+    borderRadius:8, padding:'8px 12px', color:'white',
+    fontSize:13, fontWeight:500, cursor:'pointer', whiteSpace:'nowrap',
     width:'100%',
   }
 
@@ -1131,7 +1131,7 @@ function ReporteImpulsoTab({ refreshToken = 0, empleadosParaRefresh }: { refresh
                     background: m.valor === mesDesde ? '#1d4ed8' : 'transparent',
                     color: m.valor === mesDesde ? 'white' : '#cbd5e1',
                     fontWeight: m.valor === mesDesde ? 700 : 400,
-                    borderBottom:'1px solid #131c2e',
+                    borderBottom:'1px solid #1e2a3d',
                   }}>
                   {m.label}
                 </button>
@@ -1154,7 +1154,7 @@ function ReporteImpulsoTab({ refreshToken = 0, empleadosParaRefresh }: { refresh
                     background: m.valor === mesHasta ? '#1d4ed8' : 'transparent',
                     color: m.valor === mesHasta ? 'white' : '#cbd5e1',
                     fontWeight: m.valor === mesHasta ? 700 : 400,
-                    borderBottom:'1px solid #131c2e',
+                    borderBottom:'1px solid #1e2a3d',
                   }}>
                   {m.label}
                 </button>

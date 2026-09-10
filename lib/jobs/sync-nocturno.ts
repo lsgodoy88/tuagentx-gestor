@@ -692,5 +692,16 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
     })
   )
 
+  // Purga SyncLog — retener solo 30 días
+  try {
+    const schema = process.env.DB_SCHEMA || 'gestor'
+    const deleted = await prisma.$executeRawUnsafe(
+      `DELETE FROM ${schema}."SyncLog" WHERE "createdAt" < NOW() - INTERVAL '30 days'`
+    )
+    if (deleted > 0) console.log(`[sync-nocturno] purga SyncLog: ${deleted} filas eliminadas`)
+  } catch (e: any) {
+    console.error('[sync-nocturno] purga SyncLog error:', e.message)
+  }
+
   return resultados
 }

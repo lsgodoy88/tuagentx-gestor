@@ -96,7 +96,7 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onSync, 
           }} />
           {/* Nombre + icono sync */}
           <span style={{
-            fontSize: 15, fontWeight: 700, color: '#fff',
+            fontSize: 13, fontWeight: 700, color: '#fff',
             overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
           }}>
             {c.cliente?.nombre}
@@ -114,10 +114,10 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onSync, 
       {/* Expandido */}
       {open && (
         <div onClick={e => e.stopPropagation()}>
-          {/* NIT */}
-          {c.cliente?.nit && (
-            <p style={{ fontSize: 12, color: '#ffffff', marginTop: 6 }}>NIT: {c.cliente.nit}</p>
-          )}
+          {/* NIT + Ciudad */}
+          <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>
+            NIT: {c.cliente?.nit || '—'} · {c.cliente?.ciudad || '—'}
+          </p>
 
           {/* Vendedor (admin/supervisor) */}
           {esSupervisor && c.empleado?.nombre && (
@@ -139,7 +139,8 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onSync, 
                 }}>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ fontSize: 12, color: '#ffffff' }}>
-                      {d.numeroFactura || d.numeroOrden || `Deuda ${i+1}`}
+                      {d.numeroFactura ? `Fact. ${d.numeroFactura}` : d.numeroOrden ? `${d.numeroOrden}` : `Deuda ${i+1}`}
+                      {(d as any).electronicInvoiceNumber && <span style={{ fontSize: 11, color: '#94a3b8', marginLeft: 6 }}>Elect. {(d as any).electronicInvoiceNumber}</span>}
                     </span>
                     {d.fechaVencimiento && (
                       <span style={{ fontSize: 11, color: '#ffffff', marginLeft: 6 }}>
@@ -178,40 +179,18 @@ export default function CarteraCard({ cartera: c, rol, fmt, onRecaudar, onSync, 
                 >
                   💳 Recaudar
                 </button>
-              ) : (
-                <button
-                  onClick={async e => {
-                    e.stopPropagation()
-                    if (syncing) return
-                    setSyncing(true)
-                    await onSync?.(c)
-                    setSyncing(false)
-                    setSynced(true)
-                    setTimeout(() => setSynced(false), 3000)
-                  }}
-                  disabled={syncing}
-                  style={{
-                    flex: 1,
-                    background: synced ? 'linear-gradient(135deg, #065f46, #10b981)' : syncing ? '#374151' : 'linear-gradient(135deg, #065f46, #10b981)',
-                    color: '#fff', border: 'none', borderRadius: 10,
-                    padding: '8px 0', fontSize: 13, fontWeight: 600, cursor: syncing ? 'not-allowed' : 'pointer',
-                    transition: 'background 0.3s',
-                  }}
-                >
-                  {synced ? '✅ Actualizado' : syncing ? '⏳ Sincronizando...' : '🔄 Sync UpTres'}
-                </button>
-              )}
+              ) : null}
               <button
                 onClick={e => { e.stopPropagation(); onWhatsApp?.(c) }}
                 title="Enviar recordatorio por WhatsApp"
                 style={{
-                  background: '#25D366', border: 'none', borderRadius: 10,
+                  flex: 1, background: 'linear-gradient(135deg, #065f46, #10b981)', border: 'none', borderRadius: 10,
                   padding: '8px 12px', color: '#fff', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  fontSize: 15, fontWeight: 600,
                 }}
               >
-                <WhatsAppIcon />
+                Enviar cobro al cliente <WhatsAppIcon />
               </button>
             </div>
           )}

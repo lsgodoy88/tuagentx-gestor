@@ -462,6 +462,7 @@ export default function CarteraPage() {
         return { estado, estadoLabel: label, estadoColor: color }
       })(),
       numeroFactura: d.numeroFactura || d.numeroOrden,
+      electronicInvoiceNumber: d.electronicInvoiceNumber || null,
       fechaVencimiento: d.fechaVencimiento,
       concepto: null,
       _sync: true,
@@ -1499,7 +1500,8 @@ export default function CarteraPage() {
                               )}
                               {/* Factura */}
                               <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",fontFamily:"monospace",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d",textAlign:"center"}}>
-                                {d.numeroFactura ? `${d.numeroFactura}` : d.numeroOrden ? `${d.numeroOrden}` : '—'}
+                                {d.numeroFactura ? `Fact. ${d.numeroFactura}` : d.numeroOrden ? `${d.numeroOrden}` : '—'}
+                                {d.electronicInvoiceNumber && <span style={{display:'block',fontSize:12,color:'#94a3b8'}}>Elect. {d.electronicInvoiceNumber}</span>}
                               </td>
                               {/* Vencimiento */}
                               <td style={{padding:"8px 10px",fontSize:14,fontWeight:500,color:"white",fontFamily:"monospace",whiteSpace:"nowrap",borderBottom:"1px solid #1e2a3d",textAlign:"center"}}>

@@ -94,10 +94,9 @@ export default function TabHistorialVisitas({ apiUrl, mostrarEmpleado, mostrarIm
   return (
     <div className="space-y-4">
       {/* Controles */}
-      <div className="flex gap-2 items-center flex-wrap">
+      <div className="flex gap-2 items-center min-w-0">
         {/* Buscador cliente */}
-        <div style={{position:'relative',display:'flex',alignItems:'center',background:'#1e243a',border:'1px solid #1e3a5f',borderRadius:10,padding:'0 10px',gap:6,flex:1,minWidth:160}}>
-          <span style={{color:'#4b7cb5',fontSize:14,flexShrink:0}}>🔍</span>
+        <div className="relative min-w-0 flex-1">
           <input value={visClienteFiltro} onChange={e => {
             setVisClienteFiltro(e.target.value)
             clearTimeout(visSugRef.current)
@@ -106,8 +105,11 @@ export default function TabHistorialVisitas({ apiUrl, mostrarEmpleado, mostrarIm
             placeholder="Buscar cliente..."
             autoComplete="off"
             onKeyDown={e => e.key === 'Enter' && buscarVisitas()}
-            style={{background:'none',border:'none',color:'white',fontSize:12,outline:'none',flex:1,padding:'7px 0'}} />
-          {visClienteFiltro && <button onClick={() => { setVisClienteFiltro(''); setVisSugerencias([]); buscarVisitas(1, '') }} style={{background:'none',border:'none',color:'#6b7280',cursor:'pointer',fontSize:14,padding:0,flexShrink:0}}>×</button>}
+            className={`min-w-0 w-full bg-[#0d1220] text-white rounded-lg px-3 py-2 text-sm focus:outline-none ${visClienteFiltro ? 'border border-red-500' : 'border border-[#1e2a3d]'}`} />
+          {visClienteFiltro && (
+            <button onClick={() => { setVisClienteFiltro(''); setVisSugerencias([]); buscarVisitas(1, '') }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 text-base leading-none">×</button>
+          )}
         </div>
 
         {/* Selector empleado (admin) o impulsadoras (vendedor) */}
@@ -115,11 +117,11 @@ export default function TabHistorialVisitas({ apiUrl, mostrarEmpleado, mostrarIm
           <select
             value={visEmpleadoFiltro}
             onChange={e => { const v = e.target.value; setVisEmpleadoFiltro(v); buscarVisitas(1, undefined, v) }}
-            className={visEmpleadoFiltro ? 'select-active' : ''}
-            style={{background:'#0d1220',border:'1px solid #1e2a3d',borderRadius:10,padding:'7px 10px',color:'white',fontSize:12,outline:'none',cursor:'pointer',flexShrink:0,maxWidth:180}}>
+            className={`flex-shrink-0 bg-[#0d1220] text-white rounded-lg px-2 py-2 text-sm focus:outline-none cursor-pointer ${visEmpleadoFiltro ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}
+            style={{width:130}}>
             {mostrarEmpleado ? (
               <>
-                <option value="">Todos los empleados</option>
+                <option value="">Empleados</option>
                 {visEmpleados.filter((e: any) => e.activo).map((e: any) => (
                   <option key={e.id} value={e.id}>{e.nombre}</option>
                 ))}
@@ -138,13 +140,12 @@ export default function TabHistorialVisitas({ apiUrl, mostrarEmpleado, mostrarIm
         {/* Fecha */}
         <div className="relative flex-shrink-0">
           <input type="date" value={visFechaFiltro} onChange={e => { setVisFechaFiltro(e.target.value); buscarVisitas(1) }}
-            className="absolute inset-0 opacity-0 cursor-pointer w-full" />
-          <div style={{display:'flex',alignItems:'center',gap:4,padding:'7px 10px',borderRadius:10,fontSize:12,border:'1px solid',cursor:'pointer',whiteSpace:'nowrap',
-            background:'#0d1220',
-            borderColor: visFechaFiltro ? '#ef4444' : '#1e2a3d',
-            color:'white'}}>
+            className="absolute opacity-0 pointer-events-none" style={{top:0,left:0,width:1,height:1}} id="vis-fecha-input" />
+          <button onClick={() => (document.getElementById('vis-fecha-input') as HTMLInputElement)?.showPicker?.()}
+            className="w-10 h-10 rounded-xl flex items-center justify-center"
+            style={{background:'#0d1220', border: visFechaFiltro ? '1px solid #ef4444' : '1px solid #1e2a3d', color:'white', cursor:'pointer'}}>
             📅
-          </div>
+          </button>
         </div>
       </div>
 

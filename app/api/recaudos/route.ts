@@ -127,7 +127,8 @@ export async function GET(req: NextRequest) {
     // 5. Traer un PagoCartera por SyncDeuda (el representante — último enviado)
     const pagoIdsRepresentantes = [...new Set(pagoIdPorSd.values())]
     where.id = { in: pagoIdsRepresentantes }
-  } else if (estado && estado !== 'todos') where.envioEstado = estado
+  } else if (estado === 'enviado') where.envioEstado = { in: ['enviado', 'recibido', 'cierreUptres'] }
+  else if (estado && estado !== 'todos') where.envioEstado = estado
   if (numeroRecibo) {
     // Búsqueda directa por recibo — ignora filtros de mes/fecha de la vista activa
   } else if (estado === 'revisar') {

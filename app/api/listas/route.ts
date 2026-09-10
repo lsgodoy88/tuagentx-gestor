@@ -6,13 +6,17 @@ import { prisma } from '@/lib/prisma'
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  const empresaId = (session.user as any).id
-  const listas = await prisma.listaClientes.findMany({
-    where: { empresaId },
-    include: { vendedores: { include: { empleado: { select: { id: true, nombre: true } } } }, _count: { select: { clienteListas: true } } },
-    orderBy: { nombre: 'asc' }
-  })
-  return NextResponse.json(listas)
+  try {
+    const empresaId = (session.user as any).id
+    const listas = await prisma.listaClientes.findMany({
+      where: { empresaId },
+      include: { vendedores: { include: { empleado: { select: { id: true, nombre: true } } } }, _count: { select: { clienteListas: true } } },
+      orderBy: { nombre: 'asc' }
+    })
+    return NextResponse.json(listas)
+  } catch (err: any) {
+    return NextResponse.json({ error: 'Error interno' }, { status: 500 })
+  }
 }
 
 export async function POST(req: NextRequest) {

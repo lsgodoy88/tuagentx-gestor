@@ -146,10 +146,10 @@ function TabEntregasAdmin() {
 
   return (
     <div className="space-y-2">
-      <div style={{display:'flex',alignItems:'center',background:'#1e243a',border:'1px solid #1e3a5f',borderRadius:10,padding:'0 12px',gap:8,marginBottom:12}}>
-        <span style={{color:'#4b7cb5',fontSize:14,flexShrink:0}}>{"\u{1F50D}"}</span>
-        <input value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Buscar cliente u orden..." style={{flex:1,background:'transparent',border:'none',outline:'none',color:'white',fontSize:13,padding:'10px 0'}} />
-        {busqueda && <button onClick={() => setBusqueda('')} style={{color:'#64748b',fontSize:16,background:'none',border:'none',cursor:'pointer'}}>{"\u00d7"}</button>}
+      <div className="relative min-w-0 mb-3">
+        <input value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="Buscar cliente u orden..."
+          className={`min-w-0 w-full bg-[#0d1220] text-white rounded-lg px-3 py-2 text-sm focus:outline-none ${busqueda ? 'border border-red-500' : 'border border-[#1e2a3d]'}`} />
+        {busqueda && <button onClick={() => setBusqueda('')} className="absolute right-2 top-1/2 -translate-y-1/2 text-zinc-500 text-base leading-none">×</button>}
       </div>
 
       {filtrar(clientesPendientes).length > 0 && (
@@ -216,54 +216,6 @@ export default function RutasPage() {
 
   // Tab principal
   const [tabPrincipal, setTabPrincipal] = useState<'mapa' | 'ruta' | 'historial'>('mapa')
-
-  // Estados visitas
-  const [visitas, setVisitas] = useState<any[]>([])
-  const [visEmpleados, setVisEmpleados] = useState<any[]>([])
-  const [visEmpleadoFiltro, setVisEmpleadoFiltro] = useState('')
-  const [visFechaFiltro, setVisFechaFiltro] = useState('')
-  const [visClienteFiltro, setVisClienteFiltro] = useState('')
-  const [visLoading, setVisLoading] = useState(false)
-  const [visDetalle, setVisDetalle] = useState<string | null>(null)
-  const [visPage, setVisPage] = useState(1)
-  const [visTotal, setVisTotal] = useState(0)
-  const VIS_LIMIT = 15
-  const [visSugerencias, setVisSugerencias] = useState<any[]>([])
-  const [visShowSug, setVisShowSug] = useState(false)
-  const visSugRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
-  const [visSelectedGps, setVisSelectedGps] = useState<{lat:number,lng:number}|null>(null)
-  const visClientesUnicos = [...new Set(visitas.map((v:any) => v.clienteId).filter(Boolean))]
-  const visClienteEspecifico = visClientesUnicos.length === 1 && visitas.length > 0
-
-  async function buscarClientesVis(q: string) {
-    if (q.length < 2) { setVisSugerencias([]); return }
-    const res = await fetch(`/api/clientes?q=${encodeURIComponent(q)}&limit=8`).then(r => r.json())
-    setVisSugerencias(Array.isArray(res?.clientes) ? res.clientes : Array.isArray(res) ? res : [])
-  }
-
-  async function buscarVisitas(p?: number, qOverride?: string, empOverride?: string) {
-    const pg = p ?? visPage
-    const qVal = qOverride !== undefined ? qOverride : visClienteFiltro
-    const empVal = empOverride !== undefined ? empOverride : visEmpleadoFiltro
-    setVisLoading(true)
-    const params = new URLSearchParams()
-    if (empVal) params.set('empleadoId', empVal)
-    if (visFechaFiltro) params.set('fecha', visFechaFiltro)
-    if (qVal) params.set('q', qVal)
-    params.set('page', String(pg))
-    params.set('limit', String(VIS_LIMIT))
-    const res = await fetch('/api/visitas/admin?' + params.toString()).then(r => r.json())
-    if (res?.visitas) { setVisitas(res.visitas); setVisTotal(res.total || 0) }
-    else { setVisitas(Array.isArray(res) ? res : []); setVisTotal(0) }
-    setVisLoading(false)
-  }
-
-  useEffect(() => {
-    if (tabPrincipal === 'historial' && visitas.length === 0) {
-      fetch('/api/empleados').then(r => r.json()).then(d => setVisEmpleados(Array.isArray(d) ? d : d?.empleados || []))
-      buscarVisitas()
-    }
-  }, [tabPrincipal])
 
   const [rutas, setRutas] = useState<any[]>([])
   const [empleados, setEmpleados] = useState<any[]>([])

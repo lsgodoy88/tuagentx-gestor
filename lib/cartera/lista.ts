@@ -18,7 +18,7 @@ function normalizarCache(c: any) {
     saldoTotal: saldoTot,
     porEstado,
     ultimaActualizacion: c.ultimaactualizacion || c.ultimaActualizacion,
-    cliente: { id: clienteId, nombre: c.nombre, nit: c.nit, telefono: c.telefono, apiId: clienteApiId },
+    cliente: { id: clienteId, nombre: c.nombre, nit: c.nit, telefono: c.telefono, ciudad: c.ciudad || null, apiId: clienteApiId },
     empleado: empleadoNombre ? { nombre: empleadoNombre } : null,
     DetalleCartera: (deudas as any[]).map((d: any) => {
       const vf = Number(d.valor || 0), ab = Number(d.abono || 0), saldo = Math.max(0, vf - ab)
