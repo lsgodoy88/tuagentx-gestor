@@ -15,7 +15,7 @@ export async function GET(req: NextRequest) {
     const anio = parseInt(searchParams.get('anio') || String(new Date().getFullYear()))
     const empresaId = searchParams.get('empresaId') || user.empresaId || user.id
 
-    const inicio = new Date(`${anio}-${String(mes).padStart(2,'0')}-01T05:00:00.000Z`)
+    const inicio = new Date(`${anio}-${String(mes).padStart(2,'0')}-01T05:00:00.000Z`) // medianoche Bogotá (UTC-5)
     const fin = new Date(inicio)
     fin.setMonth(fin.getMonth() + 1)
 
@@ -45,17 +45,27 @@ export async function GET(req: NextRequest) {
       GROUP BY g."empleadoId"
     `, empresaId, inicio, fin)
 
-    // Ventas por vendedor via SyncDeuda (integracion de la empresa)
+    // Ventas por vendedor via OrdenDespacho.totalOrden (misma fuente que dashboard admin)
     const ventas: any[] = await prisma.$queryRawUnsafe(`
-      SELECT e.id as empleado_id, COALESCE(SUM(sd.valor), 0) as ventas, COUNT(sd.id) as num_facturas
-      FROM ${DB_SCHEMA}."SyncDeuda" sd
-      JOIN ${DB_SCHEMA}."Integracion" i ON i.id = sd."integracionId"
-      JOIN ${DB_SCHEMA}."Empleado" e ON e."apiId" = sd."empleadoExternalId" AND e."empresaId" = i."empresaId"
-      WHERE i."empresaId" = $1
-        AND sd."createdAtBogota" >= $2 AND sd."createdAtBogota" < $3
+      SELECT e.id as empleado_id, COALESCE(SUM(od."totalOrden"), 0) as ventas, COUNT(od.id) as num_facturas
+      FROM ${DB_SCHEMA}."OrdenDespacho" od
+      JOIN ${DB_SCHEMA}."Empleado" e ON e."apiId" = od."vendedorApiId" AND e."empresaId" = od."empresaId"
+      WHERE od."empresaId" = $1
+        AND od."fechaFactura" >= $2 AND od."fechaFactura" < $3
+        AND od."isFacturada" = true AND od."isActiva" = true
         AND e.rol = 'vendedor'
       GROUP BY e.id
     `, empresaId, inicio, fin)
+
+    // Metas por empleado
+    const metasVendedor: any[] = await prisma.$queryRawUnsafe(`
+      SELECT mv."empleadoId", mv."metaPesos" as meta_venta,
+        mr."metaPesos" as meta_recaudo
+      FROM ${DB_SCHEMA}."MetaVenta" mv
+      LEFT JOIN ${DB_SCHEMA}."MetaRecaudo" mr ON mr."empleadoId" = mv."empleadoId" AND mr.mes = mv.mes AND mr.anio = mv.anio
+      WHERE mv."empresaId" = $1 AND mv.mes = $2 AND mv.anio = $3
+    `, empresaId, mes, anio)
+    const metasVendMap = Object.fromEntries(metasVendedor.map((m: any) => [m.empleadoId, { metaVenta: Number(m.meta_venta || 0), metaRecaudo: Number(m.meta_recaudo || 0) }]))
 
     const gastosMap = Object.fromEntries(gastos.map((g:any) => [g.empleadoId, { gastos: Number(g.gastos), num_gastos: Number(g.num_gastos), detalle: g.detalle || [] }]))
     const ventasMap = Object.fromEntries(ventas.map((v:any) => [v.empleado_id, { ventas: Number(v.ventas), num_facturas: Number(v.num_facturas) }]))
@@ -71,6 +81,8 @@ export async function GET(req: NextRequest) {
       gastos: gastosMap[e.id]?.gastos ?? 0,
       numGastos: gastosMap[e.id]?.num_gastos ?? 0,
       gastosDetalle: gastosMap[e.id]?.detalle ?? [],
+      metaVenta: metasVendMap[e.id]?.metaVenta ?? 0,
+      metaRecaudo: metasVendMap[e.id]?.metaRecaudo ?? 0,
     }))
 
     // Metas empresa del mes
@@ -81,6 +93,7 @@ export async function GET(req: NextRequest) {
     const metaVentaTotal = metasV.reduce((s: number, r: any) => s + Number(r.metaPesos || 0), 0)
     const metaRecaudoTotal = metasR.reduce((s: number, r: any) => s + Number(r.metaPesos || 0), 0)
 
+    console.log('[reportes/vendedores] empresaId:', empresaId, 'data.length:', data.length, 'data:', JSON.stringify(data.slice(0,2)))
     return NextResponse.json({ ok: true, data, mes, anio, empresaId, metaVentaTotal, metaRecaudoTotal })
   } catch (e: any) {
     console.error('[reportes/vendedores]', e.message)

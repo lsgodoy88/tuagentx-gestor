@@ -7,7 +7,6 @@ import SelectorMes from '@/components/SelectorMes'
 const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
 const fmtN = (n: number) => Math.round(n).toLocaleString('es-CO')
 
-// Gauge SVG — estándar para todos los gráficos
 function Gauge({ pct, label, sub, colorTrack, colorFill }: {
   pct: number, label: string, sub?: string, colorTrack?: string, colorFill?: string
 }) {
@@ -36,16 +35,6 @@ function Gauge({ pct, label, sub, colorTrack, colorFill }: {
   )
 }
 
-function Dona({ main, gasto, label, total, gastoPct }: { main: number, gasto: number, label: string, total: number, gastoPct: number }) {
-  const pct = total > 0 ? Math.round((total - gasto) / total * 100) : 0
-  return <Gauge pct={pct} label={label} sub={`gastos ${gastoPct}%`} colorTrack="rgba(255,255,255,0.35)" colorFill="#3b82f6" />
-}
-
-function DonaRecaudo({ ventas, recaudos, label }: { ventas: number, recaudos: number, label: string }) {
-  const pct = ventas > 0 ? Math.round(recaudos / ventas * 100) : 0
-  return <Gauge pct={pct} label={label} sub="cobrado" colorTrack="rgba(255,255,255,0.35)" colorFill="#10b981" />
-}
-
 export default function ReportesPage() {
   const { data: session, status } = useSession()
   const router = useRouter()
@@ -57,16 +46,35 @@ export default function ReportesPage() {
   const [loading, setLoading] = useState(false)
   const [dataV, setDataV] = useState<any[]>([])
   const [dataI, setDataI] = useState<any[]>([])
-  const [iaTextos, setIaTextos] = useState<Record<string, string>>({})
-  const [iaEmpresa, setIaEmpresa] = useState('')
-  const [iaEmpresaLoading, setIaEmpresaLoading] = useState(false)
   const [categorias, setCategorias] = useState<any[]>([])
-  const [catFiltroEmp, setCatFiltroEmp] = useState('') // filtro empresa: categoría egreso
   const [metaVentaTotal, setMetaVentaTotal] = useState(0)
   const [metaRecaudoTotal, setMetaRecaudoTotal] = useState(0)
+  const [catFiltroEmp, setCatFiltroEmp] = useState('')
+  const [modoVend, setModoVend] = useState<'gastos' | 'meta'>('gastos')
+  const [iaTextos, setIaTextos] = useState<Record<string, { texto: string, fecha: string }>>({})
+  const [iaEmpresa, setIaEmpresa] = useState<{ texto: string, fecha: string } | null>(null)
+  const [iaEmpresaLoading, setIaEmpresaLoading] = useState(false)
   const [iaLoading, setIaLoading] = useState<Record<string, boolean>>({})
+  const [iaColapsado, setIaColapsado] = useState<Record<string, boolean>>({})
 
-
+  useEffect(() => {
+    // Cargar análisis persistidos
+    try {
+      const saved = localStorage.getItem('reportes_ia')
+      if (saved) {
+        const parsed = JSON.parse(saved)
+        if (parsed.textos) {
+          setIaTextos(parsed.textos)
+          // Todos colapsados al cargar
+          const cols: Record<string, boolean> = {}
+          Object.keys(parsed.textos).forEach(k => { cols[k] = true })
+          if (parsed.empresa) cols.empresa = true
+          setIaColapsado(cols)
+        }
+        if (parsed.empresa) setIaEmpresa(parsed.empresa)
+      }
+    } catch {}
+  }, [])
 
   useEffect(() => {
     if (!session) return
@@ -87,11 +95,26 @@ export default function ReportesPage() {
     setCategorias(rc.data || [])
     setMetaVentaTotal(rv.metaVentaTotal || 0)
     setMetaRecaudoTotal(rv.metaRecaudoTotal || 0)
+    // metaVenta y metaRecaudo por empleado vienen en rv.data
     setIaTextos({})
     setLoading(false)
   }
 
-  async function evaluar(id: string, tipo: 'vendedor' | 'impulsadora', empleado: string, datos: any) {
+  async function evaluar(id: string, tipo: 'vendedor' | 'impulsadora' | 'empresa', empleado: string, datos: any) {
+    if (tipo === 'empresa') {
+      setIaEmpresaLoading(true)
+      const r = await fetch('/api/reportes/evaluar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tipo, empleado, datos, equipo: [], mes, anio })
+      }).then(r => r.json())
+      const entradaEmp = { texto: r.texto || '', fecha: new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) }
+      setIaEmpresa(entradaEmp)
+      setIaColapsado(prev => ({ ...prev, empresa: false }))
+      try { localStorage.setItem('reportes_ia', JSON.stringify({ textos: iaTextos, empresa: entradaEmp })) } catch {}
+      setIaEmpresaLoading(false)
+      return
+    }
     setIaLoading(prev => ({ ...prev, [id]: true }))
     const equipo = tipo === 'vendedor' ? dataV : dataI
     const r = await fetch('/api/reportes/evaluar', {
@@ -99,14 +122,20 @@ export default function ReportesPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ tipo, empleado, datos, equipo, mes, anio })
     }).then(r => r.json())
-    setIaTextos(prev => ({ ...prev, [id]: r.texto || 'Sin análisis.' }))
+    const entrada = { texto: r.texto || 'Sin análisis.', fecha: new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) }
+    setIaTextos(prev => {
+      const next = { ...prev, [id]: entrada }
+      try { localStorage.setItem('reportes_ia', JSON.stringify({ textos: next, empresa: iaEmpresa })) } catch {}
+      return next
+    })
+    setIaColapsado(prev => ({ ...prev, [id]: false }))
     setIaLoading(prev => ({ ...prev, [id]: false }))
   }
 
   const mesStr = `${anio}-${String(mes).padStart(2, '0')}`
 
   if (status === 'loading' || !session) return null
-  if (!['empresa','supervisor'].includes(user?.role)) return null
+  if (!['empresa', 'supervisor'].includes(user?.role)) return null
 
   return (
     <div className="space-y-4 pb-28 max-w-7xl mx-auto">
@@ -124,20 +153,43 @@ export default function ReportesPage() {
         ))}
       </div>
 
-      {/* Selector mes */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <SelectorMes
-          value={mesStr}
-          onChange={v => { const [a, m] = v.split('-'); setAnio(Number(a)); setMes(Number(m)) }}
-        />
+      {/* Selector mes + switch vendedores + dropdown empresa */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 8 }}>
+        {tab === 'empresa' && (
+          <select value={catFiltroEmp} onChange={e => setCatFiltroEmp(e.target.value)}
+            className={`bg-[#0d1220] text-white rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer ${catFiltroEmp ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}>
+            <option value="">Total gastos</option>
+            <option value="__egresos">Total egresos</option>
+            {categorias.map(c => <option key={c.key} value={c.key}>{c.emoji} {c.label}</option>)}
+          </select>
+        )}
+        {tab === 'vendedores' && (
+          <div style={{ position: 'relative', display: 'flex', background: '#111827', border: '1px solid #1e2a3d', borderRadius: 20, padding: 3, gap: 0 }}>
+            {/* Indicador deslizante */}
+            <div style={{
+              position: 'absolute', top: 3, bottom: 3,
+              left: modoVend === 'gastos' ? 3 : '50%',
+              width: 'calc(50% - 3px)',
+              background: '#3b82f6', borderRadius: 16,
+              transition: 'left 0.25s cubic-bezier(.4,0,.2,1)',
+              pointerEvents: 'none'
+            }} />
+            {(['gastos', 'meta'] as const).map(m => (
+              <button key={m} onClick={() => setModoVend(m)}
+                style={{ position: 'relative', flex: 1, padding: '6px 18px', fontSize: 14, fontWeight: 500, border: 'none', background: 'transparent', borderRadius: 16, cursor: 'pointer',
+                  color: modoVend === m ? '#ffffff' : '#4b6080',
+                  transition: 'color 0.25s', zIndex: 1 }}>
+                {m === 'gastos' ? 'Gastos' : 'Metas'}
+              </button>
+            ))}
+          </div>
+        )}
+        <SelectorMes value={mesStr} onChange={v => { const [a, m] = v.split('-'); setAnio(Number(a)); setMes(Number(m)) }} />
       </div>
 
-      {loading && (
-        <div style={{ textAlign: 'center', padding: 40, color: '#4b6080', fontSize: 13 }}>Cargando datos...</div>
-      )}
+      {loading && <div style={{ textAlign: 'center', padding: 40, color: '#4b6080', fontSize: 13 }}>Cargando datos...</div>}
 
-      {/* VENDEDORES */}
-      {/* EMPRESA — totales consolidados */}
+      {/* TAB EMPRESA */}
       {!loading && tab === 'empresa' && (() => {
         const totalVentas = dataV.reduce((s, e) => s + e.ventas, 0)
         const totalRecaudos = dataV.reduce((s, e) => s + e.recaudos, 0)
@@ -146,89 +198,78 @@ export default function ReportesPage() {
         const totalGastosI = dataI.reduce((s, e) => s + e.gastos, 0)
         const totalGastos = totalGastosV + totalGastosI
         const totalVentasTodo = totalVentas + totalVentasI
-        const pctGasto = totalVentasTodo > 0 ? Math.round(totalGastos / totalVentasTodo * 100) : 0
-        const pctCartera = totalVentas > 0 ? Math.round((totalVentas - totalRecaudos) / totalVentas * 100) : 0
-        const pctRecaudo = totalVentas > 0 ? Math.round(totalRecaudos / totalVentas * 100) : 0
+        const totalEgresosCat = categorias.reduce((s, c) => s + c.total, 0)
+
+        const gastoMostrar = catFiltroEmp === '__egresos'
+          ? totalEgresosCat
+          : catFiltroEmp
+            ? (categorias.find(c => c.key === catFiltroEmp)?.total ?? 0)
+            : totalGastos
+        const catLabel = catFiltroEmp === '__egresos'
+          ? 'Egresos'
+          : catFiltroEmp
+            ? (categorias.find(c => c.key === catFiltroEmp)?.label ?? 'Gastos')
+            : 'Gastos'
+
+        const pctVS = totalVentasTodo > 0 ? Math.min(Math.round(gastoMostrar / totalVentasTodo * 100), 100) : 0
+        const pctRS = totalRecaudos > 0 ? Math.min(Math.round(gastoMostrar / totalRecaudos * 100), 100) : 0
+
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {/* Card empresa — mismo patrón que empleado */}
             <div style={{ background: '#111827', border: '1px solid #1e2a3d', borderRadius: 12, padding: 16 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                 <div style={{ fontSize: 14, fontWeight: 500, color: '#e2e8f0' }}>Resumen empresa</div>
-                <button onClick={async () => {
-                  setIaEmpresaLoading(true)
-                  const r = await fetch('/api/reportes/evaluar', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tipo: 'empresa', empleado: 'Empresa', datos: { ventas: totalVentasTodo, recaudos: totalRecaudos, gastos: totalGastos, cartera: totalVentas - totalRecaudos, ventasI: totalVentasI, gastosI: totalGastosI }, equipo: [], mes, anio })
-                  }).then(r => r.json())
-                  setIaEmpresa(r.texto || '')
-                  setIaEmpresaLoading(false)
-                }} disabled={iaEmpresaLoading}
-                  style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6, border: '1px solid #1e3a5f', background: 'transparent', color: '#60a5fa', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                <button onClick={() => evaluar('empresa', 'empresa', 'Empresa', { ventas: totalVentasTodo, recaudos: totalRecaudos, gastos: totalGastos, cartera: totalVentas - totalRecaudos, ventasI: totalVentasI, gastosI: totalGastosI })}
+                  disabled={iaEmpresaLoading}
+                  style={{ fontSize: 11, padding: '4px 12px', borderRadius: 6, border: '1px solid #1e3a5f', background: 'transparent', color: '#60a5fa', cursor: 'pointer' }}>
                   {iaEmpresaLoading ? '⏳ Analizando...' : '✨ Evaluar con IA'}
                 </button>
               </div>
-              {/* Dropdown centrado */}
-              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12 }}>
-                <select value={catFiltroEmp} onChange={e => setCatFiltroEmp(e.target.value)}
-                  className={`bg-[#0d1220] text-white rounded-lg px-3 py-2 text-sm focus:outline-none cursor-pointer ${catFiltroEmp ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}
-                  style={{ width: '60%' }}>
-                  <option value="">Total gastos</option>
-                  <option value="__egresos">Total egresos</option>
-                  {categorias.map(c => (
-                    <option key={c.key} value={c.key}>{c.emoji} {c.label}</option>
-                  ))}
-                </select>
+
+              {/* 2 gauges reactivos al dropdown */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
+                <Gauge pct={pctVS} label="VS VENTA" colorFill="#3b82f6" />
+                <Gauge pct={pctRS} label="VS RECAUDO" colorFill="#10b981" />
               </div>
-              {(() => {
-                const totalEgresos = categorias.reduce((s: number, c: any) => s + c.total, 0)
-                let gastoFiltrado = totalGastos
-                if (catFiltroEmp === '__egresos') gastoFiltrado = totalEgresos
-                else if (catFiltroEmp) gastoFiltrado = categorias.find((c: any) => c.key === catFiltroEmp)?.total ?? 0
-                const pctVenta = totalVentasTodo > 0 ? Math.min(Math.round(gastoFiltrado / totalVentasTodo * 100), 100) : 0
-                const pctRecaudo = totalRecaudos > 0 ? Math.min(Math.round(gastoFiltrado / totalRecaudos * 100), 100) : 0
-                return (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-                    <Gauge pct={pctVenta} label="VS VENTA" colorFill="#3b82f6" />
-                    <Gauge pct={pctRecaudo} label="VS RECAUDO" colorFill="#10b981" />
+
+              {/* KPIs: Ventas, [Gasto/Egreso], Recaudos */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 14 }}>
+                {[
+                  { label: 'Ventas', val: fmt(totalVentasTodo), color: '#60a5fa' },
+                  { label: catLabel, val: fmt(gastoMostrar), color: '#f87171' },
+                  { label: 'Recaudos', val: fmt(totalRecaudos), color: '#34d399' },
+                ].map(k => (
+                  <div key={k.label} style={{ background: '#0d1220', borderRadius: 8, padding: '8px 12px', textAlign: 'center' }}>
+                    <div style={{ fontSize: 10, color: '#ffffff', marginBottom: 3 }}>{k.label}</div>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: k.color }}>{k.val}</div>
                   </div>
-                )
-              })()}
-              {(() => {
-                const gastoMostrar = catFiltroEmp
-                  ? (categorias.find(c => c.key === catFiltroEmp)?.total ?? 0)
-                  : totalGastos
-                const catLabel = catFiltroEmp
-                  ? (categorias.find(c => c.key === catFiltroEmp)?.label ?? 'Gastos')
-                  : 'Gastos'
-                return (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 14 }}>
-                    {[
-                      { label: 'Ventas', val: fmt(totalVentasTodo), color: '#60a5fa' },
-                      { label: 'Recaudos', val: fmt(totalRecaudos), color: '#34d399' },
-                      { label: catLabel, val: fmt(gastoMostrar), color: '#f87171' },
-                    ].map(k => (
-                      <div key={k.label} style={{ background: '#0d1220', borderRadius: 8, padding: '8px 12px', textAlign: 'center' }}>
-                        <div style={{ fontSize: 10, color: '#ffffff', marginBottom: 3 }}>{k.label}</div>
-                        <div style={{ fontSize: 14, fontWeight: 500, color: k.color }}>{k.val}</div>
-                      </div>
-                    ))}
-                  </div>
-                )
-              })()}
+                ))}
+              </div>
+
               {iaEmpresa && (
-                <div style={{ marginTop: 12, background: '#0d1630', border: '1px solid #1e3a5f', borderRadius: 8, padding: 12 }}>
-                  <div style={{ fontSize: 10, color: '#60a5fa', fontWeight: 500, marginBottom: 6 }}>✨ Análisis IA</div>
-                  <p style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6, margin: 0 }}>{iaEmpresa}</p>
+                <div style={{ marginTop: 12, background: '#0d1630', border: '1px solid #1e3a5f', borderRadius: 8, overflow: 'hidden' }}>
+                  <div onClick={() => setIaColapsado(prev => ({ ...prev, empresa: !prev.empresa }))}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', cursor: 'pointer' }}>
+                    <div style={{ fontSize: 11, color: '#60a5fa', fontWeight: 500 }}>✨ Análisis IA</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 10, color: '#4b6080' }}>{iaEmpresa.fecha}</span>
+                      <span style={{ fontSize: 10, color: '#4b6080' }}>{iaColapsado.empresa ? '▲' : '▼'}</span>
+                    </div>
+                  </div>
+                  {!iaColapsado.empresa && (
+                    <div style={{ padding: '0 12px 12px' }}>
+                      <p style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6, margin: 0 }}>{iaEmpresa.texto}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
+
             {/* Metas vendedores */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div style={{ background: '#111827', border: '1px solid #1e2a3d', borderRadius: 12, padding: 16 }}>
                 <div style={{ fontSize: 12, fontWeight: 500, color: '#e2e8f0', marginBottom: 12, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '.05em' }}>Venta vs meta</div>
-                <Gauge pct={metaVentaTotal > 0 ? Math.min(Math.round(totalVentas / metaVentaTotal * 100), 100) : 0} label="VENTAS" colorTrack="rgba(255,255,255,0.35)" colorFill="#3b82f6" />
+                <Gauge pct={metaVentaTotal > 0 ? Math.min(Math.round(totalVentas / metaVentaTotal * 100), 100) : 0} label="VENTAS" colorFill="#3b82f6" />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
                   {[{ label: 'Logrado', val: fmt(totalVentas), color: '#60a5fa' }, { label: 'Meta', val: fmt(metaVentaTotal), color: '#94a3b8' }].map(k => (
                     <div key={k.label} style={{ background: '#0d1220', borderRadius: 8, padding: '6px 10px', textAlign: 'center' }}>
@@ -240,7 +281,7 @@ export default function ReportesPage() {
               </div>
               <div style={{ background: '#111827', border: '1px solid #1e2a3d', borderRadius: 12, padding: 16 }}>
                 <div style={{ fontSize: 12, fontWeight: 500, color: '#e2e8f0', marginBottom: 12, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '.05em' }}>Recaudo vs meta</div>
-                <Gauge pct={metaRecaudoTotal > 0 ? Math.min(Math.round(totalRecaudos / metaRecaudoTotal * 100), 100) : 0} label="RECAUDO" colorTrack="rgba(255,255,255,0.35)" colorFill="#10b981" />
+                <Gauge pct={metaRecaudoTotal > 0 ? Math.min(Math.round(totalRecaudos / metaRecaudoTotal * 100), 100) : 0} label="RECAUDO" colorFill="#10b981" />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
                   {[{ label: 'Logrado', val: fmt(totalRecaudos), color: '#34d399' }, { label: 'Meta', val: fmt(metaRecaudoTotal), color: '#94a3b8' }].map(k => (
                     <div key={k.label} style={{ background: '#0d1220', borderRadius: 8, padding: '6px 10px', textAlign: 'center' }}>
@@ -255,12 +296,24 @@ export default function ReportesPage() {
         )
       })()}
 
+      {/* TAB VENDEDORES */}
       {!loading && tab === 'vendedores' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
           {dataV.length === 0 && <p style={{ color: '#4b6080', textAlign: 'center', padding: 40 }}>Sin datos para este período</p>}
           {dataV.map(emp => {
-            const gastoPctR = emp.recaudos > 0 ? Math.round(emp.gastos / emp.recaudos * 100) : 0
-            const gastoPctV = emp.ventas > 0 ? Math.round(emp.gastos / emp.ventas * 100) : 0
+            // Modo gastos: % recaudado de ventas y % gasto sobre recaudos
+            // Modo meta: % ventas logrado vs meta y % recaudos logrado vs meta recaudo
+            const pct1 = modoVend === 'gastos'
+              ? (emp.ventas > 0 ? Math.round(emp.recaudos / emp.ventas * 100) : 0)
+              : (emp.metaVenta > 0 ? Math.min(Math.round(emp.ventas / emp.metaVenta * 100), 100) : 0)
+            const pct2 = modoVend === 'gastos'
+              ? (emp.recaudos > 0 ? Math.round(emp.gastos / emp.recaudos * 100) : 0)
+              : (emp.metaRecaudo > 0 ? Math.min(Math.round(emp.recaudos / emp.metaRecaudo * 100), 100) : 0)
+            const label1 = modoVend === 'gastos' ? 'RECAUDO / VENTA' : 'VENTA / META'
+            const label2 = modoVend === 'gastos' ? 'GASTO / RECAUDO' : 'RECAUDO / META'
+            const color1 = modoVend === 'gastos' ? '#10b981' : '#3b82f6'
+            const color2 = modoVend === 'gastos' ? '#f87171' : '#10b981'
             return (
               <div key={emp.id} style={{ background: '#111827', border: '1px solid #1e2a3d', borderRadius: 12, padding: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -272,34 +325,16 @@ export default function ReportesPage() {
                   </button>
                 </div>
 
-                {/* Dropdown gastos empleado */}
-                {emp.gastosDetalle && emp.gastosDetalle.length > 0 && (() => {
-                  const tipos = [...new Set(emp.gastosDetalle.map((g: any) => g.tipo).filter(Boolean))]
-                  return (
-                    <select defaultValue="" onChange={e => {
-                      const el = document.getElementById(`gasto-sel-${emp.id}`) as any
-                      if (el) el.value = e.target.value
-                    }}
-                      id={`gasto-sel-${emp.id}`}
-                      className="w-full bg-[#0d1220] text-white rounded-lg px-2 py-2 text-sm mb-3 border border-[#1e2a3d] focus:outline-none cursor-pointer">
-                      <option value="">Todos los gastos — {fmt(emp.gastos)}</option>
-                      {tipos.map((t: any) => {
-                        const sum = emp.gastosDetalle.filter((g: any) => g.tipo === t).reduce((s: number, g: any) => s + Number(g.valor), 0)
-                        return <option key={t} value={t}>{t} — {fmt(sum)}</option>
-                      })}
-                    </select>
-                  )
-                })()}
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-                  <Gauge pct={emp.ventas > 0 ? Math.round((emp.ventas - emp.gastos) / emp.ventas * 100) : 0} label="Ventas netas" sub={`gasto ${gastoPctV}%`} colorFill="#3b82f6" />
-                  <Gauge pct={emp.recaudos > 0 ? Math.round((emp.recaudos - emp.gastos) / emp.recaudos * 100) : 0} label="Recaudo neto" sub={`gasto ${gastoPctR}%`} colorFill="#10b981" />
+                  <Gauge pct={pct1} label={label1} colorFill={color1} />
+                  <Gauge pct={pct2} label={label2} colorFill={color2} />
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 14 }}>
                   {[
                     { label: 'Ventas', val: fmt(emp.ventas), color: '#60a5fa' },
-                    { label: 'Recaudos', val: fmt(emp.recaudos), color: '#34d399' },
                     { label: 'Gastos', val: fmt(emp.gastos), color: '#f87171' },
+                    { label: 'Recaudos', val: fmt(emp.recaudos), color: '#34d399' },
                   ].map(m => (
                     <div key={m.label} style={{ background: '#0d1220', borderRadius: 8, padding: '8px 12px', textAlign: 'center' }}>
                       <div style={{ fontSize: 10, color: '#ffffff', marginBottom: 3 }}>{m.label}</div>
@@ -309,9 +344,20 @@ export default function ReportesPage() {
                 </div>
 
                 {iaTextos[emp.id] && (
-                  <div style={{ marginTop: 12, background: '#0d1630', border: '1px solid #1e3a5f', borderRadius: 8, padding: 12 }}>
-                    <div style={{ fontSize: 10, color: '#60a5fa', fontWeight: 500, marginBottom: 6 }}>✨ Análisis IA</div>
-                    <p style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6, margin: 0 }}>{iaTextos[emp.id]}</p>
+                  <div style={{ marginTop: 12, background: '#0d1630', border: '1px solid #1e3a5f', borderRadius: 8, overflow: 'hidden' }}>
+                    <div onClick={() => setIaColapsado(prev => ({ ...prev, [emp.id]: !prev[emp.id] }))}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', cursor: 'pointer' }}>
+                      <div style={{ fontSize: 11, color: '#60a5fa', fontWeight: 500 }}>✨ Análisis IA</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 10, color: '#4b6080' }}>{iaTextos[emp.id].fecha}</span>
+                        <span style={{ fontSize: 10, color: '#4b6080' }}>{iaColapsado[emp.id] ? '▲' : '▼'}</span>
+                      </div>
+                    </div>
+                    {!iaColapsado[emp.id] && (
+                      <div style={{ padding: '0 12px 12px' }}>
+                        <p style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6, margin: 0 }}>{iaTextos[emp.id].texto}</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -320,13 +366,13 @@ export default function ReportesPage() {
         </div>
       )}
 
-      {/* IMPULSADORAS */}
+      {/* TAB IMPULSOS */}
       {!loading && tab === 'impulsadoras' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {dataI.length === 0 && <p style={{ color: '#4b6080', textAlign: 'center', padding: 40 }}>Sin datos para este período</p>}
           {dataI.map(emp => {
             const gastoPct = emp.ventas > 0 ? Math.round(emp.gastos / emp.ventas * 100) : 0
-            const metaPct = emp.meta > 0 ? Math.round(emp.ventas / emp.meta * 100) : 0
+            const metaPct = emp.meta > 0 ? Math.min(Math.round(emp.ventas / emp.meta * 100), 100) : 0
             return (
               <div key={emp.id} style={{ background: '#111827', border: '1px solid #1e2a3d', borderRadius: 12, padding: 16 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
@@ -339,9 +385,9 @@ export default function ReportesPage() {
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12 }}>
-                  <Dona main={emp.ventas - emp.gastos} gasto={emp.gastos} label="Ventas vs gastos" total={emp.ventas} gastoPct={gastoPct} />
+                  <Gauge pct={gastoPct} label="GASTO / VENTA" colorFill="#8b5cf6" />
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
-                    <Gauge pct={metaPct} label="Cumplimiento meta" sub="meta" colorTrack="rgba(255,255,255,0.35)" colorFill="#8b5cf6" />
+                    <Gauge pct={metaPct} label="CUMPLIMIENTO META" colorFill="#f59e0b" />
                     <div style={{ fontSize: 10, color: '#8ba4c0' }}>{fmtN(emp.visitas)} visitas</div>
                   </div>
                 </div>
@@ -354,15 +400,26 @@ export default function ReportesPage() {
                   ].map(m => (
                     <div key={m.label} style={{ background: '#0d1220', borderRadius: 8, padding: '8px 12px', textAlign: 'center' }}>
                       <div style={{ fontSize: 10, color: '#ffffff', marginBottom: 3 }}>{m.label}</div>
-                      <div style={{ fontSize: 14, fontWeight: 500, color: m.color }}>{m.val}</div>
+                      <div style={{ fontSize: 13, fontWeight: 500, color: m.color }}>{m.val}</div>
                     </div>
                   ))}
                 </div>
 
                 {iaTextos[emp.id] && (
-                  <div style={{ marginTop: 12, background: '#0d1630', border: '1px solid #1e3a5f', borderRadius: 8, padding: 12 }}>
-                    <div style={{ fontSize: 10, color: '#60a5fa', fontWeight: 500, marginBottom: 6 }}>✨ Análisis IA</div>
-                    <p style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6, margin: 0 }}>{iaTextos[emp.id]}</p>
+                  <div style={{ marginTop: 12, background: '#0d1630', border: '1px solid #1e3a5f', borderRadius: 8, overflow: 'hidden' }}>
+                    <div onClick={() => setIaColapsado(prev => ({ ...prev, [emp.id]: !prev[emp.id] }))}
+                      style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', cursor: 'pointer' }}>
+                      <div style={{ fontSize: 11, color: '#60a5fa', fontWeight: 500 }}>✨ Análisis IA</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 10, color: '#4b6080' }}>{iaTextos[emp.id].fecha}</span>
+                        <span style={{ fontSize: 10, color: '#4b6080' }}>{iaColapsado[emp.id] ? '▲' : '▼'}</span>
+                      </div>
+                    </div>
+                    {!iaColapsado[emp.id] && (
+                      <div style={{ padding: '0 12px 12px' }}>
+                        <p style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6, margin: 0 }}>{iaTextos[emp.id].texto}</p>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

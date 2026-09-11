@@ -13,56 +13,55 @@ export async function POST(req: NextRequest) {
 
     let prompt = ''
     if (tipo === 'vendedor') {
-      const cartera = datos.ventas - datos.recaudos
+      const cartera = Math.max(0, datos.ventas - datos.recaudos)
       const carteraPct = datos.ventas > 0 ? Math.round(cartera / datos.ventas * 100) : 0
-      const gastoPct = datos.recaudos > 0 ? Math.round(datos.gastos / datos.recaudos * 100) : 0
+      const recaudoPct = datos.ventas > 0 ? Math.round(datos.recaudos / datos.ventas * 100) : 0
+      const gastoPctV = datos.ventas > 0 ? Math.round(datos.gastos / datos.ventas * 100) : 0
+      const gastoPctR = datos.recaudos > 0 ? Math.round(datos.gastos / datos.recaudos * 100) : 0
+      const metaVentaPct = datos.metaVenta > 0 ? Math.round(datos.ventas / datos.metaVenta * 100) : null
       const promedioVentas = equipo?.length > 0 ? equipo.reduce((s: number, e: any) => s + e.ventas, 0) / equipo.length : 0
-      prompt = `Eres un analista de ventas. Evalúa el desempeño del vendedor "${empleado}" en el mes ${mes}/${anio}.
-
-Datos:
-- Ventas: $${datos.ventas.toLocaleString('es-CO')}
-- Recaudos: $${datos.recaudos.toLocaleString('es-CO')} (${100 - carteraPct}% cobrado)
+      prompt = `Analiza al vendedor "${empleado}" mes ${mes}/${anio}:
+- Ventas: $${datos.ventas.toLocaleString('es-CO')}${metaVentaPct !== null ? ` (${metaVentaPct}% de meta)` : ''}
+- Recaudos: $${datos.recaudos.toLocaleString('es-CO')} (${recaudoPct}% de ventas)
 - Cartera sin cobrar: $${cartera.toLocaleString('es-CO')} (${carteraPct}%)
-- Gastos: $${datos.gastos.toLocaleString('es-CO')} (${gastoPct}% sobre recaudos)
+- Gastos: $${datos.gastos.toLocaleString('es-CO')} (${gastoPctV}% ventas / ${gastoPctR}% recaudos)
 - Promedio ventas equipo: $${Math.round(promedioVentas).toLocaleString('es-CO')}
+Máximo 50 palabras. Español colombiano, sin saludos. Evalúa venta vs recaudo vs gasto. Destaca lo positivo y lo que debe mejorar.`
 
-Genera un análisis breve (3-4 líneas) en español colombiano, directo y útil para el gerente. Sin saludos ni despedidas. Menciona: si está por encima o debajo del equipo, el nivel de cartera, y la eficiencia de gastos.`
     } else if (tipo === 'empresa') {
-      const carteraPct = datos.ventas > 0 ? Math.round(datos.cartera / datos.ventas * 100) : 0
+      const carteraPct = datos.ventas > 0 ? Math.round((datos.ventas - datos.recaudos) / datos.ventas * 100) : 0
       const gastoPct = datos.ventas > 0 ? Math.round(datos.gastos / datos.ventas * 100) : 0
       const recaudoPct = datos.ventas > 0 ? Math.round(datos.recaudos / datos.ventas * 100) : 0
-      prompt = `Eres un analista financiero. Evalúa el desempeño general de la empresa en el mes ${mes}/${anio}.
-
-Datos consolidados:
-- Ventas vendedores: $${datos.ventas.toLocaleString('es-CO')}
+      prompt = `Analiza la empresa mes ${mes}/${anio}:
+- Ventas: $${datos.ventas.toLocaleString('es-CO')}
 - Recaudos: $${datos.recaudos.toLocaleString('es-CO')} (${recaudoPct}% cobrado)
-- Cartera sin cobrar: $${datos.cartera.toLocaleString('es-CO')} (${carteraPct}%)
-- Gastos vendedores: $${datos.gastos.toLocaleString('es-CO')} (${gastoPct}% sobre ventas)
+- Cartera sin cobrar: ${carteraPct}%
+- Gastos empleados: $${datos.gastos.toLocaleString('es-CO')} (${gastoPct}% sobre ventas)
 - Ventas impulsos: $${datos.ventasI.toLocaleString('es-CO')}
 - Gastos impulsos: $${datos.gastosI.toLocaleString('es-CO')}
+Máximo 50 palabras. Español colombiano, sin saludos. Evalúa salud financiera, cartera, gastos vs ingresos y da una recomendación.`
 
-Genera un análisis ejecutivo breve (4-5 líneas) en español colombiano para el gerente. Sin saludos. Menciona: salud financiera general, nivel de cartera, eficiencia de gastos y una recomendación concreta.`
     } else if (tipo === 'impulsadora') {
       const gastoPct = datos.ventas > 0 ? Math.round(datos.gastos / datos.ventas * 100) : 0
       const metaPct = datos.meta > 0 ? Math.round(datos.ventas / datos.meta * 100) : 0
       const promedioVisitas = equipo?.length > 0 ? equipo.reduce((s: number, e: any) => s + e.visitas, 0) / equipo.length : 0
-      prompt = `Eres un analista de ventas. Evalúa el desempeño de la impulsadora "${empleado}" en el mes ${mes}/${anio}.
-
-Datos:
-- Ventas: $${datos.ventas.toLocaleString('es-CO')} (${metaPct}% de la meta)
-- Meta: $${datos.meta.toLocaleString('es-CO')}
-- Visitas realizadas: ${datos.visitas} (promedio equipo: ${Math.round(promedioVisitas)})
+      prompt = `Analiza a la impulsadora "${empleado}" mes ${mes}/${anio}:
+- Ventas: $${datos.ventas.toLocaleString('es-CO')} (${metaPct}% de meta $${datos.meta.toLocaleString('es-CO')})
 - Gastos: $${datos.gastos.toLocaleString('es-CO')} (${gastoPct}% sobre ventas)
-
-Genera un análisis breve (3-4 líneas) en español colombiano, directo y útil para el gerente. Sin saludos ni despedidas. Menciona cumplimiento de meta, visitas vs promedio, y eficiencia de gastos.`
+- Visitas: ${datos.visitas} (promedio equipo: ${Math.round(promedioVisitas)})
+Máximo 50 palabras. Español colombiano, sin saludos. Evalúa cumplimiento de meta, gastos vs ventas y visitas.`
     }
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': process.env.ANTHROPIC_API_KEY || '',
+        'anthropic-version': '2023-06-01'
+      },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 300,
+        max_tokens: 120,
         messages: [{ role: 'user', content: prompt }]
       })
     })
