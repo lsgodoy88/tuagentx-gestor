@@ -27,6 +27,8 @@
     "@yudiel/react-qr-scanner": "^2.6.0",
     "bcryptjs": "^3.0.3",
     "bullmq": "^5.76.2",
+    "echarts": "^6.1.0",
+    "echarts-gl": "^2.1.0",
     "exceljs": "^4.4.0",
     "expr-eval": "^2.0.2",
     "html2canvas": "^1.4.1",
@@ -47,6 +49,7 @@
     "react-easy-crop": "^5.5.7",
     "react-leaflet": "^5.0.0",
     "reactflow": "^11.11.4",
+    "recharts": "^3.10.1",
     "web-push": "^3.6.7"
   },
   "devDependencies": {

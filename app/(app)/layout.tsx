@@ -494,6 +494,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     }, {
       label: 'Análisis',
       items: [
+        ...(isEmpresa || isSupervisor ? [{ href: '/reportes', label: 'Reportes', icon: '📊' }] : []),
       ]
     }] : []),
     ...(isBodega ? [{
@@ -543,6 +544,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       ...(isEmpresa || checkPermiso(session, 'verVisitas')   ? [{ href: '/rutas',         label: 'Visitas',   icon: '📋' }] : []),
       ...(isEmpresa || checkPermiso(session, 'verImpulsos')  ? [{ href: '/impulsos',      label: 'Impulsos',  icon: '⚡' }] : []),
       ...(isEmpresa || checkPermiso(session, 'verBodega')    ? [{ href: '/trazabilidad',  label: 'Bodega',    icon: '🏭' }] : []),
+      ...(isEmpresa || isSupervisor ? [{ href: '/reportes', label: 'Reportes', icon: '📊' }] : []),
     ] : []),
     ...(isBodega ? [
       ...empresasBodega,

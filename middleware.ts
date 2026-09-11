@@ -39,7 +39,7 @@ const ROUTE_ROLES: Record<string, string[]> = {
   '/monitor':        ['superadmin'],
   '/precios':        ['superadmin'],
   '/code':           ['superadmin'],
-  '/reportes':       ['superadmin'],
+  '/reportes':       ['empresa', 'supervisor'],
 }
 
 // Países permitidos — Colombia + algunos comunes de admin

@@ -76,6 +76,11 @@ export default function CarteraPage() {
     (searchParamsCartera.get('tab') as any) || 'pagos'
   )
   const [isDesktopPagos, setIsDesktopPagos] = useState(() => typeof window !== 'undefined' ? window.innerWidth >= 768 : false)
+  useEffect(() => {
+    const onResize = () => setIsDesktopPagos(window.innerWidth >= 768)
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
   const [mesAnalisis, setMesAnalisis] = useState(mesBogota())
   const [snapMesInicio, setSnapMesInicio] = useState(mesBogota())
   const [snapAnioInicio, setSnapAnioInicio] = useState(anioBogota())
@@ -754,7 +759,7 @@ export default function CarteraPage() {
 
               {/* Popup orden PDF */}
               {dlOrdenPopup && (
-                <div className="fixed inset-0 z-50 flex items-start justify-center pt-16" style={{background:'rgba(0,0,0,0.92)', backdropFilter:'blur(6px)'}} onClick={() => setDlOrdenPopup(false)}>
+                <div className="fixed inset-0 z-50 flex items-start justify-center pt-16" style={{background:'rgba(0,0,0,0.4)', backdropFilter:'blur(2px)'}} onClick={() => setDlOrdenPopup(false)}>
                   <div className="bg-[#0d1220] border border-[#1e2a3d] rounded-2xl p-5 shadow-2xl" style={{width:320}} onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-between mb-4">
                       <p className="text-white font-semibold text-sm">Ordenar PDF por</p>
@@ -1737,7 +1742,7 @@ export default function CarteraPage() {
               </div>
             )}
           </div>
-          <div className="relative flex-1">
+          <div className="relative min-w-0" style={{flex:2}}>
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-sm pointer-events-none">🔍</span>
             <input
               type="text"
@@ -1752,12 +1757,24 @@ export default function CarteraPage() {
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white text-xs">✕</button>
             )}
           </div>
+          {isAdmin && isDesktopPagos && (
+            <select
+              value={vendedorPagoId}
+              onChange={e => { const v = e.target.value; setVendedorPagoId(v); cargarPagos(mesPagos, anioPagos, v) }}
+              className={`flex-shrink-0 bg-[#0d1220] text-white rounded-lg px-2 py-2 text-sm focus:outline-none cursor-pointer ${vendedorPagoId ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}
+              style={{flex:3, minWidth:0, fontSize:'0.9em'}}>
+              <option value="">Vendedores</option>
+              {vendedores.map((v: any) => (
+                <option key={v.id} value={v.id}>{v.nombre}</option>
+              ))}
+            </select>
+          )}
         </div>
-        {isAdmin && (
+        {isAdmin && !isDesktopPagos && (
           <select
             value={vendedorPagoId}
             onChange={e => { const v = e.target.value; setVendedorPagoId(v); cargarPagos(mesPagos, anioPagos, v) }}
-            className="bg-zinc-900 border border-zinc-800 rounded-xl px-3 py-2 text-white text-sm outline-none focus:border-blue-500 w-full">
+            className={`w-full bg-[#0d1220] text-white rounded-lg px-2 py-2 text-sm focus:outline-none cursor-pointer ${vendedorPagoId ? 'border border-red-500' : 'border border-[#1e2a3d]'}`}>
             <option value="">Todos los vendedores</option>
             {vendedores.map((v: any) => (
               <option key={v.id} value={v.id}>{v.nombre}</option>
