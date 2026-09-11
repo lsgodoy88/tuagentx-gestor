@@ -52,7 +52,7 @@ export async function GET(req: NextRequest) {
       JOIN ${DB_SCHEMA}."Integracion" i ON i.id = sd."integracionId"
       JOIN ${DB_SCHEMA}."Empleado" e ON e."apiId" = sd."empleadoExternalId" AND e."empresaId" = i."empresaId"
       WHERE i."empresaId" = $1
-        AND sd."createdAt" >= $2 AND sd."createdAt" < $3
+        AND sd."createdAtBogota" >= $2 AND sd."createdAtBogota" < $3
         AND e.rol = 'vendedor'
       GROUP BY e.id
     `, empresaId, inicio, fin)
