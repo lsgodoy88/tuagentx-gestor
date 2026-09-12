@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
     const impulsadoras: any[] = await prisma.$queryRawUnsafe(`
       SELECT e.id, e.nombre,
         COUNT(DISTINCT v.id) as visitas,
+        COUNT(DISTINCT v."clienteId") as clientes_ruta,
         COALESCE(SUM(g.valor), 0) as gastos
       FROM ${DB_SCHEMA}."Empleado" e
       LEFT JOIN ${DB_SCHEMA}."Visita" v ON v."empleadoId" = e.id
@@ -57,6 +58,7 @@ export async function GET(req: NextRequest) {
       ventas: ventasMap[e.id]?.ventas ?? 0,
       meta: ventasMap[e.id]?.meta ?? 0,
       visitas: Number(e.visitas),
+      clientesRuta: Number(e.clientes_ruta),
       gastos: Number(e.gastos),
     }))
 

@@ -50,6 +50,23 @@ Máximo 50 palabras. Español colombiano, sin saludos. Evalúa salud financiera,
 - Gastos: $${datos.gastos.toLocaleString('es-CO')} (${gastoPct}% sobre ventas)
 - Visitas: ${datos.visitas} (promedio equipo: ${Math.round(promedioVisitas)})
 Máximo 50 palabras. Español colombiano, sin saludos. Evalúa cumplimiento de meta, gastos vs ventas y visitas.`
+    } else if (tipo === 'equipo_vendedor') {
+      const resumen = (equipo || []).map((e: any) => {
+        const n = `${e.nombre?.split(' ')[0]} ${e.nombre?.split(' ')[2] || ''}`.trim()
+        const pctVenta = e.metaVenta > 0 ? Math.round(e.ventas / e.metaVenta * 100) : null
+        const pctRecaudo = e.metaRecaudo > 0 ? Math.round(e.recaudos / e.metaRecaudo * 100) : null
+        const pctGasto = e.recaudos > 0 ? Math.round(e.gastos / e.recaudos * 100) : null
+        return `${n}: ventas $${Math.round(e.ventas/1000)}k${pctVenta !== null ? ` (${pctVenta}% meta venta $${Math.round(e.metaVenta/1000)}k)` : ''} | recaudo $${Math.round(e.recaudos/1000)}k${pctRecaudo !== null ? ` (${pctRecaudo}% meta recaudo $${Math.round(e.metaRecaudo/1000)}k)` : ''} | gasto $${Math.round(e.gastos/1000)}k${pctGasto !== null ? ` (${pctGasto}% s/recaudo)` : ''}`
+      }).join(' || ')
+      prompt = `Datos equipo vendedores ${mes}/${anio}: ${resumen}. Máximo 40 palabras. Español colombiano, tono profesional. Con base en ventas vs meta, recaudo vs meta y gasto vs recaudo, nombra únicamente al de mayor rendimiento y al de menor rendimiento con sus cifras clave.`
+    } else if (tipo === 'equipo_impulsadora') {
+      const resumen = (equipo || []).map((e: any) => {
+        const n = `${e.nombre?.split(' ')[0]} ${e.nombre?.split(' ')[2] || ''}`.trim()
+        const pctMeta = e.meta > 0 ? Math.round(e.ventas / e.meta * 100) : null
+        const pctGasto = e.ventas > 0 ? Math.round(e.gastos / e.ventas * 100) : null
+        return `${n}: ventas $${Math.round(e.ventas/1000)}k${pctMeta !== null ? ` (${pctMeta}% meta $${Math.round(e.meta/1000)}k)` : ''} | gasto $${Math.round(e.gastos/1000)}k${pctGasto !== null ? ` (${pctGasto}% s/ventas)` : ''} | clientes ${e.clientesRuta || 0}`
+      }).join(' || ')
+      prompt = `Datos equipo impulsos ${mes}/${anio}: ${resumen}. Máximo 40 palabras. Español colombiano, tono profesional. Con base en ventas vs meta y gasto vs ventas, nombra únicamente a la de mayor rendimiento y a la de menor rendimiento con sus cifras clave.`
     }
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
