@@ -409,13 +409,13 @@ export default function ReportesPage() {
                       style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', cursor: 'pointer' }}>
                       <div style={{ fontSize: 11, color: '#60a5fa', fontWeight: 500 }}>✨ Análisis IA</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 10, color: '#4b6080' }}>{iaTextos[emp.id].fecha}</span>
+                        <span style={{ fontSize: 10, color: '#ffffff' }}>{iaTextos[emp.id].fecha}</span>
                         <span style={{ fontSize: 10, color: '#4b6080' }}>{iaColapsado[emp.id] ? '▲' : '▼'}</span>
                       </div>
                     </div>
                     {!iaColapsado[emp.id] && (
                       <div style={{ padding: '0 12px 12px' }}>
-                        <p style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6, margin: 0 }}>{iaTextos[emp.id].texto}</p>
+                        <p style={{ fontSize: 12, color: '#ffffff', lineHeight: 1.6, margin: 0 }}>{iaTextos[emp.id].texto}</p>
                       </div>
                     )}
                   </div>
@@ -487,13 +487,13 @@ export default function ReportesPage() {
                       style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', cursor: 'pointer' }}>
                       <div style={{ fontSize: 11, color: '#60a5fa', fontWeight: 500 }}>✨ Análisis IA</div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 10, color: '#4b6080' }}>{iaTextos[emp.id].fecha}</span>
+                        <span style={{ fontSize: 10, color: '#ffffff' }}>{iaTextos[emp.id].fecha}</span>
                         <span style={{ fontSize: 10, color: '#4b6080' }}>{iaColapsado[emp.id] ? '▲' : '▼'}</span>
                       </div>
                     </div>
                     {!iaColapsado[emp.id] && (
                       <div style={{ padding: '0 12px 12px' }}>
-                        <p style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.6, margin: 0 }}>{iaTextos[emp.id].texto}</p>
+                        <p style={{ fontSize: 12, color: '#ffffff', lineHeight: 1.6, margin: 0 }}>{iaTextos[emp.id].texto}</p>
                       </div>
                     )}
                   </div>
