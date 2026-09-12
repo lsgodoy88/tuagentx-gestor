@@ -138,7 +138,33 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   const porApiId = new Map(clientesLocales.filter((c: any) => c.apiId).map((c: any) => [c.apiId, c]))
   const porNit = new Map(clientesLocales.filter((c: any) => c.nit).map((c: any) => [c.nit, c]))
 
-  const toCreate = nuevasOrdenes.map((orden: any) => {
+  // Retry individual para órdenes sin customerId — sin él no hay match de cliente ni ciudad
+  const nuevasOrdenesConDatos: any[] = []
+  for (const orden of nuevasOrdenes) {
+    if (!orden.cliente?.uid) {
+      const origenId = String(orden.uid || orden._id)
+      try {
+        const completa = await adapter.fetchOrdenCompletaPorId(origenId)
+        if (completa?.clienteApiId || completa?.clienteNit || completa?.clienteNombre) {
+          nuevasOrdenesConDatos.push({
+            ...orden,
+            cliente: { uid: completa.clienteApiId },
+            clienteNit: orden.clienteNit || completa.clienteNit,
+            clienteNombreApi: orden.clienteNombreApi || completa.clienteNombre,
+            ciudad: completa.ciudad,
+            direccion: completa.direccion,
+            telefono: orden.telefono || completa.telefono,
+          })
+        } else {
+          console.warn(`[delta] orden ${origenId} sin customerId tras retry — omitida este ciclo`)
+        }
+      } catch { console.warn(`[delta] fetchOrdenCompletaPorId falló para ${origenId}`) }
+    } else {
+      nuevasOrdenesConDatos.push(orden)
+    }
+  }
+
+  const toCreate = nuevasOrdenesConDatos.map((orden: any) => {
     const origenId = String(orden.uid || orden._id)
     let ciudadNombre = (orden.ciudad as string) || ''
     if (orden.cityId && municipiosDANE[String(orden.cityId)]) ciudadNombre = municipiosDANE[String(orden.cityId)]
@@ -448,7 +474,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
       if (toCreate.length) {
         for (const orden of toCreate) {
           if (!orden.origenId) continue
-          await tx.ordenDespacho.upsert({ where: { origenId_empresaId: { origenId: orden.origenId, empresaId: orden.empresaId } }, create: orden, update: {} })
+          await tx.ordenDespacho.upsert({ where: { origenId_empresaId: { origenId: orden.origenId, empresaId: orden.empresaId } }, create: orden, update: { ...(orden.ciudad ? { ciudad: orden.ciudad } : {}), ...(orden.direccion ? { direccion: orden.direccion } : {}), ...(orden.telefono ? { telefono: orden.telefono } : {}) } })
         }
       }
       if (canceladasIds.length) await tx.ordenDespacho.updateMany({ where: { origenId: { in: canceladasIds }, empresaId: destino }, data: { isActiva: false } })
