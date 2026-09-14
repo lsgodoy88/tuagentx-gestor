@@ -20,11 +20,22 @@ export interface SubidaResult {
  * PDFs: upload raw sin modificar
  */
 export async function subirMediaArchivo(
-  base64: string,
+  input: string | Buffer,
   empresaId: string,
   carpetaId: string,
   nombreOriginal: string,
 ): Promise<SubidaResult> {
+  // Si llega Buffer directo (PDF via FormData), tratar como PDF sin conversión
+  if (Buffer.isBuffer(input)) {
+    const uuid = crypto.randomUUID()
+    const key = `media/${empresaId}/${carpetaId}/${uuid}.pdf`
+    const { PutObjectCommand } = require('@aws-sdk/client-s3')
+    await r2Client.send(new PutObjectCommand({ Bucket: R2_BUCKET_PUBLIC, Key: key, Body: input, ContentType: 'application/pdf' }))
+    registrarStorage(empresaId, 'media_pdf', key, input.length)
+    return { key, url: `${R2_PUBLIC_URL}/${key}`, tipo: 'pdf', tamano_byte: input.length }
+  }
+
+  const base64 = input
   const esImagen = /^data:image\//i.test(base64)
   const esPdf = /^data:application\/pdf/i.test(base64)
 

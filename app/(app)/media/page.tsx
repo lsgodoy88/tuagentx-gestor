@@ -169,18 +169,62 @@ export default function MediaPage() {
   async function subirAsset(e: React.ChangeEvent<HTMLInputElement>, tipo: 'logo' | 'portafolio') {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = async () => {
-      const res = await fetch('/api/media/config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tipo, nombre: file.name, base64: reader.result }),
-      })
-      if (res.ok) cargarTodo()
-      else alert('Error al subir')
-    }
-    reader.readAsDataURL(file)
     e.target.value = ''
+
+    // Comprimir imagen en cliente antes de enviar (igual que bodega/recaudos)
+    const comprimirImagen = (file: File): Promise<string> => new Promise((resolve, reject) => {
+      if (tipo === 'portafolio') {
+        const reader = new FileReader()
+        reader.onload = () => resolve(reader.result as string)
+        reader.onerror = reject
+        reader.readAsDataURL(file)
+        return
+      }
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => {
+        URL.revokeObjectURL(url)
+        const MAX = 1200
+        let w = img.width, h = img.height
+        if (w > MAX || h > MAX) {
+          if (w > h) { h = Math.round(h * MAX / w); w = MAX }
+          else { w = Math.round(w * MAX / h); h = MAX }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = w; canvas.height = h
+        canvas.getContext('2d')!.drawImage(img, 0, 0, w, h)
+        resolve(canvas.toDataURL('image/jpeg', 0.82))
+      }
+      img.onerror = reject
+      img.src = url
+    })
+
+    try {
+      let res: Response
+      if (tipo === 'portafolio') {
+        // PDF — FormData para evitar límite de 4MB en JSON base64
+        const form = new FormData()
+        form.append('tipo', tipo)
+        form.append('nombre', file.name)
+        form.append('file', file)
+        res = await fetch('/api/media/config', { method: 'POST', body: form })
+      } else {
+        const base64 = await comprimirImagen(file)
+        res = await fetch('/api/media/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tipo, nombre: file.name, base64 }),
+        })
+      }
+      if (res.ok) { await cargarTodo() }
+      else {
+        let msg = 'Error al subir'
+        try { const d = await res.json(); msg = d.error || msg } catch {}
+        alert(msg)
+      }
+    } catch (err) {
+      alert('Error al procesar imagen')
+    }
   }
 
   async function guardarParametros() {
