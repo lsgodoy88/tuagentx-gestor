@@ -478,39 +478,43 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
               data: dataUpdate,
             })
             // Si no existía en BD — orden creada antes de hoy facturada hoy — crearla
+            // Sin doble llamada: fields de ordenes/date ya incluyen address, phone, expand=customer
             if (result.count === 0 && o.isInvoiced && o.invoiceNumber) {
               try {
-                const ordenCompleta = await adapter.fetchOrdenCompletaPorId(origenId)
-                if (ordenCompleta) {
-                  const cli = (ordenCompleta.clienteApiId && porApiId.get(ordenCompleta.clienteApiId))
-                    || (ordenCompleta.clienteNit && porNit.get(ordenCompleta.clienteNit))
-                  await prisma.ordenDespacho.create({
-                    data: {
-                      empresaId: destino,
-                      origen: destino,
-                      origenId,
-                      numeroOrden: String(ordenCompleta.numeroOrden ?? ''),
-                      numeroFactura: String(o.invoiceNumber),
-                      isFacturada: true,
-                      fechaFactura: o.invoicedAt ? parseFechaUptresBogota(o.invoicedAt) : null,
-                      totalOrden: o.total ? parseFloat(o.total) : null,
-                      balance: o.balance !== undefined ? parseFloat(o.balance) : null,
-                      clienteApiId: ordenCompleta.clienteApiId || '',
-                      clienteNit: ordenCompleta.clienteNit || null,
-                      clienteNombre: ordenCompleta.clienteNombre || '',
-                      vendedorApiId: ordenCompleta.vendedorApiId || null,
-                      ciudad: ordenCompleta.ciudad || (cli as any)?.ciudad || null,
-                      direccion: ordenCompleta.direccion || (cli as any)?.direccion || null,
-                      telefono: ordenCompleta.telefono || (cli as any)?.telefono || null,
-                      fechaOrden: ordenCompleta.createdAt ? parseFechaUptresBogota(ordenCompleta.createdAt) : null,
-                      estado: 'pendiente',
-                      sincronizadoEn: new Date(),
-                      origenSync: 'delta',
-                      reconciliadoEn: new Date(),
-                    }
-                  })
-                  ordenesDateActualizadas++
-                }
+                const daneCode = o.cityId || o.customer?.city || o.customer?.cityId
+                const ciudad = daneCode ? (municipiosDANE[String(daneCode)] || null) : null
+                const direccion = o.address || o.customer?.address || null
+                const telefono = o.phone || o.customer?.phone || null
+                const clienteApiId = o.customerId || ''
+                const clienteNombre = o.customer
+                  ? `${o.customer.firstName || ''} ${o.customer.lastName || ''}`.trim()
+                  : ''
+                await prisma.ordenDespacho.create({
+                  data: {
+                    empresaId: destino,
+                    origen: destino,
+                    origenId,
+                    numeroOrden: String(o.orderNumber ?? ''),
+                    numeroFactura: String(o.invoiceNumber),
+                    isFacturada: true,
+                    fechaFactura: o.invoicedAt ? parseFechaUptresBogota(o.invoicedAt) : null,
+                    totalOrden: o.total ? parseFloat(o.total) : null,
+                    balance: o.balance !== undefined ? parseFloat(o.balance) : null,
+                    clienteApiId,
+                    clienteNit: o.customer?.document || null,
+                    clienteNombre,
+                    vendedorApiId: o.employeeId || null,
+                    ciudad,
+                    direccion,
+                    telefono,
+                    fechaOrden: o.createdAt ? parseFechaUptresBogota(o.createdAt) : null,
+                    estado: 'pendiente',
+                    sincronizadoEn: new Date(),
+                    origenSync: 'delta',
+                    reconciliadoEn: new Date(),
+                  }
+                })
+                ordenesDateActualizadas++
               } catch (e: any) { /* no crítico — se reintentará en próximo delta */ }
             } else {
               ordenesDateActualizadas++

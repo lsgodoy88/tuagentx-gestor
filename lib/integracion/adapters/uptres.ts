@@ -985,7 +985,7 @@ export async function fetchOrdenesDateConCursor(
     ? new Date(new Date(cursor.cursorDate).getTime() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
     : new Date(desde.getTime() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
 
-  const fields = 'id,orderNumber,invoiceNumber,isInvoiced,invoicedAt,total,balance,paymentType,paymentMethod,customerId,employeeId,createdAt,updatedAt,cityId'
+  const fields = 'id,orderNumber,invoiceNumber,isInvoiced,invoicedAt,total,balance,paymentType,paymentMethod,customerId,employeeId,createdAt,updatedAt,cityId,address,phone'
 
   const todos: any[] = []
   let cursorDate: string | null = cursor?.cursorDate ?? null
@@ -995,9 +995,7 @@ export async function fetchOrdenesDateConCursor(
   const MAX_PAGINAS = 200
 
   while (pagina++ < MAX_PAGINAS) {
-    // condition obligatorio — traer ambas (true+false) en paralelo no aplica aquí;
-    // usamos condition=true para activas (las que importan para reconciliación)
-    const p = new URLSearchParams({ date: 'updatedAt', fields, from: fromDate, to: manana.toISOString().split('T')[0], limit: '100', condition: 'true' })
+    const p = new URLSearchParams({ date: 'updatedAt', fields, from: fromDate, to: manana.toISOString().split('T')[0], limit: '100', condition: 'true', expand: 'customer' })
     if (cursorDate && cursorId) { p.set('cursorDate', cursorDate); p.set('cursorId', cursorId) }
 
     let texto = ''
