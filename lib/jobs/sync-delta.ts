@@ -833,7 +833,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     await (prisma as any).syncLog.create({ data: { integracionId, empresaId: destino, tipo: 'delta', inicio: new Date(inicioTs), fin: new Date(), duracionMs, estado: erroresParciales.length > 0 ? 'parcial' : 'ok', disparadoPor: 'cron', ordenesNuevas: toCreate.length, deudasSincronizadas: deudaToCreate.length, clientesNuevos, deudasNuevasDelta, comprasSincronizadas: ordenes.length, ...(empleadosActualizados ? { empleadosActualizados } : {}), ...(saldosActualizados ? { saldosActualizados } : {}), ...(reconciliadas ? { reconciliadas } : {}), ...(erroresParciales.length > 0 ? { errores: JSON.stringify(erroresParciales) } : {}), detalle: _det } })
   } catch (logErr: any) { console.error('[delta] syncLog insert error:', logErr.message) }
 
-  return { empresaId: destino, ordenes: ordenes.length, nuevasOrdenes: toCreate.length, nuevasDeudas: deudaToCreate.length, clientesNuevos, deudasNuevasDelta, empleadosActualizados, listasActualizadas, proveedoresActualizados, saldosActualizados, reconciliadas, huecosRecuperados }
+  return { empresaId: destino, ordenes: ordenes.length, nuevasOrdenes: toCreate.length, nuevasDeudas: deudaToCreate.length, clientesNuevos, deudasNuevasDelta, empleadosActualizados, listasActualizadas, proveedoresActualizados, saldosActualizados, reconciliadas, huecosRecuperados, ordenesDateActualizadas, erroresParciales }
 }
 
 export async function runSyncDelta(): Promise<any[]> {
