@@ -1,48 +1,58 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-const mockFindMany = vi.fn()
-const mockCount = vi.fn()
-const mockSyncDeudaFindMany = vi.fn()
-
 vi.mock('@/lib/prisma', () => ({
   prisma: {
-    syncDeuda: { findMany: mockSyncDeudaFindMany },
-    cliente: { findMany: mockFindMany, count: mockCount },
+    syncDeuda: { findMany: vi.fn() },
+    cliente: { findMany: vi.fn(), count: vi.fn() },
+    empleado: { findUnique: vi.fn() },
+    empleadoLista: { findMany: vi.fn() },
+    clienteLista: { findMany: vi.fn() },
+    supervisorVendedor: { findMany: vi.fn() },
   },
   DB_SCHEMA: 'gestor_staging'
 }))
-
 vi.mock('next-auth', () => ({
-  getServerSession: vi.fn(() => ({ user: { id: 'u1', empresaId: 'emp1', rol: 'vendedor', subEmpresaId: null } }))
+  getServerSession: vi.fn(() => ({ user: { id: 'u1', empresaId: 'emp1', role: 'vendedor', subEmpresaId: null } }))
 }))
-
 vi.mock('@/lib/auth', () => ({ authOptions: {} }))
 vi.mock('@/lib/auth-helpers', () => ({ getEmpresaId: (u: any) => u.empresaId }))
+vi.mock('@/lib/permisos', () => ({ checkPermiso: vi.fn().mockReturnValue(true) }))
 
+import { GET } from '@/app/api/clientes/route'
+import { prisma } from '@/lib/prisma'
+
+const p = prisma as any
 const makeReq = (params: Record<string, string>) =>
   new Request(`http://localhost/api/clientes?${new URLSearchParams(params)}`)
 
 describe('GET /api/clientes — conDeuda', () => {
-  beforeEach(() => { vi.clearAllMocks(); mockFindMany.mockResolvedValue([]); mockCount.mockResolvedValue(0) })
+  beforeEach(() => {
+    vi.clearAllMocks()
+    p.cliente.findMany.mockResolvedValue([])
+    p.cliente.count.mockResolvedValue(0)
+    p.empleado.findUnique.mockResolvedValue({ apiId: 'api-u1' })
+    p.empleadoLista.findMany.mockResolvedValue([])
+    p.clienteLista.findMany.mockResolvedValue([])
+    p.supervisorVendedor.findMany.mockResolvedValue([])
+  })
 
   it('sin conDeuda: no llama syncDeuda', async () => {
-    const { GET } = await import('@/app/api/clientes/route')
     await GET(makeReq({ q: 'Mar', page: '1', limit: '10' }))
-    expect(mockSyncDeudaFindMany).not.toHaveBeenCalled()
+    expect(p.syncDeuda.findMany).not.toHaveBeenCalled()
   })
 
   it('conDeuda=true: filtra nSaldo>0 y condition=true', async () => {
-    mockSyncDeudaFindMany.mockResolvedValue([{ clienteApiId: 'api1' }])
-    const { GET } = await import('@/app/api/clientes/route')
+    p.syncDeuda.findMany.mockResolvedValue([{ clienteApiId: 'api1' }])
     await GET(makeReq({ q: 'Mar', conDeuda: 'true', page: '1', limit: '10' }))
-    expect(mockSyncDeudaFindMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { nSaldo: { gt: 0 }, condition: true } })
+    expect(p.syncDeuda.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ nSaldo: { gt: 0 }, condition: true })
+      })
     )
   })
 
   it('conDeuda=true sin deudas: clientes vacío', async () => {
-    mockSyncDeudaFindMany.mockResolvedValue([])
-    const { GET } = await import('@/app/api/clientes/route')
+    p.syncDeuda.findMany.mockResolvedValue([])
     const res = await GET(makeReq({ q: 'Mar', conDeuda: 'true', page: '1', limit: '10' }))
     const d = await res.json()
     expect(d.clientes).toEqual([])
@@ -50,12 +60,19 @@ describe('GET /api/clientes — conDeuda', () => {
 })
 
 describe('GET /api/clientes — startsWith', () => {
-  beforeEach(() => { vi.clearAllMocks(); mockFindMany.mockResolvedValue([]); mockCount.mockResolvedValue(0) })
+  beforeEach(() => {
+    vi.clearAllMocks()
+    p.cliente.findMany.mockResolvedValue([])
+    p.cliente.count.mockResolvedValue(0)
+    p.empleado.findUnique.mockResolvedValue({ apiId: 'api-u1' })
+    p.empleadoLista.findMany.mockResolvedValue([])
+    p.clienteLista.findMany.mockResolvedValue([])
+    p.supervisorVendedor.findMany.mockResolvedValue([])
+  })
 
   it('usa startsWith insensitive', async () => {
-    const { GET } = await import('@/app/api/clientes/route')
     await GET(makeReq({ q: 'Ada', page: '1', limit: '10' }))
-    expect(mockFindMany).toHaveBeenCalledWith(
+    expect(p.cliente.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
           OR: expect.arrayContaining([

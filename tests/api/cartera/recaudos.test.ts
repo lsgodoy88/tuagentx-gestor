@@ -90,7 +90,7 @@ describe('GET /api/recaudos — lista de pagos (admin only)', () => {
     it('estado != "todos" → agrega envioEstado al WHERE', async () => {
       await GET(makeReq({ estado: 'enviado' }))
       const args = vi.mocked(prisma.pagoCartera.findMany).mock.calls[0][0] as any
-      expect(args.where.envioEstado).toBe('enviado')
+      expect(args.where.envioEstado).toEqual({ in: ['enviado', 'recibido', 'cierreUptres'] })
     })
 
     it('estado="todos" → no filtra por envioEstado', async () => {

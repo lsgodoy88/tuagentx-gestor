@@ -971,9 +971,9 @@ export async function fetchNotasCredito(
 }
 
 // ─── fetchOrdenesDateConCursor ────────────────────────────────────────────────
-// Usa /ordenes/date?date=invoicedAt para traer órdenes recién facturadas en UpTres.
-// Solo trae isInvoiced=true con invoiceNumber válido — ideal para reconciliación
-// de facturas fuera de la ventana de 10 días del fetchVentas principal.
+// Usa /ordenes/date?date=updatedAt para detectar cualquier cambio en órdenes:
+// facturaciones (invoicedAt) Y pagos parciales (balance cambia).
+// Confirmado con datos reales: updatedAt se actualiza en ambos casos.
 export async function fetchOrdenesDateConCursor(
   apiKey: string,
   token: string,
@@ -997,7 +997,7 @@ export async function fetchOrdenesDateConCursor(
   while (pagina++ < MAX_PAGINAS) {
     // condition obligatorio — traer ambas (true+false) en paralelo no aplica aquí;
     // usamos condition=true para activas (las que importan para reconciliación)
-    const p = new URLSearchParams({ date: 'invoicedAt', fields, from: fromDate, to: manana.toISOString().split('T')[0], limit: '100', condition: 'true' })
+    const p = new URLSearchParams({ date: 'updatedAt', fields, from: fromDate, to: manana.toISOString().split('T')[0], limit: '100', condition: 'true' })
     if (cursorDate && cursorId) { p.set('cursorDate', cursorDate); p.set('cursorId', cursorId) }
 
     let texto = ''

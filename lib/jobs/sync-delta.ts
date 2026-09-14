@@ -465,18 +465,23 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
       const updates: Promise<any>[] = []
       for (const o of ordenesDate) {
         const origenId = String(o.id || '')
-        if (!origenId || !o.isInvoiced || !o.invoiceNumber) continue
-        // Solo actualizar órdenes que ya existen en BD — no crear nuevas (fetchVentas lo hace)
+        if (!origenId) continue
+        // Actualizar balance siempre — updatedAt cambia con pagos parciales también
+        const dataUpdate: any = {
+          totalOrden: o.total ? parseFloat(o.total) : undefined,
+          balance: o.balance !== undefined ? parseFloat(o.balance) : undefined,
+          reconciliadoEn: new Date(),
+        }
+        // Marcar facturada solo si tiene invoiceNumber válido
+        if (o.isInvoiced && o.invoiceNumber) {
+          dataUpdate.isFacturada = true
+          dataUpdate.numeroFactura = String(o.invoiceNumber)
+          dataUpdate.fechaFactura = o.invoicedAt ? parseFechaUptresBogota(o.invoicedAt) : null
+        }
         updates.push(
           prisma.ordenDespacho.updateMany({
-            where: { origenId, empresaId: destino, isFacturada: false },
-            data: {
-              isFacturada: true,
-              numeroFactura: String(o.invoiceNumber),
-              fechaFactura: o.invoicedAt ? parseFechaUptresBogota(o.invoicedAt) : null,
-              totalOrden: o.total ? parseFloat(o.total) : undefined,
-              reconciliadoEn: new Date(),
-            },
+            where: { origenId, empresaId: destino },
+            data: dataUpdate,
           })
         )
         ordenesDateActualizadas++
@@ -691,9 +696,17 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
         where: { empresaId: destino, isFacturada: false, isActiva: true, origenId: { not: null } },
         select: { id: true, origenId: true, numeroOrden: true }
       })
-      // Combinar ordenes de hoy (fetchVentas) + ordenesDate (invoicedAt cursor) — sin HTTP adicional
-      // ordenesDate ya está en scope (elevado arriba) — cubre facturas de días anteriores
-      const ordenesHoy = [...ordenes, ...ordenesDate]
+      // Combinar ordenes de hoy (fetchVentas) + ordenesDate — normalizar al mismo shape
+      // fetchVentas usa: uid, numeroFacturado, vTotal, isInvoiced
+      // ordenesDate usa: id, invoiceNumber, total, isInvoiced — normalizar
+      const ordenesDateNormalizadas = ordenesDate.map((o: any) => ({
+        uid: o.id,
+        isInvoiced: o.isInvoiced,
+        numeroFacturado: o.invoiceNumber || null,
+        vTotal: o.total || null,
+        invoicedAt: o.invoicedAt || null,
+      }))
+      const ordenesHoy = [...ordenes, ...ordenesDateNormalizadas]
       const porOrigenId = new Map(ordenesHoy.map((o: any) => [String(o.uid || o._id || o.id), o]))
       for (const sinF of sinFacturarEnBD) {
         const uptres = porOrigenId.get(sinF.origenId!)

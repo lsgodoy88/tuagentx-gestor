@@ -51,6 +51,7 @@ describe('GET /api/impulsar/rotacion', () => {
       .mockResolvedValueOnce([{ id: 'p1', nombre: 'Prod A', linea: 'L1', marca: 'M1', precio: 5000 }])
       .mockResolvedValueOnce([{ total: 1 }])
       .mockResolvedValueOnce([{ linea: 'L1' }])
+      .mockResolvedValueOnce([]) // preciosRows — historial precios impulsadora
     const res = await GET(makeGet())
     expect(res.status).toBe(200)
     const data = await res.json()
