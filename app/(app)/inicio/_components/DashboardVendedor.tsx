@@ -412,10 +412,9 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
       return
     } finally {
       clearTimeout(timer)
-      setLoadingDetalle(false)
     }
     const dc = data.cartera
-    if (!dc) { setDetalleData(null); return }
+    if (!dc) { setLoadingDetalle(false); setDetalleData(null); return }
     const { calcularEstado } = await import('@/lib/cartera')
     dc.DetalleCartera = (dc.deudas || []).map((d: any) => ({
       id: d.id, syncDeudaId: d.id, valorFactura: d.valor, abonos: d.valor - d.saldoReal, saldoPendiente: d.saldoReal,
@@ -427,41 +426,28 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
       })(),
       numeroFactura: d.numeroFactura || d.numeroOrden, fechaVencimiento: d.fechaVencimiento, electronicInvoiceNumber: d.electronicInvoiceNumber || null, _sync: true,
     }))
-    setDetalleData(dc)
     const pendientes = (dc.DetalleCartera || []).filter((d: any) => d.estado !== 'pagada').sort((a: any, b: any) => {
       const fa = a.fechaVencimiento ? new Date(a.fechaVencimiento).getTime() : Infinity
       const fb = b.fechaVencimiento ? new Date(b.fechaVencimiento).getTime() : Infinity
       return fa - fb
     })
+    setRrVerificando(false)
+    setModalRecaudoRapido(false)
+    setRecaudandoCartera(dc)
+    setDetalleData(dc)
     setFacturasSeleccionadas(pendientes[0]?.id ? [pendientes[0].id] : [])
     setLineasPago([crearLinea()])
+    setLoadingDetalle(false)
   }
 
   async function rrSeleccionarCliente(cliente: any) {
-    setRrCliente(cliente); setRrVerificando(true); setModalRecaudoRapido(true)
-    const controller = new AbortController()
-    const timer = setTimeout(() => controller.abort(), 12000)
-    let data: any = {}
-    try {
-      const res = await fetch(`/api/cartera/${cliente.id}`, { signal: controller.signal })
-      data = await res.json()
-    } catch (e: any) {
-      clearTimeout(timer)
-      setRrVerificando(false)
-      setRrSinDeuda(true)
-      return
-    } finally {
-      clearTimeout(timer)
-      setRrVerificando(false)
-    }
-    const cartera = data.cartera
-    if (cartera && Number(cartera.saldoTotal) > 0) {
-      setModalRecaudoRapido(false)
-      setLineasPago([crearLinea()])
-      setRecaudandoCartera(cartera)
-      notasPagoRef.current = ''
-      cargarDetalleCartera({ ...cartera, clienteId: cliente.id })
-    } else { setRrSinDeuda(true) }
+    // Mostrar shimmer en modal búsqueda mientras carga — NO abrir ModalRecaudo todavía
+    setRrCliente(cliente)
+    setRrVerificando(true)
+    setLineasPago([crearLinea()])
+    setDetalleData(null)
+    notasPagoRef.current = ''
+    await cargarDetalleCartera({ ...cliente, clienteId: cliente.id })
   }
 
   // Corrige orientación EXIF antes de enviar a la IA — sin librerías externas
@@ -1091,14 +1077,19 @@ export default function DashboardVendedor({ user, onRegisterRefresh, activo = tr
                   )}
                   {rrBuscarCartera && rrLoadingCartera && <div className="space-y-2">{Array.from({length:3}).map((_,i) => <div key={i} className="rounded-xl h-16 bg-zinc-800/40"/>)}</div>}
                   {rrBuscarCartera && !rrLoadingCartera && rrCartera.length === 0 && <p className="text-zinc-500 text-sm text-center py-4">Sin resultados</p>}
-                  {rrBuscarCartera && !rrLoadingCartera && rrCartera.map((cartera: any) => (
+                  {rrBuscarCartera && !rrLoadingCartera && !recaudandoCartera && rrCartera.map((cartera: any) => (
                     <CarteraCard key={cartera.id||cartera.clienteId} cartera={cartera} rol={user?.role||'vendedor'} fmt={fmt}
-                      onRecaudar={(c: any) => { setModalRecaudoRapido(false); setLineasPago([crearLinea()]); setRecaudandoCartera(c); cargarDetalleCartera({ ...c, clienteId: c.clienteId || c.cliente?.id || c.id }) }}
+                      onRecaudar={(c: any) => { setModalRecaudoRapido(false); setLineasPago([crearLinea()]); setDetalleData(null); setLoadingDetalle(true); setRecaudandoCartera(c); cargarDetalleCartera({ ...c, clienteId: c.clienteId || c.cliente?.id || c.id }) }}
                       onWhatsApp={abrirWhatsApp} variant="modal" />
                   ))}
+
                 </>
               ) : rrVerificando ? (
-                <div className="py-8 text-center"><p className="text-zinc-400 text-sm">Verificando deuda de {rrCliente.nombre}...</p></div>
+                <div className="space-y-3 py-2">
+                  <div className="shimmer rounded-2xl h-16" />
+                  <div className="shimmer rounded-2xl h-16" />
+                  <div className="shimmer rounded-2xl h-16" />
+                </div>
               ) : rrSinDeuda ? (
                 <div className="space-y-4">
                   <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4 text-center">
