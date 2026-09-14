@@ -39,15 +39,16 @@ export async function PATCH(req: NextRequest) {
   const empresaId = (session.user as any).empresaId
   const { nombre, descripcion, whatsapp, tema } = await req.json()
 
+  // Upsert — crea si no existe (primer uso: Activar TaX-Link), actualiza si ya existe
   await prisma.$executeRaw`
-    UPDATE ${Prisma.raw(DB_SCHEMA)}."MediaConfig"
-    SET
-      nombre      = COALESCE(${nombre ?? null}, nombre),
-      descripcion = COALESCE(${descripcion ?? null}, descripcion),
-      whatsapp    = COALESCE(${whatsapp ?? null}, whatsapp),
-      tema        = COALESCE(${tema ?? null}, tema),
+    INSERT INTO ${Prisma.raw(DB_SCHEMA)}."MediaConfig" (id, "empresaId", nombre, descripcion, whatsapp, tema, "updatedAt")
+    VALUES (gen_random_uuid()::text, ${empresaId}, ${nombre ?? null}, ${descripcion ?? null}, ${whatsapp ?? null}, ${tema ?? 'oceano'}, now())
+    ON CONFLICT ("empresaId") DO UPDATE SET
+      nombre      = COALESCE(EXCLUDED.nombre, ${Prisma.raw(DB_SCHEMA)}."MediaConfig".nombre),
+      descripcion = COALESCE(EXCLUDED.descripcion, ${Prisma.raw(DB_SCHEMA)}."MediaConfig".descripcion),
+      whatsapp    = COALESCE(EXCLUDED.whatsapp, ${Prisma.raw(DB_SCHEMA)}."MediaConfig".whatsapp),
+      tema        = COALESCE(EXCLUDED.tema, ${Prisma.raw(DB_SCHEMA)}."MediaConfig".tema),
       "updatedAt" = now()
-    WHERE "empresaId" = ${empresaId}
   `
 
   return NextResponse.json({ ok: true })

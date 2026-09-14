@@ -261,32 +261,48 @@ export default function MediaPage() {
 
       </div>
 
-      {/* Preview config */}
-      {config && (config.nombre || config.logoUrl) && (
+      {/* Preview config — siempre visible para admins */}
+      {esAdmin && (
         <div className="rounded-xl p-4 mb-4 flex items-center gap-3" style={{background:"#09091f",border:"1px solid #27272a"}}>
-          {config.logoUrl
-            ? <img src={config.logoUrl} alt="logo" className="w-12 h-12 rounded-full object-cover shrink-0" />
-            : <div className="w-12 h-12 rounded-full bg-[#1e2a3d] flex items-center justify-center text-gray-400 shrink-0">🏢</div>
+          {config
+            ? (config.logoUrl
+                ? <img src={config.logoUrl} alt="logo" className="w-12 h-12 rounded-full object-cover shrink-0" />
+                : <div className="w-12 h-12 rounded-full bg-[#1e2a3d] flex items-center justify-center text-gray-400 text-xs font-bold shrink-0">LOGO</div>
+              )
+            : <div className="w-12 h-12 rounded-full bg-[#1e2a3d] border-2 border-dashed border-zinc-600 flex items-center justify-center text-zinc-500 text-[10px] font-bold shrink-0">LOGO</div>
           }
           <div className="min-w-0 flex-1">
-            <p className="text-white font-semibold truncate">{config.nombre || empresaNombre}</p>
-            {config.whatsapp && <p className="text-green-400 text-xs mt-0.5 flex items-center gap-1"><svg viewBox="0 0 32 32" className="w-3.5 h-3.5 fill-green-400"><path d="M16 0C7.163 0 0 7.163 0 16c0 2.833.737 5.495 2.027 7.808L0 32l8.418-2.004A15.93 15.93 0 0 0 16 32c8.837 0 16-7.163 16-16S24.837 0 16 0zm0 29.333a13.27 13.27 0 0 1-6.787-1.856l-.487-.29-4.997 1.19 1.257-4.862-.318-.5A13.271 13.271 0 0 1 2.667 16C2.667 8.636 8.636 2.667 16 2.667S29.333 8.636 29.333 16 23.364 29.333 16 29.333zm7.293-9.907c-.4-.2-2.363-1.165-2.73-1.299-.366-.133-.633-.2-.9.2-.266.4-1.032 1.3-1.265 1.566-.233.267-.467.3-.867.1-.4-.2-1.688-.622-3.215-1.983-1.188-1.06-1.99-2.369-2.223-2.769-.233-.4-.025-.616.175-.815.18-.178.4-.467.6-.7.2-.233.267-.4.4-.667.133-.267.067-.5-.033-.7-.1-.2-.9-2.167-1.233-2.967-.325-.78-.655-.674-.9-.686l-.766-.013c-.267 0-.7.1-1.067.5-.366.4-1.4 1.367-1.4 3.333s1.433 3.867 1.633 4.133c.2.267 2.82 4.307 6.833 6.034 4.013 1.726 4.013 1.15 4.737 1.077.724-.073 2.333-.954 2.663-1.874.33-.92.33-1.707.233-1.873-.1-.167-.367-.267-.767-.467z"/></svg> {config.whatsapp}</p>}
+            {config
+              ? <>
+                  <p className="text-white font-semibold truncate">{config.nombre || empresaNombre}</p>
+                  {config.whatsapp && <p className="text-green-400 text-xs mt-0.5 flex items-center gap-1"><svg viewBox="0 0 32 32" className="w-3.5 h-3.5 fill-green-400"><path d="M16 0C7.163 0 0 7.163 0 16c0 2.833.737 5.495 2.027 7.808L0 32l8.418-2.004A15.93 15.93 0 0 0 16 32c8.837 0 16-7.163 16-16S24.837 0 16 0zm0 29.333a13.27 13.27 0 0 1-6.787-1.856l-.487-.29-4.997 1.19 1.257-4.862-.318-.5A13.271 13.271 0 0 1 2.667 16C2.667 8.636 8.636 2.667 16 2.667S29.333 8.636 29.333 16 23.364 29.333 16 29.333zm7.293-9.907c-.4-.2-2.363-1.165-2.73-1.299-.366-.133-.633-.2-.9.2-.266.4-1.032 1.3-1.265 1.566-.233.267-.467.3-.867.1-.4-.2-1.688-.622-3.215-1.983-1.188-1.06-1.99-2.369-2.223-2.769-.233-.4-.025-.616.175-.815.18-.178.4-.467.6-.7.2-.233.267-.4.4-.667.133-.267.067-.5-.033-.7-.1-.2-.9-2.167-1.233-2.967-.325-.78-.655-.674-.9-.686l-.766-.013c-.267 0-.7.1-1.067.5-.366.4-1.4 1.367-1.4 3.333s1.433 3.867 1.633 4.133c.2.267 2.82 4.307 6.833 6.034 4.013 1.726 4.013 1.15 4.737 1.077.724-.073 2.333-.954 2.663-1.874.33-.92.33-1.707.233-1.873-.1-.167-.367-.267-.767-.467z"/></svg> {config.whatsapp}</p>}
+                </>
+              : <p className="text-zinc-500 text-sm">TaX-Link no configurado aún</p>
+            }
           </div>
           <div className="flex flex-col gap-1.5 shrink-0 justify-center">
-            <button
-              onClick={compartirBiolink}
-              className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-green-700 hover:bg-green-600 text-white whitespace-nowrap"
-            >
-              {compartido ? '✓ Copiado' : 'Compartir🔥'}
-            </button>
-            {esAdmin && (
-              <button
-                onClick={() => setModalParams(true)}
-                className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#1e2a3d] hover:bg-[#243352] text-white whitespace-nowrap"
-              >
-                Detalles⚙️
-              </button>
-            )}
+            {config
+              ? <>
+                  <button
+                    onClick={compartirBiolink}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-green-700 hover:bg-green-600 text-white whitespace-nowrap"
+                  >
+                    {compartido ? '✓ Copiado' : 'Compartir🔥'}
+                  </button>
+                  <button
+                    onClick={() => setModalParams(true)}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-[#1e2a3d] hover:bg-[#243352] text-white whitespace-nowrap"
+                  >
+                    Detalles⚙️
+                  </button>
+                </>
+              : <button
+                  onClick={() => setModalParams(true)}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white whitespace-nowrap"
+                >
+                  Activar TaX-Link⚙️
+                </button>
+            }
           </div>
         </div>
       )}

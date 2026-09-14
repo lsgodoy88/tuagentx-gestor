@@ -31,12 +31,11 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   let _s = Date.now(); await adapter.login(); _t('login', _s)
 
   const empresa = await prisma.empresa.findUnique({ where: { id: destino }, select: { ultimaSyncBodega: true, ultimaSyncClientes: true, sync_cursor_clientes: true, sync_cursor_empleados: true, sync_cursor_cartera: true, sync_cursor_cartera_update: true, sync_cursor_listas: true, sync_cursor_proveedores: true, sync_cursor_ordenes_date: true, sync_cursor_ordenes_deleted: true, fechaInicioBodega: true } })
-  const hace10dias = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)
-  // desde: siempre mínimo 10 días atrás — captura órdenes creadas antes pero facturadas después
-  // No usar fechaFactura como ancla: avanza con cada factura y deja fuera órdenes anteriores
-  const desde = empresa?.ultimaSyncBodega
-    ? new Date(Math.min(empresa.ultimaSyncBodega.getTime() - 30 * 60 * 1000, hace10dias.getTime()))
-    : hace10dias
+  // fetchVentas: solo órdenes creadas HOY en Bogotá (UTC-5)
+  // Órdenes de días anteriores sin facturar → cubiertas por ordenes/date?date=invoicedAt (cursor)
+  // Órdenes eliminadas → cubiertas por ordenes/deleted (cursor)
+  const ahoraBogota = new Date(Date.now() - 5 * 60 * 60 * 1000)
+  const desde = new Date(Date.UTC(ahoraBogota.getUTCFullYear(), ahoraBogota.getUTCMonth(), ahoraBogota.getUTCDate()) + 5 * 60 * 60 * 1000)
 
   _s = Date.now(); const ordenes = await adapter.fetchVentas(desde); _t('fetchVentas', _s)
   const erroresParciales: string[] = []
@@ -692,12 +691,10 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
         where: { empresaId: destino, isFacturada: false, isActiva: true, origenId: { not: null } },
         select: { id: true, origenId: true, numeroOrden: true }
       })
-      const hoy = new Date()
-      // Solo llamar UpTres si hay órdenes pendientes de facturar
-      const ordenesHoy = sinFacturarEnBD.length > 0 || facturas.length >= 2
-        ? await adapter.fetchVentas(new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()))
-        : []
-      const porOrigenId = new Map(ordenesHoy.map((o: any) => [String(o.uid || o._id), o]))
+      // Combinar ordenes de hoy (fetchVentas) + ordenesDate (invoicedAt cursor) — sin HTTP adicional
+      // ordenesDate ya está en scope (elevado arriba) — cubre facturas de días anteriores
+      const ordenesHoy = [...ordenes, ...ordenesDate]
+      const porOrigenId = new Map(ordenesHoy.map((o: any) => [String(o.uid || o._id || o.id), o]))
       for (const sinF of sinFacturarEnBD) {
         const uptres = porOrigenId.get(sinF.origenId!)
         if (uptres && (uptres as any).isInvoiced && (uptres as any).numeroFacturado) {

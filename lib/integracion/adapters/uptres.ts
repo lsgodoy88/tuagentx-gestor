@@ -216,8 +216,6 @@ export class UpTresAdapter implements AdaptadorIntegracion {
   async fetchDeudas(desde?: Date): Promise<DeudaExterna[]> {
     const params: Record<string, string> = {
       fields: 'id,orderNumber,invoiceNumber,electronicInvoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt,receivableAt',
-      expand: 'customer',
-      sort: 'desc',
       includeTotal: 'false',
     }
     if (desde) {
@@ -272,7 +270,6 @@ export class UpTresAdapter implements AdaptadorIntegracion {
         empleado: { uid: o.employeeId },
         condicionUpTres: o._condicionUpTres !== false,
         electronicInvoiceNumber: o.electronicInvoiceNumber || null,
-        cityId: o.customer?.city || o.customer?.cityId || null,
       }
     })
   }
@@ -667,8 +664,6 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       : new Date(new Date(desde!.getTime() - 5 * 60 * 60 * 1000).getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     const params: Record<string, string> = {
       fields: 'id,orderNumber,invoiceNumber,electronicInvoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt,receivableAt',
-      expand: 'customer',
-      sort: 'desc',
       includeTotal: 'false',
       from: fromDate,
       to: manana.toISOString().split('T')[0],
