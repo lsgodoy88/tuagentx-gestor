@@ -545,6 +545,23 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
         }
       }
       if (canceladasIds.length) await tx.ordenDespacho.updateMany({ where: { origenId: { in: canceladasIds }, empresaId: destino }, data: { isActiva: false } })
+
+      // Rellenar dirección desde Cliente local para órdenes recién creadas sin dirección
+      // Ciudad siempre viene de UpTres — solo dirección puede faltar
+      if (toCreate.length > 0) {
+        const schema = process.env.DB_SCHEMA || 'gestor'
+        const nuevosOrigenIds = toCreate.map((o: any) => o.origenId).filter(Boolean)
+        await tx.$executeRawUnsafe(`
+          UPDATE ${schema}."OrdenDespacho" od
+          SET direccion = c.direccion
+          FROM ${schema}."Cliente" c
+          WHERE c."apiId" = od."clienteApiId"
+            AND od."empresaId" = $1
+            AND od."origenId" = ANY($2::text[])
+            AND od.direccion IS NULL
+            AND c.direccion IS NOT NULL
+        `, destino, nuevosOrigenIds)
+      }
       if (deudaToCreate.length) await tx.syncDeuda.createMany({ data: deudaToCreate, skipDuplicates: true })
       if (nuevasDeudas.length > 0) {
         const deudaRows = nuevasDeudas.map((d: any) => ({ integracionId, externalId: String(d.uid || d._id), clienteApiId: d.cliente?.uid || '', empleadoExternalId: d.empleado?.uid || null, numeroOrden: d.numeroOrden ? parseInt(String(d.numeroOrden)) : null, numeroFactura: d.numeroFacturado ? parseInt(String(d.numeroFacturado)) : null, valor: parseFloat(d.vTotal ?? '0'), saldo: parseFloat(d.vSaldo ?? '0'), diasCredito: d.dias ? parseInt(String(d.dias)) : null, fechaVencimiento: d.fPago ? new Date(d.fPago) : null, condition: true, data: d, externalUpdatedAt: d.fModificado ? new Date(d.fModificado) : null, receivableAt: d.receivableAt ? new Date(d.receivableAt) : null, sincronizadoEl: new Date(), createdAtBogota: d.fCreado ? toBogota(new Date(d.fCreado as string)) : toBogota(new Date()) }))
