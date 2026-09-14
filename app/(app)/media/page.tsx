@@ -224,7 +224,7 @@ export default function MediaPage() {
           <h2 className="text-white font-semibold flex-1 truncate">{carpetaActiva.nombre}</h2>
           {esAdmin && (
             <button
-              onClick={() => fileRef.current?.click()}
+              onClick={() => config && fileRef.current?.click()}
               disabled={subiendo}
               className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white text-sm px-3 py-1.5 rounded-lg shrink-0"
             >{subiendo ? 'Subiendo...' : '+ Imagen'}</button>
@@ -324,7 +324,7 @@ export default function MediaPage() {
       <div className="rounded-2xl p-4 mb-4" style={{background:"#0d1117",border:"1px solid #1e2a3d"}}>
         <div className="flex items-center justify-between mb-3">
           <p className="text-gray-400 text-xs uppercase tracking-wide font-semibold">🗂️ Carpetas de imágenes</p>
-          {esAdmin && (
+          {esAdmin && config && (
             <button onClick={() => setModalNueva(true)} className="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg">
               + Nueva
             </button>

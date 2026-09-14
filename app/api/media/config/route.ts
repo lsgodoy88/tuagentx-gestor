@@ -17,15 +17,8 @@ export async function GET() {
     WHERE "empresaId" = ${empresaId}
   `
 
-  // Auto-crear si no existe
-  if (!rows.length) {
-    const created = await prisma.$queryRaw<any[]>`
-      INSERT INTO ${Prisma.raw(DB_SCHEMA)}."MediaConfig" ("empresaId")
-      VALUES (${empresaId})
-      RETURNING *
-    `
-    return NextResponse.json(created[0])
-  }
+  // Devolver null si no existe — la creación es explícita via PATCH (Activar TaX-Link)
+  if (!rows.length) return NextResponse.json(null)
 
   return NextResponse.json(rows[0])
 }

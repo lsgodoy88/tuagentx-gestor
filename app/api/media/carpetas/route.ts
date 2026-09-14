@@ -36,6 +36,13 @@ export async function POST(req: NextRequest) {
   const { nombre } = await req.json()
   if (!nombre?.trim()) return NextResponse.json({ error: 'Nombre requerido' }, { status: 400 })
 
+  // Validar que TaX-Link esté activado (MediaConfig existe)
+  const empresaId = (session.user as any).empresaId
+  const cfg = await prisma.$queryRaw<any[]>`
+    SELECT id FROM ${Prisma.raw(DB_SCHEMA)}."MediaConfig" WHERE "empresaId" = ${empresaId} LIMIT 1
+  `
+  if (!cfg.length) return NextResponse.json({ error: 'Activa TaX-Link primero' }, { status: 403 })
+
   const carpeta = await prisma.$queryRaw<any[]>`
     INSERT INTO ${Prisma.raw(DB_SCHEMA)}."MediaCarpeta" ("empresaId", nombre)
     VALUES (${(session.user as any).empresaId}, ${nombre.trim()})
