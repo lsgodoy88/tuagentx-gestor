@@ -79,11 +79,13 @@ export default function MediaPage() {
     if (resConfig.ok) {
       const c = await resConfig.json()
       setConfig(c)
-      setFNombre(c.nombre ?? '')
-      setFDesc(c.descripcion ?? '')
-      const wa = c.whatsapp ?? ''
-    setFWa(wa.replace(/^57/, ''))
-    setFTema((c.tema ?? 'oceano') as TemaId)
+      if (c) {
+        setFNombre(c.nombre ?? '')
+        setFDesc(c.descripcion ?? '')
+        const wa = c.whatsapp ?? ''
+        setFWa(wa.replace(/^57/, ''))
+        setFTema((c.tema ?? 'oceano') as TemaId)
+      }
     }
     if (resCarpetas.ok) setCarpetas(await resCarpetas.json())
     setCargandoConfig(false)
