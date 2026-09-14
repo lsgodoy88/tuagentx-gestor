@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic'
 import { useRouter } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { checkPermiso } from '@/lib/permisos'
+import MediaPage from '@/app/(app)/media/page'
 
 const PAGE_SIZE = 15
 
@@ -74,10 +75,13 @@ function getClienteColumns(ctx: {
   ]
 }
 
+function MediaInline() { return <MediaPage /> }
+
 export default function ClientesPage() {
   const { data: session } = useSession()
   const router = useRouter()
   const esAdmin = (session?.user as any)?.role === 'empresa'
+  const isVendedor = (session?.user as any)?.role === 'vendedor'
   const puedeEditar = esAdmin || checkPermiso(session, 'editarClientes')
   const puedeAdminClientes = esAdmin || checkPermiso(session, 'adminClientes')
   const userRole = (session?.user as any)?.role
@@ -103,7 +107,7 @@ export default function ClientesPage() {
   const [editando, setEditando] = useState<any>(null)
   const [editForm, setEditForm] = useState<any>({})
   const [error, setError] = useState('')
-  const [tab, setTab] = useState<'clientes'|'listas'|'postventa'>('clientes')
+  const [tab, setTab] = useState<'clientes'|'listas'|'postventa'|'publicidad'>('clientes')
   const [smsConfig, setSmsConfig] = useState<any>(null)
   const [smsForm, setSmsForm] = useState<any>(null)
   const [smsSaving, setSmsSaving] = useState(false)
@@ -396,9 +400,12 @@ export default function ClientesPage() {
     <div className="space-y-6 max-w-5xl mx-auto">
 
       {/* Tabs de página — solo empresa */}
-      {esAdmin && (
+      {(esAdmin || isVendedor) && (
         <div className="flex gap-1 tab-pills rounded-xl p-1">
-          {([['clientes','Clientes'],['postventa','Postventa']] as const).map(([t,l]) => (
+          {(esAdmin
+            ? [['clientes','Clientes'],['publicidad','Publicidad'],['postventa','Postventa']]
+            : [['clientes','Clientes'],['publicidad','Publicidad']]
+          ).map(([t,l]) => (
             <button key={t} onClick={() => { setTab(t as any); if(t==='postventa') cargarPostventa() }}
               className={`flex-1 py-2 text-sm font-semibold transition-colors ${tab===t ? 'tab-active' : 'text-white hover:text-white'}`}>
               {l}
@@ -540,8 +547,11 @@ export default function ClientesPage() {
         </div>
       )}
 
-      {/* Toolbar: search + filters — oculto en postventa */}
-      {tab !== 'postventa' && (
+      {/* Tab Publicidad */}
+      {tab === 'publicidad' && <MediaInline />}
+
+      {/* Toolbar: search + filters — oculto en postventa y publicidad */}
+      {tab !== 'postventa' && tab !== 'publicidad' && (
       <>
       {/* Toolbar: search + filters */}
       <div className="flex gap-2 flex-wrap mb-3">

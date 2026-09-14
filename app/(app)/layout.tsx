@@ -521,6 +521,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         { href: '/impulsos', label: 'Mi semana', icon: '📌' },
         { href: '/impulsar', label: 'Impulsar',  icon: '🎯' },
         { href: '/gastos', label: 'Gastos', icon: '🧾' },
+        { href: '/media', label: 'Publicidad', icon: '🖼️' },
       ]
     }] : []),
   ]
@@ -565,6 +566,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       { href: '/impulsos', label: 'Mi semana', icon: '📌' },
       { href: '/impulsar', label: 'Impulsar',  icon: '🎯' },
       { href: '/gastos', label: 'Gastos', icon: '🧾' },
+      { href: '/media', label: 'Publicidad', icon: '🖼️' },
     ] : []),
   ]
 

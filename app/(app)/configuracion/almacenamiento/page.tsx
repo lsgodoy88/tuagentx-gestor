@@ -9,6 +9,8 @@ const TIPO_META: Record<string, { emoji: string; label: string; color: string }>
   evidencia_abono:   { emoji: '💳', label: 'Evidencias de abono',    color: '#ec4899' },
   evidencia_saldo:   { emoji: '🏦', label: 'Evidencias de saldo',    color: '#06b6d4' },
   foto_evento:       { emoji: '🥇', label: 'Eventos',               color: '#a855f7' },
+  media_imagen:      { emoji: '🖼️', label: 'TaX-Link · Imágenes',    color: '#f43f5e' },
+  media_pdf:         { emoji: '📄', label: 'TaX-Link · Portafolio',   color: '#f97316' },
 }
 
 function fmtMb(mb: number) {

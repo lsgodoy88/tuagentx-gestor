@@ -8,7 +8,7 @@ import { getToken } from 'next-auth/jwt'
 const ALL_ROLES = ['superadmin', 'empresa', 'supervisor', 'vendedor', 'entregas', 'impulsadora', 'bodega']
 
 // Rutas accesibles por TODOS los roles autenticados (sin restricción adicional)
-const ROUTES_ALL_ROLES = ['/inicio', '/configuracion', '/ventas', '/cobros', '/ordenes', '/turno', '/historial-turnos', '/listas', '/mapa', '/mi-ruta']
+const ROUTES_ALL_ROLES = ['/inicio', '/configuracion', '/ventas', '/cobros', '/ordenes', '/turno', '/historial-turnos', '/listas', '/mapa', '/mi-ruta', '/media']
 
 // Rutas con restricción de rol específica
 const ROUTE_ROLES: Record<string, string[]> = {
@@ -48,6 +48,9 @@ const ALLOWED_COUNTRIES = ['CO', 'US', 'XX'] // XX = desconocido (desarrollo loc
 // Rutas que NO requieren geo-bloqueo (webhooks, APIs públicas)
 const BYPASS_PATHS = [
   '/api/deploy/webhook',
+  '/api/media/publica/',
+  '/api/media/biolink/',
+  '/p/',
   '/api/cartera/recibo-publico',
   '/api/health',
   '/api/version',

@@ -89,6 +89,8 @@ model Empresa {
   impulsoInventarios  ImpulsoInventario[]
   impulsoRotaciones   ImpulsoRotacion[]
   impulsoEventos      ImpulsoEvento[]
+  mediaCarpetas       MediaCarpeta[]
+  mediaConfig         MediaConfig?
 }
 
 model Empleado {
@@ -3759,4 +3761,62 @@ model TransprensaRemesa {
   @@index([numero_remesa])
   @@index([estado_atencion])
   @@map("TransprensaRemesa")
+}
+
+model MediaCarpeta {
+  id           String         @id @default(cuid())
+  empresaId    String
+  nombre       String
+  descripcion  String?
+  publicToken  String         @unique @default(cuid())
+  favorita     Boolean        @default(false)
+  createdAt    DateTime       @default(now())
+
+  empresa      Empresa        @relation(fields: [empresaId], references: [id])
+  archivos     MediaArchivo[]
+
+  @@index([empresaId])
+  @@index([publicToken])
+  @@map("MediaCarpeta")
+}
+
+model MediaArchivo {
+  id           String       @id @default(cuid())
+  carpetaId    String
+  empresaId    String
+  nombre       String
+  key          String
+  url          String
+  tipo         String       // "imagen" | "pdf"
+  orden        Int          @default(0)
+  tamano_byte  Int          @default(0)
+  createdAt    DateTime     @default(now())
+
+  carpeta      MediaCarpeta @relation(fields: [carpetaId], references: [id], onDelete: Cascade)
+
+  @@index([carpetaId])
+  @@index([empresaId])
+  @@map("MediaArchivo")
+}
+
+model MediaConfig {
+  id              String   @id @default(cuid())
+  empresaId       String   @unique
+  nombre          String   @default("")
+  descripcion     String   @default("")
+  logoKey         String?
+  logoUrl         String?
+  whatsapp        String?
+  portafolioKey   String?
+  portafolioUrl   String?
+  portafolioNombre String?
+  tema            String   @default("oceano")
+  publicToken     String   @unique @default(cuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  empresa  Empresa @relation(fields: [empresaId], references: [id])
+
+  @@index([publicToken])
+  @@map("MediaConfig")
 }

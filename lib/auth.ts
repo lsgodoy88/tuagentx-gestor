@@ -43,6 +43,7 @@ export const authOptions: NextAuthOptions = {
             colorFondo: (empresa as any).colorFondo ?? null,
             tieneVinculacion: vinculaciones.length > 0,
             tieneVinculacionBodega: vinculacionesBodega.length > 0,
+            empresaNombre: empresa.nombre,
           }
         }
 
