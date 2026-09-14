@@ -483,9 +483,13 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
               try {
                 const daneCode = o.cityId || o.customer?.city || o.customer?.cityId
                 const ciudad = daneCode ? (municipiosDANE[String(daneCode)] || null) : null
-                const direccion = o.address || o.customer?.address || null
-                const telefono = o.phone || o.customer?.phone || null
                 const clienteApiId = o.customerId || ''
+                // UpTres no trae address en /ordenes — siempre usar Cliente local
+                const cliLocal = clienteApiId
+                  ? await prisma.cliente.findFirst({ where: { empresaId: destino, apiId: clienteApiId }, select: { direccion: true, telefono: true } })
+                  : null
+                const direccion = cliLocal?.direccion || null
+                const telefono = o.phone || o.customer?.phone || cliLocal?.telefono || null
                 const clienteNombre = o.customer
                   ? `${o.customer.firstName || ''} ${o.customer.lastName || ''}`.trim()
                   : ''
@@ -590,19 +594,20 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
       if (canceladasIds.length) await tx.ordenDespacho.updateMany({ where: { origenId: { in: canceladasIds }, empresaId: destino }, data: { isActiva: false } })
 
       // Rellenar dirección desde Cliente local para órdenes recién creadas sin dirección
-      // Ciudad siempre viene de UpTres — solo dirección puede faltar
+      // UpTres no trae address en órdenes — rellenar desde Cliente local
       if (toCreate.length > 0) {
         const schema = process.env.DB_SCHEMA || 'gestor'
         const nuevosOrigenIds = toCreate.map((o: any) => o.origenId).filter(Boolean)
         await tx.$executeRawUnsafe(`
           UPDATE ${schema}."OrdenDespacho" od
-          SET direccion = c.direccion
+          SET
+            direccion = COALESCE(od.direccion, NULLIF(c.direccion, '')),
+            telefono  = COALESCE(NULLIF(od.telefono, ''), c.telefono)
           FROM ${schema}."Cliente" c
           WHERE c."apiId" = od."clienteApiId"
             AND od."empresaId" = $1
             AND od."origenId" = ANY($2::text[])
-            AND od.direccion IS NULL
-            AND c.direccion IS NOT NULL
+            AND (od.direccion IS NULL OR od.telefono IS NULL OR od.telefono = '')
         `, destino, nuevosOrigenIds)
       }
       if (deudaToCreate.length) await tx.syncDeuda.createMany({ data: deudaToCreate, skipDuplicates: true })
