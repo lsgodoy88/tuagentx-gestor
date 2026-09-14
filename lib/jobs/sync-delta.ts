@@ -40,15 +40,8 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   _s = Date.now(); const ordenes = await adapter.fetchVentas(desde); _t('fetchVentas', _s)
   const erroresParciales: string[] = []
 
-  if (!ordenes.length) {
-    await prisma.empresa.update({ where: { id: destino }, data: { ultimaSyncBodega: new Date() } })
-    try {
-      await (prisma as any).syncLog.create({
-        data: { integracionId, empresaId: destino, tipo: 'delta', inicio: new Date(inicioTs), fin: new Date(), duracionMs: Date.now() - inicioTs, estado: 'ok', disparadoPor: 'cron', ordenesNuevas: 0, deudasSincronizadas: 0, clientesNuevos: 0, deudasNuevasDelta: 0, comprasSincronizadas: 0, reconciliadas: 0, detalle: _det }
-      })
-    } catch {}
-    return { empresaId: destino, ordenes: 0, nuevasOrdenes: 0, nuevasDeudas: 0 }
-  }
+  // NO early return cuando no hay ordenes del día —
+  // ordenes/date y ordenes/deleted deben correr siempre (cursor independiente de fetchVentas)
 
   const ordenesValidas = ordenes.filter((o: any) => {
     const numFactura = o.numeroFacturado ? String(o.numeroFacturado) : null
