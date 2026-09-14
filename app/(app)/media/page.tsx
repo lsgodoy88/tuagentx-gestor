@@ -42,6 +42,7 @@ export default function MediaPage() {
   const [vista, setVista] = useState<Vista>('home')
   const [modalParams, setModalParams] = useState(false)
   const [config, setConfig] = useState<Config | null>(null)
+  const [cargandoConfig, setCargandoConfig] = useState(true)
   const [carpetas, setCarpetas] = useState<Carpeta[]>([])
   const [carpetaActiva, setCarpetaActiva] = useState<Carpeta | null>(null)
   const [archivos, setArchivos] = useState<Archivo[]>([])
@@ -85,6 +86,7 @@ export default function MediaPage() {
     setFTema((c.tema ?? 'oceano') as TemaId)
     }
     if (resCarpetas.ok) setCarpetas(await resCarpetas.json())
+    setCargandoConfig(false)
   }
 
   async function abrirCarpeta(c: Carpeta) {
@@ -264,6 +266,16 @@ export default function MediaPage() {
       {/* Preview config — siempre visible para admins */}
       {esAdmin && (
         <div className="rounded-xl p-4 mb-4 flex items-center gap-3" style={{background:"#09091f",border:"1px solid #27272a"}}>
+          {cargandoConfig ? (
+            <div className="w-full flex items-center gap-3">
+              <div className="w-12 h-12 rounded-full bg-[#1e2a3d] animate-pulse shrink-0" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3 bg-[#1e2a3d] rounded animate-pulse w-32" />
+                <div className="h-2 bg-[#1e2a3d] rounded animate-pulse w-20" />
+              </div>
+              <div className="w-24 h-8 bg-[#1e2a3d] rounded-lg animate-pulse shrink-0" />
+            </div>
+          ) : (<>
           {config
             ? (config.logoUrl
                 ? <img src={config.logoUrl} alt="logo" className="w-12 h-12 rounded-full object-cover shrink-0" />
@@ -304,6 +316,7 @@ export default function MediaPage() {
                 </button>
             }
           </div>
+        </>)}
         </div>
       )}
 
