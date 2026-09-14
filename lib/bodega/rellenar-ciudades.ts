@@ -53,7 +53,7 @@ export async function rellenarCiudades() {
         const o = d.data || d
         if (!o) { no_encontrada++; continue }
 
-        let cityId = o.cityId || o.customer?.cityId
+        let cityId = o.cityId || o.customer?.city || o.customer?.cityId
         let direccion = o.address || o.customer?.address || ''
         let telefono = o.phone || o.customer?.phone || ''
         const nit = o.customer?.document || ''

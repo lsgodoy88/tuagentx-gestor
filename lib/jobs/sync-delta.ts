@@ -4,7 +4,7 @@
  * Sin dependencia de gestor HTTP — accede directo a BD y adapters
  */
 import { prisma } from '@/lib/prisma'
-import { UpTresAdapter, parseFechaUptresBogota, fetchProductosUptres, fetchProductosUptresConCursor, fetchNotasCredito, type UpTresCursor } from '@/lib/integracion/adapters/uptres'
+import { UpTresAdapter, parseFechaUptresBogota, fetchProductosUptres, fetchProductosUptresConCursor, fetchNotasCredito, fetchOrdenesDateConCursor, fetchOrdenesDeletedConCursor, type UpTresCursor } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 import { invalidatePattern } from '@/lib/cache'
 import { reconstruirCartera } from '@/lib/jobs/sync-nocturno'
@@ -30,7 +30,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   const adapter = new UpTresAdapter(apiKey, apiSecret)
   let _s = Date.now(); await adapter.login(); _t('login', _s)
 
-  const empresa = await prisma.empresa.findUnique({ where: { id: destino }, select: { ultimaSyncBodega: true, ultimaSyncClientes: true, sync_cursor_clientes: true, sync_cursor_empleados: true, sync_cursor_cartera: true, sync_cursor_cartera_update: true, sync_cursor_listas: true, sync_cursor_proveedores: true, fechaInicioBodega: true } })
+  const empresa = await prisma.empresa.findUnique({ where: { id: destino }, select: { ultimaSyncBodega: true, ultimaSyncClientes: true, sync_cursor_clientes: true, sync_cursor_empleados: true, sync_cursor_cartera: true, sync_cursor_cartera_update: true, sync_cursor_listas: true, sync_cursor_proveedores: true, sync_cursor_ordenes_date: true, sync_cursor_ordenes_deleted: true, fechaInicioBodega: true } })
   const hace10dias = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)
   // desde: siempre mínimo 10 días atrás — captura órdenes creadas antes pero facturadas después
   // No usar fechaFactura como ancla: avanza con cada factura y deja fuera órdenes anteriores
@@ -449,6 +449,76 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
     }
   } catch (err: any) { console.error('[delta] proveedores error:', err.message); erroresParciales.push('proveedores: ' + err.message) }
 
+  // Ordenes actualizadas — /ordenes/date?date=updatedAt
+  // Detecta órdenes modificadas en UpTres (facturación, estado) fuera de la ventana createdAt
+  let ordenesDateActualizadas = 0
+  let ordenesDate: any[] = [] // elevado al scope — usado también en reconciliador de antiguas
+  try {
+    const cursorOrdenesDate = empresa?.sync_cursor_ordenes_date as UpTresCursor | null ?? null
+    const desdeOrdenesDate = cursorOrdenesDate ? new Date(0) : new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+    _s = Date.now()
+    const { data: _ordenesDate, ultimoCursor: nuevoCursorOrdenesDate } =
+      await fetchOrdenesDateConCursor(apiKey, adapter.currentToken, cursorOrdenesDate, desdeOrdenesDate)
+    _t('fetchOrdenesDate', _s)
+    ordenesDate = _ordenesDate
+
+    if (ordenesDate.length > 0) {
+      const updates: Promise<any>[] = []
+      for (const o of ordenesDate) {
+        const origenId = String(o.id || '')
+        if (!origenId || !o.isInvoiced || !o.invoiceNumber) continue
+        // Solo actualizar órdenes que ya existen en BD — no crear nuevas (fetchVentas lo hace)
+        updates.push(
+          prisma.ordenDespacho.updateMany({
+            where: { origenId, empresaId: destino, isFacturada: false },
+            data: {
+              isFacturada: true,
+              numeroFactura: String(o.invoiceNumber),
+              fechaFactura: o.invoicedAt ? parseFechaUptresBogota(o.invoicedAt) : null,
+              totalOrden: o.total ? parseFloat(o.total) : undefined,
+              reconciliadoEn: new Date(),
+            },
+          })
+        )
+        ordenesDateActualizadas++
+      }
+      if (updates.length > 0) await Promise.all(updates)
+      if (nuevoCursorOrdenesDate) {
+        await prisma.empresa.update({ where: { id: destino }, data: { sync_cursor_ordenes_date: nuevoCursorOrdenesDate } })
+      }
+    }
+  } catch (err: any) { console.error('[delta] ordenes/date error:', err.message); erroresParciales.push('ordenes_date: ' + err.message) }
+
+  // Ordenes eliminadas — /ordenes/deleted
+  // Marca isActiva=false en BD local para órdenes borradas en UpTres
+  let ordenesEliminadas = 0
+  try {
+    const cursorOrdenesDeleted = empresa?.sync_cursor_ordenes_deleted as UpTresCursor | null ?? null
+    const desdeOrdenesDeleted = cursorOrdenesDeleted ? new Date(0) : new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+    _s = Date.now()
+    const { data: ordenesDeleted, ultimoCursor: nuevoCursorOrdenesDeleted } =
+      await fetchOrdenesDeletedConCursor(apiKey, adapter.currentToken, cursorOrdenesDeleted, desdeOrdenesDeleted)
+    _t('fetchOrdenesDeleted', _s)
+
+    if (ordenesDeleted.length > 0) {
+      const origenIds = ordenesDeleted.map((o: any) => String(o.id)).filter(Boolean)
+      if (origenIds.length > 0) {
+        const result = await prisma.ordenDespacho.updateMany({
+          where: { origenId: { in: origenIds }, empresaId: destino, isActiva: true },
+          data: { isActiva: false },
+        })
+        ordenesEliminadas = result.count
+        if (ordenesEliminadas > 0) {
+          console.log(`[delta] ${destino}: ${ordenesEliminadas} órdenes marcadas inactivas por eliminación en UpTres`)
+          await invalidatePattern(`g:${destino}:*`)
+        }
+      }
+      if (nuevoCursorOrdenesDeleted) {
+        await prisma.empresa.update({ where: { id: destino }, data: { sync_cursor_ordenes_deleted: nuevoCursorOrdenesDeleted } })
+      }
+    }
+  } catch (err: any) { console.error('[delta] ordenes/deleted error:', err.message); erroresParciales.push('ordenes_deleted: ' + err.message) }
+
   const canceladasIds = ordenesValidas.filter((o: any) => (o as any).isActiva === false).map((o: any) => String(o.uid || o._id))
 
   // Validación consecutivos
@@ -577,27 +647,32 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
 
       if (updates.length > 0) await Promise.all(updates)
 
-      // Solo HTTP para órdenes antiguas (createdAt > 10 días) — caso raro
-      // Límite: máx 30 días — más de eso es caso de soporte manual, no reconciliación automática
-      const limite30dias = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-      const sinFacturarAntiguesAcotadas = sinFacturarAntiguas.filter((o: any) =>
-        !o.fechaOrden || new Date(o.fechaOrden) >= limite30dias
-      )
-      for (const orden of sinFacturarAntiguesAcotadas) {
-        const uptres = await adapter.fetchOrdenPorId(orden.origenId!)
-        if (uptres?.isInvoiced && uptres.invoiceNumber) {
-          await prisma.ordenDespacho.update({
-            where: { id: orden.id },
-            data: {
-              isFacturada: true,
-              numeroFactura: uptres.invoiceNumber,
-              fechaFactura: uptres.invoicedAt ? parseFechaUptresBogota(uptres.invoicedAt) : null,
-              totalOrden: uptres.total ? parseFloat(uptres.total) : undefined,
-              reconciliadoEn: new Date()
-            }
-          })
-          reconciliadas++
+      // Órdenes antiguas (> 10 días) — cruzar contra ordenesDate ya traídas por cursor
+      // Elimina HTTP individual por orden — fetchOrdenesDateConCursor (date=invoicedAt) las captura en bulk
+      if (sinFacturarAntiguas.length > 0) {
+        const mapaOrdenesDate = new Map(
+          (ordenesDate ?? [])
+            .filter((o: any) => o.isInvoiced && o.invoiceNumber)
+            .map((o: any) => [String(o.id), o])
+        )
+        const updatesAntiguos: Promise<any>[] = []
+        for (const orden of sinFacturarAntiguas) {
+          const match = mapaOrdenesDate.get(orden.origenId!)
+          if (match) {
+            updatesAntiguos.push(prisma.ordenDespacho.update({
+              where: { id: orden.id },
+              data: {
+                isFacturada: true,
+                numeroFactura: String(match.invoiceNumber),
+                fechaFactura: match.invoicedAt ? parseFechaUptresBogota(match.invoicedAt) : null,
+                totalOrden: match.total ? parseFloat(match.total) : undefined,
+                reconciliadoEn: new Date(),
+              }
+            }))
+            reconciliadas++
+          }
         }
+        if (updatesAntiguos.length > 0) await Promise.all(updatesAntiguos)
       }
 
       if (reconciliadas > 0) await invalidatePattern(`g:${destino}:*`)

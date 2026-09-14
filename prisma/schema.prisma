@@ -52,6 +52,8 @@ model Empresa {
   sync_cursor_cartera_update Json?
   sync_cursor_listas          Json?
   sync_cursor_proveedores     Json?
+  sync_cursor_ordenes_date    Json?
+  sync_cursor_ordenes_deleted Json?
   configRecibos       Json?              @default("{\"nit\": null, \"logo\": null, \"prefijo\": \"REC\", \"telefono\": null, \"direccion\": null, \"anchoPapel\": \"80mm\"}")
   configDespachos     Json?              @default("{\"transportadora\": \"\", \"urlBase\": \"\"}") 
   colorFondo           String?

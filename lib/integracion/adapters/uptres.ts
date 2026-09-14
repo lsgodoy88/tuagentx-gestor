@@ -79,6 +79,9 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     return { 'x-api-key': this.apiKey, 'Authorization': `Bearer ${this.token}` }
   }
 
+  /** Token activo — para pasarlo a funciones externas del adapter */
+  get currentToken(): string { return this.token }
+
   private async fetchAllSinCondition(endpoint: string, extraParams: Record<string, string> = {}): Promise<any[]> {
     const todos: any[] = []
     let cursorDate: string | null = null
@@ -213,6 +216,8 @@ export class UpTresAdapter implements AdaptadorIntegracion {
   async fetchDeudas(desde?: Date): Promise<DeudaExterna[]> {
     const params: Record<string, string> = {
       fields: 'id,orderNumber,invoiceNumber,electronicInvoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt,receivableAt',
+      expand: 'customer',
+      sort: 'desc',
       includeTotal: 'false',
     }
     if (desde) {
@@ -267,6 +272,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
         empleado: { uid: o.employeeId },
         condicionUpTres: o._condicionUpTres !== false,
         electronicInvoiceNumber: o.electronicInvoiceNumber || null,
+        cityId: o.customer?.city || o.customer?.cityId || null,
       }
     })
   }
@@ -474,7 +480,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
         clienteNombre: c.firstName ? `${c.firstName} ${c.lastName || ''}`.trim() : null,
         vendedorApiId: o.employeeId || null,
         createdAt: o.createdAt || null,
-        ciudad: getCiudad(o.cityId || c.cityId),
+        ciudad: getCiudad(o.cityId || c.city || c.cityId),
         direccion: o.address || c.address || null,
         telefono: o.phone || c.phone || null,
       }
@@ -528,7 +534,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       empleado: { uid: o.employeeId },
       productos: o.items || [],
       clienteNombreApi: o.customer ? (`${o.customer.firstName || ''} ${o.customer.lastName || ''}`.trim() || o.customer.tradeName || o.customer.name || null) : null,
-      cityId: o.cityId || o.customer?.cityId || null,
+      cityId: o.cityId || o.customer?.city || o.customer?.cityId || null,
       direccion: o.address || o.customer?.address || null,
       telefono: o.phone || o.customer?.phone || null,
     }))
@@ -586,7 +592,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       empleado: { uid: o.employeeId },
       productos: o.items || [],
       clienteNombreApi: o.customer ? (`${o.customer.firstName || ''} ${o.customer.lastName || ''}`.trim() || o.customer.tradeName || o.customer.name || null) : null,
-      cityId: o.cityId || o.customer?.cityId || null,
+      cityId: o.cityId || o.customer?.city || o.customer?.cityId || null,
       direccion: o.address || o.customer?.address || null,
       telefono: o.phone || o.customer?.phone || null,
       clienteNit: o.customer?.document || null,
@@ -661,6 +667,8 @@ export class UpTresAdapter implements AdaptadorIntegracion {
       : new Date(new Date(desde!.getTime() - 5 * 60 * 60 * 1000).getTime() - 24 * 60 * 60 * 1000).toISOString().split('T')[0]
     const params: Record<string, string> = {
       fields: 'id,orderNumber,invoiceNumber,electronicInvoiceNumber,customerId,employeeId,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt,receivableAt',
+      expand: 'customer',
+      sort: 'desc',
       includeTotal: 'false',
       from: fromDate,
       to: manana.toISOString().split('T')[0],
@@ -965,4 +973,115 @@ export async function fetchNotasCredito(
   if (!res.ok) throw new Error(`fetchNotasCredito HTTP ${res.status}`)
   const data = await res.json()
   return Array.isArray(data) ? data : (data.data ?? data.items ?? [])
+}
+
+// ─── fetchOrdenesDateConCursor ────────────────────────────────────────────────
+// Usa /ordenes/date?date=invoicedAt para traer órdenes recién facturadas en UpTres.
+// Solo trae isInvoiced=true con invoiceNumber válido — ideal para reconciliación
+// de facturas fuera de la ventana de 10 días del fetchVentas principal.
+export async function fetchOrdenesDateConCursor(
+  apiKey: string,
+  token: string,
+  cursor: UpTresCursor | null,
+  desde: Date
+): Promise<{ data: any[]; ultimoCursor: UpTresCursor | null }> {
+  const manana = new Date(); manana.setDate(manana.getDate() + 1)
+  const fromDate = cursor
+    ? new Date(new Date(cursor.cursorDate).getTime() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
+    : new Date(desde.getTime() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+  const fields = 'id,orderNumber,invoiceNumber,isInvoiced,invoicedAt,total,balance,paymentType,paymentMethod,customerId,employeeId,createdAt,updatedAt,cityId'
+
+  const todos: any[] = []
+  let cursorDate: string | null = cursor?.cursorDate ?? null
+  let cursorId: string | null = cursor?.cursorId ?? null
+  let ultimoCursor: UpTresCursor | null = null
+  let pagina = 0
+  const MAX_PAGINAS = 200
+
+  while (pagina++ < MAX_PAGINAS) {
+    // condition obligatorio — traer ambas (true+false) en paralelo no aplica aquí;
+    // usamos condition=true para activas (las que importan para reconciliación)
+    const p = new URLSearchParams({ date: 'invoicedAt', fields, from: fromDate, to: manana.toISOString().split('T')[0], limit: '100', condition: 'true' })
+    if (cursorDate && cursorId) { p.set('cursorDate', cursorDate); p.set('cursorId', cursorId) }
+
+    let texto = ''
+    for (let intento = 0; intento < 3; intento++) {
+      try {
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 30000)
+        const res = await fetch(`${BASE}/ordenes/date?${p.toString()}`, {
+          headers: { 'x-api-key': apiKey, Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        })
+        clearTimeout(timer)
+        texto = await res.text()
+        break
+      } catch { if (intento < 2) await new Promise(r => setTimeout(r, 2000 * (intento + 1))) }
+    }
+    if (!texto) throw new Error('UpTres /ordenes/date no respondió')
+    let d: any
+    try { d = JSON.parse(texto) } catch { throw new Error('UpTres /ordenes/date respuesta inválida') }
+    if (!d.ok) throw new Error(`UpTres /ordenes/date error: ${d.msg || ''}`)
+    if (!Array.isArray(d.data) || d.data.length === 0) break
+    todos.push(...d.data)
+    if (!d.nextCursor?.cursorDate || !d.nextCursor?.cursorId) break
+    cursorDate = d.nextCursor.cursorDate
+    cursorId = d.nextCursor.cursorId
+    ultimoCursor = { cursorDate: cursorDate!, cursorId: cursorId! }
+  }
+  return { data: todos, ultimoCursor }
+}
+
+// ─── fetchOrdenesDeletedConCursor ─────────────────────────────────────────────
+// Usa /ordenes/deleted para detectar órdenes eliminadas en UpTres y marcarlas
+// como isActiva=false en BD local.
+export async function fetchOrdenesDeletedConCursor(
+  apiKey: string,
+  token: string,
+  cursor: UpTresCursor | null,
+  desde: Date
+): Promise<{ data: { id: string; orderNumber: string; deletedAt: string }[]; ultimoCursor: UpTresCursor | null }> {
+  const manana = new Date(); manana.setDate(manana.getDate() + 1)
+  const fromDate = cursor
+    ? new Date(new Date(cursor.cursorDate).getTime() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
+    : new Date(desde.getTime() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+  const todos: any[] = []
+  let cursorDate: string | null = cursor?.cursorDate ?? null
+  let cursorId: string | null = cursor?.cursorId ?? null
+  let ultimoCursor: UpTresCursor | null = null
+  let pagina = 0
+  const MAX_PAGINAS = 200
+
+  while (pagina++ < MAX_PAGINAS) {
+    const p = new URLSearchParams({ fields: 'id,orderNumber,deletedAt', from: fromDate, to: manana.toISOString().split('T')[0], limit: '100' })
+    if (cursorDate && cursorId) { p.set('cursorDate', cursorDate); p.set('cursorId', cursorId) }
+
+    let texto = ''
+    for (let intento = 0; intento < 3; intento++) {
+      try {
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 30000)
+        const res = await fetch(`${BASE}/ordenes/deleted?${p.toString()}`, {
+          headers: { 'x-api-key': apiKey, Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        })
+        clearTimeout(timer)
+        texto = await res.text()
+        break
+      } catch { if (intento < 2) await new Promise(r => setTimeout(r, 2000 * (intento + 1))) }
+    }
+    if (!texto) throw new Error('UpTres /ordenes/deleted no respondió')
+    let d: any
+    try { d = JSON.parse(texto) } catch { throw new Error('UpTres /ordenes/deleted respuesta inválida') }
+    if (!d.ok) throw new Error(`UpTres /ordenes/deleted error: ${d.msg || ''}`)
+    if (!Array.isArray(d.data) || d.data.length === 0) break
+    todos.push(...d.data)
+    if (!d.nextCursor?.cursorDate || !d.nextCursor?.cursorId) break
+    cursorDate = d.nextCursor.cursorDate
+    cursorId = d.nextCursor.cursorId
+    ultimoCursor = { cursorDate: cursorDate!, cursorId: cursorId! }
+  }
+  return { data: todos, ultimoCursor }
 }

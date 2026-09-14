@@ -52,6 +52,7 @@ export async function recalcularVentasMesImpulsos(
       try {
         const ventas = await adapter.fetchVentas(inicioVentana, cli.apiId)
         for (const v of ventas) {
+          if ((v as any).isActiva === false) continue // excluir eliminadas en UpTres
           if (v.cliente?.uid !== cli.apiId) continue // filtrar por cliente
           const fechaRaw = v.fCreado || v.fModificado
           if (!fechaRaw) continue
