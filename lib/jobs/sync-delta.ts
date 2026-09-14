@@ -472,14 +472,53 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
           dataUpdate.fechaFactura = o.invoicedAt ? parseFechaUptresBogota(o.invoicedAt) : null
         }
         updates.push(
-          prisma.ordenDespacho.updateMany({
-            where: { origenId, empresaId: destino },
-            data: dataUpdate,
-          })
+          (async () => {
+            const result = await prisma.ordenDespacho.updateMany({
+              where: { origenId, empresaId: destino },
+              data: dataUpdate,
+            })
+            // Si no existía en BD — orden creada antes de hoy facturada hoy — crearla
+            if (result.count === 0 && o.isInvoiced && o.invoiceNumber) {
+              try {
+                const ordenCompleta = await adapter.fetchOrdenCompletaPorId(origenId)
+                if (ordenCompleta) {
+                  const cli = (ordenCompleta.clienteApiId && porApiId.get(ordenCompleta.clienteApiId))
+                    || (ordenCompleta.clienteNit && porNit.get(ordenCompleta.clienteNit))
+                  await prisma.ordenDespacho.create({
+                    data: {
+                      empresaId: destino,
+                      origen: destino,
+                      origenId,
+                      numeroOrden: String(ordenCompleta.numeroOrden ?? ''),
+                      numeroFactura: String(o.invoiceNumber),
+                      isFacturada: true,
+                      fechaFactura: o.invoicedAt ? parseFechaUptresBogota(o.invoicedAt) : null,
+                      totalOrden: o.total ? parseFloat(o.total) : null,
+                      balance: o.balance !== undefined ? parseFloat(o.balance) : null,
+                      clienteApiId: ordenCompleta.clienteApiId || '',
+                      clienteNit: ordenCompleta.clienteNit || null,
+                      clienteNombre: ordenCompleta.clienteNombre || '',
+                      vendedorApiId: ordenCompleta.vendedorApiId || null,
+                      ciudad: ordenCompleta.ciudad || (cli as any)?.ciudad || null,
+                      direccion: ordenCompleta.direccion || (cli as any)?.direccion || null,
+                      telefono: ordenCompleta.telefono || (cli as any)?.telefono || null,
+                      fechaOrden: ordenCompleta.createdAt ? parseFechaUptresBogota(ordenCompleta.createdAt) : null,
+                      estado: 'pendiente',
+                      sincronizadoEn: new Date(),
+                      origenSync: 'delta',
+                      reconciliadoEn: new Date(),
+                    }
+                  })
+                  ordenesDateActualizadas++
+                }
+              } catch (e: any) { /* no crítico — se reintentará en próximo delta */ }
+            } else {
+              ordenesDateActualizadas++
+            }
+          })()
         )
-        ordenesDateActualizadas++
       }
-      if (updates.length > 0) await Promise.all(updates)
+      await Promise.all(updates)
       if (nuevoCursorOrdenesDate) {
         await prisma.empresa.update({ where: { id: destino }, data: { sync_cursor_ordenes_date: nuevoCursorOrdenesDate } })
       }
