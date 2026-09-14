@@ -186,14 +186,19 @@ export default function MediaPage() {
   async function guardarParametros() {
     if (guardando) return
     setGuardando(true)
+    const esPrimera = !config
     await fetch('/api/media/config', {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ nombre: fNombre, descripcion: fDesc, whatsapp: fWa ? '57' + fWa.replace(/^\+?57/, '') : '', tema: fTema }),
     })
     setGuardando(false)
-    cargarTodo()
-    setModalParams(false)
+    await cargarTodo()
+    if (esPrimera) {
+      // Primera vez — no cerrar modal, mostrar logo/portafolio recién habilitados
+    } else {
+      setModalParams(false)
+    }
     setToastGuardado(true)
     setTimeout(() => setToastGuardado(false), 2500)
   }
@@ -441,22 +446,27 @@ export default function MediaPage() {
 
                 {/* Logo */}
                 <div>
-                  <p className="text-gray-400 text-xs uppercase tracking-wide mb-2">Logo circular</p>
+                  <p className="text-white text-xs uppercase tracking-wide mb-2">Logo circular</p>
                   <div className="flex items-center gap-4">
                     {config?.logoUrl
                       ? <img src={config.logoUrl} alt="logo" className="w-14 h-14 rounded-full object-cover border-2 border-blue-500 shrink-0" />
                       : <div className="w-14 h-14 rounded-full bg-[#1e2a3d] flex items-center justify-center text-gray-500 text-xl shrink-0">🏢</div>
                     }
-                    <button onClick={() => logoRef.current?.click()} className="text-sm bg-[#1e2a3d] hover:bg-[#243352] text-white px-4 py-2 rounded-lg">
+                    <button
+                      onClick={() => config && logoRef.current?.click()}
+                      disabled={!config}
+                      className="text-sm text-white px-4 py-2 rounded-lg disabled:opacity-40 disabled:cursor-not-allowed"
+                      style={{border: config ? '1.5px solid #22c55e' : '1.5px solid #ef4444'}}
+                    >
                       {config?.logoUrl ? 'Cambiar logo' : 'Subir logo'}
                     </button>
-                    <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={e => subirAsset(e, 'logo')} />
+                    <input ref={logoRef} type="file" accept="image/*" className="hidden" onChange={e => subirAsset(e, 'logo')} disabled={!config} />
                   </div>
                 </div>
 
                 {/* Nombre */}
                 <div>
-                  <label className="text-gray-400 text-xs uppercase tracking-wide block mb-1">Nombre del biolink</label>
+                  <label className="text-white text-xs uppercase tracking-wide block mb-1">Nombre del biolink</label>
                   <input
                     className="w-full bg-[#0d1220] border border-[#1e2a3d] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500"
                     placeholder="TuNegocio🔥"
@@ -467,7 +477,7 @@ export default function MediaPage() {
 
                 {/* Descripción */}
                 <div>
-                  <label className="text-gray-400 text-xs uppercase tracking-wide block mb-1">Descripción (con emojis 😎)</label>
+                  <label className="text-white text-xs uppercase tracking-wide block mb-1">Descripción (con emojis 😎)</label>
                   <textarea
                     rows={3}
                     className="w-full bg-[#0d1220] border border-[#1e2a3d] rounded-lg px-3 py-2 text-white text-sm outline-none focus:border-blue-500 resize-none"
@@ -479,9 +489,9 @@ export default function MediaPage() {
 
                 {/* WhatsApp */}
                 <div>
-                  <label className="text-gray-400 text-xs uppercase tracking-wide block mb-1">WhatsApp</label>
+                  <label className="text-white text-xs uppercase tracking-wide block mb-1">WhatsApp</label>
                   <div className="flex items-center rounded-lg overflow-hidden" style={{border:"1px solid #1e2a3d",background:"#0d1220"}}>
-                    <span className="px-3 py-2 text-gray-400 text-sm border-r shrink-0" style={{borderColor:"#1e2a3d"}}>+57</span>
+                    <span className="px-3 py-2 text-white text-sm border-r shrink-0" style={{borderColor:"#1e2a3d"}}>+57</span>
                     <input
                       className="flex-1 bg-transparent px-3 py-2 text-white text-sm outline-none"
                       placeholder="3001234567"
@@ -495,7 +505,7 @@ export default function MediaPage() {
 
                 {/* Tema de color */}
                 <div>
-                  <p className="text-gray-400 text-xs uppercase tracking-wide mb-2">Tema de color</p>
+                  <p className="text-white text-xs uppercase tracking-wide mb-2">Tema de color</p>
                   <div className="grid grid-cols-5 gap-2">
                     {TEMAS.map(t => (
                       <button
@@ -534,7 +544,7 @@ export default function MediaPage() {
 
                 {/* Portafolio PDF */}
                 <div>
-                  <p className="text-gray-400 text-xs uppercase tracking-wide mb-2">Portafolio PDF (uno solo)</p>
+                  <p className="text-white text-xs uppercase tracking-wide mb-2">Portafolio PDF (uno solo)</p>
                   {config?.portafolioUrl ? (
                     <div className="flex items-center gap-3 bg-[#0d1220] border border-[#1e2a3d] rounded-xl p-3">
                       <span className="text-2xl">📄</span>
@@ -542,11 +552,16 @@ export default function MediaPage() {
                       <button onClick={() => portafolioRef.current?.click()} className="text-blue-400 text-xs shrink-0">Cambiar</button>
                     </div>
                   ) : (
-                    <button onClick={() => portafolioRef.current?.click()} className="w-full border border-dashed border-[#1e2a3d] hover:border-blue-500 text-gray-400 hover:text-white text-sm py-4 rounded-xl transition-colors">
+                    <button
+                      onClick={() => config && portafolioRef.current?.click()}
+                      disabled={!config}
+                      className="w-full text-white text-sm py-4 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      style={{border: config ? '1.5px solid #22c55e' : '1.5px solid #ef4444'}}
+                    >
                       📄 Subir portafolio PDF
                     </button>
                   )}
-                  <input ref={portafolioRef} type="file" accept="application/pdf" className="hidden" onChange={e => subirAsset(e, 'portafolio')} />
+                  <input ref={portafolioRef} type="file" accept="application/pdf" className="hidden" onChange={e => subirAsset(e, 'portafolio')} disabled={!config} />
                 </div>
               </div>
 
