@@ -1,6 +1,6 @@
 'use client'
 import { useSession } from 'next-auth/react'
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, useMemo, useRef, Suspense } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { BodegaContext } from '@/lib/bodega-context'
@@ -28,24 +28,37 @@ export default function BodegaEmpresaPage() {
 
   const searchParams = useSearchParams()
   const [tab, setTab] = useState<Tab>((searchParams.get('tab') as Tab) || 'ordenes')
-  const [empresa, setEmpresa] = useState<{ id: string; nombre: string; color?: string; origenId: string } | null>(null)
-  const [loading, setLoading] = useState(true)
+
+  // Caché inmediato en sessionStorage — elimina parpadeo en entrada y refresh
+  const cacheKey = `bodega_empresa_${slug}`
+  const cached = typeof window !== 'undefined' ? sessionStorage.getItem(cacheKey) : null
+  const cachedEmpresa = cached ? JSON.parse(cached) : null
+
+  const [empresa, setEmpresa] = useState<{ id: string; nombre: string; color?: string; origenId: string } | null>(cachedEmpresa)
+  const [loading, setLoading] = useState(!cachedEmpresa)
+  const empresaRef = useRef(cachedEmpresa)
 
   useEffect(() => {
     if (!user?.id) return
-    if (empresa) return // ya cargado — evita doble fetch por re-render de useSession
     if (!['empresa', 'supervisor', 'bodega'].includes(user.role)) {
       router.replace('/inicio'); return
     }
     fetch('/api/bodega/empresas')
       .then(r => r.json())
       .then(d => {
+        let e: { id: string; nombre: string; color?: string; origenId: string } | null = null
         if (slug === 'propia') {
-          setEmpresa({ ...d.propia, origenId: 'propia' })
+          e = { ...d.propia, origenId: 'propia' }
         } else {
-          const v = d.vinculadas?.find((e: any) => e.slug === slug)
-          if (v) setEmpresa({ ...v, origenId: v.id })
-          else router.replace('/inicio')
+          const v = d.vinculadas?.find((ve: any) => ve.slug === slug)
+          if (v) e = { ...v, origenId: v.id }
+          else { router.replace('/inicio'); return }
+        }
+        sessionStorage.setItem(cacheKey, JSON.stringify(e))
+        // Solo actualiza si cambió algo relevante — evita remonte del Provider
+        if (!empresaRef.current || empresaRef.current.id !== e?.id || empresaRef.current.nombre !== e?.nombre) {
+          empresaRef.current = e
+          setEmpresa(e)
         }
         setLoading(false)
       })
@@ -60,8 +73,10 @@ export default function BodegaEmpresaPage() {
     { id: 'sugerido',   label: 'Sugerido'   },
   ]
 
+  const contextValue = useMemo(() => ({ origenId: empresa.origenId, forzado: true }), [empresa.origenId])
+
   return (
-    <BodegaContext.Provider value={{ origenId: empresa.origenId, forzado: true }}>
+    <BodegaContext.Provider value={contextValue}>
       <div className="space-y-4">
         {/* Header empresa */}
         <div className="flex items-center gap-3 px-1">

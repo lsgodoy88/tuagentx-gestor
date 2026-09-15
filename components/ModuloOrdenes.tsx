@@ -949,18 +949,11 @@ export default function ModuloOrdenes() {
       </div>
 
 
-      {refrescando && (
-        <div className="space-y-2 animate-pulse">
-          {[...Array(3)].map((_,i) => (
-            <div key={i} className="h-20 bg-zinc-800/60 rounded-2xl" />
-          ))}
-        </div>
-      )}
       {!refrescando && despachosVisibles.length === 0 && busquedaRemota.length === 0 && tabActivo !== 'despachado' ? (
         <div className="bg-zinc-900 border border-zinc-800 rounded-2xl px-5 py-10 text-center">
           {buscandoRemoto ? <p className="text-zinc-300 text-sm">Buscando...</p> : <p className="text-zinc-300 text-sm">Sin órdenes en el período configurado</p>}
         </div>
-      ) : tabActivo === 'despachado' ? null : refrescando ? null : (() => {
+      ) : tabActivo === 'despachado' ? null : (() => {
         return (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
 

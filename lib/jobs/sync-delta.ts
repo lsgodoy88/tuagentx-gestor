@@ -517,7 +517,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
             where: { origenId_empresaId: { origenId, empresaId: destino } },
             create: {
               empresaId: destino,
-              origen: destino,
+              origen: origenVinculadaId ? 'vinculada' : 'propia',
               origenId,
               numeroOrden: String(o.orderNumber ?? ''),
               numeroFactura: String(o.invoiceNumber),
@@ -823,6 +823,17 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
                 const completa = await adapter.fetchOrdenCompletaPorId(origenId)
                 if (completa && completa.clienteNombre) {
                   await prisma.ordenDespacho.upsert({ where: { origenId_empresaId: { origenId, empresaId: destino } }, create: { origenId, empresaId: destino, numeroOrden: completa.numeroOrden, numeroFactura: completa.numeroFactura || String(hueco), isFacturada: completa.isFacturada, fechaFactura: completa.fechaFactura ? parseFechaUptresBogota(String(completa.fechaFactura)) : null, totalOrden: completa.totalOrden, balance: completa.balance, paymentType: completa.paymentType ? String(completa.paymentType) : null, paymentMethod: completa.paymentMethod != null ? String(completa.paymentMethod) : null, clienteApiId: completa.clienteApiId, clienteNit: completa.clienteNit || '', clienteNombre: completa.clienteNombre, vendedorApiId: completa.vendedorApiId, fechaOrden: completa.createdAt ? parseFechaUptresBogota(String(completa.createdAt)) : new Date(), fechaOrdenBogota: completa.createdAt ? parseFechaUptresBogota(String(completa.createdAt)) : new Date(), origen: origenVinculadaId ? 'vinculada' : 'propia', origenVinculadaId, ciudad: (completa as any).ciudad || null, direccion: (completa as any).direccion || null, telefono: (completa as any).telefono || null, estado: 'pendiente', sincronizadoEn: new Date(), origenSync: 'recuperada' }, update: {} })
+                  if (completa.clienteApiId) {
+                    try {
+                      const schema = process.env.DB_SCHEMA || 'gestor'
+                      await prisma.$queryRawUnsafe(`
+                        UPDATE ${schema}."OrdenDespacho" od
+                        SET ciudad = COALESCE(od.ciudad, c.ciudad), direccion = COALESCE(od.direccion, c.direccion), telefono = COALESCE(od.telefono, c.telefono)
+                        FROM ${schema}."Cliente" c
+                        WHERE c."apiId" = od."clienteApiId" AND od."origenId" = $1 AND od."empresaId" = $2
+                        AND (c.ciudad IS NOT NULL OR c.direccion IS NOT NULL)`, origenId, destino)
+                    } catch { /* no crítico */ }
+                  }
                   huecosRecuperados++
                 }
               }
@@ -886,18 +897,21 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
               update: {}
             })
             // Poblar ciudad/direccion/telefono desde Cliente local si no vino de UpTres
-            if (completa.clienteApiId && (!(completa as any).ciudad)) {
+            if (completa.clienteApiId && (!(completa as any).ciudad || !(completa as any).direccion)) {
               try {
                 const schema = process.env.DB_SCHEMA || 'gestor'
                 await prisma.$queryRawUnsafe(`
                   UPDATE ${schema}."OrdenDespacho" od
-                  SET ciudad = c.ciudad, direccion = c.direccion, telefono = c.telefono
+                  SET
+                    ciudad = COALESCE(od.ciudad, c.ciudad),
+                    direccion = COALESCE(od.direccion, c.direccion),
+                    telefono = COALESCE(od.telefono, c.telefono)
                   FROM ${schema}."Cliente" c
                   WHERE c."apiId" = od."clienteApiId"
                   AND od."origenId" = $1
                   AND od."empresaId" = $2
-                  AND c.ciudad IS NOT NULL`, deuda.externalId, destino)
-              } catch (e: any) { /* ciudad no crítica */ }
+                  AND (c.ciudad IS NOT NULL OR c.direccion IS NOT NULL)`, deuda.externalId, destino)
+              } catch (e: any) { /* ciudad/direccion no crítica */ }
             }
             huecosRecuperados++
             console.log(`[delta] recuperada F_${completa.numeroFactura} orden ${completa.numeroOrden}`)

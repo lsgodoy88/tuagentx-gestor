@@ -1075,10 +1075,17 @@ export async function fetchOrdenesInvoicedConCursor(
     if (!d.ok) throw new Error(`UpTres /ordenes/date?invoicedAt error: ${d.msg || ''}`)
     if (!Array.isArray(d.data) || d.data.length === 0) break
     todos.push(...d.data)
+    // UpTres devuelve DESC — d.data[0] es el más reciente.
+    // Guardamos ese como cursor para que la próxima corrida pida desde ahí.
+    // NO usamos nextCursor de UpTres: ese cursor pagina hacia atrás (más antiguo).
+    const primero = d.data[0]
+    if (primero?.invoicedAt && primero?.id) {
+      ultimoCursor = { cursorDate: primero.invoicedAt, cursorId: primero.id }
+    }
+    // Si hay más páginas seguimos paginando para traer todo el rango
     if (!d.nextCursor?.cursorDate || !d.nextCursor?.cursorId) break
     cursorDate = d.nextCursor.cursorDate
     cursorId = d.nextCursor.cursorId
-    ultimoCursor = { cursorDate: cursorDate!, cursorId: cursorId! }
   }
   return { data: todos, ultimoCursor }
 }
