@@ -55,8 +55,9 @@ model Empresa {
   negociadoAt                 DateTime?             @db.Timestamp(6)
   creditoSaldo                Int                   @default(0)
   fechaInicioBodega           DateTime?             @db.Timestamp(6)
-  sync_cursor_ordenes_date    Json?
-  sync_cursor_ordenes_deleted Json?
+  sync_cursor_ordenes_date     Json?
+  sync_cursor_ordenes_deleted  Json?
+  sync_cursor_ordenes_invoiced Json?
   chatsAsistente              AsistenteChat[]
   Cartera                     Cartera[]
   CarteraCache                CarteraCache[]

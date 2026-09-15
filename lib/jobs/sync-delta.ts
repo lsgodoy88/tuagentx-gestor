@@ -4,7 +4,7 @@
  * Sin dependencia de gestor HTTP — accede directo a BD y adapters
  */
 import { prisma } from '@/lib/prisma'
-import { UpTresAdapter, parseFechaUptresBogota, fetchProductosUptres, fetchProductosUptresConCursor, fetchNotasCredito, fetchOrdenesDateConCursor, fetchOrdenesDeletedConCursor, type UpTresCursor } from '@/lib/integracion/adapters/uptres'
+import { UpTresAdapter, parseFechaUptresBogota, fetchProductosUptres, fetchProductosUptresConCursor, fetchNotasCredito, fetchOrdenesDateConCursor, fetchOrdenesInvoicedConCursor, fetchOrdenesDeletedConCursor, type UpTresCursor } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 import { invalidatePattern } from '@/lib/cache'
 import { reconstruirCartera } from '@/lib/jobs/sync-nocturno'
@@ -30,12 +30,12 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   const adapter = new UpTresAdapter(apiKey, apiSecret)
   let _s = Date.now(); await adapter.login(); _t('login', _s)
 
-  const empresa = await prisma.empresa.findUnique({ where: { id: destino }, select: { ultimaSyncBodega: true, ultimaSyncClientes: true, sync_cursor_clientes: true, sync_cursor_empleados: true, sync_cursor_cartera: true, sync_cursor_cartera_update: true, sync_cursor_listas: true, sync_cursor_proveedores: true, sync_cursor_ordenes_date: true, sync_cursor_ordenes_deleted: true, fechaInicioBodega: true } })
-  // fetchVentas: órdenes creadas en los últimos 3 días en Bogotá (UTC-5)
-  // Cubre órdenes creadas en la noche (fuera del horario del delta) del día anterior
+  const empresa = await prisma.empresa.findUnique({ where: { id: destino }, select: { ultimaSyncBodega: true, ultimaSyncClientes: true, sync_cursor_clientes: true, sync_cursor_empleados: true, sync_cursor_cartera: true, sync_cursor_cartera_update: true, sync_cursor_listas: true, sync_cursor_proveedores: true, sync_cursor_ordenes_date: true, sync_cursor_ordenes_deleted: true, sync_cursor_ordenes_invoiced: true, fechaInicioBodega: true } })
+  // fetchVentas: solo órdenes creadas HOY en Bogotá (UTC-5)
+  // Órdenes facturadas de días anteriores → cubiertas por ordenes/date?date=invoicedAt (cursor)
   // Órdenes eliminadas → cubiertas por ordenes/deleted (cursor)
   const ahoraBogota = new Date(Date.now() - 5 * 60 * 60 * 1000)
-  const desde = new Date(Date.UTC(ahoraBogota.getUTCFullYear(), ahoraBogota.getUTCMonth(), ahoraBogota.getUTCDate()) + 5 * 60 * 60 * 1000 - 3 * 24 * 60 * 60 * 1000)
+  const desde = new Date(Date.UTC(ahoraBogota.getUTCFullYear(), ahoraBogota.getUTCMonth(), ahoraBogota.getUTCDate()) + 5 * 60 * 60 * 1000)
 
   _s = Date.now(); const ordenes = await adapter.fetchVentas(desde); _t('fetchVentas', _s)
   const erroresParciales: string[] = []
@@ -477,52 +477,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
               where: { origenId, empresaId: destino },
               data: dataUpdate,
             })
-            // Si no existía en BD — orden creada antes de hoy facturada hoy — crearla
-            // Sin doble llamada: fields de ordenes/date ya incluyen address, phone, expand=customer
-            if (result.count === 0 && o.isInvoiced && o.invoiceNumber) {
-              try {
-                const daneCode = o.cityId || o.customer?.city || o.customer?.cityId
-                const ciudad = daneCode ? (municipiosDANE[String(daneCode)] || null) : null
-                const clienteApiId = o.customerId || ''
-                // UpTres no trae address en /ordenes — siempre usar Cliente local
-                const cliLocal = clienteApiId
-                  ? await prisma.cliente.findFirst({ where: { empresaId: destino, apiId: clienteApiId }, select: { direccion: true, telefono: true } })
-                  : null
-                const direccion = cliLocal?.direccion || null
-                const telefono = o.phone || o.customer?.phone || cliLocal?.telefono || null
-                const clienteNombre = o.customer
-                  ? `${o.customer.firstName || ''} ${o.customer.lastName || ''}`.trim()
-                  : ''
-                await prisma.ordenDespacho.create({
-                  data: {
-                    empresaId: destino,
-                    origen: destino,
-                    origenId,
-                    numeroOrden: String(o.orderNumber ?? ''),
-                    numeroFactura: String(o.invoiceNumber),
-                    isFacturada: true,
-                    fechaFactura: o.invoicedAt ? parseFechaUptresBogota(o.invoicedAt) : null,
-                    totalOrden: o.total ? parseFloat(o.total) : null,
-                    balance: o.balance !== undefined ? parseFloat(o.balance) : null,
-                    clienteApiId,
-                    clienteNit: o.customer?.document || null,
-                    clienteNombre,
-                    vendedorApiId: o.employeeId || null,
-                    ciudad,
-                    direccion,
-                    telefono,
-                    fechaOrden: o.createdAt ? parseFechaUptresBogota(o.createdAt) : null,
-                    estado: 'pendiente',
-                    sincronizadoEn: new Date(),
-                    origenSync: 'delta',
-                    reconciliadoEn: new Date(),
-                  }
-                })
-                ordenesDateActualizadas++
-              } catch (e: any) { console.error('[delta] ordenes/date create falló origenId=' + origenId + ' orden=' + o.orderNumber + ' factura=' + o.invoiceNumber + ':', e.message) }
-            } else {
-              ordenesDateActualizadas++
-            }
+            ordenesDateActualizadas++
           })()
         )
       }
@@ -532,6 +487,75 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
       }
     }
   } catch (err: any) { console.error('[delta] ordenes/date error:', err.message); erroresParciales.push('ordenes_date: ' + err.message) }
+
+  // Ordenes facturadas — /ordenes/date?date=invoicedAt
+  // Detecta órdenes facturadas que no están en BD (creadas días anteriores fuera del horario del delta)
+  let ordenesInvoicedCreadas = 0
+  try {
+    const cursorOrdenesInvoiced = empresa?.sync_cursor_ordenes_invoiced as UpTresCursor | null ?? null
+    const desdeOrdenesInvoiced = cursorOrdenesInvoiced ? new Date(0) : new Date(Date.now() - 3 * 24 * 60 * 60 * 1000)
+    _s = Date.now()
+    const { data: ordenesInvoiced, ultimoCursor: nuevoCursorOrdenesInvoiced } =
+      await fetchOrdenesInvoicedConCursor(apiKey, adapter.currentToken, cursorOrdenesInvoiced, desdeOrdenesInvoiced)
+    _t('fetchOrdenesInvoiced', _s)
+
+    if (ordenesInvoiced.length > 0) {
+      for (const o of ordenesInvoiced) {
+        const origenId = String(o.id || '')
+        if (!origenId || !o.isInvoiced || !o.invoiceNumber) continue
+        try {
+          const daneCode = o.cityId || o.customer?.city || o.customer?.cityId
+          const ciudad = daneCode ? (municipiosDANE[String(daneCode)] || null) : null
+          const clienteApiId = o.customerId || ''
+          const cliLocal = clienteApiId
+            ? await prisma.cliente.findFirst({ where: { empresaId: destino, apiId: clienteApiId }, select: { direccion: true, telefono: true } })
+            : null
+          const direccion = cliLocal?.direccion || null
+          const telefono = o.phone || o.customer?.phone || cliLocal?.telefono || null
+          const clienteNombre = o.customer ? `${o.customer.firstName || ''} ${o.customer.lastName || ''}`.trim() : ''
+          await prisma.ordenDespacho.upsert({
+            where: { origenId_empresaId: { origenId, empresaId: destino } },
+            create: {
+              empresaId: destino,
+              origen: destino,
+              origenId,
+              numeroOrden: String(o.orderNumber ?? ''),
+              numeroFactura: String(o.invoiceNumber),
+              isFacturada: true,
+              fechaFactura: o.invoicedAt ? parseFechaUptresBogota(o.invoicedAt) : null,
+              totalOrden: o.total ? parseFloat(o.total) : null,
+              balance: o.balance !== undefined ? parseFloat(o.balance) : null,
+              clienteApiId,
+              clienteNit: o.customer?.document || null,
+              clienteNombre,
+              vendedorApiId: o.employeeId || null,
+              ciudad,
+              direccion,
+              telefono,
+              fechaOrden: o.createdAt ? parseFechaUptresBogota(o.createdAt) : null,
+              estado: 'pendiente',
+              sincronizadoEn: new Date(),
+              origenSync: 'delta',
+              reconciliadoEn: new Date(),
+            },
+            update: {
+              isFacturada: true,
+              numeroFactura: String(o.invoiceNumber),
+              fechaFactura: o.invoicedAt ? parseFechaUptresBogota(o.invoicedAt) : null,
+              totalOrden: o.total ? parseFloat(o.total) : null,
+              balance: o.balance !== undefined ? parseFloat(o.balance) : null,
+              reconciliadoEn: new Date(),
+            }
+          })
+          ordenesInvoicedCreadas++
+        } catch (e: any) { console.error('[delta] ordenes/invoiced upsert falló origenId=' + origenId + ' orden=' + o.orderNumber + ':', e.message) }
+      }
+      if (nuevoCursorOrdenesInvoiced) {
+        await prisma.empresa.update({ where: { id: destino }, data: { sync_cursor_ordenes_invoiced: nuevoCursorOrdenesInvoiced } })
+      }
+      if (ordenesInvoicedCreadas > 0) await invalidatePattern(`g:${destino}:*`)
+    }
+  } catch (err: any) { console.error('[delta] ordenes/invoiced error:', err.message); erroresParciales.push('ordenes_invoiced: ' + err.message) }
 
   // Ordenes eliminadas — /ordenes/deleted
   // Marca isActiva=false en BD local para órdenes borradas en UpTres

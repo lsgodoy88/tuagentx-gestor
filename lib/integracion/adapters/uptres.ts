@@ -1026,6 +1026,63 @@ export async function fetchOrdenesDateConCursor(
   return { data: todos, ultimoCursor }
 }
 
+
+// ─── fetchOrdenesInvoicedConCursor ────────────────────────────────────────────
+// Usa /ordenes/date?date=invoicedAt para detectar órdenes facturadas.
+// Cubre el caso de órdenes creadas días anteriores y facturadas después —
+// que fetchVentas (solo HOY) no puede capturar.
+export async function fetchOrdenesInvoicedConCursor(
+  apiKey: string,
+  token: string,
+  cursor: UpTresCursor | null,
+  desde: Date
+): Promise<{ data: any[]; ultimoCursor: UpTresCursor | null }> {
+  const manana = new Date(); manana.setDate(manana.getDate() + 1)
+  const fromDate = cursor
+    ? new Date(new Date(cursor.cursorDate).getTime() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
+    : new Date(desde.getTime() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+  const fields = 'id,orderNumber,invoiceNumber,isInvoiced,invoicedAt,total,balance,paymentType,paymentMethod,customerId,employeeId,createdAt,updatedAt,cityId,address,phone'
+
+  const todos: any[] = []
+  let cursorDate: string | null = cursor?.cursorDate ?? null
+  let cursorId: string | null = cursor?.cursorId ?? null
+  let ultimoCursor: UpTresCursor | null = null
+  let pagina = 0
+  const MAX_PAGINAS = 200
+
+  while (pagina++ < MAX_PAGINAS) {
+    const p = new URLSearchParams({ date: 'invoicedAt', fields, from: fromDate, to: manana.toISOString().split('T')[0], limit: '100', condition: 'true', expand: 'customer' })
+    if (cursorDate && cursorId) { p.set('cursorDate', cursorDate); p.set('cursorId', cursorId) }
+
+    let texto = ''
+    for (let intento = 0; intento < 3; intento++) {
+      try {
+        const controller = new AbortController()
+        const timer = setTimeout(() => controller.abort(), 30000)
+        const res = await fetch(`${BASE}/ordenes/date?${p.toString()}`, {
+          headers: { 'x-api-key': apiKey, Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        })
+        clearTimeout(timer)
+        texto = await res.text()
+        break
+      } catch { if (intento < 2) await new Promise(r => setTimeout(r, 2000 * (intento + 1))) }
+    }
+    if (!texto) throw new Error('UpTres /ordenes/date?invoicedAt no respondió')
+    let d: any
+    try { d = JSON.parse(texto) } catch { throw new Error('UpTres /ordenes/date?invoicedAt respuesta inválida') }
+    if (!d.ok) throw new Error(`UpTres /ordenes/date?invoicedAt error: ${d.msg || ''}`)
+    if (!Array.isArray(d.data) || d.data.length === 0) break
+    todos.push(...d.data)
+    if (!d.nextCursor?.cursorDate || !d.nextCursor?.cursorId) break
+    cursorDate = d.nextCursor.cursorDate
+    cursorId = d.nextCursor.cursorId
+    ultimoCursor = { cursorDate: cursorDate!, cursorId: cursorId! }
+  }
+  return { data: todos, ultimoCursor }
+}
+
 // ─── fetchOrdenesDeletedConCursor ─────────────────────────────────────────────
 // Usa /ordenes/deleted para detectar órdenes eliminadas en UpTres y marcarlas
 // como isActiva=false en BD local.
