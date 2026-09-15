@@ -142,22 +142,29 @@ export default function MediaPage() {
   }
 
   async function subirArchivo(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file || !carpetaActiva || subiendo) return
-    setSubiendo(true)
-    const reader = new FileReader()
-    reader.onload = async () => {
-      const res = await fetch('/api/media/archivos', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ carpetaId: carpetaActiva.id, nombre: file.name, base64: reader.result }),
-      })
-      setSubiendo(false)
-      if (res.ok) abrirCarpeta(carpetaActiva)
-      else { const err = await res.json(); alert(err.error ?? 'Error al subir') }
-    }
-    reader.readAsDataURL(file)
+    const files = Array.from(e.target.files ?? [])
+    if (!files.length || !carpetaActiva || subiendo) return
     e.target.value = ''
+    setSubiendo(true)
+    let errores = 0
+    for (const file of files) {
+      await new Promise<void>(resolve => {
+        const reader = new FileReader()
+        reader.onload = async () => {
+          const res = await fetch('/api/media/archivos', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ carpetaId: carpetaActiva.id, nombre: file.name, base64: reader.result }),
+          })
+          if (!res.ok) errores++
+          resolve()
+        }
+        reader.readAsDataURL(file)
+      })
+    }
+    setSubiendo(false)
+    abrirCarpeta(carpetaActiva)
+    if (errores > 0) alert(`${errores} imagen(es) no se pudieron subir`)
   }
 
   async function eliminarArchivo(id: string) {
@@ -285,7 +292,7 @@ export default function MediaPage() {
             >{subiendo ? 'Subiendo...' : '+ Imagen'}</button>
           )}
 
-          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={subirArchivo} />
+          <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={subirArchivo} />
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">

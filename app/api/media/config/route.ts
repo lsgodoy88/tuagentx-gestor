@@ -32,6 +32,12 @@ export async function PATCH(req: NextRequest) {
   const empresaId = (session.user as any).empresaId
   const { nombre, descripcion, whatsapp, tema } = await req.json()
 
+  // Verificar si ya existía antes del upsert
+  const existe = await prisma.$queryRaw<any[]>`
+    SELECT id FROM ${Prisma.raw(DB_SCHEMA)}."MediaConfig" WHERE "empresaId" = ${empresaId} LIMIT 1
+  `
+  const esPrimera = existe.length === 0
+
   // Upsert — crea si no existe (primer uso: Activar TaX-Link), actualiza si ya existe
   await prisma.$executeRaw`
     INSERT INTO ${Prisma.raw(DB_SCHEMA)}."MediaConfig" (id, "empresaId", nombre, descripcion, whatsapp, tema, "updatedAt")
@@ -43,6 +49,16 @@ export async function PATCH(req: NextRequest) {
       tema        = COALESCE(EXCLUDED.tema, ${Prisma.raw(DB_SCHEMA)}."MediaConfig".tema),
       "updatedAt" = now()
   `
+
+  // Primera activación — crear carpetas favoritas por defecto
+  if (esPrimera) {
+    for (const nombre of ['Más Vendidos🔥', 'Productos💚']) {
+      await prisma.$executeRaw`
+        INSERT INTO ${Prisma.raw(DB_SCHEMA)}."MediaCarpeta" ("empresaId", nombre, favorita)
+        VALUES (${empresaId}, ${nombre}, true)
+      `
+    }
+  }
 
   return NextResponse.json({ ok: true })
 }

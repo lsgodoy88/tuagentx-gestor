@@ -439,15 +439,32 @@ export default function CarteraPage() {
 
           const rows = pagosFiltrados.map((p: any) => {
             const lineas: any[] = Array.isArray(p.lineasPago) ? p.lineasPago : []
-            const efectivo  = lineas.filter(l => l.metodoPago === 'efectivo').reduce((s, l) => s + Number(l.monto || 0), 0) || ((!p.lineasPago && (p.metodoPago || p.metodopago) === 'efectivo') ? Number(p.monto) : 0)
-            const transf    = lineas.filter(l => l.metodoPago !== 'efectivo' && l.metodoPago).reduce((s, l) => s + Number(l.monto || 0), 0) || ((!p.lineasPago && (p.metodoPago || p.metodopago) !== 'efectivo') ? Number(p.monto) : 0)
-            const desc      = Number(p.descuento || 0)
-            const saldoAnt  = Number(p.saldoAnterior || 0)
-            const nuevoSaldo = p.reciboPago?.saldoNuevo != null
+            const efectivoTotal = lineas.filter(l => l.metodoPago === 'efectivo').reduce((s, l) => s + Number(l.monto || 0), 0) || ((!p.lineasPago && (p.metodoPago || p.metodopago) === 'efectivo') ? Number(p.monto) : 0)
+            const transfTotal   = lineas.filter(l => l.metodoPago !== 'efectivo' && l.metodoPago).reduce((s, l) => s + Number(l.monto || 0), 0) || ((!p.lineasPago && (p.metodoPago || p.metodopago) !== 'efectivo') ? Number(p.monto) : 0)
+            const desc          = Number(p.descuento || 0)
+            const saldoAnt      = Number(p.saldoAnterior || 0)
+            const nuevoSaldo    = p.reciboPago?.saldoNuevo != null
               ? Number(p.reciboPago.saldoNuevo)
               : saldoAnt > 0 ? saldoAnt - Number(p.monto) - desc : null
-            totEfectivo += efectivo; totTransf += transf; totDesc += desc
-            return { ...p, _efectivo: efectivo, _transf: transf, _desc: desc, _nuevoSaldo: nuevoSaldo }
+
+            // Distribuir transf primero (más antigua → más reciente), luego efectivo para el resto
+            const facturas: any[] = Array.isArray(p._facturas) && p._facturas.length > 0
+              ? [...p._facturas].sort((a: any, b: any) => Number(a.numeroFactura || 0) - Number(b.numeroFactura || 0))
+              : p.numeroFactura ? [{ numeroFactura: p.numeroFactura, montoAplicado: p.monto }] : []
+            let transfRestante = transfTotal
+            let efectivoRestante = efectivoTotal
+            const _facturasConMetodo = facturas.map((f: any) => {
+              const monto = Number(f.montoAplicado || 0)
+              const tAplica = Math.min(transfRestante, monto)
+              transfRestante -= tAplica
+              const eAplica = Math.min(efectivoRestante, monto - tAplica)
+              efectivoRestante -= eAplica
+              const dAplica = Math.round(desc * (monto / Math.max(facturas.reduce((s: number, ff: any) => s + Number(ff.montoAplicado || 0), 0), 1)))
+              return { ...f, _efectivo: Math.round(eAplica), _transf: Math.round(tAplica), _desc: dAplica }
+            })
+
+            totEfectivo += efectivoTotal; totTransf += transfTotal; totDesc += desc
+            return { ...p, _efectivo: efectivoTotal, _transf: transfTotal, _desc: desc, _nuevoSaldo: nuevoSaldo, _facturasConMetodo }
           })
           return (
             <div className="rounded-2xl overflow-hidden" style={{border:'1px solid #1e2a3d'}}>
@@ -468,15 +485,20 @@ export default function CarteraPage() {
                   </thead>
                   <tbody>
                     {rows.map((p: any, i: number) => {
-                      const facturas: any[] = Array.isArray(p._facturas) && p._facturas.length > 0
-                        ? p._facturas
-                        : p.numeroFactura ? [{ numeroFactura: p.numeroFactura }] : []
-                      const primeraFact = facturas[0]
-                      const subFacturas = facturas.slice(1)
+                      const facturasConMetodo: any[] = Array.isArray(p._facturasConMetodo) && p._facturasConMetodo.length > 0
+                        ? p._facturasConMetodo
+                        : p.numeroFactura ? [{ numeroFactura: p.numeroFactura, montoAplicado: p.monto, _efectivo: p._efectivo, _transf: p._transf, _desc: p._desc }] : []
+                      const primeraFact = facturasConMetodo[0]
+                      const subFacturas = facturasConMetodo.slice(1)
                       const tdBase: React.CSSProperties = { padding:"8px 10px", fontSize:14, fontWeight:500, color:"white", whiteSpace:"nowrap", borderBottom: subFacturas.length > 0 ? 'none' : '1px solid #1e2a3d' }
                       const tdSub: React.CSSProperties  = { padding:"8px 10px", fontSize:14, fontWeight:500, color:"white", whiteSpace:"nowrap" }
-                      const metodo = p.metodopago === 'transferencia' ? 'Transf.' : p.metodopago === 'mixto' ? 'Mixto' : 'Efect.'
-                      const colorMetodo = p.metodopago === 'transferencia' ? '#60a5fa' : '#34d399'
+                      const hayMod = Array.isArray(p.lineasPago) && p.lineasPago.some((l: any) => {
+                        if (l.valorModificado) return true
+                        if (l.voucherDatosIA?.valor != null) {
+                          return Math.abs(Number(l.monto) - Number(l.voucherDatosIA.valor)) >= 1000
+                        }
+                        return false
+                      })
                       return (
                         <React.Fragment key={p.id}>
                           <tr style={{background:'#141c2e'}}>
@@ -496,28 +518,18 @@ export default function CarteraPage() {
                               {p.clienteNombre || p.cartera?.cliente?.nombre || p.Cartera?.Cliente?.nombre || '—'}
                             </td>
                             <td className="px-4 py-3 text-right text-emerald-400 font-semibold whitespace-nowrap" style={{borderBottom: subFacturas.length > 0 ? 'none' : '1px solid #1e2a3d'}}>
-                              {p._efectivo > 0 ? fmt(p._efectivo) : '—'}
+                              {primeraFact?._efectivo > 0 ? fmt(primeraFact._efectivo) : '—'}
                             </td>
                             <td className="px-4 py-3 text-right text-blue-400 font-semibold whitespace-nowrap" style={{borderBottom: subFacturas.length > 0 ? 'none' : '1px solid #1e2a3d'}}>
-                              {(() => {
-                                const hayMod = Array.isArray(p.lineasPago) && p.lineasPago.some((l: any) => {
-                                  if (l.valorModificado) return true
-                                  if (l.voucherDatosIA?.valor != null) {
-                                    const diff = Math.abs(Number(l.monto) - Number(l.voucherDatosIA.valor))
-                                    return diff >= 1000  // excepción: diferencia < $1.000 no muestra ⚠️
-                                  }
-                                  return false
-                                })
-                                return p._transf > 0
-                                  ? <span className="inline-flex items-center gap-1">{hayMod && <span title="Valor modificado respecto al comprobante" style={{fontSize:9, opacity:0.7}}>⚠️</span>}{fmt(p._transf)}</span>
-                                  : '—'
-                              })()}
+                              {primeraFact?._transf > 0
+                                ? <span className="inline-flex items-center gap-1">{hayMod && <span title="Valor modificado respecto al comprobante" style={{fontSize:9, opacity:0.7}}>⚠️</span>}{fmt(primeraFact._transf)}</span>
+                                : '—'}
                             </td>
                             <td className="px-4 py-3 text-right text-amber-400 whitespace-nowrap" style={{borderBottom: subFacturas.length > 0 ? 'none' : '1px solid #1e2a3d'}}>
-                              {p._desc > 0 ? fmt(p._desc) : '—'}
+                              {primeraFact?._desc > 0 ? fmt(primeraFact._desc) : '—'}
                             </td>
                             <td className="px-4 py-3 text-right text-zinc-300 whitespace-nowrap" style={{borderBottom: subFacturas.length > 0 ? 'none' : '1px solid #1e2a3d'}}>
-                              {p._nuevoSaldo !== null ? fmt(p._nuevoSaldo) : '—'}
+                              {primeraFact?.nSaldo != null ? fmt(Number(primeraFact.nSaldo)) : p._nuevoSaldo !== null ? fmt(p._nuevoSaldo) : '—'}
                             </td>
                             <td className="px-4 py-3 text-center whitespace-nowrap" style={{borderBottom: subFacturas.length > 0 ? 'none' : '1px solid #1e2a3d'}}>
                               {p.notas ? (
@@ -547,30 +559,28 @@ export default function CarteraPage() {
                           </tr>
                           {subFacturas.map((sf: any, si: number) => {
                             const bSub = { borderBottom: si < subFacturas.length - 1 ? 'none' : '1px solid #1e2a3d' }
+                            const tdS: React.CSSProperties = { padding:"8px 10px", fontSize:14, fontWeight:500, color:"white", whiteSpace:"nowrap", ...bSub }
                             return (
                               <tr key={`${p.id}-sf-${si}`} style={{background:'#141c2e'}}>
-                                <td style={{...tdSub, ...bSub}}></td>
-                                <td style={{...tdSub, ...bSub}}></td>
-                                <td style={{...tdSub, ...bSub, fontFamily:'monospace', color:'rgba(147,197,253,0.50)', fontSize:13}}>
+                                <td style={tdS}></td>
+                                <td style={tdS}></td>
+                                <td style={{...tdS, fontFamily:'monospace'}}>
                                   {sf.numeroFactura}
                                 </td>
-                                <td style={{...tdSub, ...bSub}}>
-                                  <span style={{marginRight:10}}>
-                                    <span style={{color:'#64748b', marginRight:2}}>{metodo}</span>
-                                    <span style={{color:colorMetodo, fontWeight:600}}>{fmt(Number(sf.montoAplicado||0))}</span>
-                                  </span>
-                                  {Number(sf.descuento||0) > 0 && (
-                                    <span>
-                                      <span style={{color:'#64748b', marginRight:2}}>Desc.</span>
-                                      <span style={{color:'#fbbf24', fontWeight:600}}>{fmt(Number(sf.descuento))}</span>
-                                    </span>
-                                  )}
+                                <td style={{...tdS, maxWidth:160, overflow:'hidden', textOverflow:'ellipsis'}}></td>
+                                <td className="px-4 py-3 text-right text-emerald-400 font-semibold whitespace-nowrap" style={bSub}>
+                                  {sf._efectivo > 0 ? fmt(sf._efectivo) : '—'}
                                 </td>
-                                <td style={{...tdSub, ...bSub}}></td>
-                                <td style={{...tdSub, ...bSub}}></td>
-                                <td style={{...tdSub, ...bSub}}></td>
-                                <td style={{...tdSub, ...bSub}}></td>
-                                <td style={{...tdSub, ...bSub}}></td>
+                                <td className="px-4 py-3 text-right text-blue-400 font-semibold whitespace-nowrap" style={bSub}>
+                                  {sf._transf > 0 ? fmt(sf._transf) : '—'}
+                                </td>
+                                <td className="px-4 py-3 text-right text-amber-400 whitespace-nowrap" style={bSub}>
+                                  {sf._desc > 0 ? fmt(sf._desc) : '—'}
+                                </td>
+                                <td className="px-4 py-3 text-right text-zinc-300 whitespace-nowrap" style={bSub}>
+                                  {sf.nSaldo != null ? fmt(Number(sf.nSaldo)) : '—'}
+                                </td>
+                                <td className="px-4 py-3 text-center whitespace-nowrap" style={bSub}></td>
                               </tr>
                             )
                           })}
