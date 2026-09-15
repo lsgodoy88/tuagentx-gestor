@@ -48,47 +48,69 @@ export async function PATCH(req: NextRequest) {
 }
 
 // POST — dos modos:
-// 1. Logo: { tipo:'logo', nombre, base64 } — imagen comprimida en cliente
-// 2. Portafolio post-presigned: { tipo:'portafolio', key, url, nombre } — metadatos tras upload directo a R2
+// 1. Logo: JSON { tipo:'logo', nombre, base64 }
+// 2. Portafolio: FormData { tipo:'portafolio', nombre, file } — sube desde servidor, sin CORS
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   if ((session.user as any).role !== 'empresa') return NextResponse.json({ error: 'Prohibido' }, { status: 403 })
 
   const empresaId = (session.user as any).empresaId
-  const body = await req.json()
-  const { tipo, nombre, base64, key: bodyKey, url: bodyUrl } = body
+  const contentType = req.headers.get('content-type') || ''
 
-  if (!['logo', 'portafolio'].includes(tipo)) {
-    return NextResponse.json({ error: 'tipo inválido' }, { status: 400 })
-  }
+  // Portafolio via FormData — servidor sube a R2 (sin CORS)
+  if (contentType.includes('multipart/form-data')) {
+    const formData = await req.formData()
+    const tipo = formData.get('tipo') as string
+    const nombre = (formData.get('nombre') as string) || 'portafolio.pdf'
+    const file = formData.get('file') as File | null
 
-  // Obtener keys anteriores para borrar de R2
-  const rows = await prisma.$queryRaw<any[]>`
-    SELECT "logoKey", "portafolioKey" FROM ${Prisma.raw(DB_SCHEMA)}."MediaConfig"
-    WHERE "empresaId" = ${empresaId}
-  `
-  const config = rows[0]
-  const keyAnterior = tipo === 'logo' ? config?.logoKey : config?.portafolioKey
-  if (keyAnterior && keyAnterior !== bodyKey) await eliminarMediaArchivo(keyAnterior).catch(() => {})
+    if (tipo !== 'portafolio' || !file) return NextResponse.json({ error: 'Datos inválidos' }, { status: 400 })
+    if (file.size > 10 * 1024 * 1024) return NextResponse.json({ error: 'PDF máximo 10MB' }, { status: 400 })
+    if (file.type !== 'application/pdf') return NextResponse.json({ error: 'Solo PDF' }, { status: 400 })
 
-  // Portafolio — ya subido a R2 via presigned URL, solo actualizar BD
-  if (tipo === 'portafolio' && bodyKey && bodyUrl) {
+    const buffer = Buffer.from(await file.arrayBuffer())
+
+    // Borrar portafolio anterior
+    const rows = await prisma.$queryRaw<any[]>`
+      SELECT "portafolioKey" FROM ${Prisma.raw(DB_SCHEMA)}."MediaConfig" WHERE "empresaId" = ${empresaId}
+    `
+    if (rows[0]?.portafolioKey) await eliminarMediaArchivo(rows[0].portafolioKey).catch(() => {})
+
+    let key: string, url: string
+    try {
+      const res = await subirMediaArchivo(buffer, empresaId, '_config_portafolio', nombre)
+      key = res.key; url = res.url
+    } catch (uploadErr: any) {
+      console.error('[media/config POST] subirMediaArchivo error:', uploadErr?.message || uploadErr)
+      return NextResponse.json({ error: 'Error al subir archivo: ' + (uploadErr?.message || 'desconocido') }, { status: 500 })
+    }
     try {
       await prisma.$executeRaw`
         UPDATE ${Prisma.raw(DB_SCHEMA)}."MediaConfig"
-        SET "portafolioKey" = ${bodyKey}, "portafolioUrl" = ${bodyUrl},
-            "portafolioNombre" = ${nombre || 'portafolio.pdf'}, "updatedAt" = now()
+        SET "portafolioKey" = ${key}, "portafolioUrl" = ${url},
+            "portafolioNombre" = ${nombre}, "updatedAt" = now()
         WHERE "empresaId" = ${empresaId}
       `
-      return NextResponse.json({ ok: true, key: bodyKey, url: bodyUrl })
-    } catch (dbErr) {
-      await eliminarMediaArchivo(bodyKey).catch(() => {})
-      return NextResponse.json({ error: 'Error al guardar' }, { status: 500 })
+      return NextResponse.json({ ok: true, key, url })
+    } catch (dbErr: any) {
+      console.error('[media/config POST] db error:', dbErr?.message || dbErr)
+      await eliminarMediaArchivo(key).catch(() => {})
+      return NextResponse.json({ error: 'Error al guardar en BD: ' + (dbErr?.message || 'desconocido') }, { status: 500 })
     }
   }
 
-  // Logo — base64 comprimido en cliente → servidor procesa con sharp y sube a R2
+  // Logo — JSON con base64 comprimido en cliente
+  const body = await req.json()
+  const { tipo, nombre, base64 } = body
+
+  if (!['logo', 'portafolio'].includes(tipo)) return NextResponse.json({ error: 'tipo inválido' }, { status: 400 })
+
+  const rows = await prisma.$queryRaw<any[]>`
+    SELECT "logoKey" FROM ${Prisma.raw(DB_SCHEMA)}."MediaConfig" WHERE "empresaId" = ${empresaId}
+  `
+  if (rows[0]?.logoKey) await eliminarMediaArchivo(rows[0].logoKey).catch(() => {})
+
   const { key, url, tamano_byte } = await subirMediaArchivo(base64, empresaId, `_config_${tipo}`, nombre)
   try {
     await prisma.$executeRaw`
@@ -97,7 +119,7 @@ export async function POST(req: NextRequest) {
       WHERE "empresaId" = ${empresaId}
     `
     return NextResponse.json({ key, url, tamano_byte })
-  } catch (dbErr) {
+  } catch {
     await eliminarMediaArchivo(key).catch(() => {})
     return NextResponse.json({ error: 'Error al guardar' }, { status: 500 })
   }

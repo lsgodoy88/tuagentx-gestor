@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
   const key = `media/${empresaId}/_config_portafolio/${uuid}.pdf`
   const url = `${R2_PUBLIC_URL}/${key}`
 
-  // Presigned URL válida 5 minutos — R2 rechaza si Content-Length no coincide
+  // Presigned URL directa al endpoint S3 — CORS configurado via Wrangler CLI
   const presignedUrl = await getSignedUrl(
     r2Client,
     new PutObjectCommand({
