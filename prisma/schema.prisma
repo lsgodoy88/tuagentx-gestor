@@ -9,147 +9,139 @@ datasource db {
 }
 
 model Empresa {
-  id                  String             @id @default(cuid())
-  nombre              String
-  email               String             @unique
-  password            String
-  plan                String             @default("basico")
-  activo              Boolean            @default(true)
-  maxSupervisores     Int                @default(1)
-  maxVendedores       Int                @default(1)
-  maxEntregas         Int                @default(0)
-  maxBodega           Int                @default(0)
-  maxImpulsadoras     Int                @default(0)
-  createdAt           DateTime           @default(now())
-  planFin             DateTime?          @db.Timestamp(6)
-  montoNegociado      Int?
-  negociadoAt         DateTime?          @db.Timestamp(6)
-  creditoSaldo        Int                @default(0)
-  PlanEmpresa         PlanEmpresa[]
-  telefono            String?            @db.VarChar(20)
-  modoEquipo          String?
-  horaInicioRuta      String             @default("06:00")
-  horaFinRuta         String             @default("20:00")
-  autoCrearRuta       Boolean            @default(false)
-  autoCerrarRuta      Boolean            @default(false)
-  autoAbrirTurno      Boolean            @default(false)
-  autoCerrarTurno     Boolean            @default(false)
-  diasCrearRuta       String             @default("0,1,2,3,4")
-  diasCerrarRuta      String             @default("0,1,2,3,4")
-  ciudadEntregaLocal  String?
-  diasHistorialBodega Int                @default(7)
-  bodegaPuedeEnviar   Boolean            @default(false)
-  syncVentasHoy       Int?               @default(0)
-  syncVentasFecha     DateTime?
-  syncVentasUltimo    DateTime?
-  ultimaSyncBodega          DateTime?
-  fechaInicioBodega         DateTime?          @db.Timestamp(6)
-  ultimaSyncClientes        DateTime?
-  sync_cursor_clientes      Json?
-  sync_cursor_empleados     Json?
-  sync_cursor_productos     Json?
-  sync_cursor_cartera       Json?
-  sync_cursor_cartera_update Json?
+  id                          String                @id @default(cuid())
+  nombre                      String
+  email                       String                @unique
+  password                    String
+  plan                        String                @default("basico")
+  activo                      Boolean               @default(true)
+  maxSupervisores             Int                   @default(1)
+  maxVendedores               Int                   @default(1)
+  maxEntregas                 Int                   @default(0)
+  maxBodega                   Int                   @default(0)
+  maxImpulsadoras             Int                   @default(0)
+  createdAt                   DateTime              @default(now())
+  planFin                     DateTime?             @db.Timestamp(6)
+  telefono                    String?               @db.VarChar(20)
+  modoEquipo                  String?
+  horaInicioRuta              String                @default("06:00")
+  horaFinRuta                 String                @default("20:00")
+  autoCrearRuta               Boolean               @default(false)
+  autoCerrarRuta              Boolean               @default(false)
+  autoAbrirTurno              Boolean               @default(false)
+  autoCerrarTurno             Boolean               @default(false)
+  diasCrearRuta               String                @default("0,1,2,3,4")
+  diasCerrarRuta              String                @default("0,1,2,3,4")
+  ciudadEntregaLocal          String?
+  diasHistorialBodega         Int                   @default(7)
+  bodegaPuedeEnviar           Boolean               @default(false)
+  syncVentasHoy               Int?                  @default(0)
+  syncVentasFecha             DateTime?
+  syncVentasUltimo            DateTime?
+  ultimaSyncBodega            DateTime?
+  configRecibos               Json?                 @default("{\"nit\": null, \"logo\": null, \"prefijo\": \"REC\", \"telefono\": null, \"direccion\": null, \"anchoPapel\": \"80mm\"}")
+  colorFondo                  String?
+  configDespachos             Json?                 @default("{\"urlBase\": \"\", \"transportadora\": \"\"}")
+  limite_storage_gb           Int                   @default(1)
+  ultimaSyncClientes          DateTime?
+  sync_cursor_clientes        Json?
+  sync_cursor_empleados       Json?
+  sync_cursor_productos       Json?
+  sync_cursor_cartera         Json?
+  sync_cursor_cartera_update  Json?
   sync_cursor_listas          Json?
   sync_cursor_proveedores     Json?
+  montoNegociado              Int?
+  negociadoAt                 DateTime?             @db.Timestamp(6)
+  creditoSaldo                Int                   @default(0)
+  fechaInicioBodega           DateTime?             @db.Timestamp(6)
   sync_cursor_ordenes_date    Json?
   sync_cursor_ordenes_deleted Json?
-  configRecibos       Json?              @default("{\"nit\": null, \"logo\": null, \"prefijo\": \"REC\", \"telefono\": null, \"direccion\": null, \"anchoPapel\": \"80mm\"}")
-  configDespachos     Json?              @default("{\"transportadora\": \"\", \"urlBase\": \"\"}") 
-  colorFondo           String?
-  limite_storage_gb   Int                @default(1)
-  chatsAsistente      AsistenteChat[]
-  Cartera             Cartera[]
-  clientes            Cliente[]
-  empleados           Empleado[]
-  rutas               Ruta[]
-  rutasFijas          RutaFija[]
-  metasRecaudo        MetaRecaudo[]
-  metasVenta          MetaVenta[]
-  subEmpresas         SubEmpresa[]
-  integraciones       Integracion[]
-  transprensaRemesas  TransprensaRemesa[]
-  CarteraCache        CarteraCache[]
-  vinculadas          EmpresaVinculada[]
-  smsConfig           SmsConfig?
-  smsLogs             SmsLog[]
-  stockSnapshots      StockSnapshot[]
-  stockSugeridos      StockSugerido[]
-  carteraEdadSnapshots CarteraEdadSnapshot[]
-  snapshotsMes         SnapshotMes[]
-  ordenesDespacho     OrdenDespacho[]
-  ventasMes           VentaMesCliente[]
-  despachoLogs        DespachoLog[]       @relation("DespachoLogEmpresa")
-  comisionConfigs     ComisionConfig[]
-  comisionCalculos    ComisionCalculo[]
-  reportesImpulsoMes  ReporteImpulsoMes[]
-  gastos              Gasto[]
-  egresos             Egreso[]
-  egresosCategorias   EgresoCategoria[]
-  gastoTipos          GastoTipo[]
-  productos           Producto[]
-  impulsoInventarios  ImpulsoInventario[]
-  impulsoRotaciones   ImpulsoRotacion[]
-  impulsoEventos      ImpulsoEvento[]
-  mediaCarpetas       MediaCarpeta[]
-  mediaConfig         MediaConfig?
+  chatsAsistente              AsistenteChat[]
+  Cartera                     Cartera[]
+  CarteraCache                CarteraCache[]
+  carteraEdadSnapshots        CarteraEdadSnapshot[]
+  clientes                    Cliente[]
+  comisionCalculos            ComisionCalculo[]
+  comisionConfigs             ComisionConfig[]
+  despachoLogs                DespachoLog[]         @relation("DespachoLogEmpresa")
+  egresos                     Egreso[]
+  egresosCategorias           EgresoCategoria[]
+  empleados                   Empleado[]
+  vinculadas                  EmpresaVinculada[]
+  gastos                      Gasto[]
+  gastoTipos                  GastoTipo[]
+  impulsoInventarios          ImpulsoInventario[]
+  integraciones               Integracion[]
+  mediaCarpetas               MediaCarpeta[]
+  mediaConfig                 MediaConfig?
+  metasRecaudo                MetaRecaudo[]
+  metasVenta                  MetaVenta[]
+  ordenesDespacho             OrdenDespacho[]
+  productos                   Producto[]
+  reportesImpulsoMes          ReporteImpulsoMes[]
+  rutas                       Ruta[]
+  rutasFijas                  RutaFija[]
+  smsConfig                   SmsConfig?
+  smsLogs                     SmsLog[]
+  snapshotsMes                SnapshotMes[]
+  stockSnapshots              StockSnapshot[]
+  subEmpresas                 SubEmpresa[]
+  transprensaRemesas          TransprensaRemesa[]
+  ventasMes                   VentaMesCliente[]
 }
 
 model Empleado {
-  id                  String               @id @default(cuid())
-  nombre              String
-  email               String               @unique
-  password            String
-  telefono            String?
-  rol                 String               @default("vendedor")
-  activo              Boolean              @default(true)
-  vendedorId          String?
-  empresaId           String
-  createdAt           DateTime             @default(now())
-  puedeCapturarGps    Boolean              @default(false)
-  ciudades            String[]             @default([])
-  permisos            Json?                @default("{}")
-  etiqueta            String?
-  uptresEmail         String?
-  uptresPassword      String?
-  apiId               String?
-  metaVenta           Float?
-  documento           String?
-  tipoDocumento       String?
-  direccionUptres     String?
-  departamento        String?
-  ciudadApiId         String?
-  fechaNacimiento     DateTime?
-  subEmpresaId        String?
-  configRecibos       Json?                @default("{\"prefijo\": null, \"anchoPapel\": null, \"consecutivoMes\": null, \"consecutivoActual\": 0, \"usarConfigEmpresa\": true}")
-  colorFondo           String?
-  syncInicioAt        DateTime?              // fecha de inicio del vendedor — base para sync inicial de cartera
-  syncDeudas          Int?                   // cantidad de deudas en el momento de la sincronización inicial
-  Cartera             Cartera[]
-  DetalleCartera      DetalleCartera[]
-  empresa             Empresa              @relation(fields: [empresaId], references: [id])
-  subEmpresa          SubEmpresa?          @relation(fields: [subEmpresaId], references: [id])
-  listasAsignadas     EmpleadoLista[]
-  PagoCartera         PagoCartera[]
-  rutas               RutaEmpleado[]
-  rutasFijas          RutaFijaEmpleado[]
-  vendedoresAsignados SupervisorVendedor[] @relation("SupervisorVendedores")
-  metasRecaudo        MetaRecaudo[]
-  metasVenta          MetaVenta[]
-  supervisorAsignado  SupervisorVendedor[] @relation("VendedorSupervisor")
-  turnos              Turno[]
-  visitas             Visita[]
-  visitaResumenes     VisitaResumen[]
-  ordenesAlistadas    OrdenDespacho[]      @relation("AlistadoPor")
-  ordenesRepartidas   OrdenDespacho[]      @relation("RepartidorDespacho")
-  comisionConfigs     ComisionConfig[]
-  gastos              Gasto[]
-  impulsoInventarioEmpleado ImpulsoInventario[] @relation("ImpulsoInventarioEmpleado")
-  impulsoInventarioVendedor ImpulsoInventario[] @relation("ImpulsoInventarioVendedor")
-  impulsoRotacionEmpleado   ImpulsoRotacion[]   @relation("ImpulsoRotacionEmpleado")
-  impulsoRotacionVendedor   ImpulsoRotacion[]   @relation("ImpulsoRotacionVendedor")
-  impulsoEventoEmpleado     ImpulsoEvento[]     @relation("ImpulsoEventoEmpleado")
-  impulsoEventoVendedor     ImpulsoEvento[]     @relation("ImpulsoEventoVendedor")
+  id                        String               @id @default(cuid())
+  nombre                    String
+  email                     String               @unique
+  password                  String
+  telefono                  String?
+  rol                       String               @default("vendedor")
+  activo                    Boolean              @default(true)
+  vendedorId                String?
+  empresaId                 String
+  createdAt                 DateTime             @default(now())
+  puedeCapturarGps          Boolean              @default(false)
+  ciudades                  String[]             @default([])
+  permisos                  Json?                @default("{}")
+  etiqueta                  String?
+  uptresEmail               String?
+  uptresPassword            String?
+  apiId                     String?
+  metaVenta                 Float?
+  documento                 String?
+  tipoDocumento             String?
+  direccionUptres           String?
+  departamento              String?
+  ciudadApiId               String?
+  fechaNacimiento           DateTime?
+  subEmpresaId              String?
+  configRecibos             Json?                @default("{\"prefijo\": null, \"anchoPapel\": null, \"consecutivoMes\": null, \"consecutivoActual\": 0, \"usarConfigEmpresa\": true}")
+  colorFondo                String?
+  syncInicioAt              DateTime?
+  syncDeudas                Int?
+  Cartera                   Cartera[]
+  comisionConfigs           ComisionConfig[]
+  DetalleCartera            DetalleCartera[]
+  empresa                   Empresa              @relation(fields: [empresaId], references: [id])
+  subEmpresa                SubEmpresa?          @relation(fields: [subEmpresaId], references: [id])
+  listasAsignadas           EmpleadoLista[]
+  gastos                    Gasto[]
+  impulsoInventarioEmpleado ImpulsoInventario[]  @relation("ImpulsoInventarioEmpleado")
+  impulsoInventarioVendedor ImpulsoInventario[]  @relation("ImpulsoInventarioVendedor")
+  metasRecaudo              MetaRecaudo[]
+  metasVenta                MetaVenta[]
+  ordenesAlistadas          OrdenDespacho[]      @relation("AlistadoPor")
+  ordenesRepartidas         OrdenDespacho[]      @relation("RepartidorDespacho")
+  PagoCartera               PagoCartera[]
+  rutas                     RutaEmpleado[]
+  rutasFijas                RutaFijaEmpleado[]
+  vendedoresAsignados       SupervisorVendedor[] @relation("SupervisorVendedores")
+  supervisorAsignado        SupervisorVendedor[] @relation("VendedorSupervisor")
+  turnos                    Turno[]
+  visitas                   Visita[]
+  visitaResumenes           VisitaResumen[]
 
   @@index([empresaId, activo], map: "idx_empleado_empresa_activo")
   @@map("Empleado")
@@ -166,40 +158,38 @@ model SupervisorVendedor {
 }
 
 model Cliente {
-  id              String            @id @default(cuid())
-  nombre          String
-  nombreComercial String?
-  direccion       String?
-  telefono        String?
-  email           String?
-  lat             Float?
-  lng             Float?
-  ubicacionReal   Boolean           @default(false)
-  empresaId       String
-  subEmpresaId    String?
-  createdAt       DateTime          @default(now())
-  creadoEnBogota  DateTime? // fecha UpTres updatedAt UTC → Bogotá al introducir en BD
-  metaVenta       Float?
-  nit             String?           @db.VarChar(255)
-  ciudad          String?           @db.VarChar(255)
-  departamento    String?           @db.VarChar(255)
-  listaId         String?
-  apiId           String?
-  maps            String?
-  latTmp          Float?
-  lngTmp          Float?
-  Cartera         Cartera[]
-  empresa         Empresa           @relation(fields: [empresaId], references: [id])
-  subEmpresa      SubEmpresa?       @relation(fields: [subEmpresaId], references: [id])
-  lista           ListaClientes?    @relation(fields: [listaId], references: [id])
-  rutaClientes    RutaCliente[]
-  rutasFijas      RutaFijaCliente[]
-  ventasMes       VentaMesCliente[]
-  visitas         Visita[]
-  impulsoInventarios ImpulsoInventario[]
-  impulsoRotaciones  ImpulsoRotacion[]
-  impulsoEventos     ImpulsoEvento[]
+  id                 String              @id @default(cuid())
+  nombre             String
+  nombreComercial    String?
+  direccion          String?
+  telefono           String?
+  email              String?
+  lat                Float?
+  lng                Float?
+  ubicacionReal      Boolean             @default(false)
+  empresaId          String
+  subEmpresaId       String?
+  createdAt          DateTime            @default(now())
+  creadoEnBogota     DateTime?
+  metaVenta          Float?
+  nit                String?             @db.VarChar(255)
+  ciudad             String?             @db.VarChar(255)
+  departamento       String?             @db.VarChar(255)
+  listaId            String?
+  apiId              String?
+  maps               String?
+  latTmp             Float?
+  lngTmp             Float?
+  Cartera            Cartera[]
+  empresa            Empresa             @relation(fields: [empresaId], references: [id])
+  lista              ListaClientes?      @relation(fields: [listaId], references: [id])
+  subEmpresa         SubEmpresa?         @relation(fields: [subEmpresaId], references: [id])
   clienteListas      ClienteLista[]
+  impulsoInventarios ImpulsoInventario[]
+  rutaClientes       RutaCliente[]
+  rutasFijas         RutaFijaCliente[]
+  ventasMes          VentaMesCliente[]
+  visitas            Visita[]
 
   @@index([empresaId], map: "idx_cliente_empresa")
   @@index([listaId], map: "idx_cliente_lista")
@@ -222,10 +212,10 @@ model Turno {
   pausaInicio      DateTime?
   pausaMotivo      String?
   pausaDuracionMin Int?
-  pausaFin         DateTime?
-  pausaFinBogota   String?
   inicioBogota     String?
   finBogota        String?
+  pausaFin         DateTime?
+  pausaFinBogota   String?
   empleado         Empleado  @relation(fields: [empleadoId], references: [id])
   visitas          Visita[]
 
@@ -235,60 +225,53 @@ model Turno {
 }
 
 model Visita {
-  id                String         @id @default(cuid())
-  empleadoId        String
-  clienteId         String
-  turnoId           String?
-  lat               Float?
-  lng               Float?
-  nota              String?
-  foto              String?
-  tipo              String         @default("visita")
-  monto             Float?
-  fechaBogota       DateTime?
-  esLibre           Boolean        @default(false)
-  factura           String?
-  firma             String?
-  rutaFijaClienteId String?
-  ordenDespachoId   String?
+  id                 String         @id @default(cuid())
+  empleadoId         String
+  clienteId          String
+  turnoId            String?
+  lat                Float?
+  lng                Float?
+  nota               String?
+  foto               String?
+  tipo               String         @default("visita")
+  monto              Float?
+  fechaBogota        DateTime?
+  esLibre            Boolean        @default(false)
+  factura            String?
+  firma              String?
+  rutaFijaClienteId  String?
+  ordenDespachoId    String?
+  createdAt          DateTime       @default(now())
   clienteNombreLibre String?
-  createdAt         DateTime       @default(now())
-  cliente           Cliente        @relation(fields: [clienteId], references: [id])
-  empleado          Empleado       @relation(fields: [empleadoId], references: [id])
-  turno             Turno?         @relation(fields: [turnoId], references: [id])
-  ordenDespacho     OrdenDespacho? @relation(fields: [ordenDespachoId], references: [id])
+  cliente            Cliente        @relation(fields: [clienteId], references: [id])
+  empleado           Empleado       @relation(fields: [empleadoId], references: [id])
+  ordenDespacho      OrdenDespacho? @relation(fields: [ordenDespachoId], references: [id])
+  turno              Turno?         @relation(fields: [turnoId], references: [id])
 
   @@index([empleadoId], map: "idx_visita_empleado")
   @@index([empleadoId, clienteId], map: "idx_visita_empleado_cliente")
   @@index([createdAt], map: "idx_visita_fecha")
   @@index([fechaBogota], map: "idx_visita_fecha_bogota")
   @@index([fechaBogota], map: "idx_visita_fechabogota")
-  @@map("Visita")
   @@index([turnoId])
+  @@map("Visita")
 }
 
 model VisitaResumen {
-  id            String   @id @default(cuid())
-  empleadoId    String
-  // 'dia' o 'mes'
-  granularidad  String
-  // 'dia'  → "2026-06-07"  (fecha exacta Bogotá)
-  // 'mes'  → "2026-06-01"  (primer día del mes)
-  fecha         String
-  // Conteos
-  total         Int      @default(0)
-  visitas       Int      @default(0)
-  ventas        Int      @default(0)
-  cobros        Int      @default(0)
-  entregas      Int      @default(0)
-  // Montos
-  montoVentas   Float    @default(0)
+  id               String   @id @default(cuid())
+  empleadoId       String
+  granularidad     String
+  fecha            String
+  total            Int      @default(0)
+  visitas          Int      @default(0)
+  ventas           Int      @default(0)
+  cobros           Int      @default(0)
+  entregas         Int      @default(0)
+  montoVentas      Float    @default(0)
   montoCobros      Float    @default(0)
-  monto_descuentos  Float    @default(0)
-  // Control
-  actualizadoEn DateTime @updatedAt
-
-  empleado Empleado @relation(fields: [empleadoId], references: [id])
+  actualizadoEn    DateTime @updatedAt
+  monto_descuentos Float    @default(0)
+  empleado         Empleado @relation(fields: [empleadoId], references: [id])
 
   @@unique([empleadoId, granularidad, fecha])
   @@index([empleadoId, granularidad, fecha])
@@ -307,14 +290,14 @@ model Ruta {
   cerradaEl          DateTime?
   iniciada           Boolean           @default(false)
   empresa            Empresa           @relation(fields: [empresaId], references: [id])
-  subEmpresa         SubEmpresa?       @relation(fields: [subEmpresaId], references: [id])
   empresaVinculada   EmpresaVinculada? @relation(fields: [empresaVinculadaId], references: [id])
+  subEmpresa         SubEmpresa?       @relation(fields: [subEmpresaId], references: [id])
   clientes           RutaCliente[]
   empleados          RutaEmpleado[]
 
   @@index([empresaId], map: "idx_ruta_empresa")
-  @@map("Ruta")
   @@index([empresaId, fecha, cerrada])
+  @@map("Ruta")
 }
 
 model RutaEmpleado {
@@ -324,41 +307,41 @@ model RutaEmpleado {
   empleado   Empleado @relation(fields: [empleadoId], references: [id])
   ruta       Ruta     @relation(fields: [rutaId], references: [id])
 
-  @@map("RutaEmpleado")
   @@index([empleadoId])
+  @@map("RutaEmpleado")
 }
 
 model RutaCliente {
-  id                 String   @id @default(cuid())
+  id                 String    @id @default(cuid())
   rutaId             String
   clienteId          String
-  orden              Int      @default(0)
-  rezago             Boolean  @default(false)
-  asignadoEn         DateTime @default(now())
+  orden              Int       @default(0)
+  rezago             Boolean   @default(false)
+  asignadoEn         DateTime  @default(now())
   supervisorId       String?
   supervisorEtiqueta String?
   notas              String?
-  ejecutado          Boolean  @default(false)
+  ejecutado          Boolean   @default(false)
   posible_entrega    DateTime? @db.Date
-  cliente            Cliente  @relation(fields: [clienteId], references: [id])
-  ruta               Ruta     @relation(fields: [rutaId], references: [id])
+  cliente            Cliente   @relation(fields: [clienteId], references: [id])
+  ruta               Ruta      @relation(fields: [rutaId], references: [id])
 
   @@index([rutaId], map: "idx_rutacliente_ruta")
   @@map("RutaCliente")
 }
 
 model RutaFija {
-  id              String             @id @default(cuid())
-  nombre          String
-  diaSemana       Int
-  empresaId       String
-  subEmpresaId    String?
-  createdAt       DateTime           @default(now())
-  priorizableHoy  Boolean            @default(false)
-  empresa         Empresa            @relation(fields: [empresaId], references: [id])
-  subEmpresa      SubEmpresa?        @relation(fields: [subEmpresaId], references: [id])
-  clientes        RutaFijaCliente[]
-  empleados       RutaFijaEmpleado[]
+  id             String             @id @default(cuid())
+  nombre         String
+  diaSemana      Int
+  empresaId      String
+  subEmpresaId   String?
+  createdAt      DateTime           @default(now())
+  priorizableHoy Boolean            @default(false)
+  empresa        Empresa            @relation(fields: [empresaId], references: [id])
+  subEmpresa     SubEmpresa?        @relation(fields: [subEmpresaId], references: [id])
+  clientes       RutaFijaCliente[]
+  empleados      RutaFijaEmpleado[]
 
   @@map("RutaFija")
 }
@@ -370,8 +353,8 @@ model RutaFijaEmpleado {
   empleado   Empleado @relation(fields: [empleadoId], references: [id])
   rutaFija   RutaFija @relation(fields: [rutaFijaId], references: [id])
 
-  @@map("RutaFijaEmpleado")
   @@index([empleadoId])
+  @@map("RutaFijaEmpleado")
 }
 
 model RutaFijaCliente {
@@ -380,11 +363,11 @@ model RutaFijaCliente {
   clienteId   String
   orden       Int      @default(0)
   metaVenta   Float?
-  horaEntrada String?
   latImpulso  Float?
   lngImpulso  Float?
   latVendedor Float?
   lngVendedor Float?
+  horaEntrada String?
   cliente     Cliente  @relation(fields: [clienteId], references: [id])
   rutaFija    RutaFija @relation(fields: [rutaFijaId], references: [id])
 
@@ -395,7 +378,7 @@ model VentaMesCliente {
   id              String   @id @default(cuid())
   clienteId       String
   empresaId       String
-  mes             String // YYYY-MM
+  mes             String
   totalVenta      Float    @default(0)
   cantidadVisitas Int      @default(0)
   updatedAt       DateTime @updatedAt
@@ -431,43 +414,42 @@ model PrecioRol {
 }
 
 model ListaClientes {
-  id         String          @id @default(cuid())
-  api_id     String?         @unique
-  name_us    String?
-  nombre     String
-  empresaId  String
-  createdAt  DateTime?       @default(now()) @db.Timestamp(6)
+  id            String          @id @default(cuid())
+  nombre        String
+  empresaId     String
+  createdAt     DateTime?       @default(now()) @db.Timestamp(6)
+  api_id        String?         @unique
+  name_us       String?
   clientes      Cliente[]
-  vendedores    EmpleadoLista[]
   clienteListas ClienteLista[]
+  vendedores    EmpleadoLista[]
 
   @@map("ListaClientes")
 }
 
 model Proveedor {
-  id                 String    @id @default(cuid())
-  api_id             String?   @unique
-  empresaId          String
-  firstName          String
-  lastName           String?
-  document           String?
-  documentType       String?
-  verificationDigit  String?
-  email              String?
-  phone              String?
-  cityId             String?
-  address            String?
-  neighborhood       String?
-  note               String?
+  id                   String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  api_id               String?   @unique
+  empresaId            String
+  firstName            String
+  lastName             String?
+  document             String?
+  documentType         String?
+  verificationDigit    String?
+  email                String?
+  phone                String?
+  cityId               String?
+  address              String?
+  neighborhood         String?
+  note                 String?
   condition            Boolean   @default(true)
+  createdAt            DateTime  @default(now()) @db.Timestamp(6)
+  updatedAt            DateTime? @db.Timestamp(6)
   aplica_retencion     Boolean   @default(false)
   porcentaje_retencion Decimal?  @db.Decimal(5, 2)
   banco                String?
   numero_cuenta        String?
   whatsapp             String?
-  egresos              Egreso[]
-  createdAt            DateTime  @default(now()) @db.Timestamp(6)
-  updatedAt            DateTime? @db.Timestamp(6)
 
   @@map("Proveedor")
 }
@@ -475,8 +457,8 @@ model Proveedor {
 model ClienteLista {
   clienteId String
   listaId   String
-  cliente   Cliente       @relation(fields: [clienteId], references: [id])
-  lista     ListaClientes @relation(fields: [listaId], references: [id])
+  cliente   Cliente       @relation(fields: [clienteId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  lista     ListaClientes @relation(fields: [listaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@id([clienteId, listaId])
   @@map("ClienteLista")
@@ -537,47 +519,44 @@ model DetalleCartera {
 }
 
 model PagoCartera {
-  id             String             @id @default(dbgenerated("(gen_random_uuid())::text"))
-  carteraId      String?
-  empleadoId     String
-  monto          Decimal            @db.Decimal(12, 2)
-  descuento      Decimal?           @default(0) @db.Decimal(12, 2)
-  tipo           String?            @default("abono")
-  metodopago     String?            @default("efectivo")
-  notas          String?
-  reciboUrl      String?
-  createdAt      DateTime?          @default(now()) @db.Timestamp(6)
-  numeroRecibo   String?
-  reciboToken    String?            @unique
-  tokenExpira    DateTime?
-  voucherKey     String?
-  voucherDatosIA Json?
-  fechaPago      DateTime?
-  saldoAnterior  Decimal?           @db.Decimal(14, 2)
-  numeroFactura  Int?
-  clienteApiId   String?            // Congelado al momento del pago
-  clienteNombre  String?            // Congelado al momento del pago
-  valorFactura   Decimal?           @db.Decimal(14, 2) // Valor original
-  vendedorNombre String?            // Congelado al momento del pago
-  reciboPago     Json?              // Snapshot completo al momento del pago (only-insert)
-  lineasPago     Json?
-  latCobro       Float?
-  lngCobro       Float?
-  gpsAccuracy    Float?
-  syncDeudaId    String?
-  idempotencyKey String?            @unique
-  envioEstado    String             @default("pendiente")
-  envioFecha     DateTime?
-  envioRef       String?
-  envioVariacion Json?
-  receivableAtUptres DateTime?      // Fecha real en que UpTres confirmó este pago (receivableAt
-                                      // de la orden en el momento de la reconciliación). Null
-                                      // mientras envioEstado='pendiente'. Permite distinguir un
-                                      // pago lento (UpTres aún no confirma) de uno huérfano real
-                                      // (nunca se confirmará porque no corresponde a un pago real).
-  Cartera        Cartera?           @relation(fields: [carteraId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Empleado       Empleado           @relation(fields: [empleadoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  Aplicaciones   PagoCarteraDeuda[]
+  id                 String             @id @default(dbgenerated("(gen_random_uuid())::text"))
+  carteraId          String?
+  empleadoId         String
+  monto              Decimal            @db.Decimal(12, 2)
+  descuento          Decimal?           @default(0) @db.Decimal(12, 2)
+  tipo               String?            @default("abono")
+  metodopago         String?            @default("efectivo")
+  notas              String?
+  reciboUrl          String?
+  createdAt          DateTime?          @default(now()) @db.Timestamp(6)
+  numeroRecibo       String?
+  reciboToken        String?            @unique
+  tokenExpira        DateTime?
+  voucherKey         String?
+  voucherDatosIA     Json?
+  fechaPago          DateTime?
+  saldoAnterior      Decimal?           @db.Decimal(14, 2)
+  numeroFactura      Int?
+  clienteApiId       String?
+  clienteNombre      String?
+  valorFactura       Decimal?           @db.Decimal(14, 2)
+  vendedorNombre     String?
+  reciboPago         Json?
+  lineasPago         Json?
+  latCobro           Float?
+  lngCobro           Float?
+  gpsAccuracy        Float?
+  syncDeudaId        String?
+  idempotencyKey     String?            @unique
+  envioEstado        String             @default("pendiente")
+  envioFecha         DateTime?
+  envioRef           String?
+  envioVariacion     Json?
+  receivableAtUptres DateTime?
+  alertaVoucher      String?
+  Cartera            Cartera?           @relation(fields: [carteraId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Empleado           Empleado           @relation(fields: [empleadoId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  Aplicaciones       PagoCarteraDeuda[]
 
   @@index([empleadoId])
   @@index([syncDeudaId])
@@ -585,22 +564,18 @@ model PagoCartera {
 }
 
 model PagoCarteraDeuda {
-  id            String      @id @default(cuid())
-  pagoId        String
-  syncDeudaId   String
-  numeroFactura Int?
-  externalId    String?
-  montoAplicado Decimal     @db.Decimal(14, 2)
-  descuento     Decimal?    @db.Decimal(10, 2)  // Descuento comercial por factura
-  createdAt     DateTime    @default(now())
-  // Estado por FACTURA — única fuente de verdad para el envío/confirmación a UpTres.
-  // PagoCartera.envioEstado se DERIVA de estas filas (todas recibido → recibido;
-  // todas al menos enviado → enviado; cualquier otra combinación → pendiente).
-  // NUNCA duplicar este estado en PagoCartera directamente — evita desincronización.
-  envioEstado        String    @default("pendiente")
+  id                 String      @id @default(cuid())
+  pagoId             String
+  syncDeudaId        String
+  numeroFactura      Int?
+  externalId         String?
+  montoAplicado      Decimal     @db.Decimal(14, 2)
+  descuento          Decimal?    @db.Decimal(10, 2)
+  createdAt          DateTime    @default(now())
+  envioEstado        String      @default("pendiente")
   envioFecha         DateTime?
   receivableAtUptres DateTime?
-  PagoCartera   PagoCartera @relation(fields: [pagoId], references: [id], onDelete: Cascade)
+  PagoCartera        PagoCartera @relation(fields: [pagoId], references: [id], onDelete: Cascade)
 
   @@index([pagoId])
   @@index([syncDeudaId])
@@ -610,13 +585,12 @@ model PagoCarteraDeuda {
 model PushSuscripcion {
   id         String   @id
   empleadoId String
-  endpoint   String
+  endpoint   String   @unique
   p256dh     String
   auth       String
-  user_agent String?
   createdAt  DateTime @default(now())
+  user_agent String?
 
-  @@unique([endpoint])
   @@index([empleadoId])
 }
 
@@ -2769,10 +2743,10 @@ model MetaRecaudo {
   id         String   @id @default(cuid())
   empleadoId String
   empresaId  String
-  mes        Int // 1-12
+  mes        Int
   anio       Int
   metaPesos  Decimal  @db.Decimal(14, 2)
-  metaPct    Decimal? @db.Decimal(5, 2) // % de cartera asignada
+  metaPct    Decimal? @db.Decimal(5, 2)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
   empleado   Empleado @relation(fields: [empleadoId], references: [id])
@@ -2806,39 +2780,39 @@ model SubEmpresa {
   configRecibos Json?         @default("{\"nit\": null, \"logo\": null, \"prefijo\": \"REC\", \"telefono\": null, \"direccion\": null, \"anchoPapel\": \"80mm\"}")
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
-  empresa       Empresa       @relation(fields: [empresaId], references: [id])
-  empleados     Empleado[]
   clientes      Cliente[]
+  empleados     Empleado[]
+  integraciones Integracion[]
   rutas         Ruta[]
   rutasFijas    RutaFija[]
-  integraciones Integracion[]
+  empresa       Empresa       @relation(fields: [empresaId], references: [id])
 
   @@index([empresaId])
   @@map("SubEmpresa")
 }
 
 model Integracion {
-  id           String         @id @default(cuid())
-  empresaId    String
-  subEmpresaId String?
-  nombre       String
-  tipo         String // uptres | siigo | alegra | custom
-  activa       Boolean        @default(true)
-  config       Json? // credenciales encriptadas, URLs base, etc.
-  ultimaSync   DateTime?
+  id                 String            @id @default(cuid())
+  empresaId          String
+  subEmpresaId       String?
+  nombre             String
+  tipo               String
+  activa             Boolean           @default(true)
+  config             Json?
+  ultimaSync         DateTime?
   ultimaSyncCompleta DateTime?
-  syncInicial  Boolean        @default(false)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  empresa      Empresa        @relation(fields: [empresaId], references: [id])
-  subEmpresa   SubEmpresa?    @relation(fields: [subEmpresaId], references: [id])
-  compras      SyncCompra[]
-  deudas       SyncDeuda[]
-  notasCredito SyncNotaCredito[]
-  logs         SyncLog[]
-  carteraCache CarteraCache[]
-  empleados    SyncEmpleado[]
-  productos    Producto[]
+  syncInicial        Boolean           @default(false)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+  carteraCache       CarteraCache[]
+  empresa            Empresa           @relation(fields: [empresaId], references: [id])
+  subEmpresa         SubEmpresa?       @relation(fields: [subEmpresaId], references: [id])
+  productos          Producto[]
+  compras            SyncCompra[]
+  deudas             SyncDeuda[]
+  empleados          SyncEmpleado[]
+  logs               SyncLog[]
+  notasCredito       SyncNotaCredito[]
 
   @@index([empresaId])
   @@index([subEmpresaId])
@@ -2846,28 +2820,27 @@ model Integracion {
 }
 
 model CarteraCache {
-  id                  String    @id @default(cuid())
+  id                  String      @id @default(cuid())
   empresaId           String
   integracionId       String
-  clienteId           String? // FK a Cliente local (null si no existe aun)
-  clienteApiId        String // ID en UpTres
+  clienteId           String?
+  clienteApiId        String
   nombre              String
   nit                 String?
   telefono            String?
   ciudad              String?
   empleadoExternalId  String?
   empleadoNombre      String?
-  saldoTotal          Decimal   @db.Decimal(14, 2)
-  saldoPendiente      Decimal   @db.Decimal(14, 2)
-  porEstado           Json? // {pendiente, vencida, mora, critica, pagada}
-  deudas              Json? // array detalle de cada orden
-  totalDeudas         Int       @default(0)
-  ultimaActualizacion DateTime  @default(now())
+  saldoTotal          Decimal     @db.Decimal(14, 2)
+  saldoPendiente      Decimal     @db.Decimal(14, 2)
+  porEstado           Json?
+  deudas              Json?
+  totalDeudas         Int         @default(0)
+  ultimaActualizacion DateTime    @default(now())
   ultimaConsulta      DateTime?
-  saldoValidado       Boolean   @default(false)
-
-  empresa     Empresa     @relation(fields: [empresaId], references: [id])
-  integracion Integracion @relation(fields: [integracionId], references: [id])
+  saldoValidado       Boolean     @default(false)
+  empresa             Empresa     @relation(fields: [empresaId], references: [id])
+  integracion         Integracion @relation(fields: [integracionId], references: [id])
 
   @@unique([integracionId, clienteApiId])
   @@index([empresaId])
@@ -2879,25 +2852,25 @@ model CarteraCache {
 model SyncCompra {
   id                 String      @id @default(cuid())
   integracionId      String
-  externalId         String // uid/_id de UpTres
-  clienteApiId       String // cliente.uid de UpTres = Cliente.apiId
-  empleadoExternalId String? // empleado.uid de UpTres
+  externalId         String
+  clienteApiId       String
+  empleadoExternalId String?
   numeroOrden        Int?
   numeroFactura      Int?
   valor              Decimal     @db.Decimal(14, 2)
   saldo              Decimal     @default(0) @db.Decimal(14, 2)
   abono              Decimal     @default(0) @db.Decimal(14, 2)
-  tipo               String? // credito | contado
+  tipo               String?
   diasCredito        Int?
   facturado          Boolean     @default(false)
   fecha              DateTime?
   fechaVencimiento   DateTime?
   nameciudad         String?
   condition          Boolean     @default(true)
-  condicionUpTres    Boolean?    @default(true)
-  data               Json? // JSON crudo completo del externo
-  modificadoEn       DateTime? // fModificado del externo para delta sync
+  data               Json?
+  modificadoEn       DateTime?
   sincronizadoEl     DateTime    @default(now())
+  condicionUpTres    Boolean?    @default(true)
   integracion        Integracion @relation(fields: [integracionId], references: [id])
 
   @@unique([integracionId, externalId])
@@ -2907,39 +2880,39 @@ model SyncCompra {
 }
 
 model SyncDeuda {
-  id                 String      @id @default(cuid())
-  integracionId      String
-  externalId         String // uid de la orden de credito en UpTres
-  clienteApiId       String // cliente.uid = Cliente.apiId
-  empleadoExternalId String?
-  numeroOrden        Int?
-  numeroFactura      Int?
-  valor              Decimal     @db.Decimal(14, 2)
-  saldo              Decimal     @db.Decimal(14, 2)
-  saldoAnterior      Decimal?    @db.Decimal(14, 2)
-  saldoUptresOriginal Decimal?   @db.Decimal(14, 2) // espejo crudo de UpTres — solo lo escribe sync-nocturno
-  nSaldo              Decimal?   @db.Decimal(14, 2) // saldo real calculado localmente (nSaldo v3) — fuente de verdad para recibos
-  nSaldoBase          Decimal?   @db.Decimal(14, 2) // base de saldo al momento de sync inicial del vendedor (write-once)
-  nSaldoBaseAt        DateTime?                   // fecha de inicio de pagos gestor — solo pagos posteriores a esta fecha se descuentan
-  ajusteManual        Decimal?   @db.Decimal(14, 2) // ajuste manual admin — reduce nSaldo (nota crédito interna, descuento, cortesía)
-  ajusteNota          String?                     // razón obligatoria del ajuste
-  ajusteFecha         DateTime?                   // cuándo se aplicó el ajuste
-  abono              Decimal     @default(0) @db.Decimal(14, 2)
-  diasCredito        Int?
-  fechaVencimiento   DateTime?
-  condition          Boolean     @default(true)
-  condicionUpTres    Boolean?    @default(true)
-  data               Json? // JSON crudo completo del externo
-  modificadoEn       DateTime?
-  externalUpdatedAt  DateTime? // updatedAt de UpTres — señal de cambio en origen
-  receivableAt       DateTime? // fecha del último pago en UpTres — ya en hora Bogotá, sin conversión
-  isDelivered        Boolean?
-  paymentMethod      String?
-  discountAdi        Decimal?  @db.Decimal(14, 2)
-  note               String?
-  sincronizadoEl     DateTime  @default(now())
-  createdAtBogota    DateTime? // createdAt UpTres UTC → convertido UTC-5 Bogotá al insertar
-  integracion        Integracion @relation(fields: [integracionId], references: [id])
+  id                  String      @id @default(cuid())
+  integracionId       String
+  externalId          String
+  clienteApiId        String
+  empleadoExternalId  String?
+  numeroOrden         Int?
+  numeroFactura       Int?
+  valor               Decimal     @db.Decimal(14, 2)
+  saldo               Decimal     @db.Decimal(14, 2)
+  saldoAnterior       Decimal?    @db.Decimal(14, 2)
+  abono               Decimal     @default(0) @db.Decimal(14, 2)
+  diasCredito         Int?
+  fechaVencimiento    DateTime?
+  condition           Boolean     @default(true)
+  data                Json?
+  modificadoEn        DateTime?
+  externalUpdatedAt   DateTime?
+  receivableAt        DateTime?
+  isDelivered         Boolean?
+  paymentMethod       String?
+  discountAdi         Decimal?    @db.Decimal(14, 2)
+  note                String?
+  sincronizadoEl      DateTime    @default(now())
+  createdAtBogota     DateTime?
+  condicionUpTres     Boolean?    @default(true)
+  saldoUptresOriginal Decimal?    @db.Decimal(14, 2)
+  nSaldo              Decimal?    @db.Decimal(14, 2)
+  nSaldoBase          Decimal?    @db.Decimal(14, 2)
+  nSaldoBaseAt        DateTime?
+  ajusteManual        Decimal?    @db.Decimal(14, 2)
+  ajusteNota          String?
+  ajusteFecha         DateTime?
+  integracion         Integracion @relation(fields: [integracionId], references: [id])
 
   @@unique([integracionId, externalId])
   @@index([clienteApiId])
@@ -2948,32 +2921,31 @@ model SyncDeuda {
 }
 
 model SyncLog {
-  id                   String      @id @default(cuid())
-  integracionId        String?
-  inicio               DateTime
-  fin                  DateTime?
-  clientesActualizados Int         @default(0)
-  comprasSincronizadas Int         @default(0)
-  deudasSincronizadas  Int         @default(0)
-  zombis               Int         @default(0)
-  pagosConfrontados    Int         @default(0)
-  empleadosSincronizados Int       @default(0)
-  duracionMs           Int?
-  disparadoPor         String      @default("cron") // cron | manual
-  errores              Json?
-  estado               String      @default("ok") // ok | parcial | error
-  createdAt            DateTime    @default(now())
-  // Campos delta — ordenes, clientes y deudas por ciclo
-  tipo                 String      @default("integracion") // delta | bodega | integracion | nocturno
-  ordenesNuevas        Int         @default(0)
-  clientesNuevos       Int         @default(0)
-  deudasNuevasDelta    Int         @default(0)
-  empresaId            String?
-  empleadosActualizados Int      @default(0) // vendedores con datos actualizados desde UpTres
-  saldosActualizados    Int      @default(0) // deudas con saldo actualizado vía receivableAt
-  reconciliadas         Int      @default(0) // órdenes sin facturar actualizadas por reconciliador
-  detalle              Json?                 // timing por sección: { fetchVentas: ms, upsertOrdenes: ms, ... }
-  integracion          Integracion? @relation(fields: [integracionId], references: [id])
+  id                     String       @id @default(cuid())
+  integracionId          String?
+  inicio                 DateTime
+  fin                    DateTime?
+  clientesActualizados   Int          @default(0)
+  comprasSincronizadas   Int          @default(0)
+  deudasSincronizadas    Int          @default(0)
+  zombis                 Int          @default(0)
+  pagosConfrontados      Int          @default(0)
+  empleadosSincronizados Int          @default(0)
+  duracionMs             Int?
+  disparadoPor           String       @default("cron")
+  errores                Json?
+  estado                 String       @default("ok")
+  createdAt              DateTime     @default(now())
+  tipo                   String       @default("integracion")
+  ordenesNuevas          Int          @default(0)
+  clientesNuevos         Int          @default(0)
+  deudasNuevasDelta      Int          @default(0)
+  empresaId              String?
+  empleadosActualizados  Int          @default(0)
+  saldosActualizados     Int          @default(0)
+  reconciliadas          Int          @default(0)
+  detalle                Json?
+  integracion            Integracion? @relation(fields: [integracionId], references: [id])
 
   @@index([integracionId])
   @@index([empresaId, createdAt])
@@ -2981,32 +2953,33 @@ model SyncLog {
 }
 
 model EmpresaVinculada {
-  id               String          @id @default(cuid())
-  empresaId        String
-  nombre           String
-  apiKey           String          @unique @default(uuid())
-  color            String          @default("#8b5cf6")
-  activa           Boolean         @default(true)
-  empresaClienteId   String?
-  conectadaAt       DateTime?          @db.Timestamp(6)
-  fechaInicioBodega DateTime?          @db.Timestamp(6)
-  createdAt        DateTime        @default(now())
-  empresa          Empresa         @relation(fields: [empresaId], references: [id])
-  rutas            Ruta[]
-  ordenesDespacho  OrdenDespacho[]
+  id                String          @id @default(cuid())
+  empresaId         String
+  nombre            String
+  apiKey            String          @unique @default(uuid())
+  color             String          @default("#8b5cf6")
+  activa            Boolean         @default(true)
+  empresaClienteId  String?
+  createdAt         DateTime        @default(now())
+  fechaInicioBodega DateTime?       @db.Timestamp(6)
+  conectadaAt       DateTime?       @db.Timestamp(6)
+  empresa           Empresa         @relation(fields: [empresaId], references: [id])
+  ordenesDespacho   OrdenDespacho[]
+  rutas             Ruta[]
 
   @@map("EmpresaVinculada")
 }
 
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
 model OrdenDespacho {
-  id                String            @id @default(cuid())
+  id                String             @id @default(cuid())
   empresaId         String
   origen            String
   origenId          String?
   numeroOrden       String
   numeroFactura     String?
-  isFacturada       Boolean  @default(false)
-  isActiva          Boolean  @default(true)
+  isFacturada       Boolean            @default(false)
+  isActiva          Boolean            @default(true)
   fechaFactura      DateTime?
   vendedorApiId     String?
   clienteApiId      String?
@@ -3015,9 +2988,9 @@ model OrdenDespacho {
   ciudad            String?
   direccion         String?
   telefono          String?
-  estado            String            @default("pendiente")
-  fotoAlistamiento  String? // legacy
-  fotosAlistamiento Json? // array de URLs
+  estado            String             @default("pendiente")
+  fotoAlistamiento  String?
+  fotosAlistamiento Json?
   alistadoEl        DateTime?
   alistadoPorId     String?
   repartidorId      String?
@@ -3026,12 +2999,11 @@ model OrdenDespacho {
   entregadoEl       DateTime?
   transportadora    String?
   guiaTransporte    String?
-  modo_despacho     String?
-  fechaOrden        DateTime?  // UTC — tal como llega de UpTres
-  fechaOrdenBogota  DateTime?  // UTC-5 Bogotá — calculada al insertar
-  totalOrden        Decimal?          @db.Decimal(14, 2)
-  discount          Decimal?          @db.Decimal(14, 2)
-  balance           Decimal?          @db.Decimal(14, 2)
+  fechaOrden        DateTime?
+  fechaOrdenBogota  DateTime?
+  totalOrden        Decimal?           @db.Decimal(14, 2)
+  discount          Decimal?           @db.Decimal(14, 2)
+  balance           Decimal?           @db.Decimal(14, 2)
   paymentType       String?
   paymentMethod     String?
   isDelivered       Boolean?
@@ -3039,46 +3011,47 @@ model OrdenDespacho {
   isCompleted       Boolean?
   amountItems       Int?
   origenVinculadaId String?
-  sincronizadoEn    DateTime?         // cuándo entró a BD via sync
-  origenSync        String?           // 'delta' | 'nocturno' | 'backfill' | 'manual' | 'recuperada'
-  urlSeguimiento    String?           // URL completa de seguimiento: urlBase + guiaTransporte
-  transprensaRemesa  TransprensaRemesa?
-  smsEnviado        Boolean           @default(false) // SMS de factura enviado al cliente
-  num_cajas         Int               @default(0)
-  observacion       String?           // Observación libre al despachar
-  devuelta          Boolean           @default(false) // true si fue enviada a entregas y devuelta a bodega
-  reconciliadoEn    DateTime?         // cuándo se marcó isFacturada=true por reconciliador
-  createdAt         DateTime          @default(now())
-  empresaVinculada  EmpresaVinculada? @relation(fields: [origenVinculadaId], references: [id])
-  updatedAt         DateTime          @updatedAt
-  empresa           Empresa           @relation(fields: [empresaId], references: [id])
-  alistadoPor       Empleado?         @relation("AlistadoPor", fields: [alistadoPorId], references: [id])
-  repartidor        Empleado?         @relation("RepartidorDespacho", fields: [repartidorId], references: [id])
-  visitas           Visita[]
+  sincronizadoEn    DateTime?
+  origenSync        String?
+  reconciliadoEn    DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  smsEnviado        Boolean            @default(false)
+  urlSeguimiento    String?
+  num_cajas         Int                @default(0)
+  observacion       String?
+  modo_despacho     String?
+  devuelta          Boolean            @default(false)
+  alistadoPor       Empleado?          @relation("AlistadoPor", fields: [alistadoPorId], references: [id])
+  empresa           Empresa            @relation(fields: [empresaId], references: [id])
+  empresaVinculada  EmpresaVinculada?  @relation(fields: [origenVinculadaId], references: [id])
+  repartidor        Empleado?          @relation("RepartidorDespacho", fields: [repartidorId], references: [id])
   smsLogs           SmsLog[]
+  transprensaRemesa TransprensaRemesa?
+  visitas           Visita[]
 
+  @@unique([origenId, empresaId], name: "origenId_empresaId")
   @@index([empresaId, estado])
   @@index([empresaId, origen])
-  @@unique([origenId, empresaId], name: "origenId_empresaId")
   @@index([empresaId, vendedorApiId])
   @@index([empresaId, numeroFactura])
   @@map("OrdenDespacho")
 }
 
 model DespachoLog {
-  id                String   @id @default(cuid())
-  empresaId         String
-  origenVinculadaId String?
-  numeroFactura     String
-  clienteNombre     String?
-  modo              String
+  id                  String   @id @default(cuid())
+  empresaId           String
+  origenVinculadaId   String?
+  numeroFactura       String
+  clienteNombre       String?
+  modo                String
   guiaTransporte      String?
   transportadora      String?
+  despachadoEl        DateTime @default(now())
   observacion         String?
   despachadoPorId     String?
   despachadoPorNombre String?
-  despachadoEl        DateTime @default(now())
-  empresa           Empresa  @relation("DespachoLogEmpresa", fields: [empresaId], references: [id])
+  empresa             Empresa  @relation("DespachoLogEmpresa", fields: [empresaId], references: [id])
 
   @@index([empresaId, despachadoEl(sort: Desc)])
   @@index([empresaId, numeroFactura])
@@ -3108,8 +3081,8 @@ model ComisionConfig {
   activo     Boolean  @default(true)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  empresa    Empresa  @relation(fields: [empresaId], references: [id])
   empleado   Empleado @relation(fields: [empleadoId], references: [id])
+  empresa    Empresa  @relation(fields: [empresaId], references: [id])
 
   @@unique([empresaId, empleadoId])
   @@index([empresaId])
@@ -3139,14 +3112,14 @@ model Gasto {
   fechaAgregacion DateTime  @default(now())
   fechaDoc        DateTime?
   concepto        String
-  tipo            String    // Viaticos | Eventos | Papeleria | Otros — obligado, sin default
   valor           Decimal   @db.Decimal(12, 2)
   evidenciaKey    String
   datosIA         Json?
-  ciudad          String?
   createdAt       DateTime  @default(now())
-  empresa         Empresa   @relation(fields: [empresaId], references: [id])
+  tipo            String
+  ciudad          String?
   empleado        Empleado? @relation(fields: [empleadoId], references: [id])
+  empresa         Empresa   @relation(fields: [empresaId], references: [id])
 
   @@index([empresaId, empleadoId])
   @@map("Gasto")
@@ -3167,21 +3140,20 @@ model ReporteImpulsoMes {
 }
 
 model ImpulsoInventario {
-  id           String   @id @default(cuid())
-  clienteId    String
-  productoId   String
-  sugerido     Float?
-  inventario   Float?
-  empleadoId   String   // impulsadora que llena
-  vendedorId   String   // vendedor destino
-  empresaId    String
-  createdAt    DateTime @default(now())
-
-  cliente      Cliente  @relation(fields: [clienteId], references: [id])
-  empleado     Empleado @relation("ImpulsoInventarioEmpleado", fields: [empleadoId], references: [id])
-  vendedor     Empleado @relation("ImpulsoInventarioVendedor", fields: [vendedorId], references: [id])
-  producto     Producto @relation(fields: [productoId], references: [id])
-  empresa      Empresa  @relation(fields: [empresaId], references: [id])
+  id         String   @id @default(cuid())
+  clienteId  String
+  productoId String
+  sugerido   Float?
+  inventario Float?
+  empleadoId String
+  vendedorId String
+  empresaId  String
+  createdAt  DateTime @default(now())
+  cliente    Cliente  @relation(fields: [clienteId], references: [id])
+  empleado   Empleado @relation("ImpulsoInventarioEmpleado", fields: [empleadoId], references: [id])
+  empresa    Empresa  @relation(fields: [empresaId], references: [id])
+  producto   Producto @relation(fields: [productoId], references: [id])
+  vendedor   Empleado @relation("ImpulsoInventarioVendedor", fields: [vendedorId], references: [id])
 
   @@index([vendedorId])
   @@index([clienteId])
@@ -3198,57 +3170,46 @@ model ImpulsoRotacion {
   empleadoId   String
   vendedorId   String
   empresaId    String
-  createdAt    DateTime @default(now())
+  createdAt    DateTime @default(now()) @db.Timestamptz(6)
 
-  cliente      Cliente  @relation(fields: [clienteId], references: [id])
-  empleado     Empleado @relation("ImpulsoRotacionEmpleado", fields: [empleadoId], references: [id])
-  vendedor     Empleado @relation("ImpulsoRotacionVendedor", fields: [vendedorId], references: [id])
-  producto     Producto @relation(fields: [productoId], references: [id])
-  empresa      Empresa  @relation(fields: [empresaId], references: [id])
-
-  @@index([vendedorId])
-  @@index([clienteId])
-  @@index([empleadoId])
+  @@index([clienteId], map: "idx_impulso_rot_cliente")
+  @@index([empleadoId], map: "idx_impulso_rot_empleado")
+  @@index([vendedorId], map: "idx_impulso_rot_vendedor")
   @@map("ImpulsoRotacion")
 }
 
 model ImpulsoEvento {
-  id          String   @id @default(cuid())
-  clienteId   String
-  ciudad      String?
-  tipoEvento  String
-  fecha       DateTime
-  fotos       Json     // string[] — hasta 4 keys R2
-  empleadoId  String
-  vendedorId  String
-  empresaId   String
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  clienteId  String
+  ciudad     String?
+  tipoEvento String
+  fecha      DateTime @db.Timestamptz(6)
+  fotos      Json     @default("[]")
+  empleadoId String
+  vendedorId String
+  empresaId  String
+  createdAt  DateTime @default(now()) @db.Timestamptz(6)
 
-  cliente     Cliente  @relation(fields: [clienteId], references: [id])
-  empleado    Empleado @relation("ImpulsoEventoEmpleado", fields: [empleadoId], references: [id])
-  vendedor    Empleado @relation("ImpulsoEventoVendedor", fields: [vendedorId], references: [id])
-  empresa     Empresa  @relation(fields: [empresaId], references: [id])
-
-  @@index([vendedorId])
-  @@index([empleadoId])
-  @@index([empresaId])
+  @@index([empleadoId], map: "idx_impulso_ev_empleado")
+  @@index([empresaId], map: "idx_impulso_ev_empresa")
+  @@index([vendedorId], map: "idx_impulso_ev_vendedor")
   @@map("ImpulsoEvento")
 }
 
 model InciGuardian {
   id              String    @id @default(cuid())
-  codigo          String    @unique        // SYNC-BOD-0001, TURNO-0003, etc.
-  contrato        String                   // nombre exacto del contrato
-  modulo          String                   // Dashboard Vendedor, Turno, Infra...
-  descripcion     String                   // qué detectó el guardián
-  obtenido        String                   // valor obtenido al momento del fallo
-  estado          String    @default("ACTIVO")   // ACTIVO | RESUELTO | IGNORADO
-  accionTomada    String?                  // qué acción ejecutó el guardián
-  scoreAntes      Int?                     // score antes del fallo
-  scoreDespues    Int?                     // score cuando se resolvió
+  codigo          String    @unique
+  contrato        String
+  modulo          String
+  descripcion     String
+  obtenido        String
+  estado          String    @default("ACTIVO")
+  accionTomada    String?
+  scoreAntes      Int?
+  scoreDespues    Int?
   fechaInicio     DateTime  @default(now())
   fechaResolucion DateTime?
-  empresaId       String?                  // si aplica a una empresa específica
+  empresaId       String?
   proyecto        String    @default("Gestor")
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
@@ -3256,23 +3217,24 @@ model InciGuardian {
   @@index([estado])
   @@index([modulo])
   @@index([fechaInicio])
+  @@index([estado], map: "idx_inci_estado")
+  @@index([modulo], map: "idx_inci_modulo")
   @@map("InciGuardian")
 }
 
-
 model LogsGestor {
-  id          String   @id @default(cuid())
-  tipo        String   // incidente | cambio | mejora
+  id          String    @id @default(cuid())
+  tipo        String
   titulo      String
   descripcion String?
   causaRaiz   String?
   solucion    String?
-  archivos    String[] @default([])
+  archivos    String[]  @default([])
   commit      String?
-  severidad   String?  // critico | alto | medio | bajo
+  severidad   String?
   empresaId   String?
   resueltaEl  DateTime?
-  creadoEl    DateTime @default(now())
+  creadoEl    DateTime  @default(now())
 
   @@index([tipo])
   @@index([creadoEl])
@@ -3281,80 +3243,8 @@ model LogsGestor {
 }
 
 model SaldoEfectivo {
-  id                 String   @id @default(cuid())
-  empresaId          String
-  fecha              DateTime
-  concepto           String
-  ingreso            Decimal? @db.Decimal(15, 2)
-  egreso             Decimal? @db.Decimal(15, 2)
-  orden              Int      @default(0)
-  categoria          String?
-  relacionTexto      String?
-  relacionArchivoKey String?
-  fechaBogota        DateTime? @db.Date()
-  creadoEl           DateTime @default(now())
-  actualizadoEl      DateTime @updatedAt
-
-  @@index([empresaId, fechaBogota])
-  @@map("SaldoEfectivo")
-}
-
-model SaldoBancos {
-  id                 String   @id @default(cuid())
-  empresaId          String
-  fecha              DateTime
-  concepto           String
-  ingreso            Decimal? @db.Decimal(15, 2)
-  egreso             Decimal? @db.Decimal(15, 2)
-  orden              Int      @default(0)
-  categoria          String?
-  relacionTexto      String?
-  relacionArchivoKey String?
-  fechaBogota        DateTime? @db.Date()
-  creadoEl           DateTime @default(now())
-  actualizadoEl      DateTime @updatedAt
-
-  @@index([empresaId, fechaBogota])
-  @@map("SaldoBancos")
-}
-
-model SaldoOtros {
-  id                 String   @id @default(cuid())
-  empresaId          String
-  fecha              DateTime
-  concepto           String
-  ingreso            Decimal? @db.Decimal(15, 2)
-  egreso             Decimal? @db.Decimal(15, 2)
-  orden              Int      @default(0)
-  categoria          String?
-  relacionTexto      String?
-  relacionArchivoKey String?
-  fechaBogota        DateTime? @db.Date()
-  creadoEl           DateTime @default(now())
-  actualizadoEl      DateTime @updatedAt
-
-  @@index([empresaId, fechaBogota])
-  @@map("SaldoOtros")
-}
-
-model SaldoConfig {
-  id          String   @id @default(cuid())
-  empresaId   String
-  tipo        String   // ingreso | egreso | tab
-  nombre      String
-  orden       Int      @default(0)
-  key         String?  // solo para tipo=tab: key único de la tab
-  emoji       String?  // solo para tipo=tab
-  creadoEl    DateTime @default(now())
-
-  @@index([empresaId, tipo])
-  @@map("SaldoConfig")
-}
-
-model SaldoMovimiento {
   id                 String    @id @default(cuid())
   empresaId          String
-  tab_key            String    // key del SaldoConfig tipo=tab
   fecha              DateTime
   concepto           String
   ingreso            Decimal?  @db.Decimal(15, 2)
@@ -3363,11 +3253,84 @@ model SaldoMovimiento {
   categoria          String?
   relacionTexto      String?
   relacionArchivoKey String?
-  fecha_bogota       DateTime? @db.Date()
   creadoEl           DateTime  @default(now())
   actualizadoEl      DateTime  @updatedAt
+  fechaBogota        DateTime? @db.Date
 
-  @@index([empresaId, tab_key, fecha_bogota])
+  @@index([empresaId, fechaBogota])
+  @@map("SaldoEfectivo")
+}
+
+model SaldoBancos {
+  id                 String    @id @default(cuid())
+  empresaId          String
+  fecha              DateTime
+  concepto           String
+  ingreso            Decimal?  @db.Decimal(15, 2)
+  egreso             Decimal?  @db.Decimal(15, 2)
+  orden              Int       @default(0)
+  categoria          String?
+  relacionTexto      String?
+  relacionArchivoKey String?
+  creadoEl           DateTime  @default(now())
+  actualizadoEl      DateTime  @updatedAt
+  fechaBogota        DateTime? @db.Date
+
+  @@index([empresaId, fechaBogota])
+  @@map("SaldoBancos")
+}
+
+model SaldoOtros {
+  id                 String    @id @default(cuid())
+  empresaId          String
+  fecha              DateTime
+  concepto           String
+  ingreso            Decimal?  @db.Decimal(15, 2)
+  egreso             Decimal?  @db.Decimal(15, 2)
+  orden              Int       @default(0)
+  categoria          String?
+  relacionTexto      String?
+  relacionArchivoKey String?
+  creadoEl           DateTime  @default(now())
+  actualizadoEl      DateTime  @updatedAt
+  fechaBogota        DateTime? @db.Date
+
+  @@index([empresaId, fechaBogota])
+  @@map("SaldoOtros")
+}
+
+model SaldoConfig {
+  id        String   @id @default(cuid())
+  empresaId String
+  tipo      String
+  nombre    String
+  orden     Int      @default(0)
+  creadoEl  DateTime @default(now())
+  key       String?
+  emoji     String?
+
+  @@unique([empresaId, tipo, key], map: "uq_saldoconfig_tab")
+  @@index([empresaId, tipo])
+  @@map("SaldoConfig")
+}
+
+model SaldoMovimiento {
+  id                 String    @id @default(dbgenerated("(gen_random_uuid())::text"))
+  empresaId          String
+  tab_key            String
+  fecha              DateTime  @db.Timestamptz(6)
+  concepto           String
+  ingreso            Decimal?  @db.Decimal(15, 2)
+  egreso             Decimal?  @db.Decimal(15, 2)
+  orden              Int       @default(0)
+  categoria          String?
+  relacionTexto      String?
+  relacionArchivoKey String?
+  fecha_bogota       DateTime? @db.Date
+  creadoEl           DateTime  @default(now()) @db.Timestamptz(6)
+  actualizadoEl      DateTime  @default(now()) @updatedAt @db.Timestamptz(6)
+
+  @@index([empresaId, tab_key, fecha_bogota], map: "idx_saldo_mov")
   @@map("SaldoMovimiento")
 }
 
@@ -3393,37 +3356,37 @@ model EgresoCategoria {
   orden     Int      @default(0)
   createdAt DateTime @default(now())
   empresa   Empresa  @relation(fields: [empresaId], references: [id])
+
   @@unique([empresaId, key])
   @@index([empresaId, orden])
   @@map("EgresoCategoria")
 }
 
 model Egreso {
-  id          String   @id @default(cuid())
-  empresaId   String
-  categoria   String   // key de EgresoCategoria
-  fecha       DateTime
-  concepto    String
-  valor       Decimal  @default(0)
-  retencion   Decimal  @default(0)
-  abonoPago   Decimal  @default(0)
-  descuento   Decimal  @default(0)
-  saldo       Decimal  @default(0)
-  fechaPago   DateTime?
-  medioPago   String?  // BANCO | NEQUI | EFECTIVO | etc
-  estado      String   @default("pendiente") // pendiente | ok
-  autorizado  Boolean  @default(false)
+  id           String          @id @default(cuid())
+  empresaId    String
+  categoria    String
+  fecha        DateTime
+  concepto     String
+  valor        Decimal         @default(0)
+  retencion    Decimal         @default(0)
+  abonoPago    Decimal         @default(0)
+  descuento    Decimal         @default(0)
+  saldo        Decimal         @default(0)
+  fechaPago    DateTime?
+  medioPago    String?
+  estado       String          @default("pendiente")
+  autorizado   Boolean         @default(false)
+  mes          Int
+  anio         Int
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
   evidenciaKey String?
-  mes         Int
-  anio        Int
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  empresa          Empresa          @relation(fields: [empresaId], references: [id])
-  abonos           EgresoAbono[]
-  adjuntos         EgresoAdjunto[]
-
   proveedorId  String?
-  proveedor    Proveedor? @relation(fields: [proveedorId], references: [id])
+  empresa      Empresa         @relation(fields: [empresaId], references: [id])
+  abonos       EgresoAbono[]
+  adjuntos     EgresoAdjunto[]
+
   @@index([empresaId, categoria, anio, mes])
   @@map("Egreso")
 }
@@ -3434,8 +3397,8 @@ model EgresoAbono {
   valor        Decimal  @default(0)
   fecha        DateTime
   evidenciaKey String?
-  medioPago    String?
   createdAt    DateTime @default(now())
+  medioPago    String?
   egreso       Egreso   @relation(fields: [egresoId], references: [id], onDelete: Cascade)
 }
 
@@ -3443,46 +3406,45 @@ model EgresoAdjunto {
   id        String   @id @default(cuid())
   egresoId  String
   abonoId   String?
-  tipo      String   // 'factura' | 'pago'
+  tipo      String
   key       String
   createdAt DateTime @default(now())
-  egreso    Egreso   @relation(fields: [egresoId], references: [id], onDelete: Cascade)
+  egreso    Egreso   @relation(fields: [egresoId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  @@index([egresoId])
-  @@index([abonoId])
+  @@index([abonoId], map: "idx_egresoadjunto_abonoid")
+  @@index([egresoId], map: "idx_egresoadjunto_egresoid")
   @@map("EgresoAdjunto")
 }
 
 model Producto {
-  id                String   @id
-  empresaId         String
-  integracionId     String
-  condition         Boolean  @default(true)
-  nombre            String
-  barcode           String?
-  inventory         Float    @default(0)
-  precio            Float?
-  marca             String?
-  linea             String?
-  punto             String?
-  invima            String?
-  prices            Json?
-  purchasePrice     Float?
-  taxable           Boolean  @default(false)
-  tax               Float?
-  tipo              String?
-  unidad            String?
-  descripcion       String?
-  stockMinimo       Float?
-  costo             Float?
-  stock_sugerido    Float?
-  externalUpdatedAt DateTime?
-  updatedAt         DateTime @updatedAt
-  createdAt         DateTime @default(now())
-  empresa           Empresa  @relation(fields: [empresaId], references: [id])
-  integracion       Integracion @relation(fields: [integracionId], references: [id])
+  id                 String              @id
+  empresaId          String
+  integracionId      String
+  condition          Boolean             @default(true)
+  nombre             String
+  barcode            String?
+  inventory          Float               @default(0)
+  precio             Float?
+  marca              String?
+  linea              String?
+  punto              String?
+  invima             String?
+  prices             Json?
+  purchasePrice      Float?
+  taxable            Boolean             @default(false)
+  tax                Float?
+  tipo               String?
+  unidad             String?
+  descripcion        String?
+  stockMinimo        Float?
+  externalUpdatedAt  DateTime?
+  updatedAt          DateTime            @updatedAt
+  createdAt          DateTime            @default(now())
+  costo              Float?
+  stock_sugerido     Float?
   impulsoInventarios ImpulsoInventario[]
-  impulsoRotaciones  ImpulsoRotacion[]
+  empresa            Empresa             @relation(fields: [empresaId], references: [id])
+  integracion        Integracion         @relation(fields: [integracionId], references: [id])
 
   @@index([empresaId])
   @@index([condition])
@@ -3491,18 +3453,17 @@ model Producto {
 }
 
 model StockSugerido {
-  id          String   @id @default(cuid())
-  empresaId   String
-  productoId  String
-  nombre      String
-  costo       Float?
-  sugerido    Float
-  diferencia  Float
-  fecha       DateTime @default(now())
-  empresa     Empresa  @relation(fields: [empresaId], references: [id])
+  id         String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  empresaId  String
+  productoId String
+  nombre     String
+  costo      Float?
+  sugerido   Float
+  diferencia Float
+  fecha      DateTime @default(now()) @db.Timestamptz(6)
 
-  @@index([empresaId])
-  @@index([productoId])
+  @@index([empresaId], map: "idx_stock_sugerido_empresa")
+  @@index([productoId], map: "idx_stock_sugerido_producto")
   @@map("StockSugerido")
 }
 
@@ -3513,7 +3474,7 @@ model StockSnapshot {
   nombre      String
   inventory   Int
   stockMinimo Int?
-  estado      String   // 'agotado' | 'stock_bajo'
+  estado      String
   createdAt   DateTime @default(now())
   empresa     Empresa  @relation(fields: [empresaId], references: [id])
 
@@ -3524,17 +3485,19 @@ model StockSnapshot {
 model SnapshotMes {
   id              String   @id @default(cuid())
   empresa_id      String
-  mes             String   // '2026-07'
-  tipo            String   // 'ventas' | 'recaudo' | 'comision' | 'impulso' | ...
-  empleado_id     String?  // para recaudo, comision, impulso
-  vendedor_api_id String?  // para ventas (OrdenDespacho.vendedorApiId)
-  entidad_nombre  String   // guardado en snapshot, sin depender de JOIN futuro
-  datos           Json     // libre por tipo: {total, ordenes} | {total, cobros} | ...
+  mes             String
+  tipo            String
+  empleado_id     String?
+  vendedor_api_id String?
+  entidad_nombre  String
+  datos           Json
   creado_en       DateTime @default(now())
   updated_en      DateTime @updatedAt
   empresa         Empresa  @relation(fields: [empresa_id], references: [id])
 
+  @@unique([empresa_id, mes, tipo, empleado_id, vendedor_api_id])
   @@index([empresa_id, mes, tipo])
+  @@index([empresa_id, mes, tipo], map: "SnapshotMes_empresa_mes_tipo_idx")
   @@map("SnapshotMes")
 }
 
@@ -3544,7 +3507,7 @@ model CarteraEdadSnapshot {
   integracion_id String
   mes            Int
   anio           Int
-  datos          Json     // { vendedores: [{ nombre, apiid, '0-30', '31-60', '61-90', '91-120', '+120', total }] }
+  datos          Json
   creado_en      DateTime @default(now())
   empresa        Empresa  @relation(fields: [empresa_id], references: [id])
 
@@ -3554,33 +3517,33 @@ model CarteraEdadSnapshot {
 }
 
 model SmsConfig {
-  id         String   @id @default(cuid())
-  empresaId  String   @unique
-  activo     Boolean  @default(false)
-  dias       String   @default("1,2,3,4,5") // 0=Dom,1=Lun...6=Sab
-  firma      String   @default("Lumeli")
-  plantilla  String   @default("Sr(a) {nombre}, hemos facturado tu pedido No.{factura} por ${valor}. Agradecemos tu pago antes del {vencimiento}.")
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  empresa    Empresa  @relation(fields: [empresaId], references: [id])
+  id        String   @id @default(cuid())
+  empresaId String   @unique
+  activo    Boolean  @default(false)
+  dias      String   @default("1,2,3,4,5")
+  plantilla String   @default("Sr(a) {nombre}, hemos facturado tu pedido No.{factura} por ${valor}. Agradecemos tu pago antes del {vencimiento}.")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  firma     String   @default("Lumeli")
+  empresa   Empresa  @relation(fields: [empresaId], references: [id])
 
   @@map("SmsConfig")
 }
 
 model SmsLog {
-  id             String   @id @default(cuid())
-  empresaId      String
-  ordenId        String
-  telefono       String
-  onurixMsgId    String?
-  estadoEnvio    String   // 'ok' | 'error_num' | 'error_api' | 'sin_telefono'
-  estadoEntrega  String   @default("pendiente") // 'pendiente' | 'entregado' | 'fallido'
-  errorCodigo    Int?
-  errorMsg       String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-  empresa        Empresa  @relation(fields: [empresaId], references: [id])
-  orden          OrdenDespacho @relation(fields: [ordenId], references: [id])
+  id            String        @id @default(cuid())
+  empresaId     String
+  ordenId       String
+  telefono      String
+  onurixMsgId   String?
+  estadoEnvio   String
+  estadoEntrega String        @default("pendiente")
+  errorCodigo   Int?
+  errorMsg      String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  empresa       Empresa       @relation(fields: [empresaId], references: [id])
+  orden         OrdenDespacho @relation(fields: [ordenId], references: [id])
 
   @@index([empresaId])
   @@index([ordenId])
@@ -3589,17 +3552,17 @@ model SmsLog {
 }
 
 model SyncNotaCredito {
-  id                  String      @id @default(cuid())
-  integracionId       String
-  empresaId           String
-  externalId          String      // orderNumber — consecutivo único NC en UpTres
-  clienteApiId        String      // customerDocument → vincula al Cliente
-  cufeInvoice         String?     // CUFE factura relacionada — vínculo NC→factura (PENDIENTE confirmar con UpTres)
-  total               Decimal     @db.Decimal(14, 2)
-  condition           Boolean     @default(true)  // false = NC anulada
-  externalCreatedAt   DateTime?
-  sincronizadoEl      DateTime    @default(now())
-  integracion         Integracion @relation(fields: [integracionId], references: [id])
+  id                String      @id @default(cuid())
+  integracionId     String
+  empresaId         String
+  externalId        String
+  clienteApiId      String
+  cufeInvoice       String?
+  total             Decimal     @db.Decimal(14, 2)
+  condition         Boolean     @default(true)
+  externalCreatedAt DateTime?
+  sincronizadoEl    DateTime    @default(now())
+  integracion       Integracion @relation(fields: [integracionId], references: [id])
 
   @@unique([integracionId, externalId])
   @@index([clienteApiId])
@@ -3608,41 +3571,41 @@ model SyncNotaCredito {
   @@map("SyncNotaCredito")
 }
 
-
 model NotifRegla {
-  id        String   @id  // ej: 'despacho_guia'
+  id        String
   empresaId String
   label     String
   roles     String[]
   activa    Boolean  @default(true)
   updatedAt DateTime @updatedAt
 
+  @@id([id, empresaId])
   @@unique([id, empresaId])
   @@index([empresaId])
   @@map("NotifRegla")
 }
+
 model PagoAlerta {
   id        String   @id @default(cuid())
   pagoId    String   @map("pago_id")
   tipo      String   @default("voucher_duplicado")
   mensaje   String
   leida     Boolean  @default(false)
-  createdAt DateTime @default(now()) @map("created_at")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  @@index([pagoId])
+  @@index([pagoId], map: "idx_pa_pago_id_stg")
   @@map("PagoAlerta")
 }
 
 model PushSuscripcionAdmin {
-  id        String   @id
-  empresaId String
-  endpoint  String
-  p256dh    String
-  auth      String
+  id         String   @id
+  empresaId  String
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  createdAt  DateTime @default(now())
   user_agent String?
-  createdAt DateTime @default(now())
 
-  @@unique([endpoint])
   @@index([empresaId])
   @@map("PushSuscripcionAdmin")
 }
@@ -3651,13 +3614,12 @@ model CuentaBancaria {
   id           String   @id @default(cuid())
   empresaId    String   @map("empresa_id")
   label        String
-  titular      String?
   banco        String
   numeroCuenta String   @map("numero_cuenta")
   orden        Int      @default(0)
-  createdAt    DateTime @default(now()) @map("created_at")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  titular      String?
 
-  @@index([empresaId])
   @@map("CuentaBancaria")
 }
 
@@ -3668,157 +3630,150 @@ model VoucherHuella {
   valor          Decimal? @db.Decimal(14, 2)
   fecha          String?
   banco          String?
-  numeroCuenta   String?  @map("numero_cuenta")
-  titular        String?
   pagoId         String   @map("pago_id")
   empresaId      String   @map("empresa_id")
   vendedorNombre String?  @map("vendedor_nombre")
-  createdAt      DateTime @default(now()) @map("created_at")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   alertada       Boolean  @default(false)
+  numeroCuenta   String?  @map("numero_cuenta")
+  titular        String?
 
-  @@index([hashArchivo])
-  @@index([referencia, valor, fecha])
-  @@index([empresaId])
+  @@index([empresaId], map: "idx_vh_emp")
+  @@index([hashArchivo], map: "idx_vh_hash")
+  @@index([referencia, valor, fecha], map: "idx_vh_ref")
   @@map("VoucherHuella")
 }
 
 model AlertaLog {
-  id          String    @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   empresa_id  String
   tipo        String
   severidad   String    @default("advertencia")
   mensaje     String
   resuelta    Boolean   @default(false)
-  resuelta_el DateTime?
+  resuelta_el DateTime? @db.Timestamptz(6)
   vista_por   String?
-  vista_el    DateTime?
-  created_at  DateTime  @default(now())
-  updated_at  DateTime  @default(now())
+  vista_el    DateTime? @db.Timestamptz(6)
+  created_at  DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at  DateTime? @default(now()) @db.Timestamptz(6)
 
-  @@id([id])
-  @@unique([empresa_id, tipo], map: "idx_alerta_log_activa")
-  @@index([empresa_id])
+  @@index([empresa_id], map: "idx_alerta_log_empresa")
   @@map("AlertaLog")
 }
 
 model StorageLog {
-  id         String   @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   empresa_id String
   tipo       String
   key        String
   size_bytes Int
-  created_at DateTime @default(now())
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
 
-  @@id([id])
-  @@index([empresa_id])
-  @@index([empresa_id, tipo])
+  @@index([empresa_id], map: "idx_sl_empresa")
+  @@index([empresa_id, tipo], map: "idx_sl_empresa_tipo")
   @@map("StorageLog")
 }
 
 model PlanEmpresa {
-  id           String    @id @default(cuid())
-  empresaId    String
-  mes          String
-  fechaCorte   DateTime
-  fechaLimite  DateTime
+  id            String    @id @default(cuid())
+  empresaId     String
+  mes           String
+  fechaCorte    DateTime  @db.Timestamp(6)
+  fechaLimite   DateTime  @db.Timestamp(6)
   monto         Int       @default(0)
-  montoOriginal Int       @default(0)
-  saldo         Int       @default(0)
   desglose      Json      @default("[]")
   estado        String    @default("pendiente")
   pagoId        String?
+  pagoFecha     DateTime? @db.Timestamp(6)
+  bannerActivo  Boolean   @default(false)
+  createdAt     DateTime  @default(now()) @db.Timestamp(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @db.Timestamp(6)
+  montoOriginal Int       @default(0)
+  saldo         Int       @default(0)
   pagoIds       Json      @default("[]")
-  pagoFecha     DateTime?
-  bannerActivo Boolean   @default(false)
   voucherNum    String?
   voucherTipo   String?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-
-  empresa      Empresa   @relation(fields: [empresaId], references: [id])
 
   @@unique([empresaId, mes])
-  @@index([empresaId])
-  @@index([mes])
-  @@index([estado])
+  @@index([empresaId], map: "idx_planempresa_empresa")
+  @@index([estado], map: "idx_planempresa_estado")
+  @@index([mes], map: "idx_planempresa_mes")
   @@map("PlanEmpresa")
 }
 
 model TransprensaRemesa {
-  id               String    @id @default(cuid())
-  empresaId        String
-  ordenId          String    @unique
-  numero_remesa    String
-  estado_remesa    String?   // PLANILLADA, DESPACHADA, etc.
-  estado_atencion  String?   // ENTREGADO, DISTRIBUCION, EN BODEGA DESTINO, NOVEDAD, etc.
-  raw_estados      Json?     // lista_estado_atencioncliente completa
-  imagen_cumplido  String?   // URL foto entrega Transprensa
-  sincronizadoEn   DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id              String        @id @default(dbgenerated("(gen_random_uuid())::text"))
+  empresaId       String
+  ordenId         String        @unique
+  numero_remesa   String
+  estado_remesa   String?
+  estado_atencion String?
+  raw_estados     Json?
+  imagen_cumplido String?
+  sincronizadoEn  DateTime      @default(now()) @db.Timestamptz(6)
+  updatedAt       DateTime      @default(now()) @updatedAt @db.Timestamptz(6)
+  empresa         Empresa       @relation(fields: [empresaId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tr_empresa")
+  orden           OrdenDespacho @relation(fields: [ordenId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_tr_orden")
 
-  empresa          Empresa         @relation(fields: [empresaId], references: [id])
-  orden            OrdenDespacho   @relation(fields: [ordenId], references: [id])
-
-  @@index([empresaId])
-  @@index([numero_remesa])
-  @@index([estado_atencion])
+  @@index([empresaId], map: "idx_tr_empresa")
+  @@index([estado_atencion], map: "idx_tr_estado")
+  @@index([numero_remesa], map: "idx_tr_remesa")
   @@map("TransprensaRemesa")
 }
 
 model MediaCarpeta {
-  id           String         @id @default(cuid())
-  empresaId    String
-  nombre       String
-  descripcion  String?
-  publicToken  String         @unique @default(cuid())
-  favorita     Boolean        @default(false)
-  createdAt    DateTime       @default(now())
+  id          String         @id @default(dbgenerated("(gen_random_uuid())::text"))
+  empresaId   String
+  nombre      String
+  descripcion String?
+  publicToken String         @unique @default(dbgenerated("(gen_random_uuid())::text"))
+  createdAt   DateTime       @default(now()) @db.Timestamptz(6)
+  favorita    Boolean        @default(false)
+  archivos    MediaArchivo[]
+  empresa     Empresa        @relation(fields: [empresaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  empresa      Empresa        @relation(fields: [empresaId], references: [id])
-  archivos     MediaArchivo[]
-
-  @@index([empresaId])
-  @@index([publicToken])
+  @@index([empresaId], map: "idx_mediacarpeta_empresa")
+  @@index([publicToken], map: "idx_mediacarpeta_token")
   @@map("MediaCarpeta")
 }
 
 model MediaArchivo {
-  id           String       @id @default(cuid())
-  carpetaId    String
-  empresaId    String
-  nombre       String
-  key          String
-  url          String
-  tipo         String       // "imagen" | "pdf"
-  orden        Int          @default(0)
-  tamano_byte  Int          @default(0)
-  createdAt    DateTime     @default(now())
+  id          String       @id @default(dbgenerated("(gen_random_uuid())::text"))
+  carpetaId   String
+  empresaId   String
+  nombre      String
+  key         String
+  url         String
+  tipo        String
+  orden       Int          @default(0)
+  tamano_byte Int          @default(0)
+  createdAt   DateTime     @default(now()) @db.Timestamptz(6)
+  carpeta     MediaCarpeta @relation(fields: [carpetaId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
-  carpeta      MediaCarpeta @relation(fields: [carpetaId], references: [id], onDelete: Cascade)
-
-  @@index([carpetaId])
-  @@index([empresaId])
+  @@index([carpetaId], map: "idx_mediaarchivo_carpeta")
+  @@index([empresaId], map: "idx_mediaarchivo_empresa")
   @@map("MediaArchivo")
 }
 
 model MediaConfig {
-  id              String   @id @default(cuid())
-  empresaId       String   @unique
-  nombre          String   @default("")
-  descripcion     String   @default("")
-  logoKey         String?
-  logoUrl         String?
-  whatsapp        String?
-  portafolioKey   String?
-  portafolioUrl   String?
+  id               String   @id @default(dbgenerated("(gen_random_uuid())::text"))
+  empresaId        String   @unique
+  nombre           String   @default("")
+  descripcion      String   @default("")
+  logoKey          String?
+  logoUrl          String?
+  whatsapp         String?
+  portafolioKey    String?
+  portafolioUrl    String?
   portafolioNombre String?
-  tema            String   @default("oceano")
-  publicToken     String   @unique @default(cuid())
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  publicToken      String   @unique @default(dbgenerated("(gen_random_uuid())::text"))
+  createdAt        DateTime @default(now()) @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @updatedAt @db.Timestamptz(6)
+  tema             String   @default("oceano")
+  empresa          Empresa  @relation(fields: [empresaId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
-  empresa  Empresa @relation(fields: [empresaId], references: [id])
-
-  @@index([publicToken])
+  @@index([publicToken], map: "idx_mediaconfig_token")
   @@map("MediaConfig")
 }
+
+/// The underlying table does not contain a valid unique identifier and can therefore currently not be handled by Prisma Client.

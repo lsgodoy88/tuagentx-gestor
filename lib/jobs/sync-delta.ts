@@ -31,11 +31,11 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   let _s = Date.now(); await adapter.login(); _t('login', _s)
 
   const empresa = await prisma.empresa.findUnique({ where: { id: destino }, select: { ultimaSyncBodega: true, ultimaSyncClientes: true, sync_cursor_clientes: true, sync_cursor_empleados: true, sync_cursor_cartera: true, sync_cursor_cartera_update: true, sync_cursor_listas: true, sync_cursor_proveedores: true, sync_cursor_ordenes_date: true, sync_cursor_ordenes_deleted: true, fechaInicioBodega: true } })
-  // fetchVentas: solo órdenes creadas HOY en Bogotá (UTC-5)
-  // Órdenes de días anteriores sin facturar → cubiertas por ordenes/date?date=invoicedAt (cursor)
+  // fetchVentas: órdenes creadas en los últimos 3 días en Bogotá (UTC-5)
+  // Cubre órdenes creadas en la noche (fuera del horario del delta) del día anterior
   // Órdenes eliminadas → cubiertas por ordenes/deleted (cursor)
   const ahoraBogota = new Date(Date.now() - 5 * 60 * 60 * 1000)
-  const desde = new Date(Date.UTC(ahoraBogota.getUTCFullYear(), ahoraBogota.getUTCMonth(), ahoraBogota.getUTCDate()) + 5 * 60 * 60 * 1000)
+  const desde = new Date(Date.UTC(ahoraBogota.getUTCFullYear(), ahoraBogota.getUTCMonth(), ahoraBogota.getUTCDate()) + 5 * 60 * 60 * 1000 - 3 * 24 * 60 * 60 * 1000)
 
   _s = Date.now(); const ordenes = await adapter.fetchVentas(desde); _t('fetchVentas', _s)
   const erroresParciales: string[] = []
@@ -519,7 +519,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
                   }
                 })
                 ordenesDateActualizadas++
-              } catch (e: any) { /* no crítico — se reintentará en próximo delta */ }
+              } catch (e: any) { console.error('[delta] ordenes/date create falló origenId=' + origenId + ' orden=' + o.orderNumber + ' factura=' + o.invoiceNumber + ':', e.message) }
             } else {
               ordenesDateActualizadas++
             }

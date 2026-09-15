@@ -54,6 +54,7 @@ export default function CarteraPage() {
   const { comisiones, setComisiones, comisionPropia, loadingComisionPropia, comisionCalculo, editandoFormulaId, setEditandoFormulaId, borradorFormula, setBorradorFormula, borradorPorcentaje, setBorradorPorcentaje, loadingComisiones, nombreComision, setNombreComision, guardandoComision, mesComision, setMesComision, anioComision, setAnioComision, guardarComisionAuto, cargarComisiones, guardarComisionFinal } = useComisiones(esVendedor, tab, status)
   const [vendedores, setVendedores] = useState<any[]>([])
   const { pagos, setPagos, loadingPagos, pagosGlobal, loadingPagosGlobal, busquedaPagos, setBusquedaPagos, vendedorPagoId, setVendedorPagoId, filtroDia, setFiltroDia, pickerDiaAbierto, setPickerDiaAbierto, mesPagos, setMesPagos, anioPagos, setAnioPagos, notaPopupId, setNotaPopupId, isDesktopPagos, filtroDiaInputRef, cargarPagos } = usePagos(vendedores)
+  const [alertaVoucherPopupId, setAlertaVoucherPopupId] = React.useState<string | null>(null)
   const { carteras, metas, setMetas, loading, offline, cacheAgeCartera, loadingBusqueda, buscar, setBuscar, hayMas, setHayMas, paginaActual, setPaginaActual, totalReal, cargandoMas, cargarDatos, cargarMas, onBuscarChange, inicializar } = useCarteraData(filtroDia, vendedorPagoId, setPagos, user?.role)
   const { syncInfo, modalSync, setModalSync, sincronizando, cargarSyncInfo, sincronizar } = useSyncInfo(async () => { await cargarDatos(buscar) })
 
@@ -520,10 +521,51 @@ export default function CarteraPage() {
                             <td className="px-4 py-3 text-right text-emerald-400 font-semibold whitespace-nowrap" style={{borderBottom: subFacturas.length > 0 ? 'none' : '1px solid #1e2a3d'}}>
                               {primeraFact?._efectivo > 0 ? fmt(primeraFact._efectivo) : '—'}
                             </td>
-                            <td className="px-4 py-3 text-right text-blue-400 font-semibold whitespace-nowrap" style={{borderBottom: subFacturas.length > 0 ? 'none' : '1px solid #1e2a3d'}}>
-                              {primeraFact?._transf > 0
-                                ? <span className="inline-flex items-center gap-1">{hayMod && <span title="Valor modificado respecto al comprobante" style={{fontSize:9, opacity:0.7}}>⚠️</span>}{fmt(primeraFact._transf)}</span>
-                                : '—'}
+                            <td className="px-4 py-3 text-right text-blue-400 font-semibold whitespace-nowrap" style={{borderBottom: subFacturas.length > 0 ? 'none' : '1px solid #1e2a3d', position:'relative'}}>
+                              {(() => {
+                                const av = p.alertaVoucher ? (() => { try { return JSON.parse(p.alertaVoucher) } catch { return null } })() : null
+                                const esCross = av?.tipo === 'cross-empresa'
+                                return primeraFact?._transf > 0 ? (
+                                  <span className="inline-flex items-center gap-1 justify-end">
+                                    {hayMod && <span title="Valor modificado respecto al comprobante" style={{fontSize:9, opacity:0.7}}>⚠️</span>}
+                                    {av && (
+                                      <span style={{position:'relative', display:'inline-block'}}>
+                                        <button
+                                          onClick={e => { e.stopPropagation(); setAlertaVoucherPopupId(alertaVoucherPopupId === p.id ? null : p.id) }}
+                                          style={{background:'none', border:'none', cursor:'pointer', fontSize:12, padding:0, lineHeight:1}}>
+                                          {av.nivel === 1 ? '🚨' : av.nivel === 2 ? '⚠️' : '🔎'}
+                                        </button>
+                                        {alertaVoucherPopupId === p.id && (
+                                          <div onClick={e => e.stopPropagation()} style={{
+                                            position:'fixed', right:12, top:80,
+                                            background:'#1a0a0a', border:'1px solid ' + (av.nivel === 1 ? '#7f1d1d' : av.nivel === 2 ? '#78350f' : '#1e3a5f') + ',',
+                                            borderRadius:12, padding:'12px 16px',
+                                            minWidth:240, maxWidth:'calc(100vw - 24px)',
+                                            fontSize:12, color:'white',
+                                            boxShadow:'0 8px 32px rgba(0,0,0,0.8)',
+                                            zIndex:999, lineHeight:1.6,
+                                          }}>
+                                            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8}}>
+                                              <span style={{fontWeight:700, color: av.nivel === 1 ? '#f87171' : av.nivel === 2 ? '#fbbf24' : '#60a5fa', fontSize:13}}>
+                                                {av.otrosRecibos?.[0] ? ((av.nivel === 1 ? '🚨 ' : av.nivel === 2 ? '⚠️ ' : '🔎 ') + 'Coincidencia en ' + (av.otrosRecibos[0].empresa || av.otrosRecibos[0].empresaId || 'otra empresa')) : '—'}
+                                              </span>
+                                              <button onClick={() => setAlertaVoucherPopupId(null)} style={{background:'none',border:'none',color:'#64748b',cursor:'pointer',fontSize:18,padding:'0 0 0 12px',lineHeight:1}}>×</button>
+                                            </div>
+                                            <div style={{color:'#94a3b8', fontSize:11, marginBottom:8, lineHeight:1.8}}>
+                                              <div><span style={{color:'#475569'}}>Ref {av.referencia} · </span>{av.banco}</div>
+                                              <div><span style={{color:'#475569'}}>Valor: </span>${Number(av.valor).toLocaleString('es-CO')} · <span style={{color:'#475569'}}>RC: </span>{av.otrosRecibos?.[0]?.numeroRecibo || '—'}</div>
+                                              <div><span style={{color:'#475569'}}>Fecha: </span>{av.fecha ? new Date(av.fecha).toLocaleString('es-CO', {timeZone:'America/Bogota', day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit'}) : '—'}</div>
+                                              <div><span style={{color:'#475569'}}>Titular: </span>{av.titular}</div>
+                                            </div>
+
+                                          </div>
+                                        )}
+                                      </span>
+                                    )}
+                                    {fmt(primeraFact._transf)}
+                                  </span>
+                                ) : '—'
+                              })()}
                             </td>
                             <td className="px-4 py-3 text-right text-amber-400 whitespace-nowrap" style={{borderBottom: subFacturas.length > 0 ? 'none' : '1px solid #1e2a3d'}}>
                               {primeraFact?._desc > 0 ? fmt(primeraFact._desc) : '—'}

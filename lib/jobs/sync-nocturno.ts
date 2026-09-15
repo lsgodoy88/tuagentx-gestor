@@ -692,13 +692,20 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
     })
   )
 
-  // Purga SyncLog — retener solo 30 días
+  // Purga SyncLog — retención diferenciada por tipo
+  // sms-polling/sms-facturas: 15d (muy frecuentes ~3k/día)
+  // delta/voucher-huella-delta: 7d/15d (operacional)
+  // resto (nocturno, diagnóstico, etc): 90d (histórico)
   try {
     const schema = process.env.DB_SCHEMA || 'gestor'
-    const deleted = await prisma.$executeRawUnsafe(
-      `DELETE FROM ${schema}."SyncLog" WHERE "createdAt" < NOW() - INTERVAL '30 days'`
-    )
-    if (deleted > 0) console.log(`[sync-nocturno] purga SyncLog: ${deleted} filas eliminadas`)
+    const sql = [
+      'DELETE FROM ' + schema + '."SyncLog" WHERE',
+      "  (tipo = 'delta' AND \"createdAt\" < NOW() - INTERVAL '7 days') OR",
+      "  (tipo IN ('voucher-huella-delta','sms-polling','sms-facturas') AND \"createdAt\" < NOW() - INTERVAL '15 days') OR",
+      "  (tipo NOT IN ('delta','voucher-huella-delta','sms-polling','sms-facturas','nocturno','sync-transprensa','rutas-dia','sync-productos','diagnostico-ia') AND \"createdAt\" < NOW() - INTERVAL '90 days')",
+    ].join(' ')
+    const deleted = await prisma.$executeRawUnsafe(sql)
+    if (deleted > 0) console.log("[sync-nocturno] purga SyncLog: " + deleted + " filas")
   } catch (e: any) {
     console.error('[sync-nocturno] purga SyncLog error:', e.message)
   }
