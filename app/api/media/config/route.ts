@@ -47,76 +47,59 @@ export async function PATCH(req: NextRequest) {
   return NextResponse.json({ ok: true })
 }
 
-// POST — logo via JSON+base64 (comprimido cliente), portafolio via FormData (sin límite 4MB)
+// POST — dos modos:
+// 1. Logo: { tipo:'logo', nombre, base64 } — imagen comprimida en cliente
+// 2. Portafolio post-presigned: { tipo:'portafolio', key, url, nombre } — metadatos tras upload directo a R2
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOptions)
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
   if ((session.user as any).role !== 'empresa') return NextResponse.json({ error: 'Prohibido' }, { status: 403 })
 
   const empresaId = (session.user as any).empresaId
-  const ct = req.headers.get('content-type') || ''
-  console.log('[media/config POST] ct:', ct.slice(0,50), 'empresaId:', empresaId)
-  let tipo: string, nombre: string, base64: string | undefined, pdfBuffer: Buffer | undefined
-
-  if (ct.includes('multipart/form-data')) {
-    try {
-      const form = await req.formData()
-      tipo = String(form.get('tipo') || '')
-      nombre = String(form.get('nombre') || '')
-      const blob = form.get('file') as Blob | null
-      if (!blob) return NextResponse.json({ error: 'Archivo requerido' }, { status: 400 })
-      pdfBuffer = Buffer.from(await blob.arrayBuffer())
-    } catch(formErr: any) {
-      console.error('[media/config] formData error:', formErr.message)
-      return NextResponse.json({ error: 'Error al leer archivo: ' + formErr.message }, { status: 500 })
-    }
-  } else {
-    const body = await req.json()
-    tipo = body.tipo; nombre = body.nombre; base64 = body.base64
-  }
+  const body = await req.json()
+  const { tipo, nombre, base64, key: bodyKey, url: bodyUrl } = body
 
   if (!['logo', 'portafolio'].includes(tipo)) {
     return NextResponse.json({ error: 'tipo inválido' }, { status: 400 })
   }
 
-  // Obtener config actual para borrar key anterior
+  // Obtener keys anteriores para borrar de R2
   const rows = await prisma.$queryRaw<any[]>`
     SELECT "logoKey", "portafolioKey" FROM ${Prisma.raw(DB_SCHEMA)}."MediaConfig"
     WHERE "empresaId" = ${empresaId}
   `
   const config = rows[0]
-
-  // Borrar anterior si existe
   const keyAnterior = tipo === 'logo' ? config?.logoKey : config?.portafolioKey
-  if (keyAnterior) await eliminarMediaArchivo(keyAnterior).catch(() => {})
+  if (keyAnterior && keyAnterior !== bodyKey) await eliminarMediaArchivo(keyAnterior).catch(() => {})
 
-  // Subir nuevo — logo (base64 comprimido) o portafolio (buffer directo)
-  const { key, url, tamano_byte } = await subirMediaArchivo(
-    pdfBuffer ?? base64!, empresaId, `_config_${tipo}`, nombre
-  )
-
-  // UPDATE en BD — si falla, revertir R2
-  try {
-    if (tipo === 'logo') {
+  // Portafolio — ya subido a R2 via presigned URL, solo actualizar BD
+  if (tipo === 'portafolio' && bodyKey && bodyUrl) {
+    try {
       await prisma.$executeRaw`
         UPDATE ${Prisma.raw(DB_SCHEMA)}."MediaConfig"
-        SET "logoKey" = ${key}, "logoUrl" = ${url}, "updatedAt" = now()
+        SET "portafolioKey" = ${bodyKey}, "portafolioUrl" = ${bodyUrl},
+            "portafolioNombre" = ${nombre || 'portafolio.pdf'}, "updatedAt" = now()
         WHERE "empresaId" = ${empresaId}
       `
-    } else {
-      await prisma.$executeRaw`
-        UPDATE ${Prisma.raw(DB_SCHEMA)}."MediaConfig"
-        SET "portafolioKey" = ${key}, "portafolioUrl" = ${url},
-            "portafolioNombre" = ${nombre}, "updatedAt" = now()
-        WHERE "empresaId" = ${empresaId}
-      `
+      return NextResponse.json({ ok: true, key: bodyKey, url: bodyUrl })
+    } catch (dbErr) {
+      await eliminarMediaArchivo(bodyKey).catch(() => {})
+      return NextResponse.json({ error: 'Error al guardar' }, { status: 500 })
     }
-  } catch (dbErr) {
-    await eliminarMediaArchivo(key).catch(() => {})
-    console.error('[media/config] BD update falló, R2 revertido:', dbErr)
-    return NextResponse.json({ error: 'Error al guardar' }, { status: 500 })
   }
 
-  return NextResponse.json({ key, url, tamano_byte })
+  // Logo — base64 comprimido en cliente → servidor procesa con sharp y sube a R2
+  const { key, url, tamano_byte } = await subirMediaArchivo(base64, empresaId, `_config_${tipo}`, nombre)
+  try {
+    await prisma.$executeRaw`
+      UPDATE ${Prisma.raw(DB_SCHEMA)}."MediaConfig"
+      SET "logoKey" = ${key}, "logoUrl" = ${url}, "updatedAt" = now()
+      WHERE "empresaId" = ${empresaId}
+    `
+    return NextResponse.json({ key, url, tamano_byte })
+  } catch (dbErr) {
+    await eliminarMediaArchivo(key).catch(() => {})
+    return NextResponse.json({ error: 'Error al guardar' }, { status: 500 })
+  }
 }
 

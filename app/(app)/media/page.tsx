@@ -202,12 +202,33 @@ export default function MediaPage() {
     try {
       let res: Response
       if (tipo === 'portafolio') {
-        // PDF — FormData para evitar límite de 4MB en JSON base64
-        const form = new FormData()
-        form.append('tipo', tipo)
-        form.append('nombre', file.name)
-        form.append('file', file)
-        res = await fetch('/api/media/config', { method: 'POST', body: form })
+        // Validar antes de subir
+        if (file.size > 10 * 1024 * 1024) { alert('El PDF no puede superar 10MB'); return }
+        if (file.type !== 'application/pdf') { alert('Solo se aceptan archivos PDF'); return }
+
+        // 1. Pedir presigned URL al servidor
+        const presignRes = await fetch(`/api/media/config/presign?tipo=portafolio&nombre=${encodeURIComponent(file.name)}&size=${file.size}`)
+        if (!presignRes.ok) {
+          const e = await presignRes.json()
+          alert(e.error || 'Error al preparar subida')
+          return
+        }
+        const { presignedUrl, key, url } = await presignRes.json()
+
+        // 2. Subir directo a R2 — sin pasar por el servidor
+        const uploadRes = await fetch(presignedUrl, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/pdf' },
+          body: file,
+        })
+        if (!uploadRes.ok) { alert('Error al subir a R2'); return }
+
+        // 3. Notificar al servidor con los metadatos
+        res = await fetch('/api/media/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tipo, key, url, nombre: file.name }),
+        })
       } else {
         const base64 = await comprimirImagen(file)
         res = await fetch('/api/media/config', {
@@ -218,12 +239,12 @@ export default function MediaPage() {
       }
       if (res.ok) { await cargarTodo() }
       else {
-        let msg = `❌ HTTP ${res.status}`
-        try { const d = await res.json(); msg += ' — ' + (d.error || JSON.stringify(d)) } catch(e) { msg += ' — (sin body)' }
+        let msg = 'Error al guardar'
+        try { const d = await res.json(); msg = d.error || msg } catch {}
         alert(msg)
       }
     } catch (err: any) {
-      alert('❌ Cliente: ' + err.message)
+      alert('Error: ' + err.message)
     }
   }
 
