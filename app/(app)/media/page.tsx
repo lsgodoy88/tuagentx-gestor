@@ -218,12 +218,12 @@ export default function MediaPage() {
       }
       if (res.ok) { await cargarTodo() }
       else {
-        let msg = 'Error al subir'
-        try { const d = await res.json(); msg = d.error || msg } catch {}
+        let msg = `❌ HTTP ${res.status}`
+        try { const d = await res.json(); msg += ' — ' + (d.error || JSON.stringify(d)) } catch(e) { msg += ' — (sin body)' }
         alert(msg)
       }
-    } catch (err) {
-      alert('Error al procesar imagen')
+    } catch (err: any) {
+      alert('❌ Cliente: ' + err.message)
     }
   }
 
