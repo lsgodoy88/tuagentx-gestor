@@ -55,15 +55,21 @@ export async function POST(req: NextRequest) {
 
   const empresaId = (session.user as any).empresaId
   const ct = req.headers.get('content-type') || ''
+  console.log('[media/config POST] ct:', ct.slice(0,50), 'empresaId:', empresaId)
   let tipo: string, nombre: string, base64: string | undefined, pdfBuffer: Buffer | undefined
 
   if (ct.includes('multipart/form-data')) {
-    const form = await req.formData()
-    tipo = String(form.get('tipo') || '')
-    nombre = String(form.get('nombre') || '')
-    const blob = form.get('file') as Blob | null
-    if (!blob) return NextResponse.json({ error: 'Archivo requerido' }, { status: 400 })
-    pdfBuffer = Buffer.from(await blob.arrayBuffer())
+    try {
+      const form = await req.formData()
+      tipo = String(form.get('tipo') || '')
+      nombre = String(form.get('nombre') || '')
+      const blob = form.get('file') as Blob | null
+      if (!blob) return NextResponse.json({ error: 'Archivo requerido' }, { status: 400 })
+      pdfBuffer = Buffer.from(await blob.arrayBuffer())
+    } catch(formErr: any) {
+      console.error('[media/config] formData error:', formErr.message)
+      return NextResponse.json({ error: 'Error al leer archivo: ' + formErr.message }, { status: 500 })
+    }
   } else {
     const body = await req.json()
     tipo = body.tipo; nombre = body.nombre; base64 = body.base64
