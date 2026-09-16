@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runSyncTransprensa } from '@/lib/jobs/sync-transprensa'
+import { checkSyncGuard } from '@/lib/sync-guard'
 
 export async function POST(req: NextRequest) {
-  if (req.headers.get('x-cron-secret') !== process.env.CRON_SECRET)
-    return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  const deny = await checkSyncGuard(req, 'transprensa')
+  if (deny) return deny
 
   try {
     const result = await runSyncTransprensa()

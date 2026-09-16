@@ -1018,10 +1018,17 @@ export async function fetchOrdenesDateConCursor(
     if (!d.ok) throw new Error(`UpTres /ordenes/date error: ${d.msg || ''}`)
     if (!Array.isArray(d.data) || d.data.length === 0) break
     todos.push(...d.data)
+    // UpTres devuelve DESC — d.data[0] de la PRIMERA página es el más reciente.
+    // Solo capturar en la primera iteración para no pisar con páginas más antiguas.
+    if (!ultimoCursor) {
+      const primero = d.data[0]
+      if (primero?.updatedAt && primero?.id) {
+        ultimoCursor = { cursorDate: primero.updatedAt, cursorId: primero.id }
+      }
+    }
     if (!d.nextCursor?.cursorDate || !d.nextCursor?.cursorId) break
     cursorDate = d.nextCursor.cursorDate
     cursorId = d.nextCursor.cursorId
-    ultimoCursor = { cursorDate: cursorDate!, cursorId: cursorId! }
   }
   return { data: todos, ultimoCursor }
 }
@@ -1075,12 +1082,13 @@ export async function fetchOrdenesInvoicedConCursor(
     if (!d.ok) throw new Error(`UpTres /ordenes/date?invoicedAt error: ${d.msg || ''}`)
     if (!Array.isArray(d.data) || d.data.length === 0) break
     todos.push(...d.data)
-    // UpTres devuelve DESC — d.data[0] es el más reciente.
-    // Guardamos ese como cursor para que la próxima corrida pida desde ahí.
-    // NO usamos nextCursor de UpTres: ese cursor pagina hacia atrás (más antiguo).
-    const primero = d.data[0]
-    if (primero?.invoicedAt && primero?.id) {
-      ultimoCursor = { cursorDate: primero.invoicedAt, cursorId: primero.id }
+    // UpTres devuelve DESC — d.data[0] de la PRIMERA página es el más reciente.
+    // Solo capturar en la primera iteración para no pisar con páginas más antiguas.
+    if (!ultimoCursor) {
+      const primero = d.data[0]
+      if (primero?.invoicedAt && primero?.id) {
+        ultimoCursor = { cursorDate: primero.invoicedAt, cursorId: primero.id }
+      }
     }
     // Si hay más páginas seguimos paginando para traer todo el rango
     if (!d.nextCursor?.cursorDate || !d.nextCursor?.cursorId) break
@@ -1135,10 +1143,17 @@ export async function fetchOrdenesDeletedConCursor(
     if (!d.ok) throw new Error(`UpTres /ordenes/deleted error: ${d.msg || ''}`)
     if (!Array.isArray(d.data) || d.data.length === 0) break
     todos.push(...d.data)
+    // UpTres devuelve DESC — d.data[0] de la PRIMERA página es el más reciente.
+    // Solo capturar en la primera iteración para no pisar con páginas más antiguas.
+    if (!ultimoCursor) {
+      const primero = d.data[0]
+      if (primero?.deletedAt && primero?.id) {
+        ultimoCursor = { cursorDate: primero.deletedAt, cursorId: primero.id }
+      }
+    }
     if (!d.nextCursor?.cursorDate || !d.nextCursor?.cursorId) break
     cursorDate = d.nextCursor.cursorDate
     cursorId = d.nextCursor.cursorId
-    ultimoCursor = { cursorDate: cursorDate!, cursorId: cursorId! }
   }
   return { data: todos, ultimoCursor }
 }

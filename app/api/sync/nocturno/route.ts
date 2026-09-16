@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import { runSyncNocturno } from '@/lib/jobs/sync-nocturno'
 import { ROLES_ADMIN } from '@/lib/auth-helpers'
 import { redis } from '@/lib/redis'
+import { checkSyncGuard } from '@/lib/sync-guard'
 
 const LOCK_KEY = 'sync-nocturno:lock'
 const LOCK_TTL_COMPLETO = 60 * 60  // 1 hora — completo puede paginar muchas páginas
@@ -11,6 +12,10 @@ const LOCK_TTL_DELTA    = 10 * 60  // 10 min — delta es rápido
 
 export async function POST(req: NextRequest) {
   const isCron = req.headers.get('x-cron-secret') === process.env.CRON_SECRET
+  if (isCron) {
+    const deny = await checkSyncGuard(req, 'nocturno')
+    if (deny) return deny
+  }
   if (!isCron) {
     const session = await getServerSession(authOptions)
     const user = session?.user as any

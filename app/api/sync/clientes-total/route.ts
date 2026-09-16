@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { checkSyncGuard } from '@/lib/sync-guard'
 import { prisma } from '@/lib/prisma'
 import { UpTresAdapter } from '@/lib/integracion/adapters/uptres'
 import { decrypt } from '@/lib/crypto-uptres'
 
 export async function POST(req: NextRequest) {
-  if (req.headers.get('x-cron-secret') !== process.env.CRON_SECRET) {
-    return NextResponse.json({ ok: false, msg: 'Unauthorized' }, { status: 401 })
-  }
+  const deny = await checkSyncGuard(req, 'clientes')
+  if (deny) return deny
 
   const integraciones = await prisma.integracion.findMany({
     where: { activa: true },
