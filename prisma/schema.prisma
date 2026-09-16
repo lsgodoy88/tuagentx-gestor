@@ -451,6 +451,7 @@ model Proveedor {
   banco                String?
   numero_cuenta        String?
   whatsapp             String?
+  egresos              Egreso[]
 
   @@map("Proveedor")
 }
@@ -3385,6 +3386,7 @@ model Egreso {
   evidenciaKey String?
   proveedorId  String?
   empresa      Empresa         @relation(fields: [empresaId], references: [id])
+  proveedor    Proveedor?      @relation(fields: [proveedorId], references: [id])
   abonos       EgresoAbono[]
   adjuntos     EgresoAdjunto[]
 
