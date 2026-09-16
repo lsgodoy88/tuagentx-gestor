@@ -974,6 +974,12 @@ export async function fetchNotasCredito(
 // Usa /ordenes/date?date=updatedAt para detectar cualquier cambio en órdenes:
 // facturaciones (invoicedAt) Y pagos parciales (balance cambia).
 // Confirmado con datos reales: updatedAt se actualiza en ambos casos.
+//
+// PATRÓN CURSOR CORRECTO (2026-09-16):
+// - Primera página: NO se pasan cursorDate/cursorId — UpTres devuelve desde `to` hacia atrás
+//   → d.data[0] es siempre lo más reciente → cursor avanza correctamente
+// - Páginas siguientes: se pasan nextCursor de UpTres para paginar hacia atrás
+// - El cursor guardado solo define el `from` (ventana de búsqueda), no la paginación interna
 export async function fetchOrdenesDateConCursor(
   apiKey: string,
   token: string,
@@ -988,15 +994,17 @@ export async function fetchOrdenesDateConCursor(
   const fields = 'id,orderNumber,invoiceNumber,isInvoiced,invoicedAt,total,balance,paymentType,paymentMethod,customerId,employeeId,createdAt,updatedAt,cityId,address,phone'
 
   const todos: any[] = []
-  let cursorDate: string | null = cursor?.cursorDate ?? null
-  let cursorId: string | null = cursor?.cursorId ?? null
+  let cursorDate: string | null = null
+  let cursorId: string | null = null
   let ultimoCursor: UpTresCursor | null = null
   let pagina = 0
   const MAX_PAGINAS = 200
 
   while (pagina++ < MAX_PAGINAS) {
     const p = new URLSearchParams({ date: 'updatedAt', fields, from: fromDate, to: manana.toISOString().split('T')[0], limit: '100', condition: 'true', expand: 'customer' })
-    if (cursorDate && cursorId) { p.set('cursorDate', cursorDate); p.set('cursorId', cursorId) }
+    // Primera página sin cursor → UpTres devuelve DESC desde `to`, d.data[0] = más reciente
+    // Páginas siguientes → nextCursor de UpTres para paginar hacia atrás
+    if (pagina > 1 && cursorDate && cursorId) { p.set('cursorDate', cursorDate); p.set('cursorId', cursorId) }
 
     let texto = ''
     for (let intento = 0; intento < 3; intento++) {
@@ -1018,8 +1026,7 @@ export async function fetchOrdenesDateConCursor(
     if (!d.ok) throw new Error(`UpTres /ordenes/date error: ${d.msg || ''}`)
     if (!Array.isArray(d.data) || d.data.length === 0) break
     todos.push(...d.data)
-    // UpTres devuelve DESC — d.data[0] de la PRIMERA página es el más reciente.
-    // Solo capturar en la primera iteración para no pisar con páginas más antiguas.
+    // d.data[0] de la PRIMERA página es siempre el más reciente (UpTres DESC, sin cursor inicial)
     if (!ultimoCursor) {
       const primero = d.data[0]
       if (primero?.updatedAt && primero?.id) {
@@ -1038,6 +1045,12 @@ export async function fetchOrdenesDateConCursor(
 // Usa /ordenes/date?date=invoicedAt para detectar órdenes facturadas.
 // Cubre el caso de órdenes creadas días anteriores y facturadas después —
 // que fetchVentas (solo HOY) no puede capturar.
+//
+// PATRÓN CURSOR CORRECTO (2026-09-16):
+// - Primera página: NO se pasan cursorDate/cursorId — UpTres devuelve desde `to` hacia atrás
+//   → d.data[0] es siempre lo más reciente → cursor avanza correctamente
+// - Páginas siguientes: se pasan nextCursor de UpTres para paginar hacia atrás
+// - El cursor guardado solo define el `from` (ventana de búsqueda), no la paginación interna
 export async function fetchOrdenesInvoicedConCursor(
   apiKey: string,
   token: string,
@@ -1052,15 +1065,17 @@ export async function fetchOrdenesInvoicedConCursor(
   const fields = 'id,orderNumber,invoiceNumber,isInvoiced,invoicedAt,total,balance,paymentType,paymentMethod,customerId,employeeId,createdAt,updatedAt,cityId,address,phone'
 
   const todos: any[] = []
-  let cursorDate: string | null = cursor?.cursorDate ?? null
-  let cursorId: string | null = cursor?.cursorId ?? null
+  let cursorDate: string | null = null
+  let cursorId: string | null = null
   let ultimoCursor: UpTresCursor | null = null
   let pagina = 0
   const MAX_PAGINAS = 200
 
   while (pagina++ < MAX_PAGINAS) {
     const p = new URLSearchParams({ date: 'invoicedAt', fields, from: fromDate, to: manana.toISOString().split('T')[0], limit: '100', condition: 'true', expand: 'customer' })
-    if (cursorDate && cursorId) { p.set('cursorDate', cursorDate); p.set('cursorId', cursorId) }
+    // Primera página sin cursor → UpTres devuelve DESC desde `to`, d.data[0] = más reciente
+    // Páginas siguientes → nextCursor de UpTres para paginar hacia atrás
+    if (pagina > 1 && cursorDate && cursorId) { p.set('cursorDate', cursorDate); p.set('cursorId', cursorId) }
 
     let texto = ''
     for (let intento = 0; intento < 3; intento++) {
@@ -1082,15 +1097,13 @@ export async function fetchOrdenesInvoicedConCursor(
     if (!d.ok) throw new Error(`UpTres /ordenes/date?invoicedAt error: ${d.msg || ''}`)
     if (!Array.isArray(d.data) || d.data.length === 0) break
     todos.push(...d.data)
-    // UpTres devuelve DESC — d.data[0] de la PRIMERA página es el más reciente.
-    // Solo capturar en la primera iteración para no pisar con páginas más antiguas.
+    // d.data[0] de la PRIMERA página es siempre el más reciente (UpTres DESC, sin cursor inicial)
     if (!ultimoCursor) {
       const primero = d.data[0]
       if (primero?.invoicedAt && primero?.id) {
         ultimoCursor = { cursorDate: primero.invoicedAt, cursorId: primero.id }
       }
     }
-    // Si hay más páginas seguimos paginando para traer todo el rango
     if (!d.nextCursor?.cursorDate || !d.nextCursor?.cursorId) break
     cursorDate = d.nextCursor.cursorDate
     cursorId = d.nextCursor.cursorId
@@ -1113,15 +1126,17 @@ export async function fetchOrdenesDeletedConCursor(
     : new Date(desde.getTime() - 5 * 60 * 60 * 1000).toISOString().split('T')[0]
 
   const todos: any[] = []
-  let cursorDate: string | null = cursor?.cursorDate ?? null
-  let cursorId: string | null = cursor?.cursorId ?? null
+  let cursorDate: string | null = null
+  let cursorId: string | null = null
   let ultimoCursor: UpTresCursor | null = null
   let pagina = 0
   const MAX_PAGINAS = 200
 
   while (pagina++ < MAX_PAGINAS) {
     const p = new URLSearchParams({ fields: 'id,orderNumber,deletedAt', from: fromDate, to: manana.toISOString().split('T')[0], limit: '100' })
-    if (cursorDate && cursorId) { p.set('cursorDate', cursorDate); p.set('cursorId', cursorId) }
+    // Primera página sin cursor → UpTres devuelve DESC desde `to`, d.data[0] = más reciente
+    // Páginas siguientes → nextCursor de UpTres para paginar hacia atrás
+    if (pagina > 1 && cursorDate && cursorId) { p.set('cursorDate', cursorDate); p.set('cursorId', cursorId) }
 
     let texto = ''
     for (let intento = 0; intento < 3; intento++) {
@@ -1143,8 +1158,7 @@ export async function fetchOrdenesDeletedConCursor(
     if (!d.ok) throw new Error(`UpTres /ordenes/deleted error: ${d.msg || ''}`)
     if (!Array.isArray(d.data) || d.data.length === 0) break
     todos.push(...d.data)
-    // UpTres devuelve DESC — d.data[0] de la PRIMERA página es el más reciente.
-    // Solo capturar en la primera iteración para no pisar con páginas más antiguas.
+    // d.data[0] de la PRIMERA página es siempre el más reciente (UpTres DESC, sin cursor inicial)
     if (!ultimoCursor) {
       const primero = d.data[0]
       if (primero?.deletedAt && primero?.id) {
