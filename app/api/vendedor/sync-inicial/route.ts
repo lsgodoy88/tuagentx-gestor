@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
 
     // 3. Integracion + credenciales
     const integracion = await (prisma as any).integracion.findFirst({
-      where: { empresaId },
+      where: { empresaId, tipo: 'uptres', activa: true },
       select: { id: true, config: true }
     })
     if (!integracion) return NextResponse.json({ error: 'Sin integracion configurada' }, { status: 400 })
