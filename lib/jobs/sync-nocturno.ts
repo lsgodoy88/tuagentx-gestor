@@ -13,8 +13,6 @@ import { calcularEstado } from '@/lib/cartera/index'
 import { nowBogota } from '@/lib/fechas'
 import { calcularNSaldoBatch } from '@/lib/cartera/calcularSaldo'
 import { actualizarDeudasInactivas } from '@/lib/integracion/sync'
-import { recalcularVentasMesImpulsos } from '@/lib/integracion/venta-mes'
-import { syncProductosEmpresa } from '@/lib/jobs/sync-delta'
 
 // ── Estado derivado del PagoCartera padre ────────────────────────────────────
 // UNICA fuente de verdad: PagoCarteraDeuda.envioEstado por factura. El padre NUNCA
@@ -545,14 +543,8 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
         }
       }
 
-      if (modo === 'completo') {
-        const externalIdsActivos = new Set(externalIds)
-        // fetchAll trae todo sin filtro condition — seguro marcar masivamente
-        await (prisma as any).syncDeuda.updateMany({
-          where: { integracionId: intg.id, condition: true, externalId: { notIn: Array.from(externalIdsActivos) } },
-          data: { condition: false, sincronizadoEl: new Date() }
-        })
-      }
+      // marcarZombis eliminado 2026-09-16 — reconciliarDeuda ya marca condition=false
+      // cuando UpTres cierra una deuda (condicionUpTres=false via updatedAt)
 
       const clienteApiIdsAfectados = [...new Set([
         ...toInsert.map((t: any) => t.clienteApiId).filter(Boolean),
@@ -579,21 +571,9 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
         }
       }
 
-      // Impulso/Rutas Fijas:
-      // - Completo: recalcula todos los clientes de ruta fija (1×/día)
-      // - Delta: solo si algún cliente de ruta fija tuvo actividad real en este sync
-      //   → evita 50+ llamadas HTTP/día sin cambios reales
-      try {
-        _s = Date.now(); await recalcularVentasMesImpulsos(
-          intg.empresaId,
-          adapter,
-          undefined,
-          modo === 'delta' ? clienteApiIdsAfectados : undefined
-        )
-      } catch (eImpulso: any) {
-        _t('recalcularVentas', _s)
-        console.error(`[sync-nocturno] recalcularVentasMesImpulsos fallo (no critico):`, eImpulso.message)
-      }
+      // Impulso/Rutas Fijas: manejado por job horario /api/sync/ventas-mes
+      // Eliminado del nocturno 2026-09-16 — job horario usa OrdenDespacho local,
+      // más frecuente (cada hora) y sin HTTP a UpTres
 
       // Completo: invalida todo Redis (datos masivos cambiaron)
       // Delta: solo invalida clientes afectados — no romper cache de usuarios activos
@@ -605,48 +585,10 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
         await invalidarCacheClientes(intg.empresaId, clienteApiIdsActualizados).catch(() => {})
       }
 
-      // Sync listas completo — trae todas las listas sin filtro de fecha
-      if (modo === 'completo') {
-        try {
-          _s = Date.now(); const { data: listasAll } = await adapter.fetchListasClientesConCursor(null, new Date('2020-01-01')); _t('fetchListas', _s)
-          for (const lista of listasAll) {
-            const listaLocal = await (prisma as any).listaClientes.upsert({
-              where: { api_id: lista.apiId },
-              create: { id: crypto.randomUUID(), api_id: lista.apiId, nombre: lista.nombre, empresaId: intg.empresaId },
-              update: { nombre: lista.nombre },
-            })
-            if (lista.clienteApiIds.length === 0) continue
-            const clientesEnLista = await (prisma as any).cliente.findMany({
-              where: { empresaId: intg.empresaId, apiId: { in: lista.clienteApiIds } },
-              select: { id: true },
-            })
-            const clienteIds = clientesEnLista.map((c: any) => c.id)
-            if (clienteIds.length > 0) {
-              await (prisma as any).clienteLista.createMany({
-                data: clienteIds.map((clienteId: string) => ({ clienteId, listaId: listaLocal.id })),
-                skipDuplicates: true,
-              })
-              await (prisma as any).clienteLista.deleteMany({
-                where: { listaId: listaLocal.id, clienteId: { notIn: clienteIds } },
-              })
-            }
-          }
-          console.log(`[sync-nocturno] listas completo: ${listasAll.length} listas sincronizadas`)
-        } catch (eListas: any) {
-          console.error(`[sync-nocturno] syncListas fallo (no critico):`, eListas.message)
-        }
-      }
+      // Sync listas completo eliminado 2026-09-16 — sync-delta ya maneja listas con cursor incremental
 
-      // Sync productos (delta o completo segun modo)
-      let productosSync = { upserted: 0, desactivados: 0 }
-      try {
-        const desdeProductos = modo === 'delta'
-          ? new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-          : undefined
-        productosSync = await syncProductosEmpresa(intg.empresaId, intg.id, config.apiKey, apiSecret, desdeProductos)
-      } catch (eProd: any) {
-        console.error(`[sync-nocturno] syncProductos fallo (no critico):`, eProd.message)
-      }
+      // Sync productos eliminado 2026-09-16 — sync-delta lo cubre cada 5 min con cursor incremental
+      const productosSync = { upserted: 0, desactivados: 0 }
 
       const totalMs = Date.now() - _t0
       console.log(`[sync-nocturno] ${intg.empresaId} OK ${totalMs}ms | ${Object.entries(_det).map(([k,v])=>k+':'+v+'ms').join(' | ')}`)

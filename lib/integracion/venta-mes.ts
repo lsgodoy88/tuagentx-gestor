@@ -69,6 +69,30 @@ export async function recalcularVentasMesImpulsos(
         }
       } catch {}
     }
+  } else if (conApiId.length > 0 && !adapter) {
+    // Sin adapter → usar OrdenDespacho local (sync-delta la mantiene actualizada)
+    // fechaOrdenBogota = invoicedAt (fix 2026-09-16) → fecha correcta de facturación
+    const apiIdToClienteId = Object.fromEntries(conApiId.map((c: any) => [c.apiId, c.id]))
+    const ordenes = await (prisma as any).ordenDespacho.findMany({
+      where: {
+        clienteApiId: { in: conApiId.map((c: any) => c.apiId) },
+        empresaId,
+        isFacturada: true,
+        isActiva: true,
+        fechaOrdenBogota: { gte: inicioVentana },
+      },
+      select: { clienteApiId: true, totalOrden: true, fechaOrdenBogota: true }
+    })
+    for (const o of ordenes) {
+      const clienteId = apiIdToClienteId[o.clienteApiId]
+      if (!clienteId || !o.fechaOrdenBogota) continue
+      const mes = new Date(o.fechaOrdenBogota).toISOString().slice(0, 7)
+      const key = `${clienteId}::${mes}`
+      if (!mapa.has(key)) mapa.set(key, { clienteId, mes, total: 0, count: 0 })
+      const e = mapa.get(key)!
+      e.total += Number(o.totalOrden || 0)
+      e.count += 1
+    }
   }
 
   // Clientes sin ERP → Visita
