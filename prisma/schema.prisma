@@ -2914,6 +2914,8 @@ model SyncDeuda {
   ajusteManual        Decimal?    @db.Decimal(14, 2)
   ajusteNota          String?
   ajusteFecha         DateTime?
+  recuperadorIntentos Int       @default(0)
+  recuperadorFallidoEn DateTime?
   integracion         Integracion @relation(fields: [integracionId], references: [id])
 
   @@unique([integracionId, externalId])
