@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
   // Mutex Redis — evita dos syncs concurrentes (doble dispatch del Guardian)
   const lockKey = modo === 'completo' ? LOCK_KEY : `${LOCK_KEY}:delta`
   const lockTtl = modo === 'completo' ? LOCK_TTL_COMPLETO : LOCK_TTL_DELTA
-  const lock = await redis.set(lockKey, modo, 'EX', lockTtl, 'NX')
+  const lock = process.env.SKIP_SYNC_LOCK === 'true' ? 'ok' : await redis.set(lockKey, modo, 'EX', lockTtl, 'NX')
   if (!lock) {
     console.error('[sync-nocturno] ya hay un sync en curso — omitido')
     return NextResponse.json({ ok: true, omitido: true, razon: 'sync_en_curso' })

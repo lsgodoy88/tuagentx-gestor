@@ -37,7 +37,9 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   const ahoraBogota = new Date(Date.now() - 5 * 60 * 60 * 1000)
   const desde = new Date(Date.UTC(ahoraBogota.getUTCFullYear(), ahoraBogota.getUTCMonth(), ahoraBogota.getUTCDate()) + 5 * 60 * 60 * 1000)
 
-  _s = Date.now(); const ordenes = await adapter.fetchVentas(desde); _t('fetchVentas', _s)
+  // DISABLE_FETCH_VENTAS: órdenes cubiertas por cursores invoicedAt y updatedAt
+  const ordenes = process.env.DISABLE_FETCH_VENTAS === 'true' ? [] : await adapter.fetchVentas(desde)
+  if (process.env.DISABLE_FETCH_VENTAS !== 'true') _t('fetchVentas', Date.now())
   const erroresParciales: string[] = []
 
   // NO early return cuando no hay ordenes del día —
@@ -177,7 +179,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
       vendedorApiId: orden.empleado?.uid || null, clienteApiId, clienteNombre: orden.clienteNombre || orden.clienteNombreApi,
       clienteNit, ciudad: ciudadNombre, direccion, telefono,
       fechaOrden: orden.fCreado ? parseFechaUptresBogota(orden.fCreado as string) : new Date(),
-      fechaOrdenBogota: orden.fCreado ? parseFechaUptresBogota(orden.fCreado as string) : new Date(),
+      fechaOrdenBogota: (orden.isInvoiced && orden.invoicedAt) ? parseFechaUptresBogota(orden.invoicedAt) : (orden.fCreado ? parseFechaUptresBogota(orden.fCreado as string) : new Date()),
       totalOrden: orden.vTotal ? parseFloat(orden.vTotal) : null,
       isFacturada: orden.isInvoiced === true, isActiva: (orden as any).isActiva !== false,
       fechaFactura: orden.invoicedAt ? parseFechaUptresBogota(orden.invoicedAt) : null,
@@ -533,6 +535,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
               direccion,
               telefono,
               fechaOrden: o.createdAt ? parseFechaUptresBogota(o.createdAt) : null,
+              fechaOrdenBogota: o.invoicedAt ? parseFechaUptresBogota(o.invoicedAt) : (o.createdAt ? parseFechaUptresBogota(o.createdAt) : null),
               estado: 'pendiente',
               sincronizadoEn: new Date(),
               origenSync: 'delta',
@@ -542,6 +545,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
               isFacturada: true,
               numeroFactura: String(o.invoiceNumber),
               fechaFactura: o.invoicedAt ? parseFechaUptresBogota(o.invoicedAt) : null,
+              fechaOrdenBogota: o.invoicedAt ? parseFechaUptresBogota(o.invoicedAt) : null,
               totalOrden: o.total ? parseFloat(o.total) : null,
               balance: o.balance !== undefined ? parseFloat(o.balance) : null,
               reconciliadoEn: new Date(),
@@ -822,7 +826,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
                 const origenId = String((orden as any).uid || (orden as any)._id)
                 const completa = await adapter.fetchOrdenCompletaPorId(origenId)
                 if (completa && completa.clienteNombre) {
-                  await prisma.ordenDespacho.upsert({ where: { origenId_empresaId: { origenId, empresaId: destino } }, create: { origenId, empresaId: destino, numeroOrden: completa.numeroOrden, numeroFactura: completa.numeroFactura || String(hueco), isFacturada: completa.isFacturada, fechaFactura: completa.fechaFactura ? parseFechaUptresBogota(String(completa.fechaFactura)) : null, totalOrden: completa.totalOrden, balance: completa.balance, paymentType: completa.paymentType ? String(completa.paymentType) : null, paymentMethod: completa.paymentMethod != null ? String(completa.paymentMethod) : null, clienteApiId: completa.clienteApiId, clienteNit: completa.clienteNit || '', clienteNombre: completa.clienteNombre, vendedorApiId: completa.vendedorApiId, fechaOrden: completa.createdAt ? parseFechaUptresBogota(String(completa.createdAt)) : new Date(), fechaOrdenBogota: completa.createdAt ? parseFechaUptresBogota(String(completa.createdAt)) : new Date(), origen: origenVinculadaId ? 'vinculada' : 'propia', origenVinculadaId, ciudad: (completa as any).ciudad || null, direccion: (completa as any).direccion || null, telefono: (completa as any).telefono || null, estado: 'pendiente', sincronizadoEn: new Date(), origenSync: 'recuperada' }, update: {} })
+                  await prisma.ordenDespacho.upsert({ where: { origenId_empresaId: { origenId, empresaId: destino } }, create: { origenId, empresaId: destino, numeroOrden: completa.numeroOrden, numeroFactura: completa.numeroFactura || String(hueco), isFacturada: completa.isFacturada, fechaFactura: completa.fechaFactura ? parseFechaUptresBogota(String(completa.fechaFactura)) : null, totalOrden: completa.totalOrden, balance: completa.balance, paymentType: completa.paymentType ? String(completa.paymentType) : null, paymentMethod: completa.paymentMethod != null ? String(completa.paymentMethod) : null, clienteApiId: completa.clienteApiId, clienteNit: completa.clienteNit || '', clienteNombre: completa.clienteNombre, vendedorApiId: completa.vendedorApiId, fechaOrden: completa.createdAt ? parseFechaUptresBogota(String(completa.createdAt)) : new Date(), fechaOrdenBogota: (completa.isFacturada && completa.fechaFactura) ? parseFechaUptresBogota(String(completa.fechaFactura)) : (completa.createdAt ? parseFechaUptresBogota(String(completa.createdAt)) : new Date()), origen: origenVinculadaId ? 'vinculada' : 'propia', origenVinculadaId, ciudad: (completa as any).ciudad || null, direccion: (completa as any).direccion || null, telefono: (completa as any).telefono || null, estado: 'pendiente', sincronizadoEn: new Date(), origenSync: 'recuperada' }, update: {} })
                   if (completa.clienteApiId) {
                     try {
                       const schema = process.env.DB_SCHEMA || 'gestor'
@@ -889,7 +893,7 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
                 clienteApiId: completa.clienteApiId, clienteNit: completa.clienteNit || '',
                 clienteNombre: completa.clienteNombre, vendedorApiId: completa.vendedorApiId,
                 fechaOrden: completa.createdAt ? parseFechaUptresBogota(String(completa.createdAt)) : new Date(),
-                fechaOrdenBogota: completa.createdAt ? parseFechaUptresBogota(String(completa.createdAt)) : new Date(),
+                fechaOrdenBogota: (completa.isFacturada && completa.fechaFactura) ? parseFechaUptresBogota(String(completa.fechaFactura)) : (completa.createdAt ? parseFechaUptresBogota(String(completa.createdAt)) : new Date()),
                 origen: origenVinculadaId ? 'vinculada' : 'propia', origenVinculadaId,
                 ciudad: (completa as any).ciudad || null, direccion: (completa as any).direccion || null, telefono: (completa as any).telefono || null,
                 estado: 'pendiente', sincronizadoEn: new Date(), origenSync: 'recuperada_sync',
