@@ -867,6 +867,10 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
           SELECT 1 FROM ${schema}."OrdenDespacho" od
           WHERE od."origenId" = sd."externalId" AND od."empresaId" = $2
         )
+        AND (
+          sd."recuperadorIntentos" < 3
+          OR sd."recuperadorFallidoEn" < NOW() - INTERVAL '7 days'
+        )
       ORDER BY sd."numeroFactura" DESC
       LIMIT 10`, integracionId, destino, hace10dias)
 
@@ -919,8 +923,18 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
             }
             huecosRecuperados++
             console.log(`[delta] recuperada F_${completa.numeroFactura} orden ${completa.numeroOrden}`)
+            if ((deuda.recuperadorIntentos || 0) > 0) {
+              await prisma.syncDeuda.updateMany({
+                where: { integracionId, externalId: deuda.externalId },
+                data: { recuperadorIntentos: 0, recuperadorFallidoEn: null }
+              })
+            }
           } else {
-            console.log(`[delta] recuperador sin datos UpTres F_${deuda.numeroFactura} — omitiendo`)
+            console.log(`[delta] recuperador sin datos UpTres F_${deuda.numeroFactura} — omitiendo (intento ${(deuda.recuperadorIntentos || 0) + 1})`)
+            await prisma.syncDeuda.updateMany({
+              where: { integracionId, externalId: deuda.externalId },
+              data: { recuperadorIntentos: { increment: 1 }, recuperadorFallidoEn: new Date() }
+            })
           }
         } catch (e: any) { console.error('[delta] recuperador error', deuda.externalId, e.message) }
       }
