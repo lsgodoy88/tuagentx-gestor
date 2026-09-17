@@ -1,11 +1,17 @@
 import { prisma, DB_SCHEMA } from '@/lib/prisma'
 import { randomUUID } from 'crypto'
 
+// recalcularVentasMesImpulsos (2026-09-17 — slim)
+// Fuente única: BD local. Sin HTTP a UpTres.
+//   - Clientes con apiId → OrdenDespacho (isFacturada, isActiva, fechaOrdenBogota=invoicedAt)
+//   - Clientes sin apiId → Visita tipo venta (caso borde, <2 registros en prod)
+// Ventana: mes actual + 2 anteriores.
+// Llamado por: job horario /api/sync/ventas-mes (guardian L-S 8am-6pm cada hora)
+
 export async function recalcularVentasMesImpulsos(
   empresaId: string,
-  adapter?: any,
+  _adapter?: any,         // ignorado — mantenido por compatibilidad de firma
   empleadoId?: string,
-  // En modo delta: solo recalcular clientes de ruta fija con actividad real
   soloClienteApiIds?: string[]
 ): Promise<void> {
   const clientesEnRutas = await (prisma as any).rutaFijaCliente.findMany({
@@ -16,62 +22,32 @@ export async function recalcularVentasMesImpulsos(
   if (clientesEnRutas.length === 0) return
 
   // Si se pasan clienteApiIds afectados, filtrar solo los que están en rutas fijas
-  // y tuvieron actividad — evita llamadas HTTP innecesarias en delta
   if (soloClienteApiIds && soloClienteApiIds.length > 0) {
     const clienteIdsEnRutas = new Set(clientesEnRutas.map((r: any) => r.clienteId))
-    // Resolver clienteApiIds → clienteIds para cruzar
     const clientesFiltrados = await prisma.cliente.findMany({
       where: { apiId: { in: soloClienteApiIds }, empresaId },
       select: { id: true }
     })
     const hayAfectados = clientesFiltrados.some((c: any) => clienteIdsEnRutas.has(c.id))
-    if (!hayAfectados) return // ningún cliente de ruta fija tuvo actividad
+    if (!hayAfectados) return
   }
 
   const clienteIds = clientesEnRutas.map((r: any) => r.clienteId)
   const ahora = new Date()
   const inicioVentana = new Date(ahora.getFullYear(), ahora.getMonth() - 2, 1)
 
-  // Traer apiId de cada cliente para saber si tiene ERP
   const clientes = await prisma.cliente.findMany({
     where: { id: { in: clienteIds } },
     select: { id: true, apiId: true }
   })
 
-  const mapa = new Map<string, { clienteId: string; mes: string; total: number; count: number }>()
-
-  // Clientes con ERP → SyncDeuda
   const conApiId = clientes.filter((c: any) => c.apiId)
   const sinApiId = clientes.filter((c: any) => !c.apiId)
 
-  if (conApiId.length > 0 && adapter) {
-    const apiIdToClienteId = Object.fromEntries(conApiId.map((c: any) => [c.apiId, c.id]))
+  const mapa = new Map<string, { clienteId: string; mes: string; total: number; count: number }>()
 
-    // Traer ventas reales de UpTres por cada cliente (máx ~10 en rutas fijas)
-    for (const cli of conApiId) {
-      try {
-        const ventas = await adapter.fetchVentas(inicioVentana, cli.apiId)
-        for (const v of ventas) {
-          if ((v as any).isActiva === false) continue // excluir eliminadas en UpTres
-          if (v.cliente?.uid !== cli.apiId) continue // filtrar por cliente
-          const fechaRaw = v.fCreado || v.fModificado
-          if (!fechaRaw) continue
-          const fecha = new Date(fechaRaw)
-          if (isNaN(fecha.getTime())) continue
-          const mes = fecha.toISOString().slice(0, 7)
-          const clienteId = apiIdToClienteId[cli.apiId!]
-          if (!clienteId) continue
-          const key = `${clienteId}::${mes}`
-          if (!mapa.has(key)) mapa.set(key, { clienteId, mes, total: 0, count: 0 })
-          const e = mapa.get(key)!
-          e.total += Number(v.vTotal || 0)
-          e.count += 1
-        }
-      } catch {}
-    }
-  } else if (conApiId.length > 0 && !adapter) {
-    // Sin adapter → usar OrdenDespacho local (sync-delta la mantiene actualizada)
-    // fechaOrdenBogota = invoicedAt (fix 2026-09-16) → fecha correcta de facturación
+  // ── Clientes con ERP → OrdenDespacho local ────────────────────────────────
+  if (conApiId.length > 0) {
     const apiIdToClienteId = Object.fromEntries(conApiId.map((c: any) => [c.apiId, c.id]))
     const ordenes = await (prisma as any).ordenDespacho.findMany({
       where: {
@@ -95,7 +71,7 @@ export async function recalcularVentasMesImpulsos(
     }
   }
 
-  // Clientes sin ERP → Visita
+  // ── Clientes sin ERP → Visita (caso borde — <2 registros en prod) ─────────
   if (sinApiId.length > 0) {
     const ids = sinApiId.map((c: any) => c.id)
     const visitas = await prisma.visita.findMany({
@@ -121,14 +97,12 @@ export async function recalcularVentasMesImpulsos(
 
   const inicioMes = inicioVentana.toISOString().slice(0, 7)
 
-  // Limpiar meses fuera de ventana
   await (prisma as any).ventaMesCliente.deleteMany({
     where: { clienteId: { in: clienteIds }, mes: { lt: inicioMes } }
   })
 
   if (mapa.size === 0) return
 
-  // INSERT ... ON CONFLICT DO UPDATE — atómico, seguro ante concurrencia entre empresas
   const entries = Array.from(mapa.values())
   const values = entries.map((_, i) => {
     const b = i * 6

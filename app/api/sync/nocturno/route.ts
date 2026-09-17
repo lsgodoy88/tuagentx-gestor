@@ -6,9 +6,10 @@ import { ROLES_ADMIN } from '@/lib/auth-helpers'
 import { redis } from '@/lib/redis'
 import { checkSyncGuard } from '@/lib/sync-guard'
 
+// Nocturno slim (2026-09-17): un solo modo, lock unificado 15 min
 const LOCK_KEY = 'sync-nocturno:lock'
-const LOCK_TTL_COMPLETO = 60 * 60  // 1 hora — completo puede paginar muchas páginas
-const LOCK_TTL_DELTA    = 10 * 60  // 10 min — delta es rápido
+const LOCK_TTL = 15 * 60       // 15 min — suficiente para fetchDeudasDesde + reconstruir
+const MAX_RUNTIME = 9 * 60 * 1000 // killswitch 9 min
 
 export async function POST(req: NextRequest) {
   const isCron = req.headers.get('x-cron-secret') === process.env.CRON_SECRET
@@ -23,43 +24,33 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
     }
   }
-  const body = await req.json().catch(() => ({}))
-  const { searchParams } = new URL(req.url)
-  const modo = (body.modo ?? searchParams.get('modo') ?? 'completo') as 'completo' | 'delta'
 
-  // Mutex Redis — evita dos syncs concurrentes (doble dispatch del Guardian)
-  const lockKey = modo === 'completo' ? LOCK_KEY : `${LOCK_KEY}:delta`
-  const lockTtl = modo === 'completo' ? LOCK_TTL_COMPLETO : LOCK_TTL_DELTA
-  const lock = process.env.SKIP_SYNC_LOCK === 'true' ? 'ok' : await redis.set(lockKey, modo, 'EX', lockTtl, 'NX')
+  // Mutex Redis — evita dos syncs concurrentes
+  const lock = process.env.SKIP_SYNC_LOCK === 'true' ? 'ok' : await redis.set(LOCK_KEY, 'nocturno', 'EX', LOCK_TTL, 'NX')
   if (!lock) {
     console.error('[sync-nocturno] ya hay un sync en curso — omitido')
     return NextResponse.json({ ok: true, omitido: true, razon: 'sync_en_curso' })
   }
 
-  // Heartbeat — renueva el lock cada 30s mientras corre
-  // Si el proceso muere, el lock expira en 60s automáticamente
-  const HEARTBEAT_TTL = 60 // segundos
-  const HEARTBEAT_INTERVAL = 30 * 1000 // ms
-  const MAX_RUNTIME = modo === 'completo' ? 55 * 60 * 1000 : 9 * 60 * 1000
-
+  // Heartbeat — renueva lock cada 30s mientras corre
   const heartbeat = setInterval(() => {
-    redis.expire(lockKey, HEARTBEAT_TTL).catch(() => {})
-  }, HEARTBEAT_INTERVAL)
+    redis.expire(LOCK_KEY, 60).catch(() => {})
+  }, 30 * 1000)
 
-  // Killswitch — mata el interval aunque finally no corra
+  // Killswitch — libera lock si el proceso se cuelga
   const killswitch = setTimeout(() => {
     clearInterval(heartbeat)
-    redis.del(lockKey).catch(() => {})
+    redis.del(LOCK_KEY).catch(() => {})
     console.warn('[sync-nocturno] killswitch activado — proceso tardó demasiado')
   }, MAX_RUNTIME)
 
-  // Fire-and-forget — liberar lock al terminar
-  runSyncNocturno({ modo })
+  // Fire-and-forget
+  runSyncNocturno()
     .catch(e => console.error('[sync-nocturno] error background:', e.message))
     .finally(() => {
       clearInterval(heartbeat)
       clearTimeout(killswitch)
-      redis.del(lockKey).catch(() => {})
+      redis.del(LOCK_KEY).catch(() => {})
     })
 
   return NextResponse.json({ ok: true, iniciado: true })

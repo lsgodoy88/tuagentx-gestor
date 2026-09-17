@@ -2,13 +2,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { NextRequest } from 'next/server'
 
 vi.mock('@/lib/jobs/sync-nocturno', () => ({
-  runSyncNocturno: vi.fn().mockResolvedValue({ ok: true }),
+  runSyncNocturno: vi.fn().mockResolvedValue([]),
 }))
 
 vi.mock('@/lib/redis', () => ({
   redis: {
-    set: vi.fn().mockResolvedValue('OK'), // lock libre por defecto
+    set: vi.fn().mockResolvedValue('OK'),
     del: vi.fn().mockResolvedValue(1),
+    expire: vi.fn().mockResolvedValue(1),
   },
 }))
 
@@ -20,12 +21,18 @@ vi.mock('@/lib/auth', () => ({
   authOptions: {},
 }))
 
+vi.mock('@/lib/sync-guard', () => ({
+  checkSyncGuard: vi.fn().mockResolvedValue(null), // deja pasar por defecto
+}))
+
 import { getServerSession } from 'next-auth'
 import { runSyncNocturno } from '@/lib/jobs/sync-nocturno'
+import { redis } from '@/lib/redis'
 import { POST } from '@/app/api/sync/nocturno/route'
 
 const sessionMock = getServerSession as any
 const syncMock = runSyncNocturno as any
+const redisMock = redis as any
 
 function makeReq(body: any = {}, headers: Record<string, string> = {}) {
   return new NextRequest('http://localhost/api/sync/nocturno', {
@@ -38,8 +45,11 @@ function makeReq(body: any = {}, headers: Record<string, string> = {}) {
 beforeEach(() => {
   vi.clearAllMocks()
   process.env.CRON_SECRET = 'test-secret'
+  process.env.SKIP_SYNC_LOCK = undefined as any
+  redisMock.set.mockResolvedValue('OK')
 })
 
+// ── Autenticación ─────────────────────────────────────────────────────────────
 describe('POST /api/sync/nocturno — autenticación', () => {
   it('x-cron-secret válido → 200 sin session', async () => {
     const res = await POST(makeReq({}, { 'x-cron-secret': 'test-secret' }))
@@ -53,7 +63,7 @@ describe('POST /api/sync/nocturno — autenticación', () => {
     expect(res.status).toBe(401)
   })
 
-  it('rol no admin → 401', async () => {
+  it('rol vendedor → 401', async () => {
     sessionMock.mockResolvedValue({ user: { role: 'vendedor' } })
     const res = await POST(makeReq())
     expect(res.status).toBe(401)
@@ -66,6 +76,7 @@ describe('POST /api/sync/nocturno — autenticación', () => {
   })
 })
 
+// ── Fire-and-forget ───────────────────────────────────────────────────────────
 describe('POST /api/sync/nocturno — fire-and-forget', () => {
   it('responde {ok:true, iniciado:true} inmediatamente', async () => {
     const res = await POST(makeReq({}, { 'x-cron-secret': 'test-secret' }))
@@ -73,35 +84,13 @@ describe('POST /api/sync/nocturno — fire-and-forget', () => {
     expect(json).toEqual({ ok: true, iniciado: true })
   })
 
-  it('runSyncNocturno se llama sin await (fire-and-forget)', async () => {
-    // El mock resuelve inmediatamente — verificamos que fue llamado
+  it('runSyncNocturno se llama sin modo (slim)', async () => {
     await POST(makeReq({}, { 'x-cron-secret': 'test-secret' }))
     expect(syncMock).toHaveBeenCalledTimes(1)
-  })
-})
-
-describe('POST /api/sync/nocturno — modo', () => {
-  it('modo desde body → se pasa a runSyncNocturno', async () => {
-    await POST(makeReq({ modo: 'completo' }, { 'x-cron-secret': 'test-secret' }))
-    expect(syncMock).toHaveBeenCalledWith({ modo: 'completo' })
+    expect(syncMock).toHaveBeenCalledWith()
   })
 
-  it('modo desde querystring → se pasa a runSyncNocturno', async () => {
-    const req = new NextRequest('http://localhost/api/sync/nocturno?modo=delta', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-cron-secret': 'test-secret' },
-      body: JSON.stringify({}),
-    })
-    await POST(req)
-    expect(syncMock).toHaveBeenCalledWith({ modo: 'delta' })
-  })
-
-  it('sin modo → default completo', async () => {
-    await POST(makeReq({}, { 'x-cron-secret': 'test-secret' }))
-    expect(syncMock).toHaveBeenCalledWith({ modo: 'completo' })
-  })
-
-  it('body inválido (no JSON) → no lanza, usa modo default', async () => {
+  it('body inválido (no JSON) → no lanza, inicia igual', async () => {
     const req = new NextRequest('http://localhost/api/sync/nocturno', {
       method: 'POST',
       headers: { 'x-cron-secret': 'test-secret' },
@@ -109,32 +98,29 @@ describe('POST /api/sync/nocturno — modo', () => {
     })
     const res = await POST(req)
     expect(res.status).toBe(200)
-    expect(syncMock).toHaveBeenCalledWith({ modo: 'completo' })
+    expect(syncMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('modo en body es ignorado — slim no usa modo', async () => {
+    await POST(makeReq({ modo: 'completo' }, { 'x-cron-secret': 'test-secret' }))
+    // runSyncNocturno se llama sin argumentos
+    expect(syncMock).toHaveBeenCalledWith()
   })
 })
 
+// ── Mutex Redis ───────────────────────────────────────────────────────────────
 describe('POST /api/sync/nocturno — mutex Redis', () => {
-  let syncMock: any
-  let redisMock: any
-
-  beforeEach(async () => {
-    vi.clearAllMocks()
-    syncMock = (await import('@/lib/jobs/sync-nocturno')).runSyncNocturno as any
-    redisMock = (await import('@/lib/redis')).redis as any
-  })
-
   it('lock libre → inicia sync y responde iniciado:true', async () => {
     redisMock.set.mockResolvedValue('OK')
-    const res = await POST(makeReq({ modo: 'delta' }, { 'x-cron-secret': 'test-secret' }))
+    const res = await POST(makeReq({}, { 'x-cron-secret': 'test-secret' }))
     expect(res.status).toBe(200)
     expect((await res.json()).iniciado).toBe(true)
     expect(syncMock).toHaveBeenCalledTimes(1)
   })
 
   it('lock ocupado → omite sync y responde omitido:true', async () => {
-    redisMock.set.mockResolvedValue(null) // NX devuelve null si ya existe
-    const res = await POST(makeReq({ modo: 'completo' }, { 'x-cron-secret': 'test-secret' }))
-    expect(res.status).toBe(200)
+    redisMock.set.mockResolvedValue(null)
+    const res = await POST(makeReq({}, { 'x-cron-secret': 'test-secret' }))
     const body = await res.json()
     expect(body.omitido).toBe(true)
     expect(body.razon).toBe('sync_en_curso')
@@ -143,59 +129,43 @@ describe('POST /api/sync/nocturno — mutex Redis', () => {
 
   it('doble dispatch simultáneo → solo uno inicia', async () => {
     redisMock.set
-      .mockResolvedValueOnce('OK')   // primera llamada obtiene lock
-      .mockResolvedValueOnce(null)    // segunda es rechazada
+      .mockResolvedValueOnce('OK')
+      .mockResolvedValueOnce(null)
     const [r1, r2] = await Promise.all([
-      POST(makeReq({ modo: 'completo' }, { 'x-cron-secret': 'test-secret' })),
-      POST(makeReq({ modo: 'completo' }, { 'x-cron-secret': 'test-secret' })),
+      POST(makeReq({}, { 'x-cron-secret': 'test-secret' })),
+      POST(makeReq({}, { 'x-cron-secret': 'test-secret' })),
     ])
     const [b1, b2] = await Promise.all([r1.json(), r2.json()])
-    const iniciados = [b1, b2].filter(b => b.iniciado).length
-    const omitidos  = [b1, b2].filter(b => b.omitido).length
-    expect(iniciados).toBe(1)
-    expect(omitidos).toBe(1)
+    expect([b1, b2].filter(b => b.iniciado).length).toBe(1)
+    expect([b1, b2].filter(b => b.omitido).length).toBe(1)
     expect(syncMock).toHaveBeenCalledTimes(1)
   })
 
-  it('lock se libera al terminar el sync', async () => {
-    redisMock.set.mockResolvedValue('OK')
-    syncMock.mockResolvedValue({ ok: true })
+  it('lock usa key unificada sync-nocturno:lock con TTL 900s', async () => {
     await POST(makeReq({}, { 'x-cron-secret': 'test-secret' }))
-    // Dar tiempo al finally
-    await new Promise(r => setTimeout(r, 10))
+    expect(redisMock.set).toHaveBeenCalledWith('sync-nocturno:lock', 'nocturno', 'EX', 900, 'NX')
+  })
+
+  it('lock se libera al terminar el sync', async () => {
+    syncMock.mockResolvedValue([])
+    await POST(makeReq({}, { 'x-cron-secret': 'test-secret' }))
+    await new Promise(r => setTimeout(r, 20))
     expect(redisMock.del).toHaveBeenCalledWith('sync-nocturno:lock')
   })
 
   it('lock se libera aunque el sync falle', async () => {
-    redisMock.set.mockResolvedValue('OK')
     syncMock.mockRejectedValue(new Error('error simulado'))
     await POST(makeReq({}, { 'x-cron-secret': 'test-secret' }))
-    await new Promise(r => setTimeout(r, 10))
+    await new Promise(r => setTimeout(r, 20))
     expect(redisMock.del).toHaveBeenCalledWith('sync-nocturno:lock')
   })
 
-  it('completo usa key sync-nocturno:lock', async () => {
-    redisMock.set.mockResolvedValue('OK')
-    await POST(makeReq({ modo: 'completo' }, { 'x-cron-secret': 'test-secret' }))
-    expect(redisMock.set).toHaveBeenCalledWith('sync-nocturno:lock', 'completo', 'EX', 3600, 'NX')
-  })
-
-  it('delta usa key sync-nocturno:lock:delta', async () => {
-    redisMock.set.mockResolvedValue('OK')
-    await POST(makeReq({ modo: 'delta' }, { 'x-cron-secret': 'test-secret' }))
-    expect(redisMock.set).toHaveBeenCalledWith('sync-nocturno:lock:delta', 'delta', 'EX', 600, 'NX')
-  })
-
-  it('delta ocupado no bloquea completo', async () => {
-    redisMock.set
-      .mockResolvedValueOnce(null)  // delta lock ocupado
-      .mockResolvedValueOnce('OK')  // completo lock libre
-    const [r1, r2] = await Promise.all([
-      POST(makeReq({ modo: 'delta' }, { 'x-cron-secret': 'test-secret' })),
-      POST(makeReq({ modo: 'completo' }, { 'x-cron-secret': 'test-secret' })),
-    ])
-    const [b1, b2] = await Promise.all([r1.json(), r2.json()])
-    expect(b1.omitido).toBe(true)
-    expect(b2.iniciado).toBe(true)
+  it('SKIP_SYNC_LOCK=true → ignora lock y corre siempre', async () => {
+    process.env.SKIP_SYNC_LOCK = 'true'
+    redisMock.set.mockResolvedValue(null) // simula lock ocupado — debería ignorarse
+    const res = await POST(makeReq({}, { 'x-cron-secret': 'test-secret' }))
+    const body = await res.json()
+    expect(body.iniciado).toBe(true)
+    expect(syncMock).toHaveBeenCalledTimes(1)
   })
 })

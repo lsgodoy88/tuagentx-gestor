@@ -2,6 +2,16 @@
  * sync-nocturno — lógica extraída del endpoint
  * Usada por: /api/sync/nocturno/route.ts  y  workers/index.ts
  * Sin dependencia de gestor — accede directo a BD y adapters
+ *
+ * Flujo slim (2026-09-17):
+ *   fetchDeudasDesde (receivableAt) → reconciliar afectados
+ *   → actualizarDeudasInactivas (saldos sucios)
+ *   → reconstruirCartera (solo afectados)
+ *   → invalidarCacheClientes (Redis scoped)
+ *
+ * fetchDeudasConCursor eliminado — paginaba toda la cartera, no escalable.
+ * Pendiente: filtro updatedAt en /cartera/update de UpTres (bloqueado por ellos).
+ * Cuando UpTres lo implemente → agregar cursor cartera por updatedAt aquí.
  */
 import { prisma } from '@/lib/prisma'
 import { invalidatePattern } from '@/lib/cache'
@@ -25,16 +35,12 @@ export function derivarEnvioEstado(aplicaciones: { envioEstado: string }[]): 'pe
   if (aplicaciones.length === 0) return 'pendiente'
   const terminados = ['recibido', 'cierreUptres']
   if (aplicaciones.every(a => terminados.includes(a.envioEstado))) {
-    // Si alguno es cierreUptres → el recibo padre queda cierreUptres
     return aplicaciones.some(a => a.envioEstado === 'cierreUptres') ? 'cierreUptres' : 'recibido'
   }
   if (aplicaciones.every(a => terminados.includes(a.envioEstado) || a.envioEstado === 'enviado')) return 'enviado'
   return 'pendiente'
 }
 
-// Recalcula y persiste el envioEstado derivado de un PagoCartera específico,
-// a partir de sus PagoCarteraDeuda actuales. Llamar después de cualquier cambio
-// de estado en una aplicación individual (reconciliación, envío manual, etc.)
 export async function recalcularEnvioEstadoPago(pagoId: string) {
   const aplicaciones = await (prisma as any).pagoCarteraDeuda.findMany({
     where: { pagoId },
@@ -55,17 +61,7 @@ export async function recalcularEnvioEstadoPago(pagoId: string) {
   return estado
 }
 
-// ── Reconciliacion de saldo — unico punto que decide si SyncDeuda.saldo
-// se actualiza o se preserva mientras UpTres no confirme pagos locales pendientes/enviados.
-// Exportada para testing aislado (no depende de adapter ni de la transaccion del sync completo).
-// Busca un subconjunto de aplicaciones cuya suma de montoAplicado coincida exacto
-// (tolerancia 1 peso por redondeo) con el target. Caso real: pagos parciales que
-// UpTres confirma en momentos distintos — el sync puede ver "bajó X" donde X coincide
-// con UNO de los pagos pendientes, no con la suma de todos. Backtracking exhaustivo,
-// limitado a 20 aplicaciones (2^20 manejable; más que eso es un caso anómalo que no
-// debería intentar resolverse por inferencia automática — preservar sin marcar).
-// Si hay múltiples subconjuntos que calzan, retorna el de MENOS elementos (el más
-// conservador: marca el mínimo necesario como recibido).
+// ── Reconciliacion de saldo ──────────────────────────────────────────────────
 export function encontrarSubsetExacto(
   aplicaciones: { id: string; montoAplicado: any }[],
   target: number
@@ -92,34 +88,29 @@ export function encontrarSubsetExacto(
 export interface ReconciliarInput {
   sdId: string
   externalId: string
-  saldo: number               // saldo crudo UpTres AHORA — solo referencia
-  valor: number               // valor factura — inmutable
+  saldo: number
+  valor: number
   condicionUpTres: boolean
-  saldoUptresAnterior: number // snapshot anterior — para calcular delta
-  saldoLocalActual: number    // mantenido por compatibilidad tests existentes
+  saldoUptresAnterior: number
+  saldoLocalActual: number
   externalUpdatedAt?: Date | null
   receivableAt?: Date | null
   fechaVencimiento?: Date | null
-  fechaVencimientoActual?: Date | null  // valor actual en BD — evita findUnique en reconciliarDeuda
+  fechaVencimientoActual?: Date | null
   data?: any
 }
 
 export async function reconciliarDeuda(u: ReconciliarInput, integracionId: string) {
-  // baseUpdate: solo metadata de UpTres — NUNCA toca saldo ni nSaldo.
-  // nSaldo lo calcula reconstruirCartera (valor - SUM pagos nuestros).
-  // saldo (referencia cruda UpTres) se actualiza solo cuando UpTres es autoridad.
   const baseUpdate: any = {
     valor: u.valor,
-    saldoUptresOriginal: u.saldo,        // referencia cruda UpTres — solo para confrontar
+    saldoUptresOriginal: u.saldo,
     externalUpdatedAt: u.externalUpdatedAt ?? null,
     receivableAt: u.receivableAt ?? null,
-    // fechaVencimiento: write-once — se añade condicionalmente abajo si no existe aún
     sincronizadoEl: new Date(),
     data: u.data,
   }
   const whereSd = { integracionId_externalId: { integracionId, externalId: u.externalId } }
 
-  // Helper: marcar aplicaciones como recibidas y recalcular estado del recibo padre
   async function marcarAplicacionesRecibidasYRecalcular(aplicacionIds: string[], fecha: Date) {
     if (aplicacionIds.length === 0) return
     await (prisma as any).pagoCarteraDeuda.updateMany({
@@ -134,7 +125,6 @@ export async function reconciliarDeuda(u: ReconciliarInput, integracionId: strin
     await Promise.all(pagoIds.map((p: any) => recalcularEnvioEstadoPago(p.pagoId)))
   }
 
-  // Helper: marcar aplicaciones como cierreUptres (deuda cerrada sin receivableAt explícito)
   async function marcarAplicacionesCierreUptres(aplicacionIds: string[]) {
     if (aplicacionIds.length === 0) return
     await (prisma as any).pagoCarteraDeuda.updateMany({
@@ -149,22 +139,17 @@ export async function reconciliarDeuda(u: ReconciliarInput, integracionId: strin
     await Promise.all(pagoIds.map((p: any) => recalcularEnvioEstadoPago(p.pagoId)))
   }
 
-  // ── MISIÓN 1: UpTres certifica deuda saldada ──────────────────────────────
-  // Única vez que UpTres tiene autoridad sobre condition. nSaldo lo fijará
-  // reconstruirCartera en 0 porque condition=false excluye la deuda.
   if (u.condicionUpTres === false) {
     const aplicacionesPendientes = await (prisma as any).pagoCarteraDeuda.findMany({
       where: { syncDeudaId: u.sdId, envioEstado: { in: ['pendiente', 'enviado'] } },
       select: { id: true }
     })
     if (u.receivableAt) {
-      // UpTres confirmó con receivableAt explícito → recibido
       await marcarAplicacionesRecibidasYRecalcular(
         aplicacionesPendientes.map((a: any) => a.id),
         u.receivableAt
       )
     } else {
-      // Deuda cerrada sin receivableAt → cierreUptres (pago llegó pero sin señal individual)
       await marcarAplicacionesCierreUptres(aplicacionesPendientes.map((a: any) => a.id))
     }
     return (prisma as any).syncDeuda.update({
@@ -178,10 +163,6 @@ export async function reconciliarDeuda(u: ReconciliarInput, integracionId: strin
     })
   }
 
-  // ── MISIÓN 2: confirmar pagos que UpTres ya reflejó ──────────────────────
-  // Compara delta (cuánto bajó UpTres) con pagos pendientes/enviados.
-  // Si coinciden exacto o por subconjunto → marcar recibido.
-  // En ningún caso se toca saldo ni nSaldo — eso es territorio de reconstruirCartera.
   const delta = u.saldoUptresAnterior - u.saldo
   const aplicacionesPendientes = await (prisma as any).pagoCarteraDeuda.findMany({
     where: { syncDeudaId: u.sdId, envioEstado: { in: ['pendiente', 'enviado'] } },
@@ -190,13 +171,11 @@ export async function reconciliarDeuda(u: ReconciliarInput, integracionId: strin
   const pendienteLocal = aplicacionesPendientes.reduce((s: number, a: any) => s + Number(a.montoAplicado), 0)
 
   if (pendienteLocal > 0 && Math.abs(delta - pendienteLocal) < 1) {
-    // Delta exacto — UpTres confirmó todos los pagos pendientes
     await marcarAplicacionesRecibidasYRecalcular(
       aplicacionesPendientes.map((a: any) => a.id),
       u.receivableAt ?? new Date()
     )
   } else if (delta > 0 && delta < pendienteLocal) {
-    // Delta parcial — buscar subconjunto exacto
     const subset = encontrarSubsetExacto(aplicacionesPendientes, delta)
     if (subset) {
       await marcarAplicacionesRecibidasYRecalcular(
@@ -206,8 +185,6 @@ export async function reconciliarDeuda(u: ReconciliarInput, integracionId: strin
     }
   }
 
-  // Siempre actualizar metadata. saldo (referencia UpTres) se actualiza siempre —
-  // es solo referencia para confrontación, no afecta lo que ve el vendedor.
   return (prisma as any).syncDeuda.update({
     where: whereSd,
     data: {
@@ -222,26 +199,10 @@ export async function reconciliarDeuda(u: ReconciliarInput, integracionId: strin
 export async function reconstruirCartera(integracionId: string, empresaId: string, soloClienteApiIds?: string[]) {
   const deudas = await (prisma as any).syncDeuda.findMany({
     where: {
-      integracionId, condition: true, // condition=true (UpTres activa) — el filtro de saldo>0
-      // ahora se aplica sobre nSaldo (nuestra matematica), no sobre saldo crudo de UpTres,
-      // ver FIX 26/06 mas abajo: vTotal - SUM(todos nuestros pagos) puede ya ser 0 aunque
-      // UpTres siga mostrando saldo>0 por movimientos externos a nuestra app
+      integracionId, condition: true,
       ...(soloClienteApiIds && soloClienteApiIds.length > 0 ? { clienteApiId: { in: soloClienteApiIds } } : {})
     }
   })
-
-  // FIX 26/06 (v1, nSaldo=valor-pagos) → CORREGIDO 27/06 (v2, ancla saldoAnterior)
-  // → CORREGIDO 28/06 (v3) tras hallazgo real adicional: v2 asumía que
-  // PagoCartera.saldoAnterior es confiable por factura — pero en recibos
-  // MULTI-FACTURA ese campo vive a nivel de RECIBO, no por factura — la
-  // 2da+ factura de un mismo recibo heredaba el saldoAnterior de la 1ra
-  // factura del recibo (22 facturas reales afectadas en Lumeli, 10 recibos).
-  // FIX v3 — para LUMELI exclusivamente: se obtuvo cartera real de UpTres al
-  // corte 2026-06-02 21:08:15 (archivo Deuda-LUMELI-total-completa-total-
-  // 02_06_2026.xlsx, verificado: 511/511 facturas existían en BD, 0 huérfanas).
-  // Para las facturas que YA EXISTÍAN en ese corte: nSaldo = saldoInicial
-  // (LumeliSaldoInicial0206) − SUM(pagos nuestros con createdAt > corte).
-
 
   const sdIds = deudas.map((d: any) => d.id)
   const todasLasAplicaciones = sdIds.length > 0 ? await (prisma as any).pagoCarteraDeuda.findMany({
@@ -303,23 +264,15 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
       return fa - fb
     })
 
-    // FIX 28/06 (v3) — prioridad de fuentes para nSaldo, de más a menos confiable:
-    //   1. Lumeli + factura existía al corte 02/06 → saldoInicial (archivo real,
-    //      verificado) − pagos nuestros POSTERIORES al corte (v3, ver arriba).
-    //   2. Factura con ≥1 pago nuestro → ancla saldoAnterior − TODOS los pagos (v2).
-    //   3. Sin pago nuestro y sin archivo → saldo crudo de UpTres directo (v1 fallback).
-    // d.saldo se preserva en BD sin tocar (reconciliarDeuda() sigue actualizándolo
-    // normal, sirve de referencia para "Revisar" en recaudos/route.ts).
     const deudasDetalle = deudasOrdenadas
       .map((d: any) => {
         const valor = Number(d.valor)
         const nSaldo = nSaldoMap[d.id]?.nSaldo ?? Math.max(0, Number(d.nSaldo ?? d.saldo ?? d.valor))
         const { estado } = calcularEstado(nSaldo, valor, Number(d.abono), d.fechaVencimiento)
-        // Si tiene nSaldoBase → abonos externos reflejados como valor-nSaldo (igual que Carlos con LumeliSaldoInicial)
         const abonoEfectivo = d.nSaldoBase != null ? Math.max(0, valor - nSaldo) : Number(d.abono)
         return { id: d.id, externalId: d.externalId, numeroOrden: d.numeroOrden, numeroFactura: d.numeroFactura, valor, saldo: nSaldo, abono: abonoEfectivo, diasCredito: d.diasCredito, fechaVencimiento: d.fechaVencimiento, estado, electronicInvoiceNumber: (d.data as any)?.electronicInvoiceNumber || null, _nSaldo: nSaldo }
       })
-      .filter((d: any) => d._nSaldo > 0) // FIX 26/06: ya no se muestra si nuestra propia cuenta da 0
+      .filter((d: any) => d._nSaldo > 0)
 
     for (const d of deudasDetalle) {
       porEstado[d.estado] = (porEstado[d.estado] || 0) + d.saldo
@@ -328,12 +281,6 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
       delete (d as any)._nSaldo
     }
 
-    // FIX 26/06 — cliente sin saldo pendiente real: antes este 'continue' saltaba
-    // el upsert dejando un registro VIEJO huérfano en CarteraCache si el cliente
-    // ya tenía cache previo (mostraba saldo desactualizado indefinidamente, nunca
-    // se limpiaba). Con nSaldo (este FIX) más clientes llegan a $0 más rápido que
-    // antes (ya no esperan confirmación de UpTres) — se vuelve más frecuente, así
-    // que ahora se borra explícitamente el cache existente en vez de solo saltar.
     if (saldoPendiente <= 0) {
       await (prisma as any).carteraCache.deleteMany({ where: { integracionId, clienteApiId: apiId } })
       continue
@@ -345,7 +292,6 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
       update: { clienteId: cliente.id, nombre: cliente.nombre, nit: cliente.nit, telefono: cliente.telefono, ciudad: cliente.ciudad, empleadoExternalId: empleadoPrincipal, empleadoNombre: empleadoPrincipal ? (empleadoMap[empleadoPrincipal] ?? null) : null, saldoTotal, saldoPendiente, porEstado, deudas: deudasDetalle, totalDeudas: deudasDetalle.length, ultimaActualizacion: ahora }
     })
 
-    // Persistir nSaldo v3 en SyncDeuda — fuente de verdad para recibos y pago-sync
     await Promise.all(deudasDetalle.map((d: any) =>
       (prisma as any).syncDeuda.update({
         where: { id: d.id },
@@ -354,7 +300,6 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
     ))
   }
 
-  // Limpiar cache con saldo=0 (deudas ya pagadas)
   await (prisma as any).carteraCache.deleteMany({
     where: { integracionId, saldoPendiente: { lte: 0 } }
   })
@@ -364,25 +309,17 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
 
 // ── Función principal exportada ──────────────────────────────────────────────
 export interface SyncNocturnoOpts {
-  modo?: 'completo' | 'delta'
+  modo?: string // ignorado — mantenido por compatibilidad con route.ts
 }
 
 export interface SyncNocturnoResultado {
   empresaId: string
-  deudas?: number
-  insertadas?: number
-  actualizadas?: number
   clientesCache?: number
-  productosSync?: { upserted: number; desactivados: number }
+  inactivas?: number
   error?: string
 }
 
 export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<SyncNocturnoResultado[]> {
-  const modo = opts.modo ?? 'completo'
-  const _t0 = Date.now()
-  const _det: Record<string, number> = {}
-  const _t = (k: string, s: number) => { _det[k] = Date.now() - s }
-
   const integraciones = await (prisma as any).integracion.findMany({
     where: { tipo: 'uptres', activa: true },
     select: { id: true, empresaId: true, config: true }
@@ -391,211 +328,82 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
   const resultados: SyncNocturnoResultado[] = []
 
   for (const intg of integraciones) {
+    const _t0 = Date.now()
+    const _det: Record<string, number> = {}
+    const _t = (k: string, s: number) => { _det[k] = Date.now() - s }
     try {
       const config = intg.config as any
       const apiSecret = decrypt(config.apiSecret, process.env.UPTRES_SECRET!)
       const adapter = new UpTresAdapter(config.apiKey, apiSecret)
       let _s = Date.now(); await adapter.login(); _t('login', _s)
-      // Leer cursor cartera de la empresa
-      const empresaData = await (prisma as any).empresa.findUnique({ where: { id: intg.empresaId }, select: { sync_cursor_cartera: true } })
-      const cursorCartera = empresaData?.sync_cursor_cartera ?? null
 
-      let desde: Date | undefined
-      if (modo === 'delta') {
-        const ultima = await (prisma as any).syncDeuda.aggregate({
-          where: { integracionId: intg.id },
-          _max: { externalUpdatedAt: true }
-        })
-        desde = ultima._max.externalUpdatedAt
-          ? new Date(new Date(ultima._max.externalUpdatedAt).getTime() - 5 * 60 * 1000)
-          : new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-      }
-
-      // Modo completo: fetchDeudasConCursor pagina todo internamente (fetchAll)
-      // fetchDeudas sin cursor devuelve máx 100 — insuficiente para marcarZombis correcto
-      let deudas: any[]
-      if (modo === 'completo') {
-        _s = Date.now(); const page = await adapter.fetchDeudasConCursor(cursorCartera, cursorCartera ? new Date(0) : new Date('2020-01-01')); _t('fetchDeudasCompleto', _s)
-        deudas = page.data
-        // Persistir cursor actualizado
-        if (page.ultimoCursor) {
-          await (prisma as any).empresa.update({ where: { id: intg.empresaId }, data: { sync_cursor_cartera: page.ultimoCursor } })
-        }
-      } else {
-        _s = Date.now(); deudas = await adapter.fetchDeudas(desde); _t('fetchDeudasDelta', _s)
-      }
-      const externalIds = deudas.map((d: any) => String(d.uid || d._id))
-      const existentes = await (prisma as any).syncDeuda.findMany({
-        where: { integracionId: intg.id, externalId: { in: externalIds } },
-        select: { id: true, externalId: true, saldo: true, saldoUptresOriginal: true, clienteApiId: true, fechaVencimiento: true }
+      // ── fetchDeudasDesde — deudas con receivableAt reciente (pagos/vencimientos) ──
+      const maxReceivable = await (prisma as any).syncDeuda.aggregate({
+        where: { integracionId: intg.id, receivableAt: { not: null } },
+        _max: { receivableAt: true }
       })
-      const existentesMap = new Map(existentes.map((e: any) => [e.externalId, e]))
-      const existentesSet = new Set(existentes.map((e: any) => e.externalId))
+      const desdeCartera = maxReceivable._max.receivableAt
+        ? new Date(new Date(maxReceivable._max.receivableAt).getTime() - 5 * 60 * 1000)
+        : new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
 
-      const toInsert: any[] = []
-      const toUpdate: any[] = []
+      _s = Date.now(); const deudasConPago = await adapter.fetchDeudasDesde(desdeCartera); _t('fetchDeudasDesde', _s)
 
-      for (const d of deudas) {
-        const externalId = String(d.uid || d._id)
-        const saldo = parseFloat(String(d.vSaldo ?? '0'))
-        const valor = parseFloat(String(d.vTotal ?? '0'))
-        const externalUpdatedAt = d.fModificado ? new Date(d.fModificado) : null
-        const receivableAt = d.receivableAt ? new Date(d.receivableAt) : null
+      const clienteApiIdsAfectados: string[] = []
 
-        if (existentesSet.has(externalId)) {
-          const sdLocal: any = existentesMap.get(externalId)
-          toUpdate.push({
-            externalId, saldo, valor, externalUpdatedAt, receivableAt, data: d,
-            fechaVencimiento: d.fPago ? new Date(d.fPago) : null,
-            fechaVencimientoActual: sdLocal.fechaVencimiento ?? null,
-            condicionUpTres: Boolean(d.condicionUpTres !== false),
+      if (deudasConPago.length > 0) {
+        const extIds = deudasConPago.map((d: any) => String(d.uid || d._id))
+        const sdExistentes = await (prisma as any).syncDeuda.findMany({
+          where: { integracionId: intg.id, externalId: { in: extIds } },
+          select: { id: true, externalId: true, saldo: true, saldoUptresOriginal: true, clienteApiId: true, fechaVencimiento: true }
+        })
+        const sdMap = new Map(sdExistentes.map((sd: any) => [sd.externalId, sd]))
+
+        _s = Date.now()
+        for (const d of deudasConPago) {
+          const externalId = String(d.uid || d._id)
+          const sdLocal: any = sdMap.get(externalId)
+          if (!sdLocal) continue // deuda nueva — la crea sync-delta
+          clienteApiIdsAfectados.push(sdLocal.clienteApiId)
+          await reconciliarDeuda({
             sdId: sdLocal.id,
-            clienteApiId: d.cliente?.uid || sdLocal.clienteApiId || '',
-            saldoLocalActual: Number(sdLocal.nSaldo ?? sdLocal.saldo),
-            saldoUptresAnterior: sdLocal.saldoUptresOriginal != null ? Number(sdLocal.saldoUptresOriginal) : Number(sdLocal.nSaldo ?? sdLocal.saldo),
-          })
-        } else {
-          toInsert.push({
-            integracionId: intg.id,
             externalId,
-            clienteApiId: d.cliente?.uid || '',
-            empleadoExternalId: d.empleado?.uid || null,
-            numeroOrden: d.numeroOrden ? parseInt(String(d.numeroOrden)) : null,
-            numeroFactura: d.numeroFacturado ? parseInt(String(d.numeroFacturado)) : null,
-            valor,
-            saldo,
-            diasCredito: d.dias ? parseInt(String(d.dias)) : null,
-            fechaVencimiento: d.fPago ? new Date(d.fPago) : null,
-            condition: Boolean(d.condicionUpTres !== false), // condition real de UpTres
-            data: d as any,
-            externalUpdatedAt,
-            receivableAt,
-            sincronizadoEl: new Date(),
-          })
+            saldo: parseFloat(String(d.vSaldo ?? '0')),
+            valor: parseFloat(String(d.vTotal ?? '0')),
+            condicionUpTres: Boolean(d.condicionUpTres !== false),
+            saldoUptresAnterior: sdLocal.saldoUptresOriginal != null ? Number(sdLocal.saldoUptresOriginal) : Number(sdLocal.nSaldo ?? sdLocal.saldo),
+            saldoLocalActual: Number(sdLocal.nSaldo ?? sdLocal.saldo),
+            externalUpdatedAt: d.fModificado ? new Date(d.fModificado) : null,
+            receivableAt: d.receivableAt ? new Date(d.receivableAt) : null,
+            data: d,
+            fechaVencimientoActual: sdLocal.fechaVencimiento ?? null,
+          }, intg.id)
         }
+        _t('reconciliacion', _s)
       }
 
-      if (toInsert.length) {
-        _s = Date.now(); await (prisma as any).syncDeuda.createMany({ data: toInsert, skipDuplicates: true }); _t('insertDeudas', _s)
-      }
-
-      // Reconciliacion — delegada a reconciliarDeuda (testeada aisladamente)
+      // ── reconstruirCartera — solo clientes afectados ──
       _s = Date.now()
-      const CHUNK = 100
-      for (let i = 0; i < toUpdate.length; i += CHUNK) {
-        const chunk = toUpdate.slice(i, i + CHUNK)
-        await Promise.all(chunk.map((u: any) => reconciliarDeuda({
-          sdId: u.sdId, externalId: u.externalId, saldo: u.saldo, valor: u.valor,
-          condicionUpTres: u.condicionUpTres, saldoUptresAnterior: u.saldoUptresAnterior,
-          saldoLocalActual: u.saldoLocalActual, externalUpdatedAt: u.externalUpdatedAt,
-          receivableAt: u.receivableAt, data: u.data,
-          fechaVencimientoActual: u.fechaVencimientoActual,
-        }, intg.id)))
-      }
-
-      // FIX 26/06 — fetchDeudas(desde) filtra por createdAt de la orden en UpTres,
-      // NO por actividad/receivableAt reciente (confirmado: 20 deudas reales con pago
-      // pendiente quedaban fuera de este filtro por tener createdAt viejo, aunque
-      // hubieran recibido pago hace poco — solo se reconciliaban el domingo en modo
-      // completo). fetchDeudasDesde() usa /cartera/update, filtrado por receivableAt
-      // real — SÍ cubre ese hueco. Solo en modo delta (en completo ya se trae todo
-      // sin filtro, este bloque sería redundante).
-      if (modo === 'delta') {
-        try {
-          const maxReceivable = await (prisma as any).syncDeuda.aggregate({
-            where: { integracionId: intg.id, receivableAt: { not: null } },
-            _max: { receivableAt: true }
-          })
-          const desdeCartera = maxReceivable._max.receivableAt
-            ? new Date(new Date(maxReceivable._max.receivableAt).getTime() - 5 * 60 * 1000)
-            : new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-          _s = Date.now(); const deudasConPago = await adapter.fetchDeudasDesde(desdeCartera); _t('fetchDeudasDesde', _s)
-          if (deudasConPago.length > 0) {
-            const extIdsConPago = deudasConPago.map((d: any) => String(d.uid || d._id))
-            const sdExistentes = await (prisma as any).syncDeuda.findMany({
-              where: { integracionId: intg.id, externalId: { in: extIdsConPago } },
-              select: { id: true, externalId: true, saldo: true, saldoUptresOriginal: true, fechaVencimiento: true }
-            })
-            const sdMap = new Map(sdExistentes.map((sd: any) => [sd.externalId, sd]))
-          _s = Date.now()
-            for (const d of deudasConPago) {
-              const externalId = String(d.uid || d._id)
-              const sdLocal: any = sdMap.get(externalId)
-              if (!sdLocal) continue // no existe localmente todavía — la crea el bloque normal
-              await reconciliarDeuda({
-                sdId: sdLocal.id,
-                externalId,
-                saldo: parseFloat(String((d as any).vSaldo ?? '0')),
-                valor: parseFloat(String((d as any).vTotal ?? '0')),
-                condicionUpTres: Boolean((d as any).condicionUpTres !== false),
-                saldoUptresAnterior: sdLocal.saldoUptresOriginal != null ? Number(sdLocal.saldoUptresOriginal) : Number(sdLocal.nSaldo ?? sdLocal.saldo),
-                saldoLocalActual: Number(sdLocal.nSaldo ?? sdLocal.saldo),
-                externalUpdatedAt: (d as any).fModificado ? new Date((d as any).fModificado) : null,
-                receivableAt: (d as any).receivableAt ? new Date((d as any).receivableAt) : null,
-                data: d,
-                fechaVencimientoActual: sdLocal.fechaVencimiento ?? null,
-              }, intg.id)
-            }
-          }
-        } catch (eReceivable: any) {
-          _t('reconciliacionReceivable', _s)
-          console.error(`[sync-nocturno] fetchDeudasDesde (receivableAt) fallo (no critico):`, eReceivable.message)
-        }
-      }
-
-      // marcarZombis eliminado 2026-09-16 — reconciliarDeuda ya marca condition=false
-      // cuando UpTres cierra una deuda (condicionUpTres=false via updatedAt)
-
-      const clienteApiIdsAfectados = [...new Set([
-        ...toInsert.map((t: any) => t.clienteApiId).filter(Boolean),
-        ...toUpdate.map((u: any) => u.clienteApiId).filter(Boolean),
-      ])] as string[]
-
-      _t('reconciliacion', _s)
-      _s = Date.now()
-      const clientesActualizados = modo === 'completo'
-        ? await reconstruirCartera(intg.id, intg.empresaId)
-        : (clienteApiIdsAfectados.length > 0 ? await reconstruirCartera(intg.id, intg.empresaId, clienteApiIdsAfectados) : 0)
+      const clientesActualizados = clienteApiIdsAfectados.length > 0
+        ? await reconstruirCartera(intg.id, intg.empresaId, [...new Set(clienteApiIdsAfectados)])
+        : 0
       _t('reconstruirCartera', _s)
 
-      // Deudas condition=false con saldo>0 residual — UpTres ya las cerro pero quedo
-      // un saldo local sin limpiar. Solo en modo completo (costoso, 1 query por cliente).
-      // Estaba importada pero nunca invocada antes de hoy (21/06) — cableada ahora.
-      if (modo === 'completo') {
-        try {
-          // Pasar mapa de deudas ya traídas → 0 llamadas HTTP adicionales a UpTres
-          const mapaDeudas = new Map(deudas.map((d: any) => [String(d.uid || d._id), d]))
-          _s = Date.now(); await actualizarDeudasInactivas(adapter, intg.id, mapaDeudas); _t('actualizarDeudasInactivas', _s)
-        } catch (eInactivas: any) {
-          console.error(`[sync-nocturno] actualizarDeudasInactivas fallo (no critico):`, eInactivas.message)
-        }
+      // ── actualizarDeudasInactivas — saldos sucios condition=false (modo legacy) ──
+      let inactivasActualizadas = 0
+      try {
+        _s = Date.now(); inactivasActualizadas = await actualizarDeudasInactivas(adapter, intg.id); _t('actualizarDeudasInactivas', _s)
+      } catch (eInactivas: any) {
+        console.error(`[sync-nocturno] actualizarDeudasInactivas fallo (no critico):`, eInactivas.message)
       }
 
-      // Impulso/Rutas Fijas: manejado por job horario /api/sync/ventas-mes
-      // Eliminado del nocturno 2026-09-16 — job horario usa OrdenDespacho local,
-      // más frecuente (cada hora) y sin HTTP a UpTres
-
-      // Completo: invalida todo Redis (datos masivos cambiaron)
-      // Delta: solo invalida clientes afectados — no romper cache de usuarios activos
-      const clienteApiIdsActualizados = [...new Set([...toInsert.map((d: any) => d.clienteApiId), ...toUpdate.map((u: any) => u.clienteApiId)].filter(Boolean))]
-      if (modo === 'completo') {
-        // Invalida solo la empresa actual — no rompe cache de otras empresas en paralelo
-        await invalidatePattern(`g:${intg.empresaId}:*`)
-      } else {
-        await invalidarCacheClientes(intg.empresaId, clienteApiIdsActualizados).catch(() => {})
-      }
-
-      // Sync listas completo eliminado 2026-09-16 — sync-delta ya maneja listas con cursor incremental
-
-      // Sync productos eliminado 2026-09-16 — sync-delta lo cubre cada 5 min con cursor incremental
-      const productosSync = { upserted: 0, desactivados: 0 }
+      // ── Redis — invalida solo clientes afectados ──
+      await invalidarCacheClientes(intg.empresaId, [...new Set(clienteApiIdsAfectados)]).catch(() => {})
 
       const totalMs = Date.now() - _t0
-      console.log(`[sync-nocturno] ${intg.empresaId} OK ${totalMs}ms | ${Object.entries(_det).map(([k,v])=>k+':'+v+'ms').join(' | ')}`)
-      resultados.push({ empresaId: intg.empresaId, deudas: deudas.length, insertadas: toInsert.length, actualizadas: toUpdate.length, clientesCache: clientesActualizados, productosSync })
+      console.log(`[sync-nocturno] ${intg.empresaId} OK ${totalMs}ms | ${Object.entries(_det).map(([k, v]) => k + ':' + v + 'ms').join(' | ')}`)
+      resultados.push({ empresaId: intg.empresaId, clientesCache: clientesActualizados, inactivas: inactivasActualizadas })
     } catch (err: any) {
       console.error(`[sync-nocturno] Error integracion ${intg.id}:`, err.message)
-      // Guardar error en SyncLog para visibilidad
       try {
         await (prisma as any).syncLog.create({
           data: {
@@ -613,11 +421,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
     }
   }
 
-  // SyncLog — incluye snapshot de conteos totales (visibilidad/diagnóstico,
-  // NO es guard: los jobs de sync no hacen wipe masivo de clientes/empleados/
-  // listas hoy — el único riesgo real de wipe es deudas, ya protegido por el
-  // guard de marcarZombis()). Snapshot guardado dentro de "errores" con key
-  // "_snapshot" para no migrar schema.
+  // SyncLog — snapshot de conteos para visibilidad/diagnóstico
   const integracionesMap = Object.fromEntries(integraciones.map((i: any) => [i.empresaId, i.id]))
   await Promise.allSettled(
     resultados.map(async (r) => {
@@ -643,7 +447,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
           estado: r.error ? 'error' : 'ok',
           disparadoPor: 'cron',
           empresaId: r.empresaId,
-          deudasSincronizadas: r.deudas ?? 0,
+          deudasSincronizadas: 0,
           clientesActualizados: r.clientesCache ?? 0,
           errores: r.error
             ? { message: r.error, ...(snapshot ? { _snapshot: snapshot } : {}) }
@@ -653,10 +457,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
     })
   )
 
-  // Purga SyncLog — retención diferenciada por tipo
-  // sms-polling/sms-facturas: 15d (muy frecuentes ~3k/día)
-  // delta/voucher-huella-delta: 7d/15d (operacional)
-  // resto (nocturno, diagnóstico, etc): 90d (histórico)
+  // Purga SyncLog
   try {
     const schema = process.env.DB_SCHEMA || 'gestor'
     const sql = [
@@ -666,7 +467,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
       "  (tipo NOT IN ('delta','voucher-huella-delta','sms-polling','sms-facturas','nocturno','sync-transprensa','rutas-dia','sync-productos','diagnostico-ia') AND \"createdAt\" < NOW() - INTERVAL '90 days')",
     ].join(' ')
     const deleted = await prisma.$executeRawUnsafe(sql)
-    if (deleted > 0) console.log("[sync-nocturno] purga SyncLog: " + deleted + " filas")
+    if (deleted > 0) console.log('[sync-nocturno] purga SyncLog: ' + deleted + ' filas')
   } catch (e: any) {
     console.error('[sync-nocturno] purga SyncLog error:', e.message)
   }
