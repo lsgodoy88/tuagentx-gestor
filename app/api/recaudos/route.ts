@@ -34,99 +34,70 @@ export async function GET(req: NextRequest) {
 
   const nSaldoBySdLocal = new Map<string, number>()
   const saldoUptresBySdLocal = new Map<string, number>()
-  const where: any = {
+
+  // Scope empresa — siempre presente, nunca sobreescrito
+  const scopeEmpresa = {
     OR: [
       { Cartera: { empresaId } },
       { AND: [{ carteraId: null }, { Empleado: { empresaId } }] },
     ],
   }
 
+  const where: any = { AND: [scopeEmpresa] }
+
   if (empleadoIdForzado) where.empleadoId = empleadoIdForzado
   else if (vendedorId) where.empleadoId = vendedorId
   if (q) {
     const isNum = /^\d+$/.test(q.trim())
-    where.OR = isNum
+    // Búsqueda en AND separado — no sobreescribe el scope empresa
+    where.AND.push({ OR: isNum
       ? [{ Cartera: { Cliente: { nombre: { contains: q, mode: 'insensitive' } } } }, { Aplicaciones: { some: { numeroFactura: parseInt(q) } } }, { numeroRecibo: { contains: q, mode: 'insensitive' } }]
       : [{ Cartera: { Cliente: { nombre: { contains: q, mode: 'insensitive' } } } }, { clienteNombre: { contains: q, mode: 'insensitive' } }, { numeroRecibo: { contains: q, mode: 'insensitive' } }]
+    })
   }
   if (numeroRecibo) {
     where.numeroRecibo = numeroRecibo
   } else if (estado === 'revisar') {
-    // Lógica Revisar (2026-08-13):
-    // Una SyncDeuda aparece si:
-    //   (a) condition=true — UpTres no la cerró
-    //   (b) saldo > 0 — UpTres dice que hay saldo pendiente
-    //   (c) tiene AL MENOS un PCD enviado hace 24h+ — señal de que se reportó a UpTres
-    //       y el delta sync ya tuvo tiempo de traer el saldo actualizado
-    //   (d) abs(sd.saldo - nSaldo_enviados) >= 1 — hay discrepancia real
-    //       donde nSaldo_enviados = sd.valor - SUM(PCD.montoAplicado WHERE envioEstado='enviado')
-    //       Solo pagos enviados cuentan — los pendientes no se han reportado a UpTres aún
-    // Una fila por SyncDeuda — representante = PagoCartera del último PCD enviado
+    // Lógica Revisar — lee el flag revisar precalculado por el nocturno.
+    // Una sola query vs las 5 queries on-demand anteriores.
+    // El nocturno (actualizarRevisar) setea revisar=true cuando:
+    //   condition=true, saldo>0, nSaldo calculado, discrepancia>=1, PCD enviado >24h
 
-    // 1. SyncDeudas activas de esta empresa con AL MENOS un PCD enviado hace 24h+
-    const pcdEnviadas: any[] = await (prisma as any).$queryRawUnsafe(`
-      SELECT DISTINCT pcd."syncDeudaId"
-      FROM ${DB_SCHEMA}."PagoCarteraDeuda" pcd
-      JOIN ${DB_SCHEMA}."SyncDeuda" sd ON sd.id = pcd."syncDeudaId"
-      JOIN ${DB_SCHEMA}."Integracion" i ON i.id = sd."integracionId"
-      WHERE i."empresaId" = $1
-        AND pcd."envioEstado" = 'enviado'
-        AND pcd."envioFecha" IS NOT NULL
-        AND pcd."envioFecha" <= NOW() - INTERVAL '24 hours'
-        AND sd.condition = true
-        AND sd.saldo::numeric > 0
-    `, empresaId)
+    const sdsRevisar = await (prisma as any).syncDeuda.findMany({
+      where: {
+        revisar: true,
+        integracion: { empresaId },
+      },
+      select: { id: true, saldo: true, nSaldo: true },
+      orderBy: { sincronizadoEl: 'desc' },
+    })
 
-    const sdIdsConEnviado = new Set(pcdEnviadas.map((p: any) => p.syncDeudaId))
-    if (sdIdsConEnviado.size === 0) {
+    if (sdsRevisar.length === 0) {
       return NextResponse.json({ pagos: [], nextCursor: null, hasMore: false })
     }
 
-    // 2. SyncDeudas candidatas con su valor y saldo UpTres
-    const syncDeudasCandidatas = await (prisma as any).syncDeuda.findMany({
-      where: { id: { in: Array.from(sdIdsConEnviado) }, condition: true, saldo: { gt: 0 } },
-      select: { id: true, valor: true, saldo: true, receivableAt: true },
-    })
+    const sdIds = sdsRevisar.map((sd: any) => sd.id)
 
-    // 3. Solo PCD enviados de esas deudas — fuente para nSaldo y para encontrar último pagoId
-    const pcdEnviadasDeudas = await (prisma as any).pagoCarteraDeuda.findMany({
-      where: { syncDeudaId: { in: Array.from(sdIdsConEnviado) }, envioEstado: 'enviado' },
-      select: { syncDeudaId: true, pagoId: true, montoAplicado: true, envioFecha: true },
+    // Poblar mapas de saldo para hidratarSync
+    for (const sd of sdsRevisar) {
+      nSaldoBySdLocal.set(sd.id, Number(sd.nSaldo ?? 0))
+      saldoUptresBySdLocal.set(sd.id, Number(sd.saldo))
+    }
+
+    // Último PCD enviado por SyncDeuda → pagoId representante
+    const pcdRepresentantes = await (prisma as any).pagoCarteraDeuda.findMany({
+      where: { syncDeudaId: { in: sdIds }, envioEstado: 'enviado' },
+      select: { syncDeudaId: true, pagoId: true, envioFecha: true },
       orderBy: { envioFecha: 'desc' },
+      distinct: ['syncDeudaId'],
     })
 
-    // Agrupar PCD enviados por SyncDeuda
-    const pcdPorSd = new Map<string, any[]>()
-    for (const p of pcdEnviadasDeudas) {
-      if (!pcdPorSd.has(p.syncDeudaId)) pcdPorSd.set(p.syncDeudaId, [])
-      pcdPorSd.get(p.syncDeudaId)!.push(p)
-    }
-
-    // 4. Evaluar discrepancia — una fila por SyncDeuda
-    // pagoIdRepresentante = pagoId del último PCD enviado (ya ordenado desc por envioFecha)
-    const sdIdsParaRevisar: string[] = []
-    const pagoIdPorSd = new Map<string, string>() // syncDeudaId → pagoId representante
-    for (const sd of syncDeudasCandidatas) {
-      const aplic = pcdPorSd.get(sd.id) || []
-      if (aplic.length === 0) continue
-      // nSaldo = valor - SUM(solo enviados)
-      const totalEnviado = aplic.reduce((acc: number, a: any) => acc + Number(a.montoAplicado || 0), 0)
-      const nSaldo = Math.max(0, Number(sd.valor) - totalEnviado)
-      const saldoUpTres = Number(sd.saldo)
-      if (Math.abs(saldoUpTres - nSaldo) < 1) continue // coinciden → sin discrepancia
-      sdIdsParaRevisar.push(sd.id)
-      pagoIdPorSd.set(sd.id, aplic[0].pagoId) // aplic[0] = último enviado (desc)
-      nSaldoBySdLocal.set(sd.id, nSaldo)
-      saldoUptresBySdLocal.set(sd.id, saldoUpTres)
-    }
-
-    if (sdIdsParaRevisar.length === 0) {
+    const pagoIdsRepresentantes = [...new Set(pcdRepresentantes.map((p: any) => p.pagoId))]
+    if (pagoIdsRepresentantes.length === 0) {
       return NextResponse.json({ pagos: [], nextCursor: null, hasMore: false })
     }
 
-    // 5. Traer un PagoCartera por SyncDeuda (el representante — último enviado)
-    const pagoIdsRepresentantes = [...new Set(pagoIdPorSd.values())]
-    where.id = { in: pagoIdsRepresentantes }
+    where.AND.push({ id: { in: pagoIdsRepresentantes } })
   } else if (estado === 'enviado') where.envioEstado = { in: ['enviado', 'recibido', 'cierreUptres'] }
   else if (estado && estado !== 'todos') where.envioEstado = estado
   if (numeroRecibo) {

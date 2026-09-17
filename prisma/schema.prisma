@@ -2916,6 +2916,7 @@ model SyncDeuda {
   ajusteFecha         DateTime?
   recuperadorIntentos Int       @default(0)
   recuperadorFallidoEn DateTime?
+  revisar             Boolean     @default(false)
   integracion         Integracion @relation(fields: [integracionId], references: [id])
 
   @@unique([integracionId, externalId])

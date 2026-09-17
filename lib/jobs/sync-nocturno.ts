@@ -307,6 +307,71 @@ export async function reconstruirCartera(integracionId: string, empresaId: strin
   return Object.keys(porCliente).length
 }
 
+// ── Marcar SyncDeudas para revisar ──────────────────────────────────────────
+// Precalcula revisar=true/false para evitar 5 queries on-demand en la tab Revisar.
+// Condiciones: deuda activa, saldo UpTres > 0, nSaldo calculado, discrepancia >= 1,
+// y tiene al menos un PCD enviado hace >24h (UpTres ya tuvo tiempo de procesar).
+export async function actualizarRevisar(integracionId: string, clienteApiIds?: string[]) {
+  const whereDeuda: any = {
+    integracionId,
+    condition: true,
+    saldo: { gt: 0 },
+    nSaldo: { not: null },
+    ...(clienteApiIds && clienteApiIds.length > 0 ? { clienteApiId: { in: clienteApiIds } } : {}),
+  }
+
+  const deudas = await (prisma as any).syncDeuda.findMany({
+    where: whereDeuda,
+    select: { id: true, saldo: true, nSaldo: true },
+  })
+
+  if (deudas.length === 0) return 0
+
+  const sdIds = deudas.map((d: any) => d.id)
+
+  // PCD enviados hace >24h — fuente de verdad: UpTres ya tuvo tiempo de procesar
+  const limite24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
+  const pcdEnviados = await (prisma as any).pagoCarteraDeuda.findMany({
+    where: {
+      syncDeudaId: { in: sdIds },
+      envioEstado: 'enviado',
+      envioFecha: { lte: limite24h },
+    },
+    select: { syncDeudaId: true },
+    distinct: ['syncDeudaId'],
+  })
+  const conEnviado = new Set(pcdEnviados.map((p: any) => p.syncDeudaId))
+
+  // Evaluar discrepancia por deuda
+  const paraRevisar: string[] = []
+  const sinRevisar: string[] = []
+
+  for (const d of deudas) {
+    const saldo = Number(d.saldo)
+    const nSaldo = Number(d.nSaldo)
+    const tieneEnviado = conEnviado.has(d.id)
+    if (tieneEnviado && Math.abs(saldo - nSaldo) >= 1) {
+      paraRevisar.push(d.id)
+    } else {
+      sinRevisar.push(d.id)
+    }
+  }
+
+  // Actualizar en batch
+  await Promise.all([
+    paraRevisar.length > 0 && (prisma as any).syncDeuda.updateMany({
+      where: { id: { in: paraRevisar } },
+      data: { revisar: true },
+    }),
+    sinRevisar.length > 0 && (prisma as any).syncDeuda.updateMany({
+      where: { id: { in: sinRevisar } },
+      data: { revisar: false },
+    }),
+  ])
+
+  return paraRevisar.length
+}
+
 // ── Función principal exportada ──────────────────────────────────────────────
 export interface SyncNocturnoOpts {
   modo?: string // ignorado — mantenido por compatibilidad con route.ts
@@ -387,6 +452,16 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
         ? await reconstruirCartera(intg.id, intg.empresaId, [...new Set(clienteApiIdsAfectados)])
         : 0
       _t('reconstruirCartera', _s)
+
+      // ── actualizarRevisar — precalcula flag para tab Revisar ──
+      try {
+        _s = Date.now()
+        const revisarCount = await actualizarRevisar(intg.id, clienteApiIdsAfectados.length > 0 ? [...new Set(clienteApiIdsAfectados)] : undefined)
+        _t('actualizarRevisar', _s)
+        console.log(`[sync-nocturno] ${intg.empresaId} revisar: ${revisarCount} deudas marcadas`)
+      } catch (eRevisar: any) {
+        console.error(`[sync-nocturno] actualizarRevisar fallo (no critico):`, eRevisar.message)
+      }
 
       // ── actualizarDeudasInactivas — saldos sucios condition=false (modo legacy) ──
       let inactivasActualizadas = 0
