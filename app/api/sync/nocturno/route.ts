@@ -36,10 +36,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, omitido: true, razon: 'sync_en_curso' })
   }
 
+  // Heartbeat — renueva el lock cada 30s mientras corre
+  // Si el proceso muere, el lock expira en 60s automáticamente
+  const HEARTBEAT_TTL = 60 // segundos
+  const HEARTBEAT_INTERVAL = 30 * 1000 // ms
+  const MAX_RUNTIME = modo === 'completo' ? 55 * 60 * 1000 : 9 * 60 * 1000
+
+  const heartbeat = setInterval(() => {
+    redis.expire(lockKey, HEARTBEAT_TTL).catch(() => {})
+  }, HEARTBEAT_INTERVAL)
+
+  // Killswitch — mata el interval aunque finally no corra
+  const killswitch = setTimeout(() => {
+    clearInterval(heartbeat)
+    redis.del(lockKey).catch(() => {})
+    console.warn('[sync-nocturno] killswitch activado — proceso tardó demasiado')
+  }, MAX_RUNTIME)
+
   // Fire-and-forget — liberar lock al terminar
   runSyncNocturno({ modo })
     .catch(e => console.error('[sync-nocturno] error background:', e.message))
-    .finally(() => redis.del(lockKey).catch(() => {}))
+    .finally(() => {
+      clearInterval(heartbeat)
+      clearTimeout(killswitch)
+      redis.del(lockKey).catch(() => {})
+    })
 
   return NextResponse.json({ ok: true, iniciado: true })
 }

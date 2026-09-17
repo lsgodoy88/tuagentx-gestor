@@ -381,6 +381,9 @@ export interface SyncNocturnoResultado {
 
 export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<SyncNocturnoResultado[]> {
   const modo = opts.modo ?? 'completo'
+  const _t0 = Date.now()
+  const _det: Record<string, number> = {}
+  const _t = (k: string, s: number) => { _det[k] = Date.now() - s }
 
   const integraciones = await (prisma as any).integracion.findMany({
     where: { tipo: 'uptres', activa: true },
@@ -394,7 +397,10 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
       const config = intg.config as any
       const apiSecret = decrypt(config.apiSecret, process.env.UPTRES_SECRET!)
       const adapter = new UpTresAdapter(config.apiKey, apiSecret)
-      await adapter.login()
+      let _s = Date.now(); await adapter.login(); _t('login', _s)
+      // Leer cursor cartera de la empresa
+      const empresaData = await (prisma as any).empresa.findUnique({ where: { id: intg.empresaId }, select: { sync_cursor_cartera: true } })
+      const cursorCartera = empresaData?.sync_cursor_cartera ?? null
 
       let desde: Date | undefined
       if (modo === 'delta') {
@@ -411,10 +417,14 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
       // fetchDeudas sin cursor devuelve máx 100 — insuficiente para marcarZombis correcto
       let deudas: any[]
       if (modo === 'completo') {
-        const page = await adapter.fetchDeudasConCursor(null, new Date('2020-01-01'))
+        _s = Date.now(); const page = await adapter.fetchDeudasConCursor(cursorCartera, cursorCartera ? new Date(0) : new Date('2020-01-01')); _t('fetchDeudasCompleto', _s)
         deudas = page.data
+        // Persistir cursor actualizado
+        if (page.ultimoCursor) {
+          await (prisma as any).empresa.update({ where: { id: intg.empresaId }, data: { sync_cursor_cartera: page.ultimoCursor } })
+        }
       } else {
-        deudas = await adapter.fetchDeudas(desde)
+        _s = Date.now(); deudas = await adapter.fetchDeudas(desde); _t('fetchDeudasDelta', _s)
       }
       const externalIds = deudas.map((d: any) => String(d.uid || d._id))
       const existentes = await (prisma as any).syncDeuda.findMany({
@@ -468,10 +478,11 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
       }
 
       if (toInsert.length) {
-        await (prisma as any).syncDeuda.createMany({ data: toInsert, skipDuplicates: true })
+        _s = Date.now(); await (prisma as any).syncDeuda.createMany({ data: toInsert, skipDuplicates: true }); _t('insertDeudas', _s)
       }
 
       // Reconciliacion — delegada a reconciliarDeuda (testeada aisladamente)
+      _s = Date.now()
       const CHUNK = 100
       for (let i = 0; i < toUpdate.length; i += CHUNK) {
         const chunk = toUpdate.slice(i, i + CHUNK)
@@ -546,9 +557,12 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
         ...toUpdate.map((u: any) => u.clienteApiId).filter(Boolean),
       ])] as string[]
 
+      _t('reconciliacion', _s)
+      _s = Date.now()
       const clientesActualizados = modo === 'completo'
         ? await reconstruirCartera(intg.id, intg.empresaId)
         : (clienteApiIdsAfectados.length > 0 ? await reconstruirCartera(intg.id, intg.empresaId, clienteApiIdsAfectados) : 0)
+      _t('reconstruirCartera', _s)
 
       // Deudas condition=false con saldo>0 residual — UpTres ya las cerro pero quedo
       // un saldo local sin limpiar. Solo en modo completo (costoso, 1 query por cliente).
@@ -631,6 +645,8 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
         console.error(`[sync-nocturno] syncProductos fallo (no critico):`, eProd.message)
       }
 
+      const totalMs = Date.now() - _t0
+      console.log(`[sync-nocturno] ${intg.empresaId} OK ${totalMs}ms | ${Object.entries(_det).map(([k,v])=>k+':'+v+'ms').join(' | ')}`)
       resultados.push({ empresaId: intg.empresaId, deudas: deudas.length, insertadas: toInsert.length, actualizadas: toUpdate.length, clientesCache: clientesActualizados, productosSync })
     } catch (err: any) {
       console.error(`[sync-nocturno] Error integracion ${intg.id}:`, err.message)
