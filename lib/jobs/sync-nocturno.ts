@@ -511,7 +511,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
           const desdeCartera = maxReceivable._max.receivableAt
             ? new Date(new Date(maxReceivable._max.receivableAt).getTime() - 5 * 60 * 1000)
             : new Date(Date.now() - 2 * 24 * 60 * 60 * 1000)
-          const deudasConPago = await adapter.fetchDeudasDesde(desdeCartera)
+          _s = Date.now(); const deudasConPago = await adapter.fetchDeudasDesde(desdeCartera); _t('fetchDeudasDesde', _s)
           if (deudasConPago.length > 0) {
             const extIdsConPago = deudasConPago.map((d: any) => String(d.uid || d._id))
             const sdExistentes = await (prisma as any).syncDeuda.findMany({
@@ -519,6 +519,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
               select: { id: true, externalId: true, saldo: true, saldoUptresOriginal: true, fechaVencimiento: true }
             })
             const sdMap = new Map(sdExistentes.map((sd: any) => [sd.externalId, sd]))
+          _s = Date.now()
             for (const d of deudasConPago) {
               const externalId = String(d.uid || d._id)
               const sdLocal: any = sdMap.get(externalId)
@@ -539,6 +540,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
             }
           }
         } catch (eReceivable: any) {
+          _t('reconciliacionReceivable', _s)
           console.error(`[sync-nocturno] fetchDeudasDesde (receivableAt) fallo (no critico):`, eReceivable.message)
         }
       }
@@ -571,7 +573,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
         try {
           // Pasar mapa de deudas ya traídas → 0 llamadas HTTP adicionales a UpTres
           const mapaDeudas = new Map(deudas.map((d: any) => [String(d.uid || d._id), d]))
-          await actualizarDeudasInactivas(adapter, intg.id, mapaDeudas)
+          _s = Date.now(); await actualizarDeudasInactivas(adapter, intg.id, mapaDeudas); _t('actualizarDeudasInactivas', _s)
         } catch (eInactivas: any) {
           console.error(`[sync-nocturno] actualizarDeudasInactivas fallo (no critico):`, eInactivas.message)
         }
@@ -582,13 +584,14 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
       // - Delta: solo si algún cliente de ruta fija tuvo actividad real en este sync
       //   → evita 50+ llamadas HTTP/día sin cambios reales
       try {
-        await recalcularVentasMesImpulsos(
+        _s = Date.now(); await recalcularVentasMesImpulsos(
           intg.empresaId,
           adapter,
           undefined,
           modo === 'delta' ? clienteApiIdsAfectados : undefined
         )
       } catch (eImpulso: any) {
+        _t('recalcularVentas', _s)
         console.error(`[sync-nocturno] recalcularVentasMesImpulsos fallo (no critico):`, eImpulso.message)
       }
 
@@ -605,7 +608,7 @@ export async function runSyncNocturno(opts: SyncNocturnoOpts = {}): Promise<Sync
       // Sync listas completo — trae todas las listas sin filtro de fecha
       if (modo === 'completo') {
         try {
-          const { data: listasAll } = await adapter.fetchListasClientesConCursor(null, new Date('2020-01-01'))
+          _s = Date.now(); const { data: listasAll } = await adapter.fetchListasClientesConCursor(null, new Date('2020-01-01')); _t('fetchListas', _s)
           for (const lista of listasAll) {
             const listaLocal = await (prisma as any).listaClientes.upsert({
               where: { api_id: lista.apiId },
