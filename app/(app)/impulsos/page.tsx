@@ -1171,26 +1171,28 @@ function ReporteImpulsoTab({ refreshToken = 0, empleadosParaRefresh }: { refresh
         </div>
       </div>
 
-      <ReporteImpulsoTabla mes={mesDesde} refreshToken={refreshToken} empleadosParaRefresh={empleadosParaRefresh} />
+      <ReporteImpulsoTabla mes={mesDesde} hasta={mesHasta} refreshToken={refreshToken} empleadosParaRefresh={empleadosParaRefresh} />
     </div>
   )
 }
 
-function ReporteImpulsoTabla({ mes, refreshToken = 0, empleadosParaRefresh }: { mes: string; refreshToken?: number; empleadosParaRefresh?: React.MutableRefObject<string[]> }) {
+function ReporteImpulsoTabla({ mes, hasta, refreshToken = 0, empleadosParaRefresh }: { mes: string; hasta?: string; refreshToken?: number; empleadosParaRefresh?: React.MutableRefObject<string[]> }) {
+  const esRango = hasta && hasta !== mes
   const [datos, setDatos] = useState<any>(null)
   const [loading, setLoading] = useState(false)
-  const [tabDia, setTabDia] = useState<Record<string, number>>({})
   const prevRefreshToken = useRef(0)
 
   useEffect(() => {
     setLoading(true)
-    fetch('/api/impulso/pdf?fecha=' + mes + '-01')
-      .then(r => r.json())
-      .then(d => { setDatos(d); setLoading(false) })
-  }, [mes])
+    const url = esRango
+      ? `/api/impulso/pdf?fecha=${mes}-01&hasta=${hasta}`
+      : `/api/impulso/pdf?fecha=${mes}-01`
+    fetch(url).then(r => r.json()).then(d => { setDatos(d); setLoading(false) })
+  }, [mes, hasta])
 
-  // Refresh parcial: solo impulsadoras modificadas
+  // Refresh parcial: solo impulsadoras modificadas (solo modo mes único)
   useEffect(() => {
+    if (esRango) return
     if (refreshToken === 0 || refreshToken === prevRefreshToken.current) return
     prevRefreshToken.current = refreshToken
     const ids = empleadosParaRefresh?.current ?? []
@@ -1217,6 +1219,12 @@ function ReporteImpulsoTabla({ mes, refreshToken = 0, empleadosParaRefresh }: { 
   const BORDER = '1px solid #1e2a3d'
   const BORDER_DAY = '2px solid #1e3a5f'
 
+  // Label corto para cabecera de mes: "Sep 26"
+  const labelMes = (ym: string) => {
+    const [a, m] = ym.split('-').map(Number)
+    return new Date(a, m - 1, 1).toLocaleDateString('es-CO', { month: 'short' }).replace('.','').replace(/^./, c => c.toUpperCase()) + ' ' + String(a).slice(-2)
+  }
+
   if (loading) return (
     <div className="p-4 space-y-4">
       <div className="shimmer h-10 w-2/3 rounded-xl mx-auto" />
@@ -1225,17 +1233,103 @@ function ReporteImpulsoTabla({ mes, refreshToken = 0, empleadosParaRefresh }: { 
   )
   if (!datos) return null
 
+  // ── Modo rango: tabla pivot ────────────────────────────────────────
+  if (datos.rango && datos.meses?.length > 1) {
+    const mesesRango: string[] = datos.meses
+    return (
+      <div className="space-y-6 w-full">
+        {datos.impulsadoras?.map((imp: any) => {
+          const clientes: any[] = imp.clientesUnion || []
+          // Totales por mes
+          const totales = imp.totalesPorMes || {}
+          return (
+            <div key={imp.id} style={{background:'#0d1220', border:'1px solid #1e2a3d', borderRadius:16, overflow:'hidden'}}>
+              {/* Header impulsadora */}
+              <div style={{padding:'10px 16px', borderBottom:BORDER, background:'#0a0f1a'}}>
+                <span style={{color:'white', fontWeight:700, fontSize:15}}>{imp.nombre}</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table style={{width:'100%', borderCollapse:'collapse', fontSize:13, minWidth: 300 + mesesRango.length * 200}}>
+                  <thead>
+                    <tr style={{background:'#080d18'}}>
+                      <th style={{...thSt, textAlign:'left', minWidth:180}}>Cliente</th>
+                      {mesesRango.map(ym => (
+                        <th key={ym} colSpan={2} style={{...thSt, textAlign:'center', borderLeft:BORDER_DAY, minWidth:200}}>
+                          {labelMes(ym)}
+                        </th>
+                      ))}
+                    </tr>
+                    <tr style={{background:'#060a18'}}>
+                      <th style={{...thSt, textAlign:'left', borderBottom:BORDER_DAY}}></th>
+                      {mesesRango.map(ym => (
+                        <React.Fragment key={ym}>
+                          <th style={{...thSt, textAlign:'right', borderLeft:BORDER_DAY, color:'#f59e0b'}}>Meta</th>
+                          <th style={{...thSt, textAlign:'right', color:'#60a5fa'}}>Venta</th>
+                        </React.Fragment>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {clientes.map((cli: any, idx: number) => (
+                      <tr key={cli.clienteId} style={{borderBottom:BORDER, background: idx%2===0?'#0d1220':'#0a0f1a'}}>
+                        <td style={{padding:'7px 12px', borderRight:BORDER}}>
+                          <span style={{color:'white', fontWeight:500, display:'block'}}>{cli.nombre}</span>
+                          {cli.nombreComercial && <span style={{color:'#64748b', fontSize:11, display:'block', marginTop:1}}>{cli.nombreComercial}</span>}
+                        </td>
+                        {mesesRango.map(ym => {
+                          const p = imp.clientesPorMes?.[ym]?.[cli.clienteId]
+                          const pct = p ? p.pct : null
+                          return (
+                            <React.Fragment key={ym}>
+                              <td style={{padding:'7px 12px', textAlign:'right', color:'#f59e0b', fontWeight:600, borderLeft:BORDER_DAY, whiteSpace:'nowrap'}}>
+                                {p && p.meta > 0 ? fmt(p.meta) : '—'}
+                              </td>
+                              <td style={{padding:'7px 12px', textAlign:'right', fontWeight:600, whiteSpace:'nowrap', borderRight:BORDER, ...pctColor(pct)}}>
+                                {p && p.montoMes > 0 ? fmt(p.montoMes) : '—'}
+                              </td>
+                            </React.Fragment>
+                          )
+                        })}
+                      </tr>
+                    ))}
+                    {/* Fila totales */}
+                    <tr style={{background:'#0a0f1a', borderTop:BORDER_DAY}}>
+                      <td style={{padding:'8px 12px', color:'#94a3b8', fontWeight:700, fontSize:12, textTransform:'uppercase'}}>Total</td>
+                      {mesesRango.map(ym => {
+                        const t = totales[ym]
+                        return (
+                          <React.Fragment key={ym}>
+                            <td style={{padding:'8px 12px', textAlign:'right', color:'#f59e0b', fontWeight:700, borderLeft:BORDER_DAY, whiteSpace:'nowrap'}}>
+                              {t ? fmt(t.totalMeta) : '—'}
+                            </td>
+                            <td style={{padding:'8px 12px', textAlign:'right', fontWeight:700, whiteSpace:'nowrap', borderRight:BORDER, ...pctColor(t?.pctTotal ?? null)}}>
+                              {t ? fmt(t.totalMes) : '—'}
+                              {t?.pctTotal != null && <span style={{marginLeft:5, fontSize:11}}>{t.pctTotal}%</span>}
+                            </td>
+                          </React.Fragment>
+                        )
+                      })}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // ── Modo mes único (comportamiento original) ──────────────────────
+  const ABREV_DIA: Record<string,string> = {
+    'Lunes':'LUN','Martes':'MAR','Miércoles':'MIE','Jueves':'JUE',
+    'Viernes':'VIE','Sábado':'SAB','Domingo':'DOM'
+  }
   return (
     <div className="space-y-6 w-full">
       <div className={`grid gap-4 ${datos.impulsadoras?.length === 1 ? 'grid-cols-1' : 'grid-cols-1 md:grid-cols-2'}`}>
         {datos.impulsadoras?.map((imp: any) => {
           const diasConPuntos = (imp.semana || []).filter((d: any) => d.puntos?.length > 0)
-  const ABREV_DIA: Record<string,string> = {
-    'Lunes':'LUN','Martes':'MAR','Miércoles':'MIE','Jueves':'JUE',
-    'Viernes':'VIE','Sábado':'SAB','Domingo':'DOM'
-  }
-          const diaActivo = tabDia[imp.id] ?? 0
-
           return (
             <div key={imp.id} style={{background:'#0d1220', border:'1px solid #1e2a3d', borderRadius:16, overflow:'hidden'}}>
               {/* Header impulsadora */}
@@ -1246,62 +1340,11 @@ function ReporteImpulsoTabla({ mes, refreshToken = 0, empleadosParaRefresh }: { 
                   {imp.pctTotal !== null && <span style={{marginLeft:6}}>{imp.pctTotal}%</span>}
                 </span>
               </div>
-
-              {/* MÓVIL: misma tabla pc, scroll horizontal */}
-              <div className="block md:hidden overflow-x-auto">
+              <div className="overflow-x-auto">
                 <table style={{width:'100%',borderCollapse:'collapse',fontSize:13,minWidth:480}}>
                   <thead>
                     <tr style={{background:'#080d18'}}>
-                      <th style={{...thSt, width:48, borderRight:BORDER_DAY}}>Día</th>
-                      <th style={{...thSt, textAlign:'left'}}>Cliente</th>
-                      <th style={{...thSt, textAlign:'right', width:120}}>Meta</th>
-                      <th style={{...thSt, textAlign:'right', width:120}}>Ventas</th>
-                      <th style={{...thSt, textAlign:'right', width:55}}>%</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {diasConPuntos.map((dia: any, dIdx: number) => {
-                      const puntos = dia.puntos || []
-                      return puntos.map((p: any, i: number) => (
-                        <tr key={`${dIdx}-${i}`} style={{borderBottom:BORDER, background: dIdx%2===0?'#0d1220':'#0a0f1a'}}>
-                          {i === 0 && (
-                            <td rowSpan={puntos.length} style={{
-                              padding:'8px 8px', textAlign:'center', verticalAlign:'middle',
-                              fontWeight:700, fontSize:11, color:'#93c5fd', textTransform:'uppercase',
-                              borderRight:BORDER_DAY,
-                              borderBottom: dIdx < diasConPuntos.length-1 ? BORDER_DAY : BORDER,
-                              whiteSpace:'nowrap', letterSpacing:'0.04em',
-                              background: dIdx%2===0?'#0b1628':'#08101e',
-                            }}>
-                              {ABREV_DIA[dia.nombre] ?? dia.nombre}
-                            </td>
-                          )}
-                          <td style={{padding:'7px 10px', borderRight:BORDER}}>
-                            <span style={{color:'white',fontWeight:500,display:'block'}}>{p.nombre}</span>
-                            {p.nombreComercial && <span style={{color:'#64748b',fontSize:11,display:'block',marginTop:1}}>{p.nombreComercial}</span>}
-                          </td>
-                          <td style={{padding:'7px 10px', textAlign:'right', color:'#f59e0b', fontWeight:600, borderRight:BORDER, whiteSpace:'nowrap'}}>
-                            {p.meta > 0 ? fmt(p.meta) : '—'}
-                          </td>
-                          <td style={{padding:'7px 10px', textAlign:'right', color:'#60a5fa', fontWeight:600, borderRight:BORDER, whiteSpace:'nowrap'}}>
-                            {p.montoMes > 0 ? fmt(p.montoMes) : '—'}
-                          </td>
-                          <td style={{padding:'7px 10px', textAlign:'right', fontWeight:700, whiteSpace:'nowrap', ...pctColor(p.pct)}}>
-                            {p.pct !== null ? p.pct + '%' : '—'}
-                          </td>
-                        </tr>
-                      ))
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* DESKTOP: tabla Excel con rowSpan por día */}
-              <div className="hidden md:block overflow-x-auto">
-                <table style={{width:'100%',borderCollapse:'collapse',fontSize:13}}>
-                  <thead>
-                    <tr style={{background:'#080d18'}}>
-                      <th style={{...thSt, width:56, borderRight:BORDER_DAY}}>Día</th>
+                      <th style={{...thSt, width:52, borderRight:BORDER_DAY}}>Día</th>
                       <th style={{...thSt, textAlign:'left'}}>Cliente</th>
                       <th style={{...thSt, textAlign:'right', width:130}}>Meta</th>
                       <th style={{...thSt, textAlign:'right', width:130}}>Ventas</th>
@@ -1348,6 +1391,16 @@ function ReporteImpulsoTabla({ mes, refreshToken = 0, empleadosParaRefresh }: { 
           )
         })}
       </div>
+      {/* Timestamp actualización */}
+      {datos.actualizadoEn && (
+        <p style={{textAlign:'right', fontSize:11, color:'#4b5563', marginTop:4}}>
+          Actualizado el: {new Date(datos.actualizadoEn).toLocaleString('es-CO', {
+            day:'2-digit', month:'2-digit', year:'numeric',
+            hour:'2-digit', minute:'2-digit', hour12:true,
+            timeZone:'America/Bogota'
+          })}
+        </p>
+      )}
     </div>
   )
 }

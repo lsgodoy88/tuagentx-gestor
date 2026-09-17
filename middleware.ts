@@ -21,7 +21,7 @@ const ROUTE_ROLES: Record<string, string[]> = {
   '/cartera':        ['empresa', 'supervisor', 'vendedor'],
   '/visitas':        ['empresa', 'supervisor', 'vendedor', 'entregas'],
   '/impulsos':       ['empresa', 'supervisor', 'vendedor', 'impulsadora'],
-  '/pdf-impulso':    ['empresa', 'supervisor', 'impulsadora'],
+  '/pdf-impulso':    ['empresa', 'supervisor', 'vendedor', 'impulsadora'],
   '/pdf-cotizacion': ['empresa', 'superadmin'],
   '/pago-exitoso':   ['empresa', 'supervisor', 'vendedor', 'entregas', 'bodega', 'impulsadora'],
   '/cartera/recibo': ['empresa', 'supervisor', 'vendedor'],

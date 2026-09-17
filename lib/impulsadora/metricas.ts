@@ -54,17 +54,18 @@ export function buildSemana(
         clienteId: rc.clienteId,
         nombre: rc.cliente.nombre,
         nombreComercial: rc.cliente.nombreComercial || null,
-        meta: esPrimero ? meta : 0,
-        montoMes: esPrimero ? montoMes : 0,
-        ventasMes: esPrimero ? (montoMes > 0 ? 1 : 0) : 0,
-        pct: esPrimero ? pct : null,
-        semaforo: esPrimero ? semaforo : 'gris',
+        meta,
+        montoMes,
+        ventasMes: montoMes > 0 ? 1 : 0,
+        pct,
+        semaforo,
         esPrimero,
       }
     })
 
-    const totalMeta = puntos.reduce((a, p) => a + p.meta, 0)
-    const totalMes = puntos.reduce((a, p) => a + p.montoMes, 0)
+    // Totales deduplicados: el mismo cliente en varios días cuenta una sola vez
+    const totalMeta = puntos.filter(p => p.esPrimero).reduce((a, p) => a + p.meta, 0)
+    const totalMes = puntos.filter(p => p.esPrimero).reduce((a, p) => a + p.montoMes, 0)
     const pctTotal = totalMeta > 0 ? Math.round((totalMes / totalMeta) * 100) : null
 
     return { dia, nombre: DIAS[dia], puntos, totalMeta, totalMes, pctTotal }

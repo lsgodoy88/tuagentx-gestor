@@ -82,6 +82,7 @@ function TabInventarios({ user }: { user: any }) {
   const [enviando, setEnviando] = useState(false)
   const [msgEnvio, setMsgEnvio] = useState('')
   const abortRef = useRef<AbortController | null>(null)
+  const preciosRef = useRef<Record<string, number>>({})
 
   // Persistir filas en sessionStorage cuando cambian
   useEffect(() => {
@@ -108,11 +109,16 @@ function TabInventarios({ user }: { user: any }) {
       const params = new URLSearchParams({ page: String(pg), limit: '50', q, linea })
       const res = await fetch('/api/impulsar/inventario?' + params, { signal: ctrl.signal })
       const data = await res.json()
-      setProductos(data.productos || [])
+      const prods = data.productos || []
+      setProductos(prods)
       setTotal(data.total ?? 0)
       setPages(data.pages ?? 1)
       setPage(pg)
       if (pg === 1) setFiltros(data.filtros ?? { marcas: [], lineas: [] })
+      // Acumular precios de todas las páginas para el total global
+      for (const p of prods) {
+        if (p.precio != null) preciosRef.current[p.id] = p.precio
+      }
     } catch (e: any) {
       if (e.name !== 'AbortError') console.error(e)
     } finally {
@@ -173,9 +179,9 @@ function TabInventarios({ user }: { user: any }) {
   const filasConDatos = Object.values(filas).filter(v => v.sugerido || v.inventario).length
   const clienteNombre = clientes.find(c => c.id === clienteId)?.nombre ?? ''
 
-  const totalSugerido = productos.reduce((acc, p) => {
-    const sug = parseFloat(filas[p.id]?.sugerido || '0') || 0
-    const precio = (p as any).precio ?? 0
+  const totalSugerido = Object.entries(filas).reduce((acc, [pid, v]) => {
+    const sug = parseFloat(v.sugerido || '0') || 0
+    const precio = preciosRef.current[pid] ?? 0
     return acc + sug * precio
   }, 0)
 
@@ -362,6 +368,7 @@ function TabRotacion({ user }: { user: any }) {
   const [enviando, setEnviando] = useState(false)
   const [msgEnvio, setMsgEnvio] = useState('')
   const abortRef = useRef<AbortController | null>(null)
+  const preciosRef = useRef<Record<string, number>>({})
 
   useEffect(() => {
     escribirCache(clienteId, filas)
@@ -454,10 +461,9 @@ function TabRotacion({ user }: { user: any }) {
 
   const filasConDatos = Object.values(filas).filter(v => v.cantidad && v.precioVenta).length
 
-  const totalGeneral = productos.reduce((acc, p) => {
-    const f = filas[p.id]
-    const cant = parseFloat(f?.cantidad || '0') || 0
-    const pv   = parseFloat(f?.precioVenta || '0') || 0
+  const totalGeneral = Object.entries(filas).reduce((acc, [, v]) => {
+    const cant = parseFloat(v.cantidad || '0') || 0
+    const pv   = parseFloat(v.precioVenta || '0') || 0
     return acc + cant * pv
   }, 0)
 
