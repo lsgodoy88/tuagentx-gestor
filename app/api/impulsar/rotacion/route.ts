@@ -110,9 +110,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Sin datos para guardar' }, { status: 400 })
     }
 
+    const envioId = crypto.randomUUID()
     await (prisma as any).impulsoRotacion.createMany({
       data: filasValidas.map((f: any) => ({
         id: crypto.randomUUID(),
+        envioId,
         clienteId,
         productoId: f.productoId,
         cantidad: f.cantidad != null ? parseFloat(f.cantidad) : null,
@@ -123,7 +125,7 @@ export async function POST(req: NextRequest) {
       }))
     })
 
-    return NextResponse.json({ ok: true, guardados: filasValidas.length })
+    return NextResponse.json({ ok: true, guardados: filasValidas.length, envioId })
   } catch (err: any) {
     console.error('[api/impulsar/rotacion] POST error:', err.message)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })

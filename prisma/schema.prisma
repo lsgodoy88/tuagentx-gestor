@@ -3146,6 +3146,7 @@ model ReporteImpulsoMes {
 
 model ImpulsoInventario {
   id         String   @id @default(cuid())
+  envioId    String
   clienteId  String
   productoId String
   sugerido   Float?
@@ -3168,6 +3169,7 @@ model ImpulsoInventario {
 
 model ImpulsoRotacion {
   id           String   @id @default(cuid())
+  envioId      String
   clienteId    String
   productoId   String
   cantidad     Float?
@@ -3177,6 +3179,7 @@ model ImpulsoRotacion {
   empresaId    String
   createdAt    DateTime @default(now()) @db.Timestamptz(6)
 
+  @@index([envioId], map: "idx_impulso_rot_envio")
   @@index([clienteId], map: "idx_impulso_rot_cliente")
   @@index([empleadoId], map: "idx_impulso_rot_empleado")
   @@index([vendedorId], map: "idx_impulso_rot_vendedor")

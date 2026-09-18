@@ -83,6 +83,7 @@ function TabInventarios({ user }: { user: any }) {
   const [msgEnvio, setMsgEnvio] = useState('')
   const abortRef = useRef<AbortController | null>(null)
   const preciosRef = useRef<Record<string, number>>({})
+  const [historialKey, setHistorialKey] = useState(0)
 
   // Persistir filas en sessionStorage cuando cambian
   useEffect(() => {
@@ -166,6 +167,7 @@ function TabInventarios({ user }: { user: any }) {
         setMsgEnvio(`✅ ${data.guardados} productos enviados al vendedor`)
         setFilas({})
         limpiarCache()
+        setHistorialKey(k => k + 1)
       } else {
         setMsgEnvio('Error: ' + (data.error || 'desconocido'))
       }
@@ -334,6 +336,7 @@ function TabInventarios({ user }: { user: any }) {
           {enviando ? 'Enviando...' : clienteId ? `Enviar a vendedor${filasConDatos > 0 ? ` (${filasConDatos})` : ''}` : 'Seleccionar cliente primero'}
         </button>
       </div>
+      <HistorialEnvios tipo="sugerido" refreshKey={historialKey} />
     </div>
   )
 }
@@ -369,6 +372,7 @@ function TabRotacion({ user }: { user: any }) {
   const [msgEnvio, setMsgEnvio] = useState('')
   const abortRef = useRef<AbortController | null>(null)
   const preciosRef = useRef<Record<string, number>>({})
+  const [historialKey, setHistorialKey] = useState(0)
 
   useEffect(() => {
     escribirCache(clienteId, filas)
@@ -453,6 +457,7 @@ function TabRotacion({ user }: { user: any }) {
           return next
         })
         limpiarCache()
+        setHistorialKey(k => k + 1)
       }
       else setMsgEnvio('Error: ' + (data.error || 'desconocido'))
     } catch { setMsgEnvio('Error de red') }
@@ -588,6 +593,135 @@ function TabRotacion({ user }: { user: any }) {
           {enviando ? 'Enviando...' : clienteId ? `Enviar a vendedor${filasConDatos > 0 ? ` (${filasConDatos})` : ''}` : 'Seleccionar cliente primero'}
         </button>
       </div>
+      <HistorialEnvios tipo="rotacion" refreshKey={historialKey} />
+    </div>
+  )
+}
+
+// ── Historial de envíos ────────────────────────────────────────────
+function HistorialEnvios({ tipo, refreshKey }: { tipo: 'sugerido' | 'rotacion'; refreshKey: number }) {
+  const [envios, setEnvios] = useState<any[]>([])
+  const [loading, setLoading] = useState(false)
+  const [hasMore, setHasMore] = useState(false)
+  const [cursor, setCursor] = useState<string | null>(null)
+  const [abiertos, setAbiertos] = useState<Set<string>>(new Set())
+
+  const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
+  const fmtFecha = (iso: string) => new Date(iso).toLocaleString('es-CO', {
+    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
+    hour12: true, timeZone: 'America/Bogota'
+  })
+
+  async function cargar(reset = false) {
+    setLoading(true)
+    const c = reset ? null : cursor
+    const url = `/api/impulsar/historial?tipo=${tipo}&limit=10${c ? `&cursor=${c}` : ''}`
+    const d = await fetch(url).then(r => r.json())
+    setEnvios(prev => reset ? (d.envios || []) : [...prev, ...(d.envios || [])])
+    setHasMore(d.hasMore ?? false)
+    setCursor(d.nextCursor ?? null)
+    setLoading(false)
+  }
+
+  useEffect(() => { cargar(true) }, [tipo, refreshKey])
+
+  function toggle(envioId: string) {
+    setAbiertos(prev => {
+      const next = new Set(prev)
+      next.has(envioId) ? next.delete(envioId) : next.add(envioId)
+      return next
+    })
+  }
+
+  if (!loading && envios.length === 0) return null
+
+  return (
+    <div className="space-y-2 mt-2">
+      <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider px-1">
+        Historial de {tipo === 'rotacion' ? 'Rotación' : 'Sugeridos'}
+      </p>
+      {envios.map((env: any) => {
+        const abierto = abiertos.has(env.envioId)
+        return (
+          <div key={env.envioId} style={{ background: '#0a0f1a', border: '1px solid #1e2a3d', borderRadius: 12, overflow: 'hidden' }}>
+            {/* Header del envío */}
+            <button onClick={() => toggle(env.envioId)} className="w-full text-left"
+              style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ color: 'white', fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {env.clienteNombre}
+                </p>
+                <p style={{ color: '#64748b', fontSize: 11, marginTop: 2 }}>
+                  {fmtFecha(env.createdAt)} · {env.empleadoNombre} · {env.productos} producto{env.productos !== 1 ? 's' : ''}
+                </p>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <p style={{ color: '#34d399', fontWeight: 700, fontSize: 13 }}>{fmt(env.total)}</p>
+                <p style={{ color: '#475569', fontSize: 11, marginTop: 2 }}>{abierto ? '▲' : '▼'}</p>
+              </div>
+            </button>
+            {/* Detalle colapsable */}
+            {abierto && (
+              <div style={{ borderTop: '1px solid #1e2a3d' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: '#060a14' }}>
+                      <th style={{ padding: '6px 12px', textAlign: 'left', color: '#64748b', fontWeight: 500 }}>Producto</th>
+                      {tipo === 'rotacion' ? (
+                        <>
+                          <th style={{ padding: '6px 12px', textAlign: 'right', color: '#64748b', fontWeight: 500 }}>Cant.</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'right', color: '#64748b', fontWeight: 500 }}>P. Venta</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'right', color: '#64748b', fontWeight: 500 }}>Subtotal</th>
+                        </>
+                      ) : (
+                        <>
+                          <th style={{ padding: '6px 12px', textAlign: 'right', color: '#64748b', fontWeight: 500 }}>Sugerido</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'right', color: '#64748b', fontWeight: 500 }}>Inventario</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'right', color: '#64748b', fontWeight: 500 }}>Subtotal</th>
+                        </>
+                      )}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {env.detalle.map((d: any, i: number) => (
+                      <tr key={i} style={{ borderTop: '1px solid #0d1524', background: i % 2 === 0 ? '#0a0f1a' : '#080c16' }}>
+                        <td style={{ padding: '6px 12px', color: '#cbd5e1' }}>
+                          <span style={{ display: 'block' }}>{d.productoNombre}</span>
+                          {d.linea && <span style={{ color: '#475569', fontSize: 10 }}>{d.linea}</span>}
+                        </td>
+                        {tipo === 'rotacion' ? (
+                          <>
+                            <td style={{ padding: '6px 12px', textAlign: 'right', color: '#93c5fd' }}>{d.cantidad}</td>
+                            <td style={{ padding: '6px 12px', textAlign: 'right', color: '#f59e0b' }}>{fmt(Number(d.precioVenta ?? 0))}</td>
+                            <td style={{ padding: '6px 12px', textAlign: 'right', color: '#34d399', fontWeight: 600 }}>{fmt(Number(d.subtotal ?? 0))}</td>
+                          </>
+                        ) : (
+                          <>
+                            <td style={{ padding: '6px 12px', textAlign: 'right', color: '#93c5fd' }}>{d.sugerido ?? '—'}</td>
+                            <td style={{ padding: '6px 12px', textAlign: 'right', color: '#f59e0b' }}>{d.inventario ?? '—'}</td>
+                            <td style={{ padding: '6px 12px', textAlign: 'right', color: '#34d399', fontWeight: 600 }}>{fmt(Number(d.subtotal ?? 0))}</td>
+                          </>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        )
+      })}
+      {hasMore && (
+        <button onClick={() => cargar(false)} disabled={loading}
+          className="w-full text-xs text-zinc-500 py-2 hover:text-zinc-300 transition-colors disabled:opacity-40">
+          {loading ? 'Cargando...' : 'Ver más'}
+        </button>
+      )}
+      {loading && envios.length === 0 && (
+        <div className="space-y-2">
+          {[1,2,3].map(i => <div key={i} className="shimmer h-14 rounded-xl" />)}
+        </div>
+      )}
     </div>
   )
 }

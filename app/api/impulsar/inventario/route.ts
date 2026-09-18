@@ -109,8 +109,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Sin datos para guardar' }, { status: 400 })
     }
 
+    const envioId = crypto.randomUUID()
     await prisma.impulsoInventario.createMany({
       data: filasValidas.map((f: any) => ({
+        envioId,
         clienteId,
         productoId: f.productoId,
         sugerido: f.sugerido != null ? parseFloat(f.sugerido) : null,
@@ -121,7 +123,7 @@ export async function POST(req: NextRequest) {
       }))
     })
 
-    return NextResponse.json({ ok: true, guardados: filasValidas.length })
+    return NextResponse.json({ ok: true, guardados: filasValidas.length, envioId })
   } catch (err: any) {
     console.error('[api/impulsar/inventario] POST error:', err.message)
     return NextResponse.json({ error: 'Error interno' }, { status: 500 })
