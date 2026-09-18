@@ -130,21 +130,32 @@ function ImpulsoPDFContent() {
               </div>
 
               {impulsadoras.map((imp: any, impIdx: number) => {
-                // Construir lista única de (dia, cliente) desde semana
-                const filas: { diaNombre: string; nombre: string; nombreComercial?: string; clienteKey: string; meta: number }[] = []
-                const diasVistos: string[] = []
-                for (const dia of (imp.semana || [])) {
-                  if (!dia.puntos?.length) continue
-                  diasVistos.push(dia.nombre)
-                  for (const p of dia.puntos) {
-                    filas.push({
-                      diaNombre: dia.nombre,
-                      nombre: p.nombre,
-                      nombreComercial: p.nombreComercial,
-                      clienteKey: p.clienteId ?? p.nombre,
-                      meta: p.meta ?? 0,
-                    })
+                // Usar clientesUnion — estructura del primer mes + clientes nuevos de meses posteriores
+                const ORDEN_DIAS = [1,2,3,4,5,6,0]
+                const clientesUnion: any[] = imp.clientesUnion || []
+
+                // Agrupar por día preservando orden
+                const porDia: Record<number, any[]> = {}
+                const sinDia: any[] = []
+                for (const cli of clientesUnion) {
+                  if (cli.dia != null) {
+                    if (!porDia[cli.dia]) porDia[cli.dia] = []
+                    porDia[cli.dia].push(cli)
+                  } else {
+                    sinDia.push(cli)
                   }
+                }
+                const diasOrdenados = ORDEN_DIAS.filter(d => porDia[d]?.length > 0)
+
+                // Construir filas aplanadas para la tabla
+                const filas: { diaNombre: string; nombre: string; nombreComercial?: string; clienteId: string; dia: number }[] = []
+                for (const dia of diasOrdenados) {
+                  for (const cli of porDia[dia]) {
+                    filas.push({ diaNombre: cli.diaNombre, nombre: cli.nombre, nombreComercial: cli.nombreComercial, clienteId: cli.clienteId, dia })
+                  }
+                }
+                for (const cli of sinDia) {
+                  filas.push({ diaNombre: '—', nombre: cli.nombre, nombreComercial: cli.nombreComercial, clienteId: cli.clienteId, dia: -1 })
                 }
 
                 // rowSpan por día
@@ -202,13 +213,14 @@ function ImpulsoPDFContent() {
                                   {f.nombreComercial && <span style={{ color:'#6b7280', fontSize:8.5 }}> — {f.nombreComercial}</span>}
                                 </td>
                                 {meses.map(ym => {
-                                  const ventasPorCliente = imp.meses?.[ym]?.ventasPorCliente ?? {}
-                                  const venta = ventasPorCliente[f.clienteKey] ?? 0
-                                  const pct = f.meta > 0 ? Math.round((venta / f.meta) * 100) : null
+                                  const p = imp.clientesPorMes?.[ym]?.[f.clienteId]
+                                  const meta = p?.meta ?? 0
+                                  const venta = p?.montoMes ?? 0
+                                  const pct = p?.pct ?? null
                                   return (
                                     <>
                                       <td key={ym+'-m'} className="r" style={{ color:'#b45309', fontWeight:600, borderLeft:'2px solid #dbeafe' }}>
-                                        {f.meta > 0 ? fmt(f.meta) : '—'}
+                                        {meta > 0 ? fmt(meta) : '—'}
                                       </td>
                                       <td key={ym+'-v'} className="r" style={{ color:'#1d4ed8', fontWeight:600 }}>
                                         {venta > 0 ? fmt(venta) : '—'}
@@ -226,12 +238,12 @@ function ImpulsoPDFContent() {
                         <tr style={{borderTop:'2px solid #1d4ed8',background:'#eff6ff'}}>
                           <td colSpan={2} style={{fontWeight:700,color:'#1e3a8a',fontSize:9,textTransform:'uppercase',letterSpacing:'0.04em'}}>Total</td>
                           {meses.map(ym => {
-                            const md = imp.meses?.[ym]
+                            const t = imp.totalesPorMes?.[ym]
                             return (
                               <>
-                                <td key={ym+'-tm'} className="r" style={{color:'#b45309',fontWeight:700,borderLeft:'2px solid #dbeafe'}}>{md ? fmt(md.totalMeta) : '—'}</td>
-                                <td key={ym+'-tv'} className="r" style={{color:'#1d4ed8',fontWeight:700}}>{md ? fmt(md.totalMes) : '—'}</td>
-                                <td key={ym+'-tp'} className={'r '+pctClass(md?.pctTotal??null)} style={{fontWeight:700}}>{md?.pctTotal!=null?md.pctTotal+'%':'—'}</td>
+                                <td key={ym+'-tm'} className="r" style={{color:'#b45309',fontWeight:700,borderLeft:'2px solid #dbeafe'}}>{t ? fmt(t.totalMeta) : '—'}</td>
+                                <td key={ym+'-tv'} className="r" style={{color:'#1d4ed8',fontWeight:700}}>{t ? fmt(t.totalMes) : '—'}</td>
+                                <td key={ym+'-tp'} className={'r '+pctClass(t?.pctTotal??null)} style={{fontWeight:700}}>{t?.pctTotal!=null?t.pctTotal+'%':'—'}</td>
                               </>
                             )
                           })}

@@ -3,6 +3,7 @@ import { useRef, useState } from 'react'
 
 interface Props {
   onFoto: (dataUrl: string | null) => void
+  onFotoRaw?: (dataUrl: string | null) => void  // imagen sin marca de agua
   foto: string | null
   quienRecibe?: string
   autoOpen?: boolean
@@ -10,7 +11,7 @@ interface Props {
 
 const MAX_PX = 1280
 
-function marcaAgua(imgSrc: string, quienRecibe: string): Promise<string> {
+export function marcaAgua(imgSrc: string, quienRecibe: string): Promise<string> {
   return new Promise((resolve) => {
     const img = new Image()
     img.onload = () => {
@@ -55,7 +56,7 @@ function marcaAgua(imgSrc: string, quienRecibe: string): Promise<string> {
   })
 }
 
-export default function FotoEntrega({ onFoto, foto, quienRecibe = '', autoOpen }: Props) {
+export default function FotoEntrega({ onFoto, onFotoRaw, foto, quienRecibe = '', autoOpen }: Props) {
   const inputRef = useRef<HTMLInputElement>(null)
   const [procesando, setProcesando] = useState(false)
   const [vistaPrevia, setVistaPrevia] = useState(false)
@@ -66,21 +67,36 @@ export default function FotoEntrega({ onFoto, foto, quienRecibe = '', autoOpen }
   async function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
+    e.target.value = ''
     setProcesando(true)
     const reader = new FileReader()
     reader.onload = async (ev) => {
       const src = ev.target?.result as string
-      const resultado = await marcaAgua(src, receptor)
-      onFoto(resultado)
+      // PDF — subir directo sin marca de agua
+      if (file.type === 'application/pdf') {
+        onFoto(src)
+        onFotoRaw?.(src)
+        setProcesando(false)
+        return
+      }
+      if (onFotoRaw) {
+        // Guardar cruda — marca de agua se aplica al submit con quienRecibe final
+        onFotoRaw(src)
+        // Preview con marca provisional (quienRecibe puede estar vacío aún)
+        const preview = await marcaAgua(src, receptor)
+        onFoto(preview)
+      } else {
+        const resultado = await marcaAgua(src, receptor)
+        onFoto(resultado)
+      }
       setProcesando(false)
     }
     reader.readAsDataURL(file)
-    e.target.value = ''
   }
 
   return (
     <div className="space-y-2">
-      <input ref={inputRef} type="file" accept="image/*" capture="environment"
+      <input ref={inputRef} type="file" accept="image/*,application/pdf"
         style={{ display: 'none' }} onChange={onFileChange} />
 
       {foto ? (
@@ -119,13 +135,12 @@ export default function FotoEntrega({ onFoto, foto, quienRecibe = '', autoOpen }
                 className="flex-1 bg-zinc-800 border border-zinc-700 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-blue-500 placeholder:text-zinc-500"
               />
             )}
-            <button
-              type="button"
-              onClick={() => inputRef.current?.click()}
-              disabled={procesando || (autoOpen && !receptorLocal.trim())}
-              className="flex-shrink-0 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-semibold px-4 py-2 rounded-xl text-sm flex items-center gap-2 disabled:opacity-40">
-              {procesando ? '⏳' : <><span>📷</span><span>Tomar foto</span></>}
-            </button>
+            <label
+              className={`flex-shrink-0 bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-white font-semibold px-4 py-2 rounded-xl text-sm flex items-center gap-2 cursor-pointer ${(procesando || (autoOpen && !receptorLocal.trim())) ? 'opacity-40 pointer-events-none' : ''}`}>
+              {procesando ? '⏳' : <><span>📷</span><span>Capturar</span></>}
+              <input type="file" accept="image/*,application/pdf" className="hidden" onChange={onFileChange}
+                disabled={procesando || (autoOpen && !receptorLocal.trim())} />
+            </label>
           </div>
         </div>
       )}

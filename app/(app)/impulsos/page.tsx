@@ -1222,7 +1222,7 @@ function ReporteImpulsoTabla({ mes, hasta, refreshToken = 0, empleadosParaRefres
   // Label corto para cabecera de mes: "Sep 26"
   const labelMes = (ym: string) => {
     const [a, m] = ym.split('-').map(Number)
-    return new Date(a, m - 1, 1).toLocaleDateString('es-CO', { month: 'short' }).replace('.','').replace(/^./, c => c.toUpperCase()) + ' ' + String(a).slice(-2)
+    return new Date(a, m - 1, 1).toLocaleDateString('es-CO', { month: 'long' }).replace(/^./, c => c.toUpperCase()) + ' ' + a
   }
 
   if (loading) return (
@@ -1233,15 +1233,29 @@ function ReporteImpulsoTabla({ mes, hasta, refreshToken = 0, empleadosParaRefres
   )
   if (!datos) return null
 
-  // ── Modo rango: tabla pivot ────────────────────────────────────────
+  // ── Modo rango: tabla pivot con días de semana ─────────────────────
   if (datos.rango && datos.meses?.length > 1) {
     const mesesRango: string[] = datos.meses
+    const ORDEN_DIAS = [1,2,3,4,5,6,0] // Lun→Dom
     return (
       <div className="space-y-6 w-full">
         {datos.impulsadoras?.map((imp: any) => {
           const clientes: any[] = imp.clientesUnion || []
-          // Totales por mes
           const totales = imp.totalesPorMes || {}
+
+          // Agrupar clientes por día (orden del primer mes)
+          const porDia: Record<number, any[]> = {}
+          const sinDia: any[] = []
+          for (const cli of clientes) {
+            if (cli.dia != null) {
+              if (!porDia[cli.dia]) porDia[cli.dia] = []
+              porDia[cli.dia].push(cli)
+            } else {
+              sinDia.push(cli)
+            }
+          }
+          const diasConClientes = ORDEN_DIAS.filter(d => porDia[d]?.length > 0)
+
           return (
             <div key={imp.id} style={{background:'#0d1220', border:'1px solid #1e2a3d', borderRadius:16, overflow:'hidden'}}>
               {/* Header impulsadora */}
@@ -1249,43 +1263,88 @@ function ReporteImpulsoTabla({ mes, hasta, refreshToken = 0, empleadosParaRefres
                 <span style={{color:'white', fontWeight:700, fontSize:15}}>{imp.nombre}</span>
               </div>
               <div className="overflow-x-auto">
-                <table style={{width:'100%', borderCollapse:'collapse', fontSize:13, minWidth: 300 + mesesRango.length * 200}}>
+                <table style={{width:'100%', borderCollapse:'collapse', fontSize:13, minWidth: 220 + mesesRango.length * 260}}>
                   <thead>
                     <tr style={{background:'#080d18'}}>
-                      <th style={{...thSt, textAlign:'left', minWidth:180}}>Cliente</th>
+                      <th style={{...thSt, width:52, borderRight:BORDER_DAY}}>Día</th>
+                      <th style={{...thSt, textAlign:'left', minWidth:160}}>Cliente</th>
                       {mesesRango.map(ym => (
-                        <th key={ym} colSpan={2} style={{...thSt, textAlign:'center', borderLeft:BORDER_DAY, minWidth:200}}>
+                        <th key={ym} colSpan={3} style={{...thSt, textAlign:'center', borderLeft:BORDER_DAY, minWidth:240}}>
                           {labelMes(ym)}
                         </th>
                       ))}
                     </tr>
                     <tr style={{background:'#060a18'}}>
-                      <th style={{...thSt, textAlign:'left', borderBottom:BORDER_DAY}}></th>
+                      <th style={{...thSt, borderRight:BORDER_DAY}}></th>
+                      <th style={{...thSt, textAlign:'left'}}></th>
                       {mesesRango.map(ym => (
                         <React.Fragment key={ym}>
-                          <th style={{...thSt, textAlign:'right', borderLeft:BORDER_DAY, color:'#f59e0b'}}>Meta</th>
-                          <th style={{...thSt, textAlign:'right', color:'#60a5fa'}}>Venta</th>
+                          <th style={{...thSt, textAlign:'right', borderLeft:BORDER_DAY, color:'#f59e0b', fontSize:11}}>Meta</th>
+                          <th style={{...thSt, textAlign:'right', color:'#60a5fa', fontSize:11}}>Venta</th>
+                          <th style={{...thSt, textAlign:'right', color:'#94a3b8', fontSize:11}}>%</th>
                         </React.Fragment>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {clientes.map((cli: any, idx: number) => (
-                      <tr key={cli.clienteId} style={{borderBottom:BORDER, background: idx%2===0?'#0d1220':'#0a0f1a'}}>
+                    {diasConClientes.map(dia => {
+                      const clis = porDia[dia]
+                      const nombreDia = clis[0]?.diaNombre ?? ''
+                      return clis.map((cli: any, i: number) => (
+                        <tr key={cli.clienteId} style={{borderBottom:BORDER, background:'#0d1220'}}>
+                          {i === 0 && (
+                            <td rowSpan={clis.length} style={{
+                              padding:'8px 10px', textAlign:'center', verticalAlign:'middle',
+                              fontWeight:700, fontSize:11, color:'#93c5fd', textTransform:'uppercase',
+                              borderRight:BORDER_DAY, whiteSpace:'nowrap', letterSpacing:'0.05em',
+                              background:'#0b1628',
+                              borderBottom: BORDER_DAY,
+                            }}>
+                              {nombreDia.slice(0,3).toUpperCase()}
+                            </td>
+                          )}
+                          <td style={{padding:'7px 12px', borderRight:BORDER}}>
+                            <span style={{color:'white', fontWeight:500, display:'block', whiteSpace:'nowrap'}}>{cli.nombre}</span>
+                            {cli.nombreComercial && <span style={{color:'#64748b', fontSize:11}}>{cli.nombreComercial}</span>}
+                          </td>
+                          {mesesRango.map(ym => {
+                            const p = imp.clientesPorMes?.[ym]?.[cli.clienteId]
+                            return (
+                              <React.Fragment key={ym}>
+                                <td style={{padding:'7px 10px', textAlign:'right', color:'#f59e0b', fontWeight:600, borderLeft:BORDER_DAY, whiteSpace:'nowrap'}}>
+                                  {p && p.meta > 0 ? fmt(p.meta) : '—'}
+                                </td>
+                                <td style={{padding:'7px 10px', textAlign:'right', color:'#60a5fa', fontWeight:600, whiteSpace:'nowrap'}}>
+                                  {p && p.montoMes > 0 ? fmt(p.montoMes) : '—'}
+                                </td>
+                                <td style={{padding:'7px 10px', textAlign:'right', fontWeight:700, whiteSpace:'nowrap', ...pctColor(p?.pct ?? null)}}>
+                                  {p?.pct != null ? p.pct + '%' : '—'}
+                                </td>
+                              </React.Fragment>
+                            )
+                          })}
+                        </tr>
+                      ))
+                    })}
+                    {/* Clientes sin día (aparecieron en meses posteriores) */}
+                    {sinDia.map((cli: any) => (
+                      <tr key={cli.clienteId} style={{borderBottom:BORDER, background:'#0a0f1a'}}>
+                        <td style={{padding:'8px 10px', textAlign:'center', color:'#334155', fontWeight:700, fontSize:11, borderRight:BORDER_DAY, background:'#080e1a'}}>—</td>
                         <td style={{padding:'7px 12px', borderRight:BORDER}}>
-                          <span style={{color:'white', fontWeight:500, display:'block'}}>{cli.nombre}</span>
-                          {cli.nombreComercial && <span style={{color:'#64748b', fontSize:11, display:'block', marginTop:1}}>{cli.nombreComercial}</span>}
+                          <span style={{color:'white', fontWeight:500, display:'block', whiteSpace:'nowrap'}}>{cli.nombre}</span>
                         </td>
                         {mesesRango.map(ym => {
                           const p = imp.clientesPorMes?.[ym]?.[cli.clienteId]
-                          const pct = p ? p.pct : null
                           return (
                             <React.Fragment key={ym}>
-                              <td style={{padding:'7px 12px', textAlign:'right', color:'#f59e0b', fontWeight:600, borderLeft:BORDER_DAY, whiteSpace:'nowrap'}}>
+                              <td style={{padding:'7px 10px', textAlign:'right', color:'#f59e0b', fontWeight:600, borderLeft:BORDER_DAY, whiteSpace:'nowrap'}}>
                                 {p && p.meta > 0 ? fmt(p.meta) : '—'}
                               </td>
-                              <td style={{padding:'7px 12px', textAlign:'right', fontWeight:600, whiteSpace:'nowrap', borderRight:BORDER, ...pctColor(pct)}}>
+                              <td style={{padding:'7px 10px', textAlign:'right', color:'#60a5fa', fontWeight:600, whiteSpace:'nowrap'}}>
                                 {p && p.montoMes > 0 ? fmt(p.montoMes) : '—'}
+                              </td>
+                              <td style={{padding:'7px 10px', textAlign:'right', fontWeight:700, whiteSpace:'nowrap', ...pctColor(p?.pct ?? null)}}>
+                                {p?.pct != null ? p.pct + '%' : '—'}
                               </td>
                             </React.Fragment>
                           )
@@ -1294,17 +1353,20 @@ function ReporteImpulsoTabla({ mes, hasta, refreshToken = 0, empleadosParaRefres
                     ))}
                     {/* Fila totales */}
                     <tr style={{background:'#0a0f1a', borderTop:BORDER_DAY}}>
-                      <td style={{padding:'8px 12px', color:'#94a3b8', fontWeight:700, fontSize:12, textTransform:'uppercase'}}>Total</td>
+                      <td style={{padding:'8px 10px', borderRight:BORDER_DAY}}></td>
+                      <td style={{padding:'8px 12px', color:'#94a3b8', fontWeight:700, fontSize:12, textTransform:'uppercase', borderRight:BORDER}}>Total</td>
                       {mesesRango.map(ym => {
                         const t = totales[ym]
                         return (
                           <React.Fragment key={ym}>
-                            <td style={{padding:'8px 12px', textAlign:'right', color:'#f59e0b', fontWeight:700, borderLeft:BORDER_DAY, whiteSpace:'nowrap'}}>
+                            <td style={{padding:'8px 10px', textAlign:'right', color:'#f59e0b', fontWeight:700, borderLeft:BORDER_DAY, whiteSpace:'nowrap'}}>
                               {t ? fmt(t.totalMeta) : '—'}
                             </td>
-                            <td style={{padding:'8px 12px', textAlign:'right', fontWeight:700, whiteSpace:'nowrap', borderRight:BORDER, ...pctColor(t?.pctTotal ?? null)}}>
+                            <td style={{padding:'8px 10px', textAlign:'right', color:'#60a5fa', fontWeight:700, whiteSpace:'nowrap'}}>
                               {t ? fmt(t.totalMes) : '—'}
-                              {t?.pctTotal != null && <span style={{marginLeft:5, fontSize:11}}>{t.pctTotal}%</span>}
+                            </td>
+                            <td style={{padding:'8px 10px', textAlign:'right', fontWeight:700, whiteSpace:'nowrap', ...pctColor(t?.pctTotal ?? null)}}>
+                              {t?.pctTotal != null ? t.pctTotal + '%' : '—'}
                             </td>
                           </React.Fragment>
                         )

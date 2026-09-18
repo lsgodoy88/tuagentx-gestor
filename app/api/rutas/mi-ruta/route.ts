@@ -61,13 +61,13 @@ async function enrichRutaClientes(clientes: any[]) {
       where: { numeroFactura: { in: numerosNotas }, estado: { in: ['pendiente', 'alistado', 'en_entrega', 'entregado'] } },
       select: { id: true, numeroFactura: true, numeroOrden: true, empresaId: true, observacion: true, estado: true, entregadoEl: true,
         alistadoPor: { select: { nombre: true } },
-        empresaVinculada: { select: { nombre: true } }, createdAt: true }
+        empresaVinculada: { select: { nombre: true } }, createdAt: true, updatedAt: true }
     }),
     prisma.ordenDespacho.findMany({
       where: { numeroOrden: { in: numerosNotas }, numeroFactura: null, estado: { in: ['pendiente', 'alistado', 'en_entrega', 'entregado'] } },
       select: { id: true, numeroFactura: true, numeroOrden: true, empresaId: true, observacion: true, estado: true, entregadoEl: true,
         alistadoPor: { select: { nombre: true } },
-        empresaVinculada: { select: { nombre: true } }, createdAt: true }
+        empresaVinculada: { select: { nombre: true } }, createdAt: true, updatedAt: true }
     })
   ])
 
@@ -92,7 +92,7 @@ async function enrichRutaClientes(clientes: any[]) {
       numeroFactura: orden?.numeroFactura || null,
       empresaOrigen: orden?.empresaVinculada?.nombre || empresaNota || null,
       alistadoPor: orden?.alistadoPor?.nombre || null,
-      ordenCreadaEl: orden?.createdAt || null,
+      ordenCreadaEl: orden?.updatedAt || orden?.createdAt || null, // updatedAt = cuando bodega asignó
     }
   })
 }
@@ -222,20 +222,7 @@ export async function GET(req: Request) {
     ? clientesHoy.filter((c: any) => c.ordenEstado !== 'entregado')
     : clientesHoy
 
-  // Auto-cierre: si todos los clientes de una ruta están entregados → cerrar
-  if (user.role === 'entregas') {
-    const rutasParaCerrar = rutasHoy.filter((r: any) => {
-      if (r.cerrada) return false
-      const clientesRuta = clientesHoy.filter((c: any) => c._rutaId === r.id)
-      return clientesRuta.length > 0 && clientesRuta.every((c: any) => c.ordenEstado === 'entregado')
-    })
-    if (rutasParaCerrar.length > 0) {
-      prisma.ruta.updateMany({
-        where: { id: { in: rutasParaCerrar.map((r: any) => r.id) }, cerrada: false },
-        data: { cerrada: true }
-      }).catch(() => {})
-    }
-  }
+  // Auto-cierre eliminado — solo cierre manual o job 8pm
 
   return NextResponse.json({
     rutaHoy: rutaPrincipal ? {

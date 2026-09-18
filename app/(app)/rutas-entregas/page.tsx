@@ -132,8 +132,10 @@ export default function RutasEntregasPage() {
           if (fechaRuta > hoy) continue
           if (!porFecha[fechaRuta]) porFecha[fechaRuta] = { fecha: fechaRuta, clientes: [], visitas: [] }
           for (const c of (r.clientes || [])) {
-            if (!porFecha[fechaRuta].clientes.some((x: any) => x.clienteId === c.clienteId))
-              porFecha[fechaRuta].clientes.push(c)
+            // No deduplicar por clienteId — mismo cliente puede tener múltiples órdenes
+            // Deduplicar por id de RutaCliente para evitar duplicados exactos
+            if (!porFecha[fechaRuta].clientes.some((x: any) => x.id === c.id))
+              porFecha[fechaRuta].clientes.push({ ...c, _rutaId: r.id })
           }
           for (const v of (r.visitas || [])) {
             if (!porFecha[fechaRuta].visitas.some((x: any) => x.id === v.id))
@@ -193,21 +195,44 @@ export default function RutasEntregasPage() {
       )}
 
       {rutasFiltradas.map((r: any) => {
+        // Total y visitados basados en r.clientes (fuente de verdad del despacho)
         const totalClientes = r.clientes?.length || 0
-        const clientesEntregados = (r._filtrados ?? (r.clientes?.filter((rc: any) =>
-          r.visitas.some((v: any) => v.clienteId === rc.clienteId)
-        ) || [])).sort((a: any, b: any) => {
-          const va = r.visitas.find((v: any) => v.clienteId === a.clienteId)
-          const vb = r.visitas.find((v: any) => v.clienteId === b.clienteId)
-          const ta = va?.fechaBogota || va?.createdAt || ''
-          const tb = vb?.fechaBogota || vb?.createdAt || ''
-          return ta.localeCompare(tb)
-        })
-        const visitados = r.clientes?.filter((rc: any) =>
-          r.visitas.some((v: any) => v.clienteId === rc.clienteId)
-        ).length || 0
+
+        // Asignar visitas a clientes: mismo clienteId puede tener múltiples visitas (órdenes distintas)
+        // Ordenar visitas por hora para asignación secuencial
+        const visitasOrdenadas = [...(r.visitas || [])].sort((a: any, b: any) =>
+          (a.fechaBogota || a.createdAt || '').localeCompare(b.fechaBogota || b.createdAt || '')
+        )
+        // Mapa clienteId → queue de visitas
+        const visitasQueue: Record<string, any[]> = {}
+        for (const v of visitasOrdenadas) {
+          if (!visitasQueue[v.clienteId]) visitasQueue[v.clienteId] = []
+          visitasQueue[v.clienteId].push(v)
+        }
+        // Asignar una visita por cliente en orden
+        const visitasAsignadas: Record<string, any> = {} // rcId → visita
+        const visitasUsadasIdx: Record<string, number> = {}
+        for (const rc of (r.clientes || [])) {
+          const queue = visitasQueue[rc.clienteId] || []
+          const idx = visitasUsadasIdx[rc.clienteId] || 0
+          if (queue[idx]) {
+            visitasAsignadas[rc.id] = queue[idx]
+            visitasUsadasIdx[rc.clienteId] = idx + 1
+          }
+        }
+
+        const clientesEntregados = (r.clientes || [])
+          .filter((rc: any) => visitasAsignadas[rc.id])
+          .sort((a: any, b: any) => {
+            const ta = visitasAsignadas[a.id]?.fechaBogota || ''
+            const tb = visitasAsignadas[b.id]?.fechaBogota || ''
+            return ta.localeCompare(tb)
+          })
+
+        const visitados = clientesEntregados.length
         const pct = totalClientes > 0 ? Math.round(visitados / totalClientes * 100) : 0
         const expandido = expandidos.has(r.fecha)
+        const visitasOrdenExtra: any[] = [] // ya no necesario — todo viene de r.clientes
 
         return (
           <div key={r.fecha} className="bg-zinc-900 border border-zinc-800 rounded-2xl px-4 py-3">
@@ -229,11 +254,11 @@ export default function RutasEntregasPage() {
 
             {expandido && (
               <div className="mt-2 border-t border-zinc-800 pt-1">
-                {clientesEntregados.length === 0 && (
+                {clientesEntregados.length === 0 && visitasOrdenExtra.length === 0 && (
                   <p className="text-zinc-600 text-xs text-center py-2">Sin entregas este día</p>
                 )}
                 {clientesEntregados.map((rc: any, i: number) => {
-                  const visita = r.visitas.find((v: any) => v.clienteId === rc.clienteId)
+                  const visita = visitasAsignadas[rc.id]
                   const raw = visita?.fechaBogota || (visita?.createdAt
                     ? new Date(new Date(visita.createdAt).getTime() - 5*3600*1000).toISOString().replace('Z','')
                     : null)
@@ -251,7 +276,28 @@ export default function RutasEntregasPage() {
                       fotoUrl={visita?.firma || null}
                       lat={visita?.lat || null}
                       lng={visita?.lng || null}
-                      isLast={i === clientesEntregados.length - 1}
+                      isLast={i === clientesEntregados.length - 1 && visitasOrdenExtra.length === 0}
+                    />
+                  )
+                })}
+                {/* Entregas de órdenes de despacho directas */}
+                {visitasOrdenExtra.map((v: any, i: number) => {
+                  const raw = v.fechaBogota || (v.createdAt
+                    ? new Date(new Date(v.createdAt).getTime() - 5*3600*1000).toISOString().replace('Z','')
+                    : null)
+                  const hora = parseHora(raw)
+                  return (
+                    <CardEntregado
+                      key={v.id}
+                      nombre={v.clienteNombre || v.cliente?.nombre || ''}
+                      hora={hora}
+                      nota=""
+                      direccion={v.cliente?.direccion}
+                      ciudad={v.cliente?.ciudad}
+                      fotoUrl={v.firma || null}
+                      lat={v.lat || null}
+                      lng={v.lng || null}
+                      isLast={i === visitasOrdenExtra.length - 1}
                     />
                   )
                 })}

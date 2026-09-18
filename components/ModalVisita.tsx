@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import FotoEntrega from '@/components/FotoEntrega'
+import FotoEntrega, { marcaAgua } from '@/components/FotoEntrega'
 import { fetchApi, errorMsg } from '@/lib/fetchApi'
 import { useGpsContext } from '@/lib/gps-context'
 import { obtenerGpsMejor } from '@/lib/gps'
@@ -61,7 +61,8 @@ export default function ModalVisita({
   const [monto, setMonto] = useState('')
   const [nota, setNota] = useState('')
   const [factura, setFactura] = useState('')
-  const [firma, setFirma] = useState<string | null>(null)  // foto entrega
+  const [firma, setFirma] = useState<string | null>(null)  // foto entrega (con marca de agua preview)
+  const [firmaRaw, setFirmaRaw] = useState<string | null>(null)  // foto cruda sin marca de agua
   const [quienRecibe, setQuienRecibe] = useState('')
   const [capturarGps, setCapturarGps] = useState(false)
   const [popupGps, setPopupGps] = useState(false)
@@ -95,7 +96,7 @@ export default function ModalVisita({
       setTipo(tipoForzado || 'visita')
       setMonto(''); setNota('')
       setFactura(facturaPreset || '')
-      setFirma(null); setError(null)
+      setFirma(null); setFirmaRaw(null); setError(null)
       setBuscar(''); setPageCli(1)
     }
   }, [open])
@@ -131,6 +132,13 @@ export default function ModalVisita({
     const cl = cliente || clienteInicial
     if (!cl) return
 
+    // Aplicar marca de agua definitiva con quienRecibe final antes de enviar
+    let firmaFinal = firma
+    if (isEntregas && firmaRaw) {
+      firmaFinal = await marcaAgua(firmaRaw, quienRecibe)
+      setFirma(firmaFinal)
+    }
+
     // Esperar GPS solo si puede capturar y el cliente aún no tiene coordenadas
     const esperarGps = puedeCapturarGps === true && !cl.lat && !cl.lng
 
@@ -163,7 +171,7 @@ export default function ModalVisita({
         monto: monto || null,
         nota: nota || null,
         factura: factura || null,
-        firma: firma || null,
+        firma: firmaFinal || firma || null,
         capturarGps: esperarGps ? capturarGps : false,
         ...extraData,
         ...(ubicacion || {}),
@@ -431,7 +439,7 @@ export default function ModalVisita({
             </div>
 
             {/* Foto entrega */}
-            {isEntregas && <FotoEntrega onFoto={setFirma} foto={firma} quienRecibe={quienRecibe} />}
+            {isEntregas && <FotoEntrega onFoto={setFirma} onFotoRaw={setFirmaRaw} foto={firma} quienRecibe={quienRecibe} />}
 
             {/* GPS capture */}
             {(() => {

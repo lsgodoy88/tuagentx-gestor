@@ -26,6 +26,8 @@ export default function DashboardEntregas({ user }: { user: any }) {
   const [todasRutasHoyIds,  setTodasRutasHoyIds]  = useState<string[]>([])
   const [rutaMañana,        setRutaMañana]        = useState<any>(null)
   const [adelantarRc,       setAdelantarRc]       = useState<any>(null)
+  const [añadiendoTodos,    setAñadiendoTodos]    = useState(false)
+  const [confirmarTodos,    setConfirmarTodos]    = useState(false)
   const [confirmCerrar,     setConfirmCerrar]     = useState(false)
 
   const hoyStr = new Date(Date.now() - 5*60*60*1000).toISOString().split('T')[0]
@@ -37,6 +39,8 @@ export default function DashboardEntregas({ user }: { user: any }) {
   const totalClientes = totalRutaReal || clientesOrdenados.length
   // Ejecutados = visitas del día en hora Bogotá
   const hoyBogota = new Date(Date.now() - 5*3600*1000).toISOString().split('T')[0]
+  // Contar por ordenDespachoId (único por orden) o por id de visita si no hay orden
+  // No usar clienteId — mismo cliente puede tener múltiples órdenes
   const ejecutadosRuta = new Set(
     visitasRuta
       .filter(v => {
@@ -45,7 +49,7 @@ export default function DashboardEntregas({ user }: { user: any }) {
         const fv = raw.toString().slice(0, 10)
         return fv === hoyBogota
       })
-      .map((v: any) => v.clienteId)
+      .map((v: any) => v.id)
   ).size
   const rutaCompletada = totalClientes > 0 && ejecutadosRuta >= totalClientes
 
@@ -238,7 +242,12 @@ export default function DashboardEntregas({ user }: { user: any }) {
         <div className="rounded-2xl overflow-hidden" style={{background:'rgba(8,10,30,0.85)',border:'1px solid rgba(255,255,255,0.10)',boxShadow:'0 4px 24px rgba(0,0,0,0.40)'}}>
           <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between">
             <span className="text-zinc-400 font-semibold text-sm">🗓 Mañana — En espera</span>
-            <span className="text-zinc-500 text-xs">{rutaMañana.clientes.length} orden{rutaMañana.clientes.length !== 1 ? 'es' : ''}</span>
+            <button
+              disabled={añadiendoTodos}
+              onClick={() => setConfirmarTodos(true)}
+              className="bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-white text-xs font-semibold px-3 py-1.5 rounded-xl transition-colors">
+              {añadiendoTodos ? '⏳' : '✚ Añadir todos'}
+            </button>
           </div>
           <div className="divide-y divide-white/5">
             {rutaMañana.clientes.map((rc: any) => {
@@ -303,6 +312,41 @@ export default function DashboardEntregas({ user }: { user: any }) {
                 cargarRuta()
               }} className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold">
                 Sí, agregar a hoy
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal confirmar añadir todos */}
+      {confirmarTodos && rutaMañana && (
+        <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl w-full p-5 space-y-4">
+            <p className="text-white font-semibold text-base">¿Agregar a la ruta de hoy?</p>
+            <div className="bg-zinc-800 rounded-xl p-3">
+              <p className="text-zinc-300 text-sm">
+                Se añadirán <span className="text-white font-bold">{rutaMañana.clientes.length} orden{rutaMañana.clientes.length !== 1 ? 'es' : ''}</span> a tu ruta de hoy.
+              </p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmarTodos(false)}
+                className="flex-1 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 text-sm font-semibold">
+                Cancelar
+              </button>
+              <button onClick={async () => {
+                setConfirmarTodos(false)
+                setAñadiendoTodos(true)
+                try {
+                  await fetch(`/api/rutas/${rutaMañana.id}/adelantar`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ rutaClienteIds: rutaMañana.clientes.map((rc: any) => rc.id) })
+                  })
+                  cargarRuta()
+                } finally {
+                  setAñadiendoTodos(false)
+                }
+              }} className="flex-1 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-sm font-semibold">
+                {añadiendoTodos ? '⏳' : 'Sí, agregar todas'}
               </button>
             </div>
           </div>

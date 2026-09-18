@@ -42,20 +42,28 @@ export async function GET(req: NextRequest) {
         impulsadoras = d.impulsadoras || []
       }
 
-      // Extraer solo puntos esPrimero por impulsadora
+      const esPrimerMes = ym === meses[0]
+
+      // Extraer puntos por impulsadora:
+      // - Primer mes: TODOS los puntos (estructura completa igual al individual)
+      // - Meses siguientes: solo esPrimero (detectar clientes nuevos)
       const porImp: Record<string, any[]> = {}
       for (const imp of impulsadoras) {
         const puntos: any[] = []
         for (const dia of (imp.semana || [])) {
+          if (!dia) continue
           for (const p of (dia.puntos || [])) {
-            if (p.esPrimero) {
+            if (esPrimerMes || p.esPrimero) {
               puntos.push({
                 clienteId: p.clienteId,
                 nombre: p.nombre,
                 nombreComercial: p.nombreComercial || null,
+                dia: dia.dia,
+                diaNombre: dia.nombre,
                 meta: p.meta,
                 montoMes: p.montoMes,
                 pct: p.pct,
+                esPrimero: p.esPrimero,
               })
             }
           }
@@ -63,7 +71,7 @@ export async function GET(req: NextRequest) {
         porImp[imp.id] = puntos
       }
 
-      return { ym, impulsadoras, porImp }
+      return { ym, impulsadoras, porImp, esPrimerMes }
     }))
 
     // Construir estructura pivot por impulsadora
@@ -86,7 +94,8 @@ export async function GET(req: NextRequest) {
         }
         const entry = impMap[imp.id]
 
-        // Registrar clientes de este mes en la unión (en orden de aparición)
+        // Primer mes: todos los puntos forman la estructura base
+        // Meses siguientes: solo clientes nuevos (esPrimero) se agregan con su primer día
         for (const p of (porImp[imp.id] || [])) {
           if (!entry._clientesVistos.has(p.clienteId)) {
             entry._clientesVistos.add(p.clienteId)
@@ -94,6 +103,8 @@ export async function GET(req: NextRequest) {
               clienteId: p.clienteId,
               nombre: p.nombre,
               nombreComercial: p.nombreComercial,
+              dia: p.dia,
+              diaNombre: p.diaNombre,
             })
           }
         }

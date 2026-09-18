@@ -61,13 +61,27 @@ export async function runRutasDia(empresaIdFiltro?: string | null, forzar = fals
 
         const visitasHoy = await prisma.visita.findMany({
           where: { empleadoId: { in: todosEmpIds }, clienteId: { in: todosCliIds }, fechaBogota: { gte: inicioDiaBogota(ahoraBog), lte: finDiaBogota(ahoraBog) } },
-          select: { clienteId: true }
+          select: { clienteId: true, ordenDespachoId: true, empleadoId: true }
         })
-        const visitadosSet = new Set(visitasHoy.map((v: any) => v.clienteId))
 
         for (const ruta of rutasHoy) {
+          // Filtrar visitas por los empleados de esta ruta — evita contar visitas de otros repartidores
+          const empIdsRuta = new Set(ruta.empleados.map((e: any) => e.empleadoId))
+          const visitasPorCliente: Record<string, number> = {}
+          for (const v of visitasHoy) {
+            if (empIdsRuta.has(v.empleadoId)) {
+              visitasPorCliente[v.clienteId] = (visitasPorCliente[v.clienteId] || 0) + 1
+            }
+          }
+          // Asignar visitas secuencialmente — mismo cliente con 2 órdenes necesita 2 visitas
+          const procesados: Record<string, number> = {}
           const sinVisita = ruta.clientes
-            .filter((rc: any) => !visitadosSet.has(rc.clienteId))
+            .filter((rc: any) => {
+              const usadas = procesados[rc.clienteId] || 0
+              const visitas = visitasPorCliente[rc.clienteId] || 0
+              procesados[rc.clienteId] = usadas + 1
+              return usadas >= visitas // no hay visita disponible para esta orden
+            })
             .map((rc: any) => rc.clienteId)
 
           await prisma.$transaction([
