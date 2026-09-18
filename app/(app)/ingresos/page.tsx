@@ -104,6 +104,8 @@ export default function SaldosPage() {
   const [showPopDia, setShowPopDia]     = useState(false)
   const [filaIntentada, setFilaIntentada]   = useState<number | null>(null)
 
+  const dateInputRef = useRef<HTMLInputElement>(null)
+
   const hoy        = fechaHoy()
   const esDiaActual = vista === 'Día' && fecha === hoy
 
@@ -216,6 +218,7 @@ export default function SaldosPage() {
 
   function autoguardar(i: number, fila: Fila) {
     if (!fecha || vista !== 'Día') return
+    if (!esDiaActual && !filasEditando.has(i)) return
     fetch('/api/saldos', {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -228,7 +231,7 @@ export default function SaldosPage() {
       if (fila.concepto && (fila.ingreso || fila.egreso)) {
         setFilas(prev => prev.map((f, idx) => idx === i ? { ...f, id: data.id || f.id, esNueva: false } : f))
         setFilasGuardadas(prev => new Set([...prev, i]))
-        setFilasEditando(prev => { const n = new Set(prev); n.delete(i); return n })
+        // No remover de filasEditando aquí — el usuario sigue editando hasta hacer blur explícito
       }
     })
   }
@@ -494,15 +497,17 @@ export default function SaldosPage() {
           style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #1e2a3d', background: 'rgba(13,18,32,0.9)', color: '#9ca3af', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
 
         <div style={{ flex: 1, position: 'relative' }}>
-          <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'rgba(13,18,32,0.9)', border: '1px solid ' + (esDiaActual ? '#1e2a3d' : 'rgba(245,158,11,0.4)'), borderRadius: 10, padding: '7px 12px', cursor: 'pointer' }}>
+          <div onClick={() => vista === 'Día' && dateInputRef.current?.click()}
+            style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'rgba(13,18,32,0.9)', border: '1px solid ' + (esDiaActual ? '#1e2a3d' : 'rgba(245,158,11,0.4)'), borderRadius: 10, padding: '7px 12px', cursor: vista === 'Día' ? 'pointer' : 'default' }}>
             <span style={{ fontSize: 14, fontWeight: 600, color: esDiaActual ? 'white' : '#f59e0b' }}>
               {buscando ? '…' : labelNavegador(vista, fecha)}
             </span>
-            {vista === 'Día' && (
-              <input type="date" value={fecha} onChange={e => { setFecha(e.target.value); cargarDia(e.target.value) }}
-                style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%', top: 0, left: 0, cursor: 'pointer' }} />
-            )}
-          </label>
+          </div>
+          {vista === 'Día' && (
+            <input ref={dateInputRef} type="date" value={fecha}
+              onChange={e => { setFecha(e.target.value); cargarDia(e.target.value) }}
+              style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', width: 0, height: 0, top: 0, left: 0 }} />
+          )}
         </div>
 
         <button onClick={() => navegar(moverFecha(fecha, vista, 1), vista)}
@@ -562,8 +567,8 @@ export default function SaldosPage() {
                           : fila.egreso ? <span style={{ color: '#f87171', fontSize: 13 }}>{formatCOP(fila.egreso)}</span> : null}
                       </td>
                       <td className="hidden md:table-cell" style={{ ...tdStyle, whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()}>
-                        {esEditable(i)
-                          ? <select value={fila.categoria} onChange={e => { if (!puedeEditarSaldos) return; setFila(i, 'categoria', e.target.value); onBlurFila(i) }} disabled={!puedeEditarSaldos} style={{ background: '#141c2e', color: fila.categoria ? 'white' : '#374151', border: 'none', outline: 'none', width: '100%', fontSize: 12, borderRadius: 6, padding: '2px 4px', cursor: puedeEditarSaldos ? 'pointer' : 'default' }}>
+                        {(esEditable(i) || fila.ingreso || fila.egreso) && puedeEditarSaldos
+                          ? <select value={fila.categoria} onChange={e => { setFila(i, 'categoria', e.target.value); onBlurFila(i) }} style={{ background: '#141c2e', color: fila.categoria ? 'white' : '#374151', border: 'none', outline: 'none', width: '100%', fontSize: 12, borderRadius: 6, padding: '2px 4px', cursor: 'pointer' }}>
                               <option value="">—</option>
                               {categorias.filter(c => c.tipo === (fila.ingreso ? 'ingreso' : fila.egreso ? 'egreso' : 'ingreso')).map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
                             </select>
