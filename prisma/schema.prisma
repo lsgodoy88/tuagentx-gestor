@@ -3179,6 +3179,7 @@ model ImpulsoRotacion {
   empresaId    String
   createdAt    DateTime @default(now()) @db.Timestamptz(6)
 
+  @@unique([envioId, productoId], map: "uq_impulso_rot_envio_producto")
   @@index([envioId], map: "idx_impulso_rot_envio")
   @@index([clienteId], map: "idx_impulso_rot_cliente")
   @@index([empleadoId], map: "idx_impulso_rot_empleado")

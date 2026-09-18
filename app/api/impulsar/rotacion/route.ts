@@ -110,20 +110,36 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Sin datos para guardar' }, { status: 400 })
     }
 
-    const envioId = crypto.randomUUID()
-    await (prisma as any).impulsoRotacion.createMany({
-      data: filasValidas.map((f: any) => ({
-        id: crypto.randomUUID(),
-        envioId,
-        clienteId,
-        productoId: f.productoId,
-        cantidad: f.cantidad != null ? parseFloat(f.cantidad) : null,
-        precio_venta: f.precioVenta != null ? parseFloat(f.precioVenta) : null,
-        empleadoId: user.id,
-        vendedorId: empleado.vendedorId!,
-        empresaId,
-      }))
-    })
+    // Buscar envioId existente del mismo cliente+empleado en el día actual Bogotá
+    const hoyBogota = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) // 'YYYY-MM-DD'
+    const existing: any[] = await (prisma as any).$queryRawUnsafe(`
+      SELECT DISTINCT "envioId"
+      FROM ${DB_SCHEMA}."ImpulsoRotacion"
+      WHERE "clienteId" = $1
+        AND "empleadoId" = $2
+        AND "envioId" != ''
+        AND DATE("createdAt" AT TIME ZONE 'America/Bogota') = $3::date
+      LIMIT 1
+    `, clienteId, user.id, hoyBogota)
+
+    const envioId = existing[0]?.envioId ?? crypto.randomUUID()
+
+    // Upsert: si existe el producto en este envío, suma la cantidad
+    for (const f of filasValidas) {
+      const cantidad = parseFloat(f.cantidad)
+      const precio_venta = parseFloat(f.precioVenta)
+      const productoId = f.productoId
+
+      await (prisma as any).$executeRawUnsafe(`
+        INSERT INTO ${DB_SCHEMA}."ImpulsoRotacion" 
+          (id, "envioId", "clienteId", "productoId", cantidad, precio_venta, "empleadoId", "vendedorId", "empresaId", "createdAt")
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
+        ON CONFLICT ("envioId", "productoId") WHERE "envioId" != ''
+        DO UPDATE SET 
+          cantidad = "ImpulsoRotacion".cantidad + EXCLUDED.cantidad,
+          precio_venta = EXCLUDED.precio_venta
+      `, crypto.randomUUID(), envioId, clienteId, productoId, cantidad, precio_venta, user.id, empleado.vendedorId, empresaId)
+    }
 
     return NextResponse.json({ ok: true, guardados: filasValidas.length, envioId })
   } catch (err: any) {

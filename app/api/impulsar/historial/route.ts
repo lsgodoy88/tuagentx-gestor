@@ -94,11 +94,23 @@ export async function GET(req: NextRequest) {
       detallePorEnvio[d.envioId].push(d)
     }
 
+    const fmtBogota = (d: Date) => {
+      const bog = new Date(d.toLocaleString('en-US', { timeZone: 'America/Bogota' }))
+      const dd = String(bog.getDate()).padStart(2,'0')
+      const mm = String(bog.getMonth()+1).padStart(2,'0')
+      const yy = String(bog.getFullYear()).slice(-2)
+      const hh = bog.getHours()
+      const min = String(bog.getMinutes()).padStart(2,'0')
+      const mer = hh >= 12 ? 'p. m.' : 'a. m.'
+      const h12 = hh % 12 || 12
+      return `${dd}/${mm}/${yy}, ${h12}:${min} ${mer}`
+    }
+
     const resultado = rows.map((r: any) => ({
       envioId: r.envioId,
       empleadoNombre: r.empleadoNombre,
       clienteNombre: r.clienteNombre,
-      createdAt: r.createdAt,
+      createdAt: r.createdAt ? fmtBogota(new Date(r.createdAt)) : '',
       productos: r.productos,
       total: Number(r.total ?? 0),
       detalle: detallePorEnvio[r.envioId] ?? [],

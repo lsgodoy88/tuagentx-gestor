@@ -141,12 +141,19 @@ function TabInventarios({ user }: { user: any }) {
 
   async function enviar() {
     if (!clienteId) return
+    // Validar: ambos campos obligatorios
+    const filasIncompletas = Object.values(filas).filter(v => (v.sugerido && !v.inventario) || (!v.sugerido && v.inventario)).length
+    if (filasIncompletas > 0) {
+      setMsgEnvio(`${filasIncompletas} producto(s) requieren inventario Y sugerido — completa ambos campos`)
+      return
+    }
+
     const filasData = Object.entries(filas)
-      .filter(([, v]) => v.sugerido || v.inventario)
+      .filter(([, v]) => v.sugerido && v.inventario)
       .map(([productoId, v]) => ({
         productoId,
-        sugerido: v.sugerido ? parseFloat(v.sugerido) : null,
-        inventario: v.inventario ? parseFloat(v.inventario) : null,
+        sugerido: parseFloat(v.sugerido),
+        inventario: parseFloat(v.inventario),
       }))
 
     if (filasData.length === 0) {
@@ -178,7 +185,7 @@ function TabInventarios({ user }: { user: any }) {
     }
   }
 
-  const filasConDatos = Object.values(filas).filter(v => v.sugerido || v.inventario).length
+  const filasConDatos = Object.values(filas).filter(v => v.sugerido && v.inventario).length
   const clienteNombre = clientes.find(c => c.id === clienteId)?.nombre ?? ''
 
   const totalSugerido = Object.entries(filas).reduce((acc, [pid, v]) => {
@@ -607,10 +614,7 @@ function HistorialEnvios({ tipo, refreshKey }: { tipo: 'sugerido' | 'rotacion'; 
   const [abiertos, setAbiertos] = useState<Set<string>>(new Set())
 
   const fmt = (n: number) => '$' + Math.round(n).toLocaleString('es-CO')
-  const fmtFecha = (iso: string) => new Date(iso).toLocaleString('es-CO', {
-    day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-    hour12: true, timeZone: 'America/Bogota'
-  })
+  const fmtFecha = (s: string) => s // ya viene formateado en Bogotá desde el servidor
 
   async function cargar(reset = false) {
     setLoading(true)
@@ -648,36 +652,36 @@ function HistorialEnvios({ tipo, refreshKey }: { tipo: 'sugerido' | 'rotacion'; 
             <button onClick={() => toggle(env.envioId)} className="w-full text-left"
               style={{ padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <p style={{ color: 'white', fontWeight: 600, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                <p style={{ color: 'white', fontWeight: 600, fontSize: 15, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {env.clienteNombre}
                 </p>
-                <p style={{ color: '#64748b', fontSize: 11, marginTop: 2 }}>
-                  {fmtFecha(env.createdAt)} · {env.empleadoNombre} · {env.productos} producto{env.productos !== 1 ? 's' : ''}
+                <p style={{ color: '#94a3b8', fontSize: 15, marginTop: 2 }}>
+                  {fmtFecha(env.createdAt)} · {env.empleadoNombre}
                 </p>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <p style={{ color: '#34d399', fontWeight: 700, fontSize: 13 }}>{fmt(env.total)}</p>
-                <p style={{ color: '#475569', fontSize: 11, marginTop: 2 }}>{abierto ? '▲' : '▼'}</p>
+                <p style={{ color: '#34d399', fontWeight: 700, fontSize: 15 }}>{fmt(env.total)}</p>
+                <p style={{ color: '#475569', fontSize: 13, marginTop: 2 }}>{abierto ? '▲' : '▼'}</p>
               </div>
             </button>
             {/* Detalle colapsable */}
             {abierto && (
-              <div style={{ borderTop: '1px solid #1e2a3d' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <div style={{ borderTop: '1px solid #1e2a3d', overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 420 }}>
                   <thead>
                     <tr style={{ background: '#060a14' }}>
-                      <th style={{ padding: '6px 12px', textAlign: 'left', color: '#64748b', fontWeight: 500 }}>Producto</th>
+                      <th style={{ padding: '6px 12px', textAlign: 'left', color: '#94a3b8', fontWeight: 500, fontSize: 13, whiteSpace: 'nowrap' }}>Producto</th>
                       {tipo === 'rotacion' ? (
                         <>
-                          <th style={{ padding: '6px 12px', textAlign: 'right', color: '#64748b', fontWeight: 500 }}>Cant.</th>
-                          <th style={{ padding: '6px 12px', textAlign: 'right', color: '#64748b', fontWeight: 500 }}>P. Venta</th>
-                          <th style={{ padding: '6px 12px', textAlign: 'right', color: '#64748b', fontWeight: 500 }}>Subtotal</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'right', color: '#94a3b8', fontWeight: 500, fontSize: 13, whiteSpace: 'nowrap' }}>Cant.</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'right', color: '#94a3b8', fontWeight: 500, fontSize: 13, whiteSpace: 'nowrap' }}>P. Venta</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'right', color: '#94a3b8', fontWeight: 500, fontSize: 13, whiteSpace: 'nowrap' }}>Subtotal</th>
                         </>
                       ) : (
                         <>
-                          <th style={{ padding: '6px 12px', textAlign: 'right', color: '#64748b', fontWeight: 500 }}>Sugerido</th>
-                          <th style={{ padding: '6px 12px', textAlign: 'right', color: '#64748b', fontWeight: 500 }}>Inventario</th>
-                          <th style={{ padding: '6px 12px', textAlign: 'right', color: '#64748b', fontWeight: 500 }}>Subtotal</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'right', color: '#94a3b8', fontWeight: 500, fontSize: 13, whiteSpace: 'nowrap' }}>Sugerido</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'right', color: '#94a3b8', fontWeight: 500, fontSize: 13, whiteSpace: 'nowrap' }}>Inventario</th>
+                          <th style={{ padding: '6px 12px', textAlign: 'right', color: '#94a3b8', fontWeight: 500, fontSize: 13, whiteSpace: 'nowrap' }}>Subtotal</th>
                         </>
                       )}
                     </tr>
@@ -685,21 +689,20 @@ function HistorialEnvios({ tipo, refreshKey }: { tipo: 'sugerido' | 'rotacion'; 
                   <tbody>
                     {env.detalle.map((d: any, i: number) => (
                       <tr key={i} style={{ borderTop: '1px solid #0d1524', background: i % 2 === 0 ? '#0a0f1a' : '#080c16' }}>
-                        <td style={{ padding: '6px 12px', color: '#cbd5e1' }}>
-                          <span style={{ display: 'block' }}>{d.productoNombre}</span>
-                          {d.linea && <span style={{ color: '#475569', fontSize: 10 }}>{d.linea}</span>}
+                        <td style={{ padding: '6px 10px', color: '#ffffff', whiteSpace: 'nowrap', fontSize: 13 }}>
+                          {d.productoNombre}
                         </td>
                         {tipo === 'rotacion' ? (
                           <>
-                            <td style={{ padding: '6px 12px', textAlign: 'right', color: '#93c5fd' }}>{d.cantidad}</td>
-                            <td style={{ padding: '6px 12px', textAlign: 'right', color: '#f59e0b' }}>{fmt(Number(d.precioVenta ?? 0))}</td>
-                            <td style={{ padding: '6px 12px', textAlign: 'right', color: '#34d399', fontWeight: 600 }}>{fmt(Number(d.subtotal ?? 0))}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', color: '#93c5fd', fontSize: 13, whiteSpace: 'nowrap' }}>{d.cantidad}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', color: '#f59e0b', fontSize: 13, whiteSpace: 'nowrap' }}>{fmt(Number(d.precioVenta ?? 0))}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', color: '#34d399', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>{fmt(Number(d.subtotal ?? 0))}</td>
                           </>
                         ) : (
                           <>
-                            <td style={{ padding: '6px 12px', textAlign: 'right', color: '#93c5fd' }}>{d.sugerido ?? '—'}</td>
-                            <td style={{ padding: '6px 12px', textAlign: 'right', color: '#f59e0b' }}>{d.inventario ?? '—'}</td>
-                            <td style={{ padding: '6px 12px', textAlign: 'right', color: '#34d399', fontWeight: 600 }}>{fmt(Number(d.subtotal ?? 0))}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', color: '#93c5fd', fontSize: 13, whiteSpace: 'nowrap' }}>{d.sugerido ?? '—'}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', color: '#f59e0b', fontSize: 13, whiteSpace: 'nowrap' }}>{d.inventario ?? '—'}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', color: '#34d399', fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap' }}>{fmt(Number(d.subtotal ?? 0))}</td>
                           </>
                         )}
                       </tr>
