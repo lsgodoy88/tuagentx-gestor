@@ -212,7 +212,7 @@ export default function SaldosPage() {
   }
 
   function intentarEditar(i: number, campo: 'concepto'|'ingreso'|'egreso' = 'concepto') {
-    // Si ya está editando esa celda, no hacer nada
+    if (!puedeEditarSaldos) return
     if (celdasEditando.has(`${i}-${campo}`)) return
     if (!esDiaActual && filasGuardadas.has(i)) {
       setCeldaIntentada({ i, campo }); setShowPopDia(true)

@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions)
   const user = session?.user as any
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
-  if (user.role !== 'empresa' && !checkPermiso(session, 'verBitacora'))
+  if (!['empresa','supervisor'].includes(user.role) && !checkPermiso(session, 'verBitacora'))
     return NextResponse.json({ error: 'Sin permiso' }, { status: 403 })
 
   const { searchParams } = new URL(req.url)
@@ -99,6 +99,8 @@ export async function PUT(req: NextRequest) {
   const session = await getServerSession(authOptions)
   const user = session?.user as any
   if (!user) return NextResponse.json({ error: 'No autorizado' }, { status: 401 })
+  if (user.role !== 'empresa' && !checkPermiso(session, 'editarSaldos'))
+    return NextResponse.json({ error: 'Sin permiso para editar' }, { status: 403 })
 
   const { tab, fecha, orden, concepto, ingreso, egreso, categoria, relacionTexto, id } = await req.json()
   const empresaId = user.empresaId
