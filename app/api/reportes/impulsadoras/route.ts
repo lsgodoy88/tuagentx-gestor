@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { prisma, DB_SCHEMA } from '@/lib/prisma'
+import { calcularImpulsadorasMes } from '@/lib/impulsadora/metricas'
 
 export async function GET(req: NextRequest) {
   try {
@@ -15,25 +16,19 @@ export async function GET(req: NextRequest) {
     const anio = parseInt(searchParams.get('anio') || String(new Date().getFullYear()))
     const empresaId = searchParams.get('empresaId') || user.empresaId || user.id
 
+    const fecha = `${anio}-${String(mes).padStart(2, '0')}-15`
+
     const inicio = new Date(`${anio}-${String(mes).padStart(2,'0')}-01T05:00:00.000Z`)
     const fin = new Date(inicio)
     fin.setMonth(fin.getMonth() + 1)
 
-    // Ventas impulsadoras desde ReporteImpulsoMes
-    const reportes: any[] = await prisma.$queryRawUnsafe(`
-      SELECT r.resultados
-      FROM ${DB_SCHEMA}."ReporteImpulsoMes" r
-      WHERE r."empresaId" = $1 AND r.mes = $2 AND r.anio = $3
-      LIMIT 1
-    `, empresaId, mes, anio)
+    // Ventas y metas desde VentaMesCliente (fuente canónica) via calcularImpulsadorasMes
+    const resultado = await calcularImpulsadorasMes(empresaId, fecha, {})
 
-    let ventasMap: Record<string, { ventas: number; meta: number }> = {}
-    if (reportes.length > 0) {
-      const res = reportes[0].resultados
-      const impulsadoras = res.impulsadoras || []
-      impulsadoras.forEach((imp: any) => {
-        ventasMap[imp.id] = { ventas: imp.totalMes || 0, meta: imp.totalMeta || 0 }
-      })
+    const ventasMap: Record<string, { ventas: number; meta: number }> = {}
+    for (const imp of resultado.impulsadoras) {
+      if (!imp) continue
+      ventasMap[imp.id] = { ventas: imp.totalMes || 0, meta: imp.totalMeta || 0 }
     }
 
     // Visitas y gastos por impulsadora
