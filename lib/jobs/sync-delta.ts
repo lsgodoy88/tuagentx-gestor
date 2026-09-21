@@ -949,22 +949,23 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   try {
     const schema = process.env.DB_SCHEMA || 'gestor'
     const hace30diasInv = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-    const ordenesSinDeuda: any[] = await prisma.$queryRawUnsafe(`
-      SELECT od.origenId, od.numeroFactura, od.numeroOrden, od.clienteApiId
-      FROM ${schema}.OrdenDespacho od
-      WHERE od.empresaId = $1
-        AND od.isFacturada = true
-        AND od.paymentType = 'credito'
-        AND od.fechaOrden > $2::timestamp
-        AND od.origenId IS NOT NULL
+    const ordenesSinDeuda: any[] = await prisma.$queryRawUnsafe(
+      `SELECT od."origenId", od."numeroFactura", od."numeroOrden", od."clienteApiId"
+      FROM ${schema}."OrdenDespacho" od
+      WHERE od."empresaId" = $1
+        AND od."isFacturada" = true
+        AND od."paymentType" = 'credito'
+        AND od."fechaOrden" > $2::timestamp
+        AND od."origenId" IS NOT NULL
         AND NOT EXISTS (
-          SELECT 1 FROM ${schema}.SyncDeuda sd
-          JOIN ${schema}.Integracion i ON i.id = sd.integracionId AND i.empresaId = $1
-          WHERE sd.externalId = od.origenId
+          SELECT 1 FROM ${schema}."SyncDeuda" sd
+          JOIN ${schema}."Integracion" i ON i.id = sd."integracionId" AND i."empresaId" = $1
+          WHERE sd."externalId" = od."origenId"
         )
-      ORDER BY od.numeroFactura DESC
-      LIMIT 10
-    `, destino, hace30diasInv)
+      ORDER BY od."numeroFactura" DESC
+      LIMIT 10`,
+      destino, hace30diasInv
+    )
 
     if (ordenesSinDeuda.length > 0) {
       console.log(`[delta] recuperador-inverso: ${ordenesSinDeuda.length} deudas faltantes para ${destino}`)
