@@ -177,33 +177,67 @@ function getColumns(ctx: {
       // el neto realmente recibido, igual patrón que /cartera tab Bonus.
       key: 'efectivo', hidden: isRevisar, label: 'Efect.', width: 90, minWidth: 70,
       render: p => {
-        const detalles: any[] = Array.isArray((p as any).reciboPago?.detalles) ? (p as any).reciboPago.detalles : []
-        const monto = detalles.length > 0 ? Number(detalles[0].montoAplicado) - Number(detalles[0].descuento || 0) : p.monto
         const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0 ? (p as any).lineasPago : []
-        const m = ls.length > 0 ? ls[0].metodoPago : p.metodopago
-        return <span style={{ color: '#34d399' }}>{m === 'efectivo' && monto != null ? fmtMonto(monto) : '—'}</span>
+        const montoEfectivo = ls.length > 0
+          ? ls.filter((l: any) => l.metodoPago === 'efectivo').reduce((acc: number, l: any) => acc + Number(l.monto || 0), 0)
+          : (p.metodopago === 'efectivo' ? Number(p.monto) : 0)
+        return <span style={{ color: '#34d399' }}>{montoEfectivo > 0 ? fmtMonto(montoEfectivo) : '—'}</span>
       },
       renderSub: (sub, p) => {
+        // Distribuir igual que cartera: transf primero (facturas más antiguas), luego efectivo para el resto
         const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0 ? (p as any).lineasPago : []
-        const m = ls.length > 0 ? ls[0].metodoPago : p.metodopago
-        const montoNeto = sub.montoAplicado != null ? Number(sub.montoAplicado) - Number(sub.descuento || 0) : null
-        return <span style={{ color: '#34d399' }}>{m === 'efectivo' && montoNeto != null ? fmtMonto(montoNeto) : '—'}</span>
+        const efectivoTotal = ls.length > 0
+          ? ls.filter((l: any) => l.metodoPago === 'efectivo').reduce((s: number, l: any) => s + Number(l.monto || 0), 0)
+          : (p.metodopago === 'efectivo' ? Number(p.monto) : 0)
+        const transfTotal = ls.length > 0
+          ? ls.filter((l: any) => l.metodoPago !== 'efectivo' && l.metodoPago).reduce((s: number, l: any) => s + Number(l.monto || 0), 0)
+          : (p.metodopago !== 'efectivo' ? Number(p.monto) : 0)
+        const facturas: any[] = Array.isArray((p as any).reciboPago?.detalles) && (p as any).reciboPago.detalles.length > 0
+          ? [...(p as any).reciboPago.detalles].sort((a: any, b: any) => Number(a.numeroFactura || 0) - Number(b.numeroFactura || 0))
+          : sub.numeroFactura ? [{ numeroFactura: sub.numeroFactura, montoAplicado: sub.montoAplicado }] : []
+        const totalFacts = facturas.reduce((s: number, f: any) => s + Number(f.montoAplicado || 0), 0)
+        let transfRest = transfTotal, efectivoRest = efectivoTotal
+        const porFactura = facturas.map((f: any) => {
+          const monto = Number(f.montoAplicado || 0)
+          const tAplica = Math.min(transfRest, monto); transfRest -= tAplica
+          const eAplica = Math.min(efectivoRest, monto - tAplica); efectivoRest -= eAplica
+          return { numeroFactura: f.numeroFactura, _efectivo: Math.round(eAplica), _transf: Math.round(tAplica) }
+        })
+        const match = porFactura.find((f: any) => String(f.numeroFactura) === String(sub.numeroFactura))
+        const eFactura = match ? match._efectivo : (facturas.length <= 1 ? efectivoTotal : 0)
+        return <span style={{ color: '#34d399' }}>{eFactura > 0 ? fmtMonto(eFactura) : '—'}</span>
       },
     },
     {
       key: 'transferencia', hidden: isRevisar, label: 'Transf.', width: 90, minWidth: 70,
       render: p => {
-        const detalles: any[] = Array.isArray((p as any).reciboPago?.detalles) ? (p as any).reciboPago.detalles : []
-        const monto = detalles.length > 0 ? Number(detalles[0].montoAplicado) - Number(detalles[0].descuento || 0) : p.monto
         const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0 ? (p as any).lineasPago : []
-        const m = ls.length > 0 ? ls[0].metodoPago : p.metodopago
-        return <span style={{ color: '#60a5fa' }}>{m === 'transferencia' && monto != null ? fmtMonto(monto) : '—'}</span>
+        const montoTransf = ls.length > 0
+          ? ls.filter((l: any) => l.metodoPago === 'transferencia').reduce((acc: number, l: any) => acc + Number(l.monto || 0), 0)
+          : (p.metodopago === 'transferencia' ? Number(p.monto) : 0)
+        return <span style={{ color: '#60a5fa' }}>{montoTransf > 0 ? fmtMonto(montoTransf) : '—'}</span>
       },
       renderSub: (sub, p) => {
         const ls: any[] = Array.isArray((p as any).lineasPago) && (p as any).lineasPago.length > 0 ? (p as any).lineasPago : []
-        const m = ls.length > 0 ? ls[0].metodoPago : p.metodopago
-        const montoNeto = sub.montoAplicado != null ? Number(sub.montoAplicado) - Number(sub.descuento || 0) : null
-        return <span style={{ color: '#60a5fa' }}>{m === 'transferencia' && montoNeto != null ? fmtMonto(montoNeto) : '—'}</span>
+        const efectivoTotal = ls.length > 0
+          ? ls.filter((l: any) => l.metodoPago === 'efectivo').reduce((s: number, l: any) => s + Number(l.monto || 0), 0)
+          : (p.metodopago === 'efectivo' ? Number(p.monto) : 0)
+        const transfTotal = ls.length > 0
+          ? ls.filter((l: any) => l.metodoPago !== 'efectivo' && l.metodoPago).reduce((s: number, l: any) => s + Number(l.monto || 0), 0)
+          : (p.metodopago !== 'efectivo' ? Number(p.monto) : 0)
+        const facturas: any[] = Array.isArray((p as any).reciboPago?.detalles) && (p as any).reciboPago.detalles.length > 0
+          ? [...(p as any).reciboPago.detalles].sort((a: any, b: any) => Number(a.numeroFactura || 0) - Number(b.numeroFactura || 0))
+          : sub.numeroFactura ? [{ numeroFactura: sub.numeroFactura, montoAplicado: sub.montoAplicado }] : []
+        let transfRest = transfTotal, efectivoRest = efectivoTotal
+        const porFactura = facturas.map((f: any) => {
+          const monto = Number(f.montoAplicado || 0)
+          const tAplica = Math.min(transfRest, monto); transfRest -= tAplica
+          const eAplica = Math.min(efectivoRest, monto - tAplica); efectivoRest -= eAplica
+          return { numeroFactura: f.numeroFactura, _efectivo: Math.round(eAplica), _transf: Math.round(tAplica) }
+        })
+        const match = porFactura.find((f: any) => String(f.numeroFactura) === String(sub.numeroFactura))
+        const tFactura = match ? match._transf : (facturas.length <= 1 ? transfTotal : 0)
+        return <span style={{ color: '#60a5fa' }}>{tFactura > 0 ? fmtMonto(tFactura) : '—'}</span>
       },
     },
     {
