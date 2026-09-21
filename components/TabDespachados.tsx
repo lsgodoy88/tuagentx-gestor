@@ -365,7 +365,7 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
             return (
               <div key={`hueco-${cf.numero}`}
                 className={`bg-zinc-900 border border-zinc-800 border-l-4 ${borderColor} rounded-2xl overflow-hidden`}>
-                <div className="px-3 py-3">
+                <div className="px-3 py-3 min-h-[56px] flex flex-col justify-center">
                   {/* Línea 1: F_num · cliente · ciudad */}
                   <div className="flex items-center gap-1.5 overflow-hidden mb-1.5">
                     <span className="text-zinc-400 font-mono text-xs flex-shrink-0">F_{cf.numero}</span>
