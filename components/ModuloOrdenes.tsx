@@ -1434,7 +1434,9 @@ export default function ModuloOrdenes() {
                   ? (log.trRawEstados?.length ? iconoTransprensa(last?.estado_nombre ?? '') : log.num_cajas === 0 ? '⚪' : '🚛')
                   : log.entregadoEl ? '✅' : '🚛'
                 if (iconEstadoFiltro === 'BARCODE') {
-                  if (log.modo !== 'transportadora' || !!log.guiaTransporte || !(log.num_cajas > 0)) return null
+                  if (log.modo !== 'transportadora' || !!log.guiaTransporte || !!(log as any).guiaBuscadaEl || !(log.num_cajas > 0)) return null
+                } else if (iconEstadoFiltro === '❓') {
+                  if (!(log as any).guiaBuscadaEl || !!log.guiaTransporte) return null
                 } else if (icono !== iconEstadoFiltro) return null
               }
               // Usar datos del log directamente (tiene JOIN con OrdenDespacho)
@@ -1461,7 +1463,7 @@ export default function ModuloOrdenes() {
                       {isExpLog ? '▲' : log.modo === 'transportadora' ? (
                         log.trRawEstados?.length ? iconoTransprensa((log.trRawEstados as any[]).at(-1)?.estado_nombre ?? '') :
                         log.num_cajas === 0 ? '⚪' :
-                        log.guiaTransporte ? '🚛' :
+                        log.guiaTransporte ? '🚛' : (log as any).guiaBuscadaEl ? '❓' :
                         <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current text-zinc-400"><rect x="1" y="4" width="2" height="16"/><rect x="4" y="4" width="1" height="16"/><rect x="6" y="4" width="2" height="16"/><rect x="9" y="4" width="1" height="16"/><rect x="11" y="4" width="3" height="16"/><rect x="15" y="4" width="1" height="16"/><rect x="17" y="4" width="2" height="16"/><rect x="20" y="4" width="1" height="16"/><rect x="22" y="4" width="1" height="16"/></svg>
                       ) : log.entregadoEl ? '✅' : log.modo === 'personal' ? '🤝' : log.modo === 'repartidor' ? '🚚' : (
                         <span className="relative inline-flex">
