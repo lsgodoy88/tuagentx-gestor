@@ -55,7 +55,8 @@ export async function GET() {
     prisma.turno.count({ where: { empleado: { empresaId, rol: 'vendedor' }, activo: true } }),
     prisma.empleado.count({ where: { empresaId, rol: 'vendedor', activo: true } }),
     // Card 3: Órdenes despachadas hoy / facturadas hoy
-    (prisma as any).ordenDespacho.count({ where: { empresaId, estado: { in: ['en_entrega','entregado'] }, entregadoEl: { gte: hoy } } }),
+    // Despachadas hoy = órdenes con DespachoLog creado hoy (cubre local, guía y personal)
+    (prisma as any).despachoLog.count({ where: { empresaId, despachadoEl: { gte: hoy } } }),
     (prisma as any).ordenDespacho.count({ where: { empresaId, isFacturada: true, isActiva: true, fechaFactura: { gte: hoy } } }),
     // Card 2: Impulsadoras con ruta hoy / total impulsadoras activas
     (prisma as any).ruta.count({ where: { empresaId, cerrada: false, empleados: { some: { empleado: { rol: 'impulsadora' } } } } }),

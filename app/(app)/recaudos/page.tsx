@@ -192,10 +192,10 @@ function getColumns(ctx: {
         const transfTotal = ls.length > 0
           ? ls.filter((l: any) => l.metodoPago !== 'efectivo' && l.metodoPago).reduce((s: number, l: any) => s + Number(l.monto || 0), 0)
           : (p.metodopago !== 'efectivo' ? Number(p.monto) : 0)
-        const facturas: any[] = Array.isArray((p as any).reciboPago?.detalles) && (p as any).reciboPago.detalles.length > 0
-          ? [...(p as any).reciboPago.detalles].sort((a: any, b: any) => Number(a.numeroFactura || 0) - Number(b.numeroFactura || 0))
+        // Usar _facturas (mismo origen que cartera tab pagos), no reciboPago.detalles
+        const facturas: any[] = Array.isArray((p as any)._facturas) && (p as any)._facturas.length > 0
+          ? [...(p as any)._facturas].sort((a: any, b: any) => Number(a.numeroFactura || 0) - Number(b.numeroFactura || 0))
           : sub.numeroFactura ? [{ numeroFactura: sub.numeroFactura, montoAplicado: sub.montoAplicado }] : []
-        const totalFacts = facturas.reduce((s: number, f: any) => s + Number(f.montoAplicado || 0), 0)
         let transfRest = transfTotal, efectivoRest = efectivoTotal
         const porFactura = facturas.map((f: any) => {
           const monto = Number(f.montoAplicado || 0)
@@ -225,8 +225,9 @@ function getColumns(ctx: {
         const transfTotal = ls.length > 0
           ? ls.filter((l: any) => l.metodoPago !== 'efectivo' && l.metodoPago).reduce((s: number, l: any) => s + Number(l.monto || 0), 0)
           : (p.metodopago !== 'efectivo' ? Number(p.monto) : 0)
-        const facturas: any[] = Array.isArray((p as any).reciboPago?.detalles) && (p as any).reciboPago.detalles.length > 0
-          ? [...(p as any).reciboPago.detalles].sort((a: any, b: any) => Number(a.numeroFactura || 0) - Number(b.numeroFactura || 0))
+        // Usar _facturas (mismo origen que cartera tab pagos), no reciboPago.detalles
+        const facturas: any[] = Array.isArray((p as any)._facturas) && (p as any)._facturas.length > 0
+          ? [...(p as any)._facturas].sort((a: any, b: any) => Number(a.numeroFactura || 0) - Number(b.numeroFactura || 0))
           : sub.numeroFactura ? [{ numeroFactura: sub.numeroFactura, montoAplicado: sub.montoAplicado }] : []
         let transfRest = transfTotal, efectivoRest = efectivoTotal
         const porFactura = facturas.map((f: any) => {
@@ -784,12 +785,10 @@ export default function RecaudosPage() {
             loading={loading}
             storageKey="recaudos"
             subRows={p => {
-              // En tab Revisar: sub-filas desde _facturas (tienen nSaldo/saldoUptres por factura)
-              // En otras tabs: desde reciboPago.detalles (tienen saldoAntes/saldoDespues)
-              if (tab === 'revisar') {
-                const facts: any[] = Array.isArray((p as any)._facturas) ? (p as any)._facturas : []
-                return facts.length > 1 ? facts.slice(1) : []
-              }
+              // Siempre usar _facturas (mismo origen que cartera tab pagos)
+              // Fallback a reciboPago.detalles para pagos de carteraId (sin _facturas)
+              const facts: any[] = Array.isArray((p as any)._facturas) ? (p as any)._facturas : []
+              if (facts.length > 1) return facts.slice(1)
               const detalles: any[] = Array.isArray((p as any).reciboPago?.detalles) ? (p as any).reciboPago.detalles : []
               return detalles.length > 1 ? detalles.slice(1) : []
             }}
