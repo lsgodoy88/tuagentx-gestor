@@ -985,8 +985,8 @@ export async function syncProductosEmpresa(
   integracionId: string,
   apiKey: string,
   apiSecret: string,
-  desde?: Date
-): Promise<{ upserted: number; desactivados: number }> {
+  cursor?: UpTresCursor | null
+): Promise<{ upserted: number; desactivados: number; nuevoCursor: UpTresCursor | null }> {
   // Login para obtener token
   const authRes = await fetch('https://serviceuptres.cloud/external/v1/auth/api', {
     method: 'POST',
@@ -995,8 +995,8 @@ export async function syncProductosEmpresa(
   }).then(r => r.json())
   if (!authRes.ok || !authRes.token) throw new Error('Login UpTres fallido en syncProductos: ' + (authRes.msg || ''))
 
-  const productos = await fetchProductosUptres(apiKey, authRes.token, desde)
-  if (productos.length === 0) return { upserted: 0, desactivados: 0 }
+  const { data: productos, ultimoCursor: nuevoCursor } = await fetchProductosUptresConCursor(apiKey, authRes.token, cursor ?? null)
+  if (productos.length === 0) return { upserted: 0, desactivados: 0, nuevoCursor: cursor ?? null }
 
   const DB_SCHEMA = process.env.DB_SCHEMA || 'gestor'
   const now = new Date()
@@ -1107,9 +1107,9 @@ export async function syncProductosEmpresa(
     }
   }
 
-  // Si es sync completo (sin desde), desactivar los que ya no vienen
+  // Si es sync completo (sin cursor previo), desactivar los que ya no vienen
   let desactivados = 0
-  if (!desde) {
+  if (!cursor) {
     const idsActivos = productos.map(p => p.id)
     if (idsActivos.length > 0) {
       const placeholders = idsActivos.map((_: string, i: number) => `$${i + 2}`).join(',')
@@ -1123,5 +1123,5 @@ export async function syncProductosEmpresa(
     }
   }
 
-  return { upserted, desactivados }
+  return { upserted, desactivados, nuevoCursor }
 }
