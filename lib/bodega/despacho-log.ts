@@ -101,8 +101,19 @@ export async function getDespachoLog(params: {
   let controlFacturas: any[] = []
   if (serialized.length > 0) {
     const mapaFacturas = new Map(serialized.map(r => [parseInt(r.numeroFactura), r]))
-    const rangeMax = parseInt(serialized[0].numeroFactura)
+    const rangeMaxLog = parseInt(serialized[0].numeroFactura)
     const rangeMin = parseInt(serialized[serialized.length - 1].numeroFactura)
+
+    // Extender rango hacia arriba: incluir pendientes/alistados más nuevos que el último log
+    const maxPendienteRows = await prisma.$queryRawUnsafe<[{max: string|null}]>(`
+      SELECT MAX(CAST("numeroFactura" AS INTEGER)) as max
+      FROM ${DB_SCHEMA}."OrdenDespacho"
+      WHERE "empresaId" = $1
+        AND "numeroFactura" ~ '^[0-9]+$'
+        AND estado IN ('pendiente', 'alistado')
+    `, empresaIdOrden)
+    const maxPendiente = maxPendienteRows[0]?.max ? parseInt(maxPendienteRows[0].max) : 0
+    const rangeMax = Math.max(rangeMaxLog, maxPendiente)
 
     // Enriquecer huecos: buscar pendientes/alistados en ese rango
     const huecoNums: number[] = []
