@@ -943,6 +943,71 @@ async function deltaEmpresa(empresaId: string, integracionId: string, apiKey: st
   } catch (e: any) { console.error('[delta] recuperador SyncDeuda error:', e.message) }
   _t('recuperadorSyncDeuda', _s)
 
+  // Recuperador inverso — OrdenDespacho crédito sin SyncDeuda
+  // Cubre casos donde cursor /cartera se desfasó y nunca creó la deuda
+  _s = Date.now()
+  try {
+    const schema = process.env.DB_SCHEMA || 'gestor'
+    const hace30diasInv = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+    const ordenesSinDeuda: any[] = await prisma.$queryRawUnsafe(`
+      SELECT od.origenId, od.numeroFactura, od.numeroOrden, od.clienteApiId
+      FROM ${schema}.OrdenDespacho od
+      WHERE od.empresaId = $1
+        AND od.isFacturada = true
+        AND od.paymentType = 'credito'
+        AND od.fechaOrden > $2::timestamp
+        AND od.origenId IS NOT NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM ${schema}.SyncDeuda sd
+          JOIN ${schema}.Integracion i ON i.id = sd.integracionId AND i.empresaId = $1
+          WHERE sd.externalId = od.origenId
+        )
+      ORDER BY od.numeroFactura DESC
+      LIMIT 10
+    `, destino, hace30diasInv)
+
+    if (ordenesSinDeuda.length > 0) {
+      console.log(`[delta] recuperador-inverso: ${ordenesSinDeuda.length} deudas faltantes para ${destino}`)
+      for (const od of ordenesSinDeuda) {
+        try {
+          // Fetch deuda desde /cartera por externalId (id de la orden en UpTres)
+          const deudaExt = await adapter.fetchDeudasCliente(od.clienteApiId)
+          const match = deudaExt.find((d: any) => String(d.uid || d._id) === od.origenId)
+          if (match) {
+            const m = match as any
+            await (prisma as any).syncDeuda.upsert({
+              where: { integracionId_externalId: { integracionId, externalId: od.origenId } },
+              create: {
+                integracionId,
+                externalId: od.origenId,
+                clienteApiId: m.cliente?.uid || od.clienteApiId || '',
+                empleadoExternalId: m.empleado?.uid || null,
+                numeroOrden: od.numeroOrden ? parseInt(String(od.numeroOrden)) : null,
+                numeroFactura: od.numeroFactura ? parseInt(String(od.numeroFactura)) : null,
+                valor: parseFloat(m.vTotal ?? '0'),
+                saldo: parseFloat(m.vSaldo ?? '0'),
+                diasCredito: m.dias ? parseInt(String(m.dias)) : null,
+                fechaVencimiento: m.fPago ? new Date(m.fPago) : null,
+                condition: true,
+                data: m,
+                externalUpdatedAt: m.fModificado ? new Date(m.fModificado) : null,
+                receivableAt: m.receivableAt ? new Date(m.receivableAt) : null,
+                sincronizadoEl: new Date(),
+                createdAtBogota: m.fCreado ? toBogota(new Date(m.fCreado as string)) : toBogota(new Date()),
+              },
+              update: { sincronizadoEl: new Date() }
+            })
+            console.log(`[delta] recuperador-inverso: creada SyncDeuda F_${od.numeroFactura} orden ${od.numeroOrden}`)
+          } else {
+            console.log(`[delta] recuperador-inverso: F_${od.numeroFactura} no encontrada en /cartera cliente ${od.clienteApiId}`)
+          }
+        } catch (e: any) { console.error('[delta] recuperador-inverso error', od.origenId, e.message) }
+      }
+      await invalidatePattern(`g:${destino}:*`)
+    }
+  } catch (e: any) { console.error('[delta] recuperador-inverso error:', e.message) }
+  _t('recuperadorInverso', _s)
+
   try {
     await (prisma as any).syncLog.create({ data: { integracionId, empresaId: destino, tipo: 'delta', inicio: new Date(inicioTs), fin: new Date(), duracionMs, estado: erroresParciales.length > 0 ? 'parcial' : 'ok', disparadoPor: 'cron', ordenesNuevas: toCreate.length, deudasSincronizadas: deudaToCreate.length, clientesNuevos, deudasNuevasDelta, comprasSincronizadas: ordenes.length, ...(empleadosActualizados ? { empleadosActualizados } : {}), ...(saldosActualizados ? { saldosActualizados } : {}), ...(reconciliadas ? { reconciliadas } : {}), ...(erroresParciales.length > 0 ? { errores: JSON.stringify(erroresParciales) } : {}), detalle: _det } })
   } catch (logErr: any) { console.error('[delta] syncLog insert error:', logErr.message) }

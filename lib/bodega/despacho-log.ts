@@ -105,12 +105,17 @@ export async function getDespachoLog(params: {
     const rangeMin = parseInt(serialized[serialized.length - 1].numeroFactura)
 
     // Extender rango hacia arriba: incluir pendientes/alistados más nuevos que el último log
+    const vendedorFilterHueco = role === 'vendedor' && apiId
+      ? `AND "vendedorApiId" = '${apiId.replace(/'/g, "''")}'`
+      : ''
+
     const maxPendienteRows = await prisma.$queryRawUnsafe<[{max: string|null}]>(`
       SELECT MAX(CAST("numeroFactura" AS INTEGER)) as max
       FROM ${DB_SCHEMA}."OrdenDespacho"
       WHERE "empresaId" = $1
         AND "numeroFactura" ~ '^[0-9]+$'
         AND estado IN ('pendiente', 'alistado')
+        ${vendedorFilterHueco}
     `, empresaIdOrden)
     const maxPendiente = maxPendienteRows[0]?.max ? parseInt(maxPendienteRows[0].max) : 0
     const rangeMax = Math.max(rangeMaxLog, maxPendiente)
@@ -132,6 +137,7 @@ export async function getDespachoLog(params: {
             AND o."numeroFactura" ~ '^[0-9]+$'
             AND CAST(o."numeroFactura" AS INTEGER) = ANY($2::int[])
             AND o.estado IN ('pendiente', 'alistado')
+            ${vendedorFilterHueco}
         `, empresaIdOrden, huecoNums)
       : []
 
