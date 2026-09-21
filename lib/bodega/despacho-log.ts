@@ -47,7 +47,7 @@ export async function getDespachoLog(params: {
            o."alistadoEl", o.ciudad, o."fotosAlistamiento", o."fotoAlistamiento",
            o.id as "ordenId", o."fechaOrden", o."fechaFactura", o.direccion,
            o."num_cajas", o."entregadoEl", o."firmaEntrega", COALESCE(l."observacion", o."observacion") as observacion,
-           o."urlSeguimiento",
+           o."urlSeguimiento", o."guiaBuscadaEl",
            ap.nombre as "alistadoPorNombre",
            rp.nombre as "repartidorNombre",
            vnd.nombre as "vendedorNombre",
@@ -66,7 +66,7 @@ export async function getDespachoLog(params: {
     WHERE l."empresaId" IN ($1, $2)
       ${vendedorFilter}
       ${cursorClause}
-    GROUP BY l.id, l."numeroFactura", l."clienteNombre", l.modo, l."guiaTransporte", l.transportadora, l."despachadoEl", l."despachadoPorNombre", o."alistadoEl", o.ciudad, o."fotosAlistamiento", o."fotoAlistamiento", o.id, o."fechaOrden", o."fechaFactura", o.direccion, o."num_cajas", o."entregadoEl", o."firmaEntrega", o."urlSeguimiento", ap.nombre, rp.nombre, vnd.nombre, tr.estado_atencion, tr.raw_estados, tr.imagen_cumplido, tr.numero_remesa
+    GROUP BY l.id, l."numeroFactura", l."clienteNombre", l.modo, l."guiaTransporte", l.transportadora, l."despachadoEl", l."despachadoPorNombre", o."alistadoEl", o.ciudad, o."fotosAlistamiento", o."fotoAlistamiento", o.id, o."fechaOrden", o."fechaFactura", o.direccion, o."num_cajas", o."entregadoEl", o."firmaEntrega", o."urlSeguimiento", o."guiaBuscadaEl", ap.nombre, rp.nombre, vnd.nombre, tr.estado_atencion, tr.raw_estados, tr.imagen_cumplido, tr.numero_remesa
     ORDER BY
       CAST(CASE WHEN l."numeroFactura" ~ '^[0-9]+$' THEN l."numeroFactura" ELSE '0' END AS BIGINT) DESC,
       l.id DESC
@@ -104,9 +104,46 @@ export async function getDespachoLog(params: {
     const rangeMax = parseInt(serialized[0].numeroFactura)
     const rangeMin = parseInt(serialized[serialized.length - 1].numeroFactura)
 
+    // Enriquecer huecos: buscar pendientes/alistados en ese rango
+    const huecoNums: number[] = []
     for (let n = rangeMax; n >= rangeMin; n--) {
-      const r = mapaFacturas.get(n)
-      controlFacturas.push({ numero: n, log: r || null, hueco: !r })
+      if (!mapaFacturas.has(n)) huecoNums.push(n)
+    }
+
+    const ordenesEnHuecos: any[] = huecoNums.length > 0
+      ? await prisma.$queryRawUnsafe<any[]>(`
+          SELECT o."numeroFactura", o.estado, o."clienteNombre", o.ciudad, o."fechaFactura", o."alistadoEl",
+                 o."fotosAlistamiento", o."fotoAlistamiento",
+                 ap.nombre as "alistadoPorNombre"
+          FROM ${DB_SCHEMA}."OrdenDespacho" o
+          LEFT JOIN ${DB_SCHEMA}."Empleado" ap ON ap.id = o."alistadoPorId"
+          WHERE o."empresaId" = $1
+            AND o."numeroFactura" ~ '^[0-9]+$'
+            AND CAST(o."numeroFactura" AS INTEGER) = ANY($2::int[])
+            AND o.estado IN ('pendiente', 'alistado')
+        `, empresaIdOrden, huecoNums)
+      : []
+
+    const mapaHuecos = new Map(ordenesEnHuecos.map(o => [parseInt(o.numeroFactura), o]))
+
+    for (let n = rangeMax; n >= rangeMin; n--) {
+      const log = mapaFacturas.get(n) || null
+      const ordenHueco = !log ? mapaHuecos.get(n) || null : null
+      controlFacturas.push({
+        numero: n,
+        log,
+        hueco: !log,
+        ordenBodega: ordenHueco ? {
+          estado: ordenHueco.estado,
+          clienteNombre: ordenHueco.clienteNombre || null,
+          ciudad: ordenHueco.ciudad || null,
+          fechaFactura: ordenHueco.fechaFactura instanceof Date ? ordenHueco.fechaFactura.toISOString() : ordenHueco.fechaFactura || null,
+          alistadoEl: ordenHueco.alistadoEl instanceof Date ? ordenHueco.alistadoEl.toISOString() : ordenHueco.alistadoEl || null,
+          fotosAlistamiento: ordenHueco.fotosAlistamiento || null,
+          fotoAlistamiento: ordenHueco.fotoAlistamiento || null,
+          alistadoPor: ordenHueco.alistadoPorNombre ? { nombre: ordenHueco.alistadoPorNombre } : null,
+        } : null,
+      })
     }
   }
 

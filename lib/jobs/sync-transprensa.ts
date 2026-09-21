@@ -60,7 +60,12 @@ async function consultarRemesa(token: string, numero_remesa: string): Promise<an
   })
   const data = await res.json()
   if (!data.success || !Array.isArray(data.data) || data.data.length === 0) return null
-  return data.data[0]
+  // FIX: validar que el numero_remesa retornado coincide exactamente con el buscado
+  // Transprensa puede devolver una RE EXPEDICIÓN u otra remesa distinta en data.data[0]
+  const match = data.data.find(
+    (r: any) => String(r.numero_remesa ?? '').trim() === String(numero_remesa).trim()
+  )
+  return match ?? null
 }
 
 // ── Mapear estado a ícono UI ──────────────────────────────────────────────────
@@ -73,7 +78,7 @@ export function iconoEstadoTransprensa(estado: string): string {
 }
 
 
-// ── Match automático guías por fecha+NIT+cajas ────────────────────────────────
+// ── Match automático guías por fecha+NIT+ciudad+cajas ─────────────────────────
 
 async function consultarRemesasPorFechaYNit(token: string, fecha: string, nitRemitente: string): Promise<any[]> {
   const res = await fetch(`${BASE_URL}?api=servicio.Consultas.remesas`, {
@@ -102,15 +107,18 @@ function similaridad(a: string, b: string): number {
   return matches / longer.length
 }
 
+/** Extrae la ciudad base de una cadena "NEIVA / HUI" → "NEIVA" */
+function normalizarCiudad(ciudad: string | null | undefined): string {
+  if (!ciudad) return ''
+  return ciudad.split('/')[0].trim().toUpperCase()
+}
+
 async function autoAsignarGuias(
   empresaId: string,
   token: string,
   nitRemitente: string
 ): Promise<{ asignadas: number }> {
-  // Órdenes transporte del día sin guía y con num_cajas > 0
-  const hoy = new Date()
-  const fechaHoy = `${hoy.getFullYear()}-${String(hoy.getMonth()+1).padStart(2,'0')}-${String(hoy.getDate()).padStart(2,'0')}`
-
+  const hace24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
   const ordenesSinGuia = await (prisma as any).ordenDespacho.findMany({
     where: {
       empresaId,
@@ -118,59 +126,142 @@ async function autoAsignarGuias(
       guiaTransporte: null,
       num_cajas: { gt: 0 },
       estado: { in: ['en_transito', 'despachado', 'alistado'] },
+      OR: [
+        { guiaBuscadaEl: null },               // nunca intentado
+        { guiaBuscadaEl: { gt: hace24h } },    // intentado hace menos de 24h
+      ],
     },
-    select: { id: true, numeroFactura: true, clienteNombre: true, num_cajas: true, createdAt: true },
+    // clienteNit viene directo en la orden; despachadoEl vendrá de DespachoLog
+    select: { id: true, numeroFactura: true, clienteNombre: true, clienteNit: true, num_cajas: true, createdAt: true, ciudad: true },
   })
 
   if (!ordenesSinGuia.length) return { asignadas: 0 }
 
-  // Agrupar por fecha de creación
+  // Enriquecer con despachadoEl desde DespachoLog (igual que enrichConDespacho en trazabilidad)
+  const facturas = ordenesSinGuia.map((o: any) => o.numeroFactura).filter(Boolean)
+  const despachoLogs: any[] = facturas.length
+    ? await (prisma as any).despachoLog.findMany({
+        where: { empresaId, numeroFactura: { in: facturas } },
+        select: { numeroFactura: true, despachadoEl: true },
+        orderBy: { despachadoEl: 'desc' },
+      })
+    : []
+  const despachoElMap = new Map<string, Date>()
+  for (const l of despachoLogs) {
+    if (!despachoElMap.has(l.numeroFactura) && l.despachadoEl) {
+      despachoElMap.set(l.numeroFactura, new Date(l.despachadoEl))
+    }
+  }
+
+  // Agrupar por despachadoEl (fecha real de despacho), fallback a createdAt
+  // Transprensa usa hora Colombia (UTC-5) — convertir antes de formatear la fecha
+  const toColombiaDateKey = (d: Date) => {
+    const col = new Date(d.getTime() - 5 * 60 * 60 * 1000)
+    return `${col.getUTCFullYear()}-${String(col.getUTCMonth()+1).padStart(2,'0')}-${String(col.getUTCDate()).padStart(2,'0')}`
+  }
+  // Día siguiente en Colombia (Transprensa puede registrar la remesa el día siguiente)
+  const nextColombiaDateKey = (key: string) => {
+    const d = new Date(key + 'T05:00:00Z') // mediodia Colombia como UTC
+    d.setUTCDate(d.getUTCDate() + 1)
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`
+  }
+
   const porFecha = new Map<string, typeof ordenesSinGuia>()
   for (const o of ordenesSinGuia) {
-    const f = new Date(o.createdAt)
-    const key = `${f.getFullYear()}-${String(f.getMonth()+1).padStart(2,'0')}-${String(f.getDate()).padStart(2,'0')}`
+    const base = despachoElMap.get(o.numeroFactura) ?? new Date(o.createdAt)
+    const key = toColombiaDateKey(base)
     if (!porFecha.has(key)) porFecha.set(key, [])
     porFecha.get(key)!.push(o)
   }
 
-  // Cargar NITs de clientes
-  const nombres = [...new Set(ordenesSinGuia.map((o: any) => o.clienteNombre))]
-  const clientes = await (prisma as any).cliente.findMany({
-    where: { empresaId, nombre: { in: nombres }, nit: { not: null } },
-    select: { nombre: true, nit: true },
-  })
-  const nitMap = new Map<string, string>()
-  for (const c of clientes) if (c.nit) nitMap.set(c.nombre, c.nit)
+  // NIT viene directo de la orden (clienteNit) — no necesita join a Cliente
 
   let asignadas = 0
 
   for (const [fecha, ordenes] of porFecha) {
-    const remesas = await consultarRemesasPorFechaYNit(token, fecha, nitRemitente)
+    // Transprensa puede registrar la remesa el día del despacho o el siguiente
+    const fechaSig = nextColombiaDateKey(fecha)
+    const [remesasD, remesasDSig] = await Promise.all([
+      consultarRemesasPorFechaYNit(token, fecha, nitRemitente),
+      consultarRemesasPorFechaYNit(token, fechaSig, nitRemitente),
+    ])
+    // Deduplicar por numero_remesa (en caso de solapamiento)
+    const remesasMap = new Map<string, any>()
+    for (const r of [...remesasD, ...remesasDSig]) remesasMap.set(r.numero_remesa, r)
+    const remesas = [...remesasMap.values()]
     if (!remesas.length) continue
 
-    // Construir lookup remesas: dest_nit+cajas → remesa
-    const remesaMap = new Map<string, any>()
+    // Helper para extraer cajas de una remesa (admite CAJA / PAQUETE / unidad genérica)
+    const getCajasRemesa = (r: any): string => {
+      const detalle = r.remesa_detalle ?? []
+      // Buscar primero producto con 'CAJA' en el nombre
+      const entryCaja = detalle.find((x: any) =>
+        x.producto?.producto_nombre?.toUpperCase().includes('CAJA')
+      )
+      if (entryCaja) return String(entryCaja.cantidad ?? '0')
+      // Si no hay 'CAJA', sumar todas las cantidades como fallback
+      const total = detalle.reduce((sum: number, x: any) => sum + Number(x.cantidad ?? 0), 0)
+      return total > 0 ? String(total) : '0'
+    }
+
+    // Lookup NIT + ciudad + cajas — también indexar con ciudad vacía para remesas sin ciudad
+    const remesaLookup = new Map<string, any>()
     for (const r of remesas) {
       const dest = r.remesa_destinatario ?? {}
-      const cajas = (r.remesa_detalle ?? []).find((x: any) => x.producto?.producto_nombre?.toUpperCase().includes('CAJA'))?.cantidad ?? '0'
-      const key = `${dest.destinataro_documento}|${cajas}`
-      if (!remesaMap.has(key)) remesaMap.set(key, r)
+      const cajas = getCajasRemesa(r)
+      const ciudadR = normalizarCiudad(dest.destinatario_ciudad)
+      const nit = String(dest.destinataro_documento ?? '').trim()
+      // Key exacto con ciudad
+      const keyConCiudad = `${nit}|${ciudadR}|${cajas}`
+      if (!remesaLookup.has(keyConCiudad)) remesaLookup.set(keyConCiudad, r)
+      // Key sin ciudad (para remesas donde Transprensa no envía ciudad)
+      if (!ciudadR) {
+        const keySinCiudad = `${nit}||${cajas}`
+        if (!remesaLookup.has(keySinCiudad)) remesaLookup.set(keySinCiudad, r)
+      }
     }
 
     for (const orden of ordenes) {
-      const nit = nitMap.get(orden.clienteNombre)
+      // FIX: usar clienteNit de la orden directamente (más confiable que join a Cliente)
+      const nit = orden.clienteNit ? String(orden.clienteNit).trim() : null
       const cajas = String(orden.num_cajas)
+      const ciudadO = normalizarCiudad(orden.ciudad)
       let matched: any = null
 
-      // 1) Match exacto NIT + cajas
-      if (nit) matched = remesaMap.get(`${nit}|${cajas}`) ?? null
+      // 1) Match exacto NIT + ciudad + cajas
+      if (nit) matched = remesaLookup.get(`${nit}|${ciudadO}|${cajas}`) ?? null
 
-      // 2) Fallback fuzzy nombre + cajas
+      // 1b) Match NIT + sin ciudad (remesa sin ciudad en Transprensa) + cajas
+      if (!matched && nit) matched = remesaLookup.get(`${nit}||${cajas}`) ?? null
+
+      // 2) Match NIT + ciudad (sin cajas) — si hay una sola candidata con ese NIT y ciudad (o sin ciudad)
+      if (!matched && nit) {
+        const candidatas = remesas.filter((r: any) => {
+          const dest = r.remesa_destinatario ?? {}
+          const ciudadR = normalizarCiudad(dest.destinatario_ciudad)
+          return String(dest.destinataro_documento ?? '').trim() === nit &&
+            (!ciudadR || ciudadR === ciudadO)
+        })
+        if (candidatas.length === 1) matched = candidatas[0]
+        else if (candidatas.length > 1) {
+          // Tiebreaker: cajas exactas
+          matched = candidatas.find((r: any) => getCajasRemesa(r) === cajas) ?? null
+        }
+      }
+
+      // 3) Fallback fuzzy nombre + ciudad + cajas
       if (!matched) {
         let best: any = null, bestScore = 0
         for (const r of remesas) {
-          const destNombre = r.remesa_destinatario?.destinatario_nombre ?? ''
-          const rCajas = (r.remesa_detalle ?? []).find((x: any) => x.producto?.producto_nombre?.toUpperCase().includes('CAJA'))?.cantidad ?? '0'
+          const dest = r.remesa_destinatario ?? {}
+          const destNombre = dest.destinatario_nombre ?? ''
+          const ciudadR = normalizarCiudad(dest.destinatario_ciudad)
+          const remesaNit = String(dest.destinataro_documento ?? '').trim()
+          // Si la orden tiene NIT y la remesa también tiene NIT distintos → descartar
+          if (nit && remesaNit && remesaNit !== nit) continue
+          // Filtrar por ciudad solo si la remesa trae ciudad
+          if (ciudadR && ciudadO && ciudadR !== ciudadO) continue
+          const rCajas = getCajasRemesa(r)
           if (rCajas !== cajas) continue
           const score = similaridad(orden.clienteNombre, destNombre)
           if (score > bestScore) { bestScore = score; best = r }
@@ -178,15 +269,25 @@ async function autoAsignarGuias(
         if (bestScore >= 0.6) matched = best
       }
 
-      if (!matched) continue
+      if (!matched) {
+        // Marcar como buscada-sin-match para no reintentar hasta el próximo ciclo de 24h
+        try {
+          await (prisma as any).ordenDespacho.update({
+            where: { id: orden.id },
+            data: { guiaBuscadaEl: new Date() },
+          })
+        } catch {}
+        continue
+      }
 
       // Asignar guía
       try {
         await (prisma as any).ordenDespacho.update({
           where: { id: orden.id },
           data: {
-            guiaTransporte: matched.numero_remesa,
-            urlSeguimiento: `https://transprensa.com/Seguimiento/?remesa_codigo=${matched.numero_remesa}`,
+            guiaTransporte: String(matched.numero_remesa).trim(),
+            urlSeguimiento: `https://transprensa.com/Seguimiento/?remesa_codigo=${String(matched.numero_remesa).trim()}`,
+            guiaBuscadaEl: null, // limpiar — ya tiene guía
           },
         })
         asignadas++

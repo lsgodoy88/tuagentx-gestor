@@ -3004,6 +3004,7 @@ model OrdenDespacho {
   entregadoEl       DateTime?
   transportadora    String?
   guiaTransporte    String?
+  guiaBuscadaEl     DateTime?
   fechaOrden        DateTime?
   fechaOrdenBogota  DateTime?
   totalOrden        Decimal?           @db.Decimal(14, 2)

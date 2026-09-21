@@ -17,6 +17,17 @@ import IconBarcode from '@/components/IconBarcode'
 
 type Rol = 'bodega' | 'admin' | 'vendedor'
 
+interface OrdenBodega {
+  estado: string
+  clienteNombre: string | null
+  ciudad: string | null
+  fechaFactura: string | null
+  alistadoEl: string | null
+  fotosAlistamiento: any
+  fotoAlistamiento: string | null
+  alistadoPor: { nombre: string } | null
+}
+
 interface Props {
   rol: Rol
   empresaId: string
@@ -57,6 +68,7 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
   const [busqueda, setBusqueda] = useState('')
   const [envioFiltro, setEnvioFiltro] = useState('todos')
   const [numerosDeOtros, setNumerosDeOtros] = useState<Set<number>>(new Set())
+  const [ordenesBodegaMap, setOrdenesBodegaMap] = useState<Map<number, OrdenBodega>>(new Map())
 
   const cursorRef = useRef<string | null>(null)
   const huecoVerificadosRef = useRef<Set<number>>(new Set())
@@ -64,7 +76,16 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
   const presenteRef = useRef<Set<number>>(new Set())
 
   const cargar = useCallback(async (reset = false) => {
-    if (reset) { setLoading(true); cursorRef.current = null; setCursor(null); setNumerosDeOtros(new Set()); huecoVerificadosRef.current = new Set(); rangeRef.current = null; presenteRef.current = new Set() }
+    if (reset) {
+      setLoading(true)
+      cursorRef.current = null
+      setCursor(null)
+      setNumerosDeOtros(new Set())
+      setOrdenesBodegaMap(new Map())
+      huecoVerificadosRef.current = new Set()
+      rangeRef.current = null
+      presenteRef.current = new Set()
+    }
     try {
       const params = new URLSearchParams()
       if (origenId && origenId !== 'propia') params.set('origenId', origenId)
@@ -94,11 +115,25 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
       setHayMas(data.hayMas ?? false)
       cursorRef.current = data.nextCursor ?? null
       setCursor(data.nextCursor ?? null)
-      // Verificar solo huecos NUEVOS — rango trackeado en ref, O(incoming) no O(allLogs)
+
+      // Extraer ordenesBodega de controlFacturas del backend
+      const cf: any[] = data.controlFacturas || []
+      if (cf.length > 0) {
+        setOrdenesBodegaMap(prev => {
+          const next = new Map(prev)
+          for (const item of cf) {
+            if (item.ordenBodega && item.numero) {
+              next.set(item.numero, item.ordenBodega as OrdenBodega)
+            }
+          }
+          return next
+        })
+      }
+
+      // Verificar solo huecos NUEVOS
       if (rol === 'vendedor' && incoming.length > 0) {
-        // Actualizar rango incremental con solo los nuevos logs
         const nums = incoming.map((l: any) => parseInt(l.numeroFactura) || 0).filter((n: number) => n > 0)
-        if (nums.length === 0) return  // sin facturas numéricas, nada que verificar
+        if (nums.length === 0) return
         const inMax = nums.reduce((a: number, b: number) => a > b ? a : b)
         const inMin = nums.reduce((a: number, b: number) => a < b ? a : b)
         const prevRange = rangeRef.current
@@ -106,14 +141,12 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
         const newMin = prevRange ? Math.min(prevRange.min, inMin) : inMin
         rangeRef.current = { min: newMin, max: newMax }
 
-        // Actualizar ref de presentes con incoming — sin depender del state stale
         incoming.forEach((l: any) => {
           const n = parseInt(l.numeroFactura) || 0
           if (n > 0) presenteRef.current.add(n)
         })
         const presente = presenteRef.current
 
-        // Solo huecos nuevos del rango extendido
         const huecoNuevos: number[] = []
         for (let n = newMax; n >= newMin; n--) {
           if (!presente.has(n) && !huecoVerificadosRef.current.has(n)) huecoNuevos.push(n)
@@ -187,7 +220,9 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
         ? (log.trRawEstados?.length ? iconoTransprensa(last?.estado_nombre ?? '') : log.num_cajas === 0 ? '⚪' : '🚛')
         : log.entregadoEl ? '✅' : '🚛'
       if (filtroIconEstado === 'BARCODE') {
-        if (log.modo !== 'transportadora' || !!log.guiaTransporte || !(log.num_cajas > 0)) return false
+        if (log.modo !== 'transportadora' || !!log.guiaTransporte || !!log.guiaBuscadaEl || !(log.num_cajas > 0)) return false
+      } else if (filtroIconEstado === '❓') {
+        if (!log.guiaBuscadaEl || !!log.guiaTransporte) return false
       } else if (icono !== filtroIconEstado) return false
     }
     if (filtroEnvio !== 'todos') {
@@ -210,23 +245,37 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
 
   const ciudades = [...new Set(logs.map((l: any) => l.ciudad?.trim()).filter(Boolean))].sort() as string[]
 
-  // Generar rango consecutivo desde logs acumulados — sin solapamientos entre páginas
+  // Generar rango consecutivo desde logs acumulados
   const controlFacturas = (() => {
     if (logsOrdenados.length === 0) return []
-    // Solo usar rango consecutivo cuando no hay filtroOrden
-    if (filtroOrden !== null) return logsOrdenados.map(l => ({ numero: parseInt(l.numeroFactura) || 0, log: l, hueco: false }))
+    if (filtroOrden !== null) return logsOrdenados.map(l => ({ numero: parseInt(l.numeroFactura) || 0, log: l, hueco: false, ordenBodega: null }))
     const mapaFacturas = new Map(logsOrdenados.map(l => [parseInt(l.numeroFactura) || 0, l]))
     const rangeMax = parseInt(logsOrdenados[0].numeroFactura) || 0
     const rangeMin = parseInt(logsOrdenados[logsOrdenados.length - 1].numeroFactura) || 0
     const result = []
     for (let n = rangeMax; n >= rangeMin; n--) {
       const r = mapaFacturas.get(n)
-      // Vendedor: omitir números que pertenecen a otros vendedores
       if (!r && numerosDeOtros.has(n)) continue
-      result.push({ numero: n, log: r || null, hueco: !r })
+      result.push({ numero: n, log: r || null, hueco: !r, ordenBodega: !r ? (ordenesBodegaMap.get(n) || null) : null })
     }
     return result
   })()
+
+  // Órdenes en bodega por encima del rango de DespachoLog
+  const maxDespachoLog = logsOrdenados.length > 0 ? (parseInt(logsOrdenados[0].numeroFactura) || 0) : 0
+  const extrasArriba = (() => {
+    const result: Array<{ numero: number; log: null; hueco: true; ordenBodega: OrdenBodega | null }> = []
+    if (maxDespachoLog === 0) return result
+    for (const [num, ob] of ordenesBodegaMap.entries()) {
+      if (num > maxDespachoLog) {
+        result.push({ numero: num, log: null, hueco: true, ordenBodega: ob })
+      }
+    }
+    result.sort((a, b) => b.numero - a.numero)
+    return result
+  })()
+
+  const controlFacturasTotal = [...extrasArriba, ...controlFacturas]
 
   if (loading) return (
     <div className="flex items-center justify-center py-20">
@@ -247,14 +296,13 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
 
       {/* Lista */}
       <div className={esAdmin || rol === 'vendedor' ? "grid grid-cols-1 md:grid-cols-3 gap-2" : "space-y-1"}>
-        {controlFacturas.length === 0 && (
+        {controlFacturasTotal.length === 0 && (
           <div className="text-center text-zinc-500 text-sm py-10">Sin despachos</div>
         )}
         {(() => {
           const hayFiltro = !!(busquedaExterna || busqueda || filtroEnvio !== 'todos' || filtroFecha || filtroCiudad || filtroIconEstado)
-          return controlFacturas.filter(cf => {
-            // Con filtro activo: ocultar huecos — solo mostrar despachadas que cumplan
-            if (cf.hueco) return !hayFiltro
+          return controlFacturasTotal.filter(cf => {
+            if (cf.hueco) return !hayFiltro || !!cf.ordenBodega
             const log = cf.log
             const busq = (busquedaExterna !== undefined ? busquedaExterna : busqueda) || ''
             if (busq) {
@@ -284,14 +332,16 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
                 ? (log.trRawEstados?.length ? iconoTransprensa(last?.estado_nombre ?? '') : log.num_cajas === 0 ? '⚪' : '🚛')
                 : log.entregadoEl ? '✅' : '🚛'
               if (filtroIconEstado === 'BARCODE') {
-                if (log.modo !== 'transportadora' || !!log.guiaTransporte || !(log.num_cajas > 0)) return false
+                if (log.modo !== 'transportadora' || !!log.guiaTransporte || !!log.guiaBuscadaEl || !(log.num_cajas > 0)) return false
+              } else if (filtroIconEstado === '❓') {
+                if (!log.guiaBuscadaEl || !!log.guiaTransporte) return false
               } else if (icono !== filtroIconEstado) return false
             }
             return true
           })
         })().map(cf => {
-          // Hueco: orden no despachada aún
-          if (cf.hueco) return (
+          // Hueco vacío (sin orden en bodega)
+          if (cf.hueco && !cf.ordenBodega) return (
             <div key={`hueco-${cf.numero}`}
               className="bg-zinc-900 border border-zinc-800 border-l-4 border-l-zinc-700 rounded-2xl overflow-hidden">
               <div className="px-4 py-3">
@@ -299,6 +349,49 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
               </div>
             </div>
           )
+
+          // Hueco con orden en bodega
+          if (cf.hueco && cf.ordenBodega) {
+            const ob = cf.ordenBodega
+            const esAlistado = ob.estado === 'alistado'
+            const borderColor = esAlistado ? 'border-l-amber-500' : 'border-l-zinc-500'
+            const ciudadOb = ob.ciudad?.split('/').pop()?.trim() || null
+            let fotosRawOb = ob.fotosAlistamiento
+            if (typeof fotosRawOb === 'string') { try { fotosRawOb = JSON.parse(fotosRawOb) } catch { fotosRawOb = null } }
+            const fotosOb: string[] = (Array.isArray(fotosRawOb) ? fotosRawOb : null) || (ob.fotoAlistamiento ? [ob.fotoAlistamiento] : [])
+            const label = esAlistado ? 'Alistado' : 'Facturado'
+            const fecha = esAlistado ? ob.alistadoEl : ob.fechaFactura
+            const quien = esAlistado ? (ob.alistadoPor?.nombre || null) : 'Admin'
+            return (
+              <div key={`hueco-${cf.numero}`}
+                className={`bg-zinc-900 border border-zinc-800 border-l-4 ${borderColor} rounded-2xl overflow-hidden`}>
+                <div className="px-3 py-3">
+                  {/* Línea 1: F_num · cliente · ciudad */}
+                  <div className="flex items-center gap-1.5 overflow-hidden mb-1.5">
+                    <span className="text-zinc-400 font-mono text-xs flex-shrink-0">F_{cf.numero}</span>
+                    {ob.clienteNombre && (
+                      <>
+                        <span className="text-zinc-700 flex-shrink-0">·</span>
+                        <span className="text-zinc-400 text-xs truncate flex-1">{ob.clienteNombre}</span>
+                      </>
+                    )}
+                    {ciudadOb && <span className="text-zinc-400 text-xs flex-shrink-0">{ciudadOb}</span>}
+                  </div>
+                  {/* Línea 2: label fecha quien [🖼️] */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-zinc-400 text-xs w-[60px] flex-shrink-0">{label}</span>
+                    <span className="text-zinc-400 text-xs flex-shrink-0">{fecha ? formatFechaCorta(fecha) : '—'}</span>
+                    {quien && <span className="text-zinc-400 text-xs truncate flex-1">{quien}</span>}
+                    {esAlistado && fotosOb.length > 0 && (
+                      <button onClick={() => onGaleriaAbrir ? onGaleriaAbrir(fotosOb, ob.alistadoEl) : null}
+                        className="text-zinc-400 hover:text-white text-xs flex-shrink-0">🖼️</button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          }
+
           const log = cf.log
           let fotosRaw = log.fotosAlistamiento
           if (typeof fotosRaw === 'string') { try { fotosRaw = JSON.parse(fotosRaw) } catch { fotosRaw = null } }
@@ -326,7 +419,7 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
                   {isExp ? '▲' : log.modo === 'transportadora' ? (
                     log.trRawEstados?.length ? iconoTransprensa((log.trRawEstados as any[]).at(-1)?.estado_nombre ?? '') :
                     log.num_cajas === 0 ? '⚪' :
-                    log.guiaTransporte ? '🚛' : <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current text-zinc-400"><rect x="1" y="4" width="2" height="16"/><rect x="4" y="4" width="1" height="16"/><rect x="6" y="4" width="2" height="16"/><rect x="9" y="4" width="1" height="16"/><rect x="11" y="4" width="3" height="16"/><rect x="15" y="4" width="1" height="16"/><rect x="17" y="4" width="2" height="16"/><rect x="20" y="4" width="1" height="16"/><rect x="22" y="4" width="1" height="16"/></svg>
+                    log.guiaTransporte ? '🚛' : log.guiaBuscadaEl ? '❓' : <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current text-zinc-400"><rect x="1" y="4" width="2" height="16"/><rect x="4" y="4" width="1" height="16"/><rect x="6" y="4" width="2" height="16"/><rect x="9" y="4" width="1" height="16"/><rect x="11" y="4" width="3" height="16"/><rect x="15" y="4" width="1" height="16"/><rect x="17" y="4" width="2" height="16"/><rect x="20" y="4" width="1" height="16"/><rect x="22" y="4" width="1" height="16"/></svg>
                   ) : log.entregadoEl ? '✅' : log.modo === 'personal' ? '🤝' : log.modo === 'repartidor' ? '🚚' : (
                     <span className="relative inline-flex">
                       🚛{log.guiaTransporte && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-emerald-400 border border-zinc-900" />}
@@ -360,7 +453,6 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
                             const last = (log.trRawEstados as any[]).at(-1)
                             if (!last?.estado_fecha) return null
                             const hora = last.estado_hora || '00:00:00'
-                            // Transprensa devuelve fecha/hora en hora Colombia (UTC-5) — construir como UTC
                             return new Date(`${last.estado_fecha}T${hora}-05:00`)
                           })(),
                           quien: (log.trRawEstados as any[]).at(-1)?.estado_nombre ?? null,
@@ -403,7 +495,6 @@ export default function TabDespachados({ rol, empresaId, origenId, ciudadLocal, 
                         <button onClick={() => setObsPopup(obsPopup === log.id ? null : log.id)}
                           className={`text-base flex-shrink-0 ${obsPopup === log.id ? 'text-white' : 'text-zinc-400 hover:text-white'}`}>✍🏼</button>
                       )}
-                      {/* Barcode/Guía — solo en etapa despacho */}
                       {e.esStepDespacho && log.modo === 'transportadora' && (
                         urlSeguimiento ? (
                           <button onClick={() => window.open(urlSeguimiento, '_blank')}

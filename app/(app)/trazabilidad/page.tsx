@@ -170,6 +170,7 @@ const FILTRO_ESTADOS_TRAZ = [
   { ic: '⚪', lbl: 'Sin cajas' },
   { ic: '✅', lbl: 'Entregado manual' },
   { ic: 'BARCODE', lbl: 'Sin guía' },
+  { ic: '❓', lbl: 'No encontrado' },
 ]
 function FiltroIconEstadoTraz({ value, onChange, open, setOpen }: { value: string, onChange: (v: string) => void, open: boolean, setOpen: (v: boolean) => void }) {
   return (
