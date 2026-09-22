@@ -264,7 +264,7 @@ export async function recuperadorInverso(
   try {
     const hace30diasInv = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
     const ordenesSinDeuda: any[] = await prisma.$queryRawUnsafe(
-      `SELECT od."origenId", od."numeroFactura", od."numeroOrden", od."clienteApiId"
+      `SELECT od."origenId", od."numeroFactura", od."numeroOrden", od."clienteApiId", od."vendedorApiId"
       FROM ${schema}."OrdenDespacho" od
       WHERE od."empresaId" = $1
         AND od."isFacturada" = true
@@ -289,12 +289,14 @@ export async function recuperadorInverso(
           const match = deudaExt.find((d: any) => String(d.uid || d._id) === od.origenId)
           if (match) {
             const m = match as any
+            // Usar empleado de UpTres; si no viene, fallback al vendedorApiId de la OrdenDespacho
+            const empleadoExternalId = m.empleado?.uid || od.vendedorApiId || null
             await (prisma as any).syncDeuda.upsert({
               where: { integracionId_externalId: { integracionId, externalId: od.origenId } },
               create: {
                 integracionId, externalId: od.origenId,
                 clienteApiId: m.cliente?.uid || od.clienteApiId || '',
-                empleadoExternalId: m.empleado?.uid || null,
+                empleadoExternalId,
                 numeroOrden: od.numeroOrden ? parseInt(String(od.numeroOrden)) : null,
                 numeroFactura: od.numeroFactura ? parseInt(String(od.numeroFactura)) : null,
                 valor: parseFloat(m.vTotal ?? '0'), saldo: parseFloat(m.vSaldo ?? '0'),
@@ -308,7 +310,7 @@ export async function recuperadorInverso(
               },
               update: { sincronizadoEl: new Date() },
             })
-            console.log(`[delta/cartera] recuperador-inverso: creada SyncDeuda F_${od.numeroFactura} orden ${od.numeroOrden}`)
+            console.log(`[delta/cartera] recuperador-inverso: creada SyncDeuda F_${od.numeroFactura} orden ${od.numeroOrden} empleado=${empleadoExternalId ?? 'null'}`)
             // Registrar clienteApiId para reconstruir CarteraCache
             clienteApiIdsCreados.push(m.cliente?.uid || od.clienteApiId)
             // Corregir paymentType en OrdenDespacho si llegó null por race condition con UpTres
