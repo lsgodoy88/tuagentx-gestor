@@ -1,6 +1,7 @@
 
 export * from './consecutivo'
 export * from './crypto-uptres'
+export * from './delta-ctx'
 export * from './fechas'
 export * from './fetchApi'
 export * from './formato'
