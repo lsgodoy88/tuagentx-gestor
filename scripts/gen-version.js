@@ -32,3 +32,18 @@ export type VersionInfo = typeof VERSION_INFO;
 const outPath = path.join(__dirname, '..', 'lib', 'version.ts');
 fs.writeFileSync(outPath, ts);
 console.log(`[gen-version] ${info.version} ${info.commit} (${info.branch}) → ${outPath}`);
+
+// ── SOURCE_HASH ──────────────────────────────────────────────────────────────
+// Huella de los fuentes al momento del build. next build limpia .next/ durante
+// la compilación, así que siempre guardamos en un tmp; postbuild lo mueve a
+// .next/SOURCE_HASH una vez que la carpeta ya existe.
+try {
+  const hash = execSync(
+    'find lib app/api "app/(app)" -name "*.ts" -o -name "*.tsx" 2>/dev/null | sort | xargs md5sum 2>/dev/null | md5sum | cut -d" " -f1',
+    { encoding: 'utf8', shell: '/bin/bash', cwd: path.join(__dirname, '..') }
+  ).trim();
+  fs.writeFileSync(path.join(__dirname, '..', '.source_hash_tmp'), hash);
+  console.log(`[gen-version] SOURCE_HASH ${hash} → .source_hash_tmp (postbuild lo moverá a .next/)`);
+} catch (e) {
+  console.warn('[gen-version] No se pudo generar SOURCE_HASH:', e.message);
+}

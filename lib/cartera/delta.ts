@@ -267,7 +267,7 @@ export async function recuperadorInverso(
       FROM ${schema}."OrdenDespacho" od
       WHERE od."empresaId" = $1
         AND od."isFacturada" = true
-        AND od."paymentType" = 'credito'
+        AND (od."paymentType" = 'credito' OR od."paymentType" IS NULL)
         AND od."fechaOrden" > $2::timestamp
         AND od."origenId" IS NOT NULL
         AND NOT EXISTS (
@@ -308,6 +308,12 @@ export async function recuperadorInverso(
               update: { sincronizadoEl: new Date() },
             })
             console.log(`[delta/cartera] recuperador-inverso: creada SyncDeuda F_${od.numeroFactura} orden ${od.numeroOrden}`)
+            // Corregir paymentType en OrdenDespacho si llegó null por race condition con UpTres
+            if (!od.paymentType) {
+              try {
+                await prisma.$queryRawUnsafe(`UPDATE ${schema}."OrdenDespacho" SET "paymentType" = 'credito' WHERE "origenId" = $1 AND "empresaId" = $2 AND "paymentType" IS NULL`, od.origenId, destino)
+              } catch { /* no crítico */ }
+            }
           } else {
             console.log(`[delta/cartera] recuperador-inverso: F_${od.numeroFactura} no encontrada en /cartera cliente ${od.clienteApiId}`)
           }
