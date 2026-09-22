@@ -1,115 +1,55 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { checkPermiso } from '@/lib/permisos'
+import { fmt, parseNum } from '@/lib/shared/utils/formato'
+import { Vista, VISTAS, fechaHoy, inicioSemana, finSemana, inicioMes, finMes } from './_lib/fechas'
+import { Fila, Categoria, TabConfig, GrupoDia, filasIniciales, filaVacia, FILAS_DEFAULT } from './_lib/tipos'
+import { thStyle, tdStyle } from './_lib/estilos'
+import { NavegadorFecha } from './_components/NavegadorFecha'
+import { FilaSheetMobil } from './_components/FilaSheetMobil'
+import { TablaVistaDia } from './_components/TablaVistaDia'
+import { TablaVistaRango } from './_components/TablaVistaRango'
+import { ConfigPopup } from './_components/ConfigPopup'
 
-// ─── Constantes ────────────────────────────────────────────────────────────
-const EMOJIS = ['💵','🏦','📱','💳','🏧','📦','💰','🔄','🏪','🧾']
-const VISTAS = ['Día', 'Semana', 'Mes'] as const
-type Vista = typeof VISTAS[number]
-const FILAS_DEFAULT = 7
-
-// ─── Tipos ─────────────────────────────────────────────────────────────────
-interface Fila { id?: string; concepto: string; ingreso: string; egreso: string; categoria: string; relacionTexto: string; esNueva?: boolean }
-interface Categoria { id: string; tipo: string; nombre: string }
-interface TabConfig { id: string; key: string; nombre: string; emoji: string; orden: number }
-interface GrupoDia { fecha: string; filas: Fila[] }
-
-// ─── Helpers ───────────────────────────────────────────────────────────────
-function filaVacia(esNueva = false): Fila { return { concepto: '', ingreso: '', egreso: '', categoria: '', relacionTexto: '', esNueva } }
-function filasIniciales(): Fila[] { return Array.from({ length: FILAS_DEFAULT }, () => filaVacia()) }
-function fmt(n: number) { return '$' + Math.abs(n).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) }
-function formatCOP(raw: string): string {
-  const n = parseFloat(raw.replace(/\./g, '').replace(/[^0-9]/g, ''))
-  if (!raw || isNaN(n) || n === 0) return ''
-  return new Intl.NumberFormat('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n)
-}
-function parseCOP(val: string): string { return val.replace(/\./g, '').replace(/[^0-9]/g, '') }
-function parseNum(v: string) { const n = parseFloat(v.replace(/\./g, '').replace(',', '.')); return isNaN(n) ? 0 : n }
-function fechaHoy() { return new Date().toLocaleDateString('en-CA', { timeZone: 'America/Bogota' }) }
-function fmtFecha(f: string) { return f ? new Date(f + 'T12:00:00').toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '--/--/--' }
-function fmtFechaCorta(f: string) { if (!f) return ''; const d = new Date(f + 'T12:00:00'); return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') }
-function fmtFechaLarga(f: string) {
-  return f ? new Date(f + 'T12:00:00').toLocaleDateString('es-CO', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }) : ''
-}
-function inicioSemana(fecha: string): string {
-  const d = new Date(fecha + 'T12:00:00')
-  const dia = d.getDay() // 0=dom
-  d.setDate(d.getDate() - dia)
-  return d.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
-}
-function finSemana(fecha: string): string {
-  const d = new Date(fecha + 'T12:00:00')
-  const dia = d.getDay()
-  d.setDate(d.getDate() + (6 - dia))
-  return d.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
-}
-function inicioMes(fecha: string): string { return fecha.slice(0, 7) + '-01' }
-function finMes(fecha: string): string {
-  const [y, m] = fecha.split('-').map(Number)
-  return new Date(y, m, 0).toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
-}
-function labelNavegador(vista: Vista, fecha: string): string {
-  if (vista === 'Día') return fmtFecha(fecha)
-  if (vista === 'Semana') {
-    const ini = inicioSemana(fecha); const fin = finSemana(fecha)
-    return `${fmtFecha(ini)} – ${fmtFecha(fin)}`
-  }
-  // Mes
-  const [y, m] = fecha.split('-').map(Number)
-  const nombre = new Date(y, m - 1, 1).toLocaleDateString('es-CO', { month: 'long', year: 'numeric' })
-  return nombre.charAt(0).toUpperCase() + nombre.slice(1)
-}
-function moverFecha(fecha: string, vista: Vista, delta: number): string {
-  const d = new Date(fecha + 'T12:00:00')
-  if (vista === 'Día')    d.setDate(d.getDate() + delta)
-  if (vista === 'Semana') d.setDate(d.getDate() + delta * 7)
-  if (vista === 'Mes')    d.setMonth(d.getMonth() + delta)
-  return d.toLocaleDateString('en-CA', { timeZone: 'America/Bogota' })
-}
-
-const thStyle: React.CSSProperties = { padding: '8px 10px', fontSize: 12, fontWeight: 600, color: 'white', whiteSpace: 'nowrap' }
-const tdStyle: React.CSSProperties = { padding: '6px 10px', fontSize: 12, fontWeight: 500, color: 'white', borderBottom: '1px solid #1e2a3d' }
-
-// ─── Componente principal ──────────────────────────────────────────────────
 export default function SaldosPage() {
   const { data: session } = useSession()
   const _role = (session?.user as any)?.role
   const puedeEditarSaldos = _role === 'empresa' || checkPermiso(session, 'editarSaldos')
   const puedeAdminSaldos  = _role === 'empresa' || checkPermiso(session, 'verBitacora')
-  const [tabs, setTabs]                 = useState<TabConfig[]>([])
-  const [tab, setTab]                   = useState('efectivo')
-  const [newTabLabel, setNewTabLabel]   = useState('')
-  const [newTabEmoji, setNewTabEmoji]   = useState('📦')
-  const [editandoTab, setEditandoTab]   = useState<TabConfig | null>(null)
-  const [vista, setVista]               = useState<Vista>('Día')
-  const [fecha, setFecha]               = useState('')          // fecha de referencia (día/semana/mes)
-  const [filas, setFilas]               = useState<Fila[]>(filasIniciales())
-  const [grupos, setGrupos]             = useState<GrupoDia[]>([])
-  const [expandidos, setExpandidos]     = useState<Set<string>>(new Set())
+
+  const [tabs, setTabs]               = useState<TabConfig[]>([])
+  const [tab, setTab]                 = useState('efectivo')
+  const [vista, setVista]             = useState<Vista>('Día')
+  const [fecha, setFecha]             = useState('')
+  const [filas, setFilas]             = useState<Fila[]>(filasIniciales())
+  const [grupos, setGrupos]           = useState<GrupoDia[]>([])
   const [saldoAnterior, setSaldoAnterior] = useState(0)
-  const [buscando, setBuscando]         = useState(false)
-  const [categorias, setCategorias]     = useState<Categoria[]>([])
-  const [showConfig, setShowConfig]     = useState(false)
-  const [cuentasBancarias, setCuentasBancarias] = useState<any[]>([])
-  const [nuevaCuenta, setNuevaCuenta] = useState({ label: '', titular: '', banco: '', numeroCuenta: '' })
-  const [editandoCuenta, setEditandoCuenta] = useState<any | null>(null)
-  const [editForm, setEditForm] = useState({ label: '', titular: '', banco: '', numeroCuenta: '' })
-  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
-  const [nuevaCat, setNuevaCat]         = useState({ tipo: 'ingreso', nombre: '' })
-  const [filaSheet, setFilaSheet]       = useState<number | null>(null)
+  const [buscando, setBuscando]       = useState(false)
+  const [categorias, setCategorias]   = useState<Categoria[]>([])
+  const [showConfig, setShowConfig]   = useState(false)
+  const [filaSheet, setFilaSheet]     = useState<number | null>(null)
   const [filasGuardadas, setFilasGuardadas] = useState<Set<number>>(new Set())
   const [celdasEditando, setCeldasEditando] = useState<Set<string>>(new Set())
-  const [celdaIntentada, setCeldaIntentada] = useState<{i: number, campo: 'concepto'|'ingreso'|'egreso'} | null>(null)
-  const [showPopDia, setShowPopDia]     = useState(false)
-
-  const dateInputRef = useRef<HTMLInputElement>(null)
+  const [celdaIntentada, setCeldaIntentada] = useState<{ i: number; campo: 'concepto' | 'ingreso' | 'egreso' } | null>(null)
+  const [showPopDia, setShowPopDia]   = useState(false)
 
   const hoy        = fechaHoy()
   const esDiaActual = vista === 'Día' && fecha === hoy
 
-  // ── Carga tabs dinámicas ──
+  // ── Totales con useMemo ──
+  const { subIng, subEgr, total } = useMemo(() => {
+    const subIng = vista === 'Día'
+      ? filas.reduce((s, f) => s + parseNum(f.ingreso), 0)
+      : grupos.reduce((s, g) => s + g.filas.reduce((ss, f) => ss + parseNum(f.ingreso), 0), 0)
+    const subEgr = vista === 'Día'
+      ? filas.reduce((s, f) => s + parseNum(f.egreso), 0)
+      : grupos.reduce((s, g) => s + g.filas.reduce((ss, f) => ss + parseNum(f.egreso), 0), 0)
+    return { subIng, subEgr, total: saldoAnterior + subIng - subEgr }
+  }, [vista, filas, grupos, saldoAnterior])
+
+  // ── Carga config inicial ──
   useEffect(() => {
     fetch('/api/saldos/config').then(r => r.json()).then(d => {
       const t: TabConfig[] = d.tabs || []
@@ -132,7 +72,7 @@ export default function SaldosPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab])
 
-  // Refetch al volver a la tab
+  // ── Refetch al volver a la tab ──
   useEffect(() => {
     const onVisible = () => { if (document.visibilityState === 'visible' && tab && fecha) cargarDia(fecha, tab) }
     document.addEventListener('visibilitychange', onVisible)
@@ -146,10 +86,8 @@ export default function SaldosPage() {
     setCeldasEditando(new Set())
     setSaldoAnterior(0)
     setGrupos([])
-    setExpandidos(new Set())
   }
 
-  // ── Carga un día ──
   const cargarDia = useCallback(async (f: string, t = tab) => {
     setBuscando(true)
     const d = await fetch(`/api/saldos?tab=${t}&fecha=${f}`).then(r => r.json())
@@ -169,7 +107,6 @@ export default function SaldosPage() {
     setBuscando(false)
   }, [tab])
 
-  // ── Carga rango (semana/mes) ──
   const cargarRango = useCallback(async (f: string, v: Vista, t = tab) => {
     setBuscando(true)
     let desde = f, hasta = f
@@ -180,11 +117,9 @@ export default function SaldosPage() {
     const g: GrupoDia[] = Object.entries(d.grupos || {}).map(([fecha, filas]: any) => ({ fecha, filas }))
     g.sort((a, b) => a.fecha.localeCompare(b.fecha))
     setGrupos(g)
-    setExpandidos(new Set()) // colapsados por defecto
     setBuscando(false)
   }, [tab])
 
-  // ── Cuando cambia vista o fecha ──
   function navegar(nuevaFecha: string, nuevaVista: Vista) {
     setFecha(nuevaFecha)
     if (nuevaVista === 'Día') cargarDia(nuevaFecha)
@@ -203,21 +138,21 @@ export default function SaldosPage() {
     setShowPopDia(false)
   }
 
-  function editarDiaActual() {
-    setShowPopDia(false)
-    if (celdaIntentada !== null) {
-      setCeldasEditando(prev => new Set([...prev, `${celdaIntentada.i}-${celdaIntentada.campo}`]))
-      setCeldaIntentada(null)
-    }
-  }
-
-  function intentarEditar(i: number, campo: 'concepto'|'ingreso'|'egreso' = 'concepto') {
+  function intentarEditar(i: number, campo: 'concepto' | 'ingreso' | 'egreso' = 'concepto') {
     if (!puedeEditarSaldos) return
     if (celdasEditando.has(`${i}-${campo}`)) return
     if (!esDiaActual && filasGuardadas.has(i)) {
       setCeldaIntentada({ i, campo }); setShowPopDia(true)
     } else {
       setCeldasEditando(prev => new Set([...prev, `${i}-${campo}`]))
+    }
+  }
+
+  function editarDiaActual() {
+    setShowPopDia(false)
+    if (celdaIntentada) {
+      setCeldasEditando(prev => new Set([...prev, `${celdaIntentada.i}-${celdaIntentada.campo}`]))
+      setCeldaIntentada(null)
     }
   }
 
@@ -242,35 +177,34 @@ export default function SaldosPage() {
   function setFila(i: number, campo: keyof Fila, valor: string) {
     setFilas(prev => prev.map((f, idx) => idx === i ? { ...f, [campo]: valor } : f))
   }
-  function onBlurCelda(i: number, campo: 'concepto'|'ingreso'|'egreso') {
+
+  function onBlurCelda(i: number, campo: 'concepto' | 'ingreso' | 'egreso') {
     if (!puedeEditarSaldos) return
     autoguardar(i, filas[i])
     setCeldasEditando(prev => { const n = new Set(prev); n.delete(`${i}-${campo}`); return n })
   }
-  function onBlurFila(i: number) { if (puedeEditarSaldos) autoguardar(i, filas[i]) }
-  function esCeldaEditable(i: number, campo: 'concepto'|'ingreso'|'egreso') {
-    return !filasGuardadas.has(i) || celdasEditando.has(`${i}-${campo}`)
-  }
-  function esEditable(i: number) {
-    return !filasGuardadas.has(i) || celdasEditando.has(`${i}-concepto`) || celdasEditando.has(`${i}-ingreso`) || celdasEditando.has(`${i}-egreso`)
-  }
-  function agregarFila() { setFilas(prev => [...prev, filaVacia(true)]) }
 
-  function toggleExpandido(fechaKey: string) {
-    setExpandidos(prev => {
-      const n = new Set(prev)
-      n.has(fechaKey) ? n.delete(fechaKey) : n.add(fechaKey)
-      return n
+  function onBlurFila(i: number) {
+    if (puedeEditarSaldos) autoguardar(i, filas[i])
+  }
+
+  function guardarCategoria(i: number, fila: Fila, cat: string) {
+    setFila(i, 'categoria', cat)
+    const filaActualizada = { ...fila, categoria: cat }
+    if (!fecha || vista !== 'Día') return
+    fetch('/api/saldos', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: filaActualizada.esNueva ? undefined : filaActualizada.id,
+        tab, fecha, orden: i,
+        concepto: filaActualizada.concepto, ingreso: filaActualizada.ingreso || null,
+        egreso: filaActualizada.egreso || null, categoria: cat || null,
+        relacionTexto: filaActualizada.relacionTexto || null,
+      }),
+    }).then(r => r.json()).then(data => {
+      if (data.id) setFilas(prev => prev.map((f, idx) => idx === i ? { ...f, id: data.id, esNueva: false } : f))
     })
   }
-
-  const subIng = vista === 'Día'
-    ? filas.reduce((s, f) => s + parseNum(f.ingreso), 0)
-    : grupos.reduce((s, g) => s + g.filas.reduce((ss, f) => ss + parseNum(f.ingreso), 0), 0)
-  const subEgr = vista === 'Día'
-    ? filas.reduce((s, f) => s + parseNum(f.egreso), 0)
-    : grupos.reduce((s, g) => s + g.filas.reduce((ss, f) => ss + parseNum(f.egreso), 0), 0)
-  const total = saldoAnterior + subIng - subEgr
 
   return (
     <div className="space-y-3 max-w-5xl mx-auto">
@@ -280,20 +214,22 @@ export default function SaldosPage() {
         <h1 style={{ color: 'white', fontWeight: 700, fontSize: 18 }}>Saldos</h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {checkPermiso(session, 'verBitacora') && (
-            <select value={vista} onChange={e => cambiarVista(e.target.value as Vista)}
-              style={{ background: 'rgba(255,255,255,0.06)', color: 'white', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '6px 10px', fontSize: 13, fontWeight: 600, outline: 'none', cursor: 'pointer' }}>
-              <option value="Día" style={{background:'#0d1220',color:'white'}}>🔍 Día</option>
-              <option value="Semana" style={{background:'#0d1220',color:'white'}}>📅 Semana</option>
-              <option value="Mes" style={{background:'#0d1220',color:'white'}}>📆 Mes</option>
+            <select
+              value={vista}
+              onChange={e => cambiarVista(e.target.value as Vista)}
+              style={{ background: 'rgba(255,255,255,0.06)', color: 'white', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '6px 10px', fontSize: 13, fontWeight: 600, outline: 'none', cursor: 'pointer' }}
+            >
+              <option value="Día"    style={{ background: '#0d1220', color: 'white' }}>🔍 Día</option>
+              <option value="Semana" style={{ background: '#0d1220', color: 'white' }}>📅 Semana</option>
+              <option value="Mes"    style={{ background: '#0d1220', color: 'white' }}>📆 Mes</option>
             </select>
           )}
-          {puedeAdminSaldos && <button onClick={async () => {
-            setShowConfig(v => {
-              if (!v) fetch('/api/cuentas-bancarias').then(r => r.json()).then(d => setCuentasBancarias(Array.isArray(d) ? d : []))
-              return !v
-            })
-          }}
-            style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid ' + (showConfig ? 'rgba(59,130,246,0.5)' : '#1e2a3d'), background: showConfig ? 'rgba(59,130,246,0.15)' : 'rgba(13,18,32,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 17 }}>&#9881;</button>}
+          {puedeAdminSaldos && (
+            <button
+              onClick={() => setShowConfig(v => !v)}
+              style={{ width: 36, height: 36, borderRadius: 10, border: '1px solid ' + (showConfig ? 'rgba(59,130,246,0.5)' : '#1e2a3d'), background: showConfig ? 'rgba(59,130,246,0.15)' : 'rgba(13,18,32,0.9)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', fontSize: 17 }}
+            >&#9881;</button>
+          )}
         </div>
       </div>
 
@@ -303,19 +239,31 @@ export default function SaldosPage() {
           <div onClick={e => e.stopPropagation()} style={{ background: '#0d1220', border: '1px solid #1e2a3d', borderRadius: 16, padding: 24, width: '100%', maxWidth: 340 }}>
             <p style={{ color: '#f59e0b', fontWeight: 700, fontSize: 15, marginBottom: 8 }}>⚠️ Día diferente al actual</p>
             <p style={{ color: '#9ca3af', fontSize: 13, marginBottom: 20 }}>
-              Día <span style={{ color: 'white', fontWeight: 600 }}>{fmtFecha(fecha)}</span> — vas a editar: <span style={{ color: '#c4b5fd', fontWeight: 600 }}>
+              Día <span style={{ color: 'white', fontWeight: 600 }}>{fecha}</span> — vas a editar:{' '}
+              <span style={{ color: '#c4b5fd', fontWeight: 600 }}>
                 {celdaIntentada?.campo === 'concepto' ? 'Concepto' : celdaIntentada?.campo === 'ingreso' ? 'Ingreso' : 'Egreso'}
               </span>
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
               <button onClick={irAHoy} style={{ flex: 1, background: 'rgba(59,130,246,0.2)', color: '#93c5fd', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 10, padding: '10px 0', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>📅 Ir a Hoy</button>
-              <button onClick={editarDiaActual} style={{ flex: 1, background: 'rgba(139,92,246,0.2)', color: '#c4b5fd', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 10, padding: '10px 0', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>✏️ Editar {fmtFecha(fecha)}</button>
+              <button onClick={editarDiaActual} style={{ flex: 1, background: 'rgba(139,92,246,0.2)', color: '#c4b5fd', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 10, padding: '10px 0', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>✏️ Editar {fecha}</button>
             </div>
           </div>
         </div>
       )}
 
-
+      {/* Config popup */}
+      {showConfig && (
+        <ConfigPopup
+          tabs={tabs}
+          categorias={categorias}
+          tabActual={tab}
+          onClose={() => setShowConfig(false)}
+          onTabsChange={setTabs}
+          onCategoriasChange={setCategorias}
+          onTabActualChange={setTab}
+        />
+      )}
 
       {/* Tabs dinámicas */}
       <div className="tab-pills rounded-xl p-1" style={{ display: 'flex', gap: 4, overflowX: 'auto', scrollbarWidth: 'none' }}>
@@ -328,221 +276,17 @@ export default function SaldosPage() {
         ))}
       </div>
 
-      {/* Popup config — medios de pago + categorías */}
-      {showConfig && (
-        <div onClick={() => setShowConfig(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '60px 16px 16px' }}>
-          <div onClick={e => e.stopPropagation()} style={{ background: '#0d1220', border: '1px solid #1e2a3d', borderRadius: 16, padding: 20, width: '100%', maxWidth: 420, maxHeight: '80vh', overflowY: 'auto' }}>
+      {/* Navegador */}
+      <NavegadorFecha
+        vista={vista}
+        fecha={fecha}
+        buscando={buscando}
+        onNavegar={navegar}
+        onIrAHoy={irAHoy}
+        onFechaDirecta={f => { setFecha(f); cargarDia(f) }}
+      />
 
-            <p style={{ color: 'white', fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Medios de pago</p>
-            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-              <button onClick={() => { const idx = EMOJIS.indexOf(newTabEmoji); setNewTabEmoji(EMOJIS[(idx+1)%EMOJIS.length]) }}
-                style={{ fontSize: 20, background: '#141c2e', border: '1px solid #1e2a3d', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}>{newTabEmoji}</button>
-              <input value={newTabLabel} onChange={e => setNewTabLabel(e.target.value)} placeholder="Ej: Nequi, Daviplata..."
-                style={{ flex: 1, background: '#141c2e', color: 'white', border: '1px solid #1e2a3d', borderRadius: 8, padding: '6px 10px', fontSize: 13, outline: 'none' }} />
-              <button onClick={async () => {
-                const label = newTabLabel.trim()
-                if (!label) return
-                const key = label.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')
-                const res = await fetch('/api/saldos/config', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ tipo: 'tab', nombre: label, key, emoji: newTabEmoji }) }).then(r => r.json())
-                if (res.error) { alert(res.error); return }
-                const d = await fetch('/api/saldos/config').then(r => r.json())
-                setTabs(d.tabs || []); setNewTabLabel('')
-              }} style={{ background: 'rgba(52,211,153,0.2)', color: '#34d399', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 8, padding: '6px 14px', fontSize: 15, cursor: 'pointer', fontWeight: 700 }}>+</button>
-            </div>
-            {tabs.map(t => (
-              <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: '1px solid #1e2a3d' }}>
-                <button onClick={async () => {
-                  const idx = EMOJIS.indexOf(t.emoji); const emoji = EMOJIS[(idx+1)%EMOJIS.length]
-                  await fetch('/api/saldos/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: t.id, emoji }) })
-                  const d = await fetch('/api/saldos/config').then(r => r.json()); setTabs(d.tabs || [])
-                }} style={{ fontSize: 18, background: 'none', border: 'none', cursor: 'pointer' }}>{t.emoji}</button>
-                {editandoTab?.id === t.id ? (
-                  <input autoFocus defaultValue={t.nombre} onBlur={async e => {
-                    const nombre = e.target.value.trim() || t.nombre
-                    await fetch('/api/saldos/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: t.id, nombre }) })
-                    const d = await fetch('/api/saldos/config').then(r => r.json()); setTabs(d.tabs || []); setEditandoTab(null)
-                  }} onKeyDown={e => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
-                    style={{ flex: 1, background: '#141c2e', color: 'white', border: '1px solid #3b82f6', borderRadius: 6, padding: '4px 8px', fontSize: 13, outline: 'none' }} />
-                ) : (
-                  <span onClick={() => setEditandoTab(t)} style={{ flex: 1, color: 'white', fontSize: 13, cursor: 'text' }}>{t.nombre}</span>
-                )}
-                <button onClick={async () => {
-                  if (tabs.length <= 1) { alert('Debe haber al menos 1 medio de pago'); return }
-                  const res = await fetch('/api/saldos/config', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: t.id }) }).then(r => r.json())
-                  if (res.error) { alert(res.error); return }
-                  const d = await fetch('/api/saldos/config').then(r => r.json())
-                  const newTabs = d.tabs || []; setTabs(newTabs)
-                  if (tab === t.key && newTabs.length) setTab(newTabs[0].key)
-                }} style={{ color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>✕</button>
-              </div>
-            ))}
-
-            <div style={{ borderTop: '1px solid #1e2a3d', marginTop: 16, paddingTop: 16 }}>
-              <p style={{ color: 'white', fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Categorías</p>
-              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                <select value={nuevaCat.tipo} onChange={e => setNuevaCat(p => ({ ...p, tipo: e.target.value }))} style={{ background: '#141c2e', color: 'white', border: '1px solid #1e2a3d', borderRadius: 8, padding: '6px 8px', fontSize: 13, outline: 'none' }}>
-                  <option value="ingreso">Ingreso</option><option value="egreso">Egreso</option>
-                </select>
-                <input value={nuevaCat.nombre} onChange={e => setNuevaCat(p => ({ ...p, nombre: e.target.value.toUpperCase() }))} placeholder="Nombre" style={{ flex: 1, background: '#141c2e', color: 'white', border: '1px solid #1e2a3d', borderRadius: 8, padding: '6px 10px', fontSize: 13, outline: 'none' }} />
-                <button onClick={async () => {
-                  if (!nuevaCat.nombre.trim()) return
-                  await fetch('/api/saldos/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nuevaCat) })
-                  const d = await fetch('/api/saldos/config').then(r => r.json())
-                  setCategorias(d.categorias || []); setNuevaCat(p => ({ ...p, nombre: '' }))
-                }} style={{ background: 'rgba(59,130,246,0.2)', color: '#93c5fd', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, padding: '6px 14px', fontSize: 15, cursor: 'pointer', fontWeight: 700 }}>+</button>
-              </div>
-              {(['ingreso', 'egreso'] as const).map(tipo => (
-                <div key={tipo} style={{ marginBottom: 10 }}>
-                  <p style={{ color: tipo === 'ingreso' ? '#34d399' : '#f87171', fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{tipo === 'ingreso' ? 'INGRESOS' : 'EGRESOS'}</p>
-                  {categorias.filter(c => c.tipo === tipo).map(cat => (
-                    <div key={cat.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: '1px solid #1e2a3d' }}>
-                      <span style={{ color: 'white', fontSize: 13 }}>{cat.nombre}</span>
-                      <button onClick={async () => {
-                        await fetch('/api/saldos/config', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: cat.id }) })
-                        setCategorias(prev => prev.filter(c => c.id !== cat.id))
-                      }} style={{ color: '#f87171', background: 'none', border: 'none', cursor: 'pointer', fontSize: 16 }}>✕</button>
-                    </div>
-                  ))}
-                  {!categorias.filter(c => c.tipo === tipo).length && <p style={{ color: '#374151', fontSize: 12, fontStyle: 'italic' }}>Sin categorías</p>}
-                </div>
-              ))}
-            </div>
-
-            {/* ── Cuentas Bancarias ── */}
-            <div style={{ borderTop: '1px solid #1e2a3d', marginTop: 16, paddingTop: 16 }}>
-              <p style={{ color: 'white', fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Cuentas Bancarias</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
-                <input value={nuevaCuenta.label} onChange={e => setNuevaCuenta(p => ({ ...p, label: e.target.value }))}
-                  placeholder="Nombre personalizado (Ej: Cuenta Principal)"
-                  style={{ background: '#141c2e', color: 'white', border: '1px solid #1e2a3d', borderRadius: 8, padding: '6px 10px', fontSize: 13, outline: 'none' }} />
-                <input value={nuevaCuenta.titular} onChange={e => setNuevaCuenta(p => ({ ...p, titular: e.target.value }))}
-                  placeholder="Titular de la cuenta (Ej: HECTOR DURAN G)"
-                  style={{ background: '#141c2e', color: 'white', border: '1px solid #1e2a3d', borderRadius: 8, padding: '6px 10px', fontSize: 13, outline: 'none' }} />
-                <input value={nuevaCuenta.banco} onChange={e => setNuevaCuenta(p => ({ ...p, banco: e.target.value }))}
-                  placeholder="Banco (Ej: Bancolombia, Nequi...)"
-                  style={{ background: '#141c2e', color: 'white', border: '1px solid #1e2a3d', borderRadius: 8, padding: '6px 10px', fontSize: 13, outline: 'none' }} />
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <input value={nuevaCuenta.numeroCuenta} onChange={e => setNuevaCuenta(p => ({ ...p, numeroCuenta: e.target.value }))}
-                    placeholder="Número de cuenta o celular"
-                    style={{ flex: 1, background: '#141c2e', color: 'white', border: '1px solid #1e2a3d', borderRadius: 8, padding: '6px 10px', fontSize: 13, outline: 'none' }} />
-                  <button onClick={async () => {
-                    if (!nuevaCuenta.label.trim() || !nuevaCuenta.banco.trim() || !nuevaCuenta.numeroCuenta.trim()) return
-                    const res = await fetch('/api/cuentas-bancarias', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(nuevaCuenta) }).then(r => r.json())
-                    if (!res.error) { setCuentasBancarias(prev => [...prev, res]); setNuevaCuenta({ label: '', titular: '', banco: '', numeroCuenta: '' }) }
-                  }} style={{ background: 'rgba(59,130,246,0.2)', color: '#93c5fd', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 8, padding: '6px 14px', fontSize: 15, cursor: 'pointer', fontWeight: 700 }}>+</button>
-                </div>
-              </div>
-              {cuentasBancarias.map(c => (
-                <div key={c.id}>
-                  {editandoCuenta?.id === c.id ? (
-                    // Modo edición
-                    <div style={{ padding: '10px 0', borderBottom: '1px solid #1e2a3d' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
-                        <input value={editForm.label} onChange={e => setEditForm(p => ({ ...p, label: e.target.value }))}
-                          placeholder="Nombre personalizado"
-                          style={{ background: '#141c2e', color: 'white', border: '1px solid rgba(59,130,246,0.4)', borderRadius: 8, padding: '8px 10px', fontSize: 14, outline: 'none' }} />
-                        <input value={editForm.titular} onChange={e => setEditForm(p => ({ ...p, titular: e.target.value }))}
-                          placeholder="Titular"
-                          style={{ background: '#141c2e', color: 'white', border: '1px solid rgba(59,130,246,0.4)', borderRadius: 8, padding: '8px 10px', fontSize: 14, outline: 'none' }} />
-                        <input value={editForm.banco} onChange={e => setEditForm(p => ({ ...p, banco: e.target.value }))}
-                          placeholder="Banco"
-                          style={{ background: '#141c2e', color: 'white', border: '1px solid rgba(59,130,246,0.4)', borderRadius: 8, padding: '8px 10px', fontSize: 14, outline: 'none' }} />
-                        <input value={editForm.numeroCuenta} onChange={e => setEditForm(p => ({ ...p, numeroCuenta: e.target.value }))}
-                          placeholder="Número de cuenta"
-                          style={{ background: '#141c2e', color: 'white', border: '1px solid rgba(59,130,246,0.4)', borderRadius: 8, padding: '8px 10px', fontSize: 14, outline: 'none' }} />
-                      </div>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={async () => {
-                          if (!editForm.label.trim() || !editForm.banco.trim() || !editForm.numeroCuenta.trim()) return
-                          const res = await fetch('/api/cuentas-bancarias', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: c.id, ...editForm }) }).then(r => r.json())
-                          if (!res.error) { setCuentasBancarias(prev => prev.map(x => x.id === c.id ? { ...x, ...editForm } : x)); setEditandoCuenta(null) }
-                        }} style={{ flex: 1, background: 'rgba(16,185,129,0.2)', color: '#34d399', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 8, padding: '8px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-                          Guardar
-                        </button>
-                        <button onClick={() => setEditandoCuenta(null)}
-                          style={{ flex: 1, background: 'rgba(100,116,139,0.2)', color: '#94a3b8', border: '1px solid #1e2a3d', borderRadius: 8, padding: '8px', fontSize: 14, cursor: 'pointer' }}>
-                          Cancelar
-                        </button>
-                      </div>
-                      {/* Confirmar eliminación */}
-                      {confirmDeleteId === c.id ? (
-                        <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
-                          <button onClick={async () => {
-                            await fetch('/api/cuentas-bancarias', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: c.id }) })
-                            setCuentasBancarias(prev => prev.filter(x => x.id !== c.id))
-                            setEditandoCuenta(null); setConfirmDeleteId(null)
-                          }} style={{ flex: 1, background: 'rgba(239,68,68,0.2)', color: '#f87171', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, padding: '8px', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
-                            Sí, eliminar
-                          </button>
-                          <button onClick={() => setConfirmDeleteId(null)}
-                            style={{ flex: 1, background: 'none', color: '#94a3b8', border: '1px solid #1e2a3d', borderRadius: 8, padding: '8px', fontSize: 14, cursor: 'pointer' }}>
-                            No
-                          </button>
-                        </div>
-                      ) : (
-                        <button onClick={() => setConfirmDeleteId(c.id)}
-                          style={{ marginTop: 8, width: '100%', background: 'none', color: '#f87171', border: 'none', cursor: 'pointer', fontSize: 13, textAlign: 'left', padding: '4px 0' }}>
-                          🗑 Eliminar cuenta
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    // Modo vista
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: '1px solid #1e2a3d' }}>
-                      <div>
-                        <p style={{ color: 'white', fontSize: 14, margin: 0, fontWeight: 500 }}>{c.label}</p>
-                        <p style={{ color: '#64748b', fontSize: 12, margin: 0 }}>{c.titular ? `${c.titular} · ` : ''}{c.banco} · {c.numeroCuenta}</p>
-                      </div>
-                      <button onClick={() => { setEditandoCuenta(c); setEditForm({ label: c.label, titular: c.titular || '', banco: c.banco, numeroCuenta: c.numeroCuenta }); setConfirmDeleteId(null) }}
-                        style={{ color: '#93c5fd', background: 'none', border: 'none', cursor: 'pointer', fontSize: 18 }}>✏️</button>
-                    </div>
-                  )}
-                </div>
-              ))}
-              {!cuentasBancarias.length && <p style={{ color: '#374151', fontSize: 13, fontStyle: 'italic' }}>Sin cuentas registradas</p>}
-            </div>
-          </div>
-        </div>
-      )}
-
-
-
-      {/* Navegador fecha */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <button onClick={() => navegar(moverFecha(fecha, vista, -1), vista)}
-          style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #1e2a3d', background: 'rgba(13,18,32,0.9)', color: '#9ca3af', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>‹</button>
-
-        <div style={{ flex: 1, position: 'relative' }}>
-          {vista === 'Día' ? (
-            <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(13,18,32,0.9)', border: '1px solid ' + (esDiaActual ? '#1e2a3d' : 'rgba(245,158,11,0.4)'), borderRadius: 10, padding: '7px 12px', overflow: 'hidden' }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: esDiaActual ? 'white' : '#f59e0b', pointerEvents: 'none', userSelect: 'none' }}>
-                {buscando ? '…' : labelNavegador(vista, fecha)}
-              </span>
-              <input type="date" value={fecha}
-                onChange={e => { setFecha(e.target.value); cargarDia(e.target.value) }}
-                onClick={e => { try { (e.currentTarget as HTMLInputElement).showPicker?.() } catch {} }}
-                style={{ position: 'absolute', inset: 0, opacity: 0, width: '100%', height: '100%', cursor: 'pointer', border: 'none', background: 'transparent' }} />
-            </div>
-          ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(13,18,32,0.9)', border: '1px solid #1e2a3d', borderRadius: 10, padding: '7px 12px' }}>
-              <span style={{ fontSize: 14, fontWeight: 600, color: 'white' }}>
-                {buscando ? '…' : labelNavegador(vista, fecha)}
-              </span>
-            </div>
-          )}
-        </div>
-
-        <button onClick={() => navegar(moverFecha(fecha, vista, 1), vista)}
-          style={{ width: 34, height: 34, borderRadius: 8, border: '1px solid #1e2a3d', background: 'rgba(13,18,32,0.9)', color: '#9ca3af', cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>›</button>
-
-        <button onClick={irAHoy}
-          style={{ padding: '7px 16px', borderRadius: 10, border: '1px solid rgba(59,130,246,0.35)', background: 'rgba(30,42,61,0.90)', cursor: 'pointer', color: '#93c5fd', fontSize: 13, fontWeight: 700 }}>
-          Hoy
-        </button>
-      </div>
-
-      {/* ── Tabla ── */}
+      {/* Tabla */}
       <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #1e2a3d' }}>
         <div className="overflow-x-auto">
           <table className="w-full text-sm" style={{ tableLayout: 'auto', minWidth: 320 }}>
@@ -556,7 +300,6 @@ export default function SaldosPage() {
               </tr>
             </thead>
             <tbody>
-
               {/* Saldo anterior */}
               <tr style={{ background: '#0f1623', borderBottom: '1px solid #1e2a3d' }}>
                 {vista !== 'Día' && <td style={{ ...tdStyle }}></td>}
@@ -566,88 +309,30 @@ export default function SaldosPage() {
                 <td className="hidden md:table-cell" style={{ ...tdStyle }}></td>
               </tr>
 
-              {/* ── Vista DÍA ── */}
-              {vista === 'Día' && (
-                <>
-                  {filas.map((fila, i) => (
-                    <tr key={i} style={{ background: '#141c2e', cursor: 'pointer' }}
-                      onClick={() => setFilaSheet(i)}
-                      onDoubleClick={e => { e.stopPropagation() }}>
-
-                      <td style={{ ...tdStyle, whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()} onDoubleClick={() => intentarEditar(i, 'concepto')}>
-                        {esCeldaEditable(i, 'concepto')
-                          ? <input value={fila.concepto} onChange={e => puedeEditarSaldos && setFila(i, 'concepto', e.target.value.toUpperCase())} onBlur={() => onBlurCelda(i, 'concepto')} readOnly={!puedeEditarSaldos} autoFocus={celdasEditando.has(`${i}-concepto`)} style={{ background: 'transparent', color: '#d1d5db', outline: 'none', width: '100%', fontSize: 13, cursor: puedeEditarSaldos ? 'text' : 'default' }} />
-                          : <span style={{ color: '#d1d5db', fontSize: 13 }}>{fila.concepto || '—'}</span>}
-                      </td>
-                      <td style={{ ...tdStyle, textAlign: 'right', whiteSpace: 'nowrap', borderLeft: '2px solid rgba(255,255,255,0.07)' }} onClick={e => e.stopPropagation()} onDoubleClick={() => intentarEditar(i, 'ingreso')}>
-                        {esCeldaEditable(i, 'ingreso')
-                          ? <input type="text" inputMode="numeric" value={formatCOP(fila.ingreso)} onChange={e => { if (!puedeEditarSaldos) return; const v = parseCOP(e.target.value); setFilas(p => p.map((f, idx) => idx === i ? { ...f, ingreso: v, egreso: '' } : f)) }} onBlur={() => onBlurCelda(i, 'ingreso')} readOnly={!puedeEditarSaldos} autoFocus={celdasEditando.has(`${i}-ingreso`)} style={{ background: fila.ingreso ? 'rgba(16,42,30,0.6)' : 'transparent', color: '#34d399', outline: 'none', width: '100%', fontSize: 13, textAlign: 'right', borderRadius: 6, padding: '2px 6px', cursor: puedeEditarSaldos ? 'text' : 'default' }} />
-                          : fila.ingreso ? <span style={{ color: '#34d399', fontSize: 13 }}>{formatCOP(fila.ingreso)}</span> : null}
-                      </td>
-                      <td style={{ ...tdStyle, textAlign: 'right', whiteSpace: 'nowrap', borderLeft: '2px solid rgba(255,255,255,0.07)' }} onClick={e => e.stopPropagation()} onDoubleClick={() => intentarEditar(i, 'egreso')}>
-                        {esCeldaEditable(i, 'egreso')
-                          ? <input type="text" inputMode="numeric" value={formatCOP(fila.egreso)} onChange={e => { if (!puedeEditarSaldos) return; const v = parseCOP(e.target.value); setFilas(p => p.map((f, idx) => idx === i ? { ...f, egreso: v, ingreso: '' } : f)) }} onBlur={() => onBlurCelda(i, 'egreso')} readOnly={!puedeEditarSaldos} autoFocus={celdasEditando.has(`${i}-egreso`)} style={{ background: fila.egreso ? 'rgba(42,16,16,0.6)' : 'transparent', color: '#f87171', outline: 'none', width: '100%', fontSize: 13, textAlign: 'right', borderRadius: 6, padding: '2px 6px', cursor: puedeEditarSaldos ? 'text' : 'default' }} />
-                          : fila.egreso ? <span style={{ color: '#f87171', fontSize: 13 }}>{formatCOP(fila.egreso)}</span> : null}
-                      </td>
-                      <td className="hidden md:table-cell" style={{ ...tdStyle, whiteSpace: 'nowrap' }} onClick={e => e.stopPropagation()}>
-                        {(esEditable(i) || fila.ingreso || fila.egreso) && puedeEditarSaldos
-                          ? <select value={fila.categoria} onChange={e => {
-                                const cat = e.target.value
-                                setFila(i, 'categoria', cat)
-                                // Guardar con valor nuevo directamente — setFila es async
-                                const filaActualizada = { ...fila, categoria: cat }
-                                if (!fecha || vista !== 'Día') return
-                                fetch('/api/saldos', {
-                                  method: 'PUT', headers: { 'Content-Type': 'application/json' },
-                                  body: JSON.stringify({ id: filaActualizada.esNueva ? undefined : filaActualizada.id, tab, fecha, orden: i, concepto: filaActualizada.concepto, ingreso: filaActualizada.ingreso || null, egreso: filaActualizada.egreso || null, categoria: cat || null, relacionTexto: filaActualizada.relacionTexto || null }),
-                                }).then(r => r.json()).then(data => {
-                                  if (data.id) setFilas(prev => prev.map((f, idx) => idx === i ? { ...f, id: data.id, esNueva: false } : f))
-                                })
-                              }} style={{ background: '#141c2e', color: fila.categoria ? 'white' : '#374151', border: 'none', outline: 'none', width: '100%', fontSize: 12, borderRadius: 6, padding: '2px 4px', cursor: 'pointer' }}>
-                              <option value="">—</option>
-                              {categorias.filter(c => c.tipo === (fila.ingreso ? 'ingreso' : fila.egreso ? 'egreso' : 'ingreso')).map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
-                            </select>
-                          : <span style={{ color: '#9ca3af', fontSize: 12 }}>{fila.categoria || '—'}</span>}
-                      </td>
-                    </tr>
-                  ))}
-
-                  {/* Agregar fila */}
-                  <tr style={{ background: '#141c2e', borderBottom: '1px solid #1e2a3d' }}>
-                    <td colSpan={4} style={{ padding: '6px 10px' }}>
-                      {puedeEditarSaldos && <button onClick={agregarFila} style={{ fontSize: 12, color: '#374151', cursor: 'pointer', background: 'none', border: 'none' }}>+ Agregar fila</button>}
-                    </td>
-                  </tr>
-                </>
-              )}
-
-              {/* ── Vista SEMANA / MES — filas planas con columna fecha ── */}
-              {vista !== 'Día' && (
-                <>
-                  {grupos.length === 0 && !buscando && (
-                    <tr style={{ background: '#141c2e' }}>
-                      <td colSpan={5} style={{ ...tdStyle, textAlign: 'center', color: '#374151', fontStyle: 'italic', padding: 24 }}>Sin movimientos en este período</td>
-                    </tr>
-                  )}
-                  {grupos.flatMap(g =>
-                    g.filas.filter(f => f.concepto || f.ingreso || f.egreso).map((fila, fi) => {
-                      const esPrimera = fi === 0
-                      return (
-                        <tr key={g.fecha + '_' + fi}
-                          style={{ background: esPrimera ? '#0f1a2e' : '#141c2e', borderBottom: '1px solid #1e2a3d', cursor: 'pointer' }}
-                          onClick={() => { setFecha(g.fecha); setVista('Día'); cargarDia(g.fecha) }}>
-                          <td style={{ ...tdStyle, width: 48, fontSize: 12, fontWeight: esPrimera ? 700 : 400, color: esPrimera ? '#60a5fa' : '#374151', whiteSpace: 'nowrap' }}>
-                            {esPrimera ? fmtFechaCorta(g.fecha) : ''}
-                          </td>
-                          <td style={{ ...tdStyle, fontSize: 13, color: '#d1d5db', whiteSpace: 'nowrap' }}>{fila.concepto || '—'}</td>
-                          <td style={{ ...tdStyle, textAlign: 'right', fontSize: 13, whiteSpace: 'nowrap', borderLeft: '2px solid rgba(255,255,255,0.07)' }}>{fila.ingreso ? <span style={{color:'#34d399'}}>{formatCOP(fila.ingreso)}</span> : null}</td>
-                          <td style={{ ...tdStyle, textAlign: 'right', fontSize: 13, whiteSpace: 'nowrap', borderLeft: '2px solid rgba(255,255,255,0.07)' }}>{fila.egreso ? <span style={{color:'#f87171'}}>{formatCOP(fila.egreso)}</span> : null}</td>
-                          <td className="hidden md:table-cell" style={{ ...tdStyle, color: '#9ca3af', fontSize: 12, whiteSpace: 'nowrap' }}>{fila.categoria || '—'}</td>
-                        </tr>
-                      )
-                    })
-                  )}
-                </>
+              {vista === 'Día' ? (
+                <TablaVistaDia
+                  filas={filas}
+                  categorias={categorias}
+                  filasGuardadas={filasGuardadas}
+                  celdasEditando={celdasEditando}
+                  puedeEditarSaldos={puedeEditarSaldos}
+                  tab={tab}
+                  fecha={fecha}
+                  onSetFila={setFila}
+                  onSetFilas={setFilas}
+                  onBlurCelda={onBlurCelda}
+                  onBlurFila={onBlurFila}
+                  onIntentarEditar={intentarEditar}
+                  onFilaSheetOpen={setFilaSheet}
+                  onAgregarFila={() => setFilas(prev => [...prev, filaVacia(true)])}
+                  onGuardarCategoria={guardarCategoria}
+                />
+              ) : (
+                <TablaVistaRango
+                  grupos={grupos}
+                  buscando={buscando}
+                  onClickFila={f => { setFecha(f); setVista('Día'); cargarDia(f) }}
+                />
               )}
 
               {/* Subtotal */}
@@ -668,35 +353,22 @@ export default function SaldosPage() {
                 </td>
                 <td className="hidden md:table-cell"></td>
               </tr>
-
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Sheet móvil (solo vista Día) */}
+      {/* Sheet móvil */}
       {filaSheet !== null && vista === 'Día' && (
-        <div onClick={() => setFilaSheet(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000 }} className="md:hidden">
-          <div onClick={e => e.stopPropagation()} style={{ position: 'absolute', bottom: 0, left: 0, right: 0, background: '#0d1220', borderTop: '1px solid #1e2a3d', borderRadius: '16px 16px 0 0', padding: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <span style={{ color: 'white', fontWeight: 700, fontSize: 15 }}>{filas[filaSheet]?.concepto || `Fila ${filaSheet + 1}`}</span>
-              <button onClick={() => setFilaSheet(null)} style={{ color: '#6b7280', background: 'none', border: 'none', fontSize: 20, cursor: 'pointer' }}>✕</button>
-            </div>
-            <div style={{ marginBottom: 14 }}>
-              <p style={{ color: '#9ca3af', fontSize: 12, marginBottom: 6 }}>Categoría</p>
-              <select value={filas[filaSheet]?.categoria || ''} onChange={e => { setFila(filaSheet!, 'categoria', e.target.value); onBlurFila(filaSheet!) }}
-                style={{ background: '#141c2e', color: 'white', border: '1px solid #1e2a3d', borderRadius: 10, padding: '10px 12px', fontSize: 14, width: '100%', outline: 'none' }}>
-                <option value="">— Sin categoría</option>
-                {categorias.filter(c => c.tipo === (filas[filaSheet!]?.ingreso ? 'ingreso' : filas[filaSheet!]?.egreso ? 'egreso' : 'ingreso')).map(c => <option key={c.id} value={c.nombre}>{c.nombre}</option>)}
-              </select>
-            </div>
-            <div>
-              <p style={{ color: '#9ca3af', fontSize: 12, marginBottom: 6 }}>Relación / Referencia</p>
-              <input value={filas[filaSheet]?.relacionTexto || ''} onChange={e => setFila(filaSheet!, 'relacionTexto', e.target.value.toUpperCase())} onBlur={() => onBlurFila(filaSheet!)}
-                placeholder="Ej: Factura #3786" style={{ background: '#141c2e', color: 'white', border: '1px solid #1e2a3d', borderRadius: 10, padding: '10px 12px', fontSize: 14, width: '100%', outline: 'none' }} />
-            </div>
-          </div>
-        </div>
+        <FilaSheetMobil
+          filaIdx={filaSheet}
+          fila={filas[filaSheet]}
+          categorias={categorias}
+          onClose={() => setFilaSheet(null)}
+          onCategoriaChange={(i, val) => setFila(i, 'categoria', val)}
+          onRelacionChange={(i, val) => setFila(i, 'relacionTexto', val)}
+          onBlurFila={onBlurFila}
+        />
       )}
 
     </div>
