@@ -215,6 +215,24 @@ async function deltaEmpresa(
   const recInv = await recuperadorInverso(ctx)
   result.erroresParciales.push(...recInv.erroresParciales)
 
+  // Reconstruir CarteraCache para clientes cuyas deudas creó el recuperador inverso
+  if (recInv.clienteApiIdsCreados.length > 0) {
+    try {
+      const intgDestino = await (prisma as any).integracion.findFirst({
+        where: { empresaId: destino, tipo: 'uptres', activa: true },
+        select: { id: true },
+      })
+      await reconstruirCartera(
+        intgDestino?.id || integracionId,
+        destino,
+        [...new Set(recInv.clienteApiIdsCreados)],
+      )
+      console.log(`[delta] recuperador-inverso: reconstruido CarteraCache para ${recInv.clienteApiIdsCreados.length} clientes`)
+    } catch (e: any) {
+      result.erroresParciales.push('recuperador-inverso-cache: ' + (e as any).message)
+    }
+  }
+
   // ── SyncLog ──────────────────────────────────────────────────────────────────
   const duracionMs = Date.now() - inicioTs
   try {
@@ -288,23 +306,22 @@ export async function syncProductosEmpresa(
     )
     const prevMap = new Map(prevRows.map(r => [r.id, r]))
     const batchResults = await Promise.all(batch.map(p =>
-      (prisma as any).$queryRawUnsafe(`
-        INSERT INTO ${DB_SCHEMA}."Producto" (
-          id, "empresaId", "integracionId", condition, nombre, barcode,
-          inventory, precio, marca, linea, punto, invima,
-          prices, "purchasePrice", taxable, tax, tipo, unidad, descripcion,
-          "externalUpdatedAt", "updatedAt", "createdAt"
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$21)
-        ON CONFLICT (id) DO UPDATE SET
-          condition="EXCLUDED".condition, nombre="EXCLUDED".nombre, barcode="EXCLUDED".barcode,
-          inventory="EXCLUDED".inventory, precio="EXCLUDED".precio, marca="EXCLUDED".marca,
-          linea="EXCLUDED".linea, punto="EXCLUDED".punto, invima="EXCLUDED".invima,
-          prices="EXCLUDED".prices, "purchasePrice"="EXCLUDED"."purchasePrice",
-          taxable="EXCLUDED".taxable, tax="EXCLUDED".tax, tipo="EXCLUDED".tipo,
-          unidad="EXCLUDED".unidad, descripcion="EXCLUDED".descripcion,
-          "externalUpdatedAt"="EXCLUDED"."externalUpdatedAt", "updatedAt"="EXCLUDED"."updatedAt"
-        RETURNING id, nombre, "stockMinimo", inventory AS nuevo_inv
-      `,
+      (prisma as any).$queryRawUnsafe(
+        'INSERT INTO ' + DB_SCHEMA + '."Producto" ' +
+        '(id, "empresaId", "integracionId", condition, nombre, barcode, ' +
+        'inventory, precio, marca, linea, punto, invima, ' +
+        'prices, "purchasePrice", taxable, tax, tipo, unidad, descripcion, ' +
+        '"externalUpdatedAt", "updatedAt", "createdAt") ' +
+        'VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$21) ' +
+        'ON CONFLICT (id) DO UPDATE SET ' +
+        'condition=EXCLUDED.condition, nombre=EXCLUDED.nombre, barcode=EXCLUDED.barcode, ' +
+        'inventory=EXCLUDED.inventory, precio=EXCLUDED.precio, marca=EXCLUDED.marca, ' +
+        'linea=EXCLUDED.linea, punto=EXCLUDED.punto, invima=EXCLUDED.invima, ' +
+        'prices=EXCLUDED.prices, "purchasePrice"=EXCLUDED."purchasePrice", ' +
+        'taxable=EXCLUDED.taxable, tax=EXCLUDED.tax, tipo=EXCLUDED.tipo, ' +
+        'unidad=EXCLUDED.unidad, descripcion=EXCLUDED.descripcion, ' +
+        '"externalUpdatedAt"=EXCLUDED."externalUpdatedAt", "updatedAt"=EXCLUDED."updatedAt" ' +
+        'RETURNING id, nombre, "stockMinimo", inventory AS nuevo_inv',
         p.id, empresaId, integracionId, p.condition, p.name, p.barcode ?? null,
         p.inventory, p.price ?? null, p.brand ?? null, p.line ?? null, p.point ?? null, p.invima ?? null,
         p.prices ? JSON.stringify(p.prices) : null, p.purchasePrice ?? null,

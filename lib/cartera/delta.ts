@@ -256,9 +256,10 @@ export async function recuperadorSyncDeuda(
 
 export async function recuperadorInverso(
   ctx: DeltaCtx,
-): Promise<{ erroresParciales: string[] }> {
+): Promise<{ erroresParciales: string[]; clienteApiIdsCreados: string[] }> {
   const { adapter, destino, integracionId, schema } = ctx
   const erroresParciales: string[] = []
+  const clienteApiIdsCreados: string[] = []
 
   try {
     const hace30diasInv = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
@@ -308,6 +309,8 @@ export async function recuperadorInverso(
               update: { sincronizadoEl: new Date() },
             })
             console.log(`[delta/cartera] recuperador-inverso: creada SyncDeuda F_${od.numeroFactura} orden ${od.numeroOrden}`)
+            // Registrar clienteApiId para reconstruir CarteraCache
+            clienteApiIdsCreados.push(m.cliente?.uid || od.clienteApiId)
             // Corregir paymentType en OrdenDespacho si llegó null por race condition con UpTres
             if (!od.paymentType) {
               try {
@@ -328,5 +331,5 @@ export async function recuperadorInverso(
     erroresParciales.push('recuperadorInverso: ' + e.message)
   }
 
-  return { erroresParciales }
+  return { erroresParciales, clienteApiIdsCreados }
 }
