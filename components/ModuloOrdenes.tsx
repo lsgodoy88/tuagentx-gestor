@@ -153,12 +153,12 @@ export default function ModuloOrdenes() {
   }, [popupFechaOpen])
 
   useEffect(() => {
-    if (!camaraActiva) return
+    if (!camaraActiva && !anotacionSrc) return
     const bloquear = (e: PopStateEvent) => { e.preventDefault(); window.history.pushState(null, '', window.location.href) }
     window.history.pushState(null, '', window.location.href)
     window.addEventListener('popstate', bloquear)
     return () => window.removeEventListener('popstate', bloquear)
-  }, [camaraActiva])
+  }, [camaraActiva, anotacionSrc])
 
   useEffect(() => {
     if (status === 'unauthenticated') { router.push('/login'); return }
@@ -693,7 +693,7 @@ export default function ModuloOrdenes() {
       </div>
 
       {/* Cámara */}
-      {camaraActiva && (
+      {(camaraActiva || !!anotacionSrc) && (
         <ModalCamara
           fotosCapturadas={fotosCapturadas}
           countdownSec={countdownSec}

@@ -61,7 +61,7 @@ export default function ModalCamara({
   return (
     <>
       {/* Cámara fullscreen */}
-      <div className="fixed inset-0 overflow-hidden touch-none" style={{ zIndex: 9999, background: '#000' }}>
+      <div className="fixed inset-0 overflow-hidden touch-none" style={{ zIndex: 9999, background: '#000', display: anotacionSrc ? 'none' : undefined }}>
         {countdownSec !== null ? (
           <div className="absolute inset-0 bg-black">
             {fotosCapturadas.length === 1 ? (
