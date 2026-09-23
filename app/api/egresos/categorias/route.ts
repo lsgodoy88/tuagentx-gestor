@@ -68,3 +68,17 @@ export async function DELETE(req: NextRequest) {
   await (prisma as any).egresoCategoria.delete({ where: { id } })
   return NextResponse.json({ ok: true })
 }
+
+export async function PUT(req: NextRequest) {
+  const session = await getServerSession(authOptions)
+  if (!session?.user) return NextResponse.json({ error: 'No autenticado' }, { status: 401 })
+  const user = session.user as any
+  const empresaId = getEmpresaId(user)
+  const { orden } = await req.json() // array de ids en nuevo orden
+  if (!Array.isArray(orden)) return NextResponse.json({ error: 'orden requerido' }, { status: 400 })
+
+  await Promise.all(orden.map((id: string, i: number) =>
+    (prisma as any).egresoCategoria.updateMany({ where: { id, empresaId }, data: { orden: i } })
+  ))
+  return NextResponse.json({ ok: true })
+}

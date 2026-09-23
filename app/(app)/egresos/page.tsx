@@ -585,6 +585,14 @@ export default function EgresosPage() {
   const [totalGeneral, setTotalGeneral] = useState<{total:number,pagado:number,pendiente:number}|null>(null)
   const [categorias, setCategorias] = useState<{id:string,key:string,label:string,emoji:string}[]>([])
   const [showCategorias, setShowCategorias] = useState(false)
+  useEffect(() => {
+    if (showCategorias) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => { document.body.style.overflow = '' }
+  }, [showCategorias])
   const [nuevaCat, setNuevaCat] = useState({ label: '', emoji: '📋' })
 
   useEffect(() => {
@@ -649,59 +657,80 @@ export default function EgresosPage() {
             } : undefined} />)}
             {/* Selectores mes/año */}
             <div className="flex items-center gap-2 justify-end">
+              {puedeAdminEgresos && <button onClick={() => setShowCategorias(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-white text-sm font-semibold transition-colors"
+                style={{background:'#0f1623',border:'1px solid rgba(255,255,255,0.12)'}}>
+                ⚙️ <span>Categorías</span>
+              </button>}
               <select value={mes} onChange={e => setMes(Number(e.target.value))}
-                className="bg-zinc-800 border border-zinc-700 text-white text-sm rounded-xl px-3 py-1.5 cursor-pointer">
+                className="text-white text-sm rounded-xl px-3 py-1.5 cursor-pointer"
+                style={{background:'#0f1623',border:'1px solid rgba(255,255,255,0.12)'}}>
                 {MESES.map((ml, i) => <option key={i} value={i+1}>{ml}</option>)}
               </select>
               <select value={anio} onChange={e => setAnio(Number(e.target.value))}
-                className="bg-zinc-800 border border-zinc-700 text-white text-sm rounded-xl px-3 py-1.5 cursor-pointer">
+                className="text-white text-sm rounded-xl px-3 py-1.5 cursor-pointer"
+                style={{background:'#0f1623',border:'1px solid rgba(255,255,255,0.12)'}}>
                 {[2024,2025,2026,2027].map(yr => <option key={yr} value={yr}>{yr}</option>)}
               </select>
             </div>
-            {/* Botón gestión de categorías — solo admin */}
-            {puedeAdminEgresos && <button onClick={() => setShowCategorias(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-zinc-500 hover:text-zinc-200 text-xs transition-colors"
-              style={{border:'1px solid rgba(255,255,255,0.08)'}}>
-              ⚙️ <span>Categorías</span>
-            </button>}
 
             {/* Popup gestión categorías */}
             {showCategorias && (
               <div className="fixed inset-0 z-50 flex items-center justify-center px-4" style={{background:'rgba(0,0,0,0.6)'}} onClick={() => setShowCategorias(false)}>
-                <div className="rounded-2xl p-5 space-y-3 w-full max-w-sm" style={{background:'#0f1623', border:'1px solid rgba(255,255,255,0.12)'}} onClick={e => e.stopPropagation()}>
-                  <div className="flex items-center justify-between mb-1">
-                    <p className="text-white text-sm font-bold">Categorías de egresos</p>
-                    <button onClick={() => setShowCategorias(false)} className="text-zinc-500 hover:text-white text-lg leading-none">✕</button>
+                <div className="rounded-2xl w-full max-w-md" style={{background:'#0f1623', border:'1px solid rgba(255,255,255,0.12)'}} onClick={e => e.stopPropagation()}>
+                  {/* Header */}
+                  <div className="flex items-center justify-between px-4 py-3" style={{borderBottom:'1px solid rgba(255,255,255,0.08)'}}>
+                    <p className="text-white font-bold" style={{fontSize:15}}>Categorías de egresos</p>
+                    <button onClick={() => setShowCategorias(false)} className="text-zinc-400 hover:text-white transition-colors" style={{fontSize:20,lineHeight:1,padding:'2px 6px'}}>✕</button>
                   </div>
-                  {categorias.map(cat => (
-                    <div key={cat.id} className="flex items-center gap-2">
-                      <input value={cat.emoji} onChange={e => setCategorias(prev => prev.map(c => c.id===cat.id ? {...c, emoji: e.target.value} : c))}
-                        style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:6,color:'white',width:40,textAlign:'center',fontSize:16,padding:'4px'}} />
-                      <input value={cat.label} onChange={e => setCategorias(prev => prev.map(c => c.id===cat.id ? {...c, label: e.target.value} : c))}
-                        style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:6,color:'white',flex:1,fontSize:13,padding:'5px 8px'}} />
-                      <button onClick={async () => {
-                        await fetch('/api/egresos/categorias', {method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id:cat.id, label:cat.label, emoji:cat.emoji})})
-                        setReloadKey(k => k+1)
-                      }} className="text-emerald-400 text-xs px-2 py-1.5 rounded-lg hover:bg-emerald-400/10 transition-colors font-bold">✓</button>
-                      <button onClick={async () => {
-                        const r = await fetch('/api/egresos/categorias', {method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id:cat.id})})
-                        const d = await r.json()
-                        if (d.error) alert(d.error)
-                        else { setReloadKey(k => k+1); setShowCategorias(false) }
-                      }} className="text-red-400 text-xs px-2 py-1.5 rounded-lg hover:bg-red-400/10 transition-colors">✕</button>
-                    </div>
-                  ))}
-                  <div className="flex items-center gap-2 pt-3 border-t border-zinc-800">
+                  {/* Lista */}
+                  <div className="px-4 py-3 space-y-2">
+                    {categorias.map((cat, idx) => (
+                      <div key={cat.id} className="flex items-center"
+                        style={{gap:'6px'}} draggable
+                        onDragStart={e => { e.dataTransfer.effectAllowed='move'; e.dataTransfer.setData('text/plain', String(idx)) }}
+                        onDragOver={e => e.preventDefault()}
+                        onDrop={e => {
+                          e.preventDefault()
+                          const from = parseInt(e.dataTransfer.getData('text/plain'))
+                          if (from === idx) return
+                          const next = [...categorias]
+                          const [moved] = next.splice(from, 1)
+                          next.splice(idx, 0, moved)
+                          setCategorias(next)
+                          fetch('/api/egresos/categorias', {method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({orden: next.map(c => c.id)})})
+                        }}
+                      >
+                        <span className="text-zinc-500 cursor-grab" style={{fontSize:14,userSelect:'none'}}>⠿</span>
+                        <input value={cat.emoji} onChange={e => setCategorias(prev => prev.map(c => c.id===cat.id ? {...c, emoji: e.target.value} : c))}
+                          style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:6,color:'white',width:40,textAlign:'center',fontSize:16,padding:'4px'}} />
+                        <input value={cat.label} onChange={e => setCategorias(prev => prev.map(c => c.id===cat.id ? {...c, label: e.target.value} : c))}
+                          style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:6,color:'white',flex:1,minWidth:0,fontSize:14,padding:'6px 8px'}} />
+                        <button onClick={async () => {
+                          await fetch('/api/egresos/categorias', {method:'PATCH', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id:cat.id, label:cat.label, emoji:cat.emoji})})
+                          setReloadKey(k => k+1)
+                        }} style={{background:'rgba(52,211,153,0.12)',border:'1px solid rgba(52,211,153,0.30)',borderRadius:8,color:'#34d399',fontSize:15,padding:'5px 10px',fontWeight:700,cursor:'pointer'}}>✓</button>
+                        <button onClick={async () => {
+                          const r = await fetch('/api/egresos/categorias', {method:'DELETE', headers:{'Content-Type':'application/json'}, body: JSON.stringify({id:cat.id})})
+                          const d = await r.json()
+                          if (d.error) alert(d.error)
+                          else { setReloadKey(k => k+1); setShowCategorias(false) }
+                        }} style={{background:'rgba(248,113,113,0.10)',border:'1px solid rgba(248,113,113,0.30)',borderRadius:8,color:'#f87171',fontSize:15,padding:'5px 10px',cursor:'pointer'}}>✕</button>
+                      </div>
+                    ))}
+                  </div>
+                  {/* Nueva categoría */}
+                  <div className="flex items-center gap-2 px-4 pb-4" style={{borderTop:'1px solid rgba(255,255,255,0.08)',paddingTop:12}}>
                     <input value={nuevaCat.emoji} onChange={e => setNuevaCat(p => ({...p, emoji: e.target.value}))}
                       style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:6,color:'white',width:40,textAlign:'center',fontSize:16,padding:'4px'}} />
                     <input value={nuevaCat.label} onChange={e => setNuevaCat(p => ({...p, label: e.target.value}))}
-                      placeholder="Nueva categoría..." style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:6,color:'white',flex:1,fontSize:13,padding:'5px 8px'}} />
+                      placeholder="Nueva categoría..." style={{background:'rgba(255,255,255,0.06)',border:'1px solid rgba(255,255,255,0.10)',borderRadius:6,color:'white',flex:1,minWidth:0,fontSize:14,padding:'6px 8px'}} />
                     <button onClick={async () => {
                       if (!nuevaCat.label.trim()) return
                       await fetch('/api/egresos/categorias', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(nuevaCat)})
                       setNuevaCat({ label: '', emoji: '📋' })
                       setReloadKey(k => k+1)
-                    }} className="text-emerald-400 text-xs px-3 py-1.5 rounded-lg font-bold transition-colors" style={{border:'1px solid rgba(52,211,153,0.30)'}}>+</button>
+                    }} style={{background:'rgba(52,211,153,0.12)',border:'1px solid rgba(52,211,153,0.30)',borderRadius:8,color:'#34d399',fontSize:18,padding:'5px 12px',fontWeight:700,cursor:'pointer'}}>+</button>
                   </div>
                 </div>
               </div>
