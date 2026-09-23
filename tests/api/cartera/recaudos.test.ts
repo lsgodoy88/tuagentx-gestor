@@ -72,10 +72,10 @@ describe('GET /api/recaudos — lista de pagos (admin only)', () => {
       setupHappyPath()
     })
 
-    it('WHERE filtra Cartera.empresaId OR (Carrera=null AND Empleado.empresaId)', async () => {
+    it('WHERE filtra Cartera.empresaId OR (Carrera=null AND Empleado.empresaId) — scope empresa anidado en AND[0]', async () => {
       await GET(makeReq())
       const args = vi.mocked(prisma.pagoCartera.findMany).mock.calls[0][0] as any
-      expect(args.where.OR).toEqual([
+      expect(args.where.AND[0].OR).toEqual([
         { Cartera: { empresaId: 'emp-1' } },
         { AND: [{ carteraId: null }, { Empleado: { empresaId: 'emp-1' } }] },
       ])
