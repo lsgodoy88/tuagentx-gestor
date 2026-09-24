@@ -132,7 +132,7 @@ export async function sincronizarDeudas(
         data: {
           saldo: u.saldo, saldoAnterior: u.saldoAnterior,
           condition: u.condicionUpTres, condicionUpTres: u.condicionUpTres,
-          ...(u.fechaVencimiento ? { fechaVencimiento: u.fechaVencimiento } : {})
+          fechaVencimiento: u.fechaVencimiento ?? null
         }
       })
     }

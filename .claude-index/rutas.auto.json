@@ -1,0 +1,268 @@
+{
+  "dominio": "rutas",
+  "generado_automaticamente": true,
+  "generado_en": "2026-09-24T02:25:30.402Z",
+  "carpeta_principal": "app/(app)/rutas",
+  "archivos": {
+    "app/(app)/rutas/_components/ModalAgregarClientes.tsx": {
+      "lineas": 128,
+      "funciones": [
+        {
+          "nombre": "ModalAgregarClientes",
+          "linea": 4
+        }
+      ]
+    },
+    "app/(app)/rutas/_components/ModalAgregarSimple.tsx": {
+      "lineas": 70,
+      "funciones": [
+        {
+          "nombre": "ModalAgregarSimple",
+          "linea": 4
+        }
+      ]
+    },
+    "app/(app)/rutas/_components/ModalEditarRuta.tsx": {
+      "lineas": 152,
+      "funciones": [
+        {
+          "nombre": "ModalEditarRuta",
+          "linea": 4
+        }
+      ]
+    },
+    "app/(app)/rutas/_components/ModalNuevaRuta.tsx": {
+      "lineas": 123,
+      "funciones": [
+        {
+          "nombre": "ModalNuevaRuta",
+          "linea": 4
+        }
+      ]
+    },
+    "app/(app)/rutas/_components/ModalVisita.tsx": {
+      "lineas": 41,
+      "funciones": [
+        {
+          "nombre": "ModalVisita",
+          "linea": 4
+        }
+      ]
+    },
+    "app/(app)/rutas/_components/TabEntregas.tsx": {
+      "lineas": 172,
+      "funciones": [
+        {
+          "nombre": "GrupoEntregas",
+          "linea": 6
+        },
+        {
+          "nombre": "startLong",
+          "linea": 11
+        },
+        {
+          "nombre": "cancelLong",
+          "linea": 12
+        },
+        {
+          "nombre": "anularRc",
+          "linea": 13
+        },
+        {
+          "nombre": "TabEntregasAdmin",
+          "linea": 73
+        }
+      ],
+      "llamadas_api": [
+        "/api/rutas/cliente",
+        "/api/rutas"
+      ]
+    },
+    "app/(app)/rutas/_lib/tipos.ts": {
+      "lineas": 2
+    },
+    "app/(app)/rutas/_lib/useCrearRuta.ts": {
+      "lineas": 79,
+      "hook_exportado": "useCrearRuta",
+      "funciones": [
+        {
+          "nombre": "useCrearRuta",
+          "linea": 4
+        },
+        {
+          "nombre": "toggleCli",
+          "linea": 32
+        },
+        {
+          "nombre": "crear",
+          "linea": 36
+        },
+        {
+          "nombre": "resetModal",
+          "linea": 48
+        },
+        {
+          "nombre": "loadClientes",
+          "linea": 54
+        }
+      ],
+      "llamadas_api": [
+        "/api/rutas",
+        "/api/clientes?q=:param&page=:param&limit=:param"
+      ]
+    },
+    "app/(app)/rutas/_lib/useEditarRuta.ts": {
+      "lineas": 199,
+      "hook_exportado": "useEditarRuta",
+      "funciones": [
+        {
+          "nombre": "useEditarRuta",
+          "linea": 8
+        },
+        {
+          "nombre": "abrirEditar",
+          "linea": 32
+        },
+        {
+          "nombre": "cerrarModalEditar",
+          "linea": 52
+        },
+        {
+          "nombre": "guardarEdicion",
+          "linea": 63
+        },
+        {
+          "nombre": "agregarClientesEditar",
+          "linea": 75
+        },
+        {
+          "nombre": "agregarVinculadosEditar",
+          "linea": 88
+        },
+        {
+          "nombre": "toggleEmp",
+          "linea": 101
+        },
+        {
+          "nombre": "loadClientesSup",
+          "linea": 105
+        },
+        {
+          "nombre": "abrirModalSimple",
+          "linea": 112
+        },
+        {
+          "nombre": "abrirModalAgregar",
+          "linea": 120
+        },
+        {
+          "nombre": "agregarClientes",
+          "linea": 136
+        },
+        {
+          "nombre": "agregarVinculados",
+          "linea": 149
+        },
+        {
+          "nombre": "agregarClienteSimple",
+          "linea": 162
+        },
+        {
+          "nombre": "cerrarModalSimple",
+          "linea": 177
+        }
+      ],
+      "llamadas_api": [
+        "/api/empresas-vinculadas/pedidos-pendientes",
+        "/api/rutas",
+        "/api/rutas/:param/agregar-clientes",
+        "/api/rutas/:param/agregar-vinculados",
+        "/api/clientes?q=:param&page=:param&limit=:param"
+      ]
+    },
+    "app/(app)/rutas/_lib/useRutas.ts": {
+      "lineas": 64,
+      "hook_exportado": "useRutas",
+      "funciones": [
+        {
+          "nombre": "useRutas",
+          "linea": 7
+        },
+        {
+          "nombre": "loadData",
+          "linea": 20
+        },
+        {
+          "nombre": "generarRutaHoy",
+          "linea": 31
+        },
+        {
+          "nombre": "eliminar",
+          "linea": 42
+        }
+      ],
+      "llamadas_api": [
+        "/api/rutas",
+        "/api/empleados",
+        "/api/clientes?page=1&limit=10",
+        "/api/rutas/procesar-dia"
+      ]
+    },
+    "app/(app)/rutas/_lib/useVisitaModal.ts": {
+      "lineas": 16,
+      "hook_exportado": "useVisitaModal",
+      "funciones": [
+        {
+          "nombre": "useVisitaModal",
+          "linea": 3
+        },
+        {
+          "nombre": "cerrar",
+          "linea": 7
+        }
+      ]
+    },
+    "app/(app)/rutas/_lib/utils.ts": {
+      "lineas": 51,
+      "funciones": [
+        {
+          "nombre": "hoySufijo",
+          "linea": 6
+        },
+        {
+          "nombre": "esDeHoy",
+          "linea": 12
+        },
+        {
+          "nombre": "fmtHoraBogota",
+          "linea": 19
+        },
+        {
+          "nombre": "fmtFechaBogota",
+          "linea": 23
+        },
+        {
+          "nombre": "nombreFechaLargo",
+          "linea": 27
+        },
+        {
+          "nombre": "nombreFecha",
+          "linea": 32
+        },
+        {
+          "nombre": "nombreAuto",
+          "linea": 43
+        }
+      ]
+    },
+    "app/(app)/rutas/page.tsx": {
+      "lineas": 77,
+      "funciones": [
+        {
+          "nombre": "RutasPage",
+          "linea": 19
+        }
+      ]
+    }
+  }
+}

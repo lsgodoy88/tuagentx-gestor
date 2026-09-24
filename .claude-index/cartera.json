@@ -1,0 +1,144 @@
+{
+  "dominio": "cartera",
+  "actualizado": "2026-09-23",
+  "actualizado_por": "sesión manual — piloto índice, ver TuAgentX-MAPA para automatización pendiente",
+  "carpeta_principal": "app/(app)/cartera",
+  "nota_estructura": "usa carpeta hooks/ (no _lib/) — excepción documentada en DOMINIOS v57 línea 84, anterior al patrón _lib/ estándar F5",
+  "page": {
+    "archivo": "app/(app)/cartera/page.tsx",
+    "lineas": 368,
+    "rol": "orquestación — 4 tabs, arma todos los hooks y los pasa por props a los componentes de cada tab",
+    "tabs": {
+      "pagos": {
+        "default": true,
+        "componente": "CarteraTabPagos"
+      },
+      "clientes": {
+        "label_ui": "Cartera",
+        "componente_desktop": "CarteraTablaClientes",
+        "componente_mobile": "components/CarteraCard.tsx (variant='lista')"
+      },
+      "cartera": {
+        "label_ui": "Reportes",
+        "componente": "CarteraReportes"
+      },
+      "comisiones": {
+        "componente": "CarteraTabComisiones",
+        "visible_si": "isAdmin || esVendedor"
+      }
+    },
+    "botones_notables": {
+      "buscar_clientes": {
+        "linea_aprox": 233,
+        "solo_visible_tab": "clientes"
+      },
+      "sync_individual_cliente": {
+        "funcion": "syncCliente(cartera)",
+        "linea": 113,
+        "llama": "POST /api/integracion/sync {tipo:'cliente'}"
+      },
+      "enviar_cobro_whatsapp": {
+        "funcion": "abrirWhatsApp(cartera)",
+        "linea": 127,
+        "usa_campo": "fechaVencimiento (para mostrar fecha de vencimiento en el mensaje)"
+      },
+      "abrir_recibo": {
+        "funcion": "abrirRecibo(pagoId)",
+        "linea": 173,
+        "llama": "POST /api/cartera/recibo-token"
+      }
+    }
+  },
+  "hooks": {
+    "useCarteraData.ts": {
+      "lineas": 144,
+      "rol": "estado principal: carteras, metas, paginación, búsqueda con debounce, cache offline (loadCache/saveCache)",
+      "endpoints": [
+        "GET /api/cartera?limit=",
+        "GET /api/recaudos?limit=",
+        "GET /api/cartera/metas"
+      ]
+    },
+    "usePagos.ts": {
+      "lineas": 105,
+      "rol": "tab Pagos: filtro mes/año/día/vendedor, búsqueda global con debounce 350ms",
+      "endpoints": [
+        "GET /api/recaudos"
+      ]
+    },
+    "useComisiones.ts": {
+      "lineas": 98,
+      "rol": "cálculo y guardado de comisiones por vendedor, fórmula evaluada con expr-eval",
+      "endpoints": [
+        "GET/POST /api/comisiones"
+      ],
+      "nota": "guardarComisionAuto tiene debounce 500ms por vendedorId"
+    },
+    "useEdadesCartera.ts": {
+      "lineas": 36,
+      "rol": "trae distribución de cartera por edad (0-30, 31-60, 61-90, 91-120, +120) global y por vendedor",
+      "endpoints": [
+        "GET /api/cartera/edades"
+      ]
+    },
+    "useSyncInfo.ts": {
+      "lineas": 66,
+      "rol": "estado del modal de sincronización UpTres — historial, última sync, disparar sync delta manual",
+      "endpoints": [
+        "GET /api/integracion/estado",
+        "POST /api/integracion/sync {tipo:'delta'}"
+      ]
+    }
+  },
+  "componentes": {
+    "CarteraTabPagos.tsx": {
+      "lineas": 402,
+      "rol": "HISTORIAL de pagos ya realizados — tabla con filtro mes/día/vendedor/búsqueda. NO es el modal de facturas pendientes."
+    },
+    "CarteraTablaClientes.tsx": {
+      "rol": "tabla desktop de clientes con deuda — una fila por deuda"
+    },
+    "CarteraTabComisiones.tsx": {
+      "lineas_bytes": 14932,
+      "rol": "UI de cálculo/edición de comisiones por vendedor"
+    },
+    "CarteraSyncModal.tsx": {
+      "lineas_bytes": 5164,
+      "rol": "modal de historial de sincronización UpTres, botón sincronizar manual"
+    },
+    "CarteraReportes.tsx": {
+      "lineas_bytes": 46152,
+      "rol": "tab Reportes — el componente más grande del módulo; snapshots históricos, metas por vendedor, análisis por edad"
+    }
+  },
+  "modal_facturas_pendientes": {
+    "advertencia": "NO vive en app/(app)/cartera/ — es el modal con checkboxes 'Facturas pendientes' + 'Pago 1' que abre desde el dashboard de vendedor, no desde el módulo cartera",
+    "ubicacion_real": "app/(app)/inicio/_components/DashboardVendedor.tsx",
+    "componente": "components/ModalRecaudo.tsx",
+    "import": "dynamic(() => import('@/components/ModalRecaudo'), { ssr:false })  — línea 27 de DashboardVendedor.tsx",
+    "funcion_que_carga_datos": "cargarDetalleCartera(cartera) — línea ~397 de DashboardVendedor.tsx",
+    "endpoint_datos": "GET /api/cartera/[clienteId]/route.ts",
+    "fuente_bd_directa": "SyncDeuda (lectura directa — NO consulta UpTres en vivo)",
+    "campo_vence_en_modal": "fechaVencimiento — renderizado en ModalRecaudo.tsx línea ~229",
+    "endpoint_envio_pago": "POST /api/cartera/pago-sync"
+  },
+  "bug_conocido_fechaVencimiento": {
+    "sintoma": "fecha 'Vence' en modal difiere de la fecha real en UpTres/panel (ej. Fact.227 Erika Laiseca, Prokpil: gestor muestra 5/8/2026, UpTres real 18/1/2026)",
+    "causa_raiz_confirmada": "lib/integracion/sync.ts líneas 84-90 (cálculo fvenc) y 135 (spread condicional que omite la clave)",
+    "mecanismo": "en updates de deuda EXISTENTE (bloque toUpdateSaldo), fechaVencimiento se recalcula desde o.fPago || (fCreado+dias); si UpTres no devuelve fPago en esa pasada del delta, da null y el spread condicional `...(u.fechaVencimiento ? {...} : {})` OMITE la clave — el valor viejo en BD (posiblemente ya erróneo de un cálculo anterior) nunca se corrige",
+    "relacionado_pendientes_MAPA": [
+      "Confirmar /cartera/update?date=updatedAt con UpTres",
+      "F_1719 (Prokpil) no encontrada /cartera"
+    ],
+    "estado": "causa raíz identificada, fix NO aplicado — pendiente decisión Luis (toca lógica de sync en datos de producción)",
+    "fix_propuesto_sin_aplicar": "que el update escriba fechaVencimiento explícitamente (incluso null) en vez de omitir la clave condicionalmente, para que el campo nunca quede con un valor obsoleto fantasma"
+  },
+  "logica_negocio_ya_documentada_en_DOMINIOS": [
+    "nSaldo es la única fuente de verdad para saldos — nunca 'saldo' raw de UpTres",
+    "lineasPago: LineaPago[] — JSON en PagoCartera",
+    "_facturas (de PagoCarteraDeuda) es la fuente canónica de montoAplicado — NO reciboPago.detalles",
+    "Distribución multi-pago: transferencia primero, facturas más antiguas → más recientes",
+    "recuperadorInverso: fallback a od.vendedorApiId cuando UpTres no retorna empleado.uid",
+    "Un cliente puede tener múltiples pagos parciales legítimos a la misma factura — no es duplicación (verificado sesión 2026-09-22/23, caso Sergio David)"
+  ]
+}

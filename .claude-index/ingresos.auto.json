@@ -1,0 +1,198 @@
+{
+  "dominio": "ingresos",
+  "generado_automaticamente": true,
+  "generado_en": "2026-09-24T02:25:30.134Z",
+  "carpeta_principal": "app/(app)/ingresos",
+  "archivos": {
+    "app/(app)/ingresos/_components/ConfigPopup.tsx": {
+      "lineas": 292,
+      "funciones": [
+        {
+          "nombre": "ConfigPopup",
+          "linea": 18
+        },
+        {
+          "nombre": "reloadConfig",
+          "linea": 41
+        }
+      ],
+      "llamadas_api": [
+        "/api/cuentas-bancarias",
+        "/api/saldos/config"
+      ]
+    },
+    "app/(app)/ingresos/_components/FilaSheetMobil.tsx": {
+      "lineas": 61,
+      "funciones": [
+        {
+          "nombre": "FilaSheetMobil",
+          "linea": 15
+        }
+      ]
+    },
+    "app/(app)/ingresos/_components/NavegadorFecha.tsx": {
+      "lineas": 60,
+      "funciones": [
+        {
+          "nombre": "NavegadorFecha",
+          "linea": 14
+        }
+      ]
+    },
+    "app/(app)/ingresos/_components/TablaVistaDia.tsx": {
+      "lineas": 154,
+      "funciones": [
+        {
+          "nombre": "TablaVistaDia",
+          "linea": 25
+        },
+        {
+          "nombre": "esCeldaEditable",
+          "linea": 32
+        },
+        {
+          "nombre": "esEditable",
+          "linea": 36
+        }
+      ]
+    },
+    "app/(app)/ingresos/_components/TablaVistaRango.tsx": {
+      "lineas": 60,
+      "funciones": [
+        {
+          "nombre": "TablaVistaRango",
+          "linea": 14
+        }
+      ]
+    },
+    "app/(app)/ingresos/_lib/estilos.ts": {
+      "lineas": 10
+    },
+    "app/(app)/ingresos/_lib/fechas.ts": {
+      "lineas": 73,
+      "funciones": [
+        {
+          "nombre": "fechaHoy",
+          "linea": 9
+        },
+        {
+          "nombre": "fmtFecha",
+          "linea": 13
+        },
+        {
+          "nombre": "fmtFechaCorta",
+          "linea": 19
+        },
+        {
+          "nombre": "fmtFechaLarga",
+          "linea": 25
+        },
+        {
+          "nombre": "inicioSemana",
+          "linea": 33
+        },
+        {
+          "nombre": "finSemana",
+          "linea": 39
+        },
+        {
+          "nombre": "inicioMes",
+          "linea": 45
+        },
+        {
+          "nombre": "finMes",
+          "linea": 49
+        },
+        {
+          "nombre": "labelNavegador",
+          "linea": 54
+        },
+        {
+          "nombre": "moverFecha",
+          "linea": 66
+        }
+      ]
+    },
+    "app/(app)/ingresos/_lib/tipos.ts": {
+      "lineas": 43,
+      "funciones": [
+        {
+          "nombre": "filaVacia",
+          "linea": 36
+        },
+        {
+          "nombre": "filasIniciales",
+          "linea": 40
+        }
+      ]
+    },
+    "app/(app)/ingresos/page.tsx": {
+      "lineas": 377,
+      "funciones": [
+        {
+          "nombre": "SaldosPage",
+          "linea": 16
+        },
+        {
+          "nombre": "resetDia",
+          "linea": 83
+        },
+        {
+          "nombre": "cargarDia",
+          "linea": 91
+        },
+        {
+          "nombre": "cargarRango",
+          "linea": 110
+        },
+        {
+          "nombre": "navegar",
+          "linea": 123
+        },
+        {
+          "nombre": "cambiarVista",
+          "linea": 129
+        },
+        {
+          "nombre": "irAHoy",
+          "linea": 135
+        },
+        {
+          "nombre": "intentarEditar",
+          "linea": 141
+        },
+        {
+          "nombre": "editarDiaActual",
+          "linea": 151
+        },
+        {
+          "nombre": "autoguardar",
+          "linea": 159
+        },
+        {
+          "nombre": "setFila",
+          "linea": 177
+        },
+        {
+          "nombre": "onBlurCelda",
+          "linea": 181
+        },
+        {
+          "nombre": "onBlurFila",
+          "linea": 187
+        },
+        {
+          "nombre": "guardarCategoria",
+          "linea": 191
+        }
+      ],
+      "llamadas_api": [
+        "/api/saldos/config",
+        "/api/saldos?tab=:param",
+        "/api/saldos?tab=:param&fecha=:param",
+        "/api/saldos?tab=:param&fecha=:param&fechaHasta=:param",
+        "/api/saldos"
+      ]
+    }
+  }
+}

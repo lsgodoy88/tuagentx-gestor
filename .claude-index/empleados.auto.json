@@ -1,0 +1,276 @@
+{
+  "dominio": "empleados",
+  "generado_automaticamente": true,
+  "generado_en": "2026-09-24T02:25:30.311Z",
+  "carpeta_principal": "app/(app)/empleados",
+  "archivos": {
+    "app/(app)/empleados/_components/ModalEmpleado.tsx": {
+      "lineas": 325,
+      "funciones": [
+        {
+          "nombre": "ModalEmpleado",
+          "linea": 6
+        }
+      ],
+      "llamadas_api": [
+        "/api/empleados/primer-recibo?empleadoId=:param"
+      ]
+    },
+    "app/(app)/empleados/_components/PagarPlanBtn.tsx": {
+      "lineas": 62,
+      "funciones": [
+        {
+          "nombre": "PagarPlanBtn",
+          "linea": 4
+        },
+        {
+          "nombre": "handlePagar",
+          "linea": 25
+        }
+      ],
+      "llamadas_api": [
+        "/api/plan-empresa/generar",
+        "/api/pagos/link"
+      ]
+    },
+    "app/(app)/empleados/_components/PlanActualCard.tsx": {
+      "lineas": 113,
+      "funciones": [
+        {
+          "nombre": "PlanActualCard",
+          "linea": 5
+        },
+        {
+          "nombre": "abrirHistorial",
+          "linea": 19
+        }
+      ],
+      "llamadas_api": [
+        "/api/plan-empresa/historial"
+      ]
+    },
+    "app/(app)/empleados/_components/PopupAsignacionInicial.tsx": {
+      "lineas": 128,
+      "funciones": [
+        {
+          "nombre": "PopupAsignacionInicial",
+          "linea": 4
+        }
+      ],
+      "llamadas_api": [
+        "/api/empleados"
+      ]
+    },
+    "app/(app)/empleados/_components/PopupSyncCartera.tsx": {
+      "lineas": 147,
+      "funciones": [
+        {
+          "nombre": "PopupSyncInicial",
+          "linea": 5
+        },
+        {
+          "nombre": "PopupSyncForm",
+          "linea": 53
+        }
+      ],
+      "llamadas_api": [
+        "/api/vendedor/sync-inicial"
+      ]
+    },
+    "app/(app)/empleados/_components/TabEquipo.tsx": {
+      "lineas": 247,
+      "funciones": [
+        {
+          "nombre": "TabEquipo",
+          "linea": 8
+        }
+      ],
+      "llamadas_api": [
+        "/api/pagos/link"
+      ]
+    },
+    "app/(app)/empleados/_components/TabMetas.tsx": {
+      "lineas": 111,
+      "funciones": [
+        {
+          "nombre": "TabMetas",
+          "linea": 6
+        }
+      ]
+    },
+    "app/(app)/empleados/_components/TabNotifica.tsx": {
+      "lineas": 150,
+      "funciones": [
+        {
+          "nombre": "TabNotifica",
+          "linea": 4
+        }
+      ]
+    },
+    "app/(app)/empleados/_components/TabRutas.tsx": {
+      "lineas": 187,
+      "funciones": [
+        {
+          "nombre": "TabRutas",
+          "linea": 5
+        }
+      ]
+    },
+    "app/(app)/empleados/_lib/tipos.ts": {
+      "lineas": 29
+    },
+    "app/(app)/empleados/_lib/useEmpleados.ts": {
+      "lineas": 257,
+      "hook_exportado": "useEmpleados",
+      "funciones": [
+        {
+          "nombre": "useEmpleados",
+          "linea": 5
+        },
+        {
+          "nombre": "loadData",
+          "linea": 61
+        },
+        {
+          "nombre": "abrirSlot",
+          "linea": 84
+        },
+        {
+          "nombre": "guardar",
+          "linea": 111
+        },
+        {
+          "nombre": "ejecutarSyncInicial",
+          "linea": 151
+        },
+        {
+          "nombre": "toggleActivo",
+          "linea": 166
+        },
+        {
+          "nombre": "eliminarSlotVacio",
+          "linea": 178
+        },
+        {
+          "nombre": "guardarPermisos",
+          "linea": 190
+        }
+      ],
+      "llamadas_api": [
+        "/api/empleados",
+        "/api/me",
+        "/api/mi-empresa/estado",
+        "/api/listas",
+        "/api/sync-empleados",
+        "/api/plan-empresa",
+        "/api/precios/publico",
+        "/colombia.json",
+        "/api/vendedor/sync-inicial",
+        "/api/empleados/slot"
+      ]
+    },
+    "app/(app)/empleados/_lib/useMetas.ts": {
+      "lineas": 59,
+      "hook_exportado": "useMetas",
+      "funciones": [
+        {
+          "nombre": "useMetas",
+          "linea": 4
+        },
+        {
+          "nombre": "cargarMetas",
+          "linea": 13
+        },
+        {
+          "nombre": "guardarMetas",
+          "linea": 29
+        }
+      ],
+      "llamadas_api": [
+        "/api/metas?empleadoId=:param&anio=:param",
+        "/api/metas"
+      ]
+    },
+    "app/(app)/empleados/_lib/useNotifReglas.ts": {
+      "lineas": 77,
+      "hook_exportado": "useNotifReglas",
+      "funciones": [
+        {
+          "nombre": "useNotifReglas",
+          "linea": 4
+        },
+        {
+          "nombre": "testNotifRegla",
+          "linea": 14
+        },
+        {
+          "nombre": "cargarNotifReglas",
+          "linea": 20
+        },
+        {
+          "nombre": "toggleNotifRol",
+          "linea": 30
+        },
+        {
+          "nombre": "borrarSub",
+          "linea": 40
+        },
+        {
+          "nombre": "toggleNotifActiva",
+          "linea": 50
+        }
+      ],
+      "llamadas_api": [
+        "/api/notif-reglas/test",
+        "/api/notif-reglas",
+        "/api/push/suscribir"
+      ]
+    },
+    "app/(app)/empleados/_lib/useTurnos.ts": {
+      "lineas": 57,
+      "hook_exportado": "useTurnos",
+      "funciones": [
+        {
+          "nombre": "useTurnos",
+          "linea": 4
+        },
+        {
+          "nombre": "cargarTurnos",
+          "linea": 14
+        }
+      ],
+      "llamadas_api": [
+        "/api/turnos/admin?modo=:param&rol=:param&page=:param"
+      ]
+    },
+    "app/(app)/empleados/_lib/utils.ts": {
+      "lineas": 23,
+      "funciones": [
+        {
+          "nombre": "slugify",
+          "linea": 1
+        },
+        {
+          "nombre": "generarPasswordDefault",
+          "linea": 5
+        },
+        {
+          "nombre": "getSlug",
+          "linea": 20
+        }
+      ]
+    },
+    "app/(app)/empleados/page.tsx": {
+      "lineas": 98,
+      "funciones": [
+        {
+          "nombre": "EmpleadosPage",
+          "linea": 17
+        }
+      ],
+      "llamadas_api": [
+        "/api/almacenamiento"
+      ]
+    }
+  }
+}

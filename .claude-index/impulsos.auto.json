@@ -1,0 +1,206 @@
+{
+  "dominio": "impulsos",
+  "generado_automaticamente": true,
+  "generado_en": "2026-09-24T02:25:30.218Z",
+  "carpeta_principal": "app/(app)/impulsos",
+  "archivos": {
+    "app/(app)/impulsos/_components/TabEventos.tsx": {
+      "lineas": 176,
+      "funciones": [
+        {
+          "nombre": "TabEventos",
+          "linea": 5
+        },
+        {
+          "nombre": "cargar",
+          "linea": 27
+        },
+        {
+          "nombre": "verFoto",
+          "linea": 39
+        },
+        {
+          "nombre": "abrirVisor",
+          "linea": 45
+        },
+        {
+          "nombre": "eliminar",
+          "linea": 50
+        }
+      ],
+      "llamadas_api": [
+        "/api/impulsar/evento?",
+        "/api/impulsar/evento/foto-url?key=",
+        "/api/impulsar/evento?id="
+      ]
+    },
+    "app/(app)/impulsos/_components/TabReporte.tsx": {
+      "lineas": 355,
+      "funciones": [
+        {
+          "nombre": "pctColor",
+          "linea": 9
+        },
+        {
+          "nombre": "fmt",
+          "linea": 13
+        },
+        {
+          "nombre": "labelMes",
+          "linea": 15
+        },
+        {
+          "nombre": "ReporteImpulsoTabla",
+          "linea": 20
+        },
+        {
+          "nombre": "TabReporte",
+          "linea": 261
+        }
+      ],
+      "llamadas_api": [
+        "/api/impulso/pdf?fecha="
+      ]
+    },
+    "app/(app)/impulsos/_components/TabRotacion.tsx": {
+      "lineas": 105,
+      "funciones": [
+        {
+          "nombre": "TabRotacion",
+          "linea": 13
+        }
+      ],
+      "llamadas_api": [
+        "/api/impulsar/rotacion-snapshots?dias=14"
+      ]
+    },
+    "app/(app)/impulsos/_components/TabSugeridos.tsx": {
+      "lineas": 107,
+      "funciones": [
+        {
+          "nombre": "TabSugeridos",
+          "linea": 13
+        }
+      ],
+      "llamadas_api": [
+        "/api/impulsar/sugeridos?dias=14"
+      ]
+    },
+    "app/(app)/impulsos/_lib/utils.ts": {
+      "lineas": 40,
+      "funciones": [
+        {
+          "nombre": "de24aPartes12",
+          "linea": 7
+        },
+        {
+          "nombre": "fmtHora12",
+          "linea": 17
+        },
+        {
+          "nombre": "partes12a24",
+          "linea": 24
+        },
+        {
+          "nombre": "diaSemanaHoyBogota",
+          "linea": 32
+        }
+      ]
+    },
+    "app/(app)/impulsos/page.tsx": {
+      "lineas": 864,
+      "funciones": [
+        {
+          "nombre": "RutasFijasPage",
+          "linea": 17
+        },
+        {
+          "nombre": "loadVentasHoy",
+          "linea": 96
+        },
+        {
+          "nombre": "recargarSyncEstado",
+          "linea": 109
+        },
+        {
+          "nombre": "ejecutarSyncVentas",
+          "linea": 114
+        },
+        {
+          "nombre": "loadVentasMes",
+          "linea": 134
+        },
+        {
+          "nombre": "calcularPromedio",
+          "linea": 149
+        },
+        {
+          "nombre": "loadData",
+          "linea": 157
+        },
+        {
+          "nombre": "loadCumplimiento",
+          "linea": 178
+        },
+        {
+          "nombre": "registrarGestion",
+          "linea": 198
+        },
+        {
+          "nombre": "abrirDiaAcordeon",
+          "linea": 209
+        },
+        {
+          "nombre": "esDiaAbierto",
+          "linea": 218
+        },
+        {
+          "nombre": "rutasDeEmpleado",
+          "linea": 224
+        },
+        {
+          "nombre": "abrirDia",
+          "linea": 227
+        },
+        {
+          "nombre": "togglePriorizable",
+          "linea": 255
+        },
+        {
+          "nombre": "guardar",
+          "linea": 262
+        },
+        {
+          "nombre": "eliminarDia",
+          "linea": 280
+        },
+        {
+          "nombre": "quitarClienteDia",
+          "linea": 286
+        },
+        {
+          "nombre": "loadClientes",
+          "linea": 299
+        },
+        {
+          "nombre": "cambiarTab",
+          "linea": 311
+        }
+      ],
+      "llamadas_api": [
+        "/api/visitas/admin?fecha=",
+        "/api/sync/ventas",
+        "/api/impulsos/ventas-mes?clienteIds=",
+        "/api/clientes/",
+        "/api/empleados",
+        "/api/clientes?page=1&limit=10",
+        "/api/impulsadora",
+        "/api/impulso?impulsadoraId=",
+        "/api/impulso",
+        "/api/impulsadora/priorizable",
+        "/api/clientes?q=",
+        "/api/impulsadora/meta-cliente"
+      ]
+    }
+  }
+}

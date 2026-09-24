@@ -1,0 +1,348 @@
+{
+  "dominio": "configuracion",
+  "generado_automaticamente": true,
+  "generado_en": "2026-09-24T02:25:30.265Z",
+  "carpeta_principal": "app/(app)/configuracion",
+  "archivos": {
+    "app/(app)/configuracion/_components/Seccion.tsx": {
+      "lineas": 23,
+      "funciones": [
+        {
+          "nombre": "Seccion",
+          "linea": 12
+        }
+      ]
+    },
+    "app/(app)/configuracion/_components/SeccionDespachos.tsx": {
+      "lineas": 125,
+      "funciones": [
+        {
+          "nombre": "SeccionDespachos",
+          "linea": 14
+        }
+      ]
+    },
+    "app/(app)/configuracion/_components/SeccionEmpresa.tsx": {
+      "lineas": 133,
+      "funciones": [
+        {
+          "nombre": "SeccionEmpresa",
+          "linea": 20
+        },
+        {
+          "nombre": "cambiarPassword",
+          "linea": 34
+        }
+      ],
+      "llamadas_api": [
+        "/api/configuracion/password"
+      ]
+    },
+    "app/(app)/configuracion/_components/SeccionIntegracion.tsx": {
+      "lineas": 348,
+      "funciones": [
+        {
+          "nombre": "SeccionIntegracion",
+          "linea": 14
+        }
+      ]
+    },
+    "app/(app)/configuracion/_components/SeccionPerfil.tsx": {
+      "lineas": 69,
+      "funciones": [
+        {
+          "nombre": "SeccionPerfil",
+          "linea": 14
+        },
+        {
+          "nombre": "cambiarPassword",
+          "linea": 22
+        }
+      ],
+      "llamadas_api": [
+        "/api/configuracion/password"
+      ]
+    },
+    "app/(app)/configuracion/_components/SeccionTema.tsx": {
+      "lineas": 93,
+      "funciones": [
+        {
+          "nombre": "SeccionTema",
+          "linea": 14
+        }
+      ]
+    },
+    "app/(app)/configuracion/_components/SeccionTransporte.tsx": {
+      "lineas": 166,
+      "funciones": [
+        {
+          "nombre": "SeccionTransporte",
+          "linea": 12
+        },
+        {
+          "nombre": "guardarConfigDespachos",
+          "linea": 42
+        },
+        {
+          "nombre": "testTransprensa",
+          "linea": 54
+        },
+        {
+          "nombre": "guardarTransprensa",
+          "linea": 61
+        }
+      ],
+      "llamadas_api": [
+        "/api/empresa/despachos",
+        "/api/integracion/transprensa",
+        "/api/integracion/transprensa/test"
+      ]
+    },
+    "app/(app)/configuracion/_components/SeccionTurnos.tsx": {
+      "lineas": 124,
+      "funciones": [
+        {
+          "nombre": "SeccionTurnos",
+          "linea": 13
+        }
+      ]
+    },
+    "app/(app)/configuracion/_components/SeccionVinculadas.tsx": {
+      "lineas": 178,
+      "funciones": [
+        {
+          "nombre": "SeccionVinculadas",
+          "linea": 14
+        }
+      ]
+    },
+    "app/(app)/configuracion/_lib/icons.tsx": {
+      "lineas": 16
+    },
+    "app/(app)/configuracion/_lib/tipos.ts": {
+      "lineas": 53
+    },
+    "app/(app)/configuracion/_lib/useConfigEntregas.ts": {
+      "lineas": 103,
+      "hook_exportado": "useConfigEntregas",
+      "funciones": [
+        {
+          "nombre": "useConfigEntregas",
+          "linea": 4
+        },
+        {
+          "nombre": "toggleDia",
+          "linea": 46
+        },
+        {
+          "nombre": "guardarConfigEntregas",
+          "linea": 54
+        },
+        {
+          "nombre": "guardarFechaInicioBodegaPropia",
+          "linea": 73
+        }
+      ],
+      "llamadas_api": [
+        "/api/mi-empresa/config",
+        "/api/clientes?page=1&limit=500",
+        "/api/configuracion/bodega-inicio"
+      ]
+    },
+    "app/(app)/configuracion/_lib/useIntegracion.ts": {
+      "lineas": 220,
+      "hook_exportado": "useIntegracion",
+      "funciones": [
+        {
+          "nombre": "useIntegracion",
+          "linea": 5
+        },
+        {
+          "nombre": "nowBogota",
+          "linea": 42
+        },
+        {
+          "nombre": "initFromEstado",
+          "linea": 46
+        },
+        {
+          "nombre": "initFromRecibosConfig",
+          "linea": 58
+        },
+        {
+          "nombre": "validarUpTres",
+          "linea": 68
+        },
+        {
+          "nombre": "desconectarERP",
+          "linea": 120
+        },
+        {
+          "nombre": "ejecutarSyncInicial",
+          "linea": 126
+        },
+        {
+          "nombre": "syncDelta",
+          "linea": 141
+        },
+        {
+          "nombre": "syncNocturno",
+          "linea": 155
+        },
+        {
+          "nombre": "analizarDocs",
+          "linea": 168
+        },
+        {
+          "nombre": "validarConexionApi",
+          "linea": 181
+        },
+        {
+          "nombre": "activarApiConexion",
+          "linea": 191
+        },
+        {
+          "nombre": "desconectarApi",
+          "linea": 196
+        }
+      ],
+      "llamadas_api": [
+        "/api/integracion/validar-uptres",
+        "/api/integracion/conectar",
+        "/api/integracion/sync",
+        "/api/sync/nocturno?modo=completo",
+        "/api/integracion/analizar-docs",
+        "/api/integracion/validar-api",
+        "/api/recibos/config/empresa"
+      ]
+    },
+    "app/(app)/configuracion/_lib/useTema.ts": {
+      "lineas": 101,
+      "hook_exportado": "useTema",
+      "funciones": [
+        {
+          "nombre": "useTema",
+          "linea": 5
+        },
+        {
+          "nombre": "previewColor",
+          "linea": 26
+        },
+        {
+          "nombre": "getHueFromBand",
+          "linea": 43
+        },
+        {
+          "nombre": "guardarTema",
+          "linea": 69
+        }
+      ],
+      "llamadas_api": [
+        "/api/me"
+      ]
+    },
+    "app/(app)/configuracion/_lib/useVinculadas.ts": {
+      "lineas": 120,
+      "hook_exportado": "useVinculadas",
+      "funciones": [
+        {
+          "nombre": "useVinculadas",
+          "linea": 5
+        },
+        {
+          "nombre": "init",
+          "linea": 23
+        },
+        {
+          "nombre": "guardarFechaInicioBodega",
+          "linea": 28
+        },
+        {
+          "nombre": "crearVinculada",
+          "linea": 40
+        },
+        {
+          "nombre": "buscarToken",
+          "linea": 58
+        },
+        {
+          "nombre": "confirmarConexionToken",
+          "linea": 71
+        },
+        {
+          "nombre": "toggleActivaVinculada",
+          "linea": 90
+        }
+      ],
+      "llamadas_api": [
+        "/api/empresas-vinculadas",
+        "/api/empresas-vinculadas/lookup?token=:param",
+        "/api/empresas-vinculadas/conectar"
+      ]
+    },
+    "app/(app)/configuracion/_lib/utils.ts": {
+      "lineas": 45,
+      "funciones": [
+        {
+          "nombre": "hslToHex",
+          "linea": 4
+        },
+        {
+          "nombre": "buildGradient",
+          "linea": 15
+        },
+        {
+          "nombre": "truncarEmail",
+          "linea": 40
+        }
+      ]
+    },
+    "app/(app)/configuracion/almacenamiento/page.tsx": {
+      "lineas": 155,
+      "funciones": [
+        {
+          "nombre": "fmtMb",
+          "linea": 16
+        },
+        {
+          "nombre": "fmtCop",
+          "linea": 22
+        },
+        {
+          "nombre": "AlmacenamientoPage",
+          "linea": 26
+        },
+        {
+          "nombre": "comprarStorage",
+          "linea": 38
+        }
+      ],
+      "llamadas_api": [
+        "/api/almacenamiento",
+        "/api/almacenamiento/comprar"
+      ]
+    },
+    "app/(app)/configuracion/page.tsx": {
+      "lineas": 142,
+      "funciones": [
+        {
+          "nombre": "ConfiguracionPage",
+          "linea": 17
+        },
+        {
+          "nombre": "toggleSeccion",
+          "linea": 25
+        },
+        {
+          "nombre": "guardarMiEmpresa",
+          "linea": 62
+        }
+      ],
+      "llamadas_api": [
+        "/api/recibos/config/empresa",
+        "/api/integracion/estado",
+        "/api/empresas-vinculadas"
+      ]
+    }
+  }
+}

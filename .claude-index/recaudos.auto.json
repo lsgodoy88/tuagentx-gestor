@@ -1,0 +1,185 @@
+{
+  "dominio": "recaudos",
+  "generado_automaticamente": true,
+  "generado_en": "2026-09-24T02:25:30.353Z",
+  "carpeta_principal": "app/(app)/recaudos",
+  "archivos": {
+    "app/(app)/recaudos/_components/ListaMobile.tsx": {
+      "lineas": 183,
+      "funciones": [
+        {
+          "nombre": "ListaMobile",
+          "linea": 6
+        }
+      ]
+    },
+    "app/(app)/recaudos/_components/ModalesRecaudo.tsx": {
+      "lineas": 88,
+      "funciones": [
+        {
+          "nombre": "LightboxVoucher",
+          "linea": 5
+        },
+        {
+          "nombre": "ModalDetalleVariacion",
+          "linea": 18
+        },
+        {
+          "nombre": "ModalAjuste",
+          "linea": 57
+        }
+      ]
+    },
+    "app/(app)/recaudos/_components/Paginacion.tsx": {
+      "lineas": 31,
+      "funciones": [
+        {
+          "nombre": "Paginacion",
+          "linea": 4
+        }
+      ]
+    },
+    "app/(app)/recaudos/_components/TablaDesktop.tsx": {
+      "lineas": 31,
+      "funciones": [
+        {
+          "nombre": "TablaDesktop",
+          "linea": 6
+        }
+      ]
+    },
+    "app/(app)/recaudos/_components/TabsFiltros.tsx": {
+      "lineas": 153,
+      "funciones": [
+        {
+          "nombre": "TabsFiltros",
+          "linea": 6
+        }
+      ]
+    },
+    "app/(app)/recaudos/_components/VariacionPanel.tsx": {
+      "lineas": 20,
+      "funciones": [
+        {
+          "nombre": "VariacionPanel",
+          "linea": 4
+        }
+      ]
+    },
+    "app/(app)/recaudos/_components/columnas.tsx": {
+      "lineas": 224,
+      "funciones": [
+        {
+          "nombre": "getColumns",
+          "linea": 7
+        }
+      ]
+    },
+    "app/(app)/recaudos/_lib/tipos.ts": {
+      "lineas": 37
+    },
+    "app/(app)/recaudos/_lib/useRecaudos.ts": {
+      "lineas": 345,
+      "hook_exportado": "useRecaudos",
+      "funciones": [
+        {
+          "nombre": "useRecaudos",
+          "linea": 10
+        },
+        {
+          "nombre": "cargarVoucherUrl",
+          "linea": 53
+        },
+        {
+          "nombre": "ejecutarAjuste",
+          "linea": 101
+        },
+        {
+          "nombre": "iniciarLongPress",
+          "linea": 176
+        },
+        {
+          "nombre": "cancelarLongPress",
+          "linea": 180
+        },
+        {
+          "nombre": "eliminarPago",
+          "linea": 183
+        },
+        {
+          "nombre": "abrirModalEliminar",
+          "linea": 198
+        },
+        {
+          "nombre": "cerrarModalEliminar",
+          "linea": 205
+        },
+        {
+          "nombre": "buscarPorRecibo",
+          "linea": 212
+        },
+        {
+          "nombre": "confirmarEliminarPorRecibo",
+          "linea": 240
+        },
+        {
+          "nombre": "enviarPago",
+          "linea": 260
+        },
+        {
+          "nombre": "enviarSeleccionados",
+          "linea": 283
+        }
+      ],
+      "llamadas_api": [
+        "/api/firma",
+        "/api/empleados?rol=vendedor&limit=100",
+        "/api/recaudos/ajuste",
+        "/api/recaudos?:param",
+        "/api/recaudos/:param",
+        "/api/recaudos?numeroRecibo=:param&page=1&limit=1"
+      ]
+    },
+    "app/(app)/recaudos/_lib/utils.ts": {
+      "lineas": 36,
+      "funciones": [
+        {
+          "nombre": "fmtMonto",
+          "linea": 1
+        },
+        {
+          "nombre": "fmtHora",
+          "linea": 4
+        },
+        {
+          "nombre": "fmtFecha",
+          "linea": 8
+        },
+        {
+          "nombre": "fmtFechaBtn",
+          "linea": 12
+        },
+        {
+          "nombre": "fmtMetodo",
+          "linea": 17
+        },
+        {
+          "nombre": "abrirRecibo",
+          "linea": 24
+        }
+      ],
+      "llamadas_api": [
+        "/api/cartera/recibo-token"
+      ]
+    },
+    "app/(app)/recaudos/page.tsx": {
+      "lineas": 67,
+      "funciones": [
+        {
+          "nombre": "RecaudosPage",
+          "linea": 12
+        }
+      ]
+    }
+  }
+}

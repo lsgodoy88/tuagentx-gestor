@@ -1,0 +1,155 @@
+{
+  "dominio": "egresos",
+  "generado_automaticamente": true,
+  "generado_en": "2026-09-24T02:25:30.494Z",
+  "carpeta_principal": "app/(app)/egresos",
+  "archivos": {
+    "app/(app)/egresos/_components/CalendarioPopup.tsx": {
+      "lineas": 37,
+      "funciones": [
+        {
+          "nombre": "CalendarioPopup",
+          "linea": 5
+        }
+      ]
+    },
+    "app/(app)/egresos/_components/ModalCategorias.tsx": {
+      "lineas": 76,
+      "funciones": [
+        {
+          "nombre": "ModalCategorias",
+          "linea": 5
+        }
+      ],
+      "llamadas_api": [
+        "/api/egresos/categorias"
+      ]
+    },
+    "app/(app)/egresos/_components/NumInput.tsx": {
+      "lineas": 17,
+      "funciones": [
+        {
+          "nombre": "NumInput",
+          "linea": 5
+        }
+      ]
+    },
+    "app/(app)/egresos/_components/Tabla.tsx": {
+      "lineas": 496,
+      "funciones": [
+        {
+          "nombre": "Tabla",
+          "linea": 10
+        },
+        {
+          "nombre": "cargar",
+          "linea": 29
+        },
+        {
+          "nombre": "set",
+          "linea": 89
+        },
+        {
+          "nombre": "scheduleGuardar",
+          "linea": 105
+        },
+        {
+          "nombre": "handleAdjuntarFila",
+          "linea": 121
+        },
+        {
+          "nombre": "guardar",
+          "linea": 186
+        },
+        {
+          "nombre": "toggle",
+          "linea": 208
+        },
+        {
+          "nombre": "cargarProveedores",
+          "linea": 219
+        },
+        {
+          "nombre": "asociarProveedor",
+          "linea": 224
+        },
+        {
+          "nombre": "eliminarEgreso",
+          "linea": 231
+        }
+      ],
+      "llamadas_api": [
+        "/api/egresos?categoria=:param&mes=:param&anio=:param",
+        "/api/egresos",
+        "/api/gastos/voucher",
+        "/api/proveedores?modo=todos",
+        "/api/egresos?id=:param"
+      ]
+    },
+    "app/(app)/egresos/_lib/tipos.ts": {
+      "lineas": 13,
+      "funciones": [
+        {
+          "nombre": "filaVacia",
+          "linea": 6
+        }
+      ]
+    },
+    "app/(app)/egresos/_lib/useEgresos.ts": {
+      "lineas": 69,
+      "hook_exportado": "useEgresos",
+      "funciones": [
+        {
+          "nombre": "useEgresos",
+          "linea": 5
+        }
+      ],
+      "llamadas_api": [
+        "/api/egresos/categorias",
+        "/api/egresos?mes=:param&anio=:param&totalOnly=1"
+      ]
+    },
+    "app/(app)/egresos/_lib/utils.ts": {
+      "lineas": 17,
+      "funciones": [
+        {
+          "nombre": "fmt",
+          "linea": 3
+        },
+        {
+          "nombre": "formatCOP",
+          "linea": 8
+        },
+        {
+          "nombre": "parseCOP",
+          "linea": 12
+        },
+        {
+          "nombre": "fmtFecha",
+          "linea": 13
+        }
+      ]
+    },
+    "app/(app)/egresos/loading.tsx": {
+      "lineas": 13,
+      "funciones": [
+        {
+          "nombre": "LoadingEgresos",
+          "linea": 1
+        }
+      ]
+    },
+    "app/(app)/egresos/page.tsx": {
+      "lineas": 107,
+      "funciones": [
+        {
+          "nombre": "EgresosPage",
+          "linea": 13
+        }
+      ],
+      "llamadas_api": [
+        "/api/egresos/categorias"
+      ]
+    }
+  }
+}

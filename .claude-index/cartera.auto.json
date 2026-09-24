@@ -1,0 +1,271 @@
+{
+  "dominio": "cartera",
+  "generado_automaticamente": true,
+  "generado_en": "2026-09-24T02:25:30.449Z",
+  "carpeta_principal": "app/(app)/cartera",
+  "archivos": {
+    "app/(app)/cartera/CarteraReportes.tsx": {
+      "lineas": 655,
+      "funciones": [
+        {
+          "nombre": "CarteraReportes",
+          "linea": 69
+        },
+        {
+          "nombre": "guardarMeta",
+          "linea": 143
+        },
+        {
+          "nombre": "aplicarMes",
+          "linea": 159
+        }
+      ],
+      "llamadas_api": [
+        "/api/cartera/metas",
+        "/api/cartera/edades-snapshot?mesInicio=:param&anioInicio=:param&mesFin=:param&anioFin=:param",
+        "/api/stats/historico-mes?mes=:param",
+        "/api/cartera/edades-snapshot"
+      ]
+    },
+    "app/(app)/cartera/CarteraSyncModal.tsx": {
+      "lineas": 98,
+      "funciones": [
+        {
+          "nombre": "CarteraSyncModal",
+          "linea": 18
+        }
+      ]
+    },
+    "app/(app)/cartera/CarteraTabComisiones.tsx": {
+      "lineas": 275,
+      "funciones": [
+        {
+          "nombre": "CarteraTabComisiones",
+          "linea": 35
+        }
+      ]
+    },
+    "app/(app)/cartera/CarteraTabPagos.tsx": {
+      "lineas": 402,
+      "funciones": [
+        {
+          "nombre": "CarteraTabPagos",
+          "linea": 35
+        }
+      ]
+    },
+    "app/(app)/cartera/CarteraTablaClientes.tsx": {
+      "lineas": 176,
+      "funciones": [
+        {
+          "nombre": "estadoPrincipal",
+          "linea": 16
+        },
+        {
+          "nombre": "CarteraTablaClientes",
+          "linea": 34
+        },
+        {
+          "nombre": "onCpcResize",
+          "linea": 54
+        }
+      ]
+    },
+    "app/(app)/cartera/hooks/useCarteraData.ts": {
+      "lineas": 144,
+      "hook_exportado": "useCarteraData",
+      "funciones": [
+        {
+          "nombre": "useCarteraData",
+          "linea": 7
+        },
+        {
+          "nombre": "cargarDatos",
+          "linea": 26
+        },
+        {
+          "nombre": "cargarMas",
+          "linea": 94
+        },
+        {
+          "nombre": "onBuscarChange",
+          "linea": 108
+        },
+        {
+          "nombre": "inicializar",
+          "linea": 115
+        }
+      ],
+      "llamadas_api": [
+        "/api/cartera/metas",
+        "/api/empleados?rol=vendedor"
+      ]
+    },
+    "app/(app)/cartera/hooks/useComisiones.ts": {
+      "lineas": 98,
+      "hook_exportado": "useComisiones",
+      "funciones": [
+        {
+          "nombre": "evaluarComision",
+          "linea": 9
+        },
+        {
+          "nombre": "useComisiones",
+          "linea": 18
+        },
+        {
+          "nombre": "guardarComisionAuto",
+          "linea": 44
+        },
+        {
+          "nombre": "cargarComisiones",
+          "linea": 54
+        },
+        {
+          "nombre": "guardarComisionFinal",
+          "linea": 66
+        }
+      ],
+      "llamadas_api": [
+        "/api/comisiones?mes=:param&anio=:param",
+        "/api/comisiones"
+      ]
+    },
+    "app/(app)/cartera/hooks/useEdadesCartera.ts": {
+      "lineas": 36,
+      "hook_exportado": "useEdadesCartera",
+      "funciones": [
+        {
+          "nombre": "useEdadesCartera",
+          "linea": 7
+        },
+        {
+          "nombre": "cargarEdades",
+          "linea": 13
+        }
+      ],
+      "llamadas_api": [
+        "/api/cartera/edades"
+      ]
+    },
+    "app/(app)/cartera/hooks/usePagos.ts": {
+      "lineas": 105,
+      "hook_exportado": "usePagos",
+      "funciones": [
+        {
+          "nombre": "usePagos",
+          "linea": 6
+        },
+        {
+          "nombre": "cargarPagos",
+          "linea": 69
+        }
+      ]
+    },
+    "app/(app)/cartera/hooks/useSyncInfo.ts": {
+      "lineas": 66,
+      "hook_exportado": "useSyncInfo",
+      "funciones": [
+        {
+          "nombre": "useSyncInfo",
+          "linea": 26
+        },
+        {
+          "nombre": "cargarSyncInfo",
+          "linea": 31
+        },
+        {
+          "nombre": "sincronizar",
+          "linea": 43
+        }
+      ],
+      "llamadas_api": [
+        "/api/integracion/estado",
+        "/api/integracion/sync"
+      ]
+    },
+    "app/(app)/cartera/loading.tsx": {
+      "lineas": 15,
+      "funciones": [
+        {
+          "nombre": "LoadingCartera",
+          "linea": 1
+        }
+      ]
+    },
+    "app/(app)/cartera/page.tsx": {
+      "lineas": 368,
+      "funciones": [
+        {
+          "nombre": "CarteraPage",
+          "linea": 33
+        },
+        {
+          "nombre": "syncCliente",
+          "linea": 113
+        },
+        {
+          "nombre": "abrirWhatsApp",
+          "linea": 127
+        },
+        {
+          "nombre": "abrirRecibo",
+          "linea": 173
+        }
+      ],
+      "llamadas_api": [
+        "/api/integracion/sync",
+        "/api/cartera/recibo-token"
+      ]
+    },
+    "app/(app)/cartera/relacion-transferencias/page.tsx": {
+      "lineas": 147,
+      "funciones": [
+        {
+          "nombre": "fmt",
+          "linea": 6
+        },
+        {
+          "nombre": "getMesActual",
+          "linea": 9
+        },
+        {
+          "nombre": "labelMes",
+          "linea": 13
+        },
+        {
+          "nombre": "getMesesDisponibles",
+          "linea": 18
+        },
+        {
+          "nombre": "abreviarVendedor",
+          "linea": 27
+        },
+        {
+          "nombre": "fmtFecha",
+          "linea": 32
+        },
+        {
+          "nombre": "getCols",
+          "linea": 39
+        },
+        {
+          "nombre": "RelacionTransferenciasPage",
+          "linea": 62
+        },
+        {
+          "nombre": "cargar",
+          "linea": 68
+        },
+        {
+          "nombre": "abrirRecibo",
+          "linea": 80
+        }
+      ],
+      "llamadas_api": [
+        "/api/cartera/relacion-transferencias?mes=:param",
+        "/api/cartera/recibo-token"
+      ]
+    }
+  }
+}
