@@ -1,7 +1,7 @@
 {
   "dominio": "impulsos",
   "generado_automaticamente": true,
-  "generado_en": "2026-09-24T02:25:30.218Z",
+  "generado_en": "2026-09-24T02:57:23.516Z",
   "carpeta_principal": "app/(app)/impulsos",
   "archivos": {
     "app/(app)/impulsos/_components/TabEventos.tsx": {

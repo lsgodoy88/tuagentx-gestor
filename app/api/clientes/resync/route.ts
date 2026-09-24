@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
 
       const updates: any = {
         saldo: (d as any).saldo ?? (d as any).balance,
-        ...(d.fechaVencimiento ? { fechaVencimiento: new Date(String(d.fechaVencimiento)) } : {}),
+        fechaVencimiento: d.fPago ? new Date(String(d.fPago)) : null,
       }
       if (existing.clienteApiId !== clienteApiId) {
         updates.clienteApiId = clienteApiId

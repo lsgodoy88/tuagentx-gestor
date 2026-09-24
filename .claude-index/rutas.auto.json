@@ -1,7 +1,7 @@
 {
   "dominio": "rutas",
   "generado_automaticamente": true,
-  "generado_en": "2026-09-24T02:25:30.402Z",
+  "generado_en": "2026-09-24T02:57:23.682Z",
   "carpeta_principal": "app/(app)/rutas",
   "archivos": {
     "app/(app)/rutas/_components/ModalAgregarClientes.tsx": {

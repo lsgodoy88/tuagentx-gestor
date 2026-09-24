@@ -1,7 +1,7 @@
 {
   "dominio": "recaudos",
   "generado_automaticamente": true,
-  "generado_en": "2026-09-24T02:25:30.353Z",
+  "generado_en": "2026-09-24T02:57:23.640Z",
   "carpeta_principal": "app/(app)/recaudos",
   "archivos": {
     "app/(app)/recaudos/_components/ListaMobile.tsx": {

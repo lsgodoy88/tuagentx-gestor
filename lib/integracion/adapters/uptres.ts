@@ -363,7 +363,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
   async fetchDeudasClienteInactivas(clienteId: string): Promise<DeudaExterna[]> {
     // Igual que fetchDeudasCliente pero con condition=false — para actualizar saldos desactualizados
     const res = await fetch(
-      `${BASE}/cartera/cliente/${clienteId}?fields=id,orderNumber,invoiceNumber,electronicInvoiceNumber,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt&condition=false`,
+      `${BASE}/cartera/cliente/${clienteId}?fields=id,orderNumber,invoiceNumber,electronicInvoiceNumber,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt,receivableAt&condition=false`,
       { headers: this.headers }
     )
     const d = await res.json()
@@ -372,7 +372,7 @@ export class UpTresAdapter implements AdaptadorIntegracion {
 
   async fetchDeudasCliente(clienteId: string): Promise<DeudaExterna[]> {
     const res = await fetch(
-      `${BASE}/cartera/cliente/${clienteId}?fields=id,orderNumber,invoiceNumber,electronicInvoiceNumber,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt&condition=true`,
+      `${BASE}/cartera/cliente/${clienteId}?fields=id,orderNumber,invoiceNumber,electronicInvoiceNumber,total,balance,paymentType,creditDay,paidAt,createdAt,updatedAt,receivableAt&condition=true`,
       { headers: this.headers }
     )
     const d = await res.json()
