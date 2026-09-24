@@ -236,12 +236,15 @@ export class UpTresAdapter implements AdaptadorIntegracion {
   private _mapearDeudas(data: any[]): DeudaExterna[] {
     return data.map((o: any) => {
       // Prioridad fechaVencimiento:
-      // 1. paidAt — fecha de vencimiento explícita de UpTres
+      // 1. paidAt — fecha de vencimiento explícita de UpTres (tratada como fecha local Bogotá)
       // 2. createdAt + creditDay — determinista
       // receivableAt = fecha último pago recibido, NO es vencimiento
       let fPago: string | null = null
       if (o.paidAt) {
-        fPago = o.paidAt
+        // UpTres envía fechas como T00:00:00.000Z (medianoche UTC) pero representan
+        // fechas en hora Bogotá — parsear solo la parte de fecha para evitar desfase de un día
+        const soloFecha = String(o.paidAt).slice(0, 10) // 'YYYY-MM-DD'
+        fPago = soloFecha + 'T05:00:00.000Z' // medianoche Bogotá (UTC-5) = 05:00 UTC
       } else if (o.creditDay && o.createdAt) {
         const dias = parseInt(o.creditDay || '0')
         if (dias > 0) {
@@ -321,12 +324,15 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     }
     return todas.map((o: any) => {
       // Prioridad fechaVencimiento:
-      // 1. paidAt — fecha de vencimiento explícita de UpTres
+      // 1. paidAt — fecha de vencimiento explícita de UpTres (tratada como fecha local Bogotá)
       // 2. createdAt + creditDay — determinista
       // receivableAt = fecha último pago recibido, NO es vencimiento
       let fPago: string | null = null
       if (o.paidAt) {
-        fPago = o.paidAt
+        // UpTres envía fechas como T00:00:00.000Z (medianoche UTC) pero representan
+        // fechas en hora Bogotá — parsear solo la parte de fecha para evitar desfase de un día
+        const soloFecha = String(o.paidAt).slice(0, 10) // 'YYYY-MM-DD'
+        fPago = soloFecha + 'T05:00:00.000Z' // medianoche Bogotá (UTC-5) = 05:00 UTC
       } else if (o.creditDay && o.createdAt) {
         const dias = parseInt(o.creditDay || '0')
         if (dias > 0) {
@@ -377,12 +383,13 @@ export class UpTresAdapter implements AdaptadorIntegracion {
 
   private _mapDeudaExterna(o: any, clienteId?: string): DeudaExterna {
     // Prioridad fechaVencimiento:
-    // 1. paidAt — fecha de vencimiento explícita de UpTres
+    // 1. paidAt — fecha de vencimiento explícita de UpTres (tratada como fecha local Bogotá)
     // 2. createdAt + creditDay — determinista
     // receivableAt = fecha último pago recibido, NO es vencimiento
     let fPago: string | null = null
     if (o.paidAt) {
-      fPago = o.paidAt
+      const soloFecha = String(o.paidAt).slice(0, 10)
+      fPago = soloFecha + 'T05:00:00.000Z' // medianoche Bogotá (UTC-5)
     } else if (o.creditDay && o.createdAt) {
       const dias = parseInt(o.creditDay || '0')
       if (dias > 0) {

@@ -1,7 +1,7 @@
 {
   "dominio": "ingresos",
   "generado_automaticamente": true,
-  "generado_en": "2026-09-24T03:20:10.502Z",
+  "generado_en": "2026-09-24T03:41:51.197Z",
   "carpeta_principal": "app/(app)/ingresos",
   "archivos": {
     "app/(app)/ingresos/_components/ConfigPopup.tsx": {

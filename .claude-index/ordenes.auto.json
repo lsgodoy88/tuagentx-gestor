@@ -1,7 +1,7 @@
 {
   "dominio": "ordenes",
   "generado_automaticamente": true,
-  "generado_en": "2026-09-24T03:20:10.555Z",
+  "generado_en": "2026-09-24T03:41:51.236Z",
   "carpeta_principal": "app/(app)/ordenes",
   "archivos": {
     "app/(app)/ordenes/_components/BarraSeleccionMasiva.tsx": {
