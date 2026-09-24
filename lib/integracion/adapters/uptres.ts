@@ -236,12 +236,12 @@ export class UpTresAdapter implements AdaptadorIntegracion {
   private _mapearDeudas(data: any[]): DeudaExterna[] {
     return data.map((o: any) => {
       // Prioridad fechaVencimiento:
-      // 1. receivableAt — campo explícito de UpTres
+      // 1. paidAt — fecha de vencimiento explícita de UpTres
       // 2. createdAt + creditDay — determinista
-      // 3. paidAt — solo fallback
+      // receivableAt = fecha último pago recibido, NO es vencimiento
       let fPago: string | null = null
-      if (o.receivableAt) {
-        fPago = o.receivableAt
+      if (o.paidAt) {
+        fPago = o.paidAt
       } else if (o.creditDay && o.createdAt) {
         const dias = parseInt(o.creditDay || '0')
         if (dias > 0) {
@@ -249,8 +249,6 @@ export class UpTresAdapter implements AdaptadorIntegracion {
           fecha.setDate(fecha.getDate() + dias)
           fPago = fecha.toISOString()
         }
-      } else {
-        fPago = o.paidAt || null
       }
       return {
         uid: o.id,
@@ -323,12 +321,12 @@ export class UpTresAdapter implements AdaptadorIntegracion {
     }
     return todas.map((o: any) => {
       // Prioridad fechaVencimiento:
-      // 1. receivableAt — campo explícito de UpTres
+      // 1. paidAt — fecha de vencimiento explícita de UpTres
       // 2. createdAt + creditDay — determinista
-      // 3. paidAt — solo fallback
+      // receivableAt = fecha último pago recibido, NO es vencimiento
       let fPago: string | null = null
-      if (o.receivableAt) {
-        fPago = o.receivableAt
+      if (o.paidAt) {
+        fPago = o.paidAt
       } else if (o.creditDay && o.createdAt) {
         const dias = parseInt(o.creditDay || '0')
         if (dias > 0) {
@@ -336,8 +334,6 @@ export class UpTresAdapter implements AdaptadorIntegracion {
           fecha.setDate(fecha.getDate() + dias)
           fPago = fecha.toISOString()
         }
-      } else {
-        fPago = o.paidAt || null
       }
       return {
         uid: o.id,
@@ -381,12 +377,12 @@ export class UpTresAdapter implements AdaptadorIntegracion {
 
   private _mapDeudaExterna(o: any, clienteId?: string): DeudaExterna {
     // Prioridad fechaVencimiento:
-    // 1. receivableAt — campo explícito de UpTres
+    // 1. paidAt — fecha de vencimiento explícita de UpTres
     // 2. createdAt + creditDay — determinista
-    // 3. paidAt — solo fallback
+    // receivableAt = fecha último pago recibido, NO es vencimiento
     let fPago: string | null = null
-    if (o.receivableAt) {
-      fPago = o.receivableAt
+    if (o.paidAt) {
+      fPago = o.paidAt
     } else if (o.creditDay && o.createdAt) {
       const dias = parseInt(o.creditDay || '0')
       if (dias > 0) {
@@ -394,8 +390,6 @@ export class UpTresAdapter implements AdaptadorIntegracion {
         fecha.setDate(fecha.getDate() + dias)
         fPago = fecha.toISOString()
       }
-    } else {
-      fPago = o.paidAt || null
     }
     return {
       uid: o.id,
